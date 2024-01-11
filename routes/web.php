@@ -22,20 +22,13 @@ Route::get('/', function () {
 //    return  "dasboard";
 //});
 
-Route::get('/dasboard', [\App\Http\Controllers\DashboardController::class, 'index' ]);
+Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index' ])->name('dashboard.index');;
+Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index' ])->name('payments.index');;
+Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index' ])->name('prices.index');;
+Route::get('/users', [\App\Http\Controllers\UsersController::class, 'index' ])->name('users.index');;
 
 
-Route::get('/payments', function () {
-    return  "payments";
-});
 
-Route::get('/prices', function () {
-    return  "prices";
-});
-
-Route::get('/users', function () {
-    return  "users";
-});
 
 
 
