@@ -10,9 +10,8 @@ class DashboardController extends Controller
 {
     public function index() {
 
-        $teams = Team::find(1);
-        $user  = User::find(1);
-return view('dashboard');
-//        dd($user);
+        $teams = Team::all();
+        $users  = User::all();
+return view('dashboard', compact('users', 'teams'));
     }
 }

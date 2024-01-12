@@ -1,9 +1,6 @@
-{{--@extends('layouts/main')--}}
-
-{{--@section('content')--}}
+@extends('layouts/main')
+@section('content')
     <div>
         this is users
     </div>
-{{--@endsection--}}
-
-
+@endsection
