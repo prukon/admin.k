@@ -37,3 +37,7 @@ Route::get('/users', [\App\Http\Controllers\UsersController::class, 'index' ])->
 Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+
+Auth::routes();
+
+Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');

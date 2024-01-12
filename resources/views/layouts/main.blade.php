@@ -1,4 +1,4 @@
-<!doctype html>
+ <!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -8,25 +8,11 @@
     <title>Document</title>
 </head>
 <body>
-<h2>header</h2>
 
-
-
-<div>
-    <div>
-        <nav>
-            <ul>
-                <li><a href="{{route('dashboard.index')}}">Консоль</a></li>
-                <li><a href="{{route('payments.index')}}">Заказ</a></li>
-                <li><a href="{{route('prices.index')}}">Установка цен</a></li>
-                <li><a href="{{route('users.index')}}">Пользователи</a></li>
-                <li><a href="#">Выйти</a></li>
-            </ul>
-        </nav>
-    </div>
-</div>
+@yield('header')
+@yield('mainMenu')
 @yield('content')
+@yield('footer')
 
-<h2>footer</h2>
 </body>
 </html>
