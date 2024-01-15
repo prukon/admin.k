@@ -17,6 +17,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/test', function () {
+	return view('layouts.main');
+});
+
 
 //Route::get('/dasboard', function () {
 //    return  "dasboard";
@@ -26,9 +30,6 @@ Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'ind
 Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index' ])->name('payments.index');;
 Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index' ])->name('prices.index');;
 Route::get('/users', [\App\Http\Controllers\UsersController::class, 'index' ])->name('users.index');;
-
-
-
 
 
 
