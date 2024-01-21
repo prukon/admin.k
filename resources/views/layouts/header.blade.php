@@ -74,8 +74,35 @@
         header .tel {
             color: var(--color-main-grey);
         }
+
     </style>
 
+
+    <style>
+        /*media*/
+        @media screen and (max-width: 1399px) {
+            header .main-menu {
+                font-size: 12px;
+            }
+            header .tel {
+                font-size: 12px;
+            }
+        }
+
+        @media screen and (max-width: 991px) {
+            header .main-menu {
+                font-size: 11px;
+            }
+            header .tel {
+                font-size: 11px;
+            }
+        }
+        @media screen and (max-width: 767px) {
+      .social-networks {
+          margin-right: 0;
+      }
+        }
+    </style>
     <header>
 {{--        <div class="head-top container-fluid ">--}}
 {{--            <div class="container ">--}}
@@ -99,24 +126,24 @@
 
         <div class="header container-fluid">
             <div class="container">
-                <div class="row align-items-center">
+                <div class="row align-items-center justify-content-center">
                     <a href="/" class="logo col-2">
                         <img src="resources/img/logo.png" alt="fc-istok.ru">
                     </a>
 
-                    <nav class="main-menu col-4 d-flex justify-content-between align-items-center">
+                    <nav class="main-menu col-sm-8 col-md-6 col-lg-5 col-xl-4 d-flex justify-content-between align-items-center">
                         <a href="#">Личный кабинет</a>
                         <a href="#">Расписание занятий</a>
                         <a href="#">Контакты</a>
                     </nav>
-                    <nav class="d-flex col-2 social-networks justify-content-center ">
+                    <nav class="d-flex col-sm-6 col-md-1 col-lg-2 social-networks justify-content-center ">
                         <a target="_blank" class="d-flex justify-content-center align-items-center"
                            href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk"></i></a>
                         <a target="_blank" class="d-flex justify-content-center align-items-center"
                            href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i
                                     class="fa-brands fa-youtube"></i></a>
                     </nav>
-                    <a class="tel col-2 d-flex justify-content-start align-items-center" href="tel:78129204575">8 (812)
+                    <a class="tel col-sm-6 col-md-2 d-flex justify-content-sm-center justify-content-md-start align-items-center" href="tel:78129204575">8 (812)
                         920-45-75</a>
                     </a>
 
@@ -124,56 +151,4 @@
             </div>
         </div>
     </header>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <div class="container text-center">
-        <div class="row">
-            <nav class="navbar navbar-expand-lg navbar-default bg-light">
-
-                <div class="col-xl-4  col-sm-12 text-center">
-                    <a class="navbar-brand" href="/"><img src="public/logo.jpg" alt="logo"></a>
-                    <a href="tel:78129204575">8 (812) 920-45-75</a>
-                </div>
-
-                <div class="col-xl-4  col-sm-12  text-center">
-                    <ul class="navbar-nav text-uppercase">
-                        <li class="active"><a class="nav-link" href="/">Главная </a></li>
-                        <li><a class="nav-link" href="https://fc-istok.ru/raspisanie/">Расписание занятий</a></li>
-                        <li><a class="nav-link" href="https://fc-istok.ru/#contacts">Контакты</a></li>
-                    </ul>
-                </div>
-
-                <div class="col-xl-4  col-sm-12  text-center">
-                    <ul class="navbar-nav">
-                        <li><a target="_blank" class="nav-link" href="https://vk.com/fc_istok_spb"><i
-                                        class="fa-brands fa-vk"></i></a></li>
-                        <li><a target="_blank" class="nav-link"
-                               href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i
-                                        class="fa-brands fa-youtube"></i></a></li>
-                        <li><a target="_blank" class="nav-link" href="https://vk.com/fc_istok_spb"><i
-                                        class="fa-solid fa-user"></i></a></li>
-                    </ul>
-                </div>
-            </nav>
-        </div>
-
-    </div>
-
 @endsection
