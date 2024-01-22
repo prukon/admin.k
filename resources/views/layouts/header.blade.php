@@ -6,6 +6,7 @@
             --color-yellow: #f3a12b;
             --color-dark-red: #8e1c13;
         }
+
         header .head-top {
             background-color: #6969695c;
             padding: 5px 0;
@@ -76,7 +77,6 @@
         }
 
 
-
     </style>
 
 
@@ -86,6 +86,7 @@
             header .main-menu {
                 font-size: 12px;
             }
+
             header .tel {
                 font-size: 12px;
             }
@@ -94,37 +95,72 @@
         @media screen and (max-width: 991px) {
             header .main-menu {
                 font-size: 11px;
+                Letter-spacing: 0.4px;
             }
+
             header .tel {
                 font-size: 11px;
             }
         }
+
         @media screen and (max-width: 767px) {
-      .social-networks {
-          margin-right: 0;
-      }
+            .social-networks {
+                margin-right: 0;
+            }
+
+            header .main-menu a {
+                padding-right: 4px;
+            }
+        }
+
+        @media screen and (max-width: 575px) {
+            header .main-menu {
+                font-size: 10px;
+                Letter-spacing: 0.4px;
+            }
+            header .main-menu a {
+                padding-right: 4px;
+            }
+
+            header .tel {
+                font-size: 11px;
+            }
+        }
+
+        @media screen and (max-width: 464px) {
+            header .main-menu {
+                font-size: 9px;
+                Letter-spacing: 0.4px;
+            }
+            header .main-menu a {
+                padding-right: 4px;
+            }
+
+            header .tel {
+                font-size: 10px;
+            }
         }
     </style>
     <header>
-{{--        <div class="head-top container-fluid ">--}}
-{{--            <div class="container ">--}}
-{{--                <div class="row justify-content-end align-items-center">--}}
-{{--                    <nav class="d-flex col-1 social-networks">--}}
-{{--                        <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
-{{--                           href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk"></i></a>--}}
-{{--                        <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
-{{--                           href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i--}}
-{{--                                    class="fa-brands fa-youtube"></i></a>--}}
-{{--                    </nav>--}}
-{{--                    <a href="#" class="my-profile col-2  d-flex align-items-center">--}}
-{{--                        <figure class="d-flex align-items-center">--}}
-{{--                            <i class="fa-solid fa-user "></i>--}}
-{{--                            <figcaption>Мой профиль</figcaption>--}}
-{{--                        </figure>--}}
-{{--                    </a>--}}
-{{--                </div>--}}
-{{--            </div>--}}
-{{--        </div>--}}
+        {{--        <div class="head-top container-fluid ">--}}
+        {{--            <div class="container ">--}}
+        {{--                <div class="row justify-content-end align-items-center">--}}
+        {{--                    <nav class="d-flex col-1 social-networks">--}}
+        {{--                        <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
+        {{--                           href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk"></i></a>--}}
+        {{--                        <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
+        {{--                           href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i--}}
+        {{--                                    class="fa-brands fa-youtube"></i></a>--}}
+        {{--                    </nav>--}}
+        {{--                    <a href="#" class="my-profile col-2  d-flex align-items-center">--}}
+        {{--                        <figure class="d-flex align-items-center">--}}
+        {{--                            <i class="fa-solid fa-user "></i>--}}
+        {{--                            <figcaption>Мой профиль</figcaption>--}}
+        {{--                        </figure>--}}
+        {{--                    </a>--}}
+        {{--                </div>--}}
+        {{--            </div>--}}
+        {{--        </div>--}}
 
         <div class="header container-fluid">
             <div class="container">
@@ -133,19 +169,20 @@
                         <img src="resources/img/logo.png" alt="fc-istok.ru">
                     </a>
 
-                    <nav class="main-menu col-sm-8 col-md-6 col-lg-5 col-xl-4 d-flex justify-content-between align-items-center">
+                    <nav class="main-menu col-8 col-sm-8 col-md-6 col-lg-5 col-xl-4 d-flex justify-content-between align-items-center">
                         <a href="#">Личный кабинет</a>
                         <a href="#">Расписание занятий</a>
                         <a href="#">Контакты</a>
                     </nav>
-                    <nav class="d-flex col-sm-6 col-md-1 col-lg-2 social-networks justify-content-center ">
+                    <nav class="d-flex col-6 col-sm-6 col-md-1 col-lg-2 social-networks justify-content-center ">
                         <a target="_blank" class="d-flex justify-content-center align-items-center"
                            href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk"></i></a>
                         <a target="_blank" class="d-flex justify-content-center align-items-center"
                            href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i
                                     class="fa-brands fa-youtube"></i></a>
                     </nav>
-                    <a class="tel col-sm-6 col-md-2 d-flex justify-content-sm-center justify-content-md-start align-items-center" href="tel:78129204575">8 (812)
+                    <a class="tel col-6 col-sm-6 col-md-2 d-flex justify-content-center  align-items-center"
+                       href="tel:78129204575">8 (812)
                         920-45-75</a>
                     </a>
 
