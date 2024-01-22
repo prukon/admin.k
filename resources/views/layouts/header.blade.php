@@ -79,7 +79,6 @@
 
     </style>
 
-
     <style>
         /*media*/
         @media screen and (max-width: 1399px) {
@@ -142,26 +141,6 @@
         }
     </style>
     <header>
-        {{--        <div class="head-top container-fluid ">--}}
-        {{--            <div class="container ">--}}
-        {{--                <div class="row justify-content-end align-items-center">--}}
-        {{--                    <nav class="d-flex col-1 social-networks">--}}
-        {{--                        <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
-        {{--                           href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk"></i></a>--}}
-        {{--                        <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
-        {{--                           href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i--}}
-        {{--                                    class="fa-brands fa-youtube"></i></a>--}}
-        {{--                    </nav>--}}
-        {{--                    <a href="#" class="my-profile col-2  d-flex align-items-center">--}}
-        {{--                        <figure class="d-flex align-items-center">--}}
-        {{--                            <i class="fa-solid fa-user "></i>--}}
-        {{--                            <figcaption>Мой профиль</figcaption>--}}
-        {{--                        </figure>--}}
-        {{--                    </a>--}}
-        {{--                </div>--}}
-        {{--            </div>--}}
-        {{--        </div>--}}
-
         <div class="header container-fluid">
             <div class="container">
                 <div class="row align-items-center justify-content-center">
@@ -179,11 +158,10 @@
                            href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk"></i></a>
                         <a target="_blank" class="d-flex justify-content-center align-items-center"
                            href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i
-                                    class="fa-brands fa-youtube"></i></a>
+class="fa-brands fa-youtube"></i></a>
                     </nav>
                     <a class="tel col-6 col-sm-6 col-md-2 d-flex justify-content-center  align-items-center"
-                       href="tel:78129204575">8 (812)
-                        920-45-75</a>
+                       href="tel:78129204575">8 (812) 920-45-75</a>
                     </a>
 
                 </div>
