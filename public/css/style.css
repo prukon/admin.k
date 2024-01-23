@@ -1,13 +1,11 @@
-.testDiv {
-    color: red;
-}
+
+/*хедер*/
 
 :root {
     --color-main-grey: #4e4e4e;
     --color-yellow: #f3a12b;
     --color-dark-red: #8e1c13;
 }
-
 header {
     background-color: #f3f5f7;
 }
@@ -81,72 +79,55 @@ header .tel {
     color: var(--color-main-grey);
 }
 
+/*Боковое меню*/
 
-<
-/
-style >
-
-<
-style >
-    /*media*/
-
-@media screen and (max-width: 1399px) {
-    header .main-menu {
-        font-size: 12px;
-    }
-
-    header .tel {
-        font-size: 12px;
-    }
+.btn-bd-primary {
+    /*--bs-btn-font-weight: 600;*/
+    --bs-btn-font-size: 14px;
+    --bs-btn-color: black;
+    --bs-btn-bg: white;
+    --bs-btn-border-color: #f3a12b;
+    --bs-btn-hover-color: white;
+    --bs-btn-hover-bg: #f3a12b;
+    --bs-btn-hover-border-color: #f3a12b;
+    --bs-btn-active-color: #f3a12b;
 }
 
-@media screen and (max-width: 991px) {
-    header .main-menu {
-        font-size: 11px;
-        Letter-spacing: 0.4px;
-    }
-
-    header .tel {
-        font-size: 11px;
-    }
+.btn-bd-primary-active {
+    /*--bs-btn-font-weight: 600;*/
+    --bs-btn-font-size: 14px;
+    --bs-btn-color: white;
+    --bs-btn-bg: #f3a12b;
+    --bs-btn-border-color: #f3a12b;
+    --bs-btn-hover-color: white;
+    --bs-btn-hover-bg: #f3a12b;
+    --bs-btn-active-color: #f3a12b;
+    --bs-btn-hover-border-color: #f3a12b;
+    --bs-btn-focus-shadow-rgb: ;
 }
 
-@media screen and (max-width: 767px) {
-    .social-networks {
-        margin-right: 0;
-    }
-
-    header .main-menu a {
-        padding-right: 4px;
-    }
+.side-menu button {
+    width: 100%;
 }
 
-@media screen and (max-width: 575px) {
-    header .main-menu {
-        font-size: 10px;
-        Letter-spacing: 0.4px;
-    }
+/*футер*/
 
-    header .main-menu a {
-        padding-right: 4px;
-    }
-
-    header .tel {
-        font-size: 11px;
-    }
+footer {
+    background-color: #f3f5f7;
 }
-
-@media screen and (max-width: 464px) {
-    header .main-menu {
-        font-size: 9px;
-        Letter-spacing: 0.4px;
-    }
-
-    header .main-menu a {
-        padding-right: 4px;
-    }
-
-    header .tel {
-        font-size: 10px;
-    }
+footer .company-details {
+    margin-bottom: 15px;
+    margin-top: 15px;
+}
+footer .social-networks {
+    margin-bottom: 15px;
+}
+footer .copyright {
+    margin-bottom: 15px;
+}
+footer .dev-author {
+    margin-right: 5px;
+}
+footer .social-networks {
+    color: black;
 }

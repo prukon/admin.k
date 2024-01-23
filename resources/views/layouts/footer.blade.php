@@ -1,25 +1,4 @@
 @section('footer')
-    <style>
-        footer {
-            background-color: #f3f5f7;
-        }
-        footer .company-details {
-            margin-bottom: 15px;
-            margin-top: 15px;
-        }
-        footer .social-networks {
-            margin-bottom: 15px;
-        }
-        footer .copyright {
-            margin-bottom: 15px;
-        }
-        footer .dev-author {
-            margin-right: 5px;
-        }
-        footer .social-networks {
-            color: black;
-        }
-    </style>
 
     <footer>
         <div class="footer container-fluid">
