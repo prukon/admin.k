@@ -10,13 +10,20 @@
     <link rel="stylesheet" href="{{ asset('css/media-style.css') }}">
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
     @vite(['resources/js/app.js', 'resources/sass/app.scss'])
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="= crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js" integrity="sha256-lSjKY0/srUM9BE3dPm+c4fBo1dky2v27Gdjm2uoZaL0=" crossorigin="anonymous"></script>
-    <script src="https://kit.fontawesome.com/a56719d62b.js" crossorigin="anonymous"></script>
+    <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
+    <script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>
+    <script src="{{ asset('js/fontawesome/fontawesome.js') }}"></script>
+
+
+{{--    <script src="https://kit.fontawesome.com/a56719d62b.js" crossorigin="anonymous"></script>--}}
     <script src="{{ asset('js/main.js') }}"></script>
 
+{{--    select2--}}
+    <link rel="stylesheet" href="{{ asset('css/select2/select2.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/select2/select2-bootstrap-5-theme.min.css') }}">
+    <script src="{{ asset('js/select2/select2.full.min.js') }}"></script>
 
-    <title>Document</title>
+    <title>Личный кабинет</title>
 </head>
 <body>
 

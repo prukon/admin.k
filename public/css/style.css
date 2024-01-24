@@ -131,3 +131,20 @@ footer .dev-author {
 footer .social-networks {
     color: black;
 }
+
+/*dashboard*/
+.welcome-text {
+    margin-top: 10px;
+}
+.welcome-text span {
+    font-weight: 600;
+}
+.choose-user {
+    margin: 20px 0;
+}
+
+ /*select2*/
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+    right: 10px; /* Регулируйте значение в соответствии с вашим дизайном */
+    left: auto;
+}
