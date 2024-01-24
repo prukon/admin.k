@@ -175,11 +175,26 @@ footer .social-networks {
     left: auto;
 }
 
-.seasons .season-2024 {
+.seasons .season {
     text-align: center;
     margin-top: 20px;
     padding-bottom: 23px;
     padding-bottom: 23px;
     border: 1px solid #f3a12b;
     position: relative;
+}
+.seasons .header-season {
+    position: absolute; 
+    left: 40px;
+    top: -12px;
+    background: #fff;
+    padding: 0 10px;
+    font-weight: 800;
+    color: #8e1c13
+}
+.seasons .is_credit {
+    margin-top: 24px;
+    display: block;
+    font-weight: 600;
+    color: #8e1c13;
 }

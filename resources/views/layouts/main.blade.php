@@ -20,6 +20,7 @@
 
     {{--JQuery-UI--}}
     <script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>
+
     {{--Fontawesome--}}
     <script src="{{ asset('js/fontawesome/fontawesome.js') }}"></script>
 

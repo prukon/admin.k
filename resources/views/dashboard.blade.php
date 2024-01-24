@@ -2,12 +2,8 @@
 @extends('layouts/header')
 @extends('layouts/mainMenu')
 @extends('layouts/footer')
-
-
 @section('content')
 
-    {{--    <div class="container">--}}
-    {{--    <div class="row">--}}
     <div class="col-md-9 main-content">
 
         <div>
@@ -116,20 +112,28 @@
             <h5>Расписание:</h5>
 
 
-
-
-
-
-
-
             {{--Оплататы по месяцам--}}
             <div class="row seasons">
                 <div class="col-12">
-                    <div class="season-2023">
+                    <div class="season season-2024">
                         <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-down"></i></div>
                         <span class="is_credit">Имеется просроченная задолженность в размере <span
                                     class="is_credit_value">0</span> руб.</span>
                     </div>
+
+                    <div class="season season-2023">
+                        <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-down"></i></div>
+                        <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                    class="is_credit_value">0</span> руб.</span>
+                    </div>
+
+                    <div class="season season-2022">
+                        <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-down"></i></div>
+                        <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                    class="is_credit_value">0</span> руб.</span>
+                    </div>
+
+
                 </div>
             </div>
         </div>
