@@ -139,12 +139,47 @@ footer .social-networks {
 .welcome-text span {
     font-weight: 600;
 }
-.choose-user {
+.choose-user-header {
     margin: 20px 0;
 }
-
+.choose-user {
+    padding-bottom: 10px;
+}
+.weekday-checkbox {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+.weekday-checkbox .form-check {
+    border: dotted 2px #f2a133;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-right: 5px;
+}
+.avatar_wrapper {
+    height: 190px;
+    width: 141px;
+    border: solid 1px #e7a246;
+    text-align: center;
+}
+.personal-data {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+.change-team {
+    text-decoration: underline;
+    color: gray;
+}
  /*select2*/
 .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
     right: 10px; /* Регулируйте значение в соответствии с вашим дизайном */
     left: auto;
+}
+
+.seasons .season-2024 {
+    text-align: center;
+    margin-top: 20px;
+    padding-bottom: 23px;
+    padding-bottom: 23px;
+    border: 1px solid #f3a12b;
+    position: relative;
 }

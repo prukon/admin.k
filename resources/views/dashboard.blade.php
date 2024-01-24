@@ -10,48 +10,42 @@
     {{--    <div class="row">--}}
     <div class="col-md-9 main-content">
 
-
         <div>
             <h6 class="welcome-text">Добро пожаловать, <span>админ</span></h6>
-            <h5 class="choose-user">Выбор ученика:</h5>
+            <h5 class="choose-user-header">Выбор ученика:</h5>
 
-            <div class="row">
+            {{--Выбор ученика, группы, кнопка установить--}}
+            <div class="row choose-user">
+
                 <div class="col-3">
-
-                    <select class="form-select" id="single-select-field" data-placeholder="Choose one thing">
+                    <select class="form-select" id="single-select-field" data-placeholder="ФИО">
                         <option></option>
-                        <option>Reactive</option>
-                        <option>Solution</option>
-                        <option>Conglomeration</option>
-                        <option>Algoritm</option>
-                        <option>Holistic</option>
+                        @foreach($users as $user)
+                            <option>{{($user->name)}}</option>
+                        @endforeach
                     </select>
-{{--                    <select>--}}
-                        {{--            @foreach($users as $user)--}}
-                        {{--                <option>{{($user->name)}}</option>--}}
-                        {{--            @endforeach--}}
-{{--                    </select>--}}
                 </div>
-                <div class="col-3">
 
-                    <select class="form-select" id="single-select-field2" data-placeholder="Choose one thing">
+                <div class="col-3">
+                    <select class="form-select" id="single-select-field2" data-placeholder="Группа">
                         <option></option>
-                        <option>Reactive</option>
-                        <option>Solution</option>
-                        <option>Conglomeration</option>
-                        <option>Algoritm</option>
-                        <option>Holistic</option>
+                        @foreach($teams as $team)
+                            <option>{{($team->title)}}</option>
+                        @endforeach
                     </select>
-
-{{--                    <select>--}}
-{{--                        @foreach($teams as $team)--}}
-{{--                            <option>{{($team->title)}}</option>--}}
-{{--                        @endforeach--}}
-{{--                    </select>--}}
+                    <i class="fa-thin fa-calendar-lines"></i>
                 </div>
+
                 <div class="col-3">
-                    <input type="text" class="form-control" aria-label="Пример размера поля ввода"
-                           aria-describedby="inputGroup-sizing-sm">
+                    <div class="input-group flex-nowrap">
+                        <input type="text" id="inlineCalendar" class="form-control" placeholder="01.02.2024" aria-label="Имя
+      пользователя" aria-describedby="addon-wrapping">
+                        <span class="input-group-text" id="addon-wrapping"><i
+                                    class="fa-solid fa-calendar-days"></i></span>
+                    </div>
+                    <script>
+                    </script>
+
                 </div>
                 <div class="col-3">
                     <button type="button" class="btn btn-primary">Установить</button>
@@ -59,29 +53,85 @@
                 </div>
             </div>
 
+            {{--Чекбоксы дней недели--}}
+            <div class="row weekday-checkbox">
+                <div class="col-12 ">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="Monday" value="Monday">
+                        <label class="form-check-label" for="Monday">Понедельник</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="Tuesday" value="Tuesday">
+                        <label class="form-check-label" for="Tuesday">Вторник</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="Wednesday" value="Wednesday">
+                        <label class="form-check-label" for="Wednesday">Среда</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="Thursday" value="Thursday">
+                        <label class="form-check-label" for="Thursday">Четверг</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="Friday" value="Friday">
+                        <label class="form-check-label" for="Friday">Пятница</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="Saturday" value="Saturday">
+                        <label class="form-check-label" for="Saturday">Суббота</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="Sunday" value="Sunday">
+                        <label class="form-check-label" for="Sunday">Воскресенье</label>
+                    </div>
 
-        </div>
+                </div>
+            </div>
 
-        <h5>Расписание:</h5>
-        <div>
-{{--            <script type="text/javascript">--}}
-{{--                try {--}}
-{{--                    $(function () {--}}
-{{--                        $('#inlineCalendar').datepicker({--}}
-{{--                            firstDay: 1,--}}
-{{--                            dateFormat: "dd.mm.yy",--}}
-{{--                            defaultDate: new Date(),--}}
-{{--                            monthNames: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',--}}
-{{--                                'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],--}}
-{{--                            dayNames: ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],--}}
-{{--                            dayNamesShort: ['вск', 'пнд', 'втр', 'срд', 'чтв', 'птн', 'сбт'],--}}
-{{--                            dayNamesMin: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],--}}
-{{--                        });--}}
-{{--                        $('#inlineCalendar').datepicker('setDate', new Date());--}}
-{{--                    });--}}
-{{--                } catch (e) {--}}
-{{--                }--}}
-{{--            </script>--}}
+            {{--Аватарка и личные данные--}}
+            <div class="row personal-data">
+                <div class="col-2">
+                    <div class="avatar_wrapper d-flex align-items-center justify-content-center">
+                        <img src=" {{ asset('img/logo.png') }}" alt="fc-istok.ru">
+                    </div>
+                </div>
+
+                <div class="col-3">
+                    <div class="personal-data-header">
+                        <div class="group">Группа:</div>
+                        <div class="birthday">Дата рождения:</div>
+                        <div class="count-training">Количество тренировок:</div>
+                    </div>
+
+                </div>
+                <div class="col-7">
+                    <div class="personal-data-value">
+                        <div class="group">дубль <span class="change-team"> (изменить)</span></div>
+                        <div class="birthday">01.01.2010</div>
+                        <div class="count-training">22</div>
+                    </div>
+                </div>
+            </div>
+
+            <h5>Расписание:</h5>
+
+
+
+
+
+
+
+
+            {{--Оплататы по месяцам--}}
+            <div class="row seasons">
+                <div class="col-12">
+                    <div class="season-2023">
+                        <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-down"></i></div>
+                        <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                    class="is_credit_value">0</span> руб.</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     </div>

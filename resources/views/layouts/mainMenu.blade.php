@@ -33,7 +33,7 @@
 
     <div class="container">
         <div class="row">
-            <div class="col-md-3">
+            <div class="col-md-3 side-menu-wrapper">
 
                 <nav class="navbar navbar-default">
                     <div class="d-grid gap-2 side-menu">

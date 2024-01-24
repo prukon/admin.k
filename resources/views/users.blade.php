@@ -4,7 +4,10 @@
 @extends('layouts/mainMenu')
 
 @section('content')
-    <div>
-        this is users
+    <div class="col-md-9 main-content">
+
+    this is users
+    </div>
+    </div>
     </div>
 @endsection

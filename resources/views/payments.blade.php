@@ -5,7 +5,10 @@
 
 
 @section('content')
-    <div>
+    <div class="col-md-9 main-content">
         this is payment
     </div>
+    </div>
+    </div>
+
 @endsection

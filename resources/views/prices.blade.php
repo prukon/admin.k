@@ -5,7 +5,10 @@
 
 
 @section('content')
-    <div>
-        this is prices
+    <div class="col-md-9 main-content">
+
+    this is prices
+    </div>
+    </div>
     </div>
 @endsection
