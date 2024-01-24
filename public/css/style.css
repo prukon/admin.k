@@ -81,34 +81,34 @@ header .tel {
 
 /*Боковое меню*/
 
-.btn-bd-primary {
-    /*--bs-btn-font-weight: 600;*/
-    --bs-btn-font-size: 14px;
-    --bs-btn-color: black;
-    --bs-btn-bg: white;
-    --bs-btn-border-color: #f3a12b;
-    --bs-btn-hover-color: white;
-    --bs-btn-hover-bg: #f3a12b;
-    --bs-btn-hover-border-color: #f3a12b;
-    --bs-btn-active-color: #f3a12b;
-}
+/*.btn-bd-primary {*/
+/*    !*--bs-btn-font-weight: 600;*!*/
+/*    --bs-btn-font-size: 14px;*/
+/*    --bs-btn-color: black;*/
+/*    --bs-btn-bg: white;*/
+/*    --bs-btn-border-color: #f3a12b;*/
+/*    --bs-btn-hover-color: white;*/
+/*    --bs-btn-hover-bg: #f3a12b;*/
+/*    --bs-btn-hover-border-color: #f3a12b;*/
+/*    --bs-btn-active-color: #f3a12b;*/
+/*}*/
 
-.btn-bd-primary-active {
-    /*--bs-btn-font-weight: 600;*/
-    --bs-btn-font-size: 14px;
-    --bs-btn-color: white;
-    --bs-btn-bg: #f3a12b;
-    --bs-btn-border-color: #f3a12b;
-    --bs-btn-hover-color: white;
-    --bs-btn-hover-bg: #f3a12b;
-    --bs-btn-active-color: #f3a12b;
-    --bs-btn-hover-border-color: #f3a12b;
-    --bs-btn-focus-shadow-rgb: ;
-}
+/*.btn-bd-primary-active {*/
+/*    !*--bs-btn-font-weight: 600;*!*/
+/*    --bs-btn-font-size: 14px;*/
+/*    --bs-btn-color: white;*/
+/*    --bs-btn-bg: #f3a12b;*/
+/*    --bs-btn-border-color: #f3a12b;*/
+/*    --bs-btn-hover-color: white;*/
+/*    --bs-btn-hover-bg: #f3a12b;*/
+/*    --bs-btn-active-color: #f3a12b;*/
+/*    --bs-btn-hover-border-color: #f3a12b;*/
+/*    --bs-btn-focus-shadow-rgb: ;*/
+/*}*/
 
-.side-menu button {
-    width: 100%;
-}
+/*.side-menu button {*/
+/*    width: 100%;*/
+/*}*/
 
 /*футер*/
 

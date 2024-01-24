@@ -5,7 +5,7 @@
         <div class="header container">
             <div class="row align-items-center justify-content-center">
                 <a href="/" class="logo col-2">
-                    <img src="resources/img/logo.png" alt="fc-istok.ru">
+                    <img src=" {{ asset('img/logo.png') }}" alt="fc-istok.ru">
                 </a>
 
                 <nav class="main-menu col-8 col-sm-8 col-md-6 col-lg-5 col-xl-4 d-flex justify-content-between align-items-center">

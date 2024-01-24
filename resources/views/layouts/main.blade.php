@@ -8,16 +8,18 @@
 
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     <link rel="stylesheet" href="{{ asset('css/media-style.css') }}">
-    <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/x-icon">
+    <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
     @vite(['resources/js/app.js', 'resources/sass/app.scss'])
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="= crossorigin="anonymous"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js" integrity="sha256-lSjKY0/srUM9BE3dPm+c4fBo1dky2v27Gdjm2uoZaL0=" crossorigin="anonymous"></script>
     <script src="https://kit.fontawesome.com/a56719d62b.js" crossorigin="anonymous"></script>
+    <script src="{{ asset('js/main.js') }}"></script>
+
 
     <title>Document</title>
 </head>
 <body>
- 
+
 @yield('header')
 @yield('mainMenu')
 @yield('content')
