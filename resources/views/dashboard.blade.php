@@ -112,23 +112,25 @@
             <h5>Расписание:</h5>
 
 
-
-
+            {{--Сезоны--}}
             <div class="row seasons">
                 <div class="col-12">
                     <div class="season season-2024" id="season-2024">
                         <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-down"></i></div>
-                        <span class="is_credit">Имеется просроченная задолженность в размере <span class="is_credit_value">0</span> руб.</span>
+                        <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                    class="is_credit_value">0</span> руб.</span>
                         <div class="row justify-content-center align-items-center container" data-season="2024"></div>
                     </div>
                     <div class="season season-2023" id="season-2023">
                         <div class="header-season">Сезон 2022 - 2023 <i class="fa fa-chevron-down"></i></div>
-                        <span class="is_credit">Имеется просроченная задолженность в размере <span class="is_credit_value">0</span> руб.</span>
+                        <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                    class="is_credit_value">0</span> руб.</span>
                         <div class="row justify-content-center align-items-center container" data-season="2023"></div>
                     </div>
                     <div class="season season-2022" id="season-2022">
                         <div class="header-season">Сезон 2021 - 2022 <i class="fa fa-chevron-down"></i></div>
-                        <span class="is_credit">Имеется просроченная задолженность в размере <span class="is_credit_value">0</span> руб.</span>
+                        <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                    class="is_credit_value">0</span> руб.</span>
                         <div class="row justify-content-center align-items-center container" data-season="2022"></div>
                     </div>
                 </div>
@@ -173,6 +175,9 @@
                     }
                 });
             </script>
+
+            {{--            Измерение иконок при клике --}}
+            <script> clickSeason() </script>
         </div>
     </div>
     </div>

@@ -13,6 +13,39 @@ $(document).ready(function () {
 });
 
 
+let clickSeason = function () {
+    var chevronDownIcons = document.querySelectorAll('.header-season');
+    // Добавляем обработчик события клика для каждого элемента
+    chevronDownIcons.forEach(function(icon) {
+        icon.addEventListener('click', function() {
+            // Изменяем класс элемента в зависимости от текущего класса
+            if (icon.children[0].classList.contains('fa-chevron-down')) {
+                icon.children[0].classList.remove('fa-chevron-down');
+                icon.children[0].classList.add('fa-chevron-up');
+            } else {
+                icon.children[0].classList.remove('fa-chevron-up');
+                icon.children[0].classList.add('fa-chevron-down');
+            }
+
+            // Находим соответствующий элемент "season"
+            var seasonElement = icon.children[0].closest('.season');
+
+            // Находим все элементы с классом "border_price col-3 february" внутри "season"
+            var borderPriceElements = seasonElement.querySelectorAll('.border_price');
+
+            // Скрываем/показываем все элементы в зависимости от текущего класса "fa-chevron-down/fa-chevron-up"
+            borderPriceElements.forEach(function(borderPrice) {
+                if (icon.children[0].classList.contains('fa-chevron-up')) {
+                    borderPrice.style.display = 'none';
+                } else {
+                    borderPrice.style.display = 'block';
+                }
+            });
+        });
+    });
+}
+
+
 document.addEventListener('DOMContentLoaded', function () {
 
     // Select2
@@ -27,13 +60,7 @@ document.addEventListener('DOMContentLoaded', function () {
         placeholder: $(this).data('placeholder'),
     });
 
-// Вызов datapicker
-//     var inlineCalendar = new Datepicker('#inlineCalendar',{
-//         weekStart: 1,
-//     });
-
-
-
+// datapicker
     try {
         $(function () {
             $('#inlineCalendar').datepicker({
@@ -50,6 +77,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     } catch (e) {
     }
+
+
+
+
+
 }, false);
 
 
