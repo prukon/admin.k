@@ -4,7 +4,7 @@
 @extends('layouts/footer')
 @section('content')
 
-    <div class="col-md-9 main-content">
+    <div class="col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
 
         <div>
             <h6 class="welcome-text">Добро пожаловать, <span>админ</span></h6>
@@ -49,7 +49,7 @@
                 </div>
             </div>
 
-            {{--Чекбоксы дней недели--}}
+{{--            Чекбоксы дней недели--}}
             <div class="row weekday-checkbox">
                 <div class="col-12 ">
                     <div class="form-check form-check-inline">
@@ -84,6 +84,14 @@
                 </div>
             </div>
 
+            <div class="row weekday-checkbox">
+                <div class="col-12" id="weekdayContainer"></div>
+            </div>
+
+
+
+
+
             {{--Аватарка и личные данные--}}
             <div class="row personal-data">
                 <div class="col-2">
@@ -113,16 +121,18 @@
 
 
             {{--Сезоны--}}
+
+
             <div class="row seasons">
                 <div class="col-12">
                     <div class="season season-2024" id="season-2024">
-                        <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-down"></i></div>
+                        <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-down"></i><span class="display-none from">2023</span><span class="display-none to">2024</span></div>
                         <span class="is_credit">Имеется просроченная задолженность в размере <span
                                     class="is_credit_value">0</span> руб.</span>
                         <div class="row justify-content-center align-items-center container" data-season="2024"></div>
                     </div>
                     <div class="season season-2023" id="season-2023">
-                        <div class="header-season">Сезон 2022 - 2023 <i class="fa fa-chevron-down"></i></div>
+                            <div class="header-season">Сезон 2022 - 2023 <i class="fa fa-chevron-down"></i><span class="display-none from">2022</span><span class="display-none to">2023</span></div>
                         <span class="is_credit">Имеется просроченная задолженность в размере <span
                                     class="is_credit_value">0</span> руб.</span>
                         <div class="row justify-content-center align-items-center container" data-season="2023"></div>
@@ -136,47 +146,10 @@
                 </div>
             </div>
 
-            <script>
-                // Данные для каждого месяца
-                const months = [
-                    'january', 'february', 'march', 'april', 'may', 'june',
-                    'july', 'august', 'september', 'october', 'november', 'december'
-                ];
-                const monthsRu = [
-                    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-                    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-                ];
+            {{--Создание сезонов--}}
+            <script> createSeasons() </script>
 
-                // Цикл по сезонам
-                document.querySelectorAll('.season .container').forEach(container => {
-                    const season = container.dataset.season;
-
-                    // Цикл по месяцам
-                    for (const [key, month] of months.entries()) {
-                        const div = document.createElement('div');
-                        div.className = `border_price col-3 ${month}`;
-
-                        div.innerHTML = `
-                <div class="row align-items-center justify-content-center">
-                    <span class="price-value">100</span>
-                    <span class="hide-currency">₽</span>
-                </div>
-                <div class="row justify-content-center align-items-center">
-                    <div class="new-price-description">за ${monthsRu[key]} 2020</div>
-                </div>
-                <div class="row">
-                    <div class="justify-content-center align-items-center">
-                        <button type="button" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
-                    </div>
-                </div>
-            `;
-
-                        container.appendChild(div);
-                    }
-                });
-            </script>
-
-            {{--            Измерение иконок при клике --}}
+            {{--Измерение иконок при клике --}}
             <script> clickSeason() </script>
         </div>
     </div>

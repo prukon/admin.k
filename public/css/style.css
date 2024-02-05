@@ -178,7 +178,7 @@ footer .social-networks {
 .seasons .season {
     text-align: center;
     margin-top: 20px;
-    padding-bottom: 23px;
+    /*padding-bottom: 23px;*/
     border: 1px solid #f3a12b;
     position: relative;
 }
@@ -254,3 +254,6 @@ footer .social-networks {
 /*    text-transform: uppercase;*/
 /*}*/
 
+.display-none {
+    display: none;
+}
