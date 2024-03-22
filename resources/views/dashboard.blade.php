@@ -7,7 +7,7 @@
     <div class="col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
 
         <div>
-            <h6 class="welcome-text">Добро пожаловать 22 03, <span>админ</span></h6>
+            <h6 class="welcome-text">Добро пожаловать, <span>админ</span></h6>
             <h5 class="choose-user-header">Выбор ученика:</h5>
 
             {{--Выбор ученика, группы, кнопка установить--}}
