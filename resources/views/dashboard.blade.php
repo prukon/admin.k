@@ -6,6 +6,177 @@
 
     <div class="col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
 
+
+
+
+        <div class='container-form'>
+            <input id='selectedFile' class="disp-none" type='file' accept=".png, .jpg, .jpeg, .svg">
+            <button id="upload-aphoto" class="btn-primary btn">Select image</button>
+        </div>
+        <div class='container-image'>
+            <img id='confirm-img' src=''>
+        </div>
+
+        <div class="modal fade" id="imageModalContainer" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-md modal-dialog-centered">
+                <div class="modal-content modal-content1 modal-content1">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="imageModal">Crop Image</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body modal-body1">
+                        <div id='crop-image-container'>
+
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary save-modal">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            $(document).on('click', '#upload-aphoto', function () {
+                document.getElementById('selectedFile').click();
+            });
+
+            $('#selectedFile').change(function () {
+                if (this.files[0] == undefined)
+                    return;
+                $('#imageModalContainer').modal('show');
+                let reader = new FileReader();
+                reader.addEventListener("load", function () {
+                    window.src = reader.result;
+                    $('#selectedFile').val('');
+                }, false);
+                if (this.files[0]) {
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+
+            let croppi;
+            $('#imageModalContainer').on('shown.bs.modal', function () {
+                let width = document.getElementById('crop-image-container').offsetWidth - 20;
+                $('#crop-image-container').height((width - 80) + 'px');
+                croppi = $('#crop-image-container').croppie({
+                    viewport: {
+                        width: width,
+                        height: width
+                    },
+                });
+                $('.modal-body1').height(document.getElementById('crop-image-container').offsetHeight + 50 + 'px');
+                croppi.croppie('bind', {
+                    url: window.src,
+                }).then(function () {
+                    croppi.croppie('setZoom', 0);
+                });
+            });
+            $('#imageModalContainer').on('hidden.bs.modal', function () {
+                croppi.croppie('destroy');
+            });
+
+            $(document).on('click', '.save-modal', function (ev) {
+                croppi.croppie('result', {
+                    type: 'base64',
+                    format: 'jpeg',
+                    size: 'original'
+                }).then(function (resp) {
+                    $('#confirm-img').attr('src', resp);
+                    $('.modal').modal('hide');
+                });
+            });
+        </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{{--        <form method="POST" action="/store" enctype="multipart/form-data">--}}
+{{--            @csrf--}}
+{{--            <input type="file" name="image" id="image-input" accept="image/*">--}}
+{{--            <div id="image-preview"></div>--}}
+{{--            <input type="hidden" name="base64_image" id="base64-image">--}}
+{{--            <button type="submit">Upload</button>--}}
+{{--        </form>--}}
+
+{{--        <script>--}}
+{{--            $(document).ready(function() {--}}
+{{--                var preview = new Croppie($('#image-preview')[0], {--}}
+{{--                    viewport: {--}}
+{{--                        width: 800,--}}
+{{--                        height: 400,--}}
+{{--                        type: 'square'--}}
+{{--                    },--}}
+{{--                    boundary: {--}}
+{{--                        width: 810,--}}
+{{--                        height: 410--}}
+{{--                    },--}}
+{{--                    enableResize: false,--}}
+{{--                    enableOrientation: true,--}}
+{{--                    enableExif: true,--}}
+{{--                });--}}
+
+{{--                $('#image-input').on('change', function(e) {--}}
+{{--                    var file = e.target.files[0];--}}
+{{--                    var reader = new FileReader();--}}
+
+{{--                    reader.onload = function() {--}}
+{{--                        var base64data = reader.result;--}}
+{{--                        $('#base64-image').val(base64data);--}}
+
+{{--                        preview.bind({--}}
+{{--                            url: base64data--}}
+{{--                        }).then(function() {--}}
+{{--                            console.log('Croppie bind complete');--}}
+{{--                        });--}}
+{{--                    }--}}
+ 
+{{--                    reader.readAsDataURL(file);--}}
+{{--                });--}}
+
+{{--                $('form').on('submit', function(e) {--}}
+{{--                    e.preventDefault();--}}
+
+{{--                    preview.result('base64').then(function(result) {--}}
+{{--                        $('#base64-image').val(result);--}}
+{{--                        $('form')[0].submit();--}}
+{{--                    });--}}
+{{--                });--}}
+{{--            });--}}
+{{--        </script>--}}
+
+
+
         <div>
             <h6 class="welcome-text">Добро пожаловать, <span>админ</span></h6>
             <h5 class="choose-user-header">Выбор ученика:</h5>
@@ -49,7 +220,7 @@
                 </div>
             </div>
 
-{{--            Чекбоксы дней недели--}}
+            {{--            Чекбоксы дней недели--}}
             <div class="row weekday-checkbox">
                 <div class="col-12 ">
                     <div class="form-check form-check-inline">
@@ -89,9 +260,6 @@
             </div>
 
 
-
-
-
             {{--Аватарка и личные данные--}}
             <div class="row personal-data">
                 <div class="col-2">
@@ -126,13 +294,15 @@
             <div class="row seasons">
                 <div class="col-12">
                     <div class="season season-2024" id="season-2024">
-                        <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-down"></i><span class="display-none from">2023</span><span class="display-none to">2024</span></div>
+                        <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-down"></i><span
+                                    class="display-none from">2023</span><span class="display-none to">2024</span></div>
                         <span class="is_credit">Имеется просроченная задолженность в размере <span
                                     class="is_credit_value">0</span> руб.</span>
                         <div class="row justify-content-center align-items-center container" data-season="2024"></div>
                     </div>
                     <div class="season season-2023" id="season-2023">
-                            <div class="header-season">Сезон 2022 - 2023 <i class="fa fa-chevron-down"></i><span class="display-none from">2022</span><span class="display-none to">2023</span></div>
+                        <div class="header-season">Сезон 2022 - 2023 <i class="fa fa-chevron-down"></i><span
+                                    class="display-none from">2022</span><span class="display-none to">2023</span></div>
                         <span class="is_credit">Имеется просроченная задолженность в размере <span
                                     class="is_credit_value">0</span> руб.</span>
                         <div class="row justify-content-center align-items-center container" data-season="2023"></div>

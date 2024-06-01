@@ -37,6 +37,10 @@
     <link rel="stylesheet" href="{{ asset('css/datapicker/themes-jquery-ui.css') }}">
     <script src="{{ asset('js/datapicker/datepicker.js') }}"></script>
 
+    {{--Cropie--}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css">
+    <link rel="stylesheet" href="{{ asset('css/croppie.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js"></script>
 
 
     <title>Личный кабинет</title>
