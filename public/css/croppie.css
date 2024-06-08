@@ -6,7 +6,8 @@
     display:flex;
     justify-content: center;
     align-items: center;
-    padding:50px;
+    /*padding:50px;*/
+    padding-top: 10px;
     padding-bottom:0;
 }
 .container-image{
@@ -17,8 +18,10 @@
     padding:20px;
 }
 #confirm-img{
-    height: 218px;
+    /*height: 218px;*/
     border-radius: 4px;
+    height: auto;
+    width: 100%;
 }
 body{
     /*background: linear-gradient(90deg, rgba(19,20,23,1) 0%, rgba(30,31,38,1) 100%, rgba(30,31,38,1) 100%);*/

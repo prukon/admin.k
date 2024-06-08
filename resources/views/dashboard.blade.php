@@ -8,14 +8,9 @@
 
 
 
-
-        <div class='container-form'>
-            <input id='selectedFile' class="disp-none" type='file' accept=".png, .jpg, .jpeg, .svg">
-            <button id="upload-aphoto" class="btn-primary btn">Select image</button>
-        </div>
-        <div class='container-image'>
-            <img id='confirm-img' src=''>
-        </div>
+{{--        <div class='container-image'>--}}
+{{--            <img id='old-confirm-img' src=''>--}}
+{{--        </div>--}}
 
         <div class="modal fade" id="imageModalContainer" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-md modal-dialog-centered">
@@ -39,57 +34,6 @@
             </div>
         </div>
 
-        <script>
-            $(document).on('click', '#upload-aphoto', function () {
-                document.getElementById('selectedFile').click();
-            });
-
-            $('#selectedFile').change(function () {
-                if (this.files[0] == undefined)
-                    return;
-                $('#imageModalContainer').modal('show');
-                let reader = new FileReader();
-                reader.addEventListener("load", function () {
-                    window.src = reader.result;
-                    $('#selectedFile').val('');
-                }, false);
-                if (this.files[0]) {
-                    reader.readAsDataURL(this.files[0]);
-                }
-            });
-
-            let croppi;
-            $('#imageModalContainer').on('shown.bs.modal', function () {
-                let width = document.getElementById('crop-image-container').offsetWidth - 20;
-                $('#crop-image-container').height((width - 80) + 'px');
-                croppi = $('#crop-image-container').croppie({
-                    viewport: {
-                        width: width,
-                        height: width
-                    },
-                });
-                $('.modal-body1').height(document.getElementById('crop-image-container').offsetHeight + 50 + 'px');
-                croppi.croppie('bind', {
-                    url: window.src,
-                }).then(function () {
-                    croppi.croppie('setZoom', 0);
-                });
-            });
-            $('#imageModalContainer').on('hidden.bs.modal', function () {
-                croppi.croppie('destroy');
-            });
-
-            $(document).on('click', '.save-modal', function (ev) {
-                croppi.croppie('result', {
-                    type: 'base64',
-                    format: 'jpeg',
-                    size: 'original'
-                }).then(function (resp) {
-                    $('#confirm-img').attr('src', resp);
-                    $('.modal').modal('hide');
-                });
-            });
-        </script>
 
 
 
@@ -121,59 +65,59 @@
 
 
 
-{{--        <form method="POST" action="/store" enctype="multipart/form-data">--}}
-{{--            @csrf--}}
-{{--            <input type="file" name="image" id="image-input" accept="image/*">--}}
-{{--            <div id="image-preview"></div>--}}
-{{--            <input type="hidden" name="base64_image" id="base64-image">--}}
-{{--            <button type="submit">Upload</button>--}}
-{{--        </form>--}}
+        {{--        <form method="POST" action="/store" enctype="multipart/form-data">--}}
+        {{--            @csrf--}}
+        {{--            <input type="file" name="image" id="image-input" accept="image/*">--}}
+        {{--            <div id="image-preview"></div>--}}
+        {{--            <input type="hidden" name="base64_image" id="base64-image">--}}
+        {{--            <button type="submit">Upload</button>--}}
+        {{--        </form>--}}
 
-{{--        <script>--}}
-{{--            $(document).ready(function() {--}}
-{{--                var preview = new Croppie($('#image-preview')[0], {--}}
-{{--                    viewport: {--}}
-{{--                        width: 800,--}}
-{{--                        height: 400,--}}
-{{--                        type: 'square'--}}
-{{--                    },--}}
-{{--                    boundary: {--}}
-{{--                        width: 810,--}}
-{{--                        height: 410--}}
-{{--                    },--}}
-{{--                    enableResize: false,--}}
-{{--                    enableOrientation: true,--}}
-{{--                    enableExif: true,--}}
-{{--                });--}}
+        {{--        <script>--}}
+        {{--            $(document).ready(function() {--}}
+        {{--                var preview = new Croppie($('#image-preview')[0], {--}}
+        {{--                    viewport: {--}}
+        {{--                        width: 800,--}}
+        {{--                        height: 400,--}}
+        {{--                        type: 'square'--}}
+        {{--                    },--}}
+        {{--                    boundary: {--}}
+        {{--                        width: 810,--}}
+        {{--                        height: 410--}}
+        {{--                    },--}}
+        {{--                    enableResize: false,--}}
+        {{--                    enableOrientation: true,--}}
+        {{--                    enableExif: true,--}}
+        {{--                });--}}
 
-{{--                $('#image-input').on('change', function(e) {--}}
-{{--                    var file = e.target.files[0];--}}
-{{--                    var reader = new FileReader();--}}
+        {{--                $('#image-input').on('change', function(e) {--}}
+        {{--                    var file = e.target.files[0];--}}
+        {{--                    var reader = new FileReader();--}}
 
-{{--                    reader.onload = function() {--}}
-{{--                        var base64data = reader.result;--}}
-{{--                        $('#base64-image').val(base64data);--}}
+        {{--                    reader.onload = function() {--}}
+        {{--                        var base64data = reader.result;--}}
+        {{--                        $('#base64-image').val(base64data);--}}
 
-{{--                        preview.bind({--}}
-{{--                            url: base64data--}}
-{{--                        }).then(function() {--}}
-{{--                            console.log('Croppie bind complete');--}}
-{{--                        });--}}
-{{--                    }--}}
- 
-{{--                    reader.readAsDataURL(file);--}}
-{{--                });--}}
+        {{--                        preview.bind({--}}
+        {{--                            url: base64data--}}
+        {{--                        }).then(function() {--}}
+        {{--                            console.log('Croppie bind complete');--}}
+        {{--                        });--}}
+        {{--                    }--}}
 
-{{--                $('form').on('submit', function(e) {--}}
-{{--                    e.preventDefault();--}}
+        {{--                    reader.readAsDataURL(file);--}}
+        {{--                });--}}
 
-{{--                    preview.result('base64').then(function(result) {--}}
-{{--                        $('#base64-image').val(result);--}}
-{{--                        $('form')[0].submit();--}}
-{{--                    });--}}
-{{--                });--}}
-{{--            });--}}
-{{--        </script>--}}
+        {{--                $('form').on('submit', function(e) {--}}
+        {{--                    e.preventDefault();--}}
+
+        {{--                    preview.result('base64').then(function(result) {--}}
+        {{--                        $('#base64-image').val(result);--}}
+        {{--                        $('form')[0].submit();--}}
+        {{--                    });--}}
+        {{--                });--}}
+        {{--            });--}}
+        {{--        </script>--}}
 
 
 
@@ -264,8 +208,15 @@
             <div class="row personal-data">
                 <div class="col-2">
                     <div class="avatar_wrapper d-flex align-items-center justify-content-center">
-                        <img src=" {{ asset('img/logo.png') }}" alt="fc-istok.ru">
+                        <img id ='confirm-img' src=" {{ asset('img/logo.png') }}" alt="fc-istok.ru">
                     </div>
+
+                    <div class='container-form'>
+                        <input id='selectedFile' class="disp-none" type='file' accept=".png, .jpg, .jpeg, .svg">
+                        <button id="upload-aphoto" class="btn-primary btn">Выбрать фото...</button>
+                    </div>
+
+
                 </div>
 
                 <div class="col-3">
@@ -326,4 +277,61 @@
     </div>
     </div>
     </div>
+
+
+
+
+    <script>
+        $(document).on('click', '#upload-aphoto', function () {
+            document.getElementById('selectedFile').click();
+        });
+
+        $('#selectedFile').change(function () {
+            if (this.files[0] == undefined)
+                return;
+            $('#imageModalContainer').modal('show');
+            let reader = new FileReader();
+            reader.addEventListener("load", function () {
+                window.src = reader.result;
+                $('#selectedFile').val('');
+            }, false);
+            if (this.files[0]) {
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+
+        let croppi;
+        $('#imageModalContainer').on('shown.bs.modal', function () {
+            let width = document.getElementById('crop-image-container').offsetWidth - 20;
+            $('#crop-image-container').height((width - 80) + 'px');
+            croppi = $('#crop-image-container').croppie({
+                viewport: {
+                    width: width,
+                    height: width
+                },
+            });
+            $('.modal-body1').height(document.getElementById('crop-image-container').offsetHeight + 50 + 'px');
+            croppi.croppie('bind', {
+                url: window.src,
+            }).then(function () {
+                croppi.croppie('setZoom', 0);
+            });
+        });
+        $('#imageModalContainer').on('hidden.bs.modal', function () {
+            croppi.croppie('destroy');
+        });
+
+        $(document).on('click', '.save-modal', function (ev) {
+            croppi.croppie('result', {
+                type: 'base64',
+                format: 'jpeg',
+                size: 'original'
+            }).then(function (resp) {
+                $('#confirm-img').attr('src', resp);
+                $('.modal').modal('hide');
+            });
+        });
+    </script>
+
+
 @endsection
