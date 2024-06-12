@@ -26,10 +26,13 @@ Route::get('/test', function () {
 //    return  "dasboard";
 //});
 
-Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index' ])->name('dashboard.index');;
-Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index' ])->name('payments.index');;
-Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index' ])->name('prices.index');;
-Route::get('/users', [\App\Http\Controllers\UsersController::class, 'index' ])->name('users.index');;
+Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index' ])->name('dashboard.index');
+Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index' ])->name('payments.index');
+Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index' ])->name('prices.index');
+
+Route::get('/users', [\App\Http\Controllers\UsersController::class, 'index' ])->name('user.index');
+Route::get('users/create', [\App\Http\Controllers\UsersController::class, 'create' ])->name('user.create');
+Route::post('users/store', [\App\Http\Controllers\UsersController::class, 'store' ])->name('user.store');
 
 
 

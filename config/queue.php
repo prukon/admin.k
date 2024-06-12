@@ -78,7 +78,7 @@ return [
     | Job Batching
     |--------------------------------------------------------------------------
     |
-    | The following options configure the database and table that store job
+    | The following options configure the database and table that store.blade.php job
     | batching information. These options can be updated to any database
     | connection and table which has been defined by your application.
     |
@@ -95,7 +95,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | These options configure the behavior of failed queue job logging so you
-    | can control which database and table are used to store the jobs that
+    | can control which database and table are used to store.blade.php the jobs that
     | have failed. You may change them to any database / table you wish.
     |
     */

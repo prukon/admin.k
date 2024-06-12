@@ -11,6 +11,8 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
+    protected $table = 'users'; //явное указание к какой таблице в БД привязана модель
+    protected $guarded = []; //разрешение на изменение данных в таблице
 
     /**
      * The attributes that are mass assignable.

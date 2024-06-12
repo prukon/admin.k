@@ -46,7 +46,7 @@
                         <a href="{{route('prices.index')}}">
                             <button type="button" class="btn btn-lg  btn-bd-primary">Детали учетной записи</button>
                         </a>
-                        <a href="{{route('users.index')}}">
+                        <a href="{{route('user.index')}}">
                             <button type="button" class="btn btn-lg  btn-bd-primary">Пользователи</button>
                         </a>
                     </div>

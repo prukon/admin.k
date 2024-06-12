@@ -4,19 +4,16 @@
 @extends('layouts/footer')
 @section('content')
 
+    <script src="{{ asset('js/my-croppie.js') }}"></script>
+
     <div class="col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
 
-
-
-{{--        <div class='container-image'>--}}
-{{--            <img id='old-confirm-img' src=''>--}}
-{{--        </div>--}}
-
+        {{--        Модалка загрузки аватара--}}
         <div class="modal fade" id="imageModalContainer" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-md modal-dialog-centered">
                 <div class="modal-content modal-content1 modal-content1">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="imageModal">Crop Image</h5>
+                        <h5 class="modal-title" id="imageModal">Редактирование</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
@@ -27,8 +24,12 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-primary save-modal">Save</button>
+{{--                        <form action="{{ route('post.update', $post->id) }}" method="post">--}}
+{{--                            @csrf--}}
+{{--                            @method('patch')--}}
+                        <button type="button" class="btn btn-secondary cancel-modal" data-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary save-modal">Сохранить</button>
+{{--                        </form>--}}
                     </div>
                 </div>
             </div>
@@ -47,25 +48,7 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        {{--        <form method="POST" action="/store" enctype="multipart/form-data">--}}
+        {{--        <form method="POST" action="/store.blade.php" enctype="multipart/form-data">--}}
         {{--            @csrf--}}
         {{--            <input type="file" name="image" id="image-input" accept="image/*">--}}
         {{--            <div id="image-preview"></div>--}}
@@ -120,8 +103,10 @@
         {{--        </script>--}}
 
 
-
         <div>
+
+
+
             <h6 class="welcome-text">Добро пожаловать, <span>админ</span></h6>
             <h5 class="choose-user-header">Выбор ученика:</h5>
 
@@ -208,7 +193,7 @@
             <div class="row personal-data">
                 <div class="col-2">
                     <div class="avatar_wrapper d-flex align-items-center justify-content-center">
-                        <img id ='confirm-img' src=" {{ asset('img/logo.png') }}" alt="fc-istok.ru">
+                        <img id ='confirm-img' src=" {{$users[0]->image}} " alt={{$users[0]->name}}>
                     </div>
 
                     <div class='container-form'>
@@ -238,9 +223,7 @@
 
             <h5>Расписание:</h5>
 
-
             {{--Сезоны--}}
-
 
             <div class="row seasons">
                 <div class="col-12">
@@ -281,57 +264,6 @@
 
 
 
-    <script>
-        $(document).on('click', '#upload-aphoto', function () {
-            document.getElementById('selectedFile').click();
-        });
-
-        $('#selectedFile').change(function () {
-            if (this.files[0] == undefined)
-                return;
-            $('#imageModalContainer').modal('show');
-            let reader = new FileReader();
-            reader.addEventListener("load", function () {
-                window.src = reader.result;
-                $('#selectedFile').val('');
-            }, false);
-            if (this.files[0]) {
-                reader.readAsDataURL(this.files[0]);
-            }
-        });
-
-        let croppi;
-        $('#imageModalContainer').on('shown.bs.modal', function () {
-            let width = document.getElementById('crop-image-container').offsetWidth - 20;
-            $('#crop-image-container').height((width - 80) + 'px');
-            croppi = $('#crop-image-container').croppie({
-                viewport: {
-                    width: width,
-                    height: width
-                },
-            });
-            $('.modal-body1').height(document.getElementById('crop-image-container').offsetHeight + 50 + 'px');
-            croppi.croppie('bind', {
-                url: window.src,
-            }).then(function () {
-                croppi.croppie('setZoom', 0);
-            });
-        });
-        $('#imageModalContainer').on('hidden.bs.modal', function () {
-            croppi.croppie('destroy');
-        });
-
-        $(document).on('click', '.save-modal', function (ev) {
-            croppi.croppie('result', {
-                type: 'base64',
-                format: 'jpeg',
-                size: 'original'
-            }).then(function (resp) {
-                $('#confirm-img').attr('src', resp);
-                $('.modal').modal('hide');
-            });
-        });
-    </script>
 
 
 @endsection

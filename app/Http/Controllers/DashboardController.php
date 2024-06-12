@@ -14,4 +14,9 @@ class DashboardController extends Controller
         $users  = User::all();
 return view('dashboard', compact('users', 'teams'));
     }
+
+    public function update() {
+
+    }
+
 }
