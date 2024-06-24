@@ -30,9 +30,30 @@ Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'ind
 Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index' ])->name('payments.index');
 Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index' ])->name('prices.index');
 
+
+//Пользователи
 Route::get('/users', [\App\Http\Controllers\UsersController::class, 'index' ])->name('user.index');
+//Создание пользователя
 Route::get('users/create', [\App\Http\Controllers\UsersController::class, 'create' ])->name('user.create');
-Route::post('users/store', [\App\Http\Controllers\UsersController::class, 'store' ])->name('user.store');
+//Создание пользователя обработка
+Route::post('users', [\App\Http\Controllers\UsersController::class, 'store' ])->name('user.store');
+//Показ 1 пользователя
+Route::get('users/{user}', [\App\Http\Controllers\UsersController::class, 'show' ])->name('user.show');
+//Редактирование 1 пользователя
+Route::get('users/{user}/edit', [\App\Http\Controllers\UsersController::class, 'edit' ])->name('user.edit');
+//Редактирование 1 обработка
+Route::patch('users/{user}', [\App\Http\Controllers\UsersController::class, 'update' ])->name('user.update');
+//Удаление 1 юзера
+Route::delete('users/{user}', [\App\Http\Controllers\UsersController::class, 'destroy' ])->name('user.delete');
+
+
+//Группы
+Route::get('/teams', [\App\Http\Controllers\TeamsController::class, 'index' ])->name('team.index');
+Route::get('teams/create', [\App\Http\Controllers\TeamsController::class, 'create' ])->name('team.create');
+Route::post('teams', [\App\Http\Controllers\TeamsController::class, 'store' ])->name('team.store');
+Route::get('teams/{team}/edit', [\App\Http\Controllers\TeamsController::class, 'edit' ])->name('team.edit');
+Route::patch('teams/{team}', [\App\Http\Controllers\TeamsController::class, 'update' ])->name('team.update');
+Route::delete('teams/{team}', [\App\Http\Controllers\TeamsController::class, 'destroy' ])->name('team.delete');
 
 
 

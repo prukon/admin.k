@@ -8,6 +8,8 @@
 
     <div class="col-md-9 main-content">
 
+        <h4 class="mt-3">Создание пользователя</h4>
+
         <form
                 action="{{ route('user.store')}}"  method="post">
             {{--             Токен (система защиты) необходим при использовании любого роута кроме get.--}}
@@ -24,9 +26,9 @@
 
             <div class="mb-3">
                 <label for="team">Группа</label>
-                <select class="form-control" id='team' name='team_id'>
-                    @foreach($AllTeams as $team)
-                        <option value="">{{$team->title}}</option>
+                <select class="form-select" id='team' name='team_id'>
+                    @foreach($allTeams as $team)
+                        <option value="{{$team->id}}">{{$team->title}}</option>
                     @endforeach
                 </select>
             </div>
@@ -53,12 +55,13 @@
 
             <div class="mb-3">
                 <label for="activity">Активность</label>
-                <select name = "is_enabled" class="form-control" id='activity' name='activity'>
+                <select name = "is_enabled" class="form-select" id='activity' name='activity'>
                     <option value="1">Да</option>
                     <option value="0">Нет</option>
                 </select>
-            </div>
 
+            </div>
+            <span><a class="btn btn-danger" href="{{ route('user.index') }}">Назад</a></span>
             <button type="submit" class="btn btn-primary">Создать</button>
         </form>
 

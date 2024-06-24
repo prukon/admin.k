@@ -49,6 +49,9 @@
                         <a href="{{route('user.index')}}">
                             <button type="button" class="btn btn-lg  btn-bd-primary">Пользователи</button>
                         </a>
+                        <a href="{{route('team.index')}}">
+                            <button type="button" class="btn btn-lg  btn-bd-primary">Группы</button>
+                        </a>
                     </div>
                 </nav>
             </div>
