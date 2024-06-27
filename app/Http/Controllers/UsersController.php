@@ -11,6 +11,7 @@ class UsersController extends Controller
     public function index()
     {
         $allUsers = User::all();
+
         return view("user.index", compact("allUsers")); //означает, что мы обращаемся к папке post, в которой файл index.blade.php
 //        dd($user);
     }

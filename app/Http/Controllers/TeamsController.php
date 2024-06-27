@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Team;
 use App\Models\User;
+use App\Models\Weekday;
 use Illuminate\Http\Request;
 
 class TeamsController extends Controller
@@ -11,6 +12,12 @@ class TeamsController extends Controller
     public function index()
     {
         $allTeams = Team::all();
+
+//        $team = Team::find(2);
+//        $weekday = Weekday::find(3);
+//        dd($team->weekdays);
+//        dd($weekday->teams);
+
         return view("team.index", compact("allTeams"));
     }
 
@@ -25,13 +32,24 @@ class TeamsController extends Controller
     {
         $data = request()->validate([
             'title' => 'string',
+            'schedule' => '',
 //            'description' => 'string',
 //            'image' => '',
             'is_enabled' => '',
             'order_by' => '',
         ]);
-//        dd($data);
-        Team::create($data);
+        $schedule = $data['schedule'];
+        unset($data['schedule']);
+
+        $team = Team::create($data);
+
+        $team->schedule()->attach($schedule);   //Способ без логирования даты создания и изменения записи в бд
+
+        //Способ с логированием даты создания и изменения записи в бд
+//        teamSchedule::firstOrCreate([
+//            'schedule_id' => $schedule,
+//            'team_id' => $team->id,
+//        ]);
         return redirect()->route('team.index');
     }
 
@@ -53,7 +71,9 @@ class TeamsController extends Controller
 //              dd($data);
         return redirect()->route('team.index');
     }
-    public function destroy(Team $team) {
+
+    public function destroy(Team $team)
+    {
         $team->delete();
         return redirect()->route('team.index');
     }
