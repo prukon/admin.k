@@ -31,20 +31,22 @@ Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index
 Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index' ])->name('prices.index');
 
 
+Route::group(['namespace'=> 'User'], function (){
 //Пользователи
-Route::get('/users', [\App\Http\Controllers\UsersController::class, 'index' ])->name('user.index');
+    Route::get('/users', '\App\Http\Controllers\User\IndexController')->name('user.index');
 //Создание пользователя
-Route::get('users/create', [\App\Http\Controllers\UsersController::class, 'create' ])->name('user.create');
+    Route::get('users/create', '\App\Http\Controllers\User\CreateController')->name('user.create');
 //Создание пользователя обработка
-Route::post('users', [\App\Http\Controllers\UsersController::class, 'store' ])->name('user.store');
+    Route::post('users', '\App\Http\Controllers\User\StoreController')->name('user.store');
 //Показ 1 пользователя
-Route::get('users/{user}', [\App\Http\Controllers\UsersController::class, 'show' ])->name('user.show');
+//    Route::get('users/{user}', '\App\Http\Controllers\User\ShowController')->name('user.show');
 //Редактирование 1 пользователя
-Route::get('users/{user}/edit', [\App\Http\Controllers\UsersController::class, 'edit' ])->name('user.edit');
+    Route::get('users/{user}/edit','\App\Http\Controllers\User\EditController')->name('user.edit');
 //Редактирование 1 обработка
-Route::patch('users/{user}', [\App\Http\Controllers\UsersController::class, 'update' ])->name('user.update');
+    Route::patch('users/{user}', '\App\Http\Controllers\User\UpdateController')->name('user.update');
 //Удаление 1 юзера
-Route::delete('users/{user}', [\App\Http\Controllers\UsersController::class, 'destroy' ])->name('user.delete');
+    Route::delete('users/{user}', '\App\Http\Controllers\User\DestroyController')->name('user.delete');
+});
 
 
 //Группы
