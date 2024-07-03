@@ -150,6 +150,32 @@
             </div>
 
             {{--            Чекбоксы дней недели--}}
+
+            {{$team}}
+
+            <div class="form-group">
+                <label for="weekdays">Расписание</label>
+                <select multiple class="form-control" id="weekdays" name="weekdays[]">
+                    @foreach($weekdays as $weekday)
+                        <option
+                                @foreach($team->weekdays as $teamWeekday)
+                                    {{$weekday->id === $teamWeekday->id ? 'selected' : ''}}
+                                @endforeach
+                                value="{{$weekday->id}}">{{$weekday->title}}</option>
+                    @endforeach
+                </select>
+            </div>
+
+
+            <div class="row weekday-checkbox">
+                <div class="col-12 ">
+
+
+
+                </div>
+            </div>
+
+
             <div class="row weekday-checkbox">
                 <div class="col-12 ">
                     <div class="form-check form-check-inline">

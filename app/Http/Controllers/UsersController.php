@@ -27,12 +27,12 @@ class UsersController extends Controller
     {
         $data = request()->validate([
             'name' => 'string',
-            'birthday' => 'string',
-            'team_id' => '',
+            'birthday' => '',
+            'team_id' => 'string',
             'image' => '',
             'email' => 'string',
-            'password' => 'string',
-            'is_enabled' => '',
+//            'password' => 'string',
+            'is_enabled' => 'string',
         ]);
 //        dd($data);
         User::create($data);
@@ -55,12 +55,12 @@ class UsersController extends Controller
     {
         $data = request()->validate([
             'name' => 'string',
-            'birthday' => 'string',
-            'team_id' => '',
+            'birthday' => '',
+            'team_id' => 'string',
 //            'image' => '',
             'email' => 'string',
-            'password' => 'string',
-            'is_enabled' => '',
+//            'password' => 'string',
+            'is_enabled' => 'string',
         ]);
         $user->update($data);
 //              dd($data);

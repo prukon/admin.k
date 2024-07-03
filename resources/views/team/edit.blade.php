@@ -15,53 +15,27 @@
             @method('patch')
             <div class="mb-3">
                 <label for="title" class="form-label">Название группы</label>
-                <input type="text" name="title" class="form-control" id="title" value="{{ $team->title }}">
+                <input type="text" name="title" class="form-control" id="title" value="{{$team->title}}">
+                @error('title' )
+                <p class="text-danger">{{'Введите название'}}</p>
+                @enderror
             </div>
 
             <div class="mb-3">
-                <label for="title" class="form-label">Расписание</label>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="" id="monday">
-                    <label class="form-check-label" for="monday">
-                        Понедельник
-                    </label>
+
+                <div class="form-group">
+                    <label for="weekdays">Расписание</label>
+                    <select multiple class="form-control" id="weekdays" name="weekdays[]">
+                        @foreach($weekdays as $weekday)
+                            <option
+                                    @foreach($team->weekdays as $teamWeekday)
+                                        {{$weekday->id === $teamWeekday->id ? 'selected' : ''}}
+                                    @endforeach
+                                    value="{{$weekday->id}}">{{$weekday->title}}</option>
+                    @endforeach
+                    </select>
                 </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="" id="tuesday">
-                    <label class="form-check-label" for="tuesday">
-                        Вторник
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="" id="wednesday">
-                    <label class="form-check-label" for="wednesday">
-                        Среда
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="" id="thursday">
-                    <label class="form-check-label" for="thursday">
-                        Четверг
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="" id="friday">
-                    <label class="form-check-label" for="friday">
-                        Пятница
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="" id="saturday">
-                    <label class="form-check-label" for="saturday">
-                        Суббота
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="" id="sunday">
-                    <label class="form-check-label" for="sunday">
-                        Воскресенье
-                    </label>
-                </div>
+
 
             </div>
 

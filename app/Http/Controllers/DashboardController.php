@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Team;
 use App\Models\User;
+use App\Models\Weekday;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -12,7 +13,9 @@ class DashboardController extends Controller
 
         $teams = Team::all();
         $users  = User::all();
-return view('dashboard', compact('users', 'teams'));
+        $weekdays = Weekday::all();
+
+        return view('dashboard', compact('users', 'teams', 'weekdays'));
     }
 
     public function update() {
