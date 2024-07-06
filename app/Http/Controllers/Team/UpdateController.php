@@ -1,0 +1,31 @@
+<?php
+
+namespace App\Http\Controllers\Team;
+
+use App\Http\Controllers\Controller;
+use App\Models\Team;
+
+class UpdateController extends Controller
+{
+
+    public function __invoke(Team $team)
+    {
+        $data = request()->validate([
+            'title' => 'string',
+            'weekdays' => '',
+//            'description' => 'string',
+//            'image' => '',
+            'is_enabled' => '',
+            'order_by' => '',
+        ]);
+
+
+        $weekdays = $data['weekdays'];
+        unset($data['weekdays']);
+
+        $team->update($data);
+        $team->weekdays()->sync($weekdays);
+//dd($weekdays, $team);
+        return redirect()->route('team.index');
+    }
+}

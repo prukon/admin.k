@@ -1,0 +1,203 @@
+[33mcommit b6f14b02c6949e4be91bb0292da1cf64028656dd[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jul 3 21:12:04 2024 +0000
+
+    add single method controllers for Users
+
+[33mcommit cdee45f8e45a027272306abc256871414bc7e46a[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jul 3 19:38:04 2024 +0000
+
+    add CRUD to team page
+
+[33mcommit 37dd53d5dd611119269e1c61b286b4efe199ee16[m
+Author: prukon <prukon@gmail.com>
+Date:   Thu Jun 27 08:10:46 2024 +0000
+
+    add weekDays table
+
+[33mcommit 4852c73a1702cba869e5bd585ed04f45c73cc2b2[m
+Author: prukon <prukon@gmail.com>
+Date:   Mon Jun 24 08:10:11 2024 +0000
+
+    add team page
+
+[33mcommit 00ddedea84db804ad4c974a9656526807c1f5af5[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jun 12 17:31:33 2024 +0000
+
+    add create-user-page
+
+[33mcommit b650edbfdfe348264748fe46ca8283bd52da2d70[m
+Author: prukon <prukon@gmail.com>
+Date:   Sat Jun 8 13:05:03 2024 +0000
+
+    fix css add avatar photo
+
+[33mcommit 6c93da6dccfbefdbb9ddc47fce6d34f526bdb433[m
+Author: prukon <prukon@gmail.com>
+Date:   Sat Jun 1 06:18:36 2024 +0000
+
+    technical update
+
+[33mcommit 0948f1fe53e9157e2087da10f84cbfd7be997cb6[m
+Author: prukon <prukon@gmail.com>
+Date:   Fri Mar 22 17:17:27 2024 +0000
+
+    del 22 03
+
+[33mcommit e8f9ac8aff2262c6ca075e81fe40d7b8d5531e91[m
+Author: prukon <prukon@gmail.com>
+Date:   Fri Mar 22 17:16:32 2024 +0000
+
+    add 22 03
+
+[33mcommit c14c81089fbe58a71e0bf29635c6d75e3ba19749[m
+Author: prukon <prukon@gmail.com>
+Date:   Mon Feb 5 16:03:56 2024 +0000
+
+    fix years on season
+
+[33mcommit 1a44e89e4329d0e6d7396001038de2ce45226b4a[m
+Author: prukon <prukon@gmail.com>
+Date:   Tue Jan 30 06:38:30 2024 +0000
+
+    fix open/close season
+
+[33mcommit dbd89a148246329aff2c5b31bde9b3db0f37b47b[m
+Author: prukon <prukon@gmail.com>
+Date:   Sun Jan 28 22:20:46 2024 +0000
+
+    add seasons in dashboard
+
+[33mcommit 0cbdbbef795aecd624131da9cabd17c0d8242ebf[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jan 24 23:34:37 2024 +0000
+
+    add seasons
+
+[33mcommit 9305dee086f99e6b5429f1f596d6a8e91688a0a0[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jan 24 23:17:28 2024 +0000
+
+    local darapicker and add Personal Data
+
+[33mcommit 61cfc7f93f57fcc8c50fed3721aadd1e49abb6ae[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jan 24 01:50:32 2024 +0000
+
+    add select2
+
+[33mcommit 4ae24d452432c8d0e34fcdf5e9a9a3a4eeac45a5[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jan 24 00:04:41 2024 +0000
+
+    add dashboard
+
+[33mcommit 58c664a1a7a8ee8cf30097274f543f7bebead436[m
+Author: prukon <prukon@gmail.com>
+Date:   Tue Jan 23 22:42:53 2024 +0000
+
+    add style.css
+
+[33mcommit c94fdbff93ffd81261e1c7118a1db20eb0fe5c43[m
+Author: prukon <prukon@gmail.com>
+Date:   Mon Jan 22 22:11:56 2024 +0000
+
+    add footer
+
+[33mcommit 0e90a6d31cb468f9da87c73072241484785ce74e[m
+Author: prukon <prukon@gmail.com>
+Date:   Mon Jan 22 21:42:34 2024 +0000
+
+    fix adaptive header
+
+[33mcommit 4691b1ba71a392e40f4b761491944529265939fc[m
+Author: prukon <prukon@gmail.com>
+Date:   Mon Jan 22 21:13:34 2024 +0000
+
+    add side menu
+
+[33mcommit 67ae9e40bad60c9310e67870e6241e384621cf10[m
+Author: prukon <prukon@gmail.com>
+Date:   Sun Jan 21 22:37:52 2024 +0000
+
+    add adaptive header
+
+[33mcommit 88399e29230276eae55adebc19541d58b2fa89d5[m
+Author: prukon <prukon@gmail.com>
+Date:   Sat Jan 20 22:36:22 2024 +0000
+
+    add header
+
+[33mcommit 24780291396b0735135dad54a1a1b30232af5c3a[m
+Author: prukon <prukon@gmail.com>
+Date:   Fri Jan 19 22:15:55 2024 +0000
+
+    add preHeader
+
+[33mcommit 0252b30db0e2e839acca19c0249a2818fdd71cf0[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jan 17 09:45:25 2024 +0000
+
+    add fontAwesome
+
+[33mcommit 7caf9bc838f35058eebc39549f6c6e4ee5f17ace[m
+Author: prukon <prukon@gmail.com>
+Date:   Mon Jan 15 22:36:40 2024 +0000
+
+    add bootstrap and jquery and jqueryUI
+
+[33mcommit 6c0190ef2450228117f6a8b31095d087eddfb36c[m
+Author: prukon <prukon@gmail.com>
+Date:   Fri Jan 12 15:25:07 2024 +0000
+
+    add templates
+
+[33mcommit df0dfe41aafcaae6e8d523016060079aae9bf1b0[m
+Author: prukon <prukon@gmail.com>
+Date:   Fri Jan 12 13:32:50 2024 +0000
+
+    add views
+
+[33mcommit 496150622c2e1dae19f6c87c7d70644960107371[m
+Author: prukon <prukon@gmail.com>
+Date:   Thu Jan 11 23:09:33 2024 +0000
+
+    add new Controllers and Views
+
+[33mcommit 156a4dc1bcc79e1eec4a597e2ace1838623eeab3[m
+Author: prukon <prukon@gmail.com>
+Date:   Thu Jan 11 22:40:27 2024 +0000
+
+    edit migration user
+
+[33mcommit a6378c096dd10b6391aff2864096e15c6b977516[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jan 10 23:10:15 2024 +0000
+
+    fix sintax2
+
+[33mcommit 01f58c0ec0bbb1d170555b119ab867524b6c083a[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jan 10 23:07:10 2024 +0000
+
+    fix sintax
+
+[33mcommit e9658d105402cbb2db70eede7e90a45ac4c738cc[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jan 10 23:05:18 2024 +0000
+
+    add Teams migration
+
+[33mcommit 94f6fd53bd9f628c802a7b0b24319942f3a217e6[m
+Author: prukon <prukon@gmail.com>
+Date:   Wed Jan 10 21:47:36 2024 +0000
+
+    add first controller
+
+[33mcommit 41e969f23f2845416dc6825de7807a5898907156[m
+Author: prukon <prukon@gmail.com>
+Date:   Thu Dec 28 23:40:56 2023 +0000
+
+    first commit

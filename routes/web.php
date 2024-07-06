@@ -26,11 +26,7 @@ Route::get('/test', function () {
 //    return  "dasboard";
 //});
 
-Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index' ])->name('dashboard.index');
-Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index' ])->name('payments.index');
-Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index' ])->name('prices.index');
-
-
+Route::get('/dashboard', '\App\Http\Controllers\Dasboard\IndexController')->name('dashboard.index');
 Route::group(['namespace'=> 'User'], function (){
 //Пользователи
     Route::get('/users', '\App\Http\Controllers\User\IndexController')->name('user.index');
@@ -47,15 +43,17 @@ Route::group(['namespace'=> 'User'], function (){
 //Удаление 1 юзера
     Route::delete('users/{user}', '\App\Http\Controllers\User\DestroyController')->name('user.delete');
 });
-
-
+Route::group(['namespace'=> 'User'], function (){
 //Группы
-Route::get('/teams', [\App\Http\Controllers\TeamsController::class, 'index' ])->name('team.index');
-Route::get('teams/create', [\App\Http\Controllers\TeamsController::class, 'create' ])->name('team.create');
-Route::post('teams', [\App\Http\Controllers\TeamsController::class, 'store' ])->name('team.store');
-Route::get('teams/{team}/edit', [\App\Http\Controllers\TeamsController::class, 'edit' ])->name('team.edit');
-Route::patch('teams/{team}', [\App\Http\Controllers\TeamsController::class, 'update' ])->name('team.update');
-Route::delete('teams/{team}', [\App\Http\Controllers\TeamsController::class, 'destroy' ])->name('team.delete');
+    Route::get('/teams', '\App\Http\Controllers\Team\IndexController')->name('team.index');
+    Route::get('teams/create', '\App\Http\Controllers\Team\CreateController')->name('team.create');
+    Route::post('teams', '\App\Http\Controllers\Team\StoreController')->name('team.store');
+    Route::get('teams/{team}/edit', '\App\Http\Controllers\Team\EditController')->name('team.edit');
+    Route::patch('teams/{team}', '\App\Http\Controllers\Team\UpdateController')->name('team.update');
+    Route::delete('teams/{team}', '\App\Http\Controllers\Team\DestroyController')->name('team.delete');
+
+});
+
 
 
 
