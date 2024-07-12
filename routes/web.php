@@ -27,6 +27,10 @@ Route::get('/test', function () {
 //});
 
 Route::get('/dashboard', '\App\Http\Controllers\Dasboard\IndexController')->name('dashboard.index');
+Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index' ])->name('payments.index');
+Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index' ])->name('prices.index');
+
+
 Route::group(['namespace'=> 'User'], function (){
 //Пользователи
     Route::get('/users', '\App\Http\Controllers\User\IndexController')->name('user.index');
@@ -43,7 +47,7 @@ Route::group(['namespace'=> 'User'], function (){
 //Удаление 1 юзера
     Route::delete('users/{user}', '\App\Http\Controllers\User\DestroyController')->name('user.delete');
 });
-Route::group(['namespace'=> 'User'], function (){
+Route::group(['namespace'=> 'Team'], function (){
 //Группы
     Route::get('/teams', '\App\Http\Controllers\Team\IndexController')->name('team.index');
     Route::get('teams/create', '\App\Http\Controllers\Team\CreateController')->name('team.create');
