@@ -10,7 +10,7 @@ class IndexController extends Controller
 {
     public function __invoke()
     {
-        $allTeams = Team::all();
+        $allTeams = Team::paginate(30);
         $weekdays = Weekday::all();
         return view("team.index", compact("allTeams", 'weekdays'));
     }

@@ -13,9 +13,16 @@
         @foreach($allUsers as $user)
             <div><a href="{{ route('user.edit', $user->id) }}"> {{$user->id}}.{{$user->name}}</a></div>
         @endforeach
+
+
+        <div class="mt-3">
+            {{ $allUsers->links() }}
+        </div>
+
             <div>
                 <a href="{{ route('user.create') }}" class="btn btn-primary mb-3 mt-3">Добавить пользователя</a>
             </div>
+
 
 
     </div>

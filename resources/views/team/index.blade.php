@@ -23,6 +23,12 @@
 
             </div>
         @endforeach
+
+        <div class="mt-3">
+            {{ $allTeams->links() }}
+        </div>
+
+
         <div>
             <a href="{{ route('team.create') }}" class="btn btn-primary mb-3 mt-3">Добавить группу</a>
         </div>

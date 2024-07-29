@@ -17,8 +17,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $weekdays = Weekday::factory(7)->create();
-        $teams = Team::factory(10)->create();
-        User::factory(10)->create();
+        $teams = Team::factory(20)->create();
+        User::factory(200)->create();
 
 
         foreach ($teams as $team) {
