@@ -18,7 +18,7 @@ Route::get('/', function () {
 });
 
 Route::get('/test', function () {
-	return view('layouts.main');
+    return view('layouts.main');
 });
 
 
@@ -26,12 +26,15 @@ Route::get('/test', function () {
 //    return  "dasboard";
 //});
 
+
+
+
 Route::get('/dashboard', '\App\Http\Controllers\Dasboard\IndexController')->name('dashboard.index');
-Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index' ])->name('payments.index');
-Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index' ])->name('prices.index');
+Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index'])->name('payments.index');
+Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index'])->name('prices.index');
 
 
-Route::group(['namespace'=> 'User'], function (){
+Route::group(['namespace' => 'User'], function () {
 //Пользователи
     Route::get('/users', '\App\Http\Controllers\User\IndexController')->name('user.index');
 //Создание пользователя
@@ -41,13 +44,13 @@ Route::group(['namespace'=> 'User'], function (){
 //Показ 1 пользователя
 //    Route::get('users/{user}', '\App\Http\Controllers\User\ShowController')->name('user.show');
 //Редактирование 1 пользователя
-    Route::get('users/{user}/edit','\App\Http\Controllers\User\EditController')->name('user.edit');
+    Route::get('users/{user}/edit', '\App\Http\Controllers\User\EditController')->name('user.edit');
 //Редактирование 1 обработка
     Route::patch('users/{user}', '\App\Http\Controllers\User\UpdateController')->name('user.update');
 //Удаление 1 юзера
     Route::delete('users/{user}', '\App\Http\Controllers\User\DestroyController')->name('user.delete');
 });
-Route::group(['namespace'=> 'Team'], function (){
+Route::group(['namespace' => 'Team'], function () {
 //Группы
     Route::get('/teams', '\App\Http\Controllers\Team\IndexController')->name('team.index');
     Route::get('teams/create', '\App\Http\Controllers\Team\CreateController')->name('team.create');
@@ -59,8 +62,13 @@ Route::group(['namespace'=> 'Team'], function (){
 });
 
 
+Route::get('/main', '\App\Http\Controllers\MainController')->name('main.index');
 
 
+Route::group(['namespace' => 'Admin'], function () {
+//    Route::get('/admin', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.index');
+    Route::get('/admin/team', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.team.index');
+});
 
 
 Auth::routes();
