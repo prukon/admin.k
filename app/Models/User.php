@@ -7,10 +7,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Traits\Filterable;
+
 
 class User extends Authenticatable
+
 {
     use HasApiTokens, HasFactory, Notifiable;
+    use Filterable;
+
+
     protected $table = 'users'; //явное указание к какой таблице в БД привязана модель
     protected $guarded = []; //разрешение на изменение данных в таблице
 

@@ -25,7 +25,7 @@
         @endforeach
 
         <div class="mt-3">
-            {{ $allTeams->links() }}
+            {{ $allTeams->withQueryString()->links() }}
         </div>
 
 

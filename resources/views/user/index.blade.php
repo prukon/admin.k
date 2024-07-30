@@ -16,7 +16,7 @@
 
 
         <div class="mt-3">
-            {{ $allUsers->links() }}
+            {{ $allUsers->withQueryString()->links() }}
         </div>
 
             <div>
