@@ -66,7 +66,7 @@ Route::group(['namespace' => 'Team'], function () {
 Route::get('/main', '\App\Http\Controllers\MainController')->name('main.index');
 
 
-Route::group(['namespace' => 'Admin'], function () {
+Route::group(['namespace' => 'Admin', 'middleware'=> 'admin'], function () {
     Route::get('admin/teams', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.team.index');
     Route::get('admin/teams/create', '\App\Http\Controllers\Admin\Team\CreateController')->name('admin.team.create');
     Route::post('admin/teams', '\App\Http\Controllers\Admin\Team\StoreController')->name('admin.team.store');
@@ -86,7 +86,7 @@ Route::group(['namespace' => 'Admin'], function () {
 });
 
 
-Route::get('/', '\App\Http\Controllers\HomeController@index');
+Route::get('/', '\App\Http\Controllers\HomeController@index')->name('home');
 
 use App\Http\Controllers\Auth\RegisterController;
 
