@@ -6,6 +6,18 @@
 
     <div class="col-md-9 main-content">
 
+
+
+
+
+
+
+
+
+
+
+
+
         <h4 class="mt-3">Группы</h4>
 
         @foreach($allTeams as $team)

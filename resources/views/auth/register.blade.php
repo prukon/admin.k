@@ -26,6 +26,27 @@
                         </div>
 
                         <div class="row mb-3">
+                            <label for="team" class="col-md-4 col-form-label text-md-end">{{ __('Team') }}</label>
+
+                            <div class="col-md-6">
+{{--                                <input id="team" type="text" class="form-control @error('team') is-invalid @enderror" name="team" value="{{ old('team') }}" required autocomplete="team" autofocus>--}}
+
+                                <select id="team" class="form-control @error('team') is-invalid @enderror" name="team_id" required>
+                                    @foreach($allTeams as $team)
+                                        <option value="{{ $team->id }}">{{ $team->title }}</option>
+                                    @endforeach
+                                </select>
+
+                                @error('team')
+                                <span class="invalid-feedback" role="alert">
+                                        <strong>{{ $message }}</strong>
+                                    </span>
+                                @enderror
+                            </div>
+                        </div>
+
+
+                        <div class="row mb-3">
                             <label for="email" class="col-md-4 col-form-label text-md-end">{{ __('Email Address') }}</label>
 
                             <div class="col-md-6">

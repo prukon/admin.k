@@ -50,6 +50,7 @@ Route::group(['namespace' => 'User'], function () {
 //Удаление 1 юзера
     Route::delete('users/{user}', '\App\Http\Controllers\User\DestroyController')->name('user.delete');
 });
+
 Route::group(['namespace' => 'Team'], function () {
 //Группы
     Route::get('/teams', '\App\Http\Controllers\Team\IndexController')->name('team.index');
@@ -66,9 +67,31 @@ Route::get('/main', '\App\Http\Controllers\MainController')->name('main.index');
 
 
 Route::group(['namespace' => 'Admin'], function () {
-//    Route::get('/admin', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.index');
-    Route::get('/admin/team', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.team.index');
+    Route::get('admin/teams', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.team.index');
+    Route::get('admin/teams/create', '\App\Http\Controllers\Admin\Team\CreateController')->name('admin.team.create');
+    Route::post('admin/teams', '\App\Http\Controllers\Admin\Team\StoreController')->name('admin.team.store');
+    Route::get('admin/teams/{team}/edit', '\App\Http\Controllers\Admin\Team\EditController')->name('admin.team.edit');
+    Route::patch('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\UpdateController')->name('admin.team.update');
+    Route::delete('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\DestroyController')->name('admin.team.delete');
+
+    Route::get('admin/users', '\App\Http\Controllers\Admin\User\IndexController')->name('admin.user.index');
+    Route::get('admin/users/create', '\App\Http\Controllers\Admin\User\CreateController')->name('admin.user.create');
+    Route::post('admin/users', '\App\Http\Controllers\Admin\User\StoreController')->name('admin.user.store');
+    Route::get('admin/users/{user}/edit', '\App\Http\Controllers\Admin\User\EditController')->name('admin.user.edit');
+    Route::patch('admin/users/{user}', '\App\Http\Controllers\Admin\User\UpdateController')->name('admin.user.update');
+    Route::delete('admin/users/{user}', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
+
+    Route::get('admin/dashboard', '\App\Http\Controllers\Admin\Dashboard\IndexController')->name('admin.dashboard.index');
+
 });
+
+
+Route::get('/', '\App\Http\Controllers\HomeController@index');
+
+use App\Http\Controllers\Auth\RegisterController;
+
+Route::get('register', [RegisterController::class, 'showRegistrationForm'])->name('register');
+
 
 
 Auth::routes();

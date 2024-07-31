@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Dasboard;
+namespace App\Http\Controllers\Admin\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\Team;
@@ -11,11 +11,11 @@ class IndexController extends Controller
 {
     public function __invoke() {
 
-        $allTeams = Team::all();
-        $allUsers  = User::all();
+        $teams = Team::all();
+        $users  = User::all();
         $weekdays = Weekday::all();
 
-        return view('dashboard', compact('allUsers', 'allTeams', 'weekdays'));
+        return view('dashboard', compact('users', 'teams', 'weekdays'));
     }
 
     public function update() {
