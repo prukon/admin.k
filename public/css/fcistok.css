@@ -4,7 +4,21 @@
     color: black;
 }
 
+
+
 .btn-primary:hover {
     background-color: #f3a12b;
     border-color: white;
+}
+
+ .btn-istok {
+     background-color: white!important;
+     border-color: #f3a12b!important;
+     color: black!important;
+ }
+
+ .btn-istok:hover {
+    background-color: #f3a12b!important;
+    border-color: white!important;
+     color: white!important;
 }

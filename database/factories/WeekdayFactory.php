@@ -18,6 +18,8 @@ class WeekdayFactory extends Factory
     {
         return [
             'title' => fake()->name(),
+            'titleEn' => fake()->name(),
+
         ];
     }
 }

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
 
             $table->string('name');
-            $table->Integer('team_id');
+            $table->Integer('team_id')->nullable();;
             $table->boolean('is_enabled')->default(1);
             $table->string('image')->nullable();
             $table->string('image_crop')->nullable();

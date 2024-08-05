@@ -11,10 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('weekdays', function (Blueprint $table) {
-            $table->id();
-            $table->string('title');
-                $table->timestamps();
+        Schema::table('weekdays', function (Blueprint $table) {
+            $table->string('titleEn')->after('title');
+
         });
     }
 
@@ -23,6 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('weekdays');
+        Schema::table('weekdays', function (Blueprint $table) {
+            $table->dropColumn('titleEn');
+        });
     }
 };

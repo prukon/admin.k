@@ -150,12 +150,15 @@
                             @foreach($weekdays as $weekday)
                                 <div class="form-check form-check-inline">
                                     <input
+
+                                            @if($curTeam)
                                             @foreach($curTeam->weekdays as $teamWeekday)
                                                 {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}
                                             @endforeach
+                                            @endif
                                             {{--                                            {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}--}}
-                                            class="form-check-input" type="checkbox" id="Monday" value="Monday">
-                                    <label class="form-check-label" for="Monday">{{$weekday->title}}</label>
+                                            class="form-check-input" type="checkbox" id="{{$weekday->titleEn}}" value="{{$weekday->titleEn}}">
+                                    <label class="form-check-label" for="{{$weekday->titleEn}}">{{$weekday->title}}</label>
                                 </div>
                             @endforeach
                         </div>
