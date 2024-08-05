@@ -116,7 +116,7 @@
                 <div class="col-3">
                     <select class="form-select" id="single-select-field" data-placeholder="ФИО">
                         <option></option>
-                        @foreach($users as $user)
+                        @foreach($allUsers as $user)
                             <option>{{($user->name)}}</option>
                         @endforeach
                     </select>
@@ -125,7 +125,7 @@
                 <div class="col-3">
                     <select class="form-select" id="single-select-field2" data-placeholder="Группа">
                         <option></option>
-                        @foreach($teams as $team)
+                        @foreach($allTeams as $team)
                             <option>{{($team->title)}}</option>
                         @endforeach
                     </select>
@@ -219,7 +219,8 @@
             <div class="row personal-data">
                 <div class="col-2">
                     <div class="avatar_wrapper d-flex align-items-center justify-content-center">
-                        <img id ='confirm-img' src=" {{$users[0]->image}} " alt={{$users[0]->name}}>
+                        <img id ='confirm-img' src=" {{$allUsers[0]->image}} " alt={{$allUsers[0]->name}}>
+
                     </div>
 
                     <div class='container-form'>

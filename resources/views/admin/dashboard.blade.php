@@ -1,4 +1,5 @@
-@extends('layouts/main2')
+    @extends('layouts/main2')
+
 @extends('layouts.admin2')
 
 @section('content')
@@ -9,9 +10,9 @@
 
         <h4 class="pt-3">Консоль</h4>
 
-
         {{--        Модалка загрузки аватара--}}
-        <div class="modal fade" id="imageModalContainer" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal fade" id="imageModalContainer" tabindex="-1" aria-labelledby="exampleModalLabel"
+             aria-hidden="true">
             <div class="modal-dialog modal-md modal-dialog-centered">
                 <div class="modal-content modal-content1 modal-content1">
                     <div class="modal-header">
@@ -26,28 +27,17 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-{{--                        <form action="{{ route('post.update', $post->id) }}" method="post">--}}
-{{--                            @csrf--}}
-{{--                            @method('patch')--}}
-                        <button type="button" class="btn btn-secondary cancel-modal" data-dismiss="modal">Отмена</button>
+                        {{--                        <form action="{{ route('post.update', $post->id) }}" method="post">--}}
+                        {{--                            @csrf--}}
+                        {{--                            @method('patch')--}}
+                        <button type="button" class="btn btn-secondary cancel-modal" data-dismiss="modal">Отмена
+                        </button>
                         <button type="button" class="btn btn-primary save-modal">Сохранить</button>
-{{--                        </form>--}}
+                        {{--                        </form>--}}
                     </div>
                 </div>
             </div>
         </div>
-
-
-
-
-
-
-
-
-
-
-
-
 
 
         {{--        <form method="POST" action="/store.blade.php" enctype="multipart/form-data">--}}
@@ -107,126 +97,92 @@
 
         <div>
 
+            {{--            <h6 class="welcome-text">Добро пожаловать, <span>админ</span></h6>--}}
+            @can('view', auth()->user())
+                <h5 class="choose-user-header">Выбор ученика:</h5>
 
+                {{--Выбор ученика, группы, кнопка установить--}}
+                <div class="row choose-user">
 
-            <h6 class="welcome-text">Добро пожаловать, <span>админ</span></h6>
-            <h5 class="choose-user-header">Выбор ученика:</h5>
+                    <div class="col-3">
+                        <select class="form-select" id="single-select-field" data-placeholder="ФИО">
+                            <option></option>
+                            @foreach($allUsers as $user)
+                                <option>{{($user->name)}}</option>
+                            @endforeach
+                        </select>
+                    </div>
 
-            {{--Выбор ученика, группы, кнопка установить--}}
-            <div class="row choose-user">
+                    <div class="col-3">
+                        <select class="form-select" id="single-select-field2" data-placeholder="Группа">
+                            <option></option>
+                            @foreach($allTeams as $team)
+                                <option>{{($team->title)}}</option>
+                            @endforeach
+                        </select>
+                        <i class="fa-thin fa-calendar-lines"></i>
+                    </div>
 
-                <div class="col-3">
-                    <select class="form-select" id="single-select-field" data-placeholder="ФИО">
-                        <option></option>
-                        @foreach($allUsers as $user)
-                            <option>{{($user->name)}}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="col-3">
-                    <select class="form-select" id="single-select-field2" data-placeholder="Группа">
-                        <option></option>
-                        @foreach($allTeams as $team)
-                            <option>{{($team->title)}}</option>
-                        @endforeach
-                    </select>
-                    <i class="fa-thin fa-calendar-lines"></i>
-                </div>
-
-                <div class="col-3">
-                    <div class="input-group flex-nowrap">
-                        <input type="text" id="inlineCalendar" class="form-control" placeholder="01.02.2024" aria-label="Имя
+                    <div class="col-3">
+                        <div class="input-group flex-nowrap">
+                            <input type="text" id="inlineCalendar" class="form-control" placeholder="01.02.2024"
+                                   aria-label="Имя
       пользователя" aria-describedby="addon-wrapping">
-                        <span class="input-group-text" id="addon-wrapping"><i
-                                    class="fa-solid fa-calendar-days"></i></span>
-                    </div>
-                    <script>
-                    </script>
+                            <span class="input-group-text" id="addon-wrapping"><i
+                                        class="fa-solid fa-calendar-days"></i></span>
+                        </div>
+                        <script>
+                        </script>
 
+                    </div>
+                    <div class="col-3">
+                        <button type="button" class="btn btn-primary">Установить</button>
+
+                    </div>
                 </div>
-                <div class="col-3">
-                    <button type="button" class="btn btn-primary">Установить</button>
 
+                {{--            Чекбоксы дней недели--}}
+
+                <div class="form-group">
+                    <label for="weekdays">Расписание</label>
+                    <div class="row weekday-checkbox">
+                        <div class="col-12 ">
+                            @foreach($weekdays as $weekday)
+                                <div class="form-check form-check-inline">
+                                    <input
+                                            @foreach($curTeam->weekdays as $teamWeekday)
+                                                {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}
+                                            @endforeach
+                                            {{--                                            {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}--}}
+                                            class="form-check-input" type="checkbox" id="Monday" value="Monday">
+                                    <label class="form-check-label" for="Monday">{{$weekday->title}}</label>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            {{--            Чекбоксы дней недели--}}
-
-            {{$team}}
-
-            <div class="form-group">
-                <label for="weekdays">Расписание</label>
-                <select multiple class="form-control" id="weekdays" name="weekdays[]">
-                    @foreach($weekdays as $weekday)
-                        <option
-                                @foreach($team->weekdays as $teamWeekday)
-                                    {{$weekday->id === $teamWeekday->id ? 'selected' : ''}}
-                                @endforeach
-                                value="{{$weekday->id}}">{{$weekday->title}}</option>
-                    @endforeach
-                </select>
-            </div>
-
-
-            <div class="row weekday-checkbox">
-                <div class="col-12 ">
-
-
-
+                <div class="row weekday-checkbox">
+                    <div class="col-12" id="weekdayContainer"></div>
                 </div>
-            </div>
-
-
-            <div class="row weekday-checkbox">
-                <div class="col-12 ">
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="Monday" value="Monday">
-                        <label class="form-check-label" for="Monday">Понедельник</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="Tuesday" value="Tuesday">
-                        <label class="form-check-label" for="Tuesday">Вторник</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="Wednesday" value="Wednesday">
-                        <label class="form-check-label" for="Wednesday">Среда</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="Thursday" value="Thursday">
-                        <label class="form-check-label" for="Thursday">Четверг</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="Friday" value="Friday">
-                        <label class="form-check-label" for="Friday">Пятница</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="Saturday" value="Saturday">
-                        <label class="form-check-label" for="Saturday">Суббота</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="Sunday" value="Sunday">
-                        <label class="form-check-label" for="Sunday">Воскресенье</label>
-                    </div>
-
-                </div>
-            </div>
-
-            <div class="row weekday-checkbox">
-                <div class="col-12" id="weekdayContainer"></div>
-            </div>
-
+            @endcan
 
             {{--Аватарка и личные данные--}}
             <div class="row personal-data">
                 <div class="col-2">
                     <div class="avatar_wrapper d-flex align-items-center justify-content-center">
-                        <img id ='confirm-img' src=" {{$allUsers[0]->image}} " alt={{$allUsers[0]->name}}>
+                        <img id='confirm-img'
+                             @if ($curUser->image)
+                                 src="{{$curUser->image}}" alt={{$curUser->name}}
+{{--        @else  src="/img/logo2.jpg" alt=""--}}
+        @else  src="/img/default.png" alt=""
+                                @endif
+                        >
                     </div>
 
                     <div class='container-form'>
                         <input id='selectedFile' class="disp-none" type='file' accept=".png, .jpg, .jpeg, .svg">
-                        <button id="upload-aphoto" class="btn-primary btn">Выбрать фото...</button>
+                        <button id="upload-photo" class="btn-primary btn">Выбрать фото...</button>
                     </div>
 
 
@@ -242,9 +198,21 @@
                 </div>
                 <div class="col-7">
                     <div class="personal-data-value">
-                        <div class="group">дубль <span class="change-team"> (изменить)</span></div>
-                        <div class="birthday">01.01.2010</div>
-                        <div class="count-training">22</div>
+                        <div class="group">
+                            @if($curTeam)
+                                {{$curTeam->title}}
+                            @else
+                                -
+                            @endif
+                        </div>
+                        <div class="birthday">
+                            @if($curUser->birthday)
+                                {{$curUser->birthday}}
+                            @else
+                                -
+                            @endif
+                        </div>
+                        <div class="count-training">223</div>
                     </div>
                 </div>
             </div>
@@ -278,20 +246,25 @@
                 </div>
             </div>
 
+
+                <script>
+
+            document.addEventListener('DOMContentLoaded', function() {
+                createSeasons()
+                clickSeason()
+            });
+                </script>
+
             {{--Создание сезонов--}}
-            <script> createSeasons() </script>
+
+{{--            <script> createSeasons() </script>--}}
 
             {{--Измерение иконок при клике --}}
-            <script> clickSeason() </script>
+            {{-- <script> clickSeason() </script>--}}
         </div>
     </div>
     </div>
     </div>
     </div>
-
-
-
-
-
 
 @endsection

@@ -238,6 +238,17 @@ footer .social-networks {
 .seasons .new-main-button {
     width: 80%;
     margin-top: 15px;
+    border-color: #f3a12b;
+    width: 90%;
+}
+.seasons .new-main-button:hover {
+    background-color: #f3a12b;
+    color: white;
+    border-color: white;
+}
+.new-main-button-wrap {
+    display: block;
+    text-align: center;
 }
 
 /*.seasons .new-main-button {*/

@@ -5,34 +5,44 @@
 
 {{--        <li class="nav-header">EXAMPLES</li>--}}
         <li class="nav-item">
-            <a href="/admin/dashboard" class="nav-link">
+            <a href="/" class="nav-link">
                 <i class="nav-icon far fa-calendar-alt"></i>
                 <p>Консоль</p>
             </a>
         </li>
+        @can('view', auth()->user())
         <li class="nav-item">
             <a href="/" class="nav-link">
                 <i class="nav-icon far fa-image"></i>
                 <p>Установка цен</p>
             </a>
         </li>
+        @endcan
+
         <li class="nav-item">
             <a href="/" class="nav-link">
                 <i class="nav-icon fas fa-columns"></i>
                 <p>Детали учетной записи</p>
             </a>
         </li>
+
+        @can('view', auth()->user())
         <li class="nav-item">
             <a href="/admin/users" class="nav-link">
                 <i class="nav-icon fas fa-columns"></i>
                 <p>Пользователи<span class="badge badge-info right">{{ $allUsersCount}}</span></p>
             </a>
         </li>
+        @endcan
+
+        @can('view', auth()->user())
         <li class="nav-item">
             <a href="/admin/teams" class="nav-link">
                 <i class="nav-icon fas fa-columns"></i>
                 <p>Группы<span class="badge badge-info right">{{ $allTeamsCount}}</span></p>
             </a>
         </li>
+        @endcan
+
     </ul>
 </nav>

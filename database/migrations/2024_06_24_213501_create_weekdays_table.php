@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('weekdays', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
+            $table->string('titleRu');
+            $table->string('titleEn');
             $table->timestamps();
         });
     }

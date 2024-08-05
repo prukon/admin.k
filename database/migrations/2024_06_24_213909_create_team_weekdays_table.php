@@ -20,7 +20,7 @@ return new class extends Migration
             $table->index('weekday_id','team_weekday_weekday_idx');
 
             $table->foreign('team_id','team_weekday_team_fk')->on('teams')->references('id');
-            $table->foreign('weekday_id','team_weekday_weekday_fk')->on('weekdays')->references('id');
+          //  $table->foreign('weekday_id','team_weekday_weekday_fk')->on('weekdays')->references('id');
 
             $table->timestamps();
         }); 

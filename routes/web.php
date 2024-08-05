@@ -13,23 +13,20 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+//Route::get('/', function () {
+//    return view('welcome');
+//});
 
 Route::get('/test', function () {
     return view('layouts.main');
 });
 
 
-//Route::get('/dasboard', function () {
-//    return  "dasboard";
-//});
 
 
 
 
-Route::get('/dashboard', '\App\Http\Controllers\Dasboard\IndexController')->name('dashboard.index');
+//Route::get('/dashboard', '\App\Http\Controllers\Dasboard\IndexController')->name('dashboard.index');
 Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index'])->name('payments.index');
 Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index'])->name('prices.index');
 
@@ -81,7 +78,7 @@ Route::group(['namespace' => 'Admin', 'middleware'=> 'admin'], function () {
     Route::patch('admin/users/{user}', '\App\Http\Controllers\Admin\User\UpdateController')->name('admin.user.update');
     Route::delete('admin/users/{user}', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
 
-    Route::get('admin/dashboard', '\App\Http\Controllers\Admin\Dashboard\IndexController')->name('admin.dashboard.index');
+//    Route::get('admin/dashboard', '\App\Http\Controllers\Admin\Dashboard\IndexController')->name('admin.dashboard.index');
 
 });
 
@@ -96,8 +93,5 @@ Route::get('register', [RegisterController::class, 'showRegistrationForm'])->nam
 
 Auth::routes();
 
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+//Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
-Auth::routes();
-
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');

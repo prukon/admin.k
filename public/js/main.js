@@ -1,20 +1,28 @@
-$(document).ready(function () {
-
 // Подсвечивание бокового меню при переключении
-    var activeButtonIndex = localStorage.getItem('activeButtonIndex');
-    if (activeButtonIndex !== null) {
-        $('.side-menu a').eq(activeButtonIndex).find('button').addClass('btn-bd-primary-active');
-    }
-    $('.side-menu a').click(function () {
-        // Сохранение индекса активной кнопки в локальное хранилище
-        var activeButtonIndex = $('.side-menu a').index($(this));
-        localStorage.setItem('activeButtonIndex', activeButtonIndex);
-    });
-});
+
+// $(document).ready(function () {
+//     var activeButtonIndex = localStorage.getItem('activeButtonIndex');
+//     if (activeButtonIndex !== null) {
+//         $('.side-menu a').eq(activeButtonIndex).find('button').addClass('btn-bd-primary-active');
+//     }
+//     $('.side-menu a').click(function () {
+//         // Сохранение индекса активной кнопки в локальное хранилище
+//         var activeButtonIndex = $('.side-menu a').index($(this));
+//         localStorage.setItem('activeButtonIndex', activeButtonIndex);
+//     });
+// });
+
+
 
 
 // Создание сезонов
+
+// let testFunc = function() {
+//     console.log('testFunc1');
+// }
 let createSeasons = function () {
+    // console.log('createSeasons');
+
 // Данные для каждого месяца
     const months = [
         'september', 'october', 'november', 'december', 'january', 'february', 'march', 'april', 'may', 'june',
@@ -57,7 +65,7 @@ let createSeasons = function () {
                 <div class="row justify-content-center align-items-center">
                     <div class="new-price-description">за ${monthsRu[key]} ${displaySeason}</div>
                 </div>
-                <div class="row">
+                <div class="row new-main-button-wrap">
                     <div class="justify-content-center align-items-center">
                         <button type="button" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
                     </div>
@@ -72,6 +80,8 @@ let createSeasons = function () {
 
 // Открытие, закрытие сезонов при клике
 let clickSeason = function () {
+    console.log('clickSeason');
+
     var chevronDownIcons = document.querySelectorAll('.header-season');
     // Добавляем обработчик события клика для каждого элемента
     chevronDownIcons.forEach(function (icon) {
@@ -105,6 +115,8 @@ let clickSeason = function () {
 
 
 document.addEventListener('DOMContentLoaded', function () {
+
+
 
     // Select2
     $('#single-select-field').select2({
