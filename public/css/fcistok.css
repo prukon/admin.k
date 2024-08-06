@@ -22,3 +22,14 @@
     border-color: white!important;
      color: white!important;
 }
+
+ .pagination .active .page-link {
+     background-color: #f3a12b;
+     border-color: #f3a12b;
+ }
+ .badge-info {
+     background-color: #f3a12b;
+ }
+ .main-content a {
+     color: #2d2d2d;
+ }

@@ -236,7 +236,7 @@
             {{--            </div>--}}
 
             <!-- Sidebar Menu -->
-            @include('includes.admin.sidebar')
+            @include('includes.sidebar')
             <!-- /.sidebar-menu -->
         </div>
         <!-- /.sidebar -->

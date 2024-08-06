@@ -22,8 +22,4 @@ class Service
         $user->delete();
     }
 
-//    public function edit($user) {
-//        $allTeams = Team::All();
-//
-//    }
 }
