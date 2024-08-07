@@ -3,10 +3,16 @@
 @section('content')
 
     <script src="{{ asset('js/my-croppie.js') }}"></script>
+    <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
 
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
-
+{{--        <div id="user-details" class="col-9">--}}
+{{--            <!-- Здесь будут отображаться данные пользователя -->--}}
+{{--        </div>--}}
         <h4 class="pt-3">Консоль</h4>
+
+
+
 
         {{--        Модалка загрузки аватара--}}
         <div class="modal fade" id="imageModalContainer" tabindex="-1" aria-labelledby="exampleModalLabel"
@@ -109,6 +115,7 @@
                             @endforeach
                         </select>
                     </div>
+
 
 
                     <div class="col-3">
@@ -262,40 +269,8 @@
                     createSeasons()
                     {{--Измерение иконок при клике --}}
                     clickSeason()
+            });
 
-
-                    {{--$(document).ready(function() {--}}
-                    {{--    $('#single-select-field').change(function() {--}}
-                    {{--        var userName = $(this).val();--}}
-                    {{--        console.log(userName);--}}
-
-                    {{--        $.ajax({--}}
-                    {{--            url: '{{ route('getUserDetails') }}',--}}
-                    {{--            type: 'GET',--}}
-                    {{--            data: { name: userName },--}}
-                    {{--            success: function(response) {--}}
-                    {{--                console.log('sucess');--}}
-                    {{--                if (response.success) {--}}
-                    {{--                    var user = response.data;--}}
-                    {{--                    // Обновите данные на странице--}}
-                    {{--                    $('#user-details').html(--}}
-                    {{--                        '<p>Name: ' + user.name + '</p>' +--}}
-                    {{--                        '<p>Email: ' + user.email + '</p>' +--}}
-                    {{--                        '<p>Created At: ' + user.created_at + '</p>'--}}
-                    {{--                    );--}}
-                    {{--                } else {--}}
-                    {{--                    $('#user-details').html('<p>' + response.message + '</p>');--}}
-                    {{--                }--}}
-                    {{--            },--}}
-                    {{--            error: function(xhr, status, error) {--}}
-                    {{--                console.log(error);--}}
-                    {{--            }--}}
-                    {{--        });--}}
-                    {{--    });--}}
-                    {{--});--}}
-
-
-                });
             </script>
 
         </div>

@@ -17,7 +17,7 @@ use App\Http\Controllers\Auth\RegisterController;
 
 
 Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
-    //
+
 
     Route::get('admin/teams', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.team.index');
     Route::get('admin/teams/create', '\App\Http\Controllers\Admin\Team\CreateController')->name('admin.team.create');
@@ -30,14 +30,15 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('admin/users', '\App\Http\Controllers\Admin\User\StoreController')->name('admin.user.store');
     Route::get('admin/users/{user}/edit', '\App\Http\Controllers\Admin\User\EditController')->name('admin.user.edit');
     Route::patch('admin/users/{user}', '\App\Http\Controllers\Admin\User\UpdateController')->name('admin.user.update');
-    Route::delete('admin/users/{user}', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
-    Route::get('/', '\App\Http\Controllers\DashboardController@index')->name('dashboard');
+    Route::delete('', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
+
+    Route::get('/', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index'])->name('payments.index');
+    Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index'])->name('prices.index');
 
 
-
-//        Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
-        Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index'])->name('payments.index');
-        Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index'])->name('prices.index');
+//AJAX
+    Route::get('/get-user-details', [\App\Http\Controllers\DashboardController::class, 'getUserDetails'])->name('getUserDetails');
 
 
 });

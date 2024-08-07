@@ -5,7 +5,7 @@
 
     <div class="col-md-9 main-content">
 
-        <h4 class="mt-3">Редактирование группы1</h4>
+        <h4 class="mt-3">Редактирование группы</h4>
 
         <form action="{{ route('admin.team.update', $team->id)}}" method="post">
             @csrf

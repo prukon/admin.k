@@ -52,16 +52,16 @@ class DashboardController extends Controller
     }
 
 
+//AJAX
     public function getUserDetails(Request $request)
     {
-//        dd('3');
-//        $userName = $request->query('name');
-//        $user = User::where('name', $userName)->first();
-//
-//        if ($user) {
-//            return response()->json(['success' => true, 'data' => $user]);
-//        } else {
-//            return response()->json(['success' => false, 'message' => 'User not found']);
-//        }
+        $userName = $request->query('name');
+        $user = User::where('name', $userName)->first();
+
+        if ($user) {
+            return response()->json(['success' => true, 'data' => $user]);
+        } else {
+            return response()->json(['success' => false, 'message' => 'User not found']);
+        }
     }
 }
