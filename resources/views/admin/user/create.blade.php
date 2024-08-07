@@ -1,3 +1,4 @@
+@extends('layouts/main2')
 @extends('layouts.admin2')
 
 
@@ -26,6 +27,8 @@
 
             <div class="mb-3">
                 <label for="team">Группа</label>
+
+
                 <select class="form-select" id='team' name='team_id'>
                     @foreach($allTeams as $team)
                         <option

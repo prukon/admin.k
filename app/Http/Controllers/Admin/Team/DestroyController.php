@@ -7,6 +7,10 @@ use App\Models\Team;
 
 class DestroyController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('admin');
+    }
 
     public function __invoke(Team $team)
     {

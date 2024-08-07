@@ -6,20 +6,24 @@
 {{--          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">--}}
 {{--    <meta http-equiv="X-UA-Compatible" content="ie=edge">--}}
 
+{{--Bootstrap--}}
+@vite(['resources/js/app.js', 'resources/sass/app.scss'])
+
+
 {{--Styles--}}
-<script src="{{ asset('js/main.js') }}"></script>
-
-
+<link rel="stylesheet" href="{{ asset('css/fcistok.css') }}">
 <link rel="stylesheet" href="{{ asset('css/style.css') }}">
 <link rel="stylesheet" href="{{ asset('css/media-style.css') }}">
 <link rel="stylesheet" href="{{ asset('css/calendar.css') }}">
-<link rel="stylesheet" href="{{ asset('css/fcistok.css') }}">
+
+
+{{--scripts--}}
+<script src="{{ asset('js/main.js') }}"></script>
 
 
 <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
 
-{{--Bootstrap--}}
-{{--    @vite(['resources/js/app.js', 'resources/sass/app.scss'])--}}
+
 
 {{--JQuery--}}
 <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>

@@ -7,6 +7,11 @@ use App\Models\User;
 
 class EditController extends BaseController
 {
+    public function __construct()
+    {
+        $this->middleware('admin');
+    }
+
     public function __invoke(User $user)
     {
 //        $this->service->edit($user);
@@ -17,3 +22,4 @@ class EditController extends BaseController
         return view('admin.user.edit', compact('user', 'allTeams', 'allUsersCount', 'allTeamsCount'));
     }
 }
+

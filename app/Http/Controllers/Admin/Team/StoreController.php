@@ -8,6 +8,10 @@ use App\Models\teamWeekday;
 
 class StoreController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('admin');
+    }
 
     public function __invoke()
     {

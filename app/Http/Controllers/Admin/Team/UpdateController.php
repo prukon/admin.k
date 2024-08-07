@@ -8,6 +8,11 @@ use App\Models\Team;
 class UpdateController extends Controller
 {
 
+    public function __construct()
+    {
+        $this->middleware('admin');
+    }
+
     public function __invoke(Team $team)
     {
         $data = request()->validate([

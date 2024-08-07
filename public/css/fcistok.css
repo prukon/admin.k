@@ -1,7 +1,9 @@
 .btn-primary {
-    background-color: white;
+    background-color: white;!important;
     border-color: #f3a12b!important;
     color: black;
+    font-size: small;
+
 }
 
 
@@ -32,4 +34,12 @@
  }
  .main-content a {
      color: #2d2d2d;
+ }
+
+ .btn-danger {
+     color: black;
+     border-color: red;
+     background-color: white;
+     font-size: small;
+
  }

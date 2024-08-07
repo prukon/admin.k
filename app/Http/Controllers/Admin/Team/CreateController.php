@@ -9,6 +9,10 @@ use App\Models\Weekday;
 
 class CreateController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('admin');
+    }
     public function __invoke(Team $team)
     {
         $allTeams = Team::All();

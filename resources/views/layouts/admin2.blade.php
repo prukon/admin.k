@@ -278,8 +278,9 @@
     <!-- /.content-wrapper -->
     <footer class="main-footer">
 
-        <strong>Copyright &copy; 2023-2024 <a href="https://kidslink.ru/">Kidslink.ru</a>.</strong>
-        Все права защищены.
+        <div> Copyright &copy; 2023-2024 <a target="_blank" href="https://kidslink.ru/">Kidslink.ru</a>.
+            Все права защищены.
+        </div>
         <div class="float-right d-none d-sm-inline-block">
             {{--            <b>Version</b> 3.2.0--}}
         </div>

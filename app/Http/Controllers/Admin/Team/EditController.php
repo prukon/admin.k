@@ -11,10 +11,16 @@ use Illuminate\Http\Request;
 
 class EditController extends Controller
 {
+
+    public function __construct()
+    {
+        $this->middleware('admin');
+    }
+
     public function __invoke(Team $team)
     {
         $allTeamsCount = Team::all()->count();
-        $allUsersCount  = User::all()->count();
+        $allUsersCount = User::all()->count();
 
         $weekdays = Weekday::all();
         return view('admin.team.edit', compact('team', 'weekdays', 'allUsersCount', 'allTeamsCount'));

@@ -27,7 +27,7 @@ class StoreRequest extends FormRequest
             'team_id' => 'string',
             'image' => '',
             'email' => 'string',
-//            'password' => 'string',
+            'password' => 'string',
             'is_enabled' => 'string',
         ];
     }
