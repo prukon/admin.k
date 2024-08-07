@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers\Admin\User;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\User\StoreRequest;
+use App\Servises\UserService;
 
-class StoreController extends BaseController
+class StoreController extends Controller
 {
-    public function __construct()
+    public $service;
+
+    public function __construct(UserService $service)
     {
+        $this->service = $service;
         $this->middleware('admin');
     }
 

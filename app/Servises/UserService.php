@@ -1,11 +1,10 @@
 <?php
 
-namespace App\Servises\User;
+namespace App\Servises;
 
-use App\Models\Team;
 use App\Models\User;
 
-class Service
+class UserService
 {
     public function store($data)
     {
@@ -17,7 +16,8 @@ class Service
         $user->update($data);
     }
 
-    public function delete ($user){
+    public function delete($user)
+    {
         $user->delete();
     }
 

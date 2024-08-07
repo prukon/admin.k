@@ -5,7 +5,7 @@ namespace App\Servises\User;
 use App\Models\Team;
 use App\Models\User;
 
-class Service
+class UserService
 {
     public function store($data)
     {

@@ -3,45 +3,44 @@
 namespace App\Http\Controllers\Admin\Team;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Team\StoreRequest;
 use App\Models\Team;
 use App\Models\teamWeekday;
+use App\Servises\TeamService;
 
 class StoreController extends Controller
 {
-    public function __construct()
+//    public function __construct()
+//    {
+//        $this->middleware('admin');
+//    }
+
+    public $service;
+
+    public function __construct(TeamService $service)
     {
+        $this->service = $service;
         $this->middleware('admin');
     }
 
-    public function __invoke()
+    public function __invoke(StoreRequest $request)
     {
-        $data = request()->validate([
-            'title' => 'string',
-            'weekdays' => '',
-//            'description' => 'string',
-//            'image' => '',
-            'is_enabled' => '',
-            'order_by' => '',
-        ]);
 
-//        if ( is_null($data['weekdays'])) {
+        $data = $request->validated();
+        $this->service->store($data);
+
+
+//        $weekdays = $data['weekdays'];
+//        unset($data['weekdays']);
+//        $team = Team::create($data);
 //
-//        } else {
-//            $weekdays = $data['weekdays'];
+//        //Способ с логированием даты создания и изменения записи в бд
+//        foreach ($weekdays as $weekday) {
+//            teamWeekday::firstOrCreate([
+//                'weekday_id' => $weekday,
+//                'team_id' => $team->id,
+//            ]);
 //        }
-
-        $weekdays = $data['weekdays'];
-        unset($data['weekdays']);
-        $team = Team::create($data);
-
-        //Способ с логированием даты создания и изменения записи в бд
-        foreach ($weekdays as $weekday) {
-            teamWeekday::firstOrCreate([
-                'weekday_id' => $weekday,
-                'team_id' => $team->id,
-            ]);
-        }
-//        $team->weekdays   ()->attach($weekday);   //Способ без логирования даты создания и изменения записи в бд
 
         return redirect()->route('admin.team.index');
     }
