@@ -6,14 +6,7 @@
     <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
 
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
-{{--        <div id="user-details" class="col-9">--}}
-{{--            <!-- Здесь будут отображаться данные пользователя -->--}}
-{{--        </div>--}}
         <h4 class="pt-3">Консоль</h4>
-
-
-
-
         {{--        Модалка загрузки аватара--}}
         <div class="modal fade" id="imageModalContainer" tabindex="-1" aria-labelledby="exampleModalLabel"
              aria-hidden="true">
@@ -111,7 +104,7 @@
                         <select class="form-select" id="single-select-field" data-placeholder="ФИО">
                             <option></option>
                             @foreach($allUsers as $user)
-                                <option>{{($user->name)}}</option>
+                                <option label="{{$user->id}}">{{($user->name)}}</option>
                             @endforeach
                         </select>
                     </div>
@@ -138,7 +131,6 @@
                         </div>
                         <script>
                         </script>
-
                     </div>
                     <div class="col-3">
                         <button type="button" class="btn btn-primary">Установить</button>
@@ -149,7 +141,6 @@
                      <!-- Здесь будут отображаться данные пользователя -->
                 </div>
 
-
                 {{--            Чекбоксы дней недели--}}
 
                 <div class="form-group">
@@ -159,7 +150,6 @@
                             @foreach($weekdays as $weekday)
                                 <div class="form-check form-check-inline">
                                     <input
-
                                             @if($curTeam)
                                                 @foreach($curTeam->weekdays as $teamWeekday)
                                                     {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}
@@ -199,7 +189,6 @@
                         <button id="upload-photo" class="btn-primary btn">Выбрать фото...</button>
                     </div>
 
-
                 </div>
 
                 <div class="col-3">
@@ -234,7 +223,6 @@
             <h5>Расписание:</h5>
 
             {{--Сезоны--}}
-
             <div class="row seasons">
                 <div class="col-12">
                     <div class="season season-2024" id="season-2024">
@@ -260,17 +248,11 @@
                 </div>
             </div>
 
-            <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-
             <script>
-
                 document.addEventListener('DOMContentLoaded', function () {
-                    {{--Создание сезонов--}}
-                    createSeasons()
-                    {{--Измерение иконок при клике --}}
-                    clickSeason()
+                    createSeasons()     //Создание сезонов
+                    clickSeason()       //Измерение иконок при клике
             });
-
             </script>
 
         </div>

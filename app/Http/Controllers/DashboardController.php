@@ -58,10 +58,17 @@ class DashboardController extends Controller
         $userName = $request->query('name');
         $user = User::where('name', $userName)->first();
 
+
         if ($user) {
-            return response()->json(['success' => true, 'data' => $user]);
+            return response()->json([
+                'success' => true,
+                'data' => $user,
+                'userTeam' => $userTeam = Team::where('id', $user->team_id)->first()
+            ]);
         } else {
-            return response()->json(['success' => false, 'message' => 'User not found']);
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found']);
         }
     }
 }

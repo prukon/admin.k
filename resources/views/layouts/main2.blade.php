@@ -27,6 +27,8 @@
 
 {{--JQuery--}}
 <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
+{{--<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>--}}
+
 
 {{--JQuery-UI--}}
 <script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>

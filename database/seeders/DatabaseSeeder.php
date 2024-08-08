@@ -45,7 +45,10 @@ class DatabaseSeeder extends Seeder
 
 
         DB::table('users')->insert([
-            ['id' => 1, 'name' => 'admin', 'team_id' => 4, 'is_enabled' => 1, 'image' => "", 'image_crop' => "", 'birthday'=> "1", 'email'=> 'oabernathy@example.org', 'role'=> 'admin', 'email_verified_at'=> '2024-08-06 11:02:45', 'password'=> '', 'remember_token'=> 'MN8iqh4oU3', 'created_at' => Carbon::now(), 'updated_at' => Carbon::now(), 'deleted_at' => null],
+            ['id' => 1, 'name' => 'admin', 'team_id' => 4, 'is_enabled' => 1, 'image' => "admin.jpg", 'image_crop' => "admin_crop", 'birthday'=> "22.11.1989", 'email'=> 'oabernathy@example.org', 'role'=> 'admin', 'email_verified_at'=> '2024-08-06 11:02:45', 'password'=> '', 'remember_token'=> 'MN8iqh4oU3', 'created_at' => Carbon::now(), 'updated_at' => Carbon::now(), 'deleted_at' => null],
+            ['id' => 2, 'name' => 'user1', 'team_id' => 2, 'is_enabled' => 1, 'image' => "image1.jpg", 'image_crop' => "user1_crop.jpg", 'birthday'=> "1.06.1989", 'email'=> 'user1@example.org', 'role'=> 'user', 'email_verified_at'=> '2024-08-06 11:02:45', 'password'=> '', 'remember_token'=> 'MN8iqh4oU3', 'created_at' => Carbon::now(), 'updated_at' => Carbon::now(), 'deleted_at' => null],
+            ['id' => 3, 'name' => 'user2', 'team_id' => 5, 'is_enabled' => 1, 'image' => "image2.jpg", 'image_crop' => "user2_crop.jpg", 'birthday'=> "2.06.1989", 'email'=> 'user2@example.org', 'role'=> 'user', 'email_verified_at'=> '2024-08-06 11:02:45', 'password'=> '', 'remember_token'=> 'MN8iqh4oU3', 'created_at' => Carbon::now(), 'updated_at' => Carbon::now(), 'deleted_at' => null],
+            ['id' => 4, 'name' => 'user3', 'team_id' => 7, 'is_enabled' => 1, 'image' => "image3.jpg", 'image_crop' => "user3_crop.jpg", 'birthday'=> "3.06.1989", 'email'=> 'user3@example.org', 'role'=> 'user', 'email_verified_at'=> '2024-08-06 11:02:45', 'password'=> '', 'remember_token'=> 'MN8iqh4oU3', 'created_at' => Carbon::now(), 'updated_at' => Carbon::now(), 'deleted_at' => null],
         ]);
         //        User::factory(200)->create();
 

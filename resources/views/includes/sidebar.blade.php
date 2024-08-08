@@ -11,6 +11,14 @@
             </a>
         </li>
         @can('view', auth()->user())
+            <li class="nav-item">
+                <a href="admin/orders" class="nav-link">
+                    <i class="nav-icon far fa-image"></i>
+                    <p>Заказы</p>
+                </a>
+            </li>
+        @endcan
+        @can('view', auth()->user())
         <li class="nav-item">
             <a href="/" class="nav-link">
                 <i class="nav-icon far fa-image"></i>
