@@ -11,13 +11,13 @@
             <div><a href="{{ route('admin.team.edit', $team->id) }}">   {{$team->id}}. {{$team->title }} </a>
 
 
-                @foreach($weekdays as $weekday)
-                    @foreach($team->weekdays as $teamWeekday)
-                        @if ($weekday->id === $teamWeekday->id)
-                            {{--                         {{ $weekday->title }}--}}
-                        @endif
-                    @endforeach
-                @endforeach
+{{--                @foreach($weekdays as $weekday)--}}
+{{--                    @foreach($team->weekdays as $teamWeekday)--}}
+{{--                        @if ($weekday->id === $teamWeekday->id)--}}
+{{--                            --}}{{--                         {{ $weekday->title }}--}}
+{{--                        @endif--}}
+{{--                    @endforeach--}}
+{{--                @endforeach--}}
 
 
             </div>

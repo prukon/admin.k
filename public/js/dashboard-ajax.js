@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', function () {
 
-    $('#single-select-field').change(function () {
+    // User
+    $('#single-select-user').change(function () {
         var userName = $(this).val();
-
         $.ajax({
             url: '/get-user-details',
             type: 'GET',
@@ -34,6 +34,70 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             error: function (xhr, status, error) {
                 console.log(error);
+            }
+        });
+    });
+
+    // Team
+    $('#single-select-team').change(function () {
+        var teamName = $(this).val();
+        $.ajax({
+            url: '/get-team-details',
+            type: 'GET',
+            data: {name: teamName},
+
+            success: function (response) {
+                if (response.success) {
+                    var team = response.data;
+                    var teamWeekDayId = response.teamWeekDayId;
+                    // var teamTest = response.teamTest;
+
+
+
+
+                    console.log(team.title);
+                    console.log(teamWeekDayId);
+
+                    var weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
+                    for (let i = 0; i < weekdays.length; i++) {
+                        let weekday = weekdays[i];
+                        let input = weekday.querySelector('input'); // Находим input внутри текущего div
+
+                        if (input) { // Проверяем, существует ли input
+                            input.checked = false; // Устанавливаем атрибут checked
+                        }
+
+                        if (teamWeekDayId.includes(i+1)) {
+                            if (input) { // Проверяем, существует ли input
+                                input.checked = true; // Устанавливаем атрибут checked
+                            }
+                        }
+                    }
+
+                    // <div className="row weekday-checkbox">
+                    //     <div className="col-12 ">
+                    //         @foreach($weekdays as $weekday)
+                    //         <div className="form-check form-check-inline">
+                    //             <input
+                    //             @if($curTeam)
+                    //             @foreach($curTeam->weekdays as $teamWeekday)
+                    //             {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}
+                    //             @endforeach
+                    //             @endif
+                    //            {{--{{$weekday->id === $teamWeekday->id ? 'checked' : ''}}--}}
+                    //             class="form-check-input" type="checkbox" id="{{$weekday->titleEn}}"
+                    //             value="{{$weekday->titleEn}}">
+                    //             <label className="form-check-label"
+                    //                    htmlFor="{{$weekday->titleEn}}">{{$weekday->title}}</label>
+                    //         </div>
+                    //         @endforeach
+                    //     </div>
+                    // </div>
+
+                }
+            },
+            error: function (xhr, status, error) {
+                // console.log(error);
             }
         });
     });

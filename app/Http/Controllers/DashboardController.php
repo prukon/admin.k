@@ -27,6 +27,7 @@ class DashboardController extends Controller
      *
      * @return \Illuminate\Contracts\Support\Renderable
      */
+
     public function index(FilterRequest $request)
     {
         $data = $request->validated();
@@ -41,6 +42,28 @@ class DashboardController extends Controller
         $curUser = auth()->user();
         $curTeam = Team::where('id', auth()->user()->team_id)->first();
 
+
+////        $testTeam = Team::where('id', 2)->first();
+////        foreach ($testTeam->weekdays as $teamWeekdayTest) {
+////            dump($teamWeekdayTest->id);
+////        }
+//
+////        $testTeamWeekdays = $curTeam->weekdays();
+////        dump($testTeamWeekdays);
+//
+//
+//        $teamName = 'Феникс';
+//        //$testTeam = Team::where('id', 2)->first();
+//        $team = Team::where('title', $teamName)->first();
+////        $teamWeekDays = $team->weekdays();
+//
+////        $teamWeekDayId = [];
+//        foreach ($team->weekdays as $teamWeekDay) {
+////            $teamWeekDayId = append($teamWeekDay->id);
+//            $teamWeekDayId[] = $teamWeekDay->id;
+//        }
+////        dd($teamWeekDayId);
+
         return view("dashboard", compact(
             "allTeams",
             "allUsers",
@@ -52,18 +75,47 @@ class DashboardController extends Controller
     }
 
 
-//AJAX
+    //AJAX
+    //Изменение юзера
     public function getUserDetails(Request $request)
     {
         $userName = $request->query('name');
         $user = User::where('name', $userName)->first();
-
-
         if ($user) {
             return response()->json([
                 'success' => true,
                 'data' => $user,
                 'userTeam' => $userTeam = Team::where('id', $user->team_id)->first()
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found']);
+        }
+    }
+
+    //Изменение команды
+    public function getTeamDetails(Request $request)
+    {
+        $teamName = $request->query('name');
+        $team = Team::where('title', $teamName)->first();
+//        $teamWeekDays = $team->weekdays();
+
+        $teamWeekDayId = [];
+        foreach ($team->weekdays as $teamWeekDay) {
+//            $teamWeekDayId = append($teamWeekDay->id);
+            $teamWeekDayId[] = $teamWeekDay->id;
+        }
+
+
+
+        if ($team) {
+            return response()->json([
+                'success' => true,
+                'data' => $team,
+//              'teamTest' => $teamTest,
+                'teamWeekDayId' => $teamWeekDayId,
+//                'userTeam' => $userTeam = Team::where('id', $team->team_id)->first()
             ]);
         } else {
             return response()->json([

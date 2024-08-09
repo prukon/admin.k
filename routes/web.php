@@ -39,7 +39,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 //AJAX
     Route::get('/get-user-details', [\App\Http\Controllers\DashboardController::class, 'getUserDetails'])->name('getUserDetails');
-
+    Route::get('/get-team-details', [\App\Http\Controllers\DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
 
 });
 
