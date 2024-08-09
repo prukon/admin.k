@@ -63,6 +63,10 @@ class DashboardController extends Controller
 //            $teamWeekDayId[] = $teamWeekDay->id;
 //        }
 ////        dd($teamWeekDayId);
+///
+//         $teamId = 1;
+//         $usersTeam = User::where('team_id', 1)->get();
+//         dd($usersTeam);
 
         return view("dashboard", compact(
             "allTeams",
@@ -89,8 +93,7 @@ class DashboardController extends Controller
             ]);
         } else {
             return response()->json([
-                'success' => false,
-                'message' => 'User not found']);
+                'success' => false]);
         }
     }
 
@@ -99,28 +102,22 @@ class DashboardController extends Controller
     {
         $teamName = $request->query('name');
         $team = Team::where('title', $teamName)->first();
-//        $teamWeekDays = $team->weekdays();
+        $usersTeam = User::where('team_id', $team->id)->get();
 
-        $teamWeekDayId = [];
         foreach ($team->weekdays as $teamWeekDay) {
-//            $teamWeekDayId = append($teamWeekDay->id);
             $teamWeekDayId[] = $teamWeekDay->id;
         }
-
-
 
         if ($team) {
             return response()->json([
                 'success' => true,
                 'data' => $team,
-//              'teamTest' => $teamTest,
-                'teamWeekDayId' => $teamWeekDayId,
-//                'userTeam' => $userTeam = Team::where('id', $team->team_id)->first()
+                'teamWeekDayId' => $teamWeekDayId,  //fix сделать проверку на существование
+                'usersTeam' => $usersTeam,          //fix сделать проверку на существование
             ]);
         } else {
             return response()->json([
-                'success' => false,
-                'message' => 'User not found']);
+                'success' => false]);
         }
     }
 }

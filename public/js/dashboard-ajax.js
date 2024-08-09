@@ -50,13 +50,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (response.success) {
                     var team = response.data;
                     var teamWeekDayId = response.teamWeekDayId;
-                    // var teamTest = response.teamTest;
-
-
-                    console.log(team.title);
-                    console.log(teamWeekDayId);
-
+                    var usersTeam = response.usersTeam;
                     var weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
+
+                    // Установка дней недели
                     for (let i = 0; i < weekdays.length; i++) {
                         let weekday = weekdays[i];
                         let input = weekday.querySelector('input'); // Находим input внутри текущего div
@@ -74,30 +71,26 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     }
 
-                    // <div className="row weekday-checkbox">
-                    //     <div className="col-12 ">
-                    //         @foreach($weekdays as $weekday)
-                    //         <div className="form-check form-check-inline">
-                    //             <input
-                    //             @if($curTeam)
-                    //             @foreach($curTeam->weekdays as $teamWeekday)
-                    //             {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}
-                    //             @endforeach
-                    //             @endif
-                    //            {{--{{$weekday->id === $teamWeekday->id ? 'checked' : ''}}--}}
-                    //             class="form-check-input" type="checkbox" id="{{$weekday->titleEn}}"
-                    //             value="{{$weekday->titleEn}}">
-                    //             <label className="form-check-label"
-                    //                    htmlFor="{{$weekday->titleEn}}">{{$weekday->title}}</label>
-                    //         </div>
-                    //         @endforeach
-                    //     </div>
-                    // </div>
+                    //Изменение состава юзеров
+
+                    var users = document.querySelectorAll('#single-select-user option');
+                    users.forEach((user, index) => {
+                        if (index !== 0) { // оставить только первый элемент
+                            user.remove();
+                        }
+                    });
+
+                    var selectElement = document.querySelector('#single-select-user');
+                    usersTeam.forEach(user => {
+                        var option = document.createElement('option');
+                        option.value = user.id;   // Присвойте значение из свойства id
+                        option.textContent = user.name; // Отобразите имя пользователя
+                        selectElement.appendChild(option);
+                    });
 
                 }
             },
             error: function (xhr, status, error) {
-                // console.log(error);
             }
         });
     });
