@@ -146,7 +146,7 @@
                     <div class="row weekday-checkbox">
                         <div class="col-12 ">
                             @foreach($weekdays as $weekday)
-                                <div class="form-check form-check-inline">
+                                <div class="form-check form-check-inline weekday-disabled">
                                     <input
                                             @if($curTeam)
                                                 @foreach($curTeam->weekdays as $teamWeekday)
@@ -154,7 +154,7 @@
                                                 @endforeach
                                             @endif
                                             {{--                                            {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}--}}
-                                            class="form-check-input" type="checkbox" id="{{$weekday->titleEn}}"
+                                            class="form-check-input " type="checkbox" id="{{$weekday->titleEn}}"
                                             value="{{$weekday->titleEn}}">
                                     <label class="form-check-label"
                                            for="{{$weekday->titleEn}}">{{$weekday->title}}</label>

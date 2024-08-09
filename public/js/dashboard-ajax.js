@@ -53,8 +53,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     // var teamTest = response.teamTest;
 
 
-
-
                     console.log(team.title);
                     console.log(teamWeekDayId);
 
@@ -64,12 +62,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         let input = weekday.querySelector('input'); // Находим input внутри текущего div
 
                         if (input) { // Проверяем, существует ли input
-                            input.checked = false; // Устанавливаем атрибут checked
+                            // input.checked = false; // Устанавливаем атрибут checked
+                            weekdays[i].classList.remove('weekday-enabled');
                         }
 
-                        if (teamWeekDayId.includes(i+1)) {
+                        if (teamWeekDayId.includes(i + 1)) {
                             if (input) { // Проверяем, существует ли input
-                                input.checked = true; // Устанавливаем атрибут checked
+                                // input.checked = true; // Устанавливаем атрибут checked
+                                weekdays[i].classList.add('weekday-enabled');
                             }
                         }
                     }
