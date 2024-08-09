@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
 
+
     // User
     $('#single-select-user').change(function () {
         var userName = $(this).val();
@@ -83,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     var selectElement = document.querySelector('#single-select-user');
                     usersTeam.forEach(user => {
                         var option = document.createElement('option');
-                        option.value = user.id;   // Присвойте значение из свойства id
+                        // option.value = user.id;   // Присвойте значение из свойства id
                         option.textContent = user.name; // Отобразите имя пользователя
                         selectElement.appendChild(option);
                     });

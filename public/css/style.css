@@ -302,3 +302,34 @@ footer .social-networks {
     margin-top: revert;
     margin-left: -1.0em;
 }
+
+.btn-setting-prices {
+    width: 80%;
+}
+.wrap-setting-prices {
+    text-align: center;
+}
+#left_bar, #right_bar {
+    text-align: center;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+}
+
+#wrap-bars .team-name {
+    padding-left: 12px;
+    text-align: left;
+    font-size: 13px;
+    padding-right: 0;
+}
+#wrap-bars .team-price {
+    padding: 0 ;
+}
+#wrap-bars .team-price input {
+    width: 100px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    font-size: 12px;
+}
+#wrap-bars .team-buttons {
+    text-align: right;
+}

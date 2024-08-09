@@ -12,7 +12,7 @@
         </li>
         @can('view', auth()->user())
             <li class="nav-item">
-                <a href="admin/orders" class="nav-link">
+                <a href="/" class="nav-link">
                     <i class="nav-icon far fa-image"></i>
                     <p>Заказы</p>
                 </a>
@@ -20,7 +20,7 @@
         @endcan
         @can('view', auth()->user())
         <li class="nav-item">
-            <a href="/" class="nav-link">
+            <a href="/admin/setting-prices" class="nav-link">
                 <i class="nav-icon far fa-image"></i>
                 <p>Установка цен</p>
             </a>

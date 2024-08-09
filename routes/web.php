@@ -33,6 +33,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::delete('', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
 
     Route::get('/', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('admin/setting-prices', [\App\Http\Controllers\Admin\SettingPricesController::class, 'index'])->name('admin.settingPrices.index');
+
+
     Route::get('/payments', [\App\Http\Controllers\PaymentsController::class, 'index'])->name('payments.index');
     Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index'])->name('prices.index');
 
@@ -40,6 +43,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //AJAX
     Route::get('/get-user-details', [\App\Http\Controllers\DashboardController::class, 'getUserDetails'])->name('getUserDetails');
     Route::get('/get-team-details', [\App\Http\Controllers\DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
+    Route::get('/get-team-price', [\App\Http\Controllers\Admin\SettingPricesController::class, 'getTeamPrice'])->name('getTeamPrice');
 
 });
 
