@@ -95,7 +95,7 @@
         <div>
 
             {{--            <h6 class="welcome-text">Добро пожаловать, <span>админ</span></h6>--}}
-{{--            @can('view', auth()->user())--}}
+            @can('view', auth()->user())
                 <h5 class="choose-user-header">Выбор ученика:</h5>
 
                 {{--Выбор ученика, группы, кнопка установить--}}
@@ -167,7 +167,7 @@
                 <div class="row weekday-checkbox">
                     <div class="col-12" id="weekdayContainer"></div>
                 </div>
-{{--            @endcan--}}
+            @endcan
 
             {{--Аватарка и личные данные--}}
             <div class="row personal-data">

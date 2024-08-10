@@ -314,8 +314,12 @@ footer .social-networks {
     border: 1px solid #ced4da;
     border-radius: 5px;
 }
+#right_bar .btn-setting-prices:disabled , #left_bar .btn-setting-prices:disabled{
+    background-color: white;
+    color: black;
+}
 
-#wrap-bars .team-name {
+#wrap-bars .team-name, #wrap-bars .user-name {
     padding-left: 12px;
     text-align: left;
     font-size: 13px;
@@ -324,7 +328,7 @@ footer .social-networks {
 #wrap-bars .team-price {
     padding: 0 ;
 }
-#wrap-bars .team-price input {
+#wrap-bars .team-price input, #wrap-bars .user-price input {
     width: 100px;
     border: 1px solid #ced4da;
     border-radius: 5px;
@@ -332,4 +336,8 @@ footer .social-networks {
 }
 #wrap-bars .team-buttons {
     text-align: right;
+}
+
+#wrap-bars .check .fa-check {
+    color: #00cb00;
 }

@@ -5,14 +5,13 @@
     <script src="{{ asset('js/my-croppie.js') }}"></script>
     <script src="{{ asset('js/settings-prices-ajax.js') }}"></script>
 
-
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3">Установка цен</h4>
         <div class="container">
             <div class="row justify-content-md-center">
                 <div id='selectDate' class="col-10">
                     <select class="form-select" id="single-select-user" data-placeholder="Дата">
-                        <option></option>
+                        <option>{{$currentDate->date}}</option>
                     </select>
                     <script>
                         const selectElement = document.getElementById('single-select-user');
@@ -40,33 +39,23 @@
                 </div>
             </div>
             <div class="row justify-content-center  mt-3 " id='wrap-bars'>
-                <div id='left_bar' class="col col-lg-5">
+                <div id='left_bar' class="col col-lg-5 mb-3">
                     <button class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить</button>
                     @foreach($allTeams as $team)
                         <div id="{{$team->id}}" class="row mb-2 wrap-team">
                             <div class="team-name col-3">{{$team->title}}</div>
                             <div class="team-price col-2"><input class="" type="number" value="7050"></div>
                             <div class="team-buttons col-7">
-                                <input class="btn btn-primary" type="button" value="ok" id="">
-                                <input class="btn btn-primary" type="button" value="Подробно" id="">
+                                <input class="ok btn btn-primary" type="button" value="ok" id="">
+                                <input class="detail btn btn-primary" type="button" value="Подробно" id="">
                             </div>
                         </div>
                     @endforeach
                 </div>
                 <div class="col-md-auto"></div>
                 <div id='right_bar' class="col col-lg-5">
-                    <button class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить</button>
-                    @foreach($allTeams as $team)
-                        <div class="row mb-2">
-                            <div class="team-name col-3">{{$team->title}}</div>
-                            <div class="team-price col-2"><input class="" type="number" value="7050"></div>
-                            <div class="team-buttons col-7">
-                                <input class="btn btn-primary" type="button" value="ok" id="">
-                                <input class="btn btn-primary" type="button" value="Подробно" id="">
-                            </div>
-                        </div>
-                    @endforeach
-
+                    <button disabled class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить</button>
+                        <div class="row mb-2 wrap-users"></div>
                 </div>
             </div>
         </div>

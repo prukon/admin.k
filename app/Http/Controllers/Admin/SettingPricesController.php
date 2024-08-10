@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
+use App\Models\Setting;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\Weekday;
@@ -35,6 +36,7 @@ class SettingPricesController extends Controller
 //        $data = $request->validated();
 //        $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
 //
+        $currentDate = Setting::where('id', 1)->first();
         $allTeams = Team::all();
 //        $allUsers = User::all()->paginate(20);
         $allTeamsCount = Team::all()->count();
@@ -52,6 +54,7 @@ class SettingPricesController extends Controller
 //            "allUsers",
             "allUsersCount",
             "allTeamsCount",
+            'currentDate',
 //            "weekdays",
 //            "curTeam",
 //            "curUser"
@@ -62,25 +65,44 @@ class SettingPricesController extends Controller
 
     public function getTeamPrice(Request $request)
     {
-//        $teamName = $request->query('name');
-//        $team = Team::where('title', $teamName)->first();
-//        $usersTeam = User::where('team_id', $team->id)->get();
-//
-//        foreach ($team->weekdays as $teamWeekDay) {
-//            $teamWeekDayId[] = $teamWeekDay->id;
-//        }
-//
-//        if ($team) {
-//            return response()->json([
-//                'success' => true,
-//                'data' => $team,
-//                'teamWeekDayId' => $teamWeekDayId,  //fix сделать проверку на существование
-//                'usersTeam' => $usersTeam,          //fix сделать проверку на существование
-//            ]);
-//        } else {
-//            return response()->json([
-//                'success' => false]);
-//        }
+
+        $teamId = $request->query('teamId');
+        $usersTeam = User::where('team_id', $teamId)->get();
+        if ($usersTeam) {
+            return response()->json([
+                'success' => true,
+                'usersTeam' => $usersTeam,          //fix сделать проверку на существование
+            ]);
+        } else {
+            return response()->json([
+                'success' => false]);
+        }
     }
 
+
+    public function updateDate(Request $request)
+    {
+
+        $month = $request->query('month');
+        if ($month) {
+            // Получаем запись, которую нужно обновить
+            $setting = Setting::first(); // Здесь вы можете использовать другой метод для поиска нужной записи
+
+            if ($setting) {
+                // Изменяем поле date на новое значение
+                $setting->date = $month; // Здесь можно использовать $month или любую другую логику для определения нового значения
+
+                // Сохраняем изменения в базе данных
+                $setting->save();
+
+                return response()->json([
+                    'success' => true,
+                    'month' => $month,
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false]);
+            }
+        }
+    }
 }
