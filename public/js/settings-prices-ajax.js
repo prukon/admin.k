@@ -1,10 +1,11 @@
 document.addEventListener('DOMContentLoaded', function () {
 
-    // AJAX Получение списка пользователей
+    // AJAX ПОДРОБНО. Получение списка пользователей
     const detailButtons = document.querySelectorAll('.detail');
     for (let i = 0; i < detailButtons.length; i++) {
         let button = detailButtons[i];
         button.addEventListener('click', function () {
+            const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
             document.querySelector('#right_bar .btn-setting-prices').setAttribute('disabled', 'disabled');
             // Находим родительский div (родителя с классом 'wrap-team')
             const parentDiv = this.closest('.wrap-team');
@@ -13,32 +14,59 @@ document.addEventListener('DOMContentLoaded', function () {
                 $.ajax({
                     url: '/get-team-price',
                     type: 'GET',
-                    data: {teamId: parentDiv.id},
+                    data: {
+                        teamId: parentDiv.id,
+                        selectedDate: selectedDate
+                    },
 
                     success: function (response) {
                         if (response.success) {
+                            var usersPrice = response.usersPrice;
                             var usersTeam = response.usersTeam;
                             let rightBar = $('.wrap-users');
                             rightBar.empty();
-                            usersTeam.forEach(function (user) {
+
+                            for (i = 0; i < usersPrice.length; i++) {
+                                let userTeam = usersTeam.find(team => team.id === usersPrice[i].user_id); // Находим соответствующего пользователя в usersTeam
                                 let userBlock = `
                 <div class="row mb-2">
-                    <div class="user-name col-6">${user.name}</div>
-                    <div class="user-price col-4"><input class="" type="number" value="7050"></div>
+                    <div class="user-name col-6">  ${userTeam ? userTeam.name : 'Имя не найдено'}</div>
+                    <div class="user-price col-4"><input class="" type="number" value=${usersPrice[i].price}></div>
                     <div class="check col-2"><span class="fa fa-check display-none green-check" aria-hidden="true"></span></div>
                 </div>
             `;
                                 rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
                                 document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
-                            });
+
+
+                            }
+
+            //                 usersTeam.forEach(function (user) {
+            //                     let userBlock = `
+            //     <div class="row mb-2">
+            //         <div class="user-name col-6">${user.name}</div>
+            //         <div class="user-price col-4"><input class="" type="number" value="7050"></div>
+            //         <div class="check col-2"><span class="fa fa-check display-none green-check" aria-hidden="true"></span></div>
+            //     </div>
+            // `;
+            //                     rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
+            //                     document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
+            //                 });
+                            console.log(usersTeam);
+                            console.log(usersPrice);
                         }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Ошибка: ' + error);
+                        console.error('Статус: ' + status);
+                        console.dir(xhr);
                     }
                 });
             }
         });
     }
 
-    //AJAX Обработчик изменения даты
+    // AJAX SELECT DATE. Обработчик изменения даты
     $('#single-select-date').on('change', function () {
         document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
         let selectedMonth = $(this).val();
@@ -59,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    //AJAX Добавляем обработчик события на кнопки Ок
+    //AJAX Кнопка ОК. Установка цен группе и юзерам.
     const okButtons = document.querySelectorAll('.ok');
     for (let i = 0; i < okButtons.length; i++) {
         let button = okButtons[i];
@@ -67,7 +95,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const parentDiv = this.closest('.wrap-team');
             const teamPrice = parentDiv.querySelector('.team-price input').value;
             const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
-
 
             if (parentDiv) {
                 $.ajax({
@@ -84,12 +111,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             var teamPrice = response.teamPrice;
                             var selectedDate = response.selectedDate;
                             var teamId = response.teamId;
-                            console.log(teamId);
-                            console.log(selectedDate);
-                            console.log(teamPrice);
-
-                            // var teamId = response.teamId;
-
+                            // console.log(teamId);
+                            // console.log(selectedDate);
+                            // console.log(teamPrice);
                         }
                     }
                 });
@@ -97,8 +121,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-
-    //AJAX Применить слева.Установка цен всем группам
+    //AJAX ПРИМЕНИТЬ слева.Установка цен всем группам
     $('#set-price-all-teams').on('click', function () {
         // Выбранная дата
         const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
@@ -106,9 +129,9 @@ document.addEventListener('DOMContentLoaded', function () {
         //Выключаем кнопку
         document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
 
-      // Получаем массив команд и их цен
+        // Получаем массив команд и их цен
         let teamsData = [];
-        document.querySelectorAll('.wrap-team').forEach(function(teamElement) {
+        document.querySelectorAll('.wrap-team').forEach(function (teamElement) {
             let teamName = teamElement.querySelector('.team-name').textContent.trim();
             let teamPrice = teamElement.querySelector('.team-price input').value;
             teamsData.push({
@@ -133,4 +156,30 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
+    $('#set-price-all-users').on('click', function () {
+        // Выбранная дата
+        const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+
+        //Выключаем кнопку
+        document.querySelector('#set-price-all-users').setAttribute('disabled', 'disabled');
+
+        $.ajax({
+            url: '/set-price-all-users',
+            method: 'GET',
+            data: {
+                selectedDate: selectedDate,
+                // teamsData: JSON.stringify(teamsData) // Конвертируем массив объектов в строку JSON
+            },
+            success: function (response) {
+                document.querySelector('#set-price-all-users').removeAttribute('disabled');
+                location.reload();
+            },
+            error: function (xhr, status, error) {
+                console.log('Error:', error);
+            }
+        });
+    });
+ 
 });
+

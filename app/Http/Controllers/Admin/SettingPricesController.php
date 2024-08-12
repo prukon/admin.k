@@ -64,24 +64,35 @@ class SettingPricesController extends Controller
         ));
     }
 
-    // AJAX Получение списка пользователей
+    // AJAX ПОДРОБНО. Получение списка пользователей
     public function getTeamPrice(Request $request)
     {
-
+        $selectedDate = $request->query('selectedDate');
         $teamId = $request->query('teamId');
         $usersTeam = User::where('team_id', $teamId)->get();
+        $usersPrice = [];
+
+        foreach ($usersTeam as $user) {
+            $userPrice = UserPrice::where('month', $selectedDate)
+                ->where('user_id', $user->id)
+                ->first();
+            if ($userPrice) {
+                $usersPrice[] = $userPrice;
+            }
+        }
+
         if ($usersTeam) {
             return response()->json([
                 'success' => true,
-                'usersTeam' => $usersTeam,          //fix сделать проверку на существование
+                'usersTeam' => $usersTeam,
+                'usersPrice' => $usersPrice,
             ]);
         } else {
-            return response()->json([
-                'success' => false]);
+            return response()->json(['success' => false]);
         }
     }
 
-    // AJAX Обработчик изменения даты
+    // AJAX SELECT DATE. Обработчик изменения даты
     public function updateDate(Request $request)
     {
         $allTeams = Team::all();
@@ -94,7 +105,7 @@ class SettingPricesController extends Controller
                 // Сохраняем изменения в базе данных
                 $setting->save();
                 foreach ($allTeams as $team) {
-                    \App\Models\TeamPrice::firstOrCreate(
+                    TeamPrice::firstOrCreate(
                         [
                             'team_id' => $team->id,
                             'month' => $month
@@ -115,7 +126,7 @@ class SettingPricesController extends Controller
         }
     }
 
-//  AJAX Получение списка пользователей
+    //AJAX Кнопка ОК. Установка цен группе и юзерам.
     public function setTeamPrice(Request $request)
     {
         $teamPrice = $request->query('teamPrice');
@@ -123,7 +134,7 @@ class SettingPricesController extends Controller
         $selectedDate = $request->query('selectedDate');
         $usersTeam = User::where('team_id', $teamId)->get();
 
-        \App\Models\TeamPrice::updateOrCreate(
+        TeamPrice::updateOrCreate(
             [
                 'team_id' => $teamId,
                 'month' => $selectedDate,
@@ -132,6 +143,19 @@ class SettingPricesController extends Controller
                 'price' => $teamPrice
             ]
         );
+        // Обновляем цены для пользователей
+        $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
+        foreach ($users as $user) {
+            UserPrice::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'month' => $selectedDate
+                ],
+                [
+                    'price' => $teamPrice, // Используем ту же цену, что и для команды
+                ]
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -141,7 +165,7 @@ class SettingPricesController extends Controller
         ]);
     }
 
-    //AJAX Применить слева.Установка цен всем группам
+    //AJAX ПРИМЕНИТЬ слева.Установка цен всем группам
     public function setPriceAllTeams(Request $request)
     {
 
@@ -150,10 +174,9 @@ class SettingPricesController extends Controller
 
         // Перебираем массив и обновляем цены команд
         foreach ($teamsData as $teamData) {
-            // Находим команду по названию
-            $team = Team::where('title', $teamData['name'])->first();
 
             // Обновляем цены для групп
+            $team = Team::where('title', $teamData['name'])->first();
             if ($team) {
                 // Обновляем или создаем запись в таблице team_prices
                 TeamPrice::updateOrCreate(
@@ -176,16 +199,58 @@ class SettingPricesController extends Controller
                     ],
                     [
                         'price' => $teamData['price'], // Используем ту же цену, что и для команды
-                        'is_paid' => false // Или оставляем текущий статус оплаты
                     ]
                 );
             }
         }
 
+        return response()->json([
+            'success' => true,
+        ]);
+    }
 
+    //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
+    public function setPriceAllUsers(Request $request)
+    {
+
+        $selectedDate = $request->query('selectedDate');
+//        $teamsData = json_decode($request->query('teamsData'), true);
+
+        // Перебираем массив и обновляем цены команд
+//        foreach ($teamsData as $teamData) {
+
+            // Обновляем цены для групп
+//            $team = Team::where('title', $teamData['name'])->first();
+//            if ($team) {
+//                // Обновляем или создаем запись в таблице team_prices
+//                TeamPrice::updateOrCreate(
+//                    [
+//                        'team_id' => $team->id,
+//                        'month' => $selectedDate
+//                    ],
+//                    [
+//                        'price' => $teamData['price']
+//                    ]
+//                );
+//            }
+            // Обновляем цены для пользователей
+//            $users = User::where('team_id', $team->id)->get(); // Предполагается, что пользователи связаны с командами
+//            foreach ($users as $user) {
+//                UserPrice::updateOrCreate(
+//                    [
+//                        'user_id' => $user->id,
+//                        'month' => $selectedDate
+//                    ],
+//                    [
+//                        'price' => $teamData['price'], // Используем ту же цену, что и для команды
+//                    ]
+//                );
+//            }
+//        }
 
         return response()->json([
             'success' => true,
         ]);
     }
+
 }

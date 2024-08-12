@@ -74,7 +74,7 @@
                 </div>
                 <div class="col-md-auto"></div>
                 <div id='right_bar' class="col col-lg-5">
-                    <button disabled class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить</button>
+                    <button disabled id="set-price-all-users" class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить</button>
                         <div class="row mb-2 wrap-users"></div>
                 </div>
             </div>

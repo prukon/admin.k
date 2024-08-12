@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
 
-
-    // User
+    // AJAX User
     $('#single-select-user').change(function () {
         var userName = $(this).val();
         $.ajax({
@@ -39,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Team
+    // AJAX Team
     $('#single-select-team').change(function () {
         var teamName = $(this).val();
         $.ajax({
