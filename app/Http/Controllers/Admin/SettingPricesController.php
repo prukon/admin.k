@@ -8,6 +8,7 @@ use App\Http\Requests\Team\FilterRequest;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\TeamPrice;
+use App\Models\UserPrice;
 use App\Models\User;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
@@ -152,6 +153,7 @@ class SettingPricesController extends Controller
             // Находим команду по названию
             $team = Team::where('title', $teamData['name'])->first();
 
+            // Обновляем цены для групп
             if ($team) {
                 // Обновляем или создаем запись в таблице team_prices
                 TeamPrice::updateOrCreate(
@@ -164,7 +166,23 @@ class SettingPricesController extends Controller
                     ]
                 );
             }
+            // Обновляем цены для пользователей
+            $users = User::where('team_id', $team->id)->get(); // Предполагается, что пользователи связаны с командами
+            foreach ($users as $user) {
+                UserPrice::updateOrCreate(
+                    [
+                        'user_id' => $user->id,
+                        'month' => $selectedDate
+                    ],
+                    [
+                        'price' => $teamData['price'], // Используем ту же цену, что и для команды
+                        'is_paid' => false // Или оставляем текущий статус оплаты
+                    ]
+                );
+            }
         }
+
+
 
         return response()->json([
             'success' => true,
