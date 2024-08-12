@@ -139,4 +139,35 @@ class SettingPricesController extends Controller
             'teamId' => $teamId,
         ]);
     }
+
+    //AJAX Применить слева.Установка цен всем группам
+    public function setPriceAllTeams(Request $request)
+    {
+
+        $selectedDate = $request->query('selectedDate');
+        $teamsData = json_decode($request->query('teamsData'), true);
+
+        // Перебираем массив и обновляем цены команд
+        foreach ($teamsData as $teamData) {
+            // Находим команду по названию
+            $team = Team::where('title', $teamData['name'])->first();
+
+            if ($team) {
+                // Обновляем или создаем запись в таблице team_prices
+                TeamPrice::updateOrCreate(
+                    [
+                        'team_id' => $team->id,
+                        'month' => $selectedDate
+                    ],
+                    [
+                        'price' => $teamData['price']
+                    ]
+                );
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
 }

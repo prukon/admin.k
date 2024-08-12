@@ -39,7 +39,7 @@
             </div>
             <div class="row justify-content-center  mt-3 " id='wrap-bars'>
                 <div id='left_bar' class="col col-lg-5 mb-3">
-                    <button class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить</button>
+                    <button id="set-price-all-teams" class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить</button>
 {{--                    {{dd($teamPrice)}}--}}
                  <div class="testDiv">
                      @foreach($teamPrices as $teamPrice)

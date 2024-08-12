@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     //AJAX Обработчик изменения даты
     $('#single-select-date').on('change', function () {
-        document.querySelector('#left_bar .btn-setting-prices').setAttribute('disabled', 'disabled');
+        document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
         let selectedMonth = $(this).val();
         $.ajax({
             url: '/update-date',
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // _token: '{{ csrf_token() }}'
             },
             success: function (response) {
-                document.querySelector('#left_bar .btn-setting-prices').removeAttribute('disabled');
+                document.querySelector('#set-price-all-teams').removeAttribute('disabled');
                 location.reload();
             },
             error: function (xhr, status, error) {
@@ -58,9 +58,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-    const okButtons = document.querySelectorAll('.ok');
 
     //AJAX Добавляем обработчик события на кнопки Ок
+    const okButtons = document.querySelectorAll('.ok');
     for (let i = 0; i < okButtons.length; i++) {
         let button = okButtons[i];
         button.addEventListener('click', function () {
@@ -96,5 +96,41 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+
+    //AJAX Применить слева.Установка цен всем группам
+    $('#set-price-all-teams').on('click', function () {
+        // Выбранная дата
+        const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+
+        //Выключаем кнопку
+        document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
+
+      // Получаем массив команд и их цен
+        let teamsData = [];
+        document.querySelectorAll('.wrap-team').forEach(function(teamElement) {
+            let teamName = teamElement.querySelector('.team-name').textContent.trim();
+            let teamPrice = teamElement.querySelector('.team-price input').value;
+            teamsData.push({
+                name: teamName,
+                price: parseFloat(teamPrice)
+            });
+        });
+
+        $.ajax({
+            url: '/set-price-all-teams',
+            method: 'GET',
+            data: {
+                selectedDate: selectedDate,
+                teamsData: JSON.stringify(teamsData) // Конвертируем массив объектов в строку JSON
+            },
+            success: function (response) {
+                location.reload();
+            },
+            error: function (xhr, status, error) {
+                console.log('Error:', error);
+            }
+        });
+    });
 
 });
