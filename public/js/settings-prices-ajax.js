@@ -1,12 +1,9 @@
 document.addEventListener('DOMContentLoaded', function () {
 
-    // /Получение списка пользователей
-    // Находим все кнопки с классом 'detail'
+    // AJAX Получение списка пользователей
     const detailButtons = document.querySelectorAll('.detail');
-// Добавляем обработчик события на каждую кнопку
     for (let i = 0; i < detailButtons.length; i++) {
         let button = detailButtons[i];
-
         button.addEventListener('click', function () {
             document.querySelector('#right_bar .btn-setting-prices').setAttribute('disabled', 'disabled');
             // Находим родительский div (родителя с классом 'wrap-team')
@@ -41,8 +38,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Обработчик изменения даты
-    $('#single-select-user').on('change', function () {
+    //AJAX Обработчик изменения даты
+    $('#single-select-date').on('change', function () {
         document.querySelector('#left_bar .btn-setting-prices').setAttribute('disabled', 'disabled');
         let selectedMonth = $(this).val();
         $.ajax({
@@ -61,6 +58,43 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+    const okButtons = document.querySelectorAll('.ok');
+
+    //AJAX Добавляем обработчик события на кнопки Ок
+    for (let i = 0; i < okButtons.length; i++) {
+        let button = okButtons[i];
+        button.addEventListener('click', function () {
+            const parentDiv = this.closest('.wrap-team');
+            const teamPrice = parentDiv.querySelector('.team-price input').value;
+            const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+
+
+            if (parentDiv) {
+                $.ajax({
+                    url: '/set-team-price',
+                    type: 'GET',
+                    data: {
+                        teamId: parentDiv.id,
+                        teamPrice: teamPrice,
+                        selectedDate: selectedDate,
+                    },
+
+                    success: function (response) {
+                        if (response.success) {
+                            var teamPrice = response.teamPrice;
+                            var selectedDate = response.selectedDate;
+                            var teamId = response.teamId;
+                            console.log(teamId);
+                            console.log(selectedDate);
+                            console.log(teamPrice);
+
+                            // var teamId = response.teamId;
+
+                        }
+                    }
+                });
+            }
+        });
+    }
 
 });
-

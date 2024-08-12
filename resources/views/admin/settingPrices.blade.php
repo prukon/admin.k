@@ -10,11 +10,11 @@
         <div class="container">
             <div class="row justify-content-md-center">
                 <div id='selectDate' class="col-10">
-                    <select class="form-select" id="single-select-user" data-placeholder="Дата">
+                    <select class="form-select" id="single-select-date" data-placeholder="Дата">
                         <option>{{$currentDate->date}}</option>
                     </select>
                     <script>
-                        const selectElement = document.getElementById('single-select-user');
+                        const selectElement = document.getElementById('single-select-date');
                         const startYear = 2024;
                         const startMonth = 8; // Июнь (месяцы в JavaScript считаются с 0: 0 = январь, 1 = февраль и т.д.)
                         let CountMonths = function () { // fix переписать для автоматизации
@@ -62,7 +62,7 @@
 
                     @for($i = 0; $i < count($teamPrices); $i++)
                         <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
-                            <div class="team-name col-3">{{$allTeams[$i]->title }}</div>
+                            <div class="team-name col-3">{{$allTeams[$i]->title}}</div>
                             <div class="team-price col-2"><input class="" type="number" value="{{ $teamPrices[$i]->price }}"></div>
                             <div class="team-buttons col-7">
                                 <input class="ok btn btn-primary" type="button" value="ok" id="">

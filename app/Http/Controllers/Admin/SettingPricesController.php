@@ -43,7 +43,7 @@ class SettingPricesController extends Controller
         $allTeamsCount = Team::all()->count();
         $allUsersCount = User::all()->count();
 //        dd($currentDate->date);
-        $teamPrices = TeamPrice::where('month',$currentDate->date)->get();
+        $teamPrices = TeamPrice::where('month', $currentDate->date)->get();
 //dd($teamPrices);
 //        $weekdays = Weekday::all();
 //
@@ -63,8 +63,7 @@ class SettingPricesController extends Controller
         ));
     }
 
-//ajax
-    // /Получение списка пользователей
+    // AJAX Получение списка пользователей
     public function getTeamPrice(Request $request)
     {
 
@@ -81,21 +80,18 @@ class SettingPricesController extends Controller
         }
     }
 
-    // Обработчик изменения даты
+    // AJAX Обработчик изменения даты
     public function updateDate(Request $request)
     {
         $allTeams = Team::all();
         $month = $request->query('month');
         if ($month) {
-            // Получаем запись, которую нужно обновить
             $setting = Setting::first(); // Здесь вы можете использовать другой метод для поиска нужной записи
             if ($setting) {
                 // Изменяем поле date на новое значение
                 $setting->date = $month; // Здесь можно использовать $month или любую другую логику для определения нового значения
                 // Сохраняем изменения в базе данных
                 $setting->save();
-
-
                 foreach ($allTeams as $team) {
                     \App\Models\TeamPrice::firstOrCreate(
                         [
@@ -107,8 +103,6 @@ class SettingPricesController extends Controller
                         ]
                     );
                 }
-
-
                 return response()->json([
                     'success' => true,
                     'month' => $month,
@@ -118,5 +112,31 @@ class SettingPricesController extends Controller
                     'success' => false]);
             }
         }
+    }
+
+//  AJAX Получение списка пользователей
+    public function setTeamPrice(Request $request)
+    {
+        $teamPrice = $request->query('teamPrice');
+        $teamId = $request->query('teamId');
+        $selectedDate = $request->query('selectedDate');
+        $usersTeam = User::where('team_id', $teamId)->get();
+
+        \App\Models\TeamPrice::updateOrCreate(
+            [
+                'team_id' => $teamId,
+                'month' => $selectedDate,
+            ],
+            [
+                'price' => $teamPrice
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'teamPrice' => $teamPrice,
+            'selectedDate' => $selectedDate,
+            'teamId' => $teamId,
+        ]);
     }
 }
