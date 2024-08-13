@@ -30,28 +30,26 @@ document.addEventListener('DOMContentLoaded', function () {
                                 let userTeam = usersTeam.find(team => team.id === usersPrice[i].user_id); // Находим соответствующего пользователя в usersTeam
                                 let userBlock = `
                 <div class="row mb-2">
-                    <div class="user-name col-6">  ${userTeam ? userTeam.name : 'Имя не найдено'}</div>
+                    <div id="${userTeam ? userTeam.id : 'Имя не найдено'}" class="user-name col-6">  ${userTeam ? userTeam.name : 'Имя не найдено'}</div>
                     <div class="user-price col-4"><input class="" type="number" value=${usersPrice[i].price}></div>
                     <div class="check col-2"><span class="fa fa-check display-none green-check" aria-hidden="true"></span></div>
                 </div>
             `;
                                 rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
                                 document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
-
-
                             }
 
-            //                 usersTeam.forEach(function (user) {
-            //                     let userBlock = `
-            //     <div class="row mb-2">
-            //         <div class="user-name col-6">${user.name}</div>
-            //         <div class="user-price col-4"><input class="" type="number" value="7050"></div>
-            //         <div class="check col-2"><span class="fa fa-check display-none green-check" aria-hidden="true"></span></div>
-            //     </div>
-            // `;
-            //                     rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
-            //                     document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
-            //                 });
+                            //                 usersTeam.forEach(function (user) {
+                            //                     let userBlock = `
+                            //     <div class="row mb-2">
+                            //         <div class="user-name col-6">${user.name}</div>
+                            //         <div class="user-price col-4"><input class="" type="number" value="7050"></div>
+                            //         <div class="check col-2"><span class="fa fa-check display-none green-check" aria-hidden="true"></span></div>
+                            //     </div>
+                            // `;
+                            //                     rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
+                            //                     document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
+                            //                 });
                             console.log(usersTeam);
                             console.log(usersPrice);
                         }
@@ -121,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    //AJAX ПРИМЕНИТЬ слева.Установка цен всем группам
+    //AJAX ПРИМЕНИТЬ СЛЕВА.Установка цен всем группам
     $('#set-price-all-teams').on('click', function () {
         // Выбранная дата
         const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
@@ -156,30 +154,69 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
+    //AJAX ПРИМЕНИТЬ СПРАВА.Установка цен всем ученикам
     $('#set-price-all-users').on('click', function () {
         // Выбранная дата
         const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
-
         //Выключаем кнопку
         document.querySelector('#set-price-all-users').setAttribute('disabled', 'disabled');
+
+        // Получаем все элементы с классом 'row mb-2' внутри 'wrap-users'
+        const userRows = document.querySelectorAll('.wrap-users .row.mb-2');
+
+        // Создаем массив для хранения данных
+        let usersData = [];
+
+        // Проходим по каждому пользователю и собираем его данные
+        userRows.forEach(row => {
+            let userId = row.querySelector('.user-name').getAttribute('id');
+            let price = row.querySelector('.user-price input').value;
+            let name = row.querySelector('.user-name').textContent;
+
+            // Добавляем объект с данными пользователя в массив
+            usersData.push({
+                id: userId,
+                price: price,
+                name: name,
+            });
+        });
 
         $.ajax({
             url: '/set-price-all-users',
             method: 'GET',
             data: {
                 selectedDate: selectedDate,
-                // teamsData: JSON.stringify(teamsData) // Конвертируем массив объектов в строку JSON
+                usersData: JSON.stringify(usersData) // Конвертируем массив объектов в строку JSON
             },
             success: function (response) {
+                var usersData = response.usersData;
+
                 document.querySelector('#set-price-all-users').removeAttribute('disabled');
-                location.reload();
+
+             console.log('usersData');
+             console.log( usersData);
+                // location.reload();
+
+                let rightBar = $('.wrap-users');
+                rightBar.empty();
+
+                for (i = 0; i < usersData.length; i++) {
+                    let userBlock = `
+                <div class="row mb-2">
+                    <div id="${usersData[i].id}" class="user-name col-6">  ${usersData[i].name }   </div>
+                    <div class="user-price col-4"><input class="" type="number" value=${usersData[i].price}></div>
+                    <div class="check col-2"><span class="fa fa-check display-none green-check" aria-hidden="true"></span></div>
+                </div>
+            `;
+                    rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
+                    document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
+                }
             },
             error: function (xhr, status, error) {
                 console.log('Error:', error);
             }
         });
     });
- 
+
 });
 
