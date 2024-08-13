@@ -143,18 +143,28 @@ class SettingPricesController extends Controller
                 'price' => $teamPrice
             ]
         );
+
         // Обновляем цены для пользователей
         $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
+
         foreach ($users as $user) {
-            UserPrice::updateOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'month' => $selectedDate
-                ],
-                [
-                    'price' => $teamPrice, // Используем ту же цену, что и для команды
-                ]
-            );
+            $userPrice = UserPrice::where('user_id', $user['id'])
+                ->where('month', $selectedDate)
+                ->where('is_paid', false)
+                ->first();
+
+            if ($userPrice) {
+                $userPrice->update([
+                    'price' => $teamPrice
+                ]);
+            } else {
+                UserPrice::create([
+                    'user_id' => $user['id'],
+                    'month' => $selectedDate,
+                    'price' => $teamPrice,
+                    'is_paid' => false
+                ]);
+            }
         }
 
         return response()->json([
@@ -191,17 +201,32 @@ class SettingPricesController extends Controller
             }
             // Обновляем цены для пользователей
             $users = User::where('team_id', $team->id)->get(); // Предполагается, что пользователи связаны с командами
+
             foreach ($users as $user) {
-                UserPrice::updateOrCreate(
-                    [
-                        'user_id' => $user->id,
-                        'month' => $selectedDate
-                    ],
-                    [
-                        'price' => $teamData['price'], // Используем ту же цену, что и для команды
-                    ]
-                );
+                $userPrice = UserPrice::where('user_id', $user['id'])
+                    ->where('month', $selectedDate)
+                    ->where('is_paid', false)
+                    ->first();
+
+                if ($userPrice) {
+                    $userPrice->update([
+                        'price' => $teamData['price']
+                    ]);
+                } else {
+                    UserPrice::create([
+                        'user_id' => $user['id'],
+                        'month' => $selectedDate,
+                        'price' => $teamData['price'],
+                        'is_paid' => false
+                    ]);
+                }
             }
+
+
+
+
+
+
         }
 
         return response()->json([
@@ -210,25 +235,12 @@ class SettingPricesController extends Controller
     }
 
     //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
+
     public function setPriceAllUsers(Request $request)
     {
 
         $selectedDate = $request->query('selectedDate');
         $usersData = json_decode($request->query('usersData'), true);
-
-
-        // Перебираем массив и обновляем цены команд
-//        foreach ($usersData as $userData) {
-//                UserPrice::updateOrCreate(
-//                    [
-//                        'user_id' => $userData['id'],
-//                        'month' => $selectedDate
-//                    ],
-//                    [
-//                        'price' => $userData['price']
-//                    ]
-//                );
-//        }
 
         foreach ($usersData as $userData) {
 
@@ -243,39 +255,9 @@ class SettingPricesController extends Controller
             }
         }
 
-
-
-//        foreach ($usersData as $userData) {
-//            // Ищем запись с user_id, месяцем и is_paid == false
-//            $userPrice = UserPrice::where('user_id', $userData['id'])
-//                ->where('month', $selectedDate)
-//                ->first();
-//
-//            if ($userPrice && $userPrice->is_paid == 1) {
-//
-//            } else
-//            {    // Обновляем только если is_paid == false
-//                $userPrice->update([
-//                    'price' => $userData['price']
-//                ]);
-//            }
-
-            // Проверяем, что нашли запись и что она не оплачена
-//            if ($userPrice && $userPrice->is_paid == 0) {
-//                // Обновляем только если is_paid == false
-//                $userPrice->update([
-//                    'price' => $userData['price']
-//                ]);
-//            }
-//        }
-
-
-
-
         return response()->json([
             'success' => true,
             'usersData' => $usersData,
         ]);
     }
-
 }

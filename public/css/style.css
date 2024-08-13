@@ -341,3 +341,12 @@ footer .social-networks {
 #wrap-bars .check .fa-check {
     color: #00cb00;
 }
+#right_bar .display-none {
+    display: none;
+
+}.display-none {
+    display: none;
+}
+.info-cicle {
+    color: #343a40;
+}

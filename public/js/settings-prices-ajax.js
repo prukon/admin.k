@@ -28,29 +28,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
                             for (i = 0; i < usersPrice.length; i++) {
                                 let userTeam = usersTeam.find(team => team.id === usersPrice[i].user_id); // Находим соответствующего пользователя в usersTeam
+
+                                let checkClass = usersPrice[i].is_paid ? '' : 'display-none';
+                                let inputDisabled = usersPrice[i].is_paid ? 'disabled' : '';
+
                                 let userBlock = `
                 <div class="row mb-2">
                     <div id="${userTeam ? userTeam.id : 'Имя не найдено'}" class="user-name col-6">  ${userTeam ? userTeam.name : 'Имя не найдено'}</div>
-                    <div class="user-price col-4"><input class="" type="number" value=${usersPrice[i].price}></div>
-                    <div class="check col-2"><span class="fa fa-check display-none green-check" aria-hidden="true"></span></div>
+                    <div class="user-price col-4"><input class="" type="number" value=${usersPrice[i].price} ${inputDisabled}></div>
+                    <div class="check col-2"><span class="fa fa-check ${checkClass} green-check" aria-hidden="true"></span></div>
                 </div>
             `;
                                 rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
                                 document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
                             }
 
-                            //                 usersTeam.forEach(function (user) {
-                            //                     let userBlock = `
-                            //     <div class="row mb-2">
-                            //         <div class="user-name col-6">${user.name}</div>
-                            //         <div class="user-price col-4"><input class="" type="number" value="7050"></div>
-                            //         <div class="check col-2"><span class="fa fa-check display-none green-check" aria-hidden="true"></span></div>
-                            //     </div>
-                            // `;
-                            //                     rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
-                            //                     document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
-                            //                 });
+                            console.log("usersTeam:");
                             console.log(usersTeam);
+                            console.log("usersPrice:");
                             console.log(usersPrice);
                         }
                     },

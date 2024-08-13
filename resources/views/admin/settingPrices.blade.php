@@ -25,7 +25,6 @@
                                 return 24;
                             }
                         }
-                        // CountMonths();
                         for (let i = 0; i < CountMonths(); i++) {
                             const optionDate = new Date(startYear, startMonth + i, 1);
                             const monthYear = optionDate.toLocaleString('default', {month: 'long', year: 'numeric'});
@@ -40,27 +39,9 @@
             <div class="row justify-content-center  mt-3 " id='wrap-bars'>
                 <div id='left_bar' class="col col-lg-5 mb-3">
                     <button id="set-price-all-teams" class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить</button>
-{{--                    {{dd($teamPrice)}}--}}
-                 <div class="testDiv">
-                     @foreach($teamPrices as $teamPrice)
-{{--                         <pre>{{ var_dump($teamPrice->team_id) }}</pre>--}}
-{{--                         <pre>{{ dd($allTeams) }}</pre>--}}
-                         <!-- Остальной код -->
-                     @endforeach
-                 </div>
-{{--                    @foreach($allTeams as $team)--}}
-{{--                    @foreach($teamPrices as $teamPrice)--}}
-{{--                        <div id="{{$teamPrice->team_id}}" class="row mb-2 wrap-team">--}}
-{{--                            <div class="team-name col-3">{{}}</div>--}}
-{{--                            <div class="team-price col-2"><input class="" type="number" value="{{$teamPrice->price}}"></div>--}}
-{{--                            <div class="team-buttons col-7">--}}
-{{--                                <input class="ok btn btn-primary" type="button" value="ok" id="">--}}
-{{--                                <input class="detail btn btn-primary" type="button" value="Подробно" id="">--}}
-{{--                            </div>--}}
-{{--                        </div>--}}
-{{--                    @endforeach--}}
+                    <i class="info-cicle fa-solid fa-circle-info"></i>
 
-                    @for($i = 0; $i < count($teamPrices); $i++)
+ @for($i = 0; $i < count($teamPrices); $i++)
                         <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
                             <div class="team-name col-3">{{$allTeams[$i]->title}}</div>
                             <div class="team-price col-2"><input class="" type="number" value="{{ $teamPrices[$i]->price }}"></div>
