@@ -16,6 +16,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     // Добавляем суммы в месяца
                     let addPriceToSeasons = function () {
+
+                        let refreshPrice = function () {
+                            // Получаем все элементы с классом 'price-value' и устанавливаем значение '0'
+                            document.querySelectorAll('.price-value').forEach(function (element) {
+                                element.textContent = '0';
+                            });
+                            // Получаем все кнопки внутри 'new-main-button-wrap' и удаляем все классы
+                            document.querySelectorAll('.new-main-button-wrap button').forEach(function (button) {
+                                button.classList.remove('buttonPaided');
+                            });
+                        }
+                        refreshPrice();
+
+
+
                         if (userPrice) {
                             for (j = 0; j < userPrice.length; j++) {
 
@@ -66,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                             if (matchedData.is_paid) {
                                                 button.textContent = "Оплачено";
                                                 button.setAttribute('disabled', 'disabled');
-                                                button.style.backgroundColor = '#f3a12b';
+                                                button.classList.add('buttonPaided');
                                             } else {
                                                 button.removeAttribute('disabled');
                                             }
