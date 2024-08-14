@@ -215,7 +215,8 @@ footer .social-networks {
 }
 
 .seasons .border_price {
-    display: inline-block;
+    /*display: inline-block;*/
+    display: none;
     border-style: dotted;
     border-width: 1px 1px 1px 1px;
     border-color: #f3a12b;

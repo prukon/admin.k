@@ -16,10 +16,6 @@
 
 
 // Создание сезонов
-
-// let testFunc = function() {
-//     console.log('testFunc1');
-// }
 let createSeasons = function () {
     // console.log('createSeasons');
 
@@ -59,15 +55,15 @@ let createSeasons = function () {
             }
             div.innerHTML = `
                 <div class="row align-items-center justify-content-center">
-                    <span class="price-value">100</span>
+                    <span class="price-value">0</span>
                     <span class="hide-currency">₽</span>
                 </div>
                 <div class="row justify-content-center align-items-center">
-                    <div class="new-price-description">за ${monthsRu[key]} ${displaySeason}</div>
+                    <div class="new-price-description">${monthsRu[key]} ${displaySeason}</div>
                 </div>
                 <div class="row new-main-button-wrap">
                     <div class="justify-content-center align-items-center">
-                        <button type="button" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
+                        <button type="button" disabled="enabled" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
                     </div>
                 </div>
             `;
@@ -77,10 +73,8 @@ let createSeasons = function () {
     });
 }
 
-
 // Открытие, закрытие сезонов при клике
 let clickSeason = function () {
-    console.log('clickSeason');
 
     var chevronDownIcons = document.querySelectorAll('.header-season');
     // Добавляем обработчик события клика для каждого элемента
@@ -106,12 +100,26 @@ let clickSeason = function () {
                 if (icon.children[0].classList.contains('fa-chevron-up')) {
                     borderPrice.style.display = 'none';
                 } else {
-                    borderPrice.style.display = 'block';
+                    borderPrice.style.display = 'block   ';
                 }
             });
         });
     });
 }
+
+
+
+
+//Скрытие всех сезонов при загрузке страницы
+let hideAllSeason = function()
+{
+    var seasons = document.querySelectorAll('.season');
+    for (var i = 0; i < seasons.length; i++) {
+        seasons[i].classList.add('display-none');
+    }
+
+}
+
 
 
 document.addEventListener('DOMContentLoaded', function () {

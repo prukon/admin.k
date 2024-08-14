@@ -44,7 +44,10 @@ class SettingPricesController extends Controller
         $allTeamsCount = Team::all()->count();
         $allUsersCount = User::all()->count();
 //        dd($currentDate->date);
-        $teamPrices = TeamPrice::where('month', $currentDate->date)->get();
+        $teamPrices = collect(); // Пустая коллекция по умолчанию
+        if ($currentDate) {
+            $teamPrices = TeamPrice::where('month', $currentDate->date)->get();
+        }
 //dd($teamPrices);
 //        $weekdays = Weekday::all();
 //
@@ -96,9 +99,10 @@ class SettingPricesController extends Controller
     public function updateDate(Request $request)
     {
         $allTeams = Team::all();
-        $month = $request->query('month');
+        $month = ucfirst($request->query('month')); // Преобразуем первую букву месяца в заглавную
+
         if ($month) {
-            $setting = Setting::first(); // Здесь вы можете использовать другой метод для поиска нужной записи
+            $setting = Setting::firstOrCreate([], ['date' => $month]);
             if ($setting) {
                 // Изменяем поле date на новое значение
                 $setting->date = $month; // Здесь можно использовать $month или любую другую логику для определения нового значения

@@ -188,10 +188,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 document.querySelector('#set-price-all-users').removeAttribute('disabled');
 
-             console.log('usersData');
-             console.log( usersData);
-                // location.reload();
-
                 let rightBar = $('.wrap-users');
                 rightBar.empty();
 

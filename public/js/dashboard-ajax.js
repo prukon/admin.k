@@ -12,22 +12,144 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (response.success) {
                     var user = response.data;
                     var userTeam = response.userTeam;
+                    var userPrice = response.userPrice;
 
-                    if (userTeam) {
-                        $('.personal-data-value .group').html(userTeam.title);
-                    } else
-                        $('.personal-data-value .group').html('-');
+                    // Добавляем суммы в месяца
+                    let addPriceToSeasons = function () {
+                        if (userPrice) {
+                            for (j = 0; j < userPrice.length; j++) {
 
-                    if (user.birthday) {
-                        $('.personal-data-value .birthday').html(user.birthday);
-                    } else $('.personal-data-value .birthday').html("-");
+                                // Получаем все блоки с классом border_price
+                                const borderPrices = document.querySelectorAll('.border_price');
 
-                    $('.personal-data-value .count-training').html(123);
-                    if (user.image_crop) {
-                        $('.avatar_wrapper #confirm-img').attr('src', user.image_crop).attr('alt', user.name);
-                    } else {
-                        $('.avatar_wrapper #confirm-img').attr('src', '/img/default.png').attr('alt', 'avatar');
+// Проходим по каждому блоку
+                                for (let i = 0; i < borderPrices.length; i++) {
+                                    const borderPrice = borderPrices[i];
+
+                                    // Находим элемент с классом new-price-description внутри текущего блока
+                                    const newPriceDescription = borderPrice.querySelector('.new-price-description');
+
+                                    // Проверяем, есть ли такой элемент
+                                    if (newPriceDescription) {
+                                        // Получаем текст месяца из блока и убираем пробелы
+                                        const monthText = newPriceDescription.textContent.trim();
+
+                                        // Ищем объект в массиве, у которого month совпадает с текстом месяца
+                                        const matchedData = userPrice.find(item => item.month === monthText);
+
+                                        // Если найдено совпадение, обновляем цену
+                                        if (matchedData) {
+                                            // console.log("matchedData:");
+                                            // console.log(matchedData);
+                                            //
+                                            // console.log("matchedData.price > 0:");
+                                            // console.log(matchedData.price > 0);
+
+                                            const priceValue = borderPrice.querySelector('.price-value');
+                                            if (priceValue) {
+                                                if (matchedData.price > 0) {
+                                                    priceValue.textContent = matchedData.price;
+                                                }
+                                            }
+                                            // borderPrice.querySelector('.new-main-button').removeAttribute('disabled');
+                                            // Получаем кнопку
+                                            const button = borderPrice.querySelector('.new-main-button');
+
+                                            // Проверяем, если is_paid == true, меняем текст и делаем кнопку неактивной
+                                            button.textContent = "Оплатить";
+                                            // button.style.backgroundColor = 'white';
+                                            // button.removeAttribute('disabled');
+
+                                            console.log("matchedData:");
+                                            console.log(matchedData);
+
+                                            if (matchedData.is_paid) {
+                                                button.textContent = "Оплачено";
+                                                button.setAttribute('disabled', 'disabled');
+                                                button.style.backgroundColor = '#f3a12b';
+                                            } else {
+                                                button.removeAttribute('disabled');
+                                            }
+                                            if (matchedData.price == 0) {
+                                                button.setAttribute('disabled', 'disabled');
+                                            }
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
                     }
+                    // Скрываем месяца, которых нет
+                    let showSessons = function () {
+                        var seasons = document.querySelectorAll('.season');
+                        var borderPrice = {};
+                        var totalSumm = {};
+
+                        for (var i = 0; i < seasons.length; i++) {
+                            var seasonId = seasons[i].id;
+
+                            // Initialize the arrays for each season
+                            borderPrice[seasonId] = [];
+                            totalSumm[seasonId] = 0;
+
+                            var borderPrices = seasons[i].querySelectorAll('.border_price');
+                            var priceValues = seasons[i].querySelectorAll('.price-value');
+
+                            for (var j = 0; j < borderPrices.length; j++) {
+                                // Store the border price (if needed)
+                                borderPrice[seasonId].push(borderPrices[j]);
+
+                                // Accumulate the total sum of price values
+                                totalSumm[seasonId] += Number(priceValues[j].textContent);
+                            }
+
+                            // Check if totalSumm is 0 and add class 'display-none' if true
+                            seasons[i].classList.remove('display-none');
+                            if (totalSumm[seasonId] === 0) {
+                                seasons[i].classList.add('display-none');
+                            }
+                            // отобразить последний сезон
+                            seasons[0].classList.remove('display-none')
+
+                        }
+                    }
+                    let showHeaderShedule = function () {
+                        let headerShedule = document.querySelector('.header-shedule');
+                        headerShedule.classList.remove('display-none');
+                    }
+                    let addTeamNameToUser = function () {
+                        if (userTeam) {
+                            $('.personal-data-value .group').html(userTeam.title);
+                        } else
+                            $('.personal-data-value .group').html('-');
+                    }
+                    let addBirthdayToUser = function () {
+                        if (user.birthday) {
+                            $('.personal-data-value .birthday').html(user.birthday);
+                        } else $('.personal-data-value .birthday').html("-");
+
+                    }
+                    let addImageToUser = function () {
+                        if (user.image_crop) {
+                            $('.avatar_wrapper #confirm-img').attr('src', user.image_crop).attr('alt', user.name);
+                        } else {
+                            $('.avatar_wrapper #confirm-img').attr('src', '/img/default.png').attr('alt', 'avatar');
+                        }
+                    }
+                    let addTrainingCountToUser = function () {
+                        $('.personal-data-value .count-training').html(123);
+
+                    }
+
+                    addPriceToSeasons();
+                    showSessons();
+                    showHeaderShedule();
+                    addTeamNameToUser();
+                    addBirthdayToUser();
+                    addImageToUser();
+                    addTrainingCountToUser();
+
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
                 }

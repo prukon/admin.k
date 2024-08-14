@@ -6,6 +6,7 @@ use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\Team;
 use App\Models\User;
+use App\Models\UserPrice;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
 
@@ -78,18 +79,20 @@ class DashboardController extends Controller
             "curUser"));
     }
 
-
-    //AJAX
-    //Изменение юзера
+    //AJAX Изменение юзера
     public function getUserDetails(Request $request)
     {
         $userName = $request->query('name');
         $user = User::where('name', $userName)->first();
+        $userTeam = Team::where('id', $user->team_id)->first();
+        $userPrice = UserPrice::where('user_id', $user->id)->get();
+
         if ($user) {
             return response()->json([
                 'success' => true,
                 'data' => $user,
-                'userTeam' => $userTeam = Team::where('id', $user->team_id)->first()
+                'userTeam' => $userTeam,
+                'userPrice' => $userPrice
             ]);
         } else {
             return response()->json([
@@ -97,7 +100,7 @@ class DashboardController extends Controller
         }
     }
 
-    //Изменение команды
+    //AJAX Изменение команды
     public function getTeamDetails(Request $request)
     {
         $teamName = $request->query('name');

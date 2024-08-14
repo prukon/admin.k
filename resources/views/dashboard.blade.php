@@ -19,9 +19,7 @@
                         </button>
                     </div>
                     <div class="modal-body modal-body1">
-                        <div id='crop-image-container'>
-
-                        </div>
+                        <div id='crop-image-container'></div>
                     </div>
                     <div class="modal-footer">
                         {{--                        <form action="{{ route('post.update', $post->id) }}" method="post">--}}
@@ -109,8 +107,6 @@
                         </select>
                     </div>
 
-
-
                     <div class="col-3">
                         <select class="form-select" id="single-select-team" data-placeholder="Группа">
                             <option></option>
@@ -137,7 +133,6 @@
 
                     </div>
                 </div>
-
 
                 {{--            Чекбоксы дней недели--}}
 
@@ -218,27 +213,36 @@
                 </div>
             </div>
 
-            <h5>Расписание:</h5>
+            <h5 class="header-shedule display-none">Расписание:</h5>
 
             {{--Сезоны--}}
+            {{--            fix автоматизировать--}}
             <div class="row seasons">
                 <div class="col-12">
+
+                    <div class="season season-2025" id="season-2025">
+                        <div class="header-season">Сезон 2024 - 2025 <i class="fa fa-chevron-up"></i><span
+                                    class="display-none from">2024</span><span class="display-none to">2025</span></div>
+                        <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                    class="is_credit_value">0</span> руб.</span>
+                        <div class="row justify-content-center align-items-center container" data-season="2025"></div>
+                    </div>
                     <div class="season season-2024" id="season-2024">
-                        <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-down"></i><span
+                        <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-up"></i><span
                                     class="display-none from">2023</span><span class="display-none to">2024</span></div>
                         <span class="is_credit">Имеется просроченная задолженность в размере <span
                                     class="is_credit_value">0</span> руб.</span>
                         <div class="row justify-content-center align-items-center container" data-season="2024"></div>
                     </div>
                     <div class="season season-2023" id="season-2023">
-                        <div class="header-season">Сезон 2022 - 2023 <i class="fa fa-chevron-down"></i><span
+                        <div class="header-season">Сезон 2022 - 2023 <i class="fa fa-chevron-up"></i><span
                                     class="display-none from">2022</span><span class="display-none to">2023</span></div>
                         <span class="is_credit">Имеется просроченная задолженность в размере <span
                                     class="is_credit_value">0</span> руб.</span>
                         <div class="row justify-content-center align-items-center container" data-season="2023"></div>
                     </div>
                     <div class="season season-2022" id="season-2022">
-                        <div class="header-season">Сезон 2021 - 2022 <i class="fa fa-chevron-down"></i></div>
+                        <div class="header-season">Сезон 2021 - 2022 <i class="fa fa-chevron-up"></i></div>
                         <span class="is_credit">Имеется просроченная задолженность в размере <span
                                     class="is_credit_value">0</span> руб.</span>
                         <div class="row justify-content-center align-items-center container" data-season="2022"></div>
@@ -250,13 +254,14 @@
                 document.addEventListener('DOMContentLoaded', function () {
                     createSeasons()     //Создание сезонов
                     clickSeason()       //Измерение иконок при клике
-            });
+                    hideAllSeason()     //Скрытие всех сезонов при загрузке страницы
+
+
+
+                });
             </script>
 
         </div>
-    </div>
-    </div>
-    </div>
     </div>
 
 @endsection

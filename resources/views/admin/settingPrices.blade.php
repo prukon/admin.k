@@ -11,35 +11,49 @@
             <div class="row justify-content-md-center">
                 <div id='selectDate' class="col-10">
                     <select class="form-select" id="single-select-date" data-placeholder="Дата">
-                        <option>{{$currentDate->date}}</option>
+
+                        @if($currentDate)
+                            <option>{{ $currentDate->date }}</option>
+
+                        @endif
+
                     </select>
                     <script>
                         const selectElement = document.getElementById('single-select-date');
-                        const startYear = 2024;
+                        const startYear = 2023;
                         const startMonth = 8; // Июнь (месяцы в JavaScript считаются с 0: 0 = январь, 1 = февраль и т.д.)
                         let CountMonths = function () { // fix переписать для автоматизации
                             let currentYear = new Date().getFullYear();
                             if (currentYear == 2024) {
-                                return 12;
-                            } else if (currentYear == 2025) {
                                 return 24;
+                            } else if (currentYear == 2025) {
+                                return 36;
                             }
                         }
+
+                        function capitalizeFirstLetter(string) {
+                            return string.charAt(0).toUpperCase() + string.slice(1);
+                        }
+
                         for (let i = 0; i < CountMonths(); i++) {
                             const optionDate = new Date(startYear, startMonth + i, 1);
-                            const monthYear = optionDate.toLocaleString('default', {month: 'long', year: 'numeric'});
+                            let monthYear = optionDate.toLocaleString('ru-RU', { month: 'long', year: 'numeric' }).replace(' г.', '');
+                            monthYear = capitalizeFirstLetter(monthYear);
                             const option = document.createElement('option');
                             option.value = monthYear;
                             option.textContent = monthYear;
                             selectElement.appendChild(option);
                         }
+
+
                     </script>
+
                 </div>
             </div>
             <div class="row justify-content-center  mt-3 " id='wrap-bars'>
                 <div id='left_bar' class="col col-lg-5 mb-3">
                     <button id="set-price-all-teams" class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить</button>
-                    <i class="info-cicle fa-solid fa-circle-info"></i>
+{{--                    <i class="info-cicle fa-solid fa-circle-info"></i>--}}
 
  @for($i = 0; $i < count($teamPrices); $i++)
                         <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
