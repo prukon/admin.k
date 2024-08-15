@@ -45,25 +45,6 @@
                        placeholder="name@example.com" value="{{ $user->email }}">
             </div>
 
-{{--            <div class="mb-3">--}}
-{{--                <label for="inputPassword6" class="col-form-label">Пароль</label>--}}
-{{--                <input name='password' type="password" id="inputPassword6" class="form-control"--}}
-{{--                       aria-labelledby="passwordHelpInline" value={{ $user->password }}>--}}
-{{--                <span id=" passwordHelpInline" class="form-text">--}}
-{{--                Должно быть 8-20 символов.--}}
-{{--                </span>--}}
-{{--            </div>--}}
-
-            {{--            <div class="mb-3">--}}
-            {{--                <label for="inputPassword6" class="col-form-label">Пароль</label>--}}
-            {{--                <input name='password' type="password" id="inputPassword6" class="form-control"--}}
-            {{--                       aria-labelledby="passwordHelpInline">--}}
-            {{--                <span id="passwordHelpInline" class="form-text">--}}
-            {{--      Должно быть 8-20 символов.--}}
-            {{--    </span>--}}
-            {{--            </div>--}}
-
-
             <div class="mb-3">
                 <label for="activity">Активность</label>
                 <select name="is_enabled" class="form-control" id='activity' name='activity'>
@@ -91,6 +72,9 @@
             @method('delete')
             <input type="submit" value="Удалить" class="btn btn-danger">
         </form>
+
+
+
         <div>
 
         </div>
