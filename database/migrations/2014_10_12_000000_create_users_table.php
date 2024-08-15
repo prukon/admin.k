@@ -17,10 +17,12 @@ return new class extends Migration
             $table->string('name');
             $table->Integer('team_id')->nullable();;
             $table->boolean('is_enabled')->default(1);
+            $table->date('start_date')->nullable();
             $table->string('image')->nullable();
             $table->string('image_crop')->nullable();
             $table->string('birthday')->nullable();
             $table->string('email')->unique();
+            $table->string('role')->default('user');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
             $table->rememberToken();
