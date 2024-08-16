@@ -23,11 +23,13 @@ class StoreRequest extends FormRequest
     {
         return [
             'name' => 'string',
-            'birthday' => '',
+            'birthday' => 'string',
             'team_id' => 'string',
-            'image' => '',
+            'start_date' => 'string',
+//            'image' => '',
             'email' => 'string',
-            'password' => 'string',
+            'role' => 'string',
+//            'password' => 'string',
             'is_enabled' => 'string',
         ];
     }

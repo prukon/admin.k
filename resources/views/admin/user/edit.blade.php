@@ -19,7 +19,7 @@
 
             <div class="mb-3">
                 <label for="title" class="form-label">Дата рождения</label>
-                <input type="text" name="birthday" class="form-control" id="birthday" value="{{ $user->birthday }}">
+                <input type="date" name="birthday" class="form-control" id="birthday" value="{{ $user->birthday }}">
             </div>
 
             <div class="mb-3">
@@ -32,6 +32,17 @@
                     @endforeach
                 </select>
             </div>
+
+
+            <div class="mb-3">
+                <label for="start_date" class="form-label">Дата начала занятий</label>
+                <input type="date" name="start_date" class="form-control" id="start_date" value="{{ $user->start_date }}">
+            </div>
+
+
+
+
+
 
             <div class="mb-3">
                 <label for="formFile" class="form-label">Фото</label>

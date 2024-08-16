@@ -10,10 +10,6 @@ use App\Servises\TeamService;
 
 class StoreController extends Controller
 {
-//    public function __construct()
-//    {
-//        $this->middleware('admin');
-//    }
 
     public $service;
 

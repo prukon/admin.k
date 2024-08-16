@@ -188,7 +188,7 @@
                     <div class="personal-data-header">
                         <div class="group">Группа:</div>
                         <div class="birthday">Дата рождения:</div>
-                        <div class="count-training">Количество тренировок:</div>
+{{--                        <div class="count-training">Количество тренировок:</div>--}}
                     </div>
 
                 </div>
@@ -208,7 +208,7 @@
                                 -
                             @endif
                         </div>
-                        <div class="count-training">223</div>
+{{--                        <div class="count-training">223</div>--}}
                     </div>
                 </div>
             </div>

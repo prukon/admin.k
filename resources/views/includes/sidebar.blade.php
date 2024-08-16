@@ -12,9 +12,9 @@
         </li>
         @can('view', auth()->user())
             <li class="nav-item">
-                <a href="/" class="nav-link">
+                <a href="/admin/payments" class="nav-link">
                     <i class="nav-icon far fa-image"></i>
-                    <p>Заказы</p>
+                    <p>Платежи</p>
                 </a>
             </li>
         @endcan

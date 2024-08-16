@@ -25,8 +25,10 @@ class UpdateRequest extends FormRequest
             'name' => 'string',
             'birthday' => '',
             'team_id' => 'string',
-//            'image' => '',
+            'start_date' => '',
+            'image' => '',
             'email' => 'string',
+            'role' => 'string',
 //            'password' => 'string',
             'is_enabled' => 'string',
         ];

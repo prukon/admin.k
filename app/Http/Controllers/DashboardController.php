@@ -43,32 +43,6 @@ class DashboardController extends Controller
         $curUser = auth()->user();
         $curTeam = Team::where('id', auth()->user()->team_id)->first();
 
-
-////        $testTeam = Team::where('id', 2)->first();
-////        foreach ($testTeam->weekdays as $teamWeekdayTest) {
-////            dump($teamWeekdayTest->id);
-////        }
-//
-////        $testTeamWeekdays = $curTeam->weekdays();
-////        dump($testTeamWeekdays);
-//
-//
-//        $teamName = 'Феникс';
-//        //$testTeam = Team::where('id', 2)->first();
-//        $team = Team::where('title', $teamName)->first();
-////        $teamWeekDays = $team->weekdays();
-//
-////        $teamWeekDayId = [];
-//        foreach ($team->weekdays as $teamWeekDay) {
-////            $teamWeekDayId = append($teamWeekDay->id);
-//            $teamWeekDayId[] = $teamWeekDay->id;
-//        }
-////        dd($teamWeekDayId);
-///
-//         $teamId = 1;
-//         $usersTeam = User::where('team_id', 1)->get();
-//         dd($usersTeam);
-
         return view("dashboard", compact(
             "allTeams",
             "allUsers",

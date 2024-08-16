@@ -37,7 +37,7 @@
             </div>
 
             <div class="mb-3">
-                <label for="title" class="form-label">Сортировка</label>
+                <label for="order_by" class="form-label">Сортировка</label>
                 <input type="text" name="order_by" class="form-control" id="order_by" value="{{ $team->order_by }}">
             </div>
 
