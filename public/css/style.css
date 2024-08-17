@@ -351,3 +351,8 @@ footer .social-networks {
 .info-cicle {
     color: #343a40;
 }
+
+.choose-user .btn-primary {
+    background-color: white;
+    color: black;
+}

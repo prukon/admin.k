@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\Team;
+use App\Models\TeamPrice;
 use App\Models\User;
 use App\Models\UserPrice;
 use App\Models\Weekday;
@@ -64,7 +65,7 @@ class DashboardController extends Controller
         if ($user) {
             return response()->json([
                 'success' => true,
-                'data' => $user,
+                'userData' => $user,
                 'userTeam' => $userTeam,
                 'userPrice' => $userPrice
             ]);
@@ -91,6 +92,43 @@ class DashboardController extends Controller
                 'data' => $team,
                 'teamWeekDayId' => $teamWeekDayId,  //fix сделать проверку на существование
                 'usersTeam' => $usersTeam,          //fix сделать проверку на существование
+            ]);
+        } else {
+            return response()->json([
+                'success' => false]);
+        }
+    }
+
+    //AJAX клик по УСТАНОВИТЬ
+    public function setupBtn(Request $request)
+    {
+//        $teamName = $request->query('name');
+//        $team = Team::where('title', $teamName)->first();
+//        $usersTeam = User::where('team_id', $team->id)->get();
+
+        $userName = $request->query('userName');
+        $inputDate = $request->query('inputDate');
+        $inputDate = date('Y-m-d', strtotime($inputDate));
+
+        $user = User::where('name', $userName)->first();
+
+
+        if ($user) {
+            $user->update([
+                'start_date' => $inputDate
+            ]);
+        }
+
+
+//        foreach ($team->weekdays as $teamWeekDay) {
+//            $teamWeekDayId[] = $teamWeekDay->id;
+//        }
+
+        if ($inputDate) {
+            return response()->json([
+                'success' => true,
+                'userName' => $userName,
+                'inputDate' => $inputDate,
             ]);
         } else {
             return response()->json([

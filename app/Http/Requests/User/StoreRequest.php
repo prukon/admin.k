@@ -23,9 +23,9 @@ class StoreRequest extends FormRequest
     {
         return [
             'name' => 'string',
-            'birthday' => 'string',
+            'birthday' => 'date',
             'team_id' => 'string',
-            'start_date' => 'string',
+            'start_date' => 'date',
 //            'image' => '',
             'email' => 'string',
             'role' => 'string',

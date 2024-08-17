@@ -10,13 +10,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             success: function (response) {
                 if (response.success) {
-                    var user = response.data;
-                    var userTeam = response.userTeam;
-                    var userPrice = response.userPrice;
+                    let user = response.userData;
+                    let userTeam = response.userTeam;
+                    let userPrice = response.userPrice;
 
                     // Добавляем суммы в месяца
-                    let addPriceToSeasons = function () {
-
+                    let apendPriceToSeasons = function () {
                         let refreshPrice = function () {
                             // Получаем все элементы с классом 'price-value' и устанавливаем значение '0'
                             document.querySelectorAll('.price-value').forEach(function (element) {
@@ -29,71 +28,66 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                         refreshPrice();
 
+                        //Поиск и установка соответствующих установленных цен
+                        let apendPrice = function (userPrice) {
+                            if (userPrice) {
+                                for (j = 0; j < userPrice.length; j++) {
 
-
-                        if (userPrice) {
-                            for (j = 0; j < userPrice.length; j++) {
-
-                                // Получаем все блоки с классом border_price
-                                const borderPrices = document.querySelectorAll('.border_price');
+                                    // Получаем все блоки с классом border_price
+                                    const borderPrices = document.querySelectorAll('.border_price');
 
 // Проходим по каждому блоку
-                                for (let i = 0; i < borderPrices.length; i++) {
-                                    const borderPrice = borderPrices[i];
+                                    for (let i = 0; i < borderPrices.length; i++) {
+                                        const borderPrice = borderPrices[i];
 
-                                    // Находим элемент с классом new-price-description внутри текущего блока
-                                    const newPriceDescription = borderPrice.querySelector('.new-price-description');
+                                        // Находим элемент с классом new-price-description внутри текущего блока
+                                        const newPriceDescription = borderPrice.querySelector('.new-price-description');
 
-                                    // Проверяем, есть ли такой элемент
-                                    if (newPriceDescription) {
-                                        // Получаем текст месяца из блока и убираем пробелы
-                                        const monthText = newPriceDescription.textContent.trim();
+                                        // Проверяем, есть ли такой элемент
+                                        if (newPriceDescription) {
+                                            // Получаем текст месяца из блока и убираем пробелы
+                                            const monthText = newPriceDescription.textContent.trim();
 
-                                        // Ищем объект в массиве, у которого month совпадает с текстом месяца
-                                        const matchedData = userPrice.find(item => item.month === monthText);
 
-                                        // Если найдено совпадение, обновляем цену
-                                        if (matchedData) {
-                                            // console.log("matchedData:");
-                                            // console.log(matchedData);
-                                            //
-                                            // console.log("matchedData.price > 0:");
-                                            // console.log(matchedData.price > 0);
+                                            // Ищем объект в массиве, у которого month совпадает с текстом месяца
+                                            const matchedData = userPrice.find(item => item.month === monthText);
 
-                                            const priceValue = borderPrice.querySelector('.price-value');
-                                            if (priceValue) {
-                                                if (matchedData.price > 0) {
-                                                    priceValue.textContent = matchedData.price;
+                                            // Если найдено совпадение, обновляем цену
+                                            if (matchedData) {
+
+                                                const priceValue = borderPrice.querySelector('.price-value');
+                                                if (priceValue) {
+                                                    if (matchedData.price > 0) {
+                                                        priceValue.textContent = matchedData.price;
+                                                    }
                                                 }
-                                            }
-                                            // borderPrice.querySelector('.new-main-button').removeAttribute('disabled');
-                                            // Получаем кнопку
-                                            const button = borderPrice.querySelector('.new-main-button');
+                                                // borderPrice.querySelector('.new-main-button').removeAttribute('disabled');
 
-                                            // Проверяем, если is_paid == true, меняем текст и делаем кнопку неактивной
-                                            button.textContent = "Оплатить";
-                                            // button.style.backgroundColor = 'white';
-                                            // button.removeAttribute('disabled');
+                                                // Получаем кнопку
+                                                const button = borderPrice.querySelector('.new-main-button');
 
-                                            console.log("matchedData:");
-                                            console.log(matchedData);
+                                                // Проверяем, если is_paid == true, меняем текст и делаем кнопку неактивной
+                                                button.textContent = "Оплатить";
 
-                                            if (matchedData.is_paid) {
-                                                button.textContent = "Оплачено";
-                                                button.setAttribute('disabled', 'disabled');
-                                                button.classList.add('buttonPaided');
-                                            } else {
-                                                button.removeAttribute('disabled');
-                                            }
-                                            if (matchedData.price == 0) {
-                                                button.setAttribute('disabled', 'disabled');
+                                                if (matchedData.is_paid) {
+                                                    button.textContent = "Оплачено";
+                                                    button.setAttribute('disabled', 'disabled');
+                                                    button.classList.add('buttonPaided');
+                                                } else {
+                                                    button.removeAttribute('disabled');
+                                                }
+                                                if (matchedData.price == 0) {
+                                                    button.setAttribute('disabled', 'disabled');
+                                                }
                                             }
                                         }
                                     }
-                                }
 
+                                }
                             }
+
                         }
+                        apendPrice(userPrice);
                     }
                     // Скрываем месяца, которых нет
                     let showSessons = function () {
@@ -129,41 +123,70 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         }
                     }
-                    let showHeaderShedule = function () {
-                        let headerShedule = document.querySelector('.header-shedule');
-                        headerShedule.classList.remove('display-none');
-                    }
-                    let addTeamNameToUser = function () {
-                        if (userTeam) {
-                            $('.personal-data-value .group').html(userTeam.title);
-                        } else
-                            $('.personal-data-value .group').html('-');
-                    }
-                    let addBirthdayToUser = function () {
+                    // Вставка дня рождения
+                    let apendBirthdayToUser = function () {
                         if (user.birthday) {
                             $('.personal-data-value .birthday').html(user.birthday);
                         } else $('.personal-data-value .birthday').html("-");
 
                     }
-                    let addImageToUser = function () {
+                    // Вставка аватарки юзеру
+                    let apendImageToUser = function () {
                         if (user.image_crop) {
                             $('.avatar_wrapper #confirm-img').attr('src', user.image_crop).attr('alt', user.name);
                         } else {
                             $('.avatar_wrapper #confirm-img').attr('src', '/img/default.png').attr('alt', 'avatar');
                         }
                     }
-                    let addTrainingCountToUser = function () {
+                    // Вставка счетчика тренировок юзеру
+                    let apendTrainingCountToUser = function () {
                         $('.personal-data-value .count-training').html(123);
+                    }
+                    // Отображение заголовка расписания
+                    let showHeaderShedule = function () {
+                        let headerShedule = document.querySelector('.header-shedule');
+                        headerShedule.classList.remove('display-none');
+                    }
+                    // Добавление название группы юзеру
+                    let apendTeamNameToUser = function () {
+                        if (userTeam) {
+                            $('.personal-data-value .group').html(userTeam.title);
+                        } else
+                            $('.personal-data-value .group').html('-');
+                    }
+                    //Добавление начала занятий у юзера
+                    let apendUserStartDate = function () {
+                        const input = document.getElementById("inlineCalendar");
+                        input.value = null;
+                        if (user.start_date) {
+                            // $('#inlineCalendar').html(user.start_date);
+                            const startDate = user.start_date // Дата из базы данных
+
+                            // Преобразование формата даты из yyyy-mm-dd в dd.mm.yyyy
+                            const [year, month, day] = startDate.split('-');
+                            const formattedDate = `${day}.${month}.${year}`;
+
+                            // Установка даты в поле ввода
+                            input.value = formattedDate;
+                        } else $('.personal-data-value .birthday').html("-");
+
 
                     }
 
-                    addPriceToSeasons();
-                    showSessons();
+                    //разблокировка кнопки УСТАНОВИТЬ
+                    let enableSetupBtn = function () {
+                        $('#setup-btn').removeAttr('disabled');
+                    }
+
                     showHeaderShedule();
-                    addTeamNameToUser();
-                    addBirthdayToUser();
-                    addImageToUser();
-                    addTrainingCountToUser();
+                    showSessons();
+                    apendPriceToSeasons();
+                    apendTeamNameToUser();
+                    apendBirthdayToUser();
+                    apendImageToUser();
+                    apendTrainingCountToUser();
+                    apendUserStartDate();
+                    enableSetupBtn();
 
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
@@ -191,44 +214,74 @@ document.addEventListener('DOMContentLoaded', function () {
                     var weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
 
                     // Установка дней недели
-                    for (let i = 0; i < weekdays.length; i++) {
-                        let weekday = weekdays[i];
-                        let input = weekday.querySelector('input'); // Находим input внутри текущего div
+                    let apendWeekdays = function (weekdays) {
+                        for (let i = 0; i < weekdays.length; i++) {
+                            let weekday = weekdays[i];
+                            let input = weekday.querySelector('input'); // Находим input внутри текущего div
 
-                        if (input) { // Проверяем, существует ли input
-                            // input.checked = false; // Устанавливаем атрибут checked
-                            weekdays[i].classList.remove('weekday-enabled');
-                        }
-
-                        if (teamWeekDayId.includes(i + 1)) {
                             if (input) { // Проверяем, существует ли input
-                                // input.checked = true; // Устанавливаем атрибут checked
-                                weekdays[i].classList.add('weekday-enabled');
+                                // input.checked = false; // Устанавливаем атрибут checked
+                                weekdays[i].classList.remove('weekday-enabled');
+                            }
+
+                            if (teamWeekDayId.includes(i + 1)) {
+                                if (input) { // Проверяем, существует ли input
+                                    // input.checked = true; // Устанавливаем атрибут checked
+                                    weekdays[i].classList.add('weekday-enabled');
+                                }
                             }
                         }
                     }
-
                     //Изменение состава юзеров
+                    let updateSelectUsers = function () {
+                        var users = document.querySelectorAll('#single-select-user option');
+                        users.forEach((user, index) => {
+                            if (index !== 0) { // оставить только первый элемент
+                                user.remove();
+                            }
+                        });
 
-                    var users = document.querySelectorAll('#single-select-user option');
-                    users.forEach((user, index) => {
-                        if (index !== 0) { // оставить только первый элемент
-                            user.remove();
-                        }
-                    });
+                        var selectElement = document.querySelector('#single-select-user');
+                        usersTeam.forEach(user => {
+                            var option = document.createElement('option');
+                            // option.value = user.id;   // Присвойте значение из свойства id
+                            option.textContent = user.name; // Отобразите имя пользователя
+                            selectElement.appendChild(option);
+                        });
+                    }
 
-                    var selectElement = document.querySelector('#single-select-user');
-                    usersTeam.forEach(user => {
-                        var option = document.createElement('option');
-                        // option.value = user.id;   // Присвойте значение из свойства id
-                        option.textContent = user.name; // Отобразите имя пользователя
-                        selectElement.appendChild(option);
-                    });
-
+                    apendWeekdays(weekdays);
+                    updateSelectUsers();
                 }
             },
             error: function (xhr, status, error) {
             }
         });
     });
+
+//AJAX клик по УСТАНОВИТЬ
+    $('#setup-btn').click(function () {
+        let userName = $('#single-select-user').val();
+        let inputDate = document.getElementById("inlineCalendar").value;
+
+        $.ajax({
+            url: '/setup-btn',
+            type: 'GET',
+            data: {
+                userName: userName,
+                inputDate: inputDate,
+            },
+
+            success: function (response) {
+                if (response.success) {
+                    var userName = response.userName;
+                    var inputDate = response.inputDate;
+                    console.log(userName);
+                    console.log(inputDate);
+                }
+                location.reload();
+            },
+        })
+    });
+
 });

@@ -3,7 +3,9 @@
 @section('content')
 
     <script src="{{ asset('js/my-croppie.js') }}"></script>
+{{--    <script src="{{ asset('js/main.js') }}"></script>--}}
     <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
+
 
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3">Консоль</h4>
@@ -129,7 +131,7 @@
                         </script>
                     </div>
                     <div class="col-3">
-                        <button type="button" class="btn btn-primary">Установить</button>
+                        <button type="button" disabled id="setup-btn" class="btn btn-primary">Установить</button>
 
                     </div>
                 </div>
@@ -188,7 +190,7 @@
                     <div class="personal-data-header">
                         <div class="group">Группа:</div>
                         <div class="birthday">Дата рождения:</div>
-{{--                        <div class="count-training">Количество тренировок:</div>--}}
+                        {{--                        <div class="count-training">Количество тренировок:</div>--}}
                     </div>
 
                 </div>
@@ -208,7 +210,7 @@
                                 -
                             @endif
                         </div>
-{{--                        <div class="count-training">223</div>--}}
+                        {{--                        <div class="count-training">223</div>--}}
                     </div>
                 </div>
             </div>
@@ -250,12 +252,21 @@
                 </div>
             </div>
 
+
+            {{--            <div class="row seasons">--}}
+{{--                <div class="col-12" id="seasons-container"></div>--}}
+{{--            </div>--}}
+
+
+
+
+
             <script>
                 document.addEventListener('DOMContentLoaded', function () {
+                    // showSeasonsPrice();
                     createSeasons()     //Создание сезонов
                     clickSeason()       //Измерение иконок при клике
                     hideAllSeason()     //Скрытие всех сезонов при загрузке страницы
-
 
 
                 });

@@ -121,8 +121,50 @@ let hideAllSeason = function()
 }
 
 
+// let showSeasonsPrice = function () {
+//
+//     // Получаем текущий год
+//     const currentYear = new Date().getFullYear();
+//
+//     // Определяем, сколько сезонов необходимо отобразить
+//     const numberOfSeasons = 4;
+//
+//     // Селектор контейнера для сезонов
+//     const container = document.getElementById('seasons-container');
+//
+//     // Генерируем сезоны
+//     for (let i = 0; i < numberOfSeasons; i++) {
+//         const fromYear = currentYear - i - 1;
+//         const toYear = currentYear - i;
+//
+//         // Создаем div для каждого сезона
+//         const seasonDiv = document.createElement('div');
+//         seasonDiv.className = `season season-${toYear}`;
+//         seasonDiv.id = `season-${toYear}`;
+//
+//         seasonDiv.innerHTML = `
+//             <div class="header-season">Сезон ${fromYear} - ${toYear} <i class="fa fa-chevron-up"></i>
+//                 <span class="display-none from">${fromYear}</span>
+//                 <span class="display-none to">${toYear}</span>
+//             </div>
+//             <span class="is_credit">Имеется просроченная задолженность в размере
+//                 <span class="is_credit_value">0</span> руб.
+//             </span>
+//             <div class="row justify-content-center align-items-center container" data-season="${toYear}"></div>
+//         `;
+//
+//         // Вставляем новый div в контейнер
+//         container.appendChild(seasonDiv);
+//     }
+//
+// }
+
+
+
 
 document.addEventListener('DOMContentLoaded', function () {
+
+
 
 
 
