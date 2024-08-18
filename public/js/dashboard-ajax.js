@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Вставка аватарки юзеру
                     let apendImageToUser = function () {
                         if (user.image_crop) {
-                            $('.avatar_wrapper #confirm-img').attr('src', user.image_crop).attr('alt', user.name);
+                            $('.avatar_wrapper #confirm-img').attr('src','storage/avatars/' + user.image_crop).attr('alt', user.name);
                         } else {
                             $('.avatar_wrapper #confirm-img').attr('src', '/img/default.png').attr('alt', 'avatar');
                         }
@@ -172,10 +172,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
                     }
-
                     //разблокировка кнопки УСТАНОВИТЬ
                     let enableSetupBtn = function () {
                         $('#setup-btn').removeAttr('disabled');
+                    }
+                    //Добавление имени пользователя в скрытое поле формы для формы отправки аватарки
+                    let apendUserNametoForm = function () {
+                        $('#single-select-user').on('change', function () {
+                            let userName = $(this).val();
+                            $('#selectedUserName').val(userName);
+                        });
                     }
 
                     showHeaderShedule();
@@ -187,6 +193,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     apendTrainingCountToUser();
                     apendUserStartDate();
                     enableSetupBtn();
+                    apendUserNametoForm();
 
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
@@ -259,7 +266,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-//AJAX клик по УСТАНОВИТЬ
+    //AJAX клик по УСТАНОВИТЬ
     $('#setup-btn').click(function () {
         let userName = $('#single-select-user').val();
         let inputDate = document.getElementById("inlineCalendar").value;
@@ -283,5 +290,83 @@ document.addEventListener('DOMContentLoaded', function () {
             },
         })
     });
+
+    // AJAX Вызов модалки
+    let showModal = function () {
+        document.getElementById('upload-photo').addEventListener('click', function () {
+            $('#uploadPhotoModal').modal('show');
+        });
+
+        $(document).ready(function () {
+            // Инициализация Croppie
+            var $uploadCrop = $('#upload-demo').croppie({
+                viewport: { width: 200, height: 200, type: 'square' },
+                boundary: { width: 300, height: 300 },
+                showZoomer: true
+            });
+
+            // При выборе файла изображение загружается в Croppie
+            $('#upload').on('change', function () {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    $uploadCrop.croppie('bind', {
+                        url: e.target.result
+                    }).then(function(){
+                        console.log('Croppie bind complete');
+                    });
+                }
+                reader.readAsDataURL(this.files[0]);
+            });
+
+            // Сохранение обрезанного изображения и отправка через AJAX
+            $('#saveImageBtn').on('click', function () {
+                $uploadCrop.croppie('result', {
+                    type: 'base64',
+                    size: 'viewport'
+                }).then(function (resp) {
+                    // Заполняем скрытое поле base64 изображением
+                    $('#croppedImage').val(resp);
+
+                    // Устанавливаем имя пользователя в скрытое поле
+                    let userName = $('#single-select-user').val();
+                    $('#selectedUserName').val(userName);
+
+                    // Создаем FormData для отправки
+                    var formData = new FormData();
+                    formData.append('_token', $('input[name="_token"]').val()); // Добавляем CSRF-токен
+                    formData.append('croppedImage', $('#croppedImage').val()); // Добавляем обрезанное изображение
+                    formData.append('userName', userName); // Добавляем имя пользователя
+
+                    // Отправка данных через AJAX
+                    $.ajax({
+                        // url: "{{ route('profile.uploadAvatar') }}", // URL маршрута
+                        url: uploadUrl, // URL маршрута
+                        type: 'POST', // Метод POST
+                        data: formData, // Данные формы
+                        contentType: false,
+                        processData: false,
+                        success: function (response) {
+                            if (response.success) {
+                                // Обновляем изображение на странице
+                                $('#confirm-img').attr('src', response.image_url);
+                                alert('Изображение успешно загружено!');
+                            } else {
+                                alert('Ошибка загрузки изображения');
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            console.error('Ошибка:', error);
+                            alert('Ошибка на сервере');
+                        }
+                    });
+                });
+            });
+        });
+
+
+
+    }
+    showModal();
+
 
 });

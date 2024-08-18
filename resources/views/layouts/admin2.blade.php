@@ -45,8 +45,7 @@
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
             <li class="nav-item d-none d-sm-inline-block">
-                <a target="_blank" href="http://fc-istok.ru/" class="nav-link">Главная</a>
-            </li>
+                <a target="_blank" href="http://fc-istok.ru/" class="nav-link">Главна
             <li class="nav-item d-none d-sm-inline-block">
                 <a target="_blank" href="https://fc-istok.ru/raspisanie/" class="nav-link">Расписание занятий</a>
             </li>

@@ -56,6 +56,15 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/set-price-all-users', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
 
 
+//    Route::post('/upload-avatar', [\App\Http\Controllers\DashboardController::class, 'uploadAvatar'])->name('uploadAvatar');
+    Route::post('/profile/upload-avatar', [\App\Http\Controllers\DashboardController::class, 'uploadAvatar'])->name('profile.uploadAvatar');
+
+
+//    Route::get('/calendar', [\App\Http\Controllers\CalendarController::class, 'index']);
+
+    // Маршрут для API, который возвращает события (это в случае, если у вас есть динамическая загрузка событий через AJAX)
+//    Route::get('/api/events', [\App\Http\Controllers\EventController::class, 'getEvents']);
+
 
 });
 

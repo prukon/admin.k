@@ -13,8 +13,6 @@
 // });
 
 
-
-
 // Создание сезонов
 let createSeasons = function () {
     // console.log('createSeasons');
@@ -108,11 +106,8 @@ let clickSeason = function () {
 }
 
 
-
-
 //Скрытие всех сезонов при загрузке страницы
-let hideAllSeason = function()
-{
+let hideAllSeason = function () {
     var seasons = document.querySelectorAll('.season');
     for (var i = 0; i < seasons.length; i++) {
         seasons[i].classList.add('display-none');
@@ -160,12 +155,7 @@ let hideAllSeason = function()
 // }
 
 
-
-
 document.addEventListener('DOMContentLoaded', function () {
-
-
-
 
 
     // Select2

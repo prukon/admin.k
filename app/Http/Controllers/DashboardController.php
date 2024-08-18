@@ -10,6 +10,12 @@ use App\Models\User;
 use App\Models\UserPrice;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Intervention\Image\Facades\Image; // Подключите библиотеку Intervention Image
+
+
+
+use Illuminate\Support\Facades\Storage;
 
 
 class DashboardController extends Controller
@@ -135,4 +141,46 @@ class DashboardController extends Controller
                 'success' => false]);
         }
     }
+
+    public function uploadAvatar(Request $request)
+    {
+        $request->validate([
+            'croppedImage' => 'required|string',
+        ]);
+
+        $userName = $request->input('userName');
+        $user = User::where('name', $userName)->first();
+
+        if ($user) {
+            $imageData = $request->input('croppedImage');
+
+            // Разбираем строку base64 и сохраняем файл
+            list($type, $imageData) = explode(';', $imageData);
+            list(, $imageData)      = explode(',', $imageData);
+            $imageData = base64_decode($imageData);
+
+            // Генерация уникального имени файла
+            $fileName = Str::random(10) . '.png';
+            $path = public_path('storage/avatars/' . $fileName);
+
+            // Сохраняем файл
+            file_put_contents($path, $imageData);
+
+            // Обновляем запись в базе данных
+            $user->image_crop = $fileName;
+            $user->save();
+
+            return response()->json(['success' => true, 'image_url' => '/storage/avatars/' . $fileName]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Пользователь не найден']);
+
+    }
+
+
+
+
+
+
+
 }

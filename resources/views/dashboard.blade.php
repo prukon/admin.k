@@ -6,6 +6,13 @@
 {{--    <script src="{{ asset('js/main.js') }}"></script>--}}
     <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
 
+    <!-- CSS для Croppie -->
+{{--    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css">--}}
+
+    <!-- JS для Croppie -->
+{{--    <script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js"></script>--}}
+
+
 
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3">Консоль</h4>
@@ -37,64 +44,8 @@
         </div>
 
 
-        {{--        <form method="POST" action="/store.blade.php" enctype="multipart/form-data">--}}
-        {{--            @csrf--}}
-        {{--            <input type="file" name="image" id="image-input" accept="image/*">--}}
-        {{--            <div id="image-preview"></div>--}}
-        {{--            <input type="hidden" name="base64_image" id="base64-image">--}}
-        {{--            <button type="submit">Upload</button>--}}
-        {{--        </form>--}}
-
-        {{--        <script>--}}
-        {{--            $(document).ready(function() {--}}
-        {{--                var preview = new Croppie($('#image-preview')[0], {--}}
-        {{--                    viewport: {--}}
-        {{--                        width: 800,--}}
-        {{--                        height: 400,--}}
-        {{--                        type: 'square'--}}
-        {{--                    },--}}
-        {{--                    boundary: {--}}
-        {{--                        width: 810,--}}
-        {{--                        height: 410--}}
-        {{--                    },--}}
-        {{--                    enableResize: false,--}}
-        {{--                    enableOrientation: true,--}}
-        {{--                    enableExif: true,--}}
-        {{--                });--}}
-
-        {{--                $('#image-input').on('change', function(e) {--}}
-        {{--                    var file = e.target.files[0];--}}
-        {{--                    var reader = new FileReader();--}}
-
-        {{--                    reader.onload = function() {--}}
-        {{--                        var base64data = reader.result;--}}
-        {{--                        $('#base64-image').val(base64data);--}}
-
-        {{--                        preview.bind({--}}
-        {{--                            url: base64data--}}
-        {{--                        }).then(function() {--}}
-        {{--                            console.log('Croppie bind complete');--}}
-        {{--                        });--}}
-        {{--                    }--}}
-
-        {{--                    reader.readAsDataURL(file);--}}
-        {{--                });--}}
-
-        {{--                $('form').on('submit', function(e) {--}}
-        {{--                    e.preventDefault();--}}
-
-        {{--                    preview.result('base64').then(function(result) {--}}
-        {{--                        $('#base64-image').val(result);--}}
-        {{--                        $('form')[0].submit();--}}
-        {{--                    });--}}
-        {{--                });--}}
-        {{--            });--}}
-        {{--        </script>--}}
-
-
         <div>
 
-            {{--            <h6 class="welcome-text">Добро пожаловать, <span>админ</span></h6>--}}
             @can('view', auth()->user())
                 <h5 class="choose-user-header">Выбор ученика:</h5>
 
@@ -168,23 +119,24 @@
 
             {{--Аватарка и личные данные--}}
             <div class="row personal-data">
+
                 <div class="col-2">
                     <div class="avatar_wrapper d-flex align-items-center justify-content-center">
                         <img id='confirm-img'
                              @if ($curUser->image)
-                                 src="{{$curUser->image}}" alt={{$curUser->name}}
-{{--        @else  src="/img/logo2.jpg" alt=""--}}
+                                 src="{{ asset('storage/avatars/' . $curUser->image) }}" alt="{{ $curUser->image }}"
         @else  src="/img/default.png" alt=""
                                 @endif
                         >
                     </div>
-
                     <div class='container-form'>
                         <input id='selectedFile' class="disp-none" type='file' accept=".png, .jpg, .jpeg, .svg">
                         <button id="upload-photo" class="btn-primary btn">Выбрать фото...</button>
                     </div>
-
                 </div>
+
+
+
 
                 <div class="col-3">
                     <div class="personal-data-header">
@@ -272,6 +224,64 @@
                 });
             </script>
 
+        </div>
+    </div>
+
+
+
+    <script>
+        const uploadUrl = "{{ route('profile.uploadAvatar') }}";
+    </script>
+
+
+
+{{--    Модалка--}}
+    <div class="modal fade" id="uploadPhotoModal" tabindex="-1" role="dialog" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="uploadPhotoModalLabel">Загрузка аватарки</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+
+
+
+{{--                    <form id="uploadImageForm" method="POST" enctype="multipart/form-data" action="{{ route('profile.uploadAvatar') }}">--}}
+{{--                        @csrf--}}
+{{--                        <div class="form-group">--}}
+{{--                            <label for="avatar">Выберите изображение:</label>--}}
+{{--                            <input type="file" class="form-control-file" id="avatar" name="avatar" accept=".png, .jpg, .jpeg, .svg" required>--}}
+{{--                        </div>--}}
+{{--                    </form>--}}
+                    <form id="uploadImageForm" enctype="multipart/form-data">
+                        @csrf
+                        <!-- Выбор файла -->
+                        <input type="file" id="upload" accept="image/*">
+
+                        <!-- Контейнер для Croppie -->
+                        <div id="upload-demo" style="width:300px;"></div>
+
+                        <!-- Скрытое поле для сохранения имени пользователя -->
+                        <input type="hidden" id="selectedUserName" name="userName" value="">
+
+                        <!-- Скрытое поле для обрезанного изображения -->
+                        <input type="hidden" id="croppedImage" name="croppedImage">
+
+                        <!-- Кнопка для сохранения изображения -->
+                        <button type="button" id="saveImageBtn" class="btn btn-primary">Загрузить</button>
+                    </form>
+
+
+
+                </div>
+{{--                <div class="modal-footer">--}}
+{{--                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>--}}
+{{--                    <button type="button" class="btn btn-primary" id="saveImageBtn">Загрузить</button>--}}
+{{--                </div>--}}
+            </div>
         </div>
     </div>
 
