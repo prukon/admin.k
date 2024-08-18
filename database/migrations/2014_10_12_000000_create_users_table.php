@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('image')->nullable();
             $table->string('image_crop')->nullable();
             $table->date('birthday')->nullable();
-            $table->string('email')->unique();
+            $table->string('email')->unique()->nullable();
             $table->string('role')->default('user')->nullable();;
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
