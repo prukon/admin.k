@@ -176,13 +176,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     let enableSetupBtn = function () {
                         $('#setup-btn').removeAttr('disabled');
                     }
-                    //Добавление имени пользователя в скрытое поле формы для формы отправки аватарки
-                    let apendUserNametoForm = function () {
-                        $('#single-select-user').on('change', function () {
-                            let userName = $(this).val();
-                            $('#selectedUserName').val(userName);
-                        });
-                    }
 
                     showHeaderShedule();
                     showSessons();
@@ -193,7 +186,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     apendTrainingCountToUser();
                     apendUserStartDate();
                     enableSetupBtn();
-                    apendUserNametoForm();
 
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
@@ -295,9 +287,22 @@ document.addEventListener('DOMContentLoaded', function () {
     let showModal = function () {
         document.getElementById('upload-photo').addEventListener('click', function () {
             $('#uploadPhotoModal').modal('show');
+            let apendUserNametoForm = function () {
+                if (currentUserRole == "admin") {
+                    $('#selectedUserName').val($('#single-select-user').val());
+                } else {
+                    $('#selectedUserName').val(currentUserName);
+                }
+
+
+            }
+            apendUserNametoForm();
         });
 
         $(document).ready(function () {
+            //Добавление имени пользователя в скрытое поле формы для формы отправки аватарки
+
+
             // Инициализация Croppie
             var $uploadCrop = $('#upload-demo').croppie({
                 viewport: { width: 200, height: 200, type: 'square' },
@@ -316,6 +321,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 }
                 reader.readAsDataURL(this.files[0]);
+                console.log('1');
+
             });
 
             // Сохранение обрезанного изображения и отправка через AJAX
@@ -328,8 +335,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     $('#croppedImage').val(resp);
 
                     // Устанавливаем имя пользователя в скрытое поле
-                    let userName = $('#single-select-user').val();
-                    $('#selectedUserName').val(userName);
+                    // let userName = $('#single-select-user').val();
+                    //
+                    // $('#selectedUserName').val(userName);
+                    let userName = $('#selectedUserName').val();
+
 
                     // Создаем FormData для отправки
                     var formData = new FormData();
@@ -337,6 +347,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     formData.append('croppedImage', $('#croppedImage').val()); // Добавляем обрезанное изображение
                     formData.append('userName', userName); // Добавляем имя пользователя
 
+                    console.log(userName);
+                    console.log(formData);
                     // Отправка данных через AJAX
                     $.ajax({
                         // url: "{{ route('profile.uploadAvatar') }}", // URL маршрута
@@ -349,10 +361,11 @@ document.addEventListener('DOMContentLoaded', function () {
                             if (response.success) {
                                 // Обновляем изображение на странице
                                 $('#confirm-img').attr('src', response.image_url);
-                                alert('Изображение успешно загружено!');
+                                console.log('Изображе ние успешно загружено!');
                             } else {
                                 alert('Ошибка загрузки изображения');
                             }
+                            location.reload();
                         },
                         error: function (xhr, status, error) {
                             console.error('Ошибка:', error);

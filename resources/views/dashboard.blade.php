@@ -14,6 +14,15 @@
 
 
 
+    <script>
+        // Передача данных текущего пользователя из Blade в JavaScript
+        let currentUserName = "{{ auth()->user()->name }}";
+        let currentUserRole = "{{ auth()->user()->role }}";
+{{--        let isUserAuthenticated = "{{ auth()->check() ? 'true' : 'false' }}";--}}
+
+    </script>
+
+
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3">Консоль</h4>
         {{--        Модалка загрузки аватара--}}
@@ -123,8 +132,8 @@
                 <div class="col-2">
                     <div class="avatar_wrapper d-flex align-items-center justify-content-center">
                         <img id='confirm-img'
-                             @if ($curUser->image)
-                                 src="{{ asset('storage/avatars/' . $curUser->image) }}" alt="{{ $curUser->image }}"
+                             @if ($curUser->image_crop)
+                                 src="{{ asset('storage/avatars/' . $curUser->image_crop) }}" alt="{{ $curUser->image_crop }}"
         @else  src="/img/default.png" alt=""
                                 @endif
                         >
@@ -247,15 +256,6 @@
                 </div>
                 <div class="modal-body">
 
-
-
-{{--                    <form id="uploadImageForm" method="POST" enctype="multipart/form-data" action="{{ route('profile.uploadAvatar') }}">--}}
-{{--                        @csrf--}}
-{{--                        <div class="form-group">--}}
-{{--                            <label for="avatar">Выберите изображение:</label>--}}
-{{--                            <input type="file" class="form-control-file" id="avatar" name="avatar" accept=".png, .jpg, .jpeg, .svg" required>--}}
-{{--                        </div>--}}
-{{--                    </form>--}}
                     <form id="uploadImageForm" enctype="multipart/form-data">
                         @csrf
                         <!-- Выбор файла -->
@@ -265,7 +265,7 @@
                         <div id="upload-demo" style="width:300px;"></div>
 
                         <!-- Скрытое поле для сохранения имени пользователя -->
-                        <input type="hidden" id="selectedUserName" name="userName" value="">
+                        <input type="hidden" id="selectedUserName"  name="userName" value="">
 
                         <!-- Скрытое поле для обрезанного изображения -->
                         <input type="hidden" id="croppedImage" name="croppedImage">
