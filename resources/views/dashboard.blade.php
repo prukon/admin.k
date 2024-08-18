@@ -25,34 +25,6 @@
 
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3">Консоль</h4>
-        {{--        Модалка загрузки аватара--}}
-        <div class="modal fade" id="imageModalContainer" tabindex="-1" aria-labelledby="exampleModalLabel"
-             aria-hidden="true">
-            <div class="modal-dialog modal-md modal-dialog-centered">
-                <div class="modal-content modal-content1 modal-content1">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="imageModal">Редактирование</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body modal-body1">
-                        <div id='crop-image-container'></div>
-                    </div>
-                    <div class="modal-footer">
-                        {{--                        <form action="{{ route('post.update', $post->id) }}" method="post">--}}
-                        {{--                            @csrf--}}
-                        {{--                            @method('patch')--}}
-                        <button type="button" class="btn btn-secondary cancel-modal" data-dismiss="modal">Отмена
-                        </button>
-                        <button type="button" class="btn btn-primary save-modal">Сохранить</button>
-                        {{--                        </form>--}}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-
         <div>
 
             @can('view', auth()->user())
@@ -63,7 +35,7 @@
                     <div class="col-3">
                         <select class="form-select" id="single-select-user" data-placeholder="ФИО">
                             <option></option>
-                            @foreach($allUsers as $user)
+                            @foreach($allUsersSelect as $user)
                                 <option label="{{$user->label}}">{{($user->name)}}</option>
                             @endforeach
                         </select>

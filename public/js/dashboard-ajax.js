@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Инициализация Croppie
             var $uploadCrop = $('#upload-demo').croppie({
-                viewport: { width: 200, height: 200, type: 'square' },
+                viewport: { width: 141, height: 190, type: 'square' },
                 boundary: { width: 300, height: 300 },
                 showZoomer: true
             });
@@ -317,11 +317,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     $uploadCrop.croppie('bind', {
                         url: e.target.result
                     }).then(function(){
-                        console.log('Croppie bind complete');
                     });
                 }
                 reader.readAsDataURL(this.files[0]);
-                console.log('1');
 
             });
 
@@ -361,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             if (response.success) {
                                 // Обновляем изображение на странице
                                 $('#confirm-img').attr('src', response.image_url);
-                                console.log('Изображе ние успешно загружено!');
+                                console.log('Изображение успешно загружено!');
                             } else {
                                 alert('Ошибка загрузки изображения');
                             }

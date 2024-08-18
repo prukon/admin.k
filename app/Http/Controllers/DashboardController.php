@@ -41,6 +41,7 @@ class DashboardController extends Controller
         $data = $request->validated();
         $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
 
+        $allUsersSelect = User::all();
         $allTeams = Team::filter($filter)->paginate(10);
         $allUsers = User::filter($filter)->paginate(20);
         $allTeamsCount = Team::all()->count();
@@ -53,6 +54,7 @@ class DashboardController extends Controller
         return view("dashboard", compact(
             "allTeams",
             "allUsers",
+            "allUsersSelect",
             "allUsersCount",
             "allTeamsCount",
             "weekdays",
@@ -142,6 +144,7 @@ class DashboardController extends Controller
         }
     }
 
+    //AJAX загрузка аватарки
     public function uploadAvatar(Request $request)
     {
         $request->validate([
@@ -176,11 +179,5 @@ class DashboardController extends Controller
         return response()->json(['success' => false, 'message' => 'Пользователь не найден']);
 
     }
-
-
-
-
-
-
 
 }
