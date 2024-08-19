@@ -116,6 +116,161 @@ let hideAllSeason = function () {
 }
 
 
+// createSeasons()     //Создание сезонов
+// clickSeason()       //Измерение иконок при клике
+// hideAllSeason()     //Скрытие всех сезонов при загрузке страницы
+
+let createCalendar = function () {
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth();
+
+    function createCalendar(year, month) {
+        const firstDayOfMonth = new Date(year, month, 1).getDay();
+        const lastDateOfMonth = new Date(year, month + 1, 0).getDate();
+
+        const calendarTitle = document.getElementById('calendar-title');
+        const daysContainer = document.getElementById('days');
+
+        const monthNames = [
+            'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+        ];
+
+        // Заполняем заголовок календаря
+        calendarTitle.textContent = `${monthNames[month]} ${year}`;
+
+        // Очищаем предыдущие дни
+        daysContainer.innerHTML = '';
+
+        // Определяем, с какого дня недели начинается месяц (с учётом того, что воскресенье в JS это 0)
+        const adjustedFirstDay = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1;
+
+        // Заполняем дни до первого числа месяца пустыми блоками
+        for (let i = 0; i < adjustedFirstDay; i++) {
+            const emptyDiv = document.createElement('div');
+            daysContainer.appendChild(emptyDiv);
+        }
+
+        // Заполняем календарь числами текущего месяца
+        for (let i = 1; i <= lastDateOfMonth; i++) {
+            const dayDiv = document.createElement('div');
+            dayDiv.textContent = i;
+            dayDiv.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            daysContainer.appendChild(dayDiv);
+        }
+    }
+
+    document.getElementById('prev-month').addEventListener('click', () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
+        }
+        createCalendar(currentYear, currentMonth);
+    });
+
+    document.getElementById('next-month').addEventListener('click', () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
+        }
+        createCalendar(currentYear, currentMonth);
+    });
+
+    // Создаем календарь для текущего месяца
+    createCalendar(currentYear, currentMonth);
+
+    // Обработчик правого клика на дате
+    document.getElementById('days').addEventListener('contextmenu', function(event) {
+        event.preventDefault();
+        const target = event.target;
+        if (target.dataset.date) {
+            // showContextMenu(event.clientX, event.clientY, target.dataset.date);
+            showContextMenu(target);
+
+        }
+    });
+
+    // Показ контекстного меню
+    // function showContextMenu(x, y, date) {
+    //     const contextMenu = document.getElementById('context-menu');
+    //     contextMenu.style.left = `${x}px`;
+    //     contextMenu.style.top = `${y}px`;
+    //     contextMenu.style.display = 'block';
+    //     contextMenu.dataset.date = date;
+    // }
+    // function showContextMenu(target) {
+    //     const contextMenu = document.getElementById('context-menu');
+    //
+    //     // Получаем размеры и позицию ячейки
+    //     const rect = target.getBoundingClientRect();
+    //     const x = rect.right;
+    //     const y = rect.bottom;
+    //
+    //     // Устанавливаем позицию контекстного меню
+    //     contextMenu.style.left = `${x}px`;
+    //     contextMenu.style.top = `${y}px`;
+    //     contextMenu.style.display = 'block';
+    //     contextMenu.dataset.date = target.dataset.date;
+    // }
+    function showContextMenu(target) {
+        const contextMenu = document.getElementById('context-menu');
+
+        // Получаем отступы от верхнего левого угла календаря
+        const x = target.offsetLeft + target.offsetWidth;
+        const y = target.offsetTop + target.offsetHeight;
+
+        // Устанавливаем позицию контекстного меню
+        contextMenu.style.left = `${x}px`;
+        contextMenu.style.top = `${y}px`;
+        contextMenu.style.display = 'block';
+        contextMenu.dataset.date = target.dataset.date;
+    }
+
+
+
+    // Скрытие контекстного меню при клике вне его
+    document.addEventListener('click', function(event) {
+        const contextMenu = document.getElementById('context-menu');
+        if (!contextMenu.contains(event.target)) {
+            contextMenu.style.display = 'none';
+        }
+    });
+
+    // Обработчик кликов по пунктам контекстного меню
+    document.getElementById('context-menu').addEventListener('click', function(event) {
+        const action = event.target.dataset.action;
+        const date = this.dataset.date;
+        let userName = $('#single-select-user').val();
+
+        if (action && date && userName) {
+            sendActionRequest(date, action, userName);
+        }
+        this.style.display = 'none';
+    });
+
+    // Функция отправки AJAX-запроса
+    function sendActionRequest(date, action, userName) {
+        $.ajax({
+            url: '/your-server-endpoint',
+            method: 'POST',
+            data: {
+                date: date,
+                action: action,
+                user: userName
+            },
+            success: function(response) {
+                alert(`Action "${action}" for ${userName} on ${date} was successful!`);
+            },
+            error: function() {
+                alert('An error occurred while processing your request.');
+            }
+        });
+    }
+}
+
+// createCalendar();
 // let showSeasonsPrice = function () {
 //
 //     // Получаем текущий год
