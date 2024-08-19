@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
             type: 'GET',
             data: {name: userName},
 
+
             success: function (response) {
                 if (response.success) {
                     let user = response.userData;
@@ -210,6 +211,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     var team = response.data;
                     var teamWeekDayId = response.teamWeekDayId;
                     var usersTeam = response.usersTeam;
+                    var userWithoutTeam = response.userWithoutTeam;
                     var weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
 
                     // Установка дней недели
@@ -241,12 +243,79 @@ document.addEventListener('DOMContentLoaded', function () {
                         });
 
                         var selectElement = document.querySelector('#single-select-user');
+
+                        // if(userWithoutTeam){
+                        // userWithoutTeam.forEach(user => {
+                        //     var option = document.createElement('option');
+                        //     // option.value = user.id;   // Присвойте значение из свойства id
+                        //     option.textContent = user.name; // Отобразите имя пользователя
+                        //     selectElement.appendChild(option);
+                        //     option.classList.add('user-without-team');
+                        // });
+                        // }
+
+
+                        // if (userWithoutTeam) {
+                        //     userWithoutTeam.forEach(user => {
+                        //         var option = document.createElement('option');
+                        //         option.value = user.id; // Присвоение значения из свойства id
+                        //         option.textContent = user.name; // Отображение имени пользователя
+                        //         option.style.color = 'red'; // Применение стиля прямо к элементу
+                        //         selectElement.appendChild(option);
+                        //     });
+                        // }
+
+                        // var selectElement = document.querySelector('#single-select-user');
+                        //
+                        // selectElement.select2({
+                        //     templateResult: function (data) {
+                        //         // We only really care if there is an element to pull classes from
+                        //         if (!data.element) {
+                        //             return data.text;
+                        //         }
+                        //
+                        //         var $element = $(data.element);
+                        //
+                        //         var $wrapper = $('<span></span>');
+                        //         $wrapper.addClass($element[0].className('user-without-team'));
+                        //
+                        //         $wrapper.text(data.text);
+                        //
+                        //         return $wrapper;
+                        //     }
+                        // });
+
+                        console.log(userWithoutTeam);
+
+                        if (userWithoutTeam) {
+                            console.log('userWithoutTeam');
+                            userWithoutTeam.forEach(user => {
+                                var option = new Option(user.name, user.id, false, false);
+                                $(option).attr('data-user-without-team', true); // Установка атрибута
+                                $(selectElement).append(option);
+                            });
+
+                            $(selectElement).select2({
+                                templateResult: function (data) {
+                                    if ($(data.element).data('user-without-team')) {
+                                        return $('<span style="color: red;">' + data.text + '</span>');
+                                    }
+                                    return data.text;
+                                }
+                            });
+                        }
+
+
+
+
                         usersTeam.forEach(user => {
                             var option = document.createElement('option');
                             // option.value = user.id;   // Присвойте значение из свойства id
                             option.textContent = user.name; // Отобразите имя пользователя
                             selectElement.appendChild(option);
                         });
+
+
                     }
 
                     apendWeekdays(weekdays);

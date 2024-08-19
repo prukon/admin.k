@@ -89,6 +89,8 @@ class DashboardController extends Controller
         $teamName = $request->query('name');
         $team = Team::where('title', $teamName)->first();
         $usersTeam = User::where('team_id', $team->id)->get();
+        $userWithoutTeam = User::where('team_id', null)->get();
+
 
         foreach ($team->weekdays as $teamWeekDay) {
             $teamWeekDayId[] = $teamWeekDay->id;
@@ -100,6 +102,7 @@ class DashboardController extends Controller
                 'data' => $team,
                 'teamWeekDayId' => $teamWeekDayId,  //fix сделать проверку на существование
                 'usersTeam' => $usersTeam,          //fix сделать проверку на существование
+                'userWithoutTeam' => $userWithoutTeam,
             ]);
         } else {
             return response()->json([

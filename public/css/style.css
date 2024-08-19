@@ -356,3 +356,11 @@ footer .social-networks {
     background-color: white;
     color: black;
 }
+
+.user-without-team {
+    color: #f2a133;
+}
+
+select option[data-has-team="no"] {
+    color: red; /* Применение красного цвета к тексту */
+}
