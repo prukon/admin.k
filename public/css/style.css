@@ -446,3 +446,15 @@ select option[data-has-team="no"] {
       border-color: #f3a12b;
       background-color: white;
   }
+
+.scheduled-day {
+    background-color: #ffbe619e; /* Пример цвета для дней с расписанием */
+}
+
+.is_enabled {
+    background-color: #ffbe619e; /* Пример цвета для оплаченных дней */
+}
+
+.is_hospital {
+    background-color: #51b02e; /* Пример цвета для неоплаченных дней */
+}

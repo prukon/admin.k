@@ -229,9 +229,7 @@
 
     <script>
         const uploadUrl = "{{ route('profile.uploadAvatar') }}";
-
     </script>
-
 
 
     {{--    Модалка--}}

@@ -2,17 +2,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // AJAX User
     $('#single-select-user').change(function () {
-        var userName = $(this).val();
+        let userName = $(this).val();
+        let teamName = $('#single-select-team').val();
+        let inputDate = document.getElementById("inlineCalendar").value;
+
         $.ajax({
             url: '/get-user-details',
             type: 'GET',
-            data: {userName: userName},
+            data: {
+                userName: userName,
+                teamName: teamName,
+                inputDate: inputDate,
+            },
 
             success: function (response) {
                 if (response.success) {
-                    let user = response.userData;
+                    let user = response.user;
                     let userTeam = response.userTeam;
                     let userPrice = response.userPrice;
+                    let scheduleUser = response.scheduleUser;
+                    let team = response.team;
+                    let inputDate = response.inputDate;
+
+
+                    // console.log(scheduleUser);
 
                     //Сброс всех значений цен до нуля
                     let refreshPrice = function () {
@@ -207,10 +220,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
                     }
-                    //разблокировка кнопки УСТАНОВИТЬ
-                    let enableSetupBtn = function () {
-                        $('#setup-btn').removeAttr('disabled');
+
+
+                    // Функция для обновления глобальной переменной после получения данных через AJAX
+                    function updateScheduleData(scheduleUser) {
+                        globalScheduleData = scheduleUser;
                     }
+
 
                     showHeaderShedule();
                     refreshPrice();
@@ -222,7 +238,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     apendImageToUser();
                     apendTrainingCountToUser();
                     apendUserStartDate();
-                    enableSetupBtn();
+                    enableSetupBtn(user,team,inputDate);
+                    updateScheduleData(scheduleUser);
+                    highlightCalendarDates(globalScheduleData);
+
 
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
@@ -238,6 +257,9 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#single-select-team').change(function () {
         let teamName = $(this).val();
         let userName = $('#single-select-user').val();
+        let inputDate = document.getElementById("inlineCalendar").value;
+
+
 
         $.ajax({
             url: '/get-team-details',
@@ -245,17 +267,20 @@ document.addEventListener('DOMContentLoaded', function () {
             data: {
                 teamName: teamName,
                 userName: userName,
+                inputDate: inputDate,
             },
 
 
             success: function (response) {
                 if (response.success) {
-                    let team = response.data;
+                    let team = response.team;
                     let teamWeekDayId = response.teamWeekDayId;
                     let usersTeam = response.usersTeam;
+                    let inputDate = response.inputDate;
                     let userWithoutTeam = response.userWithoutTeam;
-                    let activeUser = response.activeUser;
+                    let user = response.user;
                     let weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
+
 
                     // Установка дней недели
                     let apendWeekdays = function (weekdays) {
@@ -359,9 +384,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     }
 
+                    enableSetupBtn(user, team, inputDate);
                     apendWeekdays(weekdays);
-                    if (activeUser) {
-                        if (activeUser.team_id > 0) {
+                    if (user) {
+                        if (user.team_id > 0) {
 
                             updateSelectUsers();
                         }
@@ -389,33 +415,31 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // Функция для получения ID активных дней недели
         let getActiveWeekdays = function () {
-                // Создаем объект для сопоставления значения чекбокса с ID дня недели
-                const dayIdMap = {
-                    'Monday': 1,
-                    'Tuesday': 2,
-                    'Wednesday': 3,
-                    'Thursday': 4,
-                    'Friday': 5,
-                    'Saturday': 6,
-                    'Sunday': 7
-                };
+            // Создаем объект для сопоставления значения чекбокса с ID дня недели
+            const dayIdMap = {
+                'Monday': 1,
+                'Tuesday': 2,
+                'Wednesday': 3,
+                'Thursday': 4,
+                'Friday': 5,
+                'Saturday': 6,
+                'Sunday': 7
+            };
 
-                // Найти все чекбоксы внутри div с классом "weekday-checkbox"
-                const checkboxes = document.querySelectorAll('.weekday-checkbox input[type="checkbox"]');
+            // Найти все чекбоксы внутри div с классом "weekday-checkbox"
+            const checkboxes = document.querySelectorAll('.weekday-checkbox input[type="checkbox"]');
 
-                // Собрать ID активных чекбоксов в массив
-                const checkedDaysIds = Array.from(checkboxes)
-                    .filter(checkbox => checkbox.checked)
-                    .map(checkbox => dayIdMap[checkbox.value]);
+            // Собрать ID активных чекбоксов в массив
+            const checkedDaysIds = Array.from(checkboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => dayIdMap[checkbox.value]);
 
-                return checkedDaysIds;
+            return checkedDaysIds;
         }
 
 
         let activeWeekdays = getActiveWeekdays();
         disabledBtn();
-
-
 
 
         $.ajax({
@@ -442,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     enabledBtn();
 
                 }
-                // location.reload();
+                location.reload();
             },
         })
     });
@@ -541,6 +565,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
     }
     showModal();
-
 
 });

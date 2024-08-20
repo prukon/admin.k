@@ -70,16 +70,24 @@ class DashboardController extends Controller
     public function getUserDetails(Request $request)
     {
         $userName = $request->query('userName');
+        $teamName = $request->query('teamName');
+        $inputDate = $request->query('inputDate');
+
         $user = User::where('name', $userName)->first();
+        $team = Team::where('title', $teamName)->first();
         $userTeam = Team::where('id', $user->team_id)->first();
         $userPrice = UserPrice::where('user_id', $user->id)->get();
+        $scheduleUser = ScheduleUser::where('user_id', $user->id)->get();
 
         if ($user) {
             return response()->json([
                 'success' => true,
-                'userData' => $user,
+                'user' => $user,
                 'userTeam' => $userTeam,
-                'userPrice' => $userPrice
+                'userPrice' => $userPrice,
+                'scheduleUser' => $scheduleUser,
+                'team' => $team,
+                'inputDate' => $inputDate,
             ]);
         } else {
             return response()->json([
@@ -92,8 +100,11 @@ class DashboardController extends Controller
     {
         $teamName = $request->query('teamName');
         $userName = $request->query('userName');
+        $inputDate = $request->query('inputDate');
+
+
         $team = Team::where('title', $teamName)->first();
-        $activeUser = User::where('name', $userName)->first();
+        $user = User::where('name', $userName)->first();
         $usersTeam = User::where('team_id', $team->id)->get();
         $userWithoutTeam = User::where('team_id', null)->get();
 
@@ -105,11 +116,12 @@ class DashboardController extends Controller
         if ($team) {
             return response()->json([
                 'success' => true,
-                'data' => $team,
+                'team' => $team,
                 'teamWeekDayId' => $teamWeekDayId,  //fix сделать проверку на существование
                 'usersTeam' => $usersTeam,          //fix сделать проверку на существование
                 'userWithoutTeam' => $userWithoutTeam,
-                'activeUser' => $activeUser,
+                'user' => $user,
+                'inputDate' => $inputDate,
 
             ]);
         } else {

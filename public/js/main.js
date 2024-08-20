@@ -1,20 +1,14 @@
-// Подсвечивание бокового меню при переключении
+// Глобальная переменная для хранения данных расписания юзера из AJAX
+let globalScheduleData = [];
 
-// $(document).ready(function () {
-//     var activeButtonIndex = localStorage.getItem('activeButtonIndex');
-//     if (activeButtonIndex !== null) {
-//         $('.side-menu a').eq(activeButtonIndex).find('button').addClass('btn-bd-primary-active');
-//     }
-//     $('.side-menu a').click(function () {
-//         // Сохранение индекса активной кнопки в локальное хранилище
-//         var activeButtonIndex = $('.side-menu a').index($(this));
-//         localStorage.setItem('activeButtonIndex', activeButtonIndex);
-//     });
-// });
-
-
+//разблокировка кнопки УСТАНОВИТЬ
+function enableSetupBtn (user, team, inputDate) {
+    if (user && team && inputDate) {
+        $('#setup-btn').removeAttr('disabled');
+    }
+}
 // Создание сезонов
-let createSeasons = function () {
+function createSeasons () {
     // console.log('createSeasons');
 
 // Данные для каждого месяца
@@ -72,7 +66,7 @@ let createSeasons = function () {
 }
 
 // Открытие, закрытие сезонов при клике
-let clickSeason = function () {
+function clickSeason() {
 
     var chevronDownIcons = document.querySelectorAll('.header-season');
     // Добавляем обработчик события клика для каждого элемента
@@ -105,9 +99,8 @@ let clickSeason = function () {
     });
 }
 
-
 //Скрытие всех сезонов при загрузке страницы
-let hideAllSeason = function () {
+function hideAllSeason() {
     var seasons = document.querySelectorAll('.season');
     for (var i = 0; i < seasons.length; i++) {
         seasons[i].classList.add('display-none');
@@ -115,12 +108,28 @@ let hideAllSeason = function () {
 
 }
 
+// Закрашивание ячеек в календаре
+function highlightCalendarDates(scheduleUser) {
+    if (scheduleUser) {
+        scheduleUser.forEach(entry => {
+            // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
+            const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
 
-// createSeasons()     //Создание сезонов
-// clickSeason()       //Измерение иконок при клике
-// hideAllSeason()     //Скрытие всех сезонов при загрузке страницы
+            if (dayElement) {
+                // dayElement.classList.add('scheduled-day');  // Добавляем общий класс для всех дней с расписанием
 
-let createCalendar = function () {
+                // Закрашиваем в зависимости от состояния оплаты
+                if (entry.is_enabled) {
+                    dayElement.classList.add('is_enabled');
+                } else if (entry.is_hospital) {
+                    dayElement.classList.add('is_hospital');
+                }
+            }
+        });
+    }
+}
+//Создание календаря
+function createCalendar() {
     let currentYear = new Date().getFullYear();
     let currentMonth = new Date().getMonth();
 
@@ -158,6 +167,8 @@ let createCalendar = function () {
             dayDiv.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
             daysContainer.appendChild(dayDiv);
         }
+        // Закрашиваем ячейки на текущем месяце в соответствии с данными расписания
+        highlightCalendarDates(globalScheduleData);
     }
 
     document.getElementById('prev-month').addEventListener('click', () => {
@@ -182,7 +193,7 @@ let createCalendar = function () {
     createCalendar(currentYear, currentMonth);
 
     // Обработчик правого клика на дате
-    document.getElementById('days').addEventListener('contextmenu', function(event) {
+    document.getElementById('days').addEventListener('contextmenu', function (event) {
         event.preventDefault();
         const target = event.target;
         if (target.dataset.date) {
@@ -229,9 +240,8 @@ let createCalendar = function () {
     }
 
 
-
     // Скрытие контекстного меню при клике вне его
-    document.addEventListener('click', function(event) {
+    document.addEventListener('click', function (event) {
         const contextMenu = document.getElementById('context-menu');
         if (!contextMenu.contains(event.target)) {
             contextMenu.style.display = 'none';
@@ -239,7 +249,7 @@ let createCalendar = function () {
     });
 
     // Обработчик кликов по пунктам контекстного меню
-    document.getElementById('context-menu').addEventListener('click', function(event) {
+    document.getElementById('context-menu').addEventListener('click', function (event) {
         const action = event.target.dataset.action;
         const date = this.dataset.date;
         let userName = $('#single-select-user').val();
@@ -260,88 +270,60 @@ let createCalendar = function () {
                 action: action,
                 user: userName
             },
-            success: function(response) {
+            success: function (response) {
                 alert(`Action "${action}" for ${userName} on ${date} was successful!`);
             },
-            error: function() {
+            error: function () {
                 alert('An error occurred while processing your request.');
             }
         });
     }
 }
 
-// createCalendar();
-// let showSeasonsPrice = function () {
-//
-//     // Получаем текущий год
-//     const currentYear = new Date().getFullYear();
-//
-//     // Определяем, сколько сезонов необходимо отобразить
-//     const numberOfSeasons = 4;
-//
-//     // Селектор контейнера для сезонов
-//     const container = document.getElementById('seasons-container');
-//
-//     // Генерируем сезоны
-//     for (let i = 0; i < numberOfSeasons; i++) {
-//         const fromYear = currentYear - i - 1;
-//         const toYear = currentYear - i;
-//
-//         // Создаем div для каждого сезона
-//         const seasonDiv = document.createElement('div');
-//         seasonDiv.className = `season season-${toYear}`;
-//         seasonDiv.id = `season-${toYear}`;
-//
-//         seasonDiv.innerHTML = `
-//             <div class="header-season">Сезон ${fromYear} - ${toYear} <i class="fa fa-chevron-up"></i>
-//                 <span class="display-none from">${fromYear}</span>
-//                 <span class="display-none to">${toYear}</span>
-//             </div>
-//             <span class="is_credit">Имеется просроченная задолженность в размере
-//                 <span class="is_credit_value">0</span> руб.
-//             </span>
-//             <div class="row justify-content-center align-items-center container" data-season="${toYear}"></div>
-//         `;
-//
-//         // Вставляем новый div в контейнер
-//         container.appendChild(seasonDiv);
-//     }
-//
-// }
-
 
 document.addEventListener('DOMContentLoaded', function () {
 
-
-    // Select2
-    $('#single-select-user').select2({
-        theme: "bootstrap-5",
-        width: $(this).data('width') ? $(this).data('width') : $(this).hasClass('w-100') ? '100%' : 'style',
-        placeholder: $(this).data('placeholder'),
-    });
-    $('#single-select-team').select2({
-        theme: "bootstrap-5",
-        width: $(this).data('width') ? $(this).data('width') : $(this).hasClass('w-100') ? '100%' : 'style',
-        placeholder: $(this).data('placeholder'),
-    });
-
-// datapicker
-    try {
-        $(function () {
-            $('#inlineCalendar').datepicker({
-                firstDay: 1,
-                dateFormat: "dd.mm.yy",
-                defaultDate: new Date(),
-                monthNames: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-                    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
-                dayNames: ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
-                dayNamesShort: ['вск', 'пнд', 'втр', 'срд', 'чтв', 'птн', 'сбт'],
-                dayNamesMin: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
-            });
-            $('#inlineCalendar').datepicker('setDate', new Date());
+// Добавление Select2 к Юзерам
+    function addSelect2ToUser() {
+        $('#single-select-user').select2({
+            theme: "bootstrap-5",
+            width: $(this).data('width') ? $(this).data('width') : $(this).hasClass('w-100') ? '100%' : 'style',
+            placeholder: $(this).data('placeholder'),
         });
-    } catch (e) {
     }
+// Добавление Select2 к Группам
+    function addSelect2ToTeam() {
+        $('#single-select-team').select2({
+            theme: "bootstrap-5",
+            width: $(this).data('width') ? $(this).data('width') : $(this).hasClass('w-100') ? '100%' : 'style',
+            placeholder: $(this).data('placeholder'),
+        });
+
+    }
+// Добавление datapicker к календарю
+    function addDatapicker() {
+        try {
+            $(function () {
+                $('#inlineCalendar').datepicker({
+                    firstDay: 1,
+                    dateFormat: "dd.mm.yy",
+                    defaultDate: new Date(),
+                    monthNames: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
+                    dayNames: ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
+                    dayNamesShort: ['вск', 'пнд', 'втр', 'срд', 'чтв', 'птн', 'сбт'],
+                    dayNamesMin: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+                });
+                $('#inlineCalendar').datepicker('setDate', new Date());
+            });
+        } catch (e) {
+        }
+    }
+
+    // -----Вызовы------
+    addSelect2ToUser();
+    addSelect2ToTeam();
+    addDatapicker();
 
 }, false);
 
