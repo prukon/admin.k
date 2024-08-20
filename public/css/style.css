@@ -374,10 +374,13 @@ select option[data-has-team="no"] {
 /*}*/
 
 .calendar {
-    width: 600px;
+    width: auto;
+    max-width: 900px;
     margin: 0 auto;
     text-align: center;
     position: relative ; /* Добавлено */
+    border: solid 1px #f3a12b;
+    padding: 10px;
 }
 
 

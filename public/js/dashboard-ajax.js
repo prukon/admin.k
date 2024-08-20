@@ -6,8 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
         $.ajax({
             url: '/get-user-details',
             type: 'GET',
-            data: {name: userName},
-
+            data: {userName: userName},
 
             success: function (response) {
                 if (response.success) {
@@ -125,39 +124,39 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     //Расчет сумм долга за сезон и добавление долга в шапку сезона
                     let apendCreditTotalSumm = function () {
-                            // Ищем все контейнеры с классом season
-                            const seasons = document.querySelectorAll('.season');
+                        // Ищем все контейнеры с классом season
+                        const seasons = document.querySelectorAll('.season');
 
-                            // Перебираем каждый сезон
-                            seasons.forEach(function (season) {
-                                let totalSum = 0;
+                        // Перебираем каждый сезон
+                        seasons.forEach(function (season) {
+                            let totalSum = 0;
 
-                                // Ищем все контейнеры с классом border_price внутри текущего сезона
-                                const priceContainers = season.querySelectorAll('.border_price');
+                            // Ищем все контейнеры с классом border_price внутри текущего сезона
+                            const priceContainers = season.querySelectorAll('.border_price');
 
-                                // Перебираем все контейнеры с ценами
-                                priceContainers.forEach(function (container) {
-                                    // Находим кнопку внутри контейнера
-                                    const button = container.querySelector('button.new-main-button');
+                            // Перебираем все контейнеры с ценами
+                            priceContainers.forEach(function (container) {
+                                // Находим кнопку внутри контейнера
+                                const button = container.querySelector('button.new-main-button');
 
 
-                                    // Проверяем, если кнопка называется "Оплатить" и не отключена
-                                    if (button && button.textContent.trim() === 'Оплатить' && !button.disabled) {
-                                        console.log(1);
-                                        // Получаем значение из price-value
-                                        const priceValue = parseFloat(container.querySelector('.price-value').textContent.trim());
-                                        console.log(container.querySelector('.price-value').textContent);
-                                        // Добавляем значение к общей сумме для этого сезона
-                                        totalSum += priceValue;
-                                    } else {
-                                        console.log(2);
-                                    }
-                                });
-
-                                // Обновляем значение в is_credit_value для текущего сезона
-                                const creditValueField = season.querySelector('.is_credit_value');
-                                creditValueField.textContent = totalSum;
+                                // Проверяем, если кнопка называется "Оплатить" и не отключена
+                                if (button && button.textContent.trim() === 'Оплатить' && !button.disabled) {
+                                    console.log(1);
+                                    // Получаем значение из price-value
+                                    const priceValue = parseFloat(container.querySelector('.price-value').textContent.trim());
+                                    console.log(container.querySelector('.price-value').textContent);
+                                    // Добавляем значение к общей сумме для этого сезона
+                                    totalSum += priceValue;
+                                } else {
+                                    console.log(2);
+                                }
                             });
+
+                            // Обновляем значение в is_credit_value для текущего сезона
+                            const creditValueField = season.querySelector('.is_credit_value');
+                            creditValueField.textContent = totalSum;
+                        });
                     }
                     // Вставка дня рождения
                     let apendBirthdayToUser = function () {
@@ -237,19 +236,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // AJAX Team
     $('#single-select-team').change(function () {
-        var teamName = $(this).val();
+        let teamName = $(this).val();
+        let userName = $('#single-select-user').val();
+
         $.ajax({
             url: '/get-team-details',
             type: 'GET',
-            data: {name: teamName},
+            data: {
+                teamName: teamName,
+                userName: userName,
+            },
+
 
             success: function (response) {
                 if (response.success) {
-                    var team = response.data;
-                    var teamWeekDayId = response.teamWeekDayId;
-                    var usersTeam = response.usersTeam;
-                    var userWithoutTeam = response.userWithoutTeam;
-                    var weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
+                    let team = response.data;
+                    let teamWeekDayId = response.teamWeekDayId;
+                    let usersTeam = response.usersTeam;
+                    let userWithoutTeam = response.userWithoutTeam;
+                    let activeUser = response.activeUser;
+                    let weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
 
                     // Установка дней недели
                     let apendWeekdays = function (weekdays) {
@@ -354,7 +360,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     apendWeekdays(weekdays);
-                    updateSelectUsers();
+                    if (activeUser) {
+                        if (activeUser.team_id > 0) {
+
+                            updateSelectUsers();
+                        }
+                    } else {
+                        updateSelectUsers();
+
+                    }
+
                 }
             },
             error: function (xhr, status, error) {
@@ -365,24 +380,69 @@ document.addEventListener('DOMContentLoaded', function () {
     //AJAX клик по УСТАНОВИТЬ
     $('#setup-btn').click(function () {
         let userName = $('#single-select-user').val();
+        let teamName = $('#single-select-team').val();
         let inputDate = document.getElementById("inlineCalendar").value;
+
+        // Выключение кнопки Установить
+        let disabledBtn = function () {
+            $('#setup-btn').attr('disabled', 'disabled');
+        }
+        // Функция для получения ID активных дней недели
+        let getActiveWeekdays = function () {
+                // Создаем объект для сопоставления значения чекбокса с ID дня недели
+                const dayIdMap = {
+                    'Monday': 1,
+                    'Tuesday': 2,
+                    'Wednesday': 3,
+                    'Thursday': 4,
+                    'Friday': 5,
+                    'Saturday': 6,
+                    'Sunday': 7
+                };
+
+                // Найти все чекбоксы внутри div с классом "weekday-checkbox"
+                const checkboxes = document.querySelectorAll('.weekday-checkbox input[type="checkbox"]');
+
+                // Собрать ID активных чекбоксов в массив
+                const checkedDaysIds = Array.from(checkboxes)
+                    .filter(checkbox => checkbox.checked)
+                    .map(checkbox => dayIdMap[checkbox.value]);
+
+                return checkedDaysIds;
+        }
+
+
+        let activeWeekdays = getActiveWeekdays();
+        disabledBtn();
+
+
+
 
         $.ajax({
             url: '/setup-btn',
             type: 'GET',
             data: {
                 userName: userName,
+                teamName: teamName,
                 inputDate: inputDate,
+                activeWeekdays: activeWeekdays,
             },
 
             success: function (response) {
                 if (response.success) {
                     var userName = response.userName;
                     var inputDate = response.inputDate;
-                    console.log(userName);
-                    console.log(inputDate);
+                    var teamWeekDays = response.teamWeekDays;
+                    var teamWeekDaysGet = response.teamWeekDaysGet;
+
+                    // Выключение кнопки Установить
+                    let enabledBtn = function () {
+                        $('#setup-btn').removeAttr('disabled');
+                    }
+                    enabledBtn();
+
                 }
-                location.reload();
+                // location.reload();
             },
         })
     });

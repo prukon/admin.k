@@ -4,15 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
+use App\Models\ScheduleUser;
 use App\Models\Team;
 use App\Models\TeamPrice;
+use App\Models\TeamWeekday;
 use App\Models\User;
 use App\Models\UserPrice;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Intervention\Image\Facades\Image; // Подключите библиотеку Intervention Image
+use Carbon\Carbon;
 
+
+//use Intervention\Image\Facades\Image; // Подключите библиотеку Intervention Image
 
 
 use Illuminate\Support\Facades\Storage;
@@ -65,7 +69,7 @@ class DashboardController extends Controller
     //AJAX Изменение юзера
     public function getUserDetails(Request $request)
     {
-        $userName = $request->query('name');
+        $userName = $request->query('userName');
         $user = User::where('name', $userName)->first();
         $userTeam = Team::where('id', $user->team_id)->first();
         $userPrice = UserPrice::where('user_id', $user->id)->get();
@@ -86,8 +90,10 @@ class DashboardController extends Controller
     //AJAX Изменение команды
     public function getTeamDetails(Request $request)
     {
-        $teamName = $request->query('name');
+        $teamName = $request->query('teamName');
+        $userName = $request->query('userName');
         $team = Team::where('title', $teamName)->first();
+        $activeUser = User::where('name', $userName)->first();
         $usersTeam = User::where('team_id', $team->id)->get();
         $userWithoutTeam = User::where('team_id', null)->get();
 
@@ -103,6 +109,8 @@ class DashboardController extends Controller
                 'teamWeekDayId' => $teamWeekDayId,  //fix сделать проверку на существование
                 'usersTeam' => $usersTeam,          //fix сделать проверку на существование
                 'userWithoutTeam' => $userWithoutTeam,
+                'activeUser' => $activeUser,
+
             ]);
         } else {
             return response()->json([
@@ -118,28 +126,81 @@ class DashboardController extends Controller
 //        $usersTeam = User::where('team_id', $team->id)->get();
 
         $userName = $request->query('userName');
+        $teamName = $request->query('teamName');
         $inputDate = $request->query('inputDate');
-        $inputDate = date('Y-m-d', strtotime($inputDate));
+        $activeWeekdays = $request->query('activeWeekdays');
+
 
         $user = User::where('name', $userName)->first();
+        $team = Team::where('title', $teamName)->first();
+//        $teamWeekDays = TeamWeekday::where('team_id', $team->id)->get();
 
 
-        if ($user) {
+        $inputDate = date('Y-m-d', strtotime($inputDate));
+//        $scheduleUser = ScheduleUser::where();
+
+
+        //Обновление даты начала занятий у юзера
+        $updateStartDate = function ($user, $inputDate) {
             $user->update([
                 'start_date' => $inputDate
             ]);
+        };
+        //Обновление расписания у юзера
+        $updateScheduleUsers = function ($user, $inputDate) {
+            ScheduleUser::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'date' => $inputDate,
+                ]
+            );
+        };
+
+
+        function setSchedule($user, $activeWeekdays, $inputDate)
+        {
+            $startDate = Carbon::parse($inputDate);
+            $endDate = Carbon::parse('2025-05-31');
+
+            // Пробегаем через каждый день от $inputDate до 31 мая 2025 года
+            while ($startDate->lte($endDate)) {
+                // Проверяем, если текущий день недели (weekday_id) присутствует в массиве дней
+                foreach ($activeWeekdays as $weekday) {
+                    if ($startDate->dayOfWeekIso == $weekday) {
+                        // Создаем запись в таблице schedule_users
+                        ScheduleUser::updateOrCreate([
+                            'user_id' => $user->id,
+                            'date' => $startDate->toDateString(),
+
+                        ],
+                        ['is_enabled' => 1,
+                            'is_paid' => 0,
+                            'is_hospital' => 0,
+                            'description' => null]
+                        );
+                    }
+                }
+                // Переходим к следующему дню
+                $startDate->addDay();
+            }
         }
 
 
-//        foreach ($team->weekdays as $teamWeekDay) {
-//            $teamWeekDayId[] = $teamWeekDay->id;
-//        }
+        foreach ($team->weekdays as $teamWeekDay) {
+            $teamWeekDayId[] = $teamWeekDay->id;
+        }
 
-        if ($inputDate) {
+        if ($inputDate && $team && $user) {
+            $updateStartDate($user, $inputDate);
+            $updateScheduleUsers($user, $inputDate);
+            setSchedule($user,$activeWeekdays,$inputDate);
+
             return response()->json([
                 'success' => true,
                 'userName' => $userName,
                 'inputDate' => $inputDate,
+                'teamWeekDays' => $activeWeekdays,
+
             ]);
         } else {
             return response()->json([
@@ -162,7 +223,7 @@ class DashboardController extends Controller
 
             // Разбираем строку base64 и сохраняем файл
             list($type, $imageData) = explode(';', $imageData);
-            list(, $imageData)      = explode(',', $imageData);
+            list(, $imageData) = explode(',', $imageData);
             $imageData = base64_decode($imageData);
 
             // Генерация уникального имени файла
