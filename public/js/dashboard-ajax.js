@@ -24,11 +24,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     let team = response.team;
                     let inputDate = response.inputDate;
 
-
-                    // console.log(scheduleUser);
-
                     //Сброс всех значений цен до нуля
-                    let refreshPrice = function () {
+                    function refreshPrice() {
                         // Получаем все элементы с классом 'price-value' и устанавливаем значение '0'
                         document.querySelectorAll('.price-value').forEach(function (element) {
                             element.textContent = '0';
@@ -38,8 +35,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             button.classList.remove('buttonPaided');
                         });
                     }
+
                     //Поиск и установка соответствующих установленных цен
-                    let apendPrice = function (userPrice) {
+                    function apendPrice(userPrice) {
                         if (userPrice) {
                             for (j = 0; j < userPrice.length; j++) {
 
@@ -57,7 +55,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                     if (newPriceDescription) {
                                         // Получаем текст месяца из блока и убираем пробелы
                                         const monthText = newPriceDescription.textContent.trim();
-
 
                                         // Ищем объект в массиве, у которого month совпадает с текстом месяца
                                         const matchedData = userPrice.find(item => item.month === monthText);
@@ -97,8 +94,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
 
                     }
-                    // Скрываем месяца, которых нет
-                    let showSessons = function () {
+
+                    // Скрываем/отображаем сезоны, в которых не установленны/установлены суммы.
+                    function showSessons() {
                         var seasons = document.querySelectorAll('.season');
                         var borderPrice = {};
                         var totalSumm = {};
@@ -118,9 +116,13 @@ document.addEventListener('DOMContentLoaded', function () {
                                 // Store the border price (if needed)
                                 borderPrice[seasonId].push(borderPrices[j]);
 
+console.log('priceValues[j]:');
+console.log(priceValues[j]);
 
                                 // Accumulate the total sum of price values
                                 totalSumm[seasonId] += Number(priceValues[j].textContent);
+                            // console.log('totalSumm[seasonId]:');
+                            // console.log(totalSumm[seasonId]);
 
                             }
 
@@ -135,8 +137,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         }
                     }
+
                     //Расчет сумм долга за сезон и добавление долга в шапку сезона
-                    let apendCreditTotalSumm = function () {
+                    function apendCreditTotalSumm() {
                         // Ищем все контейнеры с классом season
                         const seasons = document.querySelectorAll('.season');
 
@@ -171,39 +174,45 @@ document.addEventListener('DOMContentLoaded', function () {
                             creditValueField.textContent = totalSum;
                         });
                     }
+
                     // Вставка дня рождения
-                    let apendBirthdayToUser = function () {
+                    function apendBirthdayToUser() {
                         if (user.birthday) {
                             $('.personal-data-value .birthday').html(user.birthday);
                         } else $('.personal-data-value .birthday').html("-");
 
                     }
+
                     // Вставка аватарки юзеру
-                    let apendImageToUser = function () {
+                    function apendImageToUser() {
                         if (user.image_crop) {
                             $('.avatar_wrapper #confirm-img').attr('src', 'storage/avatars/' + user.image_crop).attr('alt', user.name);
                         } else {
                             $('.avatar_wrapper #confirm-img').attr('src', '/img/default.png').attr('alt', 'avatar');
                         }
                     }
+
                     // Вставка счетчика тренировок юзеру
-                    let apendTrainingCountToUser = function () {
+                    function apendTrainingCountToUser() {
                         $('.personal-data-value .count-training').html(123);
                     }
+
                     // Отображение заголовка расписания
-                    let showHeaderShedule = function () {
+                    function showHeaderShedule() {
                         let headerShedule = document.querySelector('.header-shedule');
                         headerShedule.classList.remove('display-none');
                     }
+
                     // Добавление название группы юзеру
-                    let apendTeamNameToUser = function () {
+                    function apendTeamNameToUser() {
                         if (userTeam) {
                             $('.personal-data-value .group').html(userTeam.title);
                         } else
                             $('.personal-data-value .group').html('-');
                     }
+
                     //Добавление начала занятий у юзера
-                    let apendUserStartDate = function () {
+                    function apendUserStartDate() {
                         const input = document.getElementById("inlineCalendar");
                         input.value = null;
                         if (user.start_date) {
@@ -222,12 +231,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
 
-                    // Функция для обновления глобальной переменной после получения данных через AJAX
-                    function updateScheduleData(scheduleUser) {
-                        globalScheduleData = scheduleUser;
-                    }
-
-
                     showHeaderShedule();
                     refreshPrice();
                     apendPrice(userPrice);
@@ -238,10 +241,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     apendImageToUser();
                     apendTrainingCountToUser();
                     apendUserStartDate();
-                    enableSetupBtn(user,team,inputDate);
-                    updateScheduleData(scheduleUser);
-                    highlightCalendarDates(globalScheduleData);
-
+                    enableSetupBtn(user, team, inputDate);
+                    updateGlobalScheduleData(scheduleUser);
+                    setBackgroundToCalendar(globalScheduleData);
 
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
@@ -258,7 +260,6 @@ document.addEventListener('DOMContentLoaded', function () {
         let teamName = $(this).val();
         let userName = $('#single-select-user').val();
         let inputDate = document.getElementById("inlineCalendar").value;
-
 
 
         $.ajax({
@@ -410,11 +411,11 @@ document.addEventListener('DOMContentLoaded', function () {
         let inputDate = document.getElementById("inlineCalendar").value;
 
         // Выключение кнопки Установить
-        let disabledBtn = function () {
+        function disabledBtn() {
             $('#setup-btn').attr('disabled', 'disabled');
         }
         // Функция для получения ID активных дней недели
-        let getActiveWeekdays = function () {
+        function getActiveWeekdays() {
             // Создаем объект для сопоставления значения чекбокса с ID дня недели
             const dayIdMap = {
                 'Monday': 1,
@@ -437,7 +438,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return checkedDaysIds;
         }
 
-
         let activeWeekdays = getActiveWeekdays();
         disabledBtn();
 
@@ -454,15 +454,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
             success: function (response) {
                 if (response.success) {
-                    var userName = response.userName;
-                    var inputDate = response.inputDate;
-                    var teamWeekDays = response.teamWeekDays;
-                    var teamWeekDaysGet = response.teamWeekDaysGet;
+                    let userName = response.userName;
+                    let inputDate = response.inputDate;
+                    let teamWeekDays = response.teamWeekDays;
+                    let teamWeekDaysGet = response.teamWeekDaysGet;
 
                     // Выключение кнопки Установить
-                    let enabledBtn = function () {
+                    function enabledBtn() {
                         $('#setup-btn').removeAttr('disabled');
                     }
+
                     enabledBtn();
 
                 }
@@ -472,7 +473,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // AJAX Вызов модалки
-    let showModal = function () {
+    function showModal() {
         document.getElementById('upload-photo').addEventListener('click', function () {
             $('#uploadPhotoModal').modal('show');
             let apendUserNametoForm = function () {

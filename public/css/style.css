@@ -458,3 +458,46 @@ select option[data-has-team="no"] {
 .is_hospital {
     background-color: #51b02e; /* Пример цвета для неоплаченных дней */
 }
+.today {
+    color: red;
+}
+
+
+#upload {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: white;
+    border: 1px solid #f3a12b;
+    border-radius: 5px; /* скругленные края */
+    padding: 5px 10px; /* добавим немного padding для лучшего внешнего вида */
+    cursor: pointer;
+    outline: none;
+    width: 150px; /* можно задать ширину для лучшего отображения */
+}
+
+#upload::-webkit-file-upload-button {
+    visibility: hidden;
+}
+
+#upload::before {
+    content: 'Выбрать фото'; /* можно задать текст по умолчанию */
+    display: inline-block;
+    background: white;
+    /*border: 1px solid blue;*/
+    border-radius: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+    color: black;
+}
+
+#upload:hover::before {
+    background: #f3a12b; /* добавим эффект при наведении */
+    color: white;
+}
+#upload:hover {
+    background: #f3a12b; /* добавим эффект при наведении */
+}
+
+#upload:active::before {
+    background: #f3a12b; /* эффект при нажатии */
+}

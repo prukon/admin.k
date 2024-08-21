@@ -1,14 +1,58 @@
 // Глобальная переменная для хранения данных расписания юзера из AJAX
 let globalScheduleData = [];
 
+// Функция для обновления глобальной переменной после получения данных через AJAX
+function updateGlobalScheduleData(scheduleUser) {
+    if (scheduleUser) {
+        globalScheduleData = scheduleUser;
+    }
+}
+
+// Очищаем ячеек в календаре fix Сделать чтобы очищались все ячейки
+function cleanBackgroundToCalendar(scheduleUser) {
+    if (scheduleUser) {
+        scheduleUser.forEach(entry => {
+            // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
+            const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
+
+            if (dayElement) {
+                // Закрашиваем в зависимости от состояния оплаты
+                    dayElement.classList.remove('is_enabled');
+                    dayElement.classList.remove('is_hospital');
+                }
+        });
+    }
+}
+// Закрашивание ячеек в календаре
+function setBackgroundToCalendar(scheduleUser) {
+    if (scheduleUser) {
+        scheduleUser.forEach(entry => {
+            // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
+            const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
+
+            if (dayElement) {
+                // dayElement.classList.add('scheduled-day');  // Добавляем общий класс для всех дней с расписанием
+
+                // Закрашиваем в зависимости от состояния оплаты
+                if (entry.is_enabled) {
+                    dayElement.classList.add('is_enabled');
+                } else if (entry.is_hospital) {
+                    dayElement.classList.add('is_hospital');
+                }
+            }
+        });
+    }
+}
+
 //разблокировка кнопки УСТАНОВИТЬ
-function enableSetupBtn (user, team, inputDate) {
+function enableSetupBtn(user, team, inputDate) {
     if (user && team && inputDate) {
         $('#setup-btn').removeAttr('disabled');
     }
 }
+
 // Создание сезонов
-function createSeasons () {
+function createSeasons() {
     // console.log('createSeasons');
 
 // Данные для каждого месяца
@@ -105,33 +149,27 @@ function hideAllSeason() {
     for (var i = 0; i < seasons.length; i++) {
         seasons[i].classList.add('display-none');
     }
-
 }
 
-// Закрашивание ячеек в календаре
-function highlightCalendarDates(scheduleUser) {
-    if (scheduleUser) {
-        scheduleUser.forEach(entry => {
-            // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
-            const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
-
-            if (dayElement) {
-                // dayElement.classList.add('scheduled-day');  // Добавляем общий класс для всех дней с расписанием
-
-                // Закрашиваем в зависимости от состояния оплаты
-                if (entry.is_enabled) {
-                    dayElement.classList.add('is_enabled');
-                } else if (entry.is_hospital) {
-                    dayElement.classList.add('is_hospital');
-                }
-            }
-        });
-    }
-}
 //Создание календаря
 function createCalendar() {
     let currentYear = new Date().getFullYear();
     let currentMonth = new Date().getMonth();
+
+    // Вызов функции для закрашивания сегодняшней даты
+    function highlightToday() {
+        // Получаем сегодняшнюю дату
+        const today = new Date();
+        const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        // Ищем элемент календаря, соответствующий сегодняшней дате
+        const todayElement = document.querySelector(`[data-date="${formattedToday}"]`);
+
+        if (todayElement) {
+            // Добавляем класс для закрашивания сегодняшней даты
+            todayElement.classList.add('today');
+        }
+    }
 
     function createCalendar(year, month) {
         const firstDayOfMonth = new Date(year, month, 1).getDay();
@@ -168,7 +206,8 @@ function createCalendar() {
             daysContainer.appendChild(dayDiv);
         }
         // Закрашиваем ячейки на текущем месяце в соответствии с данными расписания
-        highlightCalendarDates(globalScheduleData);
+        setBackgroundToCalendar(globalScheduleData);
+        highlightToday();
     }
 
     document.getElementById('prev-month').addEventListener('click', () => {
@@ -203,28 +242,8 @@ function createCalendar() {
         }
     });
 
-    // Показ контекстного меню
-    // function showContextMenu(x, y, date) {
-    //     const contextMenu = document.getElementById('context-menu');
-    //     contextMenu.style.left = `${x}px`;
-    //     contextMenu.style.top = `${y}px`;
-    //     contextMenu.style.display = 'block';
-    //     contextMenu.dataset.date = date;
-    // }
-    // function showContextMenu(target) {
-    //     const contextMenu = document.getElementById('context-menu');
-    //
-    //     // Получаем размеры и позицию ячейки
-    //     const rect = target.getBoundingClientRect();
-    //     const x = rect.right;
-    //     const y = rect.bottom;
-    //
-    //     // Устанавливаем позицию контекстного меню
-    //     contextMenu.style.left = `${x}px`;
-    //     contextMenu.style.top = `${y}px`;
-    //     contextMenu.style.display = 'block';
-    //     contextMenu.dataset.date = target.dataset.date;
-    // }
+
+
     function showContextMenu(target) {
         const contextMenu = document.getElementById('context-menu');
 
@@ -238,7 +257,6 @@ function createCalendar() {
         contextMenu.style.display = 'block';
         contextMenu.dataset.date = target.dataset.date;
     }
-
 
     // Скрытие контекстного меню при клике вне его
     document.addEventListener('click', function (event) {
@@ -278,6 +296,7 @@ function createCalendar() {
             }
         });
     }
+
 }
 
 
@@ -291,6 +310,7 @@ document.addEventListener('DOMContentLoaded', function () {
             placeholder: $(this).data('placeholder'),
         });
     }
+
 // Добавление Select2 к Группам
     function addSelect2ToTeam() {
         $('#single-select-team').select2({
@@ -300,6 +320,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
     }
+
 // Добавление datapicker к календарю
     function addDatapicker() {
         try {
@@ -321,9 +342,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // -----Вызовы------
+
     addSelect2ToUser();
     addSelect2ToTeam();
     addDatapicker();
+
+
+    // updateGlobalScheduleData({{$scheduleUser}});
+    // setBackgroundToCalendar(@json($scheduleUser));
 
 }, false);
 

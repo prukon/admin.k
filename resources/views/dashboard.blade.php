@@ -2,7 +2,7 @@
 @extends('layouts.admin2')
 @section('content')
 
-    <script src="{{ asset('js/my-croppie.js') }}"></script>
+{{--    <script src="{{ asset('js/my-croppie.js') }}"></script>--}}
     {{--    <script src="{{ asset('js/main.js') }}"></script>--}}
     <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
 
@@ -141,6 +141,42 @@
             </div>
 
 
+                {{--    setBackgroundToCalendar({{$scheduleUser}});--}}
+<script>
+{{--    {{ dump($scheduleUser) }}--}}
+
+{{--    {{$scheduleUser}} : JSON.stringify({{$scheduleUser}}) // Конвертируем массив объектов в строку JSON--}}
+    $globalScheduleData = [];
+function setBackgroundToCalendar(scheduleUser) {
+    if (scheduleUser) {
+        scheduleUser.forEach(entry => {
+            // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
+            const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
+
+            if (dayElement) {
+                // dayElement.classList.add('scheduled-day');  // Добавляем общий класс для всех дней с расписанием
+
+                // Закрашиваем в зависимости от состояния оплаты
+                if (entry.is_enabled) {
+                    dayElement.classList.add('is_enabled');
+                } else if (entry.is_hospital) {
+                    dayElement.classList.add('is_hospital');
+                }
+            }
+        });
+    }
+}
+function updateGlobalScheduleData(scheduleUser) {
+    if (scheduleUser) {
+        globalScheduleData = scheduleUser;
+    }
+}
+
+updateGlobalScheduleData(@json($scheduleUser));
+setBackgroundToCalendar($globalScheduleData);
+
+</script>
+
             <h5 class="header-shedule display-none">Расписание:</h5>
 
             <div class="mt-3 mb-3 calendar">
@@ -248,7 +284,7 @@
                     <form id="uploadImageForm" enctype="multipart/form-data">
                         @csrf
                         <!-- Выбор файла -->
-                        <input type="file" id="upload" accept="image/*">
+                        <input class="mb-3" type="file" id="upload" accept="image/*">
 
                         <!-- Контейнер для Croppie -->
                         <div id="upload-demo" style="width:300px;"></div>
@@ -273,4 +309,9 @@
         </div>
     </div>
 
+
+    <script>
+{{--    console.log({{ $scheduleUser }});--}}
+
+</script>
 @endsection

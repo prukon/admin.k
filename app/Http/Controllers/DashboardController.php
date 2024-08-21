@@ -51,9 +51,10 @@ class DashboardController extends Controller
         $allTeamsCount = Team::all()->count();
         $allUsersCount = User::all()->count();
         $weekdays = Weekday::all();
-
         $curUser = auth()->user();
         $curTeam = Team::where('id', auth()->user()->team_id)->first();
+        $scheduleUser = ScheduleUser::where('user_id', $curUser->id)->get();
+
 
         return view("dashboard", compact(
             "allTeams",
@@ -63,7 +64,10 @@ class DashboardController extends Controller
             "allTeamsCount",
             "weekdays",
             "curTeam",
-            "curUser"));
+            "curUser",
+            "scheduleUser"));
+
+
     }
 
     //AJAX Изменение юзера
@@ -78,6 +82,7 @@ class DashboardController extends Controller
         $userTeam = Team::where('id', $user->team_id)->first();
         $userPrice = UserPrice::where('user_id', $user->id)->get();
         $scheduleUser = ScheduleUser::where('user_id', $user->id)->get();
+
 
         if ($user) {
             return response()->json([
@@ -133,33 +138,29 @@ class DashboardController extends Controller
     //AJAX клик по УСТАНОВИТЬ
     public function setupBtn(Request $request)
     {
-//        $teamName = $request->query('name');
-//        $team = Team::where('title', $teamName)->first();
-//        $usersTeam = User::where('team_id', $team->id)->get();
 
         $userName = $request->query('userName');
         $teamName = $request->query('teamName');
         $inputDate = $request->query('inputDate');
         $activeWeekdays = $request->query('activeWeekdays');
-
-
         $user = User::where('name', $userName)->first();
         $team = Team::where('title', $teamName)->first();
-//        $teamWeekDays = TeamWeekday::where('team_id', $team->id)->get();
-
-
         $inputDate = date('Y-m-d', strtotime($inputDate));
-//        $scheduleUser = ScheduleUser::where();
 
-
+        //Обновление команды у юзера
+        function updateUserTeam ($user, $team) {
+            $user->update([
+                'team_id' => $team->id
+            ]);
+        };
         //Обновление даты начала занятий у юзера
-        $updateStartDate = function ($user, $inputDate) {
+        function updateStartDate ($user, $inputDate) {
             $user->update([
                 'start_date' => $inputDate
             ]);
         };
         //Обновление расписания у юзера
-        $updateScheduleUsers = function ($user, $inputDate) {
+        function updateScheduleUsers ($user, $inputDate) {
             ScheduleUser::updateOrCreate(
                 [
                     'user_id' => $user->id,
@@ -167,8 +168,6 @@ class DashboardController extends Controller
                 ]
             );
         };
-
-
         function setSchedule($user, $activeWeekdays, $inputDate)
         {
             $startDate = Carbon::parse($inputDate);
@@ -197,15 +196,17 @@ class DashboardController extends Controller
             }
         }
 
-
         foreach ($team->weekdays as $teamWeekDay) {
             $teamWeekDayId[] = $teamWeekDay->id;
         }
 
+
         if ($inputDate && $team && $user) {
-            $updateStartDate($user, $inputDate);
-            $updateScheduleUsers($user, $inputDate);
+            updateStartDate($user, $inputDate);
+            updateScheduleUsers($user, $inputDate);
             setSchedule($user,$activeWeekdays,$inputDate);
+            updateUserTeam($user, $team);
+
 
             return response()->json([
                 'success' => true,
