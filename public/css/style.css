@@ -425,7 +425,7 @@ select option[data-has-team="no"] {
 .context-menu {
     display: none;
     position: absolute; /* Изменено на absolute */
-    background-color: white;
+    background-color: white!important;
     border: 1px solid #ccc;
     box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
     z-index: 1000;
@@ -456,7 +456,7 @@ select option[data-has-team="no"] {
 }
 
 .is_hospital {
-    background-color: #51b02e!important; /* Пример цвета для неоплаченных дней */
+    background-color: #51b02e; /* Пример цвета для неоплаченных дней */
 }
 .today {
     color: red;

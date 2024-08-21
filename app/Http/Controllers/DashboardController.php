@@ -318,11 +318,15 @@ class DashboardController extends Controller
 
         updateSchedule($user, $date, $action);
 
+        $scheduleUser = ScheduleUser::where('user_id', $user->id)->get();
+
         if ($action) {
             return response()->json([
                 'date' => $date,
                 'action' => $action,
                 'user' => $user,
+                'scheduleUser' => $scheduleUser,
+
             ]);
         } else {
             return response()->json([

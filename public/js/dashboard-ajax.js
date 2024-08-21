@@ -158,14 +158,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
                                 // Проверяем, если кнопка называется "Оплатить" и не отключена
                                 if (button && button.textContent.trim() === 'Оплатить' && !button.disabled) {
-                                    console.log(1);
                                     // Получаем значение из price-value
                                     const priceValue = parseFloat(container.querySelector('.price-value').textContent.trim());
-                                    console.log(container.querySelector('.price-value').textContent);
+                                    // console.log(container.querySelector('.price-value').textContent);
                                     // Добавляем значение к общей сумме для этого сезона
                                     totalSum += priceValue;
                                 } else {
-                                    console.log(2);
                                 }
                             });
 
@@ -354,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         //     }
                         // });
 
-                        console.log(userWithoutTeam);
+                        // console.log(userWithoutTeam);
 
                         // if (userWithoutTeam) {
                         //     console.log('userWithoutTeam');
@@ -534,8 +532,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     formData.append('croppedImage', $('#croppedImage').val()); // Добавляем обрезанное изображение
                     formData.append('userName', userName); // Добавляем имя пользователя
 
-                    console.log(userName);
-                    console.log(formData);
+                    // console.log(userName);
+                    // console.log(formData);
                     // Отправка данных через AJAX
                     $.ajax({
                         // url: "{{ route('profile.uploadAvatar') }}", // URL маршрута

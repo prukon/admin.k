@@ -291,13 +291,12 @@ function createCalendar() {
             data: {
                 date: date,
                 action: action,
-                userName: userName
+                userName: userName,
             },
             success: function (response) {
-                // alert(`Action "${action}" for ${user} on ${date} was successful!`);
-                console.log(action);
-                console.log(date);
-
+                let scheduleUser = response.scheduleUser;
+                updateGlobalScheduleData(scheduleUser);
+                createCalendar(currentYear, currentMonth);
             },
             error: function () {
                 alert('An error occurred while processing your request.');
