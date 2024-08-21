@@ -116,8 +116,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                 // Store the border price (if needed)
                                 borderPrice[seasonId].push(borderPrices[j]);
 
-console.log('priceValues[j]:');
-console.log(priceValues[j]);
+// console.log('priceValues[j]:');
+// console.log(priceValues[j]);
 
                                 // Accumulate the total sum of price values
                                 totalSumm[seasonId] += Number(priceValues[j].textContent);

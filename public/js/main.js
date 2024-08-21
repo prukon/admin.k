@@ -17,12 +17,13 @@ function cleanBackgroundToCalendar(scheduleUser) {
 
             if (dayElement) {
                 // Закрашиваем в зависимости от состояния оплаты
-                    dayElement.classList.remove('is_enabled');
-                    dayElement.classList.remove('is_hospital');
-                }
+                dayElement.classList.remove('is_enabled');
+                dayElement.classList.remove('is_hospital');
+            }
         });
     }
 }
+
 // Закрашивание ячеек в календаре
 function setBackgroundToCalendar(scheduleUser) {
     if (scheduleUser) {
@@ -36,7 +37,8 @@ function setBackgroundToCalendar(scheduleUser) {
                 // Закрашиваем в зависимости от состояния оплаты
                 if (entry.is_enabled) {
                     dayElement.classList.add('is_enabled');
-                } else if (entry.is_hospital) {
+                }
+                 if (entry.is_hospital) {
                     dayElement.classList.add('is_hospital');
                 }
             }
@@ -235,13 +237,14 @@ function createCalendar() {
     document.getElementById('days').addEventListener('contextmenu', function (event) {
         event.preventDefault();
         const target = event.target;
-        if (target.dataset.date) {
+        let userName = $('#single-select-user').val();
+
+        if (target.dataset.date && userName) {
             // showContextMenu(event.clientX, event.clientY, target.dataset.date);
             showContextMenu(target);
 
         }
     });
-
 
 
     function showContextMenu(target) {
@@ -272,6 +275,7 @@ function createCalendar() {
         const date = this.dataset.date;
         let userName = $('#single-select-user').val();
 
+
         if (action && date && userName) {
             sendActionRequest(date, action, userName);
         }
@@ -280,23 +284,26 @@ function createCalendar() {
 
     // Функция отправки AJAX-запроса
     function sendActionRequest(date, action, userName) {
+
         $.ajax({
-            url: '/your-server-endpoint',
-            method: 'POST',
+            url: '/content-menu-calendar',
+            method: 'GET',
             data: {
                 date: date,
                 action: action,
-                user: userName
+                userName: userName
             },
             success: function (response) {
-                alert(`Action "${action}" for ${userName} on ${date} was successful!`);
+                // alert(`Action "${action}" for ${user} on ${date} was successful!`);
+                console.log(action);
+                console.log(date);
+
             },
             error: function () {
                 alert('An error occurred while processing your request.');
             }
         });
     }
-
 }
 
 

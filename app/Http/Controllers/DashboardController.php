@@ -21,7 +21,6 @@ use Carbon\Carbon;
 
 use Illuminate\Support\Facades\Storage;
 
-
 class DashboardController extends Controller
 {
     /**
@@ -148,26 +147,34 @@ class DashboardController extends Controller
         $inputDate = date('Y-m-d', strtotime($inputDate));
 
         //Обновление команды у юзера
-        function updateUserTeam ($user, $team) {
+        function updateUserTeam($user, $team)
+        {
             $user->update([
                 'team_id' => $team->id
             ]);
-        };
+        }
+
+        ;
         //Обновление даты начала занятий у юзера
-        function updateStartDate ($user, $inputDate) {
+        function updateStartDate($user, $inputDate)
+        {
             $user->update([
                 'start_date' => $inputDate
             ]);
-        };
+        }
+
+        ;
         //Обновление расписания у юзера
-        function updateScheduleUsers ($user, $inputDate) {
+        function updateScheduleUsers($user, $inputDate)
+        {
             ScheduleUser::updateOrCreate(
                 [
                     'user_id' => $user->id,
                     'date' => $inputDate,
                 ]
             );
-        };
+        }
+
         function setSchedule($user, $activeWeekdays, $inputDate)
         {
             $startDate = Carbon::parse($inputDate);
@@ -184,10 +191,10 @@ class DashboardController extends Controller
                             'date' => $startDate->toDateString(),
 
                         ],
-                        ['is_enabled' => 1,
-                            'is_paid' => 0,
-                            'is_hospital' => 0,
-                            'description' => null]
+                            ['is_enabled' => 1,
+                                'is_paid' => 0,
+                                'is_hospital' => 0,
+                                'description' => null]
                         );
                     }
                 }
@@ -204,7 +211,7 @@ class DashboardController extends Controller
         if ($inputDate && $team && $user) {
             updateStartDate($user, $inputDate);
             updateScheduleUsers($user, $inputDate);
-            setSchedule($user,$activeWeekdays,$inputDate);
+            setSchedule($user, $activeWeekdays, $inputDate);
             updateUserTeam($user, $team);
 
 
@@ -257,4 +264,69 @@ class DashboardController extends Controller
 
     }
 
+    //AJAX Обработка контекстного меню календаря
+    public function contentMenuCalendar(Request $request)
+    {
+        $date = $request->query('date');
+        $action = $request->query('action');
+        $userName = $request->query('userName');
+
+        $user = User::where('name', $userName)->first();
+        $date = date('Y-m-d', strtotime($date));
+
+
+        function updateSchedule($user, $date, $action)
+        {
+            if ($action == 'add-freeze') {
+                ScheduleUser::updateOrCreate([
+                    'user_id' => $user->id,
+                    'date' => $date,
+                ],
+                    [
+                        'is_hospital' => 1,
+                    ]
+                );
+            } elseif ($action == 'add-training') {
+                ScheduleUser::updateOrCreate([
+                    'user_id' => $user->id,
+                    'date' => $date,
+                ],
+                    [
+                        'is_enabled' => 1,
+                    ]
+                );
+            } elseif ($action == 'remove-training') {
+                ScheduleUser::updateOrCreate([
+                    'user_id' => $user->id,
+                    'date' => $date,
+                ],
+                    [
+                        'is_enabled' => 0,
+                    ]
+                );
+            } elseif ($action == 'remove-freeze') {
+                ScheduleUser::updateOrCreate([
+                    'user_id' => $user->id,
+                    'date' => $date,
+                ],
+                    [
+                        'is_hospital' => 0,
+                    ]
+                );
+            }
+        }
+
+        updateSchedule($user, $date, $action);
+
+        if ($action) {
+            return response()->json([
+                'date' => $date,
+                'action' => $action,
+                'user' => $user,
+            ]);
+        } else {
+            return response()->json([
+                'success' => false]);
+        }
+    }
 }

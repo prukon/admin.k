@@ -199,11 +199,12 @@ setBackgroundToCalendar($globalScheduleData);
 
                 <!-- Контекстное меню -->
                 <div id="context-menu" class="context-menu">
-                    <div class="context-menu-item" data-action="freeze">Заморозка</div>
+                    <div class="context-menu-item" data-action="add-freeze">Добавление заморозки</div>
+                    <div class="context-menu-item" data-action="remove-freeze">Удаление заморозки</div>
                     <div class="context-menu-item" data-action="add-training">Добавление тренировки</div>
                     <div class="context-menu-item" data-action="remove-training">Удаление тренировки</div>
-                    <div class="context-menu-item" data-action="add-payment">Добавление оплаты</div>
-                    <div class="context-menu-item" data-action="remove-payment">Удаление оплаты</div>
+{{--                    <div class="context-menu-item" data-action="add-payment">Добавление оплаты</div>--}}
+{{--                    <div class="context-menu-item" data-action="remove-payment">Удаление оплаты</div>--}}
                 </div>
             </div>
 
