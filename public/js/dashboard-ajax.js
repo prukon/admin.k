@@ -242,7 +242,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     enableSetupBtn(user, team, inputDate);
                     updateGlobalScheduleData(scheduleUser);
                     setBackgroundToCalendar(globalScheduleData);
-
+                    createCalendar();
+ 
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
                 }
