@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
 
@@ -23,6 +24,7 @@ class PaymentsController extends Controller
         $allUsersCount = User::all()->count();
         $allTeams = Team::all();
         $allUsers = User::all();
+        $allPayments = Payment::all();
 
 
         return view('payments', compact(
@@ -30,6 +32,7 @@ class PaymentsController extends Controller
             "allUsers",
             "allUsersCount",
             "allTeamsCount",
+            "allPayments",
         ));
 
     }
