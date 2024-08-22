@@ -2,7 +2,7 @@
 @extends('layouts.admin2')
 @section('content')
 
-{{--    <script src="{{ asset('js/my-croppie.js') }}"></script>--}}
+    {{--    <script src="{{ asset('js/my-croppie.js') }}"></script>--}}
     {{--    <script src="{{ asset('js/main.js') }}"></script>--}}
     <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
 
@@ -140,42 +140,15 @@
                 </div>
             </div>
 
+            <script>
 
-                {{--    setBackgroundToCalendar({{$scheduleUser}});--}}
-<script>
-{{--    {{ dump($scheduleUser) }}--}}
+                document.addEventListener("DOMContentLoaded", function () {
+                   // передача расписания юзера для календаря
+                    var scheduleUser = {!! json_encode($scheduleUserArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
+                    updateGlobalScheduleData(scheduleUser);
+                });
 
-{{--    {{$scheduleUser}} : JSON.stringify({{$scheduleUser}}) // Конвертируем массив объектов в строку JSON--}}
-    $globalScheduleData = [];
-function setBackgroundToCalendar(scheduleUser) {
-    if (scheduleUser) {
-        scheduleUser.forEach(entry => {
-            // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
-            const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
-
-            if (dayElement) {
-                // dayElement.classList.add('scheduled-day');  // Добавляем общий класс для всех дней с расписанием
-
-                // Закрашиваем в зависимости от состояния оплаты
-                if (entry.is_enabled) {
-                    dayElement.classList.add('is_enabled');
-                } else if (entry.is_hospital) {
-                    dayElement.classList.add('is_hospital');
-                }
-            }
-        });
-    }
-}
-function updateGlobalScheduleData(scheduleUser) {
-    if (scheduleUser) {
-        globalScheduleData = scheduleUser;
-    }
-}
-
-updateGlobalScheduleData(@json($scheduleUser));
-setBackgroundToCalendar($globalScheduleData);
-
-</script>
+            </script>
 
             <h5 class="header-shedule display-none">Расписание:</h5>
 
@@ -203,11 +176,10 @@ setBackgroundToCalendar($globalScheduleData);
                     <div class="context-menu-item" data-action="remove-freeze">Удаление заморозки</div>
                     <div class="context-menu-item" data-action="add-training">Добавление тренировки</div>
                     <div class="context-menu-item" data-action="remove-training">Удаление тренировки</div>
-{{--                    <div class="context-menu-item" data-action="add-payment">Добавление оплаты</div>--}}
-{{--                    <div class="context-menu-item" data-action="remove-payment">Удаление оплаты</div>--}}
+                    {{--                    <div class="context-menu-item" data-action="add-payment">Добавление оплаты</div>--}}
+                    {{--                    <div class="context-menu-item" data-action="remove-payment">Удаление оплаты</div>--}}
                 </div>
             </div>
-
 
 
             {{--Сезоны--}}
@@ -218,7 +190,8 @@ setBackgroundToCalendar($globalScheduleData);
                     <div class="season season-2025" id="season-2025">
                         <div class="header-season">Сезон 2024 - 2025 <i class="fa fa-chevron-up"></i><span
                                     class="display-none from">2024</span><span class="display-none to">2025</span></div>
-                        <span class="is_credit">Имеется просроченная задолженность в размере <span class="is_credit_value">0</span> руб.</span>
+                        <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                    class="is_credit_value">0</span> руб.</span>
                         <span class="display-none1 total-summ"></span>
                         <div class="row justify-content-center align-items-center container" data-season="2025"></div>
                     </div>
@@ -226,7 +199,8 @@ setBackgroundToCalendar($globalScheduleData);
                     <div class="season season-2024" id="season-2024">
                         <div class="header-season">Сезон 2023 - 2024 <i class="fa fa-chevron-up"></i><span
                                     class="display-none from">2023</span><span class="display-none to">2024</span></div>
-                        <span class="is_credit">Имеется просроченная задолженность в размере <span class="is_credit_value">0</span> руб.</span>
+                        <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                    class="is_credit_value">0</span> руб.</span>
                         <span class="display-none1 total-summ"></span>
                         <div class="row justify-content-center align-items-center container" data-season="2024"></div>
                     </div>
@@ -312,7 +286,7 @@ setBackgroundToCalendar($globalScheduleData);
 
 
     <script>
-{{--    console.log({{ $scheduleUser }});--}}
+        {{--    console.log({{ $scheduleUser }});--}}
 
-</script>
+    </script>
 @endsection

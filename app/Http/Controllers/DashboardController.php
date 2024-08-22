@@ -53,6 +53,7 @@ class DashboardController extends Controller
         $curUser = auth()->user();
         $curTeam = Team::where('id', auth()->user()->team_id)->first();
         $scheduleUser = ScheduleUser::where('user_id', $curUser->id)->get();
+        $scheduleUserArray = ScheduleUser::where('user_id', $curUser->id)->get()->toArray();
 
 
         return view("dashboard", compact(
@@ -64,9 +65,8 @@ class DashboardController extends Controller
             "weekdays",
             "curTeam",
             "curUser",
-            "scheduleUser"));
-
-
+            "scheduleUser",
+            "scheduleUserArray"));
     }
 
     //AJAX Изменение юзера

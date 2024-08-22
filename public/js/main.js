@@ -2,49 +2,28 @@
 let globalScheduleData = [];
 
 // Функция для обновления глобальной переменной после получения данных через AJAX
-function updateGlobalScheduleData(scheduleUser) {
-    if (scheduleUser) {
+ function updateGlobalScheduleData(scheduleUser) {
+     if (scheduleUser) {
         globalScheduleData = scheduleUser;
     }
 }
 
-// Очищаем ячеек в календаре fix Сделать чтобы очищались все ячейки
-function cleanBackgroundToCalendar(scheduleUser) {
-    if (scheduleUser) {
-        scheduleUser.forEach(entry => {
-            // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
-            const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
+// Очищаем ячеек в календаре
+// function cleanBackgroundToCalendar(scheduleUser) {
+//     if (scheduleUser) {
+//         scheduleUser.forEach(entry => {
+//             // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
+//             const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
+//
+//             if (dayElement) {
+//                 // Закрашиваем в зависимости от состояния оплаты
+//                 dayElement.classList.remove('is_enabled');
+//                 dayElement.classList.remove('is_hospital');
+//             }
+//         });
+//     }
+// }
 
-            if (dayElement) {
-                // Закрашиваем в зависимости от состояния оплаты
-                dayElement.classList.remove('is_enabled');
-                dayElement.classList.remove('is_hospital');
-            }
-        });
-    }
-}
-
-// Закрашивание ячеек в календаре
-function setBackgroundToCalendar(scheduleUser) {
-    if (scheduleUser) {
-        scheduleUser.forEach(entry => {
-            // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
-            const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
-
-            if (dayElement) {
-                // dayElement.classList.add('scheduled-day');  // Добавляем общий класс для всех дней с расписанием
-
-                // Закрашиваем в зависимости от состояния оплаты
-                if (entry.is_enabled) {
-                    dayElement.classList.add('is_enabled');
-                }
-                 if (entry.is_hospital) {
-                    dayElement.classList.add('is_hospital');
-                }
-            }
-        });
-    }
-}
 
 //разблокировка кнопки УСТАНОВИТЬ
 function enableSetupBtn(user, team, inputDate) {
@@ -152,38 +131,48 @@ function hideAllSeason() {
         seasons[i].classList.add('display-none');
     }
 }
+// Закрашивание ячеек в календаре
+function setBackgroundToCalendar(scheduleUser) {
+    if (scheduleUser) {
+        scheduleUser.forEach(entry => {
+            // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
+            const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
+
+            if (dayElement) {
+                // dayElement.classList.add('scheduled-day');  // Добавляем общий класс для всех дней с расписанием
+
+                // Закрашиваем в зависимости от состояния оплаты
+                if (entry.is_enabled) {
+                    dayElement.classList.add('is_enabled');
+                }
+                if (entry.is_hospital) {
+                    dayElement.classList.add('is_hospital');
+                }
+            }
+        });
+    }
+}
 
 //Создание календаря
 function createCalendar() {
+    // console.log('createCalendar()');
     let currentYear = new Date().getFullYear();
     let currentMonth = new Date().getMonth();
 
-    // Вызов функции для закрашивания сегодняшней даты
-    function highlightToday() {
-        // Получаем сегодняшнюю дату
-        const today = new Date();
-        const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-        // Ищем элемент календаря, соответствующий сегодняшней дате
-        const todayElement = document.querySelector(`[data-date="${formattedToday}"]`);
 
-        if (todayElement) {
-            // Добавляем класс для закрашивания сегодняшней даты
-            todayElement.classList.add('today');
-        }
-    }
-
+    // Создаем календарь для текущего месяца
     function createCalendar(year, month) {
+        // console.log('createCalendar2');
         const firstDayOfMonth = new Date(year, month, 1).getDay();
         const lastDateOfMonth = new Date(year, month + 1, 0).getDate();
-
         const calendarTitle = document.getElementById('calendar-title');
         const daysContainer = document.getElementById('days');
-
         const monthNames = [
             'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
             'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
         ];
+
 
         // Заполняем заголовок календаря
         calendarTitle.textContent = `${monthNames[month]} ${year}`;
@@ -207,46 +196,59 @@ function createCalendar() {
             dayDiv.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
             daysContainer.appendChild(dayDiv);
         }
-        // Закрашиваем ячейки на текущем месяце в соответствии с данными расписания
-        setBackgroundToCalendar(globalScheduleData);
+        // Закрашивание сегодняшней даты
         highlightToday();
+        // Закрашиваем ячейки на текущем месяце в соответствии с данными расписания
+
+
+
+
+        // updateGlobalScheduleData(@json($scheduleUserJson));
+        //
+        // console.log("@json($scheduleUserJson):");
+        // console.log(@json($scheduleUserJson));
+        setBackgroundToCalendar(globalScheduleData);
+
     }
 
-    document.getElementById('prev-month').addEventListener('click', () => {
-        currentMonth--;
-        if (currentMonth < 0) {
-            currentMonth = 11;
-            currentYear--;
-        }
-        createCalendar(currentYear, currentMonth);
-    });
+    //Предыдущие месяц
+    function preMonth() {
+        document.getElementById('prev-month').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            createCalendar(currentYear, currentMonth);
+        });
+    }
+    // Следующий месяц
+    function nextMonth() {
+        document.getElementById('next-month').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            createCalendar(currentYear, currentMonth);
+        });
 
-    document.getElementById('next-month').addEventListener('click', () => {
-        currentMonth++;
-        if (currentMonth > 11) {
-            currentMonth = 0;
-            currentYear++;
-        }
-        createCalendar(currentYear, currentMonth);
-    });
+    }
+    // Вызов контекстного меню. Обработчик правого клика на дате.
+    function getContextMenu() {
+        document.getElementById('days').addEventListener('contextmenu', function (event) {
+            event.preventDefault();
+            const target = event.target;
+            let userName = $('#single-select-user').val();
 
-    // Создаем календарь для текущего месяца
-    createCalendar(currentYear, currentMonth);
+            if (target.dataset.date && userName) {
+                // showContextMenu(event.clientX, event.clientY, target.dataset.date);
+                showContextMenu(target);
 
-    // Обработчик правого клика на дате
-    document.getElementById('days').addEventListener('contextmenu', function (event) {
-        event.preventDefault();
-        const target = event.target;
-        let userName = $('#single-select-user').val();
-
-        if (target.dataset.date && userName) {
-            // showContextMenu(event.clientX, event.clientY, target.dataset.date);
-            showContextMenu(target);
-
-        }
-    });
-
-
+            }
+        });
+    }
+    //Позиционирование контекстного меню
     function showContextMenu(target) {
         const contextMenu = document.getElementById('context-menu');
 
@@ -260,28 +262,30 @@ function createCalendar() {
         contextMenu.style.display = 'block';
         contextMenu.dataset.date = target.dataset.date;
     }
-
     // Скрытие контекстного меню при клике вне его
-    document.addEventListener('click', function (event) {
-        const contextMenu = document.getElementById('context-menu');
-        if (!contextMenu.contains(event.target)) {
-            contextMenu.style.display = 'none';
-        }
-    });
-
+    function hideContextMenuMissClick() {
+        document.addEventListener('click', function (event) {
+            const contextMenu = document.getElementById('context-menu');
+            if (!contextMenu.contains(event.target)) {
+                contextMenu.style.display = 'none';
+            }
+        });
+    }
     // Обработчик кликов по пунктам контекстного меню
-    document.getElementById('context-menu').addEventListener('click', function (event) {
-        const action = event.target.dataset.action;
-        const date = this.dataset.date;
-        let userName = $('#single-select-user').val();
+    function clickContextmenu() {
+        document.getElementById('context-menu').addEventListener('click', function (event) {
+            const action = event.target.dataset.action;
+            const date = this.dataset.date;
+            let userName = $('#single-select-user').val();
 
 
-        if (action && date && userName) {
-            sendActionRequest(date, action, userName);
-        }
-        this.style.display = 'none';
-    });
+            if (action && date && userName) {
+                sendActionRequest(date, action, userName);
+            }
+            this.style.display = 'none';
+        });
 
+    }
     // Функция отправки AJAX-запроса
     function sendActionRequest(date, action, userName) {
 
@@ -303,6 +307,29 @@ function createCalendar() {
             }
         });
     }
+    // Вызов функции для закрашивания сегодняшней даты
+    function highlightToday() {
+        // Получаем сегодняшнюю дату
+        const today = new Date();
+        const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        // Ищем элемент календаря, соответствующий сегодняшней дате
+        const todayElement = document.querySelector(`[data-date="${formattedToday}"]`);
+
+        if (todayElement) {
+            // Добавляем класс для закрашивания сегодняшней даты
+            todayElement.classList.add('today');
+        }
+    }
+
+    preMonth();
+    nextMonth();
+    createCalendar(currentYear, currentMonth);
+    getContextMenu();
+    hideContextMenuMissClick();
+    clickContextmenu();
+
+
 }
 
 

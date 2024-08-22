@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateGlobalScheduleData(scheduleUser);
                     setBackgroundToCalendar(globalScheduleData);
                     createCalendar();
- 
+
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
                 }
