@@ -1,5 +1,6 @@
 @extends('layouts.app')
-@extends('layouts/main2')
+{{--@extends('layouts/main2')--}}
+{{--@extends('layouts.admin2')--}}
 
 
 @section('content')

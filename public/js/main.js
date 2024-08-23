@@ -1,10 +1,10 @@
 // Глобальная переменная для хранения данных расписания юзера из AJAX
-let globalScheduleData = [];
+var globalScheduleData = [];
 
 // Функция для обновления глобальной переменной после получения данных через AJAX
  function updateGlobalScheduleData(scheduleUser) {
      if (scheduleUser) {
-        globalScheduleData = scheduleUser;
+         globalScheduleData = scheduleUser;
     }
 }
 

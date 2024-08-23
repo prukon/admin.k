@@ -40,8 +40,11 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
 
-    Route::get('admin/payments', [\App\Http\Controllers\Admin\PaymentsController::class, 'index'])->name('payments.index');
-//    Route::get('/prices', [\App\Http\Controllers\PricesController::class, 'index'])->name('prices.index');
+    Route::get('/admin/payments', [\App\Http\Controllers\Admin\PaymentsController::class, 'index'])->name('payments.index');
+    Route::get('/getPayments', [\App\Http\Controllers\Admin\PaymentsController::class, 'getPayments'])->name('payments.getPayments');
+
+
+
 
 
 //AJAX

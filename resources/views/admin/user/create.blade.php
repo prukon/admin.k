@@ -1,4 +1,4 @@
-@extends('layouts/main2')
+{{--@extends('layouts/main2')--}}
 @extends('layouts.admin2')
 
 
@@ -23,6 +23,9 @@
             <div class="mb-3">
                 <label for="title" class="form-label">Дата рождения</label>
                 <input type="date" name="birthday" class="form-control" id="birthday">
+                @error('birthday' )
+                <p class="text-danger">{{'Введите корректную дату'}}</p>
+                @enderror
             </div>
 
             <div class="mb-3">
@@ -42,14 +45,17 @@
             <div class="mb-3">
                 <label for="start_date" class="form-label">Дата начала занятий</label>
                 <input type="date" name="start_date" class="form-control" id="start_date">
+                @error('start_date' )
+                <p class="text-danger">{{'Введите корректную дату'}}</p>
+                @enderror
             </div>
 
 
 
-            <div class="mb-3">
-                <label for="formFile" class="form-label">Фото</label>
-                <input class="form-control" type="file" id="formFile" name='image'>
-            </div>
+{{--            <div class="mb-3">--}}
+{{--                <label for="formFile" class="form-label">Фото</label>--}}
+{{--                <input class="form-control" type="file" id="formFile" name='image'>--}}
+{{--            </div>--}}
 
 
             <div class="mb-3">
@@ -62,12 +68,15 @@
             </div>
 
             <div class="mb-3">
-                <label for="inputPassword6" class="col-form-label">Пароль</label>
+                <label for="inputPassword6" class="col-form-label">Пароль*</label>
                 <input name='password' type="password" id="inputPassword6" class="form-control"
                        aria-labelledby="passwordHelpInline">
                 <span id="passwordHelpInline" class="form-text">
       Должно быть 8-20 символов.
     </span>
+                @error('password' )
+                <p class="text-danger">{{'Введите пароль'}}</p>
+                @enderror
             </div>
 
 

@@ -13,6 +13,13 @@
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
 
+    <!-- Включение DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel="stylesheet">
+
+    <!-- Включение DataTables JS -->
+    <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+
+
     <!-- Scripts -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
 </head>
@@ -83,5 +90,17 @@
             @yield('content')
         </main>
     </div>
+
+    <!-- Вставьте это, чтобы секция scripts отображалась -->
+    @yield('scripts')
+    {{--Bootstrap--}}
+    @vite(['resources/js/app.js', 'resources/sass/app.scss'])
+
+
+    <link rel="stylesheet" href="{{ asset('css/fcistok.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/media-style.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/calendar.css') }}">
+
 </body>
 </html>

@@ -11,4 +11,9 @@ class Payment extends Model
 
     protected $table = 'payments'; //явное указание к какой таблице в БД привязана модель
     protected $guarded = []; //разрешение на изменение данных в таблице}
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

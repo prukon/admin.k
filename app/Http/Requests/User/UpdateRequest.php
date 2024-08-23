@@ -23,10 +23,10 @@ class UpdateRequest extends FormRequest
     {
         return [
             'name' => 'string',
-            'birthday' => '',
+            'birthday' => 'date',
             'team_id' => 'string',
-            'start_date' => '',
-            'image' => '',
+            'start_date' => 'date',
+//            'image' => '',
             'email' => 'string',
             'role' => 'string',
 //            'password' => 'string',

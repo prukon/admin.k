@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
-            $table->Integer('user_id');
+            $table->Integer('user_id')->nullable();
             $table->string('user_name')->nullable();
             $table->string('team_title')->nullable();
             $table->dateTime('operation_date')->nullable();
-            $table->date('payment_month');
+            $table->string('payment_month')->nullable();
             $table->decimal('summ', 15, 2);
             $table->timestamps();
         });

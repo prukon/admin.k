@@ -29,7 +29,7 @@ class StoreRequest extends FormRequest
 //            'image' => '',
             'email' => 'string',
             'role' => 'string',
-//            'password' => 'string',
+            'password' => 'string',
             'is_enabled' => 'string',
         ];
     }

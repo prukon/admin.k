@@ -21,4 +21,8 @@ class Team extends Model
     public function test() {
         return "test";
     }
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
 }
