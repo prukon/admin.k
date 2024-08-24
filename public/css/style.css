@@ -226,6 +226,8 @@ footer .social-networks {
     margin-left: 15px;
     margin-bottom: 15px;
     margin-top: 15px;
+    width: 100%;
+    max-width: 220px;
 }
 
 .seasons .price-value {
@@ -500,4 +502,19 @@ select option[data-has-team="no"] {
 
 #upload:active::before {
     background: #f3a12b; /* эффект при нажатии */
+}
+
+.avatar-wrap .container-form {
+    width: 141px;
+}
+
+.personal-data-header {
+    font-size: 13px;
+}
+.personal-data .value-wrap {
+    padding-left: 0;
+    padding-right: 0;
+}
+.group-value, .birthday-value, .count-training-value {
+    font-weight: 600;
 }

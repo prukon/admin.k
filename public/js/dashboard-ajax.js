@@ -176,8 +176,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Вставка дня рождения
                     function apendBirthdayToUser() {
                         if (user.birthday) {
-                            $('.personal-data-value .birthday').html(user.birthday);
-                        } else $('.personal-data-value .birthday').html("-");
+                            $('.birthday-value').html(user.birthday);
+                        } else $('.birthday-value').html("-");
 
                     }
 
@@ -204,9 +204,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Добавление название группы юзеру
                     function apendTeamNameToUser() {
                         if (userTeam) {
-                            $('.personal-data-value .group').html(userTeam.title);
+                            $('.group-value').html(userTeam.title);
                         } else
-                            $('.personal-data-value .group').html('-');
+                            $('.group-value').html('-');
                     }
 
                     //Добавление начала занятий у юзера

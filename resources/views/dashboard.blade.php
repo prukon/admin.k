@@ -8,6 +8,7 @@
         // Передача данных текущего пользователя из Blade в JavaScript
         let currentUserName = "{{ auth()->user()->name }}";
         let currentUserRole = "{{ auth()->user()->role }}";
+
     </script>
 
 
@@ -20,7 +21,7 @@
 
                 {{--Выбор ученика, группы, кнопка установить--}}
                 <div class="row choose-user">
-                    <div class="col-3">
+                    <div class="col-md-3 col-12 mb-3 user-select">
                         <select class="form-select" id="single-select-user" data-placeholder="ФИО">
                             <option></option>
                             @foreach($allUsersSelect as $user)
@@ -29,7 +30,7 @@
                         </select>
                     </div>
 
-                    <div class="col-3">
+                    <div class="col-md-3 col-12 mb-3  team-select">
                         <select class="form-select" id="single-select-team" data-placeholder="Группа">
                             <option></option>
                             @foreach($allTeams as $team)
@@ -39,7 +40,7 @@
                         <i class="fa-thin fa-calendar-lines"></i>
                     </div>
 
-                    <div class="col-3">
+                    <div class="col-md-3 col-12 mb-3  date-input">
                         <div class="input-group flex-nowrap">
                             <input type="text" id="inlineCalendar" class="form-control" placeholder="01.02.2024"
                                    aria-label="Имя
@@ -50,7 +51,8 @@
                         <script>
                         </script>
                     </div>
-                    <div class="col-3">
+
+                    <div class="col-md-3 col-12 mb-3  btn-choose-user">
                         <button type="button" disabled id="setup-btn" class="btn btn-primary">Установить</button>
 
                     </div>
@@ -88,8 +90,7 @@
 
             {{--Аватарка и личные данные--}}
             <div class="row personal-data">
-
-                <div class="col-2">
+                <div class="col-5 col-sm-2 avatar-wrap">
                     <div class="avatar_wrapper d-flex align-items-center justify-content-center">
                         <img id='confirm-img'
                              @if ($curUser->image_crop)
@@ -104,41 +105,42 @@
                         <button id="upload-photo" class="btn-primary btn">Выбрать фото...</button>
                     </div>
                 </div>
-
-
-                <div class="col-3">
+                <div class="col-7 header-wrap">
                     <div class="personal-data-header">
-                        <div class="group">Группа:</div>
-                        <div class="birthday">Дата рождения:</div>
-                        {{--                        <div class="count-training">Количество тренировок:</div>--}}
-                    </div>
-
-                </div>
-                <div class="col-7">
-                    <div class="personal-data-value">
-                        <div class="group">
-                            @if($curTeam)
-                                {{$curTeam->title}}
-                            @else
-                                -
-                            @endif
+                        <div class="group">Группа: <span class="group-value">
+                                @if($curTeam) {{$curTeam->title}} @else - @endif </span></div>
+                        <div class="birthday">Дата рождения:
+                            <span class="birthday-value"> @if($curUser->birthday) {{$curUser->birthday}} @else - @endif </span></div>
+                        <div class="count-training">Количество тренировок: <span class="count-training-value">223</span>
                         </div>
-                        <div class="birthday">
-                            @if($curUser->birthday)
-                                {{$curUser->birthday}}
-                            @else
-                                -
-                            @endif
-                        </div>
-                        {{--                        <div class="count-training">223</div>--}}
                     </div>
                 </div>
+{{--                <div class="col-3 value-wrap">--}}
+{{--                    <div class="personal-data-value">--}}
+{{--                        <div class="group">--}}
+{{--                            @if($curTeam)--}}
+{{--                                {{$curTeam->title}}--}}
+{{--                            @else--}}
+{{--                                ---}}
+{{--                            @endif--}}
+{{--                        </div>--}}
+{{--                        <div class="birthday">--}}
+{{--                            @if($curUser->birthday)--}}
+{{--                                {{$curUser->birthday}}--}}
+{{--                            @else--}}
+{{--                                ---}}
+{{--                            @endif--}}
+{{--                        </div>--}}
+{{--                        <div class="count-training">223</div>--}}
+{{--                    </div>--}}
+{{--                </div>--}}
             </div>
+
 
             <script>
 
                 document.addEventListener("DOMContentLoaded", function () {
-                   // передача расписания юзера для календаря
+                    // передача расписания юзера для календаря
                     var scheduleUser = {!! json_encode($scheduleUserArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
                     updateGlobalScheduleData(scheduleUser);
                 });
@@ -167,10 +169,10 @@
 
                 <!-- Контекстное меню -->
                 <div id="context-menu" class="context-menu">
-                    <div class="context-menu-item" data-action="add-freeze">Добавление заморозки</div>
-                    <div class="context-menu-item" data-action="remove-freeze">Удаление заморозки</div>
                     <div class="context-menu-item" data-action="add-training">Добавление тренировки</div>
                     <div class="context-menu-item" data-action="remove-training">Удаление тренировки</div>
+                    <div class="context-menu-item" data-action="add-freeze">Добавление заморозки</div>
+                    <div class="context-menu-item" data-action="remove-freeze">Удаление заморозки</div>
                     {{--                    <div class="context-menu-item" data-action="add-payment">Добавление оплаты</div>--}}
                     {{--                    <div class="context-menu-item" data-action="remove-payment">Удаление оплаты</div>--}}
                 </div>
