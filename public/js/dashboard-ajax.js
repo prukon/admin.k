@@ -312,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Если у пользователя нет команды, применяем красный цвет
             if (!hasTeam) {
-                $userOption.css('color', 'red');
+                $userOption.css('color', '#f3a12b');
             }
 
             return $userOption;

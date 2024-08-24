@@ -1,7 +1,7 @@
 @extends('layouts.admin2')
 @section('content')
     <div class="container">
-        <h2>Список платежей</h2>
+        <h4 class="pt-3">Платежи</h4>
         <table class="table table-bordered" id="payments-table">
             <thead>
             <tr>

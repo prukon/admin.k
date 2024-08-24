@@ -183,19 +183,21 @@ class DashboardController extends Controller
             // Пробегаем через каждый день от $inputDate до 31 мая 2025 года
             while ($startDate->lte($endDate)) {
                 // Проверяем, если текущий день недели (weekday_id) присутствует в массиве дней
-                foreach ($activeWeekdays as $weekday) {
-                    if ($startDate->dayOfWeekIso == $weekday) {
-                        // Создаем запись в таблице schedule_users
-                        ScheduleUser::updateOrCreate([
-                            'user_id' => $user->id,
-                            'date' => $startDate->toDateString(),
+                if (!empty($activeWeekdays)) {
 
-                        ],
-                            ['is_enabled' => 1,
-                                'is_paid' => 0,
-                                'is_hospital' => 0,
-                                'description' => null]
-                        );
+                    foreach ($activeWeekdays as $weekday) {
+                        if ($startDate->dayOfWeekIso == $weekday) {
+                            // Создаем запись в таблице schedule_users
+                            ScheduleUser::updateOrCreate([
+                                'user_id' => $user->id,
+                                'date' => $startDate->toDateString(),
+                            ],
+                                ['is_enabled' => 1,
+                                    'is_paid' => 0,
+                                    'is_hospital' => 0,
+                                    'description' => null]
+                            );
+                        }
                     }
                 }
                 // Переходим к следующему дню
