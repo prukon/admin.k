@@ -230,27 +230,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     // Скрипт открытия верхнего сезона
                     function openFirstSeason() {
-                            // Найти все элементы с классом 'season'
-                            const seasons = document.querySelectorAll(".season");
+                        // Найти все элементы с классом 'season'
+                        const seasons = document.querySelectorAll(".season");
 
-                            // Если найден хотя бы один сезон
-                            if (seasons.length > 0) {
-                                // Открыть верхний сезон (первый в списке)
-                                const topSeason = seasons[0];
+                        // Если найден хотя бы один сезон
+                        if (seasons.length > 0) {
+                            // Открыть верхний сезон (первый в списке)
+                            const topSeason = seasons[0];
 
-                                // Найти кнопку для открытия сезона
-                                const header = topSeason.querySelector(".header-season");
+                            // Найти кнопку для открытия сезона
+                            const header = topSeason.querySelector(".header-season");
 
-                                // Проверить, не открыт ли сезон уже
-                                const isOpen = topSeason.querySelector(".fa-chevron-up") !== null;
-                                console.log(isOpen);
-                                // Если кнопка найдена и сезон не открыт, кликнуть на неё
-                                if (header && isOpen) {
-                                    header.click();
-                                }
+                            // Проверить, не открыт ли сезон уже
+                            const isOpen = topSeason.querySelector(".fa-chevron-up") !== null;
+                            console.log(isOpen);
+                            // Если кнопка найдена и сезон не открыт, кликнуть на неё
+                            if (header && isOpen) {
+                                header.click();
                             }
+                        }
                     }
- 
+
+                    // Закрашивание юзеров без команды
+                    function apendStyleToUserWithoutTeam() {
+
+                    }
 
                     showHeaderShedule();
                     refreshPrice();
@@ -267,6 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     setBackgroundToCalendar(globalScheduleData);
                     createCalendar();
                     openFirstSeason();
+                    apendStyleToUserWithoutTeam();
 
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
@@ -285,6 +290,34 @@ document.addEventListener('DOMContentLoaded', function () {
         let inputDate = document.getElementById("inlineCalendar").value;
 
 
+        function initializeSelect2() {
+            $('#single-select-user').select2({
+                theme: "bootstrap-5",
+                width: '100%',
+                placeholder: $('#single-select-user').data('placeholder'),
+                templateResult: formatUserOption,
+                templateSelection: formatUserOption // Применяем кастомный шаблон для отображения выбранного элемента
+            });
+        }
+
+        function formatUserOption(user) {
+            if (!user.id) {
+                return user.text; // Возвращаем текст для пустой опции (например, placeholder)
+            }
+
+            // Проверяем наличие команды у пользователя
+            let hasTeam = $(user.element).data('team');
+
+            let $userOption = $('<span></span>').text(user.text);
+
+            // Если у пользователя нет команды, применяем красный цвет
+            if (!hasTeam) {
+                $userOption.css('color', 'red');
+            }
+
+            return $userOption;
+        }
+
         $.ajax({
             url: '/get-team-details',
             type: 'GET',
@@ -300,14 +333,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     let team = response.team;
                     let teamWeekDayId = response.teamWeekDayId;
                     let usersTeam = response.usersTeam;
-                    let inputDate = response.inputDate;
                     let userWithoutTeam = response.userWithoutTeam;
+                    let inputDate = response.inputDate;
                     let user = response.user;
                     let weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
+                    let usersTeamWithUnteamUsers = userWithoutTeam.concat(usersTeam);
 
 
                     // Установка дней недели
-                    let apendWeekdays = function (weekdays) {
+                    function apendWeekdays(weekdays) {
                         for (let i = 0; i < weekdays.length; i++) {
                             let weekday = weekdays[i];
                             let input = weekday.querySelector('input'); // Находим input внутри текущего div
@@ -325,8 +359,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             }
                         }
                     }
+
                     //Изменение состава юзеров
-                    let updateSelectUsers = function () {
+                    function updateSelectUsers() {
                         var users = document.querySelectorAll('#single-select-user option');
                         users.forEach((user, index) => {
                             if (index !== 0) { // оставить только первый элемент
@@ -335,67 +370,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         });
 
                         var selectElement = document.querySelector('#single-select-user');
-
-                        // if(userWithoutTeam){
-                        // userWithoutTeam.forEach(user => {
-                        //     var option = document.createElement('option');
-                        //     // option.value = user.id;   // Присвойте значение из свойства id
-                        //     option.textContent = user.name; // Отобразите имя пользователя
-                        //     selectElement.appendChild(option);
-                        //     option.classList.add('user-without-team');
-                        // });
-                        // }
-
-
-                        // if (userWithoutTeam) {
-                        //     userWithoutTeam.forEach(user => {
-                        //         var option = document.createElement('option');
-                        //         option.value = user.id; // Присвоение значения из свойства id
-                        //         option.textContent = user.name; // Отображение имени пользователя
-                        //         option.style.color = 'red'; // Применение стиля прямо к элементу
-                        //         selectElement.appendChild(option);
-                        //     });
-                        // }
-
-                        // var selectElement = document.querySelector('#single-select-user');
-                        //
-                        // selectElement.select2({
-                        //     templateResult: function (data) {
-                        //         // We only really care if there is an element to pull classes from
-                        //         if (!data.element) {
-                        //             return data.text;
-                        //         }
-                        //
-                        //         var $element = $(data.element);
-                        //
-                        //         var $wrapper = $('<span></span>');
-                        //         $wrapper.addClass($element[0].className('user-without-team'));
-                        //
-                        //         $wrapper.text(data.text);
-                        //
-                        //         return $wrapper;
-                        //     }
-                        // });
-
-                        // console.log(userWithoutTeam);
-
-                        // if (userWithoutTeam) {
-                        //     console.log('userWithoutTeam');
-                        //     userWithoutTeam.forEach(user => {
-                        //         var option = new Option(user.name, user.id, false, false);
-                        //         $(option).attr('data-user-without-team', true); // Установка атрибута
-                        //         $(selectElement).append(option);
-                        //     });
-                        //
-                        //     $(selectElement).select2({
-                        //         templateResult: function (data) {
-                        //             if ($(data.element).data('user-without-team')) {
-                        //                 return $('<span style="color: red;">' + data.text + '</span>');
-                        //             }
-                        //             return data.text;
-                        //         }
-                        //     });
-                        // }
 
 
                         usersTeam.forEach(user => {
@@ -408,15 +382,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     }
 
+                    // Новое изменение состава
+                    function newUpdateSelectUsers() {
+
+                        // Очищаем текущий список
+                        $('#single-select-user').empty();
+
+                        // Добавляем пустой элемент
+                        $('#single-select-user').append('<option></option>');
+
+                        // Проходим по каждому пользователю и добавляем опцию в select
+                        usersTeamWithUnteamUsers.forEach(function(user) {
+                            let option = $('<option></option>')
+                                .attr('value', user.name)
+                                .attr('label', user.label)
+                                .attr('data-team', user.team_id ? 'true' : 'false') // Проверяем наличие команды и добавляем data-атрибут
+                                .text(user.name);
+
+                            // Добавляем опцию в select
+                            $('#single-select-user').append(option);
+                        });
+
+                        // Инициализируем Select2 с кастомными шаблонами
+                        initializeSelect2();
+                    }
+
                     enableSetupBtn(user, team, inputDate);
                     apendWeekdays(weekdays);
                     if (user) {
                         if (user.team_id > 0) {
-
-                            updateSelectUsers();
+                            newUpdateSelectUsers();
                         }
                     } else {
-                        updateSelectUsers();
+                        newUpdateSelectUsers();
 
                     }
 

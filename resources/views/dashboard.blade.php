@@ -1,9 +1,6 @@
-{{--@extends('layouts.main2')--}}
 @extends('layouts.admin2')
 @section('content')
 
-    {{--    <script src="{{ asset('js/my-croppie.js') }}"></script>--}}
-    {{--    <script src="{{ asset('js/main.js') }}"></script>--}}
     <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
 
 
@@ -11,8 +8,6 @@
         // Передача данных текущего пользователя из Blade в JavaScript
         let currentUserName = "{{ auth()->user()->name }}";
         let currentUserRole = "{{ auth()->user()->role }}";
-        {{--        let isUserAuthenticated = "{{ auth()->check() ? 'true' : 'false' }}";--}}
-
     </script>
 
 

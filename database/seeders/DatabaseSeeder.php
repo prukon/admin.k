@@ -32,7 +32,6 @@ class DatabaseSeeder extends Seeder
         ]);
         $weekdays = Weekday::all();
 
-
         // Заполнение таблицы teams
         DB::table('teams')->insert([
             ['id' => 1, 'title' => 'Дубль', 'image' => 'https://via.placeholder.com/640x480.png/004488?text=totam', 'is_enabled' => 1, 'order_by' => 10, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],

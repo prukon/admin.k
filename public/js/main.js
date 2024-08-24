@@ -8,22 +8,6 @@ function updateGlobalScheduleData(scheduleUser) {
     }
 }
 
-// Очищаем ячеек в календаре
-// function cleanBackgroundToCalendar(scheduleUser) {
-//     if (scheduleUser) {
-//         scheduleUser.forEach(entry => {
-//             // Формат даты в dataset.date в элементе календаря совпадает с форматом в объекте scheduleUser
-//             const dayElement = document.querySelector(`[data-date="${entry.date}"]`);
-//
-//             if (dayElement) {
-//                 // Закрашиваем в зависимости от состояния оплаты
-//                 dayElement.classList.remove('is_enabled');
-//                 dayElement.classList.remove('is_hospital');
-//             }
-//         });
-//     }
-// }
-
 //разблокировка кнопки УСТАНОВИТЬ
 function enableSetupBtn(user, team, inputDate) {
     if (user && team && inputDate) {
@@ -378,36 +362,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Скрипт открытия верхнего сезона
-
-    // function openFirstSeason() {
-    //     // Найти все элементы с классом 'season'
-    //     const seasons = document.querySelectorAll(".season");
-    //
-    //     // Если найден хотя бы один сезон
-    //     if (seasons.length > 0) {
-    //         // Открыть верхний сезон (первый в списке)
-    //         const topSeason = seasons[0];
-    //
-    //         // Найти кнопку для открытия сезона
-    //         const header = topSeason.querySelector(".header-season");
-    //
-    //         // Если кнопка найдена, кликнуть на неё
-    //         console.log(header)
-    //         if (header) {
-    //             header.click();
-    //         }
-    //     }
-    //
-    // }
-
-
     // -----Вызовы------
 
     addSelect2ToUser();
     addSelect2ToTeam();
     addDatapicker();
-    // openFirstSeason();
 
     // updateGlobalScheduleData({{$scheduleUser}});
     // setBackgroundToCalendar(@json($scheduleUser));
