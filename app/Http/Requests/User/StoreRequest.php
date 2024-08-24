@@ -22,15 +22,15 @@ class StoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'string',
-            'birthday' => 'date',
-            'team_id' => 'string',
-            'start_date' => 'date',
+            'name' => 'required|string|max:20',
+            'birthday' => 'nullable|date',
+            'team_id' => 'nullable|string',
+            'start_date' => 'nullable|date',
 //            'image' => '',
-            'email' => 'string',
-            'role' => 'string',
-            'password' => 'string',
-            'is_enabled' => 'string',
+            'email' => 'required|string|email|max:255',  // Поле email обязательно, должно быть строкой, соответствовать формату email и не превышать 255 символов
+//            'role' => 'required|string|max:255',  // Поле role обязательно и должно быть строкой не более 255 символов
+            'password' => 'required|string|min:8|max:255',  // Поле password обязательно, строка, минимальная длина 8 символов
+            'is_enabled' => 'boolean',  // Поле is_enabled должно быть булевым значением
         ];
     }
 }

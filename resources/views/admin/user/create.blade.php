@@ -81,7 +81,7 @@
 
 
             <div class="mb-3">
-                <label for="activity">Активность*</label>
+                <label for="activity">Активность</label>
                 <select name="is_enabled" class="form-select" id='activity' name='activity'>
                     <option value="1">Да</option>
                     <option value="0">Нет</option>

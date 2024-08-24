@@ -18,17 +18,36 @@
             </div>
             <div class="mb-3">
 
+{{--                <div class="form-group">--}}
+{{--                    <label for="weekdays">Расписание*</label>--}}
+{{--                    <select multiple class="form-control" id="weekdays" name="weekdays[]">--}}
+{{--                        @foreach($weekdays as $weekday)--}}
+{{--                            <option value="{{$weekday->id}}">{{$weekday->title}}</option>--}}
+{{--                        @endforeach--}}
+{{--                        --}}{{--                        @error('weekdays')--}}
+{{--                        --}}{{--                        <p class="text-danger">{{'Укажите расписание'}}</p>--}}
+{{--                        --}}{{--                        @enderror--}}
+{{--                    </select>--}}
+
+{{--                    @error('weekdays') --}}
+{{--                    <p class="text-danger">{{'Укажите дни недели'}}</p>--}}
+{{--                    @enderror--}}
+{{--                </div>--}}
                 <div class="form-group">
                     <label for="weekdays">Расписание*</label>
                     <select multiple class="form-control" id="weekdays" name="weekdays[]">
                         @foreach($weekdays as $weekday)
                             <option value="{{$weekday->id}}">{{$weekday->title}}</option>
                         @endforeach
-                        {{--                        @error('weekdays')--}}
-                        {{--                        <p class="text-danger">{{'Укажите расписание'}}</p>--}}
-                        {{--                        @enderror--}}
                     </select>
+
+                    @error('weekdays')
+                    <p class="text-danger">{{'Укажите дни недели'}}</p>
+                    @enderror
                 </div>
+
+
+
 
             </div>
 

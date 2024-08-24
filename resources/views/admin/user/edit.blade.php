@@ -13,13 +13,19 @@
             @csrf
             @method('patch')
             <div class="mb-3">
-                <label for="title" class="form-label">Имя ученика</label>
+                <label for="title" class="form-label">Имя ученика*</label>
                 <input type="text" name="name" class="form-control" id="title" value="{{ $user->name }}">
+                @error('name')
+                <p class="text-danger">{{'Укажите имя'}}</p>
+                @enderror
             </div>
 
             <div class="mb-3">
                 <label for="title" class="form-label">Дата рождения</label>
                 <input type="date" name="birthday" class="form-control" id="birthday" value="{{ $user->birthday }}">
+                @error('birthday')
+                <p class="text-danger">{{'Укажите день рождения'}}</p>
+                @enderror
             </div>
 
             <div class="mb-3">
@@ -31,12 +37,18 @@
                                 value="{{ $team->id }}">{{$team->title}}</option>
                     @endforeach
                 </select>
+                @error('team_id')
+                <p class="text-danger">{{'Выберите команду'}}</p>
+                @enderror
             </div>
 
 
             <div class="mb-3">
                 <label for="start_date" class="form-label">Дата начала занятий</label>
                 <input type="date" name="start_date" class="form-control" id="start_date" value="{{ $user->start_date }}">
+                @error('start_date')
+                <p class="text-danger">{{'Укажите дату начала занятий'}}</p>
+                @enderror
             </div>
 
 
@@ -44,16 +56,19 @@
 
 
 
-            <div class="mb-3">
-                <label for="formFile" class="form-label">Фото</label>
-                <input class="form-control" type="file" id="formFile" name='image' value="{{ $user->image }}">
-            </div>
+{{--            <div class="mb-3">--}}
+{{--                <label for="formFile" class="form-label">Фото</label>--}}
+{{--                <input class="form-control" type="file" id="formFile" name='image' value="{{ $user->image }}">--}}
+{{--            </div>--}}
 
 
             <div class="mb-3">
-                <label for="exampleFormControlInput1" class="form-label">Адрес электронной почты</label>
+                <label for="exampleFormControlInput1" class="form-label">Адрес электронной почты*</label>
                 <input name="email" type="email" class="form-control" id="exampleFormControlInput1"
                        placeholder="name@example.com" value="{{ $user->email }}">
+                @error('email')
+                <p class="text-danger">{{'Укажите email'}}</p>
+                @enderror
             </div>
 
             <div class="mb-3">
@@ -71,6 +86,9 @@
                         </option>
                     @endfor
                 </select>
+                    @error('activity')
+                    <p class="text-danger">{{'Укажите активность'}}</p>
+                    @enderror
 
             </div>
 

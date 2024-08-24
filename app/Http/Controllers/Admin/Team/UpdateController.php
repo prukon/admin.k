@@ -3,34 +3,26 @@
 namespace App\Http\Controllers\Admin\Team;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Team\UpdateRequest;
 use App\Models\Team;
+use App\Servises\TeamService;
 
 class UpdateController extends Controller
 {
 
-    public function __construct()
+    public function __construct(TeamService $service)
     {
+        $this->service = $service;
         $this->middleware('admin');
     }
 
-    public function __invoke(Team $team)
+    public function __invoke(UpdateRequest $request, Team $team)
     {
-        $data = request()->validate([
-            'title' => 'string',
-            'weekdays' => '',
-//            'description' => 'string',
-//            'image' => '',
-            'is_enabled' => '',
-            'order_by' => '',
-        ]);
+//       Валидация входных данных с фронта
+        $data = $request->validated();
+//        Обновление данных
+        $this->service->update($team,$data);
 
-
-        $weekdays = $data['weekdays'];
-        unset($data['weekdays']);
-
-        $team->update($data);
-        $team->weekdays()->sync($weekdays);
-//dd($weekdays, $team);
         return redirect()->route('admin.team.index');
     }
 }

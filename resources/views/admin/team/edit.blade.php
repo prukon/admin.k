@@ -11,7 +11,7 @@
             @csrf
             @method('patch')
             <div class="mb-3">
-                <label for="title" class="form-label">Название группы</label>
+                <label for="title" class="form-label">Название группы*</label>
                 <input type="text" name="title" class="form-control" id="title" value="{{$team->title}}">
                 @error('title' )
                 <p class="text-danger">{{'Введите название'}}</p>
@@ -20,17 +20,36 @@
 
             <div class="mb-3">
 
+{{--                <div class="form-group">--}}
+{{--                    <label for="weekdays">Расписание</label>--}}
+{{--                    <select multiple class="form-control" id="weekdays" name="weekdays[]">--}}
+{{--                        @foreach($weekdays as $weekday)--}}
+{{--                            <option--}}
+{{--                                    @foreach($team->weekdays as $teamWeekday)--}}
+{{--                                        {{$weekday->id === $teamWeekday->id ? 'selected' : ''}}--}}
+{{--                                    @endforeach--}}
+{{--                                    value="{{$weekday->id}}">{{$weekday->title}}</option>--}}
+{{--                    @endforeach--}}
+{{--                    </select>--}}
+{{--                </div>--}}
+
                 <div class="form-group">
                     <label for="weekdays">Расписание</label>
+
                     <select multiple class="form-control" id="weekdays" name="weekdays[]">
                         @foreach($weekdays as $weekday)
+
                             <option
                                     @foreach($team->weekdays as $teamWeekday)
                                         {{$weekday->id === $teamWeekday->id ? 'selected' : ''}}
                                     @endforeach
                                     value="{{$weekday->id}}">{{$weekday->title}}</option>
-                    @endforeach
+                        @endforeach
                     </select>
+
+                    @error('weekdays')
+                    <p class="text-danger">{{'Укажите дни недели'}}</p>
+                    @enderror
                 </div>
 
 

@@ -23,11 +23,11 @@ class StoreRequest extends FormRequest
     {
         return [
             'title' => 'string',
-            'weekdays' => '',
+            'weekdays' => 'nullable|array', // Правило 'array' указывает, что значение должно быть массивом
 //            'description' => 'string',
 //            'image' => '',
-            'is_enabled' => '',
-            'order_by' => '',
+            'is_enabled' => 'boolean',
+            'order_by' => 'integer',
         ];
     }
 }

@@ -29,10 +29,20 @@ class TeamService
 
     public function update($team, $data)
     {
+        $weekdays = [];
+        if (array_key_exists('weekdays', $data)) {  // Используем array_key_exists вместо isset
+            $weekdays = $data['weekdays'];
+        }
+        unset($data['weekdays']);
+
         $team->update($data);
+
+        // Теперь если $weekdays пуст, синхронизация всё равно произойдет, обнулив связи
+        $team->weekdays()->sync($weekdays);
     }
 
-    public function delete ($team){
+    public function delete($team)
+    {
         $team->delete();
     }
 
