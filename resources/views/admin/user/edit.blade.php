@@ -1,4 +1,4 @@
-@extends('layouts/main2')
+{{--@extends('layouts/main2')--}}
 @extends('layouts.admin2')
 
 
@@ -92,6 +92,17 @@
 
             </div>
 
+
+            <!-- Кнопка и поле для изменения пароля -->
+            <div class="mb-3">
+                <button type="button" id="change-password-btn" class="btn btn-warning">Изменить пароль</button>
+                <div id="password-change-section" class="mt-3" style="display:none;">
+                    <input type="password" id="new-password" class="form-control" placeholder="Введите новый пароль">
+                    <button type="button" id="apply-password-btn" class="btn btn-success mt-2">Применить</button>
+                    <p id="password-change-message" class="text-success mt-2" style="display:none;">Пароль изменен</p>
+                </div>
+            </div>
+
             <span><a class="btn btn-danger" href="{{ route('admin.user.index') }}">Назад</a></span>
             <button type="submit" class="btn btn-primary">Обновить</button>
 
@@ -111,4 +122,32 @@
     </div>
     </div>
     </div>
+@endsection
+@section('scripts')
+    <script>
+        document.getElementById('change-password-btn').addEventListener('click', function() {
+            document.getElementById('password-change-section').style.display = 'block';
+        });
+
+        document.getElementById('apply-password-btn').addEventListener('click', function() {
+            var userId = '{{ $user->id }}';
+            var newPassword = document.getElementById('new-password').value;
+            var token = '{{ csrf_token() }}';
+
+            fetch(`/admin/user/${userId}/update-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                },
+                body: JSON.stringify({password: newPassword}),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('password-change-message').style.display = 'block';
+                    }
+                });
+        });
+    </script>
 @endsection
