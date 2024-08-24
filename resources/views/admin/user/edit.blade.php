@@ -95,7 +95,7 @@
 
             <!-- Кнопка и поле для изменения пароля -->
             <div class="mb-3">
-                <button type="button" id="change-password-btn" class="btn btn-warning">Изменить пароль</button>
+                <button type="button" id="change-password-btn" class="btn btn-primary">Изменить пароль</button>
                 <div id="password-change-section" class="mt-3" style="display:none;">
                     <input type="password" id="new-password" class="form-control" placeholder="Введите новый пароль">
                     <button type="button" id="apply-password-btn" class="btn btn-success mt-2">Применить</button>
@@ -113,10 +113,7 @@
             <input type="submit" value="Удалить" class="btn btn-danger">
         </form>
 
-
-
         <div>
-
         </div>
 
     </div>

@@ -121,8 +121,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                                 // Accumulate the total sum of price values
                                 totalSumm[seasonId] += Number(priceValues[j].textContent);
-                            // console.log('totalSumm[seasonId]:');
-                            // console.log(totalSumm[seasonId]);
+                                // console.log('totalSumm[seasonId]:');
+                                // console.log(totalSumm[seasonId]);
 
                             }
 
@@ -228,6 +228,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     }
 
+                    // Скрипт открытия верхнего сезона
+                    function openFirstSeason() {
+                            // Найти все элементы с классом 'season'
+                            const seasons = document.querySelectorAll(".season");
+
+                            // Если найден хотя бы один сезон
+                            if (seasons.length > 0) {
+                                // Открыть верхний сезон (первый в списке)
+                                const topSeason = seasons[0];
+
+                                // Найти кнопку для открытия сезона
+                                const header = topSeason.querySelector(".header-season");
+
+                                // Проверить, не открыт ли сезон уже
+                                const isOpen = topSeason.querySelector(".fa-chevron-up") !== null;
+                                console.log(isOpen);
+                                // Если кнопка найдена и сезон не открыт, кликнуть на неё
+                                if (header && isOpen) {
+                                    header.click();
+                                }
+                            }
+                    }
+ 
 
                     showHeaderShedule();
                     refreshPrice();
@@ -243,6 +266,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateGlobalScheduleData(scheduleUser);
                     setBackgroundToCalendar(globalScheduleData);
                     createCalendar();
+                    openFirstSeason();
 
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
@@ -413,6 +437,7 @@ document.addEventListener('DOMContentLoaded', function () {
         function disabledBtn() {
             $('#setup-btn').attr('disabled', 'disabled');
         }
+
         // Функция для получения ID активных дней недели
         function getActiveWeekdays() {
             // Создаем объект для сопоставления значения чекбокса с ID дня недели
@@ -564,6 +589,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     }
+
     showModal();
 
 });

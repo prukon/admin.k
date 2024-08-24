@@ -2,9 +2,9 @@
 var globalScheduleData = [];
 
 // Функция для обновления глобальной переменной после получения данных через AJAX
- function updateGlobalScheduleData(scheduleUser) {
-     if (scheduleUser) {
-         globalScheduleData = scheduleUser;
+function updateGlobalScheduleData(scheduleUser) {
+    if (scheduleUser) {
+        globalScheduleData = scheduleUser;
     }
 }
 
@@ -23,7 +23,6 @@ var globalScheduleData = [];
 //         });
 //     }
 // }
-
 
 //разблокировка кнопки УСТАНОВИТЬ
 function enableSetupBtn(user, team, inputDate) {
@@ -131,6 +130,7 @@ function hideAllSeason() {
         seasons[i].classList.add('display-none');
     }
 }
+
 // Закрашивание ячеек в календаре
 function setBackgroundToCalendar(scheduleUser) {
     if (scheduleUser) {
@@ -158,7 +158,6 @@ function createCalendar() {
     // console.log('createCalendar()');
     let currentYear = new Date().getFullYear();
     let currentMonth = new Date().getMonth();
-
 
 
     // Создаем календарь для текущего месяца
@@ -201,8 +200,6 @@ function createCalendar() {
         // Закрашиваем ячейки на текущем месяце в соответствии с данными расписания
 
 
-
-
         // updateGlobalScheduleData(@json($scheduleUserJson));
         //
         // console.log("@json($scheduleUserJson):");
@@ -222,6 +219,7 @@ function createCalendar() {
             createCalendar(currentYear, currentMonth);
         });
     }
+
     // Следующий месяц
     function nextMonth() {
         document.getElementById('next-month').addEventListener('click', () => {
@@ -234,6 +232,7 @@ function createCalendar() {
         });
 
     }
+
     // Вызов контекстного меню. Обработчик правого клика на дате.
     function getContextMenu() {
         document.getElementById('days').addEventListener('contextmenu', function (event) {
@@ -248,6 +247,7 @@ function createCalendar() {
             }
         });
     }
+
     //Позиционирование контекстного меню
     function showContextMenu(target) {
         const contextMenu = document.getElementById('context-menu');
@@ -262,6 +262,7 @@ function createCalendar() {
         contextMenu.style.display = 'block';
         contextMenu.dataset.date = target.dataset.date;
     }
+
     // Скрытие контекстного меню при клике вне его
     function hideContextMenuMissClick() {
         document.addEventListener('click', function (event) {
@@ -271,6 +272,7 @@ function createCalendar() {
             }
         });
     }
+
     // Обработчик кликов по пунктам контекстного меню
     function clickContextmenu() {
         document.getElementById('context-menu').addEventListener('click', function (event) {
@@ -286,6 +288,7 @@ function createCalendar() {
         });
 
     }
+
     // Функция отправки AJAX-запроса
     function sendActionRequest(date, action, userName) {
 
@@ -307,6 +310,7 @@ function createCalendar() {
             }
         });
     }
+
     // Вызов функции для закрашивания сегодняшней даты
     function highlightToday() {
         // Получаем сегодняшнюю дату
@@ -335,7 +339,7 @@ function createCalendar() {
 
 document.addEventListener('DOMContentLoaded', function () {
 
-// Добавление Select2 к Юзерам
+    // Добавление Select2 к Юзерам
     function addSelect2ToUser() {
         $('#single-select-user').select2({
             theme: "bootstrap-5",
@@ -344,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-// Добавление Select2 к Группам
+    // Добавление Select2 к Группам
     function addSelect2ToTeam() {
         $('#single-select-team').select2({
             theme: "bootstrap-5",
@@ -354,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     }
 
-// Добавление datapicker к календарю
+    // Добавление datapicker к календарю
     function addDatapicker() {
         try {
             $(function () {
@@ -374,12 +378,36 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Скрипт открытия верхнего сезона
+
+    // function openFirstSeason() {
+    //     // Найти все элементы с классом 'season'
+    //     const seasons = document.querySelectorAll(".season");
+    //
+    //     // Если найден хотя бы один сезон
+    //     if (seasons.length > 0) {
+    //         // Открыть верхний сезон (первый в списке)
+    //         const topSeason = seasons[0];
+    //
+    //         // Найти кнопку для открытия сезона
+    //         const header = topSeason.querySelector(".header-season");
+    //
+    //         // Если кнопка найдена, кликнуть на неё
+    //         console.log(header)
+    //         if (header) {
+    //             header.click();
+    //         }
+    //     }
+    //
+    // }
+
+
     // -----Вызовы------
 
     addSelect2ToUser();
     addSelect2ToTeam();
     addDatapicker();
-
+    // openFirstSeason();
 
     // updateGlobalScheduleData({{$scheduleUser}});
     // setBackgroundToCalendar(@json($scheduleUser));
