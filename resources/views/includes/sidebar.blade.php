@@ -27,12 +27,12 @@
         </li>
         @endcan
 
-        <li class="nav-item">
-            <a href="/" class="nav-link">
-                <i class="nav-icon fas fa-columns"></i>
-                <p>Детали учетной записи</p>
-            </a>
-        </li>
+{{--        <li class="nav-item">--}}
+{{--            <a href="/" class="nav-link">--}}
+{{--                <i class="nav-icon fas fa-columns"></i>--}}
+{{--                <p>Детали учетной записи</p>--}}
+{{--            </a>--}}
+{{--        </li>--}}
 
         @can('view', auth()->user())
         <li class="nav-item">

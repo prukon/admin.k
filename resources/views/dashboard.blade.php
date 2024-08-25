@@ -111,7 +111,7 @@
                                 @if($curTeam) {{$curTeam->title}} @else - @endif </span></div>
                         <div class="birthday">Дата рождения:
                             <span class="birthday-value"> @if($curUser->birthday) {{$curUser->birthday}} @else - @endif </span></div>
-                        <div class="count-training">Количество тренировок: <span class="count-training-value">223</span>
+                        <div class="display-none count-training">Количество тренировок: <span class="count-training-value">223</span>
                         </div>
                     </div>
                 </div>
