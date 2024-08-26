@@ -15,7 +15,6 @@
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3">Консоль</h4>
         <div>
-{{--{{$merchantLogin = config('robokassa.password1')}}--}}
 
             @can('view', auth()->user())
                 <h5 class="choose-user-header">Выбор ученика:</h5>
@@ -116,37 +115,7 @@
                         </div>
                     </div>
                 </div>
-{{--                <div class="col-3 value-wrap">--}}
-{{--                    <div class="personal-data-value">--}}
-{{--                        <div class="group">--}}
-{{--                            @if($curTeam)--}}
-{{--                                {{$curTeam->title}}--}}
-{{--                            @else--}}
-{{--                                ---}}
-{{--                            @endif--}}
-{{--                        </div>--}}
-{{--                        <div class="birthday">--}}
-{{--                            @if($curUser->birthday)--}}
-{{--                                {{$curUser->birthday}}--}}
-{{--                            @else--}}
-{{--                                ---}}
-{{--                            @endif--}}
-{{--                        </div>--}}
-{{--                        <div class="count-training">223</div>--}}
-{{--                    </div>--}}
-{{--                </div>--}}
             </div>
-
-
-            <script>
-
-                document.addEventListener("DOMContentLoaded", function () {
-                    // передача расписания юзера для календаря
-                    var scheduleUser = {!! json_encode($scheduleUserArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
-                    updateGlobalScheduleData(scheduleUser);
-                });
-
-            </script>
 
             <h5 class="header-shedule display-none">Расписание:</h5>
 
@@ -223,11 +192,24 @@
 
             <script>
                 document.addEventListener('DOMContentLoaded', function () {
+
+                    // передача расписания юзера для календаря
+                    var scheduleUser = {!! json_encode($scheduleUserArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
+                    updateGlobalScheduleData(scheduleUser);
+                    var userPrice = {!! json_encode($userPriceArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
+
+ 
                     // showSeasonsPrice();
+
                     createSeasons()     //Создание сезонов
                     clickSeason()       //Измерение иконок при клике
                     hideAllSeason()     //Скрытие всех сезонов при загрузке страницы
                     createCalendar();
+                    apendPrice(userPrice);
+                    showSessons();
+                    apendCreditTotalSumm();
+
+
                 });
             </script>
 
@@ -239,7 +221,6 @@
     <script>
         const uploadUrl = "{{ route('profile.uploadAvatar') }}";
     </script>
-
 
     {{--    Модалка--}}
     <div class="modal fade" id="uploadPhotoModal" tabindex="-1" role="dialog" aria-labelledby="uploadPhotoModalLabel"
@@ -282,9 +263,4 @@
         </div>
     </div>
 
-
-    <script>
-        {{--    console.log({{ $scheduleUser }});--}}
-
-    </script>
 @endsection

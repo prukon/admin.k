@@ -1,6 +1,8 @@
 // Глобальная переменная для хранения данных расписания юзера из AJAX
 var globalScheduleData = [];
 
+
+
 // Функция для обновления глобальной переменной после получения данных через AJAX
 function updateGlobalScheduleData(scheduleUser) {
     if (scheduleUser) {
@@ -321,6 +323,144 @@ function createCalendar() {
 }
 
 
+//Поиск и установка соответствующих установленных цен на странице
+function apendPrice(userPrice) {
+    if (userPrice) {
+        for (j = 0; j < userPrice.length; j++) {
+
+            // Получаем все блоки с классом border_price
+            const borderPrices = document.querySelectorAll('.border_price');
+
+// Проходим по каждому блоку
+            for (let i = 0; i < borderPrices.length; i++) {
+                const borderPrice = borderPrices[i];
+
+                // Находим элемент с классом new-price-description внутри текущего блока
+                const newPriceDescription = borderPrice.querySelector('.new-price-description');
+
+                // Проверяем, есть ли такой элемент
+                if (newPriceDescription) {
+                    // Получаем текст месяца из блока и убираем пробелы
+                    const monthText = newPriceDescription.textContent.trim();
+
+                    // Ищем объект в массиве, у которого month совпадает с текстом месяца
+                    const matchedData = userPrice.find(item => item.month === monthText);
+
+                    // Если найдено совпадение, обновляем цену
+                    if (matchedData) {
+
+                        const priceValue = borderPrice.querySelector('.price-value');
+                        if (priceValue) {
+                            if (matchedData.price > 0) {
+                                priceValue.textContent = matchedData.price;
+                            }
+                        }
+                        // borderPrice.querySelector('.new-main-button').removeAttribute('disabled');
+
+                        // Получаем кнопку
+                        const button = borderPrice.querySelector('.new-main-button');
+
+                        // Проверяем, если is_paid == true, меняем текст и делаем кнопку неактивной
+                        button.textContent = "Оплатить";
+
+                        if (matchedData.is_paid) {
+                            button.textContent = "Оплачено";
+                            button.setAttribute('disabled', 'disabled');
+                            button.classList.add('buttonPaided');
+                        } else {
+                            button.removeAttribute('disabled');
+                        }
+                        if (matchedData.price == 0) {
+                            button.setAttribute('disabled', 'disabled');
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+
+}
+
+// Скрываем/отображаем сезоны, в которых не установленны/установлены суммы.
+function showSessons() {
+    var seasons = document.querySelectorAll('.season');
+    var borderPrice = {};
+    var totalSumm = {};
+
+    for (var i = 0; i < seasons.length; i++) {
+        var seasonId = seasons[i].id;
+
+        // Initialize the arrays for each season
+        borderPrice[seasonId] = [];
+        totalSumm[seasonId] = 0;
+
+        var borderPrices = seasons[i].querySelectorAll('.border_price');
+        var priceValues = seasons[i].querySelectorAll('.price-value');
+
+
+        for (var j = 0; j < borderPrices.length; j++) {
+            // Store the border price (if needed)
+            borderPrice[seasonId].push(borderPrices[j]);
+
+// console.log('priceValues[j]:');
+// console.log(priceValues[j]);
+
+            // Accumulate the total sum of price values
+            totalSumm[seasonId] += Number(priceValues[j].textContent);
+            // console.log('totalSumm[seasonId]:');
+            // console.log(totalSumm[seasonId]);
+
+        }
+
+
+        // Check if totalSumm is 0 and add class 'display-none' if true
+        seasons[i].classList.remove('display-none');
+        if (totalSumm[seasonId] === 0) {
+            seasons[i].classList.add('display-none');
+        }
+        // отобразить последний сезон
+        seasons[0].classList.remove('display-none')
+
+    }
+}
+
+//Расчет сумм долга за сезон и добавление долга в шапку сезона
+function apendCreditTotalSumm() {
+    // Ищем все контейнеры с классом season
+    const seasons = document.querySelectorAll('.season');
+
+    // Перебираем каждый сезон
+    seasons.forEach(function (season) {
+        let totalSum = 0;
+
+        // Ищем все контейнеры с классом border_price внутри текущего сезона
+        const priceContainers = season.querySelectorAll('.border_price');
+
+        // Перебираем все контейнеры с ценами
+        priceContainers.forEach(function (container) {
+            // Находим кнопку внутри контейнера
+            const button = container.querySelector('button.new-main-button');
+
+
+            // Проверяем, если кнопка называется "Оплатить" и не отключена
+            if (button && button.textContent.trim() === 'Оплатить' && !button.disabled) {
+                // Получаем значение из price-value
+                const priceValue = parseFloat(container.querySelector('.price-value').textContent.trim());
+                // console.log(container.querySelector('.price-value').textContent);
+                // Добавляем значение к общей сумме для этого сезона
+                totalSum += priceValue;
+            } else {
+            }
+        });
+
+        // Обновляем значение в is_credit_value для текущего сезона
+        const creditValueField = season.querySelector('.is_credit_value');
+        creditValueField.textContent = totalSum;
+    });
+}
+
+
 document.addEventListener('DOMContentLoaded', function () {
 
     // Добавление Select2 к Юзерам
@@ -361,6 +501,8 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (e) {
         }
     }
+
+
 
     // -----Вызовы------
 
