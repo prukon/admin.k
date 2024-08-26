@@ -65,8 +65,9 @@ function createSeasons() {
                 </div>
                 <div class="row new-main-button-wrap">
                     <div class="justify-content-center align-items-center">
-                        <button type="button" disabled="enabled" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
-                    </div>
+                        <a href="/">
+                        <button  type="button" disabled="enabled" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
+                   </a> </div> 
                 </div>
             `;
 
@@ -116,6 +117,30 @@ function hideAllSeason() {
         seasons[i].classList.add('display-none');
     }
 }
+
+// Скрипт открытия верхнего сезона
+function openFirstSeason() {
+    // Найти все элементы с классом 'season'
+    const seasons = document.querySelectorAll(".season");
+
+    // Если найден хотя бы один сезон
+    if (seasons.length > 0) {
+        // Открыть верхний сезон (первый в списке)
+        const topSeason = seasons[0];
+
+        // Найти кнопку для открытия сезона
+        const header = topSeason.querySelector(".header-season");
+
+        // Проверить, не открыт ли сезон уже
+        const isOpen = topSeason.querySelector(".fa-chevron-up") !== null;
+        console.log(isOpen);
+        // Если кнопка найдена и сезон не открыт, кликнуть на неё
+        if (header && isOpen) {
+            header.click();
+        }
+    }
+}
+
 
 // Закрашивание ячеек в календаре
 function setBackgroundToCalendar(scheduleUser) {

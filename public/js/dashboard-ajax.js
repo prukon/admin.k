@@ -1,3 +1,5 @@
+// <script src="js/main.js"></script>
+
 document.addEventListener('DOMContentLoaded', function () {
 
     // AJAX User

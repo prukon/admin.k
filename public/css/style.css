@@ -515,6 +515,6 @@ select option[data-has-team="no"] {
     padding-left: 0;
     padding-right: 0;
 }
-.group-value, .birthday-value, .count-training-value {
+.name-value, .group-value, .birthday-value, .count-training-value {
     font-weight: 600;
 }

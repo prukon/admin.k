@@ -107,6 +107,8 @@
                 </div>
                 <div class="col-7 header-wrap">
                     <div class="personal-data-header">
+                        <div class="name">Имя: <span class="name-value">
+                                @if($curUser) {{$curUser->name}} @else - @endif </span></div>
                         <div class="group">Группа: <span class="group-value">
                                 @if($curTeam) {{$curTeam->title}} @else - @endif </span></div>
                         <div class="birthday">Дата рождения:
@@ -198,7 +200,7 @@
                     updateGlobalScheduleData(scheduleUser);
                     var userPrice = {!! json_encode($userPriceArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
 
- 
+
                     // showSeasonsPrice();
 
                     createSeasons()     //Создание сезонов
@@ -208,7 +210,7 @@
                     apendPrice(userPrice);
                     showSessons();
                     apendCreditTotalSumm();
-
+                    openFirstSeason();
 
                 });
             </script>
