@@ -15,6 +15,7 @@
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3">Консоль</h4>
         <div>
+{{--{{$merchantLogin = config('robokassa.password1')}}--}}
 
             @can('view', auth()->user())
                 <h5 class="choose-user-header">Выбор ученика:</h5>

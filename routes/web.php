@@ -44,9 +44,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/getPayments', [\App\Http\Controllers\Admin\PaymentsController::class, 'getPayments'])->name('payments.getPayments');
 
 
-
-
-
 //AJAX
     Route::get('/get-user-details', [\App\Http\Controllers\DashboardController::class, 'getUserDetails'])->name('getUserDetails');
     Route::get('/get-team-details', [\App\Http\Controllers\DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
@@ -63,8 +60,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/set-price-all-users', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
 
 
-
-
 //    Route::post('/upload-avatar', [\App\Http\Controllers\DashboardController::class, 'uploadAvatar'])->name('uploadAvatar');
     Route::post('/profile/upload-avatar', [\App\Http\Controllers\DashboardController::class, 'uploadAvatar'])->name('profile.uploadAvatar');
 
@@ -75,9 +70,17 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //    Route::get('/api/events', [\App\Http\Controllers\EventController::class, 'getEvents']);
 
 
+    // Маршрут для обработки результатов оплаты (callback от Robokassa)
+    Route::post('/payment/result', [\App\Http\Controllers\TransactionController::class, 'result'])->name('payment.result');
+
+    // Маршрут для страницы успешной оплаты
+    Route::get('/payment/success', [\App\Http\Controllers\TransactionController::class, 'success'])->name('payment.success');
+
+    // Маршрут для страницы неудачной оплаты
+    Route::get('/payment/fail', [\App\Http\Controllers\TransactionController::class, 'fail'])->name('payment.fail');
+
+
 });
 
-//ajax
-//Route::get('/11', [\App\Http\Controllers\Dashboard\IndexController::class, 'getUserDetails'])->name('getUserDetails');
-//Route::get('/', '\App\Http\Controllers\HomeController@getUserDetails')->name('getUserDetails');
+
 Auth::routes();

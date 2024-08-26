@@ -31,6 +31,7 @@ class PaymentsController extends Controller
         ));
     }
 
+    //Страница Платежи (вывод все платежей)
     public function getPayments(Request $request)
     {
         if ($request->ajax()) {
