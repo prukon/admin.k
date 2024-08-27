@@ -53,7 +53,7 @@ class TransactionController extends Controller
     }
 
 //Формирование запроса на оплату
-    function getPaymentUrl($outSum, $invId, $description, $isTest = false)
+    function getPaymentUrl($outSum, $invId, $description, $isTest = true)
     {
         $login = config('robokassa.merchant_login');
         $password = config('robokassa.password1');
@@ -70,6 +70,7 @@ class TransactionController extends Controller
     {
         $userId = $request->user_id;
         $period = $request->period;
+        $period = "март тест";
         $amount = 1000; // Пример суммы для оплаты
         $description = "Оплата за период $period пользователем $userId";
 

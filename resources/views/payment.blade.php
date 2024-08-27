@@ -20,7 +20,7 @@
             <form id="paymentForm" action="{{ route('payment.pay') }}" method="POST">
                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="user_id" value="{{ auth()->user()->id }}">
-                <input type="hidden" name="period" value=$paymentDate>
+{{--                <input type="hidden" name="period" value=$paymentDate>--}}
                 <button type="submit" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
             </form>
 
