@@ -18,7 +18,7 @@ class TransactionController extends Controller
     public function index()
     {
     }
-//test
+
     /**
      * Генерирует подпись для запроса на оплату в Robokassa.
      *
