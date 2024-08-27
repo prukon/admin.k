@@ -4,9 +4,7 @@
 
     <script>
         // Передача данных текущего пользователя из Blade в JavaScript
-        let currentUserName = "{{ auth()->user()->name }}";
-        let currentUserRole = "{{ auth()->user()->role }}";
-        let currentUserRole = "";
+
     </script>
 
 
@@ -29,7 +27,7 @@
 
                 });
             </script>
-
+ 
         </div>
     </div>
 

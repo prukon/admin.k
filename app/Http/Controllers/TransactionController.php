@@ -46,7 +46,7 @@ class TransactionController extends Controller
 
 
 //Генерация подписи
-    public function generateSignature($outSum, $invId, $password, $isTest = false)
+    public function generateSignature($outSum, $invId, $password, $isTest = true)
     {
         $signature = md5("{$outSum}:{$invId}:{$password}" . ($isTest ? ":1" : ""));
         return $signature;
@@ -61,6 +61,8 @@ class TransactionController extends Controller
         $signature = $this->generateSignature($outSum, $invId, $password, $isTest);
         $test = $isTest ? '1' : '0';
         $culture = 'ru'; // Язык интерфейса: 'ru' или 'en'
+
+        dd($login);
 
         return "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$login}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$test}&Culture={$culture}";
     }
