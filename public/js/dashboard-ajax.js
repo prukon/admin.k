@@ -175,6 +175,18 @@ document.addEventListener('DOMContentLoaded', function () {
                         });
                     }
 
+                    // Вставка имени
+                    function apendNameToUser() {
+                        if (user.name) {
+                            $('.name-value').html(user.name);
+                        } else $('.name-value').html("-");
+                    }
+                    // Вставка почты
+                    function apendEmailToUser() {
+                        if (user.email) {
+                            $('.email-value').html(user.email);
+                        } else $('.email-value').html("-");
+                    }
                     // Вставка дня рождения
                     function apendBirthdayToUser() {
                         if (user.birthday) {
@@ -265,6 +277,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     apendCreditTotalSumm();
                     apendTeamNameToUser();
                     apendBirthdayToUser();
+                    apendNameToUser();
+                    apendEmailToUser();
                     apendImageToUser();
                     apendTrainingCountToUser();
                     apendUserStartDate();

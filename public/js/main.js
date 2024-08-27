@@ -19,7 +19,10 @@ function enableSetupBtn(user, team, inputDate) {
 
 // Создание сезонов
 function createSeasons() {
-    // console.log('createSeasons');
+
+    const csrfToken = window.Laravel.csrfToken;
+    const paymentUrl = window.Laravel.paymentUrl;
+
 
 // Данные для каждого месяца
     const months = [
@@ -32,17 +35,66 @@ function createSeasons() {
     ];
     var season2024;
 // Цикл по сезонам
+//     document.querySelectorAll('.season .container').forEach(container => {
+//         var season = container.dataset.season;
+//         // Цикл по месяцам
+//         for (const [key, month] of months.entries()) {
+//             const div = document.createElement('div');
+//             div.className = `border_price col-3 ${month}`;
+//
+//             if (month == 'september') {
+//                 // season = season - 1;
+//                 // console.log(month)
+//             }
+//
+//             var displaySeason;
+//             if (monthsRu[key] == "Сентябрь" ||
+//                 monthsRu[key] == "Октябрь" ||
+//                 monthsRu[key] == "Ноябрь" ||
+//                 monthsRu[key] == "Декабрь"
+//             ) {
+//                 displaySeason = season - 1
+//             } else {
+//                 displaySeason = season
+//
+//             }
+//             var paymentDate1 = `${monthsRu[key]} ${displaySeason}`;
+//
+//             div.innerHTML = `
+//                 <div class="row align-items-center justify-content-center">
+//                     <span class="price-value">0</span>
+//                     <span class="hide-currency">₽</span>
+//                 </div>
+//                 <div class="row justify-content-center align-items-center">
+//                     <div class="new-price-description">${monthsRu[key]} ${displaySeason}</div>
+//                 </div>
+//                 <div class="row new-main-button-wrap">
+//                     <div class="justify-content-center align-items-center">
+//
+//
+//
+//                 <form action="${paymentUrl}" method="POST">
+//                     <input type="hidden" name="_token" value="${csrfToken}">
+//                      <input type="hidden" name="paymentDate" value="${paymentDate1}">
+//
+//                     <button type="submit" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
+//                 </form>
+//
+//
+//                     </div>
+//                 </div>
+//             `;
+//         }
+//     });
+// }
     document.querySelectorAll('.season .container').forEach(container => {
         var season = container.dataset.season;
+        console.log('Season:', season); // Отладка: Выводим текущий сезон
         // Цикл по месяцам
         for (const [key, month] of months.entries()) {
+            console.log('Processing month:', month); // Отладка: Выводим текущий месяц
             const div = document.createElement('div');
             div.className = `border_price col-3 ${month}`;
-
-            if (month == 'september') {
-                // season = season - 1;
-                // console.log(month)
-            }
 
             var displaySeason;
             if (monthsRu[key] == "Сентябрь" ||
@@ -50,31 +102,45 @@ function createSeasons() {
                 monthsRu[key] == "Ноябрь" ||
                 monthsRu[key] == "Декабрь"
             ) {
-                displaySeason = season - 1
+                displaySeason = season - 1;
             } else {
-                displaySeason = season
-
+                displaySeason = season;
             }
-            div.innerHTML = `
-                <div class="row align-items-center justify-content-center">
-                    <span class="price-value">0</span>
-                    <span class="hide-currency">₽</span>
-                </div>
-                <div class="row justify-content-center align-items-center">
-                    <div class="new-price-description">${monthsRu[key]} ${displaySeason}</div>
-                </div>
-                <div class="row new-main-button-wrap">
-                    <div class="justify-content-center align-items-center">
-                        <a href="/">
-                        <button  type="button" disabled="enabled" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
-                   </a> </div> 
-                </div>
-            `;
 
+            const paymentDate = `${monthsRu[key]} ${displaySeason}`;
+            console.log('Payment Date:', paymentDate); // Отладка: Выводим дату для формы
+
+            div.innerHTML = `
+            <div class="row align-items-center justify-content-center">
+                <span class="price-value">0</span>
+                <span class="hide-currency">₽</span>
+            </div>
+            <div class="row justify-content-center align-items-center">
+                <div class="new-price-description">${monthsRu[key]} ${displaySeason}</div>
+            </div>
+            <div class="row new-main-button-wrap">
+                <div class="justify-content-center align-items-center">
+
+                    <form action="${paymentUrl}" method="POST">
+                        <input type="hidden" name="_token" value="${csrfToken}">
+                        <input type="hidden" name="paymentDate" value="${paymentDate}">
+                        <button type="submit" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
+                    </form>
+
+                </div> 
+            </div>
+        `;
+
+            // Добавляем созданный div в контейнер
             container.appendChild(div);
         }
     });
+
+
+
 }
+//Формирование ссылок для оплат
+
 
 // Открытие, закрытие сезонов при клике
 function clickSeason() {

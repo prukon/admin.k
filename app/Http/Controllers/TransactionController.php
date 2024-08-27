@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Http;
@@ -8,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 
 class TransactionController extends Controller
 {
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -28,6 +30,21 @@ class TransactionController extends Controller
      */
 
 
+
+    public function show(Request $request)
+    {
+        $curUser = auth()->user();
+        $userId = User::where('user_id', $curUser->id);
+        $paymentDate = "март 2022";
+        $paymentDate = $_POST['paymentDate'];
+
+
+        // Дополнительная логика, если необходимо
+
+        return view('payment', compact('userId', 'paymentDate'));
+    }
+
+
 //Генерация подписи
     public function generateSignature($outSum, $invId, $password, $isTest = false)
     {
@@ -40,12 +57,26 @@ class TransactionController extends Controller
     {
         $login = config('robokassa.merchant_login');
         $password = config('robokassa.password1');
-        $signature = generateSignature($outSum, $invId, $password, $isTest);
+//        $signature = generateSignature($outSum, $invId, $password, $isTest);
+        $signature = $this->generateSignature($outSum, $invId, $password, $isTest);
         $test = $isTest ? '1' : '0';
         $culture = 'ru'; // Язык интерфейса: 'ru' или 'en'
 
         return "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$login}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$test}&Culture={$culture}";
     }
+
+    //
+    public function pay(Request $request)
+    {
+        $userId = $request->user_id;
+        $period = $request->period;
+        $amount = 1000; // Пример суммы для оплаты
+        $description = "Оплата за период $period пользователем $userId";
+
+        $paymentUrl = $this->getPaymentUrl($amount, $userId, $description, config('robokassa.test_mode'));
+        return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
+    }
+
 
     public function result(Request $request)
     {

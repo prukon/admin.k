@@ -496,6 +496,7 @@ select option[data-has-team="no"] {
     background: #f3a12b; /* добавим эффект при наведении */
     color: white;
 }
+
 #upload:hover {
     background: #f3a12b; /* добавим эффект при наведении */
 }
@@ -511,10 +512,12 @@ select option[data-has-team="no"] {
 .personal-data-header {
     font-size: 13px;
 }
+
 .personal-data .value-wrap {
     padding-left: 0;
     padding-right: 0;
 }
-.name-value, .group-value, .birthday-value, .count-training-value {
+
+.email-value, .name-value, .group-value, .birthday-value, .count-training-value {
     font-weight: 600;
 }

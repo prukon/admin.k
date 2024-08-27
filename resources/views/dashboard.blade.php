@@ -1,6 +1,13 @@
 @extends('layouts.admin2')
 @section('content')
 
+{{--    <meta name="csrf-token" content="{{ csrf_token() }}">--}}
+<script>
+    window.Laravel = {
+        csrfToken: '{{ csrf_token() }}',
+        paymentUrl: '{{ route('payment') }}'
+    };
+</script>
     <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
 
 
@@ -109,7 +116,9 @@
                     <div class="personal-data-header">
                         <div class="name">Имя: <span class="name-value">
                                 @if($curUser) {{$curUser->name}} @else - @endif </span></div>
-                        <div class="group">Группа: <span class="group-value">
+                        <div class="email">Почта: <span class="email-value">
+                                @if($curUser) {{$curUser->email}} @else - @endif </span></div>
+                         <div class="group">Группа: <span class="group-value">
                                 @if($curTeam) {{$curTeam->title}} @else - @endif </span></div>
                         <div class="birthday">Дата рождения:
                             <span class="birthday-value"> @if($curUser->birthday) {{$curUser->birthday}} @else - @endif </span></div>
@@ -224,7 +233,7 @@
         const uploadUrl = "{{ route('profile.uploadAvatar') }}";
     </script>
 
-    {{--    Модалка--}}
+    {{--    Модалка загрузка аватарки--}}
     <div class="modal fade" id="uploadPhotoModal" tabindex="-1" role="dialog" aria-labelledby="uploadPhotoModalLabel"
          aria-hidden="true">
         <div class="modal-dialog" role="document">

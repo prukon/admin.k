@@ -70,6 +70,12 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //    Route::get('/api/events', [\App\Http\Controllers\EventController::class, 'getEvents']);
 
 
+    Route::post('/payment', [\App\Http\Controllers\TransactionController::class, 'show'])->name('payment');
+
+
+    Route::post('/payment/pay', [\App\Http\Controllers\TransactionController::class, 'pay'])->name('payment.pay');
+
+
     // Маршрут для обработки результатов оплаты (callback от Robokassa)
     Route::post('/payment/result', [\App\Http\Controllers\TransactionController::class, 'result'])->name('payment.result');
 
