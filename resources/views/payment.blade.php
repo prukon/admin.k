@@ -13,12 +13,14 @@
         <div>
             <p>Имя пользователя: {{ auth()->user()->name }}
             <p>Платежный период: {{ $paymentDate }}</p>
-
+            <p>Сумма оплаты: {{ $outSum }} руб.</p>
 
             <form id="paymentForm" action="{{ route('payment.pay') }}" method="POST">
                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="user_id" value="{{ auth()->user()->id }}">
-{{--                <input type="hidden" name="period" value=$paymentDate>--}}
+                <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
+                <input type="hidden" name="userId" value="{{ auth()->user()->id }}">
+                <input type="hidden" name="outSum" value="{{ $outSum }}">
+                <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
                 <button type="submit" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
             </form>
 

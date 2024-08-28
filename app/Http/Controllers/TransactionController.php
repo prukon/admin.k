@@ -15,72 +15,55 @@ class TransactionController extends Controller
         $this->middleware('auth');
     }
 
+    //Станица выбора оплат
     public function index()
     {
-    }
-//tes
-    /**
-     * Генерирует подпись для запроса на оплату в Robokassa.
-     *
-     * @param float $outSum Сумма заказа
-     * @param int $invId Идентификатор заказа
-     * @param string $password Пароль #1 или #2 в зависимости от типа запроса
-     * @param bool $isTest Тестовый режим
-     * @return string
-     */
-
-
-
-    public function show(Request $request)
-    {
-        $curUser = auth()->user();
-        $userId = User::where('user_id', $curUser->id);
-        $paymentDate = "март 2022";
+//        $curUser = auth()->user();
+//        $userId = User::where('user_id', $curUser->id);
         $paymentDate = $_POST['paymentDate'];
-
+        $outSum = $_POST['outSum'];
 
         // Дополнительная логика, если необходимо
-
-        return view('payment', compact('userId', 'paymentDate'));
+        return view('payment', compact( 'paymentDate', 'outSum'));
     }
 
+    //Генерация подписи
+//    public function generateSignature($mrhLogin, $outSum, $invId, $mrhPass1)
+//    {
+//        return $crc = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
+//    }
 
-//Генерация подписи
-    public function generateSignature($outSum, $invId, $password, $isTest = true)
-    {
-        $signature = md5("{$outSum}:{$invId}:{$password}" . ($isTest ? ":1" : ""));
-        return $signature;
-    }
-
-//Формирование запроса на оплату
-    function getPaymentUrl($outSum, $invId, $description, $isTest = true)
-    {
-        $login = config('robokassa.merchant_login');
-        $password = config('robokassa.password1');
-//        $signature = generateSignature($outSum, $invId, $password, $isTest);
-        $signature = $this->generateSignature($outSum, $invId, $password, $isTest);
-      dd($signature);
-        $test = $isTest ? '1' : '0';
-        $culture = 'ru'; // Язык интерфейса: 'ru' или 'en'
-
-//dd($password);
-//dd($password2);
-
-        return "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$login}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$test}&Culture={$culture}";
-    }
-
-    //
+      //Формирование ссылки
     public function pay(Request $request)
     {
-        $userId = $request->user_id;
-        $period = $request->period;
-        $period = "март тест";
-        $amount = 1000; // Пример суммы для оплаты
-        $description = "Оплата за период $period пользователем $userId";
+        $userId = $request->userId;
+        $userName = $request->userName;
+        $outSum = $request->outSum;
+        $paymentDate = $request->paymentDate;
+        $invId = 1;
+        $isTest = 1;
+        $receipt = rawurlencode("{\"items\":[{\"name\":\"оплата услуги по занятию футболом\",\"quantity\":1,\"sum\":$outSum,\"tax\":\"none\"}]}");
 
-        $paymentUrl = $this->getPaymentUrl($amount, $userId, $description, config('robokassa.test_mode'));
+        $description = "Пользователь: $userName. Период оплаты: $paymentDate.";
+        $mrhLogin = config('robokassa.merchant_login');
+        $mrhPass1 = config('robokassa.password1');
+
+        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
+        $receipt = rawurlencode($receipt);
+        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
+
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
+
+
+
+
+
+
+
+
+
+
 
 
     public function result(Request $request)

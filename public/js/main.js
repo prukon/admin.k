@@ -2,7 +2,6 @@
 var globalScheduleData = [];
 
 
-
 // Функция для обновления глобальной переменной после получения данных через AJAX
 function updateGlobalScheduleData(scheduleUser) {
     if (scheduleUser) {
@@ -23,6 +22,8 @@ function createSeasons() {
     const csrfToken = window.Laravel.csrfToken;
     const paymentUrl = window.Laravel.paymentUrl;
 
+    console.log("paymentUrl:");
+    console.log(paymentUrl);
 
 // Данные для каждого месяца
     const months = [
@@ -89,10 +90,10 @@ function createSeasons() {
 // }
     document.querySelectorAll('.season .container').forEach(container => {
         var season = container.dataset.season;
-        console.log('Season:', season); // Отладка: Выводим текущий сезон
+        // console.log('Season:', season); // Отладка: Выводим текущий сезон
         // Цикл по месяцам
         for (const [key, month] of months.entries()) {
-            console.log('Processing month:', month); // Отладка: Выводим текущий месяц
+            // console.log('Processing month:', month); // Отладка: Выводим текущий месяц
             const div = document.createElement('div');
             div.className = `border_price col-3 ${month}`;
 
@@ -108,8 +109,7 @@ function createSeasons() {
             }
 
             const paymentDate = `${monthsRu[key]} ${displaySeason}`;
-            console.log('Payment Date:', paymentDate); // Отладка: Выводим дату для формы
-
+            var outSum = 22;
             div.innerHTML = `
             <div class="row align-items-center justify-content-center">
                 <span class="price-value">0</span>
@@ -124,6 +124,7 @@ function createSeasons() {
                     <form action="${paymentUrl}" method="POST">
                         <input type="hidden" name="_token" value="${csrfToken}">
                         <input type="hidden" name="paymentDate" value="${paymentDate}">
+                        <input class="outSum" type="hidden" name="outSum" value="">
                         <button type="submit" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
                     </form>
 
@@ -137,8 +138,8 @@ function createSeasons() {
     });
 
 
-
 }
+
 //Формирование ссылок для оплат
 
 
@@ -441,11 +442,15 @@ function apendPrice(userPrice) {
                     if (matchedData) {
 
                         const priceValue = borderPrice.querySelector('.price-value');
+                        const outSum = borderPrice.querySelector('.outSum');
+
                         if (priceValue) {
                             if (matchedData.price > 0) {
                                 priceValue.textContent = matchedData.price;
+                                outSum.value = matchedData.price;
                             }
                         }
+
                         // borderPrice.querySelector('.new-main-button').removeAttribute('disabled');
 
                         // Получаем кнопку
@@ -493,6 +498,7 @@ function showSessons() {
         for (var j = 0; j < borderPrices.length; j++) {
             // Store the border price (if needed)
             borderPrice[seasonId].push(borderPrices[j]);
+
 
 // console.log('priceValues[j]:');
 // console.log(priceValues[j]);
@@ -592,7 +598,6 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (e) {
         }
     }
-
 
 
     // -----Вызовы------
