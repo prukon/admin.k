@@ -62,7 +62,8 @@ class TransactionController extends Controller
         $test = $isTest ? '1' : '0';
         $culture = 'ru'; // Язык интерфейса: 'ru' или 'en'
 
-        dd($login);
+//dd($password);
+//dd($password2);
 
         return "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$login}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$test}&Culture={$culture}";
     }
