@@ -59,6 +59,7 @@ class TransactionController extends Controller
         $password = config('robokassa.password1');
 //        $signature = generateSignature($outSum, $invId, $password, $isTest);
         $signature = $this->generateSignature($outSum, $invId, $password, $isTest);
+      dd($signature);
         $test = $isTest ? '1' : '0';
         $culture = 'ru'; // Язык интерфейса: 'ru' или 'en'
 
