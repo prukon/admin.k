@@ -15,13 +15,13 @@
         // Передача данных текущего пользователя из Blade в JavaScript
         let currentUserName = "{{ auth()->user()->name }}";
         let currentUserRole = "{{ auth()->user()->role }}";
-
     </script>
 
 
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3">Консоль</h4>
         <div>
+
 
             @can('view', auth()->user())
                 <h5 class="choose-user-header">Выбор ученика:</h5>

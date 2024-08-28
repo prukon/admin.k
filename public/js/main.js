@@ -22,8 +22,6 @@ function createSeasons() {
     const csrfToken = window.Laravel.csrfToken;
     const paymentUrl = window.Laravel.paymentUrl;
 
-    console.log("paymentUrl:");
-    console.log(paymentUrl);
 
 // Данные для каждого месяца
     const months = [
@@ -200,7 +198,7 @@ function openFirstSeason() {
 
         // Проверить, не открыт ли сезон уже
         const isOpen = topSeason.querySelector(".fa-chevron-up") !== null;
-        console.log(isOpen);
+        // console.log(isOpen);
         // Если кнопка найдена и сезон не открыт, кликнуть на неё
         if (header && isOpen) {
             header.click();
