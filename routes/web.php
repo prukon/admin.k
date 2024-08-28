@@ -60,23 +60,18 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/set-price-all-users', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
 
 
-//    Route::post('/upload-avatar', [\App\Http\Controllers\DashboardController::class, 'uploadAvatar'])->name('uploadAvatar');
     Route::post('/profile/upload-avatar', [\App\Http\Controllers\DashboardController::class, 'uploadAvatar'])->name('profile.uploadAvatar');
 
 
-//    Route::get('/calendar', [\App\Http\Controllers\CalendarController::class, 'index']);
 
-    // Маршрут для API, который возвращает события (это в случае, если у вас есть динамическая загрузка событий через AJAX)
-//    Route::get('/api/events', [\App\Http\Controllers\EventController::class, 'getEvents']);
-
-
+    //Страница выбора оплаты
     Route::post('/payment', [\App\Http\Controllers\TransactionController::class, 'index'])->name('payment');
+    //Страница оплаты робокассы
     Route::post('/payment/pay', [\App\Http\Controllers\TransactionController::class, 'pay'])->name('payment.pay');
-    // Маршрут для обработки результатов оплаты (callback от Robokassa)
+    // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
     Route::post('/payment/result', [\App\Http\Controllers\TransactionController::class, 'result'])->name('payment.result');
     // Маршрут для страницы успешной оплаты
     Route::get('/payment/success', [\App\Http\Controllers\TransactionController::class, 'success'])->name('payment.success');
-
     // Маршрут для страницы неудачной оплаты
     Route::get('/payment/fail', [\App\Http\Controllers\TransactionController::class, 'fail'])->name('payment.fail');
 

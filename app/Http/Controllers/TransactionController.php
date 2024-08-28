@@ -81,15 +81,17 @@ class TransactionController extends Controller
         }
     }
 
-    public function success()
+    public function success(Request $request)
     {
-        // Логика для обработки успешной оплаты
+        \Log::info('Robokassa payment successful', $request->all());
+
         return view('payment.success'); // Предполагается, что у вас есть такой вид
     }
 
-    public function fail()
+    public function fail(Request $request)
     {
-        // Логика для обработки неудачной оплаты
+        \Log::error('Robokassa payment failed', $request->all());
+
         return view('payment.fail'); // Предполагается, что у вас есть такой вид
     }
 
