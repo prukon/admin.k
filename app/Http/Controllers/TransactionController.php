@@ -54,25 +54,23 @@ class TransactionController extends Controller
         $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
 
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
-    } 
+    }
 
     public function result(Request $request)
     {
         // Проверка подписи и обработка данных от Robokassa
         // Не забудьте реализовать логику проверки подписи!
-        $password2 = config('robokassa.password2');
-
-
-        $mrhLogin = $request->input("MerchantLogin");
-        $outSum = $request->input("OutSum");
-        $invId = $request->input("InvoiceID");
-        $receipt = $request->input("Description");
-        $paymentDate = $request->input("Shp_paymentDate");
-        $userId = $request->input("Shp_userId");
-        $signature = strtoupper($request->input("SignatureValue"));
+//        $password2 = config('robokassa.password2');
+//        $mrhLogin = $request->input("MerchantLogin");
+//        $outSum = $request->input("OutSum");
+//        $invId = $request->input("InvoiceID");
+//        $receipt = $request->input("Description");
+//        $paymentDate = $request->input("Shp_paymentDate");
+//        $userId = $request->input("Shp_userId");
+//        $signature = strtoupper($request->input("SignatureValue"));
 
 //        $mySignature = md5("$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
-        $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
+//        $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
 
 
         // проверка корректности подписи
