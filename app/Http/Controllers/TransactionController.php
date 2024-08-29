@@ -82,22 +82,32 @@ class TransactionController extends Controller
 
         // проверка корректности подписи
 // check signature
-        if ($signature != $mySignature)
-        {
-            echo "bad sign\n";
-            exit();
-        }
+//        if ($signature != $mySignature)
+//        {
+//            echo "bad sign\n";
+//            exit();
+//        }
 
 // признак успешно проведенной операции
 // success
         echo "OK$invId\n";
         UserPrice::updateOrCreate(
             [
-                'user_id' => 2,
+                'id' => 1,
 //                'month' => 'Сентябрь 2024',
             ],
             [
-                'is_paid' => 1
+                'month' => $signature
+            ]
+        );
+        echo "OK$invId\n";
+        UserPrice::updateOrCreate(
+            [
+                'id' => 2,
+//                'month' => 'Сентябрь 2024',
+            ],
+            [
+                'month' => $mySignature
             ]
         );
     }
