@@ -59,7 +59,6 @@ class TransactionController extends Controller
         // Проверка подписи и обработка данных от Robokassa
         // Не забудьте реализовать логику проверки подписи!
         $password2 = config('robokassa.password2');
-        $signature = $this->generateSignature($request->input('OutSum'), $request->input('InvId'), $password2);
 
 
         $mrhLogin = $request->input("MerchantLogin");
@@ -69,13 +68,10 @@ class TransactionController extends Controller
         $paymentDate = $request->input("Shp_paymentDate");
         $userId = $request->input("Shp_userId");
 
-
-        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
-
+        $signature = md5("$mrhLogin:$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
 
 
-
-        if (strtoupper($request->input('SignatureValue')) === $signature) {
+        if (strtoupper($request->input('SignatureValue')) === $signature) { 
             // Оплата подтверждена
 
                     UserPrice::updateOrCreate(
@@ -84,10 +80,9 @@ class TransactionController extends Controller
                             'month' => 'Сентябрь 2024',
                         ],
                         [
-                            'is_paid' => true
+                            'is_paid' => 1
                         ]
                     );
-dd(1);
             // Обновите статус заказа в базе данных
         } else {
             // Ошибка валидации подписи
