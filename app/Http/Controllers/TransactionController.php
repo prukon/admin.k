@@ -57,7 +57,7 @@ class TransactionController extends Controller
     }
 
     public function result(Request $request)
-    { 
+    {
 
 //        \Log::info('Received request:', $request->all());
 //        \Log::info('Generated signature:', ['signature' => $signature, 'received' => $request->input('SignatureValue')]);
