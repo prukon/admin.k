@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\UserPrice;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Http;
@@ -17,8 +18,6 @@ class TransactionController extends Controller
     //Станица выбора оплат
     public function index()
     {
-//        $curUser = auth()->user();
-//        $userId = User::where('user_id', $curUser->id);
         $paymentDate = $_POST['paymentDate'];
         $outSum = $_POST['outSum'];
 
@@ -27,10 +26,10 @@ class TransactionController extends Controller
     }
 
     //Генерация подписи
-//    public function generateSignature($mrhLogin, $outSum, $invId, $mrhPass1)
-//    {
-//        return $crc = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
-//    }
+    public function generateSignature($mrhLogin, $outSum, $invId, $mrhPass1)
+    {
+        return $crc = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
+    }
 
       //Формирование ссылки
     public function pay(Request $request)
@@ -48,22 +47,12 @@ class TransactionController extends Controller
         $mrhPass1 = config('robokassa.password1');
 
         $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
+//        $signature = $this->generateSignature($mrhLogin,$outSum, $invId, $receipt,$mrhPass )
         $receipt = rawurlencode($receipt);
         $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
 
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
-
-
-
-
-
-
-
-
-
-
-
 
     public function result(Request $request)
     {
@@ -72,8 +61,33 @@ class TransactionController extends Controller
         $password2 = config('robokassa.password2');
         $signature = $this->generateSignature($request->input('OutSum'), $request->input('InvId'), $password2);
 
+
+        $mrhLogin = $request->input("MerchantLogin");
+        $outSum = $request->input("OutSum");
+        $invId = $request->input("InvoiceID");
+        $receipt = $request->input("Description");
+        $paymentDate = $request->input("Shp_paymentDate");
+        $userId = $request->input("Shp_userId");
+
+
+        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
+
+
+
+
         if (strtoupper($request->input('SignatureValue')) === $signature) {
             // Оплата подтверждена
+
+                    UserPrice::updateOrCreate(
+                        [
+                            'user_id' => $userId,
+                            'month' => 'Сентябрь 2024',
+                        ],
+                        [
+                            'is_paid' => true
+                        ]
+                    );
+dd(1);
             // Обновите статус заказа в базе данных
         } else {
             // Ошибка валидации подписи
