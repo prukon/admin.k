@@ -69,29 +69,32 @@ class TransactionController extends Controller
         $receipt = $request->input("Description");
         $paymentDate = $request->input("Shp_paymentDate");
         $userId = $request->input("Shp_userId");
-        $signature = $request->input("SignatureValue");
+        $signature = strtoupper($request->input("SignatureValue"));
 
 //        $mySignature = md5("$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
         $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
+ 
 
-
-        if (strtoupper($signature) === $mySignature) {
-            // Оплата подтверждена
-
-                    UserPrice::updateOrCreate(
-                        [
-                            'user_id' => $userId,
-                            'month' => 'Сентябрь 2024',
-                        ],
-                        [
-                            'is_paid' => 1
-                        ]
-                    );
-            // Обновите статус заказа в базе данных
-        } else {
-            // Ошибка валидации подписи
-            abort(403, 'Invalid signature');
+        // проверка корректности подписи
+// check signature
+        if ($signature != $mySignature)
+        {
+            echo "bad sign\n";
+            exit();
         }
+
+// признак успешно проведенной операции
+// success
+        echo "OK$invId\n";
+        UserPrice::updateOrCreate(
+            [
+                'user_id' => $userId,
+                'month' => 'Сентябрь 2024',
+            ],
+            [
+                'is_paid' => 1
+            ]
+        );
     }
 
     public function success(Request $request)
