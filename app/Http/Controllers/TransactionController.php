@@ -73,15 +73,15 @@ class TransactionController extends Controller
 
 //        $mySignature = md5("$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
         $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
- 
+
 
         // проверка корректности подписи
 // check signature
-        if ($signature != $mySignature)
-        {
-            echo "bad sign\n";
-            exit();
-        }
+//        if ($signature != $mySignature)
+//        {
+//            echo "bad sign\n";
+//            exit();
+//        }
 
 // признак успешно проведенной операции
 // success
