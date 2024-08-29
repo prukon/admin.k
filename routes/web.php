@@ -69,13 +69,13 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     //Страница оплаты робокассы
     Route::post('/payment/pay', [\App\Http\Controllers\TransactionController::class, 'pay'])->name('payment.pay');
     // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
-    Route::post('/payment/result', [\App\Http\Controllers\TransactionController::class, 'result'])->name('payment.result');
+    Route::get('/payment/result', [\App\Http\Controllers\TransactionController::class, 'result'])->name('payment.result');
     // Маршрут для страницы успешной оплаты
     Route::get('/payment/success', [\App\Http\Controllers\TransactionController::class, 'success'])->name('payment.success');
     // Маршрут для страницы неудачной оплаты
     Route::get('/payment/fail', [\App\Http\Controllers\TransactionController::class, 'fail'])->name('payment.fail');
 
- 
+
 });
 
 
