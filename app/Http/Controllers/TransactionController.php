@@ -70,22 +70,23 @@ class TransactionController extends Controller
         $mrhLogin = $request->input("MerchantLogin");
         $description = $request->input("Description");
         $signature = strtoupper($request->input("SignatureValue"));
-
+ 
 //        $receipt = $request->input("Receipt");
 //        $paymentDate = $request->input("Shp_paymentDate");
 //        $userId = $request->input("Shp_userId");
 
 //        $mySignature = md5("$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
+//        $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
         $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
 
 
         // проверка корректности подписи
 // check signature
-//        if ($signature != $mySignature)
-//        {
-//            echo "bad sign\n";
-//            exit();
-//        }
+        if ($signature != $mySignature)
+        {
+            echo "bad sign\n";
+            exit();
+        }
 
 // признак успешно проведенной операции
 // success
