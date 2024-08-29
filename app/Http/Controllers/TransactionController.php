@@ -70,7 +70,7 @@ class TransactionController extends Controller
         $mrhLogin = $request->input("MerchantLogin");
         $description = $request->input("Description");
         $signature = strtoupper($request->input("SignatureValue"));
- 
+
 //        $receipt = $request->input("Receipt");
 //        $paymentDate = $request->input("Shp_paymentDate");
 //        $userId = $request->input("Shp_userId");
@@ -90,7 +90,16 @@ class TransactionController extends Controller
 
 // признак успешно проведенной операции
 // success
-        echo "OK$invId\n";
+//        echo "OK$invId\n";
+        UserPrice::updateOrCreate(
+            [
+                'id' => 1,
+                'month' => 'Сентябрь 2024',
+            ],
+            [
+                'is_paid' => 1
+            ]
+        );
         UserPrice::updateOrCreate(
             [
                 'id' => 1,
@@ -100,7 +109,6 @@ class TransactionController extends Controller
                 'month' => $signature
             ]
         );
-        echo "OK$invId\n";
         UserPrice::updateOrCreate(
             [
                 'id' => 2,
