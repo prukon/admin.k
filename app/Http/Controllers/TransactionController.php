@@ -26,10 +26,10 @@ class TransactionController extends Controller
     }
 
     //Генерация подписи
-    public function generateSignature($mrhLogin, $outSum, $invId, $mrhPass1)
-    {
-        return $crc = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
-    }
+//    public function generateSignature($mrhLogin, $outSum, $invId, $mrhPass1)
+//    {
+//        return $crc = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
+//    }
 
       //Формирование ссылки
     public function pay(Request $request)
@@ -46,8 +46,8 @@ class TransactionController extends Controller
         $mrhLogin = config('robokassa.merchant_login');
         $mrhPass1 = config('robokassa.password1');
 
-        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
-//        $signature = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
+//        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
+        $signature = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
 
         $receipt = rawurlencode($receipt);
 //        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
