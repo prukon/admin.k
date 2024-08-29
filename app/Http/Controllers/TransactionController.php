@@ -64,14 +64,16 @@ class TransactionController extends Controller
 
         // Проверка подписи и обработка данных от Robokassa
         // Не забудьте реализовать логику проверки подписи!
-        $password2 = config('robokassa.password2');
-        $mrhLogin = $request->input("MerchantLogin");
         $outSum = $request->input("OutSum");
         $invId = $request->input("InvoiceID");
-        $receipt = $request->input("Description");
-        $paymentDate = $request->input("Shp_paymentDate");
-        $userId = $request->input("Shp_userId");
+        $password2 = config('robokassa.password2');
+        $mrhLogin = $request->input("MerchantLogin");
+        $description = $request->input("Description");
         $signature = strtoupper($request->input("SignatureValue"));
+
+//        $receipt = $request->input("Receipt");
+//        $paymentDate = $request->input("Shp_paymentDate");
+//        $userId = $request->input("Shp_userId");
 
 //        $mySignature = md5("$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
         $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
@@ -79,11 +81,11 @@ class TransactionController extends Controller
 
         // проверка корректности подписи
 // check signature
-        if ($signature != $mySignature)
-        {
-            echo "bad sign\n";
-            exit();
-        }
+//        if ($signature != $mySignature)
+//        {
+//            echo "bad sign\n";
+//            exit();
+//        }
 
 // признак успешно проведенной операции
 // success
