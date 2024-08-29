@@ -10,10 +10,10 @@ use Illuminate\Support\Facades\Http;
 
 class TransactionController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
+//    public function __construct()
+//    {
+//        $this->middleware('auth');
+//    }
 
     //Станица выбора оплат
     public function index()
@@ -51,13 +51,17 @@ class TransactionController extends Controller
 
         $receipt = rawurlencode($receipt);
 //        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
-        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&SignatureValue={$signature}";
+        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
 
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
 
     public function result(Request $request)
-    {
+    { 
+
+//        \Log::info('Received request:', $request->all());
+//        \Log::info('Generated signature:', ['signature' => $signature, 'received' => $request->input('SignatureValue')]);
+
         // Проверка подписи и обработка данных от Robokassa
         // Не забудьте реализовать логику проверки подписи!
 //        $password2 = config('robokassa.password2');
