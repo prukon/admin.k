@@ -46,10 +46,12 @@ class TransactionController extends Controller
         $mrhLogin = config('robokassa.merchant_login');
         $mrhPass1 = config('robokassa.password1');
 
-        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
-//        $signature = $this->generateSignature($mrhLogin,$outSum, $invId, $receipt,$mrhPass )
+//        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
+        $signature = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
+
         $receipt = rawurlencode($receipt);
-        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
+//        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
+        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
 
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
@@ -67,11 +69,13 @@ class TransactionController extends Controller
         $receipt = $request->input("Description");
         $paymentDate = $request->input("Shp_paymentDate");
         $userId = $request->input("Shp_userId");
+        $signature = $request->input("SignatureValue");
 
-        $signature = md5("$mrhLogin:$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
+        $mySignature = md5("$mrhLogin:$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
+//        $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
 
 
-        if (strtoupper($request->input('SignatureValue')) === $signature) { 
+        if (strtoupper($signature) === $mySignature) {
             // Оплата подтверждена
 
                     UserPrice::updateOrCreate(
