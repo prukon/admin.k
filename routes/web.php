@@ -75,7 +75,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     // Маршрут для страницы неудачной оплаты
     Route::get('/payment/fail', [\App\Http\Controllers\TransactionController::class, 'fail'])->name('payment.fail');
 
-
+ 
 });
 
 

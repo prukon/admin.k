@@ -85,16 +85,16 @@ class TransactionController extends Controller
 
 // признак успешно проведенной операции
 // success
-        echo "OK$invId\n";
+//        echo "OK$invId\n";
         UserPrice::updateOrCreate(
             [
                 'user_id' => 2,
-                'month' => 'Сентябрь 2024',
+//                'month' => 'Сентябрь 2024',
             ],
             [
                 'is_paid' => 1
             ]
-        ); 
+        );
     }
 
     public function success(Request $request)
