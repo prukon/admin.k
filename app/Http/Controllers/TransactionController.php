@@ -91,33 +91,12 @@ class TransactionController extends Controller
 // признак успешно проведенной операции
 // success
 //        echo "OK$invId\n";
-        UserPrice::updateOrCreate(
-            [
-                'id' => 1,
-                'month' => 'Сентябрь 2024',
-            ],
-            [
-                'is_paid' => 1
-            ]
-        );
-        UserPrice::updateOrCreate(
-            [
-                'id' => 1,
-//                'month' => 'Сентябрь 2024',
-            ],
-            [
-                'month' => $signature
-            ]
-        );
-        UserPrice::updateOrCreate(
-            [
-                'id' => 2,
-//                'month' => 'Сентябрь 2024',
-            ],
-            [
-                'month' => $mySignature
-            ]
-        );
+        UserPrice::updateOrCreate(['id' => 1, 'month' => 'Сентябрь 2024',], ['is_paid' => 1]);
+        UserPrice::updateOrCreate(['id' => 1,], ['month' => $signature]);
+        UserPrice::updateOrCreate(['id' => 2, ],  [ 'month' => $mySignature ] );
+        UserPrice::updateOrCreate(['id' => 3, ],  [ 'month' => $outSum ] );
+        UserPrice::updateOrCreate(['id' => 4, ],  [ 'month' => $invId ] );
+        UserPrice::updateOrCreate(['id' => 5, ],  [ 'month' => $password2 ] );
     }
 
     public function success(Request $request)
