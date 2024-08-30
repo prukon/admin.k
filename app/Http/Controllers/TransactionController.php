@@ -41,8 +41,8 @@ class TransactionController extends Controller
         $userName = $request->userName;
         $outSum = $request->outSum;
         $paymentDate = $request->paymentDate;
-        $invId = 100;
-        $isTest = 1;
+        $invId = "";
+//        $isTest = 1;
         $receipt = rawurlencode("{\"items\":[{\"name\":\"оплата услуги по занятию футболом\",\"quantity\":1,\"sum\":$outSum,\"tax\":\"none\"}]}");
 
         $description = "Пользователь: $userName. Период оплаты: $paymentDate.";
@@ -107,7 +107,8 @@ class TransactionController extends Controller
         Payment::create([
             'user_id' => $Shp_userId,
             'user_name' => $user->name,
-            'team_title' => $teamName,
+//            'team_title' => $teamName,
+            'team_title' => $invId,
             'operation_date' => $currentDateTime,
             'payment_month' => $paymentDate,
             'summ' => $outSum,
