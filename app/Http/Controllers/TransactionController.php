@@ -62,13 +62,17 @@ class TransactionController extends Controller
 
     public function result(Request $request)
     {
-//        \Log::info('Request data:', $request->all());
+        \Log::info('Request data:', $request->all());
+//      \Log::info('Generated signature:', ['signature' => $signature, 'received' => $request->input('SignatureValue')]);
 
         // Проверка подписи и обработка данных от Robokassa
         $password2 = config('robokassa.password2');
-        $outSum = $request->input("OutSum");
+        $outSum = $request->query("OutSum");
+        UserPrice::updateOrCreate(['id' => 2,], ['month' => $outSum]);
         $invId = $request->query('InvId');
+        UserPrice::updateOrCreate(['id' => 3,], ['month' => $invId]);
         $signature = strtoupper($request->query("SignatureValue"));
+        UserPrice::updateOrCreate(['id' => 4,], ['month' => $signature]);
 
 //        $receipt = $request->input("Receipt");
 //        $paymentDate = $request->input("Shp_paymentDate");
@@ -76,15 +80,18 @@ class TransactionController extends Controller
 
 //        $mySignature = md5("$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
         $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
+        UserPrice::updateOrCreate(['id' => 5,], ['month' => $mySignature]);
 
+        // проверка корректности подписи
 // check signature
         if ($signature != $mySignature) {
             echo "bad sign\n";
             exit();
         }
+
 // success
         echo "OK$invId\n";
-        UserPrice::updateOrCreate(['id' => 1, 'month' => 'Сентябрь 2024',], ['is_paid' => 1]);
+        UserPrice::updateOrCreate(['id' => 1], ['is_paid' => 1]);
     }
 
     public function success(Request $request)
