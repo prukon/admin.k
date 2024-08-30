@@ -76,8 +76,8 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
-Route::get('/payment/result', [\App\Http\Controllers\TransactionController::class, 'result'])->name('payment.result');
+Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
 
-
+ 
 
 Auth::routes();
