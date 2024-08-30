@@ -21,11 +21,15 @@ class TransactionController extends Controller
     //Станица выбора оплат
     public function index()
     {
-        $paymentDate = $_POST['paymentDate'];
-        $outSum = $_POST['outSum'];
-
+        if ($_POST['paymentDate']) {
+            $paymentDate = $_POST['paymentDate'];
+        }
+        if ($_POST['outSum']) {
+            $outSum = $_POST['outSum'];
+        }
         // Дополнительная логика, если необходимо
         return view('payment', compact('paymentDate', 'outSum'));
+//        return view('payment');
     }
 
     //Формирование ссылки

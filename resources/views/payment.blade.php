@@ -2,10 +2,6 @@
 @section('content')
 
 
-    <script>
-        // Передача данных текущего пользователя из Blade в JavaScript
-
-    </script>
 
 
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">

@@ -22,7 +22,7 @@ class RobokassaController extends Controller
         $password2 = config('robokassa.password2');
         $Shp_paymentDate = strtoupper($request->query("Shp_paymentDate"));
         $Shp_userId = strtoupper($request->query("Shp_userId"));
-        
+
         $outSum = $request->query("OutSum");
         $invId = $request->query('InvId');
         $signature = strtoupper($request->query("SignatureValue"));
