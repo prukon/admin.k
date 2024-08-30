@@ -58,7 +58,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('/profile/upload-avatar', [\App\Http\Controllers\DashboardController::class, 'uploadAvatar'])->name('profile.uploadAvatar');
 
     //Страница выбора оплаты
-    Route::get('/payment', [\App\Http\Controllers\TransactionController::class, 'index'])->name('payment');
+    Route::post('/payment', [\App\Http\Controllers\TransactionController::class, 'index'])->name('payment');
     //Страница оплаты робокассы
     Route::post('/payment/pay', [\App\Http\Controllers\TransactionController::class, 'pay'])->name('payment.pay');
     // Маршрут для страницы успешной оплаты
