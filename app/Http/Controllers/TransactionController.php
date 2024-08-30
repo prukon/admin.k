@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
+use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
 use Illuminate\Http\Request;
@@ -99,13 +100,14 @@ class TransactionController extends Controller
             [
                 'is_paid' => 1
             ]);
-        $userName = User::where('id', $Shp_userId)->first()->name;
+        $user =  User::where('id', $Shp_userId)->first();
+        $teamName = Team::where('id', $user->team_id)->first()->title;
         $currentDateTime = date('Y-m-d H:i:s');
-
+ 
         Payment::create([
             'user_id' => $Shp_userId,
-            'user_name' => $userName,
-            'team_title' => $Shp_userId,
+            'user_name' => $user->name,
+            'team_title' => $teamName,
             'operation_date' => $currentDateTime,
             'payment_month' => $paymentDate,
             'summ' => $outSum,
