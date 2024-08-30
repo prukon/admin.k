@@ -58,7 +58,7 @@ class TransactionController extends Controller
 
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
-
+ 
 //    public function result(Request $request)
 //    {
 //        \Log::info('Request data:', $request->all());
