@@ -19,6 +19,7 @@ return new class extends Migration
             $table->dateTime('operation_date')->nullable();
             $table->string('payment_month')->nullable();
             $table->decimal('summ', 15, 2);
+            $table->string('payment_number')->nullable();
             $table->timestamps();
         });
     }

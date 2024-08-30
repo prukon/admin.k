@@ -107,14 +107,14 @@ class TransactionController extends Controller
         Payment::create([
             'user_id' => $Shp_userId,
             'user_name' => $user->name,
-//            'team_title' => $teamName,
-            'team_title' => $invId,
+            'team_title' => $teamName,
             'operation_date' => $currentDateTime,
             'payment_month' => $paymentDate,
             'summ' => $outSum,
+            'payment_number' => $invId,
         ]);
     }
-
+ 
 
     public function success(Request $request)
     {
