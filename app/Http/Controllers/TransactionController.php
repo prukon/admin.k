@@ -93,10 +93,10 @@ class TransactionController extends Controller
 //            echo "bad sign\n";
 //            exit();
 //        }
-
+ 
 // success
 //        echo "OK$invId\n";
-        UserPrice::updateOrCreate(['id' => 1, 'month' => 'Сентябрь 2024',], ['is_paid' => 1]);
+//        UserPrice::updateOrCreate(['id' => 1, 'month' => 'Сентябрь 2024',], ['is_paid' => 1]);
         UserPrice::updateOrCreate(['id' => 1,], ['month' => $signature]);
         UserPrice::updateOrCreate(['id' => 2, ],  [ 'month' => $mySignature ] );
         UserPrice::updateOrCreate(['id' => 3, ],  [ 'month' => $outSum ] );
