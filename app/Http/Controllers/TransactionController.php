@@ -64,6 +64,11 @@ class TransactionController extends Controller
 
         // Проверка подписи и обработка данных от Robokassa
         $password2 = config('robokassa.password2');
+        $Shp_paymentDate = strtoupper($request->query("Shp_paymentDate"));
+        $Shp_userId = strtoupper($request->query("Shp_userId"));
+
+
+
         $outSum = $request->query("OutSum");
         UserPrice::updateOrCreate(['id' => 2,], ['month' => $outSum]);
         $invId = $request->query('InvId');
@@ -88,8 +93,8 @@ class TransactionController extends Controller
 
 // success
         echo "OK$invId\n";
-        UserPrice::updateOrCreate(['id' => 1], ['is_paid' => 1]);
-    }
+        UserPrice::updateOrCreate(['user_id' => $Shp_userId, 'month'=> $paymentDate], ['is_paid' => 1]);
+    } 
 
     public function success(Request $request)
     {
