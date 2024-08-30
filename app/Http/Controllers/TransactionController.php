@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Payment;
 use App\Models\User;
 use App\Models\UserPrice;
 use Illuminate\Http\Request;
@@ -68,13 +69,12 @@ class TransactionController extends Controller
         $Shp_userId = strtoupper($request->query("Shp_userId"));
 
 
-
         $outSum = $request->query("OutSum");
-        UserPrice::updateOrCreate(['id' => 2,], ['month' => $outSum]);
+//        UserPrice::updateOrCreate(['id' => 2,], ['month' => $outSum]);
         $invId = $request->query('InvId');
-        UserPrice::updateOrCreate(['id' => 3,], ['month' => $invId]);
+//        UserPrice::updateOrCreate(['id' => 3,], ['month' => $invId]);
         $signature = strtoupper($request->query("SignatureValue"));
-        UserPrice::updateOrCreate(['id' => 4,], ['month' => $signature]);
+//        UserPrice::updateOrCreate(['id' => 4,], ['month' => $signature]);
 
         $receipt = $request->input("Receipt");
         $paymentDate = $request->input("Shp_paymentDate");
@@ -93,8 +93,25 @@ class TransactionController extends Controller
 
 // success
         echo "OK$invId\n";
-        UserPrice::updateOrCreate(['user_id' => $Shp_userId, 'month'=> $paymentDate], ['is_paid' => 1]);
-    } 
+        UserPrice::updateOrCreate([
+            'user_id' => $Shp_userId,
+            'month' => $paymentDate],
+            [
+                'is_paid' => 1
+            ]);
+        $userName = User::where('id', $Shp_userId)->first()->name;
+        $currentDateTime = date('Y-m-d H:i:s');
+
+        Payment::create([
+            'user_id' => $Shp_userId,
+            'user_name' => $userName,
+            'team_title' => $Shp_userId,
+            'operation_date' => $currentDateTime,
+            'payment_month' => $paymentDate,
+            'summ' => $outSum,
+        ]);
+    }
+
 
     public function success(Request $request)
     {
