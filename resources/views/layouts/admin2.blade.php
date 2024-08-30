@@ -91,12 +91,12 @@
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
             <li class="nav-item d-none d-sm-inline-block">
-                <a target="_blank" href="http://fc-istok.ru/" class="nav-link">Главная</a>
+                <a target="_blank" href="https://fc-istok.ru/" class="nav-link">Главная</a>
             <li class="nav-item d-none d-sm-inline-block">
-                <a target="_blank" href="https://fc-istok.ru/raspisanie/" class="nav-link">Расписание занятий</a>
+                <a target="_blank" href="https://fc-istok.ru/schedule.html" class="nav-link">Расписание занятий</a>
             </li>
             <li class="nav-item d-none d-sm-inline-block">
-                <a target="_blank" href="https://fc-istok.ru/#contacts" class="nav-link">Контакты</a>
+                <a target="_blank" href="https://fc-istok.ru/#b6" class="nav-link">Контакты</a>
             </li>
         </ul>
 
