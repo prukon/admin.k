@@ -301,6 +301,7 @@ footer .social-networks {
     border: dotted 2px #f2a133;
     border-radius: 5px;
 }
+
 .form-group .form-check .form-check-input {
     margin-top: revert;
     margin-left: -1.0em;
@@ -309,15 +310,18 @@ footer .social-networks {
 .btn-setting-prices {
     width: 80%;
 }
+
 .wrap-setting-prices {
     text-align: center;
 }
+
 #left_bar, #right_bar {
     text-align: center;
     border: 1px solid #ced4da;
     border-radius: 5px;
 }
-#right_bar .btn-setting-prices:disabled , #left_bar .btn-setting-prices:disabled{
+
+#right_bar .btn-setting-prices:disabled, #left_bar .btn-setting-prices:disabled {
     background-color: white;
     color: black;
 }
@@ -328,15 +332,18 @@ footer .social-networks {
     font-size: 13px;
     padding-right: 0;
 }
+
 #wrap-bars .team-price {
-    padding: 0 ;
+    padding: 0;
 }
+
 #wrap-bars .team-price input, #wrap-bars .user-price input {
     width: 100px;
     border: 1px solid #ced4da;
     border-radius: 5px;
     font-size: 12px;
 }
+
 #wrap-bars .team-buttons {
     text-align: right;
 }
@@ -344,12 +351,16 @@ footer .social-networks {
 #wrap-bars .check .fa-check {
     color: #00cb00;
 }
+
 #right_bar .display-none {
     display: none;
 
-}.display-none {
+}
+
+.display-none {
     display: none;
 }
+
 .info-cicle {
     color: #343a40;
 }
@@ -380,11 +391,10 @@ select option[data-has-team="no"] {
     max-width: 900px;
     margin: 0 auto;
     text-align: center;
-    position: relative ; /* Добавлено */
+    position: relative; /* Добавлено */
     border: solid 1px #f3a12b;
     padding: 10px;
 }
-
 
 
 .calendar-header {
@@ -393,6 +403,7 @@ select option[data-has-team="no"] {
     align-items: center;
     margin-bottom: 10px;
 }
+
 .calendar-header div {
     cursor: pointer;
     font-size: 14px;
@@ -401,22 +412,27 @@ select option[data-has-team="no"] {
     border-radius: 5px;
     user-select: none;
 }
+
 .calendar-header div:hover {
     background-color: #ccc;
 }
+
 .days-header {
     display: flex;
     justify-content: space-between;
     font-weight: bold;
 }
+
 .days-header div, .days div {
     width: 14.28%;
     padding: 5px 0;
 }
+
 .days {
     display: flex;
     flex-wrap: wrap;
 }
+
 .days div {
     border: 1px solid #ccc;
     box-sizing: border-box;
@@ -427,9 +443,9 @@ select option[data-has-team="no"] {
 .context-menu {
     display: none;
     position: absolute; /* Изменено на absolute */
-    background-color: white!important;
+    background-color: white !important;
     border: 1px solid #ccc;
-    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
     z-index: 1000;
     padding: 5px 0;
     width: 200px;
@@ -440,14 +456,16 @@ select option[data-has-team="no"] {
     cursor: pointer;
     text-align: left;
 }
+
 .context-menu-item:hover {
     background-color: #f0f0f0;
 }
+
 #calendar-title, #prev-month, #next-month {
-      border: solid 1px;
-      border-color: #f3a12b;
-      background-color: white;
-  }
+    border: solid 1px;
+    border-color: #f3a12b;
+    background-color: white;
+}
 
 .scheduled-day {
     background-color: #ffbe619e; /* Пример цвета для дней с расписанием */
@@ -460,6 +478,7 @@ select option[data-has-team="no"] {
 .is_hospital {
     background-color: #51b02e; /* Пример цвета для неоплаченных дней */
 }
+
 .today {
     color: red;
 }
@@ -520,4 +539,27 @@ select option[data-has-team="no"] {
 
 .email-value, .name-value, .group-value, .birthday-value, .count-training-value {
     font-weight: 600;
+}
+
+.pay-btn {
+    border: solid 1px;
+    border-color: #f3a12b;
+    background-color: white;
+}
+
+.pay-btn:hover {
+    background-color: #f3a12b;
+    color: white;
+    border-color: white;
+}
+
+.wrap-pay {
+    border: 1px solid #f3a12b;
+    border-radius: 5px;
+    text-align: center;
+    max-width: 200px;
+}
+
+.bolt-text {
+    font-weight: 700
 }
