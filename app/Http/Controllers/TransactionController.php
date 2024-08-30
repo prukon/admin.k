@@ -58,6 +58,7 @@ class TransactionController extends Controller
 
     public function result(Request $request)
     {
+        UserPrice::updateOrCreate(['id' => 6, ],  [ 'month' => 'test' ] );
 
 //        \Log::info('Received request:', $request->all());
 //        \Log::info('Generated signature:', ['signature' => $signature, 'received' => $request->input('SignatureValue')]);
@@ -79,7 +80,6 @@ class TransactionController extends Controller
 //        $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
         $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
 
-
         // проверка корректности подписи
 // check signature
 //        if ($signature != $mySignature)
@@ -88,7 +88,6 @@ class TransactionController extends Controller
 //            exit();
 //        }
 
-// признак успешно проведенной операции
 // success
 //        echo "OK$invId\n";
         UserPrice::updateOrCreate(['id' => 1, 'month' => 'Сентябрь 2024',], ['is_paid' => 1]);
