@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\User;
@@ -22,7 +23,7 @@ class TransactionController extends Controller
         $outSum = $_POST['outSum'];
 
         // Дополнительная логика, если необходимо
-        return view('payment', compact( 'paymentDate', 'outSum'));
+        return view('payment', compact('paymentDate', 'outSum'));
     }
 
     //Генерация подписи
@@ -31,7 +32,7 @@ class TransactionController extends Controller
 //        return $crc = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
 //    }
 
-      //Формирование ссылки
+    //Формирование ссылки
     public function pay(Request $request)
     {
         $userId = $request->userId;
@@ -54,24 +55,20 @@ class TransactionController extends Controller
 
         $receipt = rawurlencode($receipt);
 //        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
-        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvId={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
+        $paymentUrl = "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvId={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
 
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
 
     public function result(Request $request)
     {
-        \Log::info('Request data:', $request->all());
-//      \Log::info('Generated signature:', ['signature' => $signature, 'received' => $request->input('SignatureValue')]);
+//        \Log::info('Request data:', $request->all());
 
         // Проверка подписи и обработка данных от Robokassa
         $password2 = config('robokassa.password2');
         $outSum = $request->input("OutSum");
-        UserPrice::updateOrCreate(['id' => 7, ],  [ 'month' => $outSum ] );
         $invId = $request->query('InvId');
-        UserPrice::updateOrCreate(['id' => 8, ],  [ 'month' => $invId ] );
         $signature = strtoupper($request->query("SignatureValue"));
-        UserPrice::updateOrCreate(['id' => 12, ],  [ 'month' => $signature ] );
 
 //        $receipt = $request->input("Receipt");
 //        $paymentDate = $request->input("Shp_paymentDate");
@@ -80,22 +77,14 @@ class TransactionController extends Controller
 //        $mySignature = md5("$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
         $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
 
-        // проверка корректности подписи
 // check signature
-//        if ($signature != $mySignature)
-//        {
-//            echo "bad sign\n";
-//            exit();
-//        }
-
+        if ($signature != $mySignature) {
+            echo "bad sign\n";
+            exit();
+        }
 // success
-//        echo "OK$invId\n";
-//        UserPrice::updateOrCreate(['id' => 1, 'month' => 'Сентябрь 2024',], ['is_paid' => 1]);
-        UserPrice::updateOrCreate(['id' => 1,], ['month' => $signature]);
-        UserPrice::updateOrCreate(['id' => 2, ],  [ 'month' => $mySignature ] );
-        UserPrice::updateOrCreate(['id' => 3, ],  [ 'month' => $outSum ] );
-        UserPrice::updateOrCreate(['id' => 4, ],  [ 'month' => $invId ] );
-        UserPrice::updateOrCreate(['id' => 5, ],  [ 'month' => $password2 ] );
+        echo "OK$invId\n";
+        UserPrice::updateOrCreate(['id' => 1, 'month' => 'Сентябрь 2024',], ['is_paid' => 1]);
     }
 
     public function success(Request $request)
