@@ -46,12 +46,9 @@ class TransactionController extends Controller
         $description = "Пользователь: $userName. Период оплаты: $paymentDate.";
         $mrhLogin = config('robokassa.merchant_login');
         $mrhPass1 = config('robokassa.password1');
-        $mrhPass2 = config('robokassa.password2');
 
-        $description = "Логин: $mrhLogin. Пароль 1: $mrhPass1 Пароль 2: $mrhPass2..";
-
-//        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
-        $signature = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
+        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
+//        $signature = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
 
         $receipt = rawurlencode($receipt);
         $paymentUrl = "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvId={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
