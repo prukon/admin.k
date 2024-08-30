@@ -42,7 +42,7 @@ class TransactionController extends Controller
         $outSum = $request->outSum;
         $paymentDate = $request->paymentDate;
         $invId = "";
-//        $isTest = 1;
+        $isTest = 1;
         $receipt = rawurlencode("{\"items\":[{\"name\":\"оплата услуги по занятию футболом\",\"quantity\":1,\"sum\":$outSum,\"tax\":\"none\"}]}");
 
         $description = "Пользователь: $userName. Период оплаты: $paymentDate.";
