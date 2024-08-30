@@ -13,11 +13,6 @@ use App\Http\Controllers\Controller;
 class RobokassaController extends Controller
 {
 
-    public function index()
-    {
-
-    }
-
     public function result(Request $request)
     {
         \Log::info('Request data:', $request->all());
