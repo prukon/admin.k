@@ -51,7 +51,7 @@ class TransactionController extends Controller
 
         $receipt = rawurlencode($receipt);
 //        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
-        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&invId={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
+        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?mrhLogin={$mrhLogin}&OutSum={$outSum}&invId={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
 
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
@@ -67,16 +67,21 @@ class TransactionController extends Controller
         // Не забудьте реализовать логику проверки подписи!
         $outSum = $request->input("OutSum");
         UserPrice::updateOrCreate(['id' => 7, ],  [ 'month' => 'test' ] );
+        UserPrice::updateOrCreate(['id' => 7, ],  [ 'month' => $outSum ] );
         $invId = $request->input("invId");
         UserPrice::updateOrCreate(['id' => 8, ],  [ 'month' => 'test' ] );
+        UserPrice::updateOrCreate(['id' => 8, ],  [ 'month' => $invId ] );
         $password2 = config('robokassa.password2');
         UserPrice::updateOrCreate(['id' => 9, ],  [ 'month' => 'test' ] );
-        $mrhLogin = $request->input("MerchantLogin");
+        UserPrice::updateOrCreate(['id' => 9, ],  [ 'month' => $password2 ] );
+        $mrhLogin = $request->input("mrhLogin");
         UserPrice::updateOrCreate(['id' => 10, ],  [ 'month' => 'test' ] );
+        UserPrice::updateOrCreate(['id' => 10, ],  [ 'month' => $mrhLogin ] );
         $description = $request->input("Description");
         UserPrice::updateOrCreate(['id' => 11, ],  [ 'month' => 'test' ] );
+        UserPrice::updateOrCreate(['id' => 11, ],  [ 'month' => $description ] );
         $signature = strtoupper($request->input("SignatureValue"));
-        UserPrice::updateOrCreate(['id' => 12, ],  [ 'month' => 'test' ] );
+        UserPrice::updateOrCreate(['id' => 12, ],  [ 'month' => $signature ] );
 
 //        $receipt = $request->input("Receipt");
 //        $paymentDate = $request->input("Shp_paymentDate");
@@ -93,7 +98,7 @@ class TransactionController extends Controller
 //            echo "bad sign\n";
 //            exit();
 //        }
- 
+
 // success
 //        echo "OK$invId\n";
 //        UserPrice::updateOrCreate(['id' => 1, 'month' => 'Сентябрь 2024',], ['is_paid' => 1]);
