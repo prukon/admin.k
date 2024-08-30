@@ -62,6 +62,7 @@ class TransactionController extends Controller
     public function result(Request $request)
     {
 //        UserPrice::updateOrCreate(['id' => 6, ],  [ 'month' => 'test' ] );
+        \Log::info('Request data:', $request->all());
 
 //        \Log::info('Received request:', $request->all());
 //        \Log::info('Generated signature:', ['signature' => $signature, 'received' => $request->input('SignatureValue')]);
@@ -71,19 +72,23 @@ class TransactionController extends Controller
         $outSum = $request->input("OutSum");
 //        UserPrice::updateOrCreate(['id' => 7, ],  [ 'month' => 'test' ] );
         UserPrice::updateOrCreate(['id' => 7, ],  [ 'month' => $outSum ] );
-        $invId = $request->input("InvId");
+//        $invId = $request->input("InvId");
+        $invId = $request->query('InvId');
         UserPrice::updateOrCreate(['id' => 8, ],  [ 'month' => 'test' ] );
-//        UserPrice::updateOrCreate(['id' => 8, ],  [ 'month' => $invId ] );
+        UserPrice::updateOrCreate(['id' => 8, ],  [ 'month' => $invId ] );
         $password2 = config('robokassa.password2');
         UserPrice::updateOrCreate(['id' => 9, ],  [ 'month' => 'test' ] );
         UserPrice::updateOrCreate(['id' => 9, ],  [ 'month' => $password2 ] );
-        $mrhLogin = $request->input("MerchantLogin");
+//        $mrhLogin = $request->input("MerchantLogin");
+        $mrhLogin = $request->query("MerchantLogin");
         UserPrice::updateOrCreate(['id' => 10, ],  [ 'month' => 'test' ] );
         UserPrice::updateOrCreate(['id' => 10, ],  [ 'month' => $mrhLogin ] );
-        $description = $request->input("Description");
+//        $description = $request->input("Description");
+        $description = $request->query("Description");
         UserPrice::updateOrCreate(['id' => 11, ],  [ 'month' => 'test' ] );
         UserPrice::updateOrCreate(['id' => 11, ],  [ 'month' => $description ] );
-        $signature = strtoupper($request->input("SignatureValue"));
+//        $signature = strtoupper($request->input("SignatureValue"));
+        $signature = strtoupper($request->query("SignatureValue"));
         UserPrice::updateOrCreate(['id' => 12, ],  [ 'month' => $signature ] );
 
 //        $receipt = $request->input("Receipt");
