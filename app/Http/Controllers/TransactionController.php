@@ -54,8 +54,8 @@ class TransactionController extends Controller
         $signature = md5("$mrhLogin:$outSum:$invId:$mrhPass1");
 
         $receipt = rawurlencode($receipt);
-//        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
-        $paymentUrl = "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvId={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
+        $paymentUrl = "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvId={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
+//        $paymentUrl = "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvId={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
 
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
@@ -74,12 +74,12 @@ class TransactionController extends Controller
         $signature = strtoupper($request->query("SignatureValue"));
         UserPrice::updateOrCreate(['id' => 4,], ['month' => $signature]);
 
-//        $receipt = $request->input("Receipt");
-//        $paymentDate = $request->input("Shp_paymentDate");
-//        $userId = $request->input("Shp_userId");
+        $receipt = $request->input("Receipt");
+        $paymentDate = $request->input("Shp_paymentDate");
+        $userId = $request->input("Shp_userId");
 
-//        $mySignature = md5("$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
-        $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
+        $mySignature = strtoupper(md5("$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId"));
+//        $mySignature = strtoupper(md5("$outSum:$invId:$password2"));
         UserPrice::updateOrCreate(['id' => 5,], ['month' => $mySignature]);
 
         // проверка корректности подписи
