@@ -82,7 +82,7 @@ class TransactionController extends Controller
         UserPrice::updateOrCreate(['id' => 11, ],  [ 'month' => $description ] );
         $signature = strtoupper($request->input("SignatureValue"));
         UserPrice::updateOrCreate(['id' => 12, ],  [ 'month' => $signature ] );
-
+ 
 //        $receipt = $request->input("Receipt");
 //        $paymentDate = $request->input("Shp_paymentDate");
 //        $userId = $request->input("Shp_userId");
