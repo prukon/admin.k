@@ -103,7 +103,7 @@ class TransactionController extends Controller
         $user =  User::where('id', $Shp_userId)->first();
         $teamName = Team::where('id', $user->team_id)->first()->title;
         $currentDateTime = date('Y-m-d H:i:s');
- 
+
         Payment::create([
             'user_id' => $Shp_userId,
             'user_name' => $user->name,

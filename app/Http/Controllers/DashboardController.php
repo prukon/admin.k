@@ -55,7 +55,8 @@ class DashboardController extends Controller
         $scheduleUser = ScheduleUser::where('user_id', $curUser->id)->get();
         $scheduleUserArray = ScheduleUser::where('user_id', $curUser->id)->get()->toArray();
         $userPriceArray = UserPrice::where('user_id', $curUser->id)->get()->toArray();
-
+//        phpinfo();
+//dd(date_default_timezone_get());
 
         return view("dashboard", compact(
             "allTeams",

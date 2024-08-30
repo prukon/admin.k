@@ -23,6 +23,7 @@
         <div>
 
 
+
             @can('view', auth()->user())
                 <h5 class="choose-user-header">Выбор ученика:</h5>
 
