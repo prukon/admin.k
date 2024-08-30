@@ -51,7 +51,7 @@ class TransactionController extends Controller
 
         $receipt = rawurlencode($receipt);
 //        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt&IsTest={$isTest}";
-        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvoiceID={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
+        $paymentUrl =  "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&invId={$invId}&Description={$description}&SignatureValue={$signature}&IsTest={$isTest}";
 
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
@@ -66,11 +66,17 @@ class TransactionController extends Controller
         // Проверка подписи и обработка данных от Robokassa
         // Не забудьте реализовать логику проверки подписи!
         $outSum = $request->input("OutSum");
-        $invId = $request->input("InvoiceID");
+        UserPrice::updateOrCreate(['id' => 7, ],  [ 'month' => 'test' ] );
+        $invId = $request->input("invId");
+        UserPrice::updateOrCreate(['id' => 8, ],  [ 'month' => 'test' ] );
         $password2 = config('robokassa.password2');
+        UserPrice::updateOrCreate(['id' => 9, ],  [ 'month' => 'test' ] );
         $mrhLogin = $request->input("MerchantLogin");
+        UserPrice::updateOrCreate(['id' => 10, ],  [ 'month' => 'test' ] );
         $description = $request->input("Description");
+        UserPrice::updateOrCreate(['id' => 11, ],  [ 'month' => 'test' ] );
         $signature = strtoupper($request->input("SignatureValue"));
+        UserPrice::updateOrCreate(['id' => 12, ],  [ 'month' => 'test' ] );
 
 //        $receipt = $request->input("Receipt");
 //        $paymentDate = $request->input("Shp_paymentDate");
