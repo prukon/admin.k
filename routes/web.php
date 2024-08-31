@@ -65,6 +65,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/payment/success', [\App\Http\Controllers\TransactionController::class, 'success'])->name('payment.success');
     // Маршрут для страницы неудачной оплаты
     Route::get('/payment/fail', [\App\Http\Controllers\TransactionController::class, 'fail'])->name('payment.fail');
+    Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('.clubFee');
 
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)

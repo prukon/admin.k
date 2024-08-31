@@ -126,6 +126,8 @@
                         <div class="display-none count-training">Количество тренировок: <span class="count-training-value">223</span>
                         </div>
                     </div>
+                    <div class="mt-3">Клубный взнос:  <a href="/payment/club-fee">Оплатить.</a></div>
+
                 </div>
             </div>
 

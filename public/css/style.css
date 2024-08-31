@@ -563,3 +563,7 @@ select option[data-has-team="no"] {
 .bolt-text {
     font-weight: 700
 }
+.club-fee {
+    width: 100%;
+    max-width: 500px;
+}

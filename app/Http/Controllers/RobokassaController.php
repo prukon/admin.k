@@ -22,15 +22,11 @@ class RobokassaController extends Controller
         $password2 = config('robokassa.password2');
         $Shp_paymentDate = strtoupper($request->query("Shp_paymentDate"));
         $Shp_userId = strtoupper($request->query("Shp_userId"));
-
+        $signature = strtoupper($request->query("SignatureValue"));
         $outSum = $request->query("OutSum");
         $invId = $request->query('InvId');
-        $signature = strtoupper($request->query("SignatureValue"));
-        $receipt = $request->input("Receipt");
-        $paymentDate = $request->input("Shp_paymentDate");
-        $userId = $request->input("Shp_userId");
 
-        $mySignature = strtoupper(md5("$outSum:$invId:$password2:Shp_paymentDate=$paymentDate:Shp_userId=$userId"));
+        $mySignature = strtoupper(md5("$outSum:$invId:$password2:Shp_paymentDate=$Shp_paymentDate:Shp_userId=$Shp_userId"));
         UserPrice::updateOrCreate(['id' => 5,], ['month' => $mySignature]);
 
         // проверка корректности подписи
@@ -43,7 +39,7 @@ class RobokassaController extends Controller
         echo "OK$invId\n";
         UserPrice::updateOrCreate([
             'user_id' => $Shp_userId,
-            'month' => $paymentDate],
+            'month' => $Shp_paymentDate],
             [
                 'is_paid' => 1
             ]);
@@ -56,7 +52,7 @@ class RobokassaController extends Controller
             'user_name' => $user->name,
             'team_title' => $teamName,
             'operation_date' => $currentDateTime,
-            'payment_month' => $paymentDate,
+            'payment_month' => $Shp_paymentDate,
             'summ' => $outSum,
             'payment_number' => $invId,
         ]);
