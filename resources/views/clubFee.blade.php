@@ -14,11 +14,14 @@
         <div class="wrap-pay ">
             <h5 class="pay-name mt-3 mb-3">Робокасса</h5>
             <img src="{{ asset('storage/robokassa.svg') }}">
-            <form class="mb-3 mt-3" id="paymentForm" action="{{ route('payment.pay') }}" method="POST">
+{{--            <div>Проверка значения: <span id="checkOutSum2"></span></div>--}}
+
+            <form class="mb-3 mt-3" id="paymentForm" action="{{ route('payment.pay') }}" method="POST"  onsubmit="return setOutSum();">
                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
                 <input type="hidden" name="userId" value="{{ auth()->user()->id }}">
                 <input type="hidden" name="outSum" id="outSum" value="">
+
                 <button type="submit" class="btn btn-bd-primary pay-btn">Оплатить</button>
             </form>
             <div class="pay-fee  mb-3">Комиссия: 0 руб.</div>
@@ -28,6 +31,9 @@
             function setOutSum() {
                 var paymentAmount = document.getElementById('paymentAmount').value;
                 document.getElementById('outSum').value = paymentAmount;
+                // console.log('outSum:', paymentAmount); // временная проверка
+                // document.getElementById('checkOutSum2').textContent = paymentAmount; // Отображение для проверки
+
                 return true; // продолжить отправку формы
             }
         </script>

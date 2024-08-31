@@ -43,8 +43,8 @@ class TransactionController extends Controller
            $paymentDate = $request->paymentDate;
        } else {
            $paymentDate = "Клубный взнос";
-           $outSum = 44;
-       } 
+//           $outSum = 44;
+       }
         $invId = "";
         $isTest = 1;
         $receipt = rawurlencode("{\"items\":[{\"name\":\"оплата услуги по занятию футболом\",\"quantity\":1,\"sum\":$outSum,\"tax\":\"none\"}]}");
