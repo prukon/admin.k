@@ -40,28 +40,23 @@ class TransactionController extends Controller
         $outSum = $request->outSum;
        if($request->paymentDate) {
            $paymentDate = $request->paymentDate;
+       } else {
+           $paymentDate = "Клубный взнос";
        }
         $invId = "";
         $isTest = 1;
         $receipt = rawurlencode("{\"items\":[{\"name\":\"оплата услуги по занятию футболом\",\"quantity\":1,\"sum\":$outSum,\"tax\":\"none\"}]}");
-        if ($paymentDate) {
-            $description = "Пользователь: $userName. Период оплаты: $paymentDate.";
-        } else {
+        if ($paymentDate == "Клубный взнос") {
             $description = "Оплата клубного взноса";
+        } else {
+            $description = "Пользователь: $userName. Период оплаты: $paymentDate.";
         }
         $mrhLogin = config('robokassa.merchant_login');
         $mrhPass1 = config('robokassa.password1');
-        if ($paymentDate) {
-            $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
-        } else {
-            $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_userId=$userId");
-        }
+        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
         $receipt = rawurlencode($receipt);
-        if ($paymentDate) {
         $paymentUrl = "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvId={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt";
-        } else {
-            $paymentUrl = "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvId={$invId}&Description={$description}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt";
-        }
+
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
 
