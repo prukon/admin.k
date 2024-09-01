@@ -567,3 +567,17 @@ select option[data-has-team="no"] {
     width: 100%;
     max-width: 500px;
 }
+.users-list .user a {
+    text-decoration: none; /* Убирает подчеркивание */
+}
+
+.users-list .user a:hover {
+    text-decoration: underline; /* Добавляет подчеркивание при наведении */
+}
+.teams-list .team a {
+    text-decoration: none; /* Убирает подчеркивание */
+}
+
+.teams-list .team a:hover {
+    text-decoration: underline; /* Добавляет подчеркивание при наведении */
+}

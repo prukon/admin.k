@@ -3,12 +3,12 @@
 
 @section('content')
 
-    <div class="col-md-9 main-content">
+    <div class="col-md-9 main-content teams-list">
 
         <h4 class="pt-3">Группы</h4>
 
         @foreach($allTeams as $team)
-            <div><a href="{{ route('admin.team.edit', $team->id) }}">   {{$team->id}}. {{$team->title }} </a>
+            <div class="team"><a href="{{ route('admin.team.edit', $team->id) }}">   {{$team->id}}. {{$team->title }} </a>
 
 
 {{--                @foreach($weekdays as $weekday)--}}
