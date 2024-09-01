@@ -1,13 +1,13 @@
 @extends('layouts.admin2')
 @section('content')
 
-{{--    <meta name="csrf-token" content="{{ csrf_token() }}">--}}
-<script>
-    window.Laravel = {
-        csrfToken: '{{ csrf_token() }}',
-        paymentUrl: '{{ route('payment') }}'
-    };
-</script>
+    {{--    <meta name="csrf-token" content="{{ csrf_token() }}">--}}
+    <script>
+        window.Laravel = {
+            csrfToken: '{{ csrf_token() }}',
+            paymentUrl: '{{ route('payment') }}'
+        };
+    </script>
     <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
 
 
@@ -21,7 +21,6 @@
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3">Консоль</h4>
         <div>
-
 
 
             @can('view', auth()->user())
@@ -51,18 +50,13 @@
                     <div class="col-md-3 col-12 mb-3  date-input">
                         <div class="input-group flex-nowrap">
                             <input type="text" id="inlineCalendar" class="form-control" placeholder="01.02.2024"
-                                   aria-label="Имя
-      пользователя" aria-describedby="addon-wrapping">
-                            <span class="input-group-text" id="addon-wrapping"><i
-                                        class="fa-solid fa-calendar-days"></i></span>
+                                   aria-label="Имя пользователя" aria-describedby="addon-wrapping">
+                            <span class="input-group-text" id="addon-wrapping"><i class="fa-solid fa-calendar-days"></i></span>
                         </div>
-                        <script>
-                        </script>
                     </div>
 
                     <div class="col-md-3 col-12 mb-3  btn-choose-user">
                         <button type="button" disabled id="setup-btn" class="btn btn-primary">Установить</button>
-
                     </div>
                 </div>
 
@@ -90,7 +84,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="row weekday-checkbox">
                     <div class="col-12" id="weekdayContainer"></div>
                 </div>
@@ -115,18 +108,31 @@
                 </div>
                 <div class="col-7 header-wrap">
                     <div class="personal-data-header">
-                        <div class="name">Имя: <span class="name-value">
-                                @if($curUser) {{$curUser->name}} @else - @endif </span></div>
-                        <div class="email">Почта: <span class="email-value">
-                                @if($curUser) {{$curUser->email}} @else - @endif </span></div>
-                         <div class="group">Группа: <span class="group-value">
-                                @if($curTeam) {{$curTeam->title}} @else - @endif </span></div>
-                        <div class="birthday">Дата рождения:
-                            <span class="birthday-value"> @if($curUser->birthday) {{$curUser->birthday}} @else - @endif </span></div>
-                        <div class="display-none count-training">Количество тренировок: <span class="count-training-value">223</span>
+                        <div class="name">Имя: <span class="name-value"> @if($curUser)
+                                    {{$curUser->name}}
+                                @else
+                                    -
+                                @endif </span></div>
+                        <div class="email">Почта: <span class="email-value"> @if($curUser)
+                                    {{$curUser->email}}
+                                @else
+                                    -
+                                @endif </span></div>
+                        <div class="group">Группа: <span class="group-value"> @if($curTeam)
+                                    {{$curTeam->title}}
+                                @else
+                                    -
+                                @endif </span></div>
+                        <div class="birthday">Дата рождения:<span class="birthday-value"> @if($curUser->birthday)
+                                    {{$curUser->birthday}}
+                                @else
+                                    -
+                                @endif </span></div>
+                        <div class="display-none count-training">Количество тренировок: <span
+                                    class="count-training-value">223</span>
                         </div>
                     </div>
-                    <div class="mt-3">Клубный взнос:  <a href="/payment/club-fee">Оплатить.</a></div>
+                    <div class="mt-3">Клубный взнос: <a href="/payment/club-fee">Оплатить</a>.</div>
 
                 </div>
             </div>

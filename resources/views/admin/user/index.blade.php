@@ -6,8 +6,19 @@
     <div class="col-md-9 main-content">
 
         <h4 class="pt-3">Пользователи</h4>
+        @php
+            $counter = 1;
+        @endphp
+
         @foreach($allUsers as $user)
-            <div><a href="{{ route('admin.user.edit', $user->id) }}"> {{$user->id}}.{{$user->name}}</a></div>
+            <div>
+                <a href="{{ route('admin.user.edit', $user->id) }}">
+                    {{ $counter }}. {{$user->name}}
+                </a>
+            </div>
+            @php
+                $counter++;
+            @endphp
         @endforeach
 
 

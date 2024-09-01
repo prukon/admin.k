@@ -21,7 +21,10 @@ class IndexController extends Controller
 
         $filter = app()->make(UserFilter::class, ['queryParams'=> array_filter($data)]);
 
-        $allUsers = User::filter($filter)->paginate(20);
+//        $allUsers = User::filter($filter)->paginate(20);
+        $allUsers = User::filter($filter)
+            ->orderBy('name', 'asc') // сортировка по полю name по возрастанию
+            ->paginate(20);
         $allTeams = User::filter($filter)->paginate(20);
         $allTeamsCount = Team::all()->count();
         $allUsersCount  = User::all()->count();

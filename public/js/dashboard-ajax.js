@@ -123,8 +123,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                                 // Accumulate the total sum of price values
                                 totalSumm[seasonId] += Number(priceValues[j].textContent);
-                                // console.log('totalSumm[seasonId]:');
-                                // console.log(totalSumm[seasonId]);
+                                console.log('totalSumm[seasonId]:');
+                                console.log(totalSumm[seasonId]);
 
                             }
 

@@ -16,9 +16,6 @@ use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 
-//use Intervention\Image\Facades\Image; // Подключите библиотеку Intervention Image
-
-
 use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
@@ -55,8 +52,6 @@ class DashboardController extends Controller
         $scheduleUser = ScheduleUser::where('user_id', $curUser->id)->get();
         $scheduleUserArray = ScheduleUser::where('user_id', $curUser->id)->get()->toArray();
         $userPriceArray = UserPrice::where('user_id', $curUser->id)->get()->toArray();
-//        phpinfo();
-//dd(date_default_timezone_get());
 
         return view("dashboard", compact(
             "allTeams",
