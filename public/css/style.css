@@ -568,16 +568,24 @@ select option[data-has-team="no"] {
     max-width: 500px;
 }
 .users-list .user a {
-    text-decoration: none; /* Убирает подчеркивание */
+    text-decoration: none;
 }
 
 .users-list .user a:hover {
-    text-decoration: underline; /* Добавляет подчеркивание при наведении */
+    text-decoration: underline;
 }
 .teams-list .team a {
-    text-decoration: none; /* Убирает подчеркивание */
+    text-decoration: none;
 }
 
 .teams-list .team a:hover {
-    text-decoration: underline; /* Добавляет подчеркивание при наведении */
+    text-decoration: underline;
+}
+.fa-youtube {
+    color: red;
+    text-decoration: none;
+}
+.social-menu a {
+    text-decoration: none;
+    font-size: 16px;
 }

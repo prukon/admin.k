@@ -101,7 +101,7 @@
         </ul>
 
         <!-- Right navbar links -->
-        <ul class="navbar-nav ml-auto">
+        <ul class="navbar-nav ml-auto social-menu mr-3">
             <!-- Navbar Search -->
 
             <li class="nav-item">
