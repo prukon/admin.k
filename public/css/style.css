@@ -476,7 +476,7 @@ select option[data-has-team="no"] {
 }
 
 .is_hospital {
-    background-color: #51b02e; /* Пример цвета для неоплаченных дней */
+    background-color: rgba(21, 131, 245, 0.53); /* Пример цвета для неоплаченных дней */
 }
 
 .today {

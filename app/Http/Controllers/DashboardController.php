@@ -40,14 +40,10 @@ class DashboardController extends Controller
     {
         $data = $request->validated();
         $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
-
-//        $allUsersSelect = User::all()->orderBy('name', 'asc');
-            $allUsersSelect = User::orderBy('name', 'asc')->get();
-
-        $allTeams = Team::filter($filter)->paginate(10);
+        $allUsersSelect = User::orderBy('name', 'asc')->get();
+        $allTeams = Team::orderBy('order_by', 'asc')->filter($filter)->paginate(10);
         $allUsers = User::filter($filter)->paginate(20);
-        $allUsers = User::filter($filter)
-            ->paginate(20);
+        $allUsers = User::filter($filter)->paginate(20);
         $allTeamsCount = Team::all()->count();
         $allUsersCount = User::all()->count();
         $weekdays = Weekday::all();

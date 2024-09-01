@@ -7,21 +7,22 @@
 
         <h4 class="pt-3">Группы</h4>
 
+        @php
+            $counter = 1;
+        @endphp
+
         @foreach($allTeams as $team)
-            <div class="team"><a href="{{ route('admin.team.edit', $team->id) }}">   {{$team->id}}. {{$team->title }} </a>
-
-
-{{--                @foreach($weekdays as $weekday)--}}
-{{--                    @foreach($team->weekdays as $teamWeekday)--}}
-{{--                        @if ($weekday->id === $teamWeekday->id)--}}
-{{--                            --}}{{--                         {{ $weekday->title }}--}}
-{{--                        @endif--}}
-{{--                    @endforeach--}}
-{{--                @endforeach--}}
-
-
+            <div class="team">
+                <a href="{{ route('admin.team.edit', $team->id) }}">
+                    {{ $counter }}. {{$team->title}}
+                </a>
             </div>
+            @php
+                $counter++;
+            @endphp
         @endforeach
+
+
 
         <div class="mt-3">
             {{ $allTeams->withQueryString()->links() }}
