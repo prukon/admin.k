@@ -22,7 +22,6 @@ function createSeasons() {
     const csrfToken = window.Laravel.csrfToken;
     const paymentUrl = window.Laravel.paymentUrl;
 
-
 // Данные для каждого месяца
     const months = [
         'september', 'october', 'november', 'december', 'january', 'february', 'march', 'april', 'may', 'june',
@@ -33,59 +32,7 @@ function createSeasons() {
         'Июль', 'Август'
     ];
     var season2024;
-// Цикл по сезонам
-//     document.querySelectorAll('.season .container').forEach(container => {
-//         var season = container.dataset.season;
-//         // Цикл по месяцам
-//         for (const [key, month] of months.entries()) {
-//             const div = document.createElement('div');
-//             div.className = `border_price col-3 ${month}`;
-//
-//             if (month == 'september') {
-//                 // season = season - 1;
-//                 // console.log(month)
-//             }
-//
-//             var displaySeason;
-//             if (monthsRu[key] == "Сентябрь" ||
-//                 monthsRu[key] == "Октябрь" ||
-//                 monthsRu[key] == "Ноябрь" ||
-//                 monthsRu[key] == "Декабрь"
-//             ) {
-//                 displaySeason = season - 1
-//             } else {
-//                 displaySeason = season
-//
-//             }
-//             var paymentDate1 = `${monthsRu[key]} ${displaySeason}`;
-//
-//             div.innerHTML = `
-//                 <div class="row align-items-center justify-content-center">
-//                     <span class="price-value">0</span>
-//                     <span class="hide-currency">₽</span>
-//                 </div>
-//                 <div class="row justify-content-center align-items-center">
-//                     <div class="new-price-description">${monthsRu[key]} ${displaySeason}</div>
-//                 </div>
-//                 <div class="row new-main-button-wrap">
-//                     <div class="justify-content-center align-items-center">
-//
-//
-//
-//                 <form action="${paymentUrl}" method="POST">
-//                     <input type="hidden" name="_token" value="${csrfToken}">
-//                      <input type="hidden" name="paymentDate" value="${paymentDate1}">
-//
-//                     <button type="submit" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
-//                 </form>
-//
-//
-//                     </div>
-//                 </div>
-//             `;
-//         }
-//     });
-// }
+
     document.querySelectorAll('.season .container').forEach(container => {
         var season = container.dataset.season;
         // console.log('Season:', season); // Отладка: Выводим текущий сезон
@@ -137,9 +84,6 @@ function createSeasons() {
 
 
 }
-
-//Формирование ссылок для оплат
-
 
 // Открытие, закрытие сезонов при клике
 function clickSeason() {
@@ -424,6 +368,8 @@ function apendPrice(userPrice) {
 // Проходим по каждому блоку
             for (let i = 0; i < borderPrices.length; i++) {
                 const borderPrice = borderPrices[i];
+                const button = borderPrice.querySelector('.new-main-button');
+                button.setAttribute('disabled', 'disabled');
 
                 // Находим элемент с классом new-price-description внутри текущего блока
                 const newPriceDescription = borderPrice.querySelector('.new-price-description');
@@ -452,7 +398,6 @@ function apendPrice(userPrice) {
                         // borderPrice.querySelector('.new-main-button').removeAttribute('disabled');
 
                         // Получаем кнопку
-                        const button = borderPrice.querySelector('.new-main-button');
 
                         // Проверяем, если is_paid == true, меняем текст и делаем кнопку неактивной
                         button.textContent = "Оплатить";

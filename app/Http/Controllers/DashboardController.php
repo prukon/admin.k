@@ -209,20 +209,17 @@ class DashboardController extends Controller
             $teamWeekDayId[] = $teamWeekDay->id;
         }
 
-
         if ($inputDate && $team && $user) {
             updateStartDate($user, $inputDate);
             updateScheduleUsers($user, $inputDate);
             setSchedule($user, $activeWeekdays, $inputDate);
             updateUserTeam($user, $team);
 
-
             return response()->json([
                 'success' => true,
                 'userName' => $userName,
                 'inputDate' => $inputDate,
                 'teamWeekDays' => $activeWeekdays,
-
             ]);
         } else {
             return response()->json([
@@ -263,7 +260,6 @@ class DashboardController extends Controller
         }
 
         return response()->json(['success' => false, 'message' => 'Пользователь не найден']);
-
     }
 
     //AJAX Обработка контекстного меню календаря
@@ -275,7 +271,6 @@ class DashboardController extends Controller
 
         $user = User::where('name', $userName)->first();
         $date = date('Y-m-d', strtotime($date));
-
 
         function updateSchedule($user, $date, $action)
         {
@@ -328,7 +323,6 @@ class DashboardController extends Controller
                 'action' => $action,
                 'user' => $user,
                 'scheduleUser' => $scheduleUser,
-
             ]);
         } else {
             return response()->json([

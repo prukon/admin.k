@@ -49,6 +49,10 @@ document.addEventListener('DOMContentLoaded', function () {
 // Проходим по каждому блоку
                                 for (let i = 0; i < borderPrices.length; i++) {
                                     const borderPrice = borderPrices[i];
+                                    const button = borderPrice.querySelector('.new-main-button');
+
+                                    // var button = borderPrice.querySelector('.new-main-button');
+                                    //
 
                                     // Находим элемент с классом new-price-description внутри текущего блока
                                     const newPriceDescription = borderPrice.querySelector('.new-price-description');
@@ -73,10 +77,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                             // borderPrice.querySelector('.new-main-button').removeAttribute('disabled');
 
                                             // Получаем кнопку
-                                            const button = borderPrice.querySelector('.new-main-button');
 
                                             // Проверяем, если is_paid == true, меняем текст и делаем кнопку неактивной
                                             button.textContent = "Оплатить";
+
 
                                             if (matchedData.is_paid) {
                                                 button.textContent = "Оплачено";
@@ -89,6 +93,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                                 button.setAttribute('disabled', 'disabled');
                                             }
                                         }
+
+// Блокировка кнопок оплаты
+                                        button.setAttribute('disabled', 'disabled');
                                     }
                                 }
 
@@ -181,12 +188,14 @@ document.addEventListener('DOMContentLoaded', function () {
                             $('.name-value').html(user.name);
                         } else $('.name-value').html("-");
                     }
+
                     // Вставка почты
                     function apendEmailToUser() {
                         if (user.email) {
                             $('.email-value').html(user.email);
                         } else $('.email-value').html("-");
                     }
+
                     // Вставка дня рождения
                     function apendBirthdayToUser() {
                         if (user.birthday) {
@@ -408,7 +417,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         $('#single-select-user').append('<option></option>');
 
                         // Проходим по каждому пользователю и добавляем опцию в select
-                        usersTeamWithUnteamUsers.forEach(function(user) {
+                        usersTeamWithUnteamUsers.forEach(function (user) {
                             let option = $('<option></option>')
                                 .attr('value', user.name)
                                 .attr('label', user.label)
