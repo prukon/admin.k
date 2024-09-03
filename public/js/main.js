@@ -555,6 +555,30 @@ function apendCreditTotalSumm() {
     });
 }
 
+// Поиск на странице Пользователи
+function searchUserName() {
+    document.getElementById('search-button').addEventListener('click', function () {
+        var query = document.getElementById('search-input').value;
+
+        // Формируем новый URL
+        var newUrl = new URL(window.location.href);
+
+        if (query) {
+            // Если в инпуте есть текст, устанавливаем GET-параметр
+            newUrl.searchParams.set('name', query);
+        } else {
+            // Если инпут пустой, удаляем GET-параметр
+            newUrl.searchParams.delete('name');
+        }
+
+        // Обновляем URL без перезагрузки страницы
+        window.history.pushState(null, '', newUrl);
+
+        // Перезагружаем страницу с новым URL
+        window.location.reload();
+    });
+}
+
 
 document.addEventListener('DOMContentLoaded', function () {
 

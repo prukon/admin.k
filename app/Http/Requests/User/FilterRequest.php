@@ -22,8 +22,10 @@ class FilterRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'id'=> 'Integer',
             'name' => 'string',
             'team_id' => 'string',
         ];
     }
 }
+

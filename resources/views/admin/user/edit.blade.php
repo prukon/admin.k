@@ -4,7 +4,7 @@
 
 @section('content')
 
-    <div class="col-md-9 main-content">
+    <div class="col-md-9 main-content user-data">
 
         <h4 class="mt-3">Редактирование пользователя</h4>
 

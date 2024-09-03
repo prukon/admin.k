@@ -7,6 +7,7 @@ use App\Http\Filters\UserFilter;
 use App\Http\Requests\User\FilterRequest;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Http\Request;
 
 class IndexController extends Controller
 {
@@ -18,6 +19,16 @@ class IndexController extends Controller
     public function __invoke(FilterRequest $request)
     {
         $data = $request->validated();
+//        dd($data);
+        $query = User::query();
+
+if (isset($data['id'])) {
+    $query->where('id', $data['id']);
+}
+
+        $allUsers= $query->get();
+
+//dd($allUsers);
 
         $filter = app()->make(UserFilter::class, ['queryParams'=> array_filter($data)]);
 
@@ -31,4 +42,5 @@ class IndexController extends Controller
 
         return view("admin.user.index", compact("allUsers" , "allTeams", 'allUsersCount', 'allTeamsCount')); //означает, что мы обращаемся к папке post, в которой файл index.blade.php
     }
+
 }

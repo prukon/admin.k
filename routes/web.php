@@ -33,6 +33,8 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //    Route::delete('', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
     Route::delete('/admin/user/{user}', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
 
+
+
     Route::get('admin/setting-prices', [\App\Http\Controllers\Admin\SettingPricesController::class, 'index'])->name('admin.settingPrices.index');
 
     Route::get('/', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
@@ -67,9 +69,11 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/payment/fail', [\App\Http\Controllers\TransactionController::class, 'fail'])->name('payment.fail');
     Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('.clubFee');
 
+
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
+
 
 
 

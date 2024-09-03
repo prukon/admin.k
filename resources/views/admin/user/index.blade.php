@@ -6,6 +6,12 @@
     <div class="col-md-9 main-content users-list">
 
         <h4 class="pt-3 ">Пользователи</h4>
+
+        <div class="input-button-group mb-3">
+            <input id="search-input" class="find-input mr-3" type="text" placeholder="Имя">
+            <button id="search-button" class="btn btn-primary">Найти</button>
+        </div>
+
         @php
             $counter = 1;
         @endphp
@@ -32,6 +38,10 @@
 
 
     </div>
+
+    <script>
+        searchUserName();
+    </script>
     {{--    </div>--}}
     {{--    </div>--}}
 @endsection
