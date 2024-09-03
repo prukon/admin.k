@@ -70,7 +70,7 @@ function createSeasons() {
                         <input type="hidden" name="_token" value="${csrfToken}">
                         <input type="hidden" name="paymentDate" value="${paymentDate}">
                         <input class="outSum" type="hidden" name="outSum" value="">
-                        <button type="submit" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
+                        <button type="submit" disabled class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
                     </form>
 
                 </div> 
