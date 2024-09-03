@@ -132,7 +132,9 @@
                                     class="count-training-value">223</span>
                         </div>
                     </div>
-                    <div class="mt-3">Клубный взнос: <a href="/payment/club-fee">Оплатить</a>.</div>
+<div class="mt-3">
+<a href="/payment/club-fee"><button type="button" id="club-fee" class="btn btn-primary">Клубный взнос</button></a>
+</div>
 
                 </div>
             </div>
