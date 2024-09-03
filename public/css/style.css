@@ -595,29 +595,42 @@ select option[data-has-team="no"] {
 .team-data input::placeholder {
     opacity: 0.5; /* Установите нужный уровень прозрачности, 0.5 означает 50% прозрачности */
 }
-.input-button-group {
+
+
+/*.input-button-group {*/
+/*    display: flex;*/
+/*    align-items: center;*/
+/*}*/
+
+
+#search-container .find-input,
+#search-container .find-select,
+#search-container .btn {
+    height: 40px; /* Установите нужную высоту */
+}
+
+#search-container {
     display: flex;
     align-items: center;
 }
 
-.find-input {
-    height: 40px;
-    padding: 0 10px;
-    font-size: 16px;
+#search-container .mr-3 {
+    margin-right: 1rem;
+}
+
+#search-container .find-input {
+    flex: 1; /* Инпут растягивается, занимая оставшееся пространство */
+}
+
+#search-container .find-select {
+    flex: 0 0 200px; /* Ширина селекта, можно настроить под нужный размер */
+}
+#search-input {
+    max-width: 200px;
+    border: 1px solid #f3a12b;
+border-radius: 5px;
+}
+#search-select {
     border: 1px solid #f3a12b;
     border-radius: 5px;
-}
-
-.input-button-group .btn {
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 15px;
-    font-size: 16px;
-    margin: 0;
-}
-
-#search-results {
-    margin-top: 20px;
 }

@@ -36,11 +36,18 @@ if (isset($data['id'])) {
         $allUsers = User::filter($filter)
             ->orderBy('name', 'asc') // сортировка по полю name по возрастанию
             ->paginate(20);
-        $allTeams = User::filter($filter)->paginate(20);
+//        $allTeams = Team::filter($filter)
+//            ->paginate(20);
+        $allTeams = Team::all();
+
         $allTeamsCount = Team::all()->count();
         $allUsersCount  = User::all()->count();
 
-        return view("admin.user.index", compact("allUsers" , "allTeams", 'allUsersCount', 'allTeamsCount')); //означает, что мы обращаемся к папке post, в которой файл index.blade.php
+        return view("admin.user.index", compact(
+            "allUsers" ,
+            "allTeams",
+            'allUsersCount',
+            'allTeamsCount'));
     }
 
 }
