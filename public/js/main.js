@@ -558,24 +558,6 @@ function apendCreditTotalSumm() {
 
 // Поиск по группам в Пользователя
 
-function searchUserbyTeam() {
-    document.getElementById('search-button-team').addEventListener('click', function() {
-        var selectedOption = document.getElementById('search-select').value;
-        // Формируем новый URL
-        var newUrl = new URL(window.location.href);
-        if (selectedOption) {
-            // Если выбрана опция, устанавливаем GET-параметр
-            newUrl.searchParams.set('team_id', selectedOption);
-        } else {
-            // Если не выбрана опция (значение пустое), удаляем GET-параметр
-            newUrl.searchParams.delete('team_id');
-        }
-        // Обновляем URL без перезагрузки страницы
-        window.history.pushState(null, '', newUrl);
-        window.location.reload();
-
-    });
-}
 
 function clickToSearch() {
     // document.getElementById('search-button').addEventListener('click', function () {
@@ -629,8 +611,6 @@ function clickToSearch() {
         }
     }
 
-
-
     // Функция для установки значения селекта при загрузке страницы
     function setSelectFromURL() {
         var urlParams = new URLSearchParams(window.location.search);
@@ -641,18 +621,11 @@ function clickToSearch() {
     }
 
     // Вызываем функции после загрузки страницы
-    // window.onload = function() {
-    //     setInputFromURL();
-    //     searchUserName();
-    // };
-
-
-    // Вызываем функции после загрузки страницы
     window.onload = function() {
-        setInputFromURL();
         searchUserName();
+        setInputFromURL();
         setSelectFromURL();
-        searchUserbyTeam();
+        // searchUserbyTeam();
     };
 
 }

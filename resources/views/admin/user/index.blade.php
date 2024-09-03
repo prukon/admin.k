@@ -7,9 +7,9 @@
 
         <h4 class="pt-3 ">Пользователи</h4>
 
-        <div id="search-container" class="d-flex align-items-center mb-3">
-            <input id="search-input" class="find-input mr-3" type="text" placeholder="Имя">
-            <select id="search-select" class="find-select mr-3">
+        <div id="search-container" class="d-flex flex-column flex-md-row align-items-stretch align-items-md-center mb-3">
+            <input id="search-input" class="find-input mb-2 mb-md-0 mr-md-3" type="text" placeholder="Имя">
+            <select id="search-select" class="find-select mb-2 mb-md-0 mr-md-3">
                 <option value="">Группа</option>
                 @foreach($allTeams as $team)
                     <option value="{{ $team->id }}">{{ $team->title }}</option>

@@ -619,18 +619,29 @@ select option[data-has-team="no"] {
 }
 
 #search-container .find-input {
-    flex: 1; /* Инпут растягивается, занимая оставшееся пространство */
+    /*flex: 1; !* Инпут растягивается, занимая оставшееся пространство *!*/
 }
 
 #search-container .find-select {
-    flex: 0 0 200px; /* Ширина селекта, можно настроить под нужный размер */
+    /*flex: 0 0 200px; !* Ширина селекта, можно настроить под нужный размер *!*/
 }
 #search-input {
-    max-width: 200px;
+    max-width: 3500px;
     border: 1px solid #f3a12b;
 border-radius: 5px;
 }
 #search-select {
     border: 1px solid #f3a12b;
     border-radius: 5px;
+}
+
+@media (max-width: 768px) {
+    #search-select, #search-button {
+        height: 40px; /* Задайте желаемую высоту */
+        padding: 0 10px; /* Обновите внутренние отступы при необходимости */
+    }
+
+    #search-select {
+        line-height: normal; /* Обновите, чтобы содержимое выглядело корректно */
+    }
 }
