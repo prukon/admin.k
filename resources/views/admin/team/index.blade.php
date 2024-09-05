@@ -13,7 +13,8 @@
 
         @foreach($allTeams as $team)
             <div class="team">
-                <a href="{{ route('admin.team.edit', $team->id) }}">
+                <a href="{{ route('admin.team.edit', $team->id) }}"
+                    style="{{ $team->is_enabled == 0 ? 'color: red;' : '' }}">
                     {{ $counter }}. {{$team->title}}
                 </a>
             </div>

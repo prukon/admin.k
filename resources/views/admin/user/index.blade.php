@@ -27,7 +27,8 @@
 
         @foreach($allUsers as $user)
             <div class="user">
-                <a href="{{ route('admin.user.edit', $user->id) }}">
+                <a href="{{ route('admin.user.edit', $user->id) }}"
+                   style="{{ $user->is_enabled == 0 ? 'color: red;' : '' }}">
                     {{ $counter }}. {{$user->name}}
                 </a>
             </div>
