@@ -38,21 +38,26 @@ class SettingPricesController extends Controller
 //        $data = $request->validated();
 //        $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
 //
-        $currentDate = Setting::where('id', 1)->first();
         $allTeams = Team::all();
-//        $allUsers = User::all()->paginate(20);
         $allTeamsCount = Team::all()->count();
         $allUsersCount = User::all()->count();
-//        dd($currentDate->date);
         $teamPrices = collect(); // Пустая коллекция по умолчанию
+
+        $currentDate = Setting::where('id', 1)->first();
         if ($currentDate) {
             $teamPrices = TeamPrice::where('month', $currentDate->date)->get();
         }
-//dd($teamPrices);
-//        $weekdays = Weekday::all();
-//
-//        $curUser = auth()->user();
-//        $curTeam = Team::where('id', auth()->user()->team_id)->first();
+
+        //        Carbon::setLocale('ru');
+        //        $currentDate = Carbon::now()->translatedFormat('F Y');
+        // Устанавливаем локаль на русском
+        //        if ($currentDate) {
+        //            $teamPrices = TeamPrice::where('month', $currentDate)->get();
+            //        }
+
+
+
+
 
         return view("admin/settingPrices", compact(
             "allTeams",
@@ -225,10 +230,6 @@ class SettingPricesController extends Controller
                     ]);
                 }
             }
-
-
-
-
 
 
         }

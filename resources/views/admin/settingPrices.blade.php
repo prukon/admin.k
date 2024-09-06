@@ -14,7 +14,6 @@
 
                         @if($currentDate)
                             <option>{{ $currentDate->date }}</option>
-
                         @endif
 
                     </select>

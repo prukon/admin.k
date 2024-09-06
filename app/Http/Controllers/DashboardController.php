@@ -45,7 +45,7 @@ class DashboardController extends Controller
 
         $allTeams = Team::orderBy('order_by', 'asc')->filter($filter)->paginate(10);
         $allTeams = Team::where('is_enabled', true)->orderBy('order_by', 'asc')->filter($filter)->paginate(10);
-       
+
         $allUsers = User::filter($filter)->paginate(20);
         $allTeamsCount = Team::all()->count();
         $allUsersCount = User::all()->count();
