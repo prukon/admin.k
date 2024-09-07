@@ -35,11 +35,20 @@ class SettingController extends Controller
 
     public function index()
     {
+
+        $setting = Setting::where('name', 'registrationActivity')->first();
+        $isRegistrationActivity = $setting ? $setting->status : null;
+
+        $setting = Setting::where('name', 'textForUsers')->first();
+        $textForUsers = $setting ? $setting->text : null;
+
         $allTeamsCount = Team::all()->count();
         $allUsersCount = User::all()->count();
         return view("admin/setting", compact(
             "allUsersCount",
             "allTeamsCount",
+            "isRegistrationActivity",
+            "textForUsers"
         ));
     }
 //    AJAX Активность регистрации
@@ -69,6 +78,17 @@ class SettingController extends Controller
 //    AJAX Текст для юзеров
     public function textForUsers(Request $request) {
         $textForUsers = $request->query('textForUsers');
+     if($textForUsers) {
+         Setting::updateOrCreate(
+             [
+                 'name' => "textForUsers",
+             ],
+             [
+                 'text' => $textForUsers
+             ]
+         );
+     }
+
         return response()->json([
             'success' => true,
             'textForUsers' => $textForUsers,

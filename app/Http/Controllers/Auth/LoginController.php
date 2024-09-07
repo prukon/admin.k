@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 
@@ -42,4 +43,22 @@ class LoginController extends Controller
     {
         $this->middleware('guest')->except('logout');
     }
+
+    public function showLoginForm()
+    {
+        // Ваши данные, которые нужно передать в представление
+
+        $setting = Setting::where('name', 'registrationActivity')->first();
+        $isRegistrationActivity = $setting ? $setting->status : null;
+
+
+        // Возвращаем view с данными
+//        return view('auth.login',
+//            ['customData' => $customData]);
+
+        return view("auth.login", compact(
+            "isRegistrationActivity",
+        ));
+    }
+
 }

@@ -54,13 +54,13 @@
 
 
 
-{{--        @can('view', auth()->user())--}}
-{{--            <li class="nav-item">--}}
-{{--                <a href="/admin/settings" class="nav-link">--}}
-{{--                    <i class="nav-icon fas fa-columns"></i>--}}
-{{--                    <p>Настройки<span class="badge badge-info right"></span></p>--}}
-{{--                </a>--}}
-{{--            </li>--}}
-{{--        @endcan--}}
+        @can('view', auth()->user())
+            <li class="nav-item">
+                <a href="/admin/settings" class="nav-link">
+                    <i class="nav-icon fas fa-columns"></i>
+                    <p>Настройки<span class="badge badge-info right"></span></p>
+                </a>
+            </li>
+        @endcan
     </ul>
 </nav>

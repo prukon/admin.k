@@ -25,9 +25,14 @@
                             <td class="col-4">Регистрация на сайте</td>
                             <td class="col-6">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="" id="registrationActivity">
+{{--                                    <input class="form-check-input" type="checkbox" value="" id="registrationActivity">--}}
+                                    <input class="form-check-input" type="checkbox" value="" id="registrationActivity"
+                                            {{ $isRegistrationActivity ? 'checked' : '' }}>
                                     <label class="form-check-label" for="registrationActivity">Включена/Выключена</label>
+
+
                                 </div>
+
                             </td>
                             <td class="col-2">
                                 <button id="btnRegistrationActivity" class="btn btn-primary mb-3 mt-3">Применить</button>
@@ -39,9 +44,11 @@
                         <tr>
                             <td class="col-4">Текст уведомления у пользователей</td>
                             <td colspan="col-6">
-                    <textarea class=" form-control text-start" id="textForUsers" rows="3">
-Друзья, просьба оплачивать занятия своевременно до 15 числа каждого месяца.
-                    </textarea>
+{{--                    <textarea class=" form-control text-start" id="textForUsers" rows="3">--}}
+{{--                        {{$textForUsers}}--}}
+{{--                    </textarea>--}}
+                                <textarea class="form-control text-start" id="textForUsers" rows="3">{{ trim($textForUsers) }}</textarea>
+
                             </td>
                             <td class="col-2">
                                 <button id="btnTextForUsers" class="btn btn-primary mb-3 mt-3">Применить</button>
