@@ -138,6 +138,10 @@
 
                 </div>
             </div>
+<div class="notification-wrap">
+    <div class="notification">{{$textForUsers}}</div>
+</div>
+
 
             <h5 class="header-shedule display-none">Расписание:</h5>
 

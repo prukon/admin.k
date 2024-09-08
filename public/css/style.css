@@ -645,3 +645,10 @@ border-radius: 5px;
         line-height: normal; /* Обновите, чтобы содержимое выглядело корректно */
     }
 }
+.notification-wrap {
+    border: solid 1px #f3a12b;
+    padding: 10px;
+    width: auto;
+    max-width: 900px;
+    margin: 0 auto;
+}

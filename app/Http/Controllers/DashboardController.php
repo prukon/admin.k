@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\ScheduleUser;
+use App\Models\Setting;
 use App\Models\Team;
 use App\Models\TeamPrice;
 use App\Models\TeamWeekday;
@@ -56,6 +57,10 @@ class DashboardController extends Controller
         $scheduleUserArray = ScheduleUser::where('user_id', $curUser->id)->get()->toArray();
         $userPriceArray = UserPrice::where('user_id', $curUser->id)->get()->toArray();
 
+        $textForUsers = Setting::where('name', 'textForUsers')->first();
+        $textForUsers = $textForUsers ? $textForUsers->text : null;
+
+
         return view("dashboard", compact(
             "allTeams",
             "allUsers",
@@ -67,7 +72,8 @@ class DashboardController extends Controller
             "curUser",
             "scheduleUser",
             "scheduleUserArray",
-            "userPriceArray"));
+            "userPriceArray",
+            "textForUsers"));
     }
 
     //AJAX Изменение юзера
