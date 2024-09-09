@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
 
+
     // AJAX ПОДРОБНО. Получение списка пользователей
     const detailButtons = document.querySelectorAll('.detail');
     for (let i = 0; i < detailButtons.length; i++) {
@@ -62,16 +63,22 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#single-select-date').on('change', function () {
         document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
         let selectedMonth = $(this).val();
+        console.log(selectedMonth);
         $.ajax({
             url: '/update-date',
             method: 'GET',
             data: {
                 month: selectedMonth,
-                // _token: '{{ csrf_token() }}'
+                // _token: "{{ csrf_token() }}"
+                // _token: $('meta[name="csrf-token"]').attr('content')
+
             },
             success: function (response) {
+
                 document.querySelector('#set-price-all-teams').removeAttribute('disabled');
-                location.reload();
+                // location.reload();
+                let cleanUrl = window.location.href.split('?')[0];
+                window.location.href = cleanUrl;
             },
             error: function (xhr, status, error) {
                 console.log('Error:', error);
@@ -138,7 +145,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 teamsData: JSON.stringify(teamsData) // Конвертируем массив объектов в строку JSON
             },
             success: function (response) {
-                location.reload();
+                // location.reload();
+                let cleanUrl = window.location.href.split('?')[0];
+                window.location.href = cleanUrl;
             },
             error: function (xhr, status, error) {
                 console.log('Error:', error);

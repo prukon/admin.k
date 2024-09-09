@@ -2,6 +2,7 @@
 @extends('layouts.admin2')
 @section('content')
 
+
     <script src="{{ asset('js/my-croppie.js') }}"></script>
     <script src="{{ asset('js/settings-prices-ajax.js') }}"></script>
 
@@ -13,7 +14,7 @@
                     <select class="form-select" id="single-select-date" data-placeholder="Дата">
 
                         @if($currentDate)
-                            <option>{{ $currentDate->date }}</option>
+                            <option>{{ $currentDate }}</option>
                         @endif
 
                     </select>

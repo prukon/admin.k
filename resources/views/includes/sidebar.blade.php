@@ -20,7 +20,7 @@
         @endcan
         @can('view', auth()->user())
         <li class="nav-item">
-            <a href="/admin/setting-prices" class="nav-link">
+            <a href="/admin/setting-prices?current-month" class="nav-link">
                 <i class="nav-icon far fa-image"></i>
                 <p>Установка цен</p>
             </a>

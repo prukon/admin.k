@@ -35,25 +35,38 @@ class SettingPricesController extends Controller
 
     public function index(FilterRequest $request)
     {
-//        $data = $request->validated();
-//        $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
-//
         $allTeams = Team::all();
         $allTeamsCount = Team::all()->count();
         $allUsersCount = User::all()->count();
         $teamPrices = collect(); // Пустая коллекция по умолчанию
 
-        $currentDate = Setting::where('id', 1)->first();
-        if ($currentDate) {
-            $teamPrices = TeamPrice::where('month', $currentDate->date)->get();
-        }
+        if (isset($_GET['current-month'])) {
 
-        //        Carbon::setLocale('ru');
-        //        $currentDate = Carbon::now()->translatedFormat('F Y');
-        // Устанавливаем локаль на русском
-        //        if ($currentDate) {
-        //            $teamPrices = TeamPrice::where('month', $currentDate)->get();
-            //        }
+            Carbon::setLocale('ru');
+        $currentDate = Carbon::now()->translatedFormat('F Y');
+            $setting = Setting::firstOrCreate([], ['date' => $currentDate]);
+            if ($setting) {
+                // Изменяем поле date на новое значение
+                $setting->date = $currentDate; // Здесь можно использовать $month или любую другую логику для определения нового значения
+                // Сохраняем изменения в базе данных
+                $setting->save();
+            }
+
+
+//         Устанавливаем локаль на русском
+        if ($currentDate) {
+            $teamPrices = TeamPrice::where('month', $currentDate)->get();
+        }
+    } else {
+
+            $currentDate = Setting::where('id', 1)->first();
+            $currentDate = $currentDate->date;
+
+            if ($currentDate) {
+            $teamPrices = TeamPrice::where('month', $currentDate)->get();
+        }
+    }
+
 
 
 
@@ -71,6 +84,45 @@ class SettingPricesController extends Controller
 //            "curUser"
         ));
     }
+
+//    public function index(FilterRequest $request)
+//    {
+//        dump("index");
+//
+////        $data = $request->validated();
+////        $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
+////
+//        $allTeams = Team::all();
+//        $allTeamsCount = Team::all()->count();
+//        $allUsersCount = User::all()->count();
+//        $teamPrices = collect(); // Пустая коллекция по умолчанию
+//
+//        $currentDate = Setting::where('id', 1)->first();
+//        $currentDate = $currentDate->date;
+//        if ($currentDate) {
+//            $teamPrices = TeamPrice::where('month', $currentDate)->get();
+//        }
+//
+//        //        Carbon::setLocale('ru');
+//        //        $currentDate = Carbon::now()->translatedFormat('F Y');
+//        // Устанавливаем локаль на русском
+//        //        if ($currentDate) {
+//        //            $teamPrices = TeamPrice::where('month', $currentDate)->get();
+//        //        }
+//
+//
+//        return view("admin/settingPrices", compact(
+//            "allTeams",
+////            "allUsers",
+//            "allUsersCount",
+//            "allTeamsCount",
+//            'currentDate',
+//            'teamPrices',
+////            "weekdays",
+////            "curTeam",
+////            "curUser"
+//        ));
+//    }
 
     // AJAX ПОДРОБНО. Получение списка пользователей
     public function getTeamPrice(Request $request)
@@ -104,8 +156,8 @@ class SettingPricesController extends Controller
     public function updateDate(Request $request)
     {
         $allTeams = Team::all();
-        $month = ucfirst($request->query('month')); // Преобразуем первую букву месяца в заглавную
 
+        $month = ucfirst($request->query('month')); // Преобразуем первую букву месяца в заглавную
         if ($month) {
             $setting = Setting::firstOrCreate([], ['date' => $month]);
             if ($setting) {
