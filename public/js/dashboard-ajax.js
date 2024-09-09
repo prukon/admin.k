@@ -416,21 +416,28 @@ document.addEventListener('DOMContentLoaded', function () {
                         // Добавляем пустой элемент
                         $('#single-select-user').append('<option></option>');
 
+                        // Счетчик для нумерации пользователей
+                        let counter = 1;
+
                         // Проходим по каждому пользователю и добавляем опцию в select
                         usersTeamWithUnteamUsers.forEach(function (user) {
                             let option = $('<option></option>')
                                 .attr('value', user.name)
                                 .attr('label', user.label)
                                 .attr('data-team', user.team_id ? 'true' : 'false') // Проверяем наличие команды и добавляем data-атрибут
-                                .text(user.name);
+                                .text(counter + '. ' + user.name); // Добавляем нумерацию перед именем
 
                             // Добавляем опцию в select
                             $('#single-select-user').append(option);
+
+                            // Увеличиваем счетчик
+                            counter++;
                         });
 
                         // Инициализируем Select2 с кастомными шаблонами
                         initializeSelect2();
                     }
+
 
                     enableSetupBtn(user, team, inputDate);
                     apendWeekdays(weekdays);

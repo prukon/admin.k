@@ -30,9 +30,9 @@
                 <div class="row choose-user">
                     <div class="col-md-3 col-12 mb-3 user-select">
                         <select class="form-select" id="single-select-user" data-placeholder="ФИО">
-                            <option></option>
-                            @foreach($allUsersSelect as $user)
-                                <option label="{{$user->label}}">{{($user->name)}}</option>
+                            <option value="">Выберите пользователя</option>
+                            @foreach($allUsersSelect as $index => $user)
+                                <option value="{{ $user->name }}" label="{{ $user->label }}">{{ $index + 1 }}. {{ $user->name }}</option>
                             @endforeach
                         </select>
                     </div>
