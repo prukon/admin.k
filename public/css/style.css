@@ -563,10 +563,12 @@ select option[data-has-team="no"] {
 .bolt-text {
     font-weight: 700
 }
+
 .club-fee {
     width: 100%;
     max-width: 500px;
 }
+
 .users-list .user a {
     text-decoration: none;
 }
@@ -574,6 +576,7 @@ select option[data-has-team="no"] {
 .users-list .user a:hover {
     text-decoration: underline;
 }
+
 .teams-list .team a {
     text-decoration: none;
 }
@@ -581,17 +584,21 @@ select option[data-has-team="no"] {
 .teams-list .team a:hover {
     text-decoration: underline;
 }
+
 .fa-youtube {
     color: red;
     text-decoration: none;
 }
+
 .social-menu a {
     text-decoration: none;
     font-size: 16px;
 }
+
 .user-data input::placeholder {
     opacity: 0.5; /* Установите нужный уровень прозрачности, 0.5 означает 50% прозрачности */
 }
+
 .team-data input::placeholder {
     opacity: 0.5; /* Установите нужный уровень прозрачности, 0.5 означает 50% прозрачности */
 }
@@ -625,11 +632,13 @@ select option[data-has-team="no"] {
 #search-container .find-select {
     /*flex: 0 0 200px; !* Ширина селекта, можно настроить под нужный размер *!*/
 }
+
 #search-input {
     max-width: 3500px;
     border: 1px solid #f3a12b;
-border-radius: 5px;
+    border-radius: 5px;
 }
+
 #search-select {
     border: 1px solid #f3a12b;
     border-radius: 5px;
@@ -645,10 +654,20 @@ border-radius: 5px;
         line-height: normal; /* Обновите, чтобы содержимое выглядело корректно */
     }
 }
+
 .notification-wrap {
     border: solid 1px #f3a12b;
     padding: 10px;
     width: auto;
     max-width: 900px;
     margin: 0 auto;
+}
+
+.navbar-nav .nav-item {
+    display: flex;
+    align-items: center;
+}
+
+.logout {
+    margin-left: 20px;
 }

@@ -20,7 +20,7 @@
     {{--Fontawesome--}}
     <script src="{{ asset('js/fontawesome/fontawesome.js') }}"></script>
 
-   {{--Datapicker--}}
+    {{--Datapicker--}}
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.material.css') }}">
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.minimal.css') }}">
     <link rel="stylesheet" href="{{ asset('css/datapicker/themes-jquery-ui.css') }}">
@@ -29,18 +29,6 @@
 
     {{--scripts--}}
     <script src="{{ asset('js/main.js') }}"></script>
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     <!-- Google Font: Source Sans Pro -->
@@ -67,17 +55,10 @@
     <link rel="stylesheet" href="{{ asset('plugins/summernote/summernote-bs4.min.css') }}">
 
 
-
-
-
-
-
-
-
-
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
 <div class="wrapper">
+
 
     <!-- Preloader -->
     {{--    <div class="preloader flex-column justify-content-center align-items-center">--}}
@@ -116,6 +97,12 @@
                                                                                       aria-hidden="true"></i></a>
             </li>
 
+            <li class="nav-item d-flex align-items-center">
+                <form method="POST" action="{{ route('logout') }}" class="d-flex align-items-center mb-0">
+                    @csrf
+                    <button type="submit" class="btn btn-primary logout">Выйти</button>
+                </form>
+            </li>
             {{--            <li class="nav-item">--}}
             {{--                <a class="nav-link" data-widget="navbar-search" href="#" role="button">--}}
             {{--                    <i class="fas fa-search"></i>--}}
@@ -254,10 +241,10 @@
         <div class="sidebar">
             <!-- Sidebar user panel (optional) -->
             <div class="user-panel mt-3 pb-3 mb-3 d-flex">
-{{--                <div class="image">--}}
-{{--                    <img src="{{ asset('dist/img/user2-160x160.jpg') }}" class="img-circle elevation-2"--}}
-{{--                         alt="User Image">--}}
-{{--                </div>--}}
+                {{--                <div class="image">--}}
+                {{--                    <img src="{{ asset('dist/img/user2-160x160.jpg') }}" class="img-circle elevation-2"--}}
+                {{--                         alt="User Image">--}}
+                {{--                </div>--}}
                 <div class="info text-light">
                     <a href="#" class="d-block"></a>
                     <h6> Имя: {{auth()->user()->name}}</h6>
@@ -268,6 +255,7 @@
 
                 </div>
             </div>
+
 
             <!-- SidebarSearch Form -->
             {{--            <div class="form-inline">--}}
