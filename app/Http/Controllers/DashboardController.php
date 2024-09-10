@@ -116,12 +116,12 @@ class DashboardController extends Controller
 
         $team = Team::where('title', $teamName)->first();
         $user = User::where('name', $userName)->first();
-        $usersTeam = User::where('team_id', $team->id)
+        $usersTeam = User::where('team_id', $team->id)->where('is_is_enabled', 1)
             ->orderBy('name', 'asc')
             ->get();
         $userWithoutTeam = User::where('team_id', null)->get();
 
-
+ 
         foreach ($team->weekdays as $teamWeekDay) {
             $teamWeekDayId[] = $teamWeekDay->id;
         }
