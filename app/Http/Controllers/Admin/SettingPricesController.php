@@ -42,8 +42,15 @@ class SettingPricesController extends Controller
 
         if (isset($_GET['current-month'])) {
 
+            function mb_ucfirst($string, $encoding = 'UTF-8') {
+                return mb_strtoupper(mb_substr($string, 0, 1, $encoding), $encoding) .
+                    mb_substr($string, 1, null, $encoding);
+            }
+
             Carbon::setLocale('ru');
-        $currentDate = Carbon::now()->translatedFormat('F Y');
+            $currentDate = mb_ucfirst(Carbon::now()->translatedFormat('F Y'));
+//            dump($currentDate);
+
             $setting = Setting::firstOrCreate([], ['date' => $currentDate]);
             if ($setting) {
                 // Изменяем поле date на новое значение
