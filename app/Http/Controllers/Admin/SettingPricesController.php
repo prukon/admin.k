@@ -136,7 +136,7 @@ class SettingPricesController extends Controller
     {
         $selectedDate = $request->query('selectedDate');
         $teamId = $request->query('teamId');
-        $usersTeam = User::where('team_id', $teamId)->get();
+        $usersTeam = User::where('team_id', $teamId)->where('is_enabled', true)->orderBy('name', 'asc')->get();
         $usersPrice = [];
 
         foreach ($usersTeam as $user) {
