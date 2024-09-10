@@ -121,7 +121,7 @@ class DashboardController extends Controller
             ->get();
         $userWithoutTeam = User::where('team_id', null)->get();
 
- 
+
         foreach ($team->weekdays as $teamWeekDay) {
             $teamWeekDayId[] = $teamWeekDay->id;
         }
