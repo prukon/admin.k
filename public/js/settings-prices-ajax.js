@@ -93,7 +93,11 @@ document.addEventListener('DOMContentLoaded', function () {
         button.addEventListener('click', function () {
             const parentDiv = this.closest('.wrap-team');
             const teamPrice = parentDiv.querySelector('.team-price input').value;
+            const teamPriceInput = parentDiv.querySelector('.team-price input');
             const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+            teamPriceInput.classList.remove('animated-input');
+
+
 
             if (parentDiv) {
                 $.ajax({
@@ -107,6 +111,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     success: function (response) {
                         if (response.success) {
+
+                            teamPriceInput.classList.add('animated-input');
+
                             var teamPrice = response.teamPrice;
                             var selectedDate = response.selectedDate;
                             var teamId = response.teamId;
@@ -208,7 +215,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         let userBlock = `
                 <div class="row mb-2">
                     <div id="${usersData[i].id}" class="user-name col-6">  ${usersData[i].name}   </div>
-                    <div class="user-price col-4"><input class="" type="number" value=${usersData[i].price}></div>
+                    <div class="user-price col-4">
+<!--                    <input class="" type="number" value=${usersData[i].price}>-->
+                      <input class="animated-input" type="number" value="${usersData[i].price}">
+
+                    </div>
+                    
                     <div class="check col-2"><span class="fa fa-check display-none green-check" aria-hidden="true"></span></div>
                 </div>
             `;

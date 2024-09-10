@@ -671,3 +671,18 @@ select option[data-has-team="no"] {
 .logout {
     margin-left: 20px;
 }
+@keyframes borderAnimation {
+    0% {
+        border-color: #79c979;
+    }
+    50% {
+        border-color: #00a400;
+    }
+    100% {
+        border-color: #79c979;
+    }
+}
+
+.animated-input {
+    animation: borderAnimation 1s ease-in-out;
+}
