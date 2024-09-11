@@ -56,11 +56,15 @@
             </li>
         @endcan
 
+
+
         <li class="nav-item">
-            <a href="/account-settings" class="nav-link">
+            <a href="/account-settings/users/{{ Auth::user()->id }}/edit" class="nav-link">
                 <i class="nav-icon fas fa-columns"></i>
                 <p>Учетная запись</p>
             </a>
         </li>
+
+
     </ul>
 </nav>

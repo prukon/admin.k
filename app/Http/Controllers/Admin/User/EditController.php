@@ -18,12 +18,11 @@ class EditController extends Controller
 
     public function __invoke(User $user)
     {
-//        $this->service->edit($user);
         $allTeams = Team::All();
-        $allTeamsCount = Team::all()->count();
-        $allUsersCount  = User::all()->count();
 
-        return view('admin.user.edit', compact('user', 'allTeams', 'allUsersCount', 'allTeamsCount'));
+        return view('admin.user.edit', compact('user',
+            'allTeams',
+        ));
     }
 }
 

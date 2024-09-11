@@ -77,9 +77,13 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/admin/settings/text-for-users', [\App\Http\Controllers\Admin\SettingController::class, 'textForUsers'])->name('textForUsers');
 
 
-    Route::get('/account-settings', [\App\Http\Controllers\AccountSettingController::class, 'index'])->name('accountSettings');
+//  Route::get('/account-settings', [\App\Http\Controllers\AccountSettingController::class, 'index'])->name('accountSettings');
 
- 
+//Учетная запись
+    Route::get('/account-settings/users/{user}/edit', [\App\Http\Controllers\AccountSettingController::class, 'index'])->name('user.edit');
+    Route::patch('/account-settings/users/{user}', [\App\Http\Controllers\AccountSettingController::class, 'update'])->name('user.update');
+    Route::post('/user/{id}/update-password', [\App\Http\Controllers\AccountSettingController::class, 'updatePassword']);
+
 
 
 });

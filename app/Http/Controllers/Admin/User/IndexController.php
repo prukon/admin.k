@@ -40,14 +40,12 @@ if (isset($data['id'])) {
 //            ->paginate(20);
         $allTeams = Team::all();
 
-        $allTeamsCount = Team::all()->count();
-        $allUsersCount  = User::all()->count();
 
         return view("admin.user.index", compact(
             "allUsers" ,
             "allTeams",
-            'allUsersCount',
-            'allTeamsCount'));
+
+        ));
     }
 
 }
