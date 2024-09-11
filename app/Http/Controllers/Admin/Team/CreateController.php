@@ -13,12 +13,13 @@ class CreateController extends Controller
     {
         $this->middleware('admin');
     }
+
     public function __invoke(Team $team)
     {
         $allTeams = Team::All();
         $weekdays = Weekday::all();
-        $allTeamsCount = Team::all()->count();
-        $allUsersCount  = User::all()->count();
-        return view("admin.team.create", compact('team', "allTeams", 'allUsersCount', 'allTeamsCount', 'weekdays'));
+        return view("admin.team.create", compact('team',
+            "allTeams",
+            'weekdays'));
     }
 }

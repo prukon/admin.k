@@ -36,8 +36,6 @@ class SettingPricesController extends Controller
     public function index(FilterRequest $request)
     {
         $allTeams = Team::all();
-        $allTeamsCount = Team::all()->count();
-        $allUsersCount = User::all()->count();
         $teamPrices = collect(); // Пустая коллекция по умолчанию
 
         if (isset($_GET['current-month'])) {
@@ -81,14 +79,8 @@ class SettingPricesController extends Controller
 
         return view("admin/settingPrices", compact(
             "allTeams",
-//            "allUsers",
-            "allUsersCount",
-            "allTeamsCount",
             'currentDate',
             'teamPrices',
-//            "weekdays",
-//            "curTeam",
-//            "curUser"
         ));
     }
 

@@ -19,11 +19,10 @@ class EditController extends Controller
 
     public function __invoke(Team $team)
     {
-        $allTeamsCount = Team::all()->count();
-        $allUsersCount = User::all()->count();
-
         $weekdays = Weekday::all();
-        return view('admin.team.edit', compact('team', 'weekdays', 'allUsersCount', 'allTeamsCount'));
+        return view('admin.team.edit', compact('team',
+            'weekdays',
+        ));
     }
 
 }

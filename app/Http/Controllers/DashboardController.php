@@ -48,8 +48,6 @@ class DashboardController extends Controller
         $allTeams = Team::where('is_enabled', true)->orderBy('order_by', 'asc')->filter($filter)->paginate(10);
 
         $allUsers = User::filter($filter)->paginate(20);
-        $allTeamsCount = Team::all()->count();
-        $allUsersCount = User::all()->count();
         $weekdays = Weekday::all();
         $curUser = auth()->user();
         $curTeam = Team::where('id', auth()->user()->team_id)->first();
@@ -65,8 +63,6 @@ class DashboardController extends Controller
             "allTeams",
             "allUsers",
             "allUsersSelect",
-            "allUsersCount",
-            "allTeamsCount",
             "weekdays",
             "curTeam",
             "curUser",

@@ -21,14 +21,7 @@ class PaymentsController extends Controller
 
     public function index()
     {
-        $allTeamsCount = Team::all()->count();
-        $allUsersCount = User::all()->count();
-
-        return view("admin.payments.index", compact(
-            "allUsersCount",
-            "allTeamsCount",
-
-        ));
+        return view("admin.payments.index");
     }
 
     //Страница Платежи (вывод все платежей)

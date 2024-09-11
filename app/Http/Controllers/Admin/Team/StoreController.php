@@ -25,19 +25,6 @@ class StoreController extends Controller
         $data = $request->validated();
         $this->service->store($data);
 
-
-//        $weekdays = $data['weekdays'];
-//        unset($data['weekdays']);
-//        $team = Team::create($data);
-//
-//        //Способ с логированием даты создания и изменения записи в бд
-//        foreach ($weekdays as $weekday) {
-//            teamWeekday::firstOrCreate([
-//                'weekday_id' => $weekday,
-//                'team_id' => $team->id,
-//            ]);
-//        }
-
         return redirect()->route('admin.team.index');
     }
 
