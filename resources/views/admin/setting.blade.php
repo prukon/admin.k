@@ -66,7 +66,7 @@
                                         scrolling="no"></iframe>
                             </td>
                             {{--                            <td class="col-2">--}}
-                            {{--                            </td>--}}
+                            {{--                              </td>--}}
                         </tr>
                         </tbody>
                     </table>
