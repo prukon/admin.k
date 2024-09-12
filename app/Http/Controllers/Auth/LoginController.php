@@ -61,4 +61,25 @@ use Illuminate\Foundation\Auth\AuthenticatesUsers;
         ));
     }
 
+   
+
+    protected function sendFailedLoginResponse(\Illuminate\Http\Request $request)
+    {
+        $user = \App\Models\User::where('email', $request->email)->first();
+
+        // Если пользователь с таким email не найден
+        if (!$user) {
+            return back()->withInput()->withErrors([
+                'email' => 'Такой email не найден.',
+            ]);
+        }
+
+        // Если пользователь найден, но пароль неверный
+        return back()->withInput()->withErrors([
+            'password' => 'Неправильный пароль.',
+        ]);
+    }
+
+
+
 }
