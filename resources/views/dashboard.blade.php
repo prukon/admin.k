@@ -39,11 +39,10 @@
 
                     <div class="col-md-3 col-12 mb-3  team-select">
                         <select class="form-select" id="single-select-team" data-placeholder="Группа">
+                            <option value="all">Все</option>
                             <option></option>
                             @foreach($allTeams as $index => $team)
-{{--                                <option>{{($team->title)}}</option>--}}
                                 <option value="{{ $team->title }}" label="{{ $team->label }}">{{ $index + 1 }}. {{ $team->title }}</option>
-
                             @endforeach
                         </select>
                         <i class="fa-thin fa-calendar-lines"></i>

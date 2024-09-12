@@ -376,10 +376,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                 weekdays[i].classList.remove('weekday-enabled');
                             }
 
-                            if (teamWeekDayId.includes(i + 1)) {
-                                if (input) { // Проверяем, существует ли input
-                                    // input.checked = true; // Устанавливаем атрибут checked
-                                    weekdays[i].classList.add('weekday-enabled');
+                            if (teamWeekDayId != null) {
+                                if (teamWeekDayId.includes(i + 1)) {
+                                    if (input) { // Проверяем, существует ли input
+                                        // input.checked = true; // Устанавливаем атрибут checked
+                                        weekdays[i].classList.add('weekday-enabled');
+                                    }
                                 }
                             }
                         }
@@ -420,7 +422,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         let counter = 1;
 
                         // Проходим по каждому пользователю и добавляем опцию в select
-                        usersTeamWithUnteamUsers.forEach(function (user) {
+
+                        let userList;
+                        if(team!=null) {
+                            userList =  usersTeamWithUnteamUsers;
+                        } else {
+                            userList = usersTeam;
+                        }
+
+                        userList.forEach(function (user) {
                             let option = $('<option></option>')
                                 .attr('value', user.name)
                                 .attr('label', user.label)
@@ -441,14 +451,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     enableSetupBtn(user, team, inputDate);
                     apendWeekdays(weekdays);
-                    if (user) {
-                        if (user.team_id > 0) {
-                            newUpdateSelectUsers();
-                        }
-                    } else {
-                        newUpdateSelectUsers();
-
-                    }
+                    // if (user) {
+                    //     if (user.team_id > 0) {
+                    //         newUpdateSelectUsers();
+                    //     }
+                    // } else {
+                    //     newUpdateSelectUsers();
+                    //
+                    // }
+                    newUpdateSelectUsers();
 
                 }
             },

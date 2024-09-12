@@ -108,21 +108,34 @@ class DashboardController extends Controller
         $teamName = $request->query('teamName');
         $userName = $request->query('userName');
         $inputDate = $request->query('inputDate');
-
-
         $team = Team::where('title', $teamName)->first();
+        $teamWeekDayId = [];
+
         $user = User::where('name', $userName)->first();
-        $usersTeam = User::where('team_id', $team->id)->where('is_enabled', 1)
-            ->orderBy('name', 'asc')
-            ->get();
+        if ($teamName == 'all') {
+            $usersTeam = User::where('is_enabled', 1)
+                ->orderBy('name', 'asc')
+                ->get();
+//dump('all');
+        } else {
+            $usersTeam = User::where('team_id', $team->id)->where('is_enabled', 1)
+                ->orderBy('name', 'asc')
+                ->get();
+            foreach ($team->weekdays as $teamWeekDay) {
+                $teamWeekDayId[] = $teamWeekDay->id;
+            }
+//            dump('team');
+        }
         $userWithoutTeam = User::where('team_id', null)->get();
 
+if ($teamWeekDayId){
 
-        foreach ($team->weekdays as $teamWeekDay) {
-            $teamWeekDayId[] = $teamWeekDay->id;
-        }
+} else {
+    $teamWeekDayId = null;
+}
 
-        if ($team) {
+
+        if ($usersTeam) {
             return response()->json([
                 'success' => true,
                 'team' => $team,
