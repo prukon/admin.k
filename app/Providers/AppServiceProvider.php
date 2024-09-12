@@ -44,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
         View::share('isRegistrationActivity', $isRegistrationActivity);
         View::share('allTeamsCount', $allTeamsCount);
         View::share('allUsersCount', $allUsersCount);
+
 //        View::share('currentUserId', $currentUserId);
 //        View::share('currentUserName', $currentUserName);
 

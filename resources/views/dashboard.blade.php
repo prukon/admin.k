@@ -13,8 +13,10 @@
 
     <script>
         // Передача данных текущего пользователя из Blade в JavaScript
-        let currentUserName = "{{ auth()->user()->name }}";
-        let currentUserRole = "{{ auth()->user()->role }}";
+        {{--let currentUserName = "{{ auth()->user()->name }}";--}}
+        {{--let currentUserRole = "{{ auth()->user()->role }}";--}}
+        let currentUserName = "{{$curUser->name}}";
+        let currentUserRole = "{{$curUser->role}}";
     </script>
 
 
@@ -102,10 +104,10 @@
                                 @endif
                         >
                     </div>
-                    <div class='container-form'>
-                        <input id='selectedFile' class="disp-none" type='file' accept=".png, .jpg, .jpeg, .svg">
-                        <button id="upload-photo" class="btn-primary btn">Выбрать фото...</button>
-                    </div>
+{{--                    <div class='container-form'>--}}
+{{--                        <input id='selectedFile' class="display-none" type='file' accept=".png, .jpg, .jpeg, .svg">--}}
+{{--                        <button id="upload-photo" class="btn-primary btn">Выбрать фото...</button>--}}
+{{--                    </div>--}}
                 </div>
                 <div class="col-7 header-wrap">
                     <div class="personal-data-header">

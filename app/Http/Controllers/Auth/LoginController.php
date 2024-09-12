@@ -61,7 +61,7 @@ use Illuminate\Foundation\Auth\AuthenticatesUsers;
         ));
     }
 
-   
+
 
     protected function sendFailedLoginResponse(\Illuminate\Http\Request $request)
     {

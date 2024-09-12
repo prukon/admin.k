@@ -2,6 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', function () {
 
+
     // AJAX User
     $('#single-select-user').change(function () {
         let userName = $(this).val();
@@ -424,8 +425,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         // Проходим по каждому пользователю и добавляем опцию в select
 
                         let userList;
-                        if(team!=null) {
-                            userList =  usersTeamWithUnteamUsers;
+                        if (team != null) {
+                            userList = usersTeamWithUnteamUsers;
                         } else {
                             userList = usersTeam;
                         }
@@ -538,25 +539,29 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // AJAX Вызов модалки
+
+
+    //Добавление имени пользователя в скрытое поле формы для формы отправки аватарки
+    let apendUserNametoForm = function (page) {
+        if (currentUserRole == "admin") {
+            //берем имя юзера из селекта
+            if ($('#single-select-user').val() && $('#single-select-user').val() != "") {
+                $('#selectedUserName').val($('#single-select-user').val());
+            } else {
+
+            }
+        } else {
+            // берем имя пользователя авторизованного юхера
+            $('#selectedUserName').val(currentUserName);
+        }
+    }
+
     function showModal() {
         document.getElementById('upload-photo').addEventListener('click', function () {
             $('#uploadPhotoModal').modal('show');
-            let apendUserNametoForm = function () {
-                if (currentUserRole == "admin") {
-                    $('#selectedUserName').val($('#single-select-user').val());
-                } else {
-                    $('#selectedUserName').val(currentUserName);
-                }
-
-
-            }
-            apendUserNametoForm();
         });
 
         $(document).ready(function () {
-            //Добавление имени пользователя в скрытое поле формы для формы отправки аватарки
-
-
             // Инициализация Croppie
             var $uploadCrop = $('#upload-demo').croppie({
                 viewport: {width: 141, height: 190, type: 'square'},

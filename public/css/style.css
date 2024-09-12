@@ -686,3 +686,35 @@ select option[data-has-team="no"] {
 .animated-input {
     animation: borderAnimation 1s ease-in-out;
 }
+.buttons .back  {
+    width: auto !important;
+}
+.buttons .delete {
+    width: auto !important;
+}
+
+.buttons .update-pass  {
+    width: auto !important;
+}
+
+.buttons .back .btn  {
+    min-width: 140px;
+}
+.buttons .delete  .btn{
+    min-width: 140px;
+}
+
+ .update-pass .btn  {
+    min-width: 140px;
+}
+.update-btn {
+    min-width: 140px;
+
+}
+#new-password {
+    width: 140px;
+    display: inline-block;
+}
+.password-change-section {
+
+}

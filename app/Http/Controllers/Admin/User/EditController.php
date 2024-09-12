@@ -9,6 +9,7 @@ use App\Servises\UserService;
 
 class EditController extends Controller
 {
+
     public function __construct(UserService $service)
     {
         $this->service = $service;

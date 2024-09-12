@@ -29,6 +29,7 @@ class AccountSettingController extends Controller
 
         return view('user.edit', compact('currentUser',
             'allTeams',
+
         ));
     }
 
