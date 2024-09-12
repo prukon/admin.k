@@ -715,6 +715,9 @@ select option[data-has-team="no"] {
     width: 140px;
     display: inline-block;
 }
-.password-change-section {
-
+.password-description {
+display: none;
+}
+#cancel-change-password-btn {
+     display: none;
 }

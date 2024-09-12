@@ -122,21 +122,27 @@
 
                     <!-- Кнопка ОБНОВИТЬ -->
                     <button type="submit" class="btn btn-primary update-btn  ">Обновить</button>
-<br>
+                    <br>
                     <!-- Кнопка ИЗМЕНИТЬ ПАРОЛЬ -->
+
                     <div class="update-pass d-inline-block mt-3 mr-3">
-                        <button type="button" id="change-password-btn" class="btn btn-primary mr-3">Изменить пароль</button>
+                        <button type="button" id="cancel-change-password-btn" class="btn btn-primary mr-3">Отмена
+                        </button>
+                        <button type="button" id="change-password-btn" class="btn btn-primary mr-3">Изменить пароль
+                        </button>
                         <div id="password-change-section" class="mt-3" style="display: none;">
                             <div class="input-group">
-                                <input type="password" id="new-password" class="form-control" placeholder="Новый пароль">
+                                <input type="password" id="new-password" class="form-control"
+                                       placeholder="Новый пароль">
                                 <div class="input-group-append">
                                     <button type="button" id="apply-password-btn" class="btn btn-success">Применить</button>
                                 </div>
                             </div>
-                            <p id="password-change-message" class="text-success mt-2" style="display:none;">Пароль изменен</p>
                         </div>
-                    </div>
+                        <p id="password-change-message" class="text-success mt-2" style="display:none;">Пароль изменен</p>
 
+                    </div>
+<div class="password-description"><em>Длина не менее 8 символов</em></div>
                 </form>
             </div>
         </div>
@@ -146,7 +152,8 @@
         {{--        КНОПКИ--}}
         <div class="row buttons d-flex justify-content-start align-items-center mt-3 mb-3">
             <!-- Кнопка  НАЗАД -->
-            <div class="back me-2 d-inline-block"><a class="btn btn-danger" href="{{ route('admin.user.index') }}">Назад</a></div>
+            <div class="back me-2 d-inline-block"><a class="btn btn-danger"
+                                                     href="{{ route('admin.user.index') }}">Назад</a></div>
             <!-- Кнопка  УДАЛИТЬ -->
             <form class="delete me-2 d-inline-block" action="{{ route('admin.user.delete', $user->id)}}" method="post">
                 @csrf
@@ -213,6 +220,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+
             //Добавление имени пользователя в скрытое поле формы для формы отправки аватарки
             let apendUserNametoForm = function (name) {
                 if (currentUserRole == "admin") {
@@ -227,35 +235,64 @@
                     $('#selectedUserName').val(currentUserName);
                 }
             }
-            apendUserNametoForm("{{ $user->name }}");
+
+            // Клик по ИЗМЕНИТЬ ПАРОЛЬ
+            let changePasswordBtn = function () {
+                document.getElementById('change-password-btn').addEventListener('click', function () {
+                    document.getElementById('change-password-btn').style.display = 'none';
+                    document.getElementById('cancel-change-password-btn').style.display = 'inline-block';
+                    document.getElementById('password-change-section').style.display = 'inline-block';
+                    document.querySelector('#password-change-message').style.display = 'none';
+                    document.querySelector('.password-description').style.display = 'inline-block';
 
 
-        });
-    </script>
-    <script>
-        document.getElementById('change-password-btn').addEventListener('click', function () {
-            document.getElementById('password-change-section').style.display = 'inline-block';
-        });
-
-        document.getElementById('apply-password-btn').addEventListener('click', function () {
-            var userId = '{{ $user->id }}';
-            var newPassword = document.getElementById('new-password').value;
-            var token = '{{ csrf_token() }}';
-
-            fetch(`/admin/user/${userId}/update-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': token,
-                },
-                body: JSON.stringify({password: newPassword}),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('password-change-message').style.display = 'block';
-                    }
                 });
+            }
+            // Клик по ПРИМЕНИТЬ в изменении пароля
+            let applyPasswordBtn = function () {
+                document.getElementById('apply-password-btn').addEventListener('click', function () {
+                    var userId = '{{ $user->id }}';
+                    var newPassword = document.getElementById('new-password').value;
+                    var token = '{{ csrf_token() }}';
+
+                    fetch(`/admin/user/${userId}/update-password`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                        },
+                        body: JSON.stringify({password: newPassword}),
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // document.getElementById('password-change-message').style.display = 'block';
+                                document.getElementById('change-password-btn').style.display = 'inline-block';
+                                document.getElementById('cancel-change-password-btn').style.display = 'none';
+                                document.querySelector('#password-change-section').style.display = 'none';
+                                document.querySelector('#password-change-message').style.display = 'inline-block';
+                                document.querySelector('.password-description').style.display = 'none';
+
+                            }
+                        });
+                });
+            }
+            // Клик по ОТМЕНА
+            let cancelChangePasswordBtn = function () {
+                document.getElementById('cancel-change-password-btn').addEventListener('click', function () {
+                    document.getElementById('change-password-btn').style.display = 'inline-block';
+                    document.getElementById('cancel-change-password-btn').style.display = 'none';
+                    document.getElementById('password-change-section').style.display = 'none';
+                    document.querySelector('.password-description').style.display = 'none';
+
+                });
+            }
+
+            apendUserNametoForm("{{ $user->name }}");
+            changePasswordBtn();
+            applyPasswordBtn();
+            cancelChangePasswordBtn();
         });
+
     </script>
 @endsection
