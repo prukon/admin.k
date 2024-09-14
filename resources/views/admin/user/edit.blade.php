@@ -235,7 +235,6 @@
                     $('#selectedUserName').val(currentUserName);
                 }
             }
-
             // Клик по ИЗМЕНИТЬ ПАРОЛЬ
             let changePasswordBtn = function () {
                 document.getElementById('change-password-btn').addEventListener('click', function () {
@@ -287,11 +286,93 @@
 
                 });
             }
+            // AJAX Вызов модалки
+            function showModal() {
+                document.getElementById('upload-photo').addEventListener('click', function () {
+                    $('#uploadPhotoModal').modal('show');
+                });
+
+                $(document).ready(function () {
+                    // Инициализация Croppie
+                    var $uploadCrop = $('#upload-demo').croppie({
+                        viewport: {width: 141, height: 190, type: 'square'},
+                        boundary: {width: 300, height: 300},
+                        showZoomer: true
+                    });
+
+                    // При выборе файла изображение загружается в Croppie
+                    $('#upload').on('change', function () {
+                        var reader = new FileReader();
+                        reader.onload = function (e) {
+                            $uploadCrop.croppie('bind', {
+                                url: e.target.result
+                            }).then(function () {
+                            });
+                        }
+                        reader.readAsDataURL(this.files[0]);
+
+                    });
+
+                    // Сохранение обрезанного изображения и отправка через AJAX
+                    $('#saveImageBtn').on('click', function () {
+                        $uploadCrop.croppie('result', {
+                            type: 'base64',
+                            size: 'viewport'
+                        }).then(function (resp) {
+                            // Заполняем скрытое поле base64 изображением
+                            $('#croppedImage').val(resp);
+
+                            // Устанавливаем имя пользователя в скрытое поле
+                            // let userName = $('#single-select-user').val();
+                            //
+                            // $('#selectedUserName').val(userName);
+                            let userName = $('#selectedUserName').val();
+
+
+                            // Создаем FormData для отправки
+                            var formData = new FormData();
+                            formData.append('_token', $('input[name="_token"]').val()); // Добавляем CSRF-токен
+                            formData.append('croppedImage', $('#croppedImage').val()); // Добавляем обрезанное изображение
+                            formData.append('userName', userName); // Добавляем имя пользователя
+
+                            // console.log(userName);
+                            // console.log(formData);
+                            // Отправка данных через AJAX
+                            $.ajax({
+                                // url: "{{ route('profile.uploadAvatar') }}", // URL маршрута
+                                url: uploadUrl, // URL маршрута
+                                type: 'POST', // Метод POST
+                                data: formData, // Данные формы
+                                contentType: false,
+                                processData: false,
+                                success: function (response) {
+                                    if (response.success) {
+                                        // Обновляем изображение на странице
+                                        $('#confirm-img').attr('src', response.image_url);
+                                        console.log('Изображение успешно загружено!');
+                                    } else {
+                                        alert('Ошибка загрузки изображения');
+                                    }
+                                    location.reload();
+                                },
+                                error: function (xhr, status, error) {
+                                    console.error('Ошибка:', error);
+                                    alert('Ошибка на сервере');
+                                }
+                            });
+                        });
+                    });
+                });
+
+            }
+
 
             apendUserNametoForm("{{ $user->name }}");
             changePasswordBtn();
             applyPasswordBtn();
             cancelChangePasswordBtn();
+            showModal();
+
         });
 
     </script>

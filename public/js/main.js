@@ -490,7 +490,6 @@ function apendCreditTotalSumm() {
                 // console.log(container.querySelector('.price-value').textContent);
                 // Добавляем значение к общей сумме для этого сезона
                 totalSum += priceValue;
-            } else {
             }
         });
 
@@ -498,6 +497,8 @@ function apendCreditTotalSumm() {
         const creditValueField = season.querySelector('.is_credit_value');
         creditValueField.textContent = totalSum;
     });
+
+
 }
 
 
@@ -506,9 +507,9 @@ function apendCreditTotalSumm() {
 
 function clickToSearch() {
     // document.getElementById('search-button').addEventListener('click', function () {
-        // searchUserName();
-        // searchUserbyTeam();
-        // window.location.reload();
+    // searchUserName();
+    // searchUserbyTeam();
+    // window.location.reload();
     // });
 
     function searchUserName() {
@@ -526,7 +527,6 @@ function clickToSearch() {
             // Обновляем URL без перезагрузки страницы
             window.history.pushState(null, '', newUrl);
             // Перезагружаем страницу с новым URL
-
 
 
             var selectedOption = document.getElementById('search-select').value;
@@ -566,7 +566,7 @@ function clickToSearch() {
     }
 
     // Вызываем функции после загрузки страницы
-    window.onload = function() {
+    window.onload = function () {
         searchUserName();
         setInputFromURL();
         setSelectFromURL();
@@ -617,11 +617,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
 
+
     // -----Вызовы------
 
     addSelect2ToUser();
     addSelect2ToTeam();
     addDatapicker();
+    // showCreditNotice();
 
     // updateGlobalScheduleData({{$scheduleUser}});
     // setBackgroundToCalendar(@json($scheduleUser));

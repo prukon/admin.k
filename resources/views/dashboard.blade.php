@@ -34,7 +34,8 @@
                         <select class="form-select" id="single-select-user" data-placeholder="ФИО">
                             <option value="">Выберите пользователя</option>
                             @foreach($allUsersSelect as $index => $user)
-                                <option value="{{ $user->name }}" label="{{ $user->label }}">{{ $index + 1 }}. {{ $user->name }}</option>
+                                <option value="{{ $user->name }}" label="{{ $user->label }}">{{ $index + 1 }}
+                                    . {{ $user->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -44,7 +45,8 @@
                             <option value="all">Все</option>
                             <option></option>
                             @foreach($allTeams as $index => $team)
-                                <option value="{{ $team->title }}" label="{{ $team->label }}">{{ $index + 1 }}. {{ $team->title }}</option>
+                                <option value="{{ $team->title }}" label="{{ $team->label }}">{{ $index + 1 }}
+                                    . {{ $team->title }}</option>
                             @endforeach
                         </select>
                         <i class="fa-thin fa-calendar-lines"></i>
@@ -94,7 +96,7 @@
 
             {{--Аватарка и личные данные--}}
             <div class="row personal-data">
-                <div class="col-5 col-sm-2 avatar-wrap">
+                <div class="col-5 col-lg-3 avatar-wrap">
                     <div class="avatar_wrapper d-flex align-items-center justify-content-center">
                         <img id='confirm-img'
                              @if ($curUser->image_crop)
@@ -104,12 +106,12 @@
                                 @endif
                         >
                     </div>
-{{--                    <div class='container-form'>--}}
-{{--                        <input id='selectedFile' class="display-none" type='file' accept=".png, .jpg, .jpeg, .svg">--}}
-{{--                        <button id="upload-photo" class="btn-primary btn">Выбрать фото...</button>--}}
-{{--                    </div>--}}
+                    {{--                    <div class='container-form'>--}}
+                    {{--                        <input id='selectedFile' class="display-none" type='file' accept=".png, .jpg, .jpeg, .svg">--}}
+                    {{--                        <button id="upload-photo" class="btn-primary btn">Выбрать фото...</button>--}}
+                    {{--                    </div>--}}
                 </div>
-                <div class="col-7 header-wrap">
+                <div class="col-7 col-lg-3 header-wrap">
                     <div class="personal-data-header">
                         <div class="name">Имя: <span class="name-value"> @if($curUser)
                                     {{$curUser->name}}
@@ -132,18 +134,22 @@
                                     -
                                 @endif </span></div>
                         <div class="display-none count-training">Количество тренировок: <span
-                                    class="count-training-value">223</span>
-                        </div>
+                                    class="count-training-value">223</span></div>
                     </div>
-<div class="mt-3">
-<a href="/payment/club-fee"><button type="button" id="club-fee" class="btn btn-primary">Клубный взнос</button></a>
-</div>
-
+                    <div class="mt-3">
+                        <a href="/payment/club-fee">
+                            <button type="button" id="club-fee" class="btn btn-primary">Клубный взнос</button>
+                        </a>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-4 mt-3 mb-1 credit-notice  align-items-center justify-content-center text-center">
+                    <i class="close fa-solid fa-circle-xmark"></i>
+                    У вас образовалась задолженность в размере <span class="summ"></span> руб.
                 </div>
             </div>
-<div class="notification-wrap">
-    <div class="notification">{{$textForUsers}}</div>
-</div>
+            <div class="notification-wrap">
+                <div class="notification">{{$textForUsers}}</div>
+            </div>
 
 
             <h5 class="header-shedule display-none">Расписание:</h5>
@@ -227,8 +233,125 @@
                     updateGlobalScheduleData(scheduleUser);
                     var userPrice = {!! json_encode($userPriceArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
 
+                    function closeNotice() {
+                        document.querySelector('.credit-notice .close').addEventListener('click', function () {
+                            document.querySelector('.credit-notice').style.display = 'none';
+                            console.log(1);
+                        });
 
-                    // showSeasonsPrice();
+                        function showCreditNotice() {
+                            let creditNotice = document.querySelector(".credit-notice");
+                            const creditNoticeSum = document.querySelector(".credit-notice .summ").textContent;
+                            if (creditNoticeSum > 0) {
+                                console.log(3)
+                                creditNotice.style.display = 'block';
+                            }
+                        }
+
+                    }
+
+                    function showCreditNotice() {
+                        let creditNotice = document.querySelector(".credit-notice");
+                        const creditNoticeSum = document.querySelector(".credit-notice .summ").textContent;
+                        if (creditNoticeSum > 0) {
+                            console.log(3)
+                            creditNotice.style.display = 'block';
+                        }
+                    }
+
+                    function convertStringToDate(dateStr) {
+                        const months = {
+                            "Январь": 0,
+                            "Февраль": 1,
+                            "Март": 2,
+                            "Апрель": 3,
+                            "Май": 4,
+                            "Июнь": 5,
+                            "Июль": 6,
+                            "Август": 7,
+                            "Сентябрь": 8,
+                            "Октябрь": 9,
+                            "Ноябрь": 10,
+                            "Декабрь": 11
+                        };
+
+                        const [monthName, year] = dateStr.split(' ');
+                        const month = months[monthName];
+
+                        if (month === undefined || isNaN(year)) {
+                            throw new Error('Некорректный формат даты. Ожидается формат "Месяц Год".');
+                        }
+
+                        return new Date(year, month);
+                    }
+
+
+                    function apendCreditTotalSummtoNotice() {
+                        const seasons = document.querySelectorAll('.season');
+                        let totalSumAllSeasons = 0;
+                        const monthsInRussian = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+
+                        const currentDate = new Date();
+                        const currentMonth = monthsInRussian[currentDate.getMonth()];
+                        const currentYear = currentDate.getFullYear();
+                        const currentFormatedDate = `${currentMonth} ${currentYear}`;
+                        // console.log("currentFormatedDate:");
+                        // console.log(currentFormatedDate);
+
+                        // Перебираем каждый сезон
+                        seasons.forEach(function (season) {
+                            let seasonOnlyYear = season.id.match(/\d+/)[0];
+
+                            let totalSum = 0;
+
+                            // Ищем все контейнеры с классом border_price внутри текущего сезона
+                            const priceContainers = season.querySelectorAll('.border_price');
+
+                            // Перебираем все контейнеры с ценами
+                            priceContainers.forEach(function (container) {
+
+
+                                // Находим кнопку внутри контейнера
+                                const button = container.querySelector('button.new-main-button');
+                                const date = container.querySelector('.new-price-description').textContent;
+
+                                // const month = parseFloat(container.querySelector('.new-price-description').textContent);
+                                const parts = date.split(' ');
+                                const seasonOnlyMonth = parts[0]; // "Апрель"
+                                const seasonOnlyYear = parts[1];  // "2022"
+                                // console.log(seasonOnlyMonth);
+                                // console.log(seasonOnlyYear);
+
+                                currentFormatedDatetoDate = convertStringToDate(currentFormatedDate)
+                                FormatedToDate = convertStringToDate(date);
+                                if (FormatedToDate >= currentFormatedDatetoDate) {
+                                    return
+                                }
+                                console.log("FormatedToDate:");
+                                console.log(FormatedToDate);
+                                // Проверяем, если кнопка называется "Оплатить" и не отключена
+                                if (button && button.textContent.trim() === 'Оплатить' && !button.disabled) {
+                                    // Получаем значение из price-value
+                                    const priceValue = parseFloat(container.querySelector('.price-value').textContent.trim());
+
+                                    // console.log(container.querySelector('.price-value').textContent);
+                                    // Добавляем значение к общей сумме для этого сезона
+
+                                    totalSum += priceValue;
+                                }
+                            });
+
+                            // Обновляем значение в is_credit_value для текущего сезона
+                            const creditValueField = season.querySelector('.is_credit_value');
+                            creditValueField.textContent = totalSum;
+                            totalSumAllSeasons += totalSum;
+                        });
+
+                        // Обновляем notice с суммой долга
+                        const creditNoticeSumm = document.querySelector('.credit-notice .summ');
+                        creditNoticeSumm.textContent = totalSumAllSeasons;
+                    }
+
 
                     createSeasons()     //Создание сезонов
                     clickSeason()       //Измерение иконок при клике
@@ -237,7 +360,11 @@
                     apendPrice(userPrice);
                     showSessons();
                     apendCreditTotalSumm();
+                    apendCreditTotalSummtoNotice();
                     openFirstSeason();
+                    closeNotice();
+                    showCreditNotice();
+
 
                 });
             </script>
