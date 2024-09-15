@@ -25,7 +25,23 @@
                     ajax: "{{ route('payments.getPayments') }}",
                     columns: [
                         {data: 'DT_RowIndex', name: 'DT_RowIndex'},
-                        {data: 'user_name', name: 'user_name'},
+
+                        {
+                            data: null,
+                            name: 'user_name',
+                            render: function (data, type, row) {
+                                console.log('Data for user_name:', data);
+
+                                // Если user_id существует, делаем ссылку
+                                if (row.user_id) {
+                                    return '<a href="/admin/users/' + row.user_id + '/edit">' + row.user_name + '</a>';
+                                } else {
+                                    // Если user_id нет, просто выводим имя пользователя без ссылки
+                                    return row.user_name ? row.user_name : 'Без имени';
+                                }
+                            }
+                        },
+
                         {data: 'team_title', name: 'team_title'},
                         {data: 'summ', name: 'summ'},
                         {data: 'payment_month', name: 'payment_month'},
@@ -40,7 +56,6 @@
                         "info": "Записи с _START_ до _END_ из _TOTAL_ записей",
                         "infoEmpty": "Записи с 0 до 0 из 0 записей",
                         "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                        "infoPostFix": "",
                         "loadingRecords": "Загрузка записей...",
                         "zeroRecords": "Записи отсутствуют.",
                         "emptyTable": "В таблице отсутствуют данные",
@@ -55,9 +70,10 @@
                             "sortDescending": ": активировать для сортировки столбца по убыванию"
                         }
                     }
-
                 });
             });
         </script>
+
+
     @endsection
 @endsection
