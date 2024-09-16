@@ -131,14 +131,31 @@ class SettingPricesController extends Controller
         $usersTeam = User::where('team_id', $teamId)->where('is_enabled', true)->orderBy('name', 'asc')->get();
         $usersPrice = [];
 
+
+
         foreach ($usersTeam as $user) {
-            $userPrice = UserPrice::where('month', $selectedDate)
-                ->where('user_id', $user->id)
-                ->first();
-            if ($userPrice) {
-                $usersPrice[] = $userPrice;
-            }
+            $userPrice = UserPrice::firstOrCreate(
+                [
+                    'month' => $selectedDate,
+                    'user_id' => $user->id
+                ],
+                [
+                    'price' => 0
+                ]
+            );
+            $usersPrice[] = $userPrice;
         }
+
+
+
+//        foreach ($usersTeam as $user) {
+//            $userPrice = UserPrice::where('month', $selectedDate)
+//                ->where('user_id', $user->id)
+//                ->first();
+//            if ($userPrice) {
+//                $usersPrice[] = $userPrice;
+//            }
+//        }
 
         if ($usersTeam) {
             return response()->json([
