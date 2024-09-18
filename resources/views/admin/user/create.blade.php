@@ -71,11 +71,15 @@
                 <label for="inputPassword6" class="col-form-label">Пароль*</label>
                 <input name='password' type="password" id="inputPassword6" class="form-control"
                        aria-labelledby="passwordHelpInline">
-                <span id="passwordHelpInline" class="form-text">
-      Должно быть 8-20 символов.
-    </span>
+
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="showPassword">
+                    <label class="form-check-label" for="showPassword">Показать пароль</label>
+                </div>
+
+                <span id="passwordHelpInline" class="form-text">Должно быть 8-20 символов.</span>
                 @error('password' )
-                <p class="text-danger">{{'Введите пароль'}}</p>
+                <p class="text-danger">{{'Введите пароль от 8 символов'}}</p>
                 @enderror
             </div>
 
@@ -92,6 +96,16 @@
             <button type="submit" class="btn btn-primary">Создать</button>
         </form>
 
+        <script>
+            document.getElementById('showPassword').addEventListener('change', function () {
+                var passwordField = document.getElementById('inputPassword6');
+                if (this.checked) {
+                    passwordField.type = 'text';
+                } else {
+                    passwordField.type = 'password';
+                }
+            });
+        </script>
 
     </div>
     </div>
