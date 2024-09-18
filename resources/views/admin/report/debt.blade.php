@@ -70,15 +70,8 @@
                         data: 'price',
                         name: 'price',
                         render: function (data, type, row) {
-                            var price = parseFloat(row.price);
-                            if (!isNaN(price)) {
-                                return new Intl.NumberFormat('ru-RU', {
-                                    style: 'currency',
-                                    currency: 'RUB'
-                                }).format(price);
-                            } else {
-                                return 'Неверное значение';
-                            }
+                            // Используем parseInt для удаления дробной части и добавляем " руб" в конце
+                            return parseInt(row.price) + ' руб';
                         }
                     }
                 ],
