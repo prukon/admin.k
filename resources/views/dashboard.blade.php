@@ -129,7 +129,7 @@
                                     -
                                 @endif </span></div>
                         <div class="birthday">Дата рождения:<span class="birthday-value"> @if($curUser->birthday)
-                                    {{$curUser->birthday}}
+                                    {{ \Carbon\Carbon::parse($curUser->birthday)->format('d.m.Y') }}
                                 @else
                                     -
                                 @endif </span></div>
