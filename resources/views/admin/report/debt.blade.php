@@ -70,8 +70,8 @@
                         data: 'price',
                         name: 'price',
                         render: function (data, type, row) {
-                            // Используем parseInt для удаления дробной части и добавляем " руб" в конце
-                            return parseInt(row.price) + ' руб';
+                            // Возвращаем значение напрямую из базы данных и добавляем " руб" в конце
+                            return row.price;
                         }
                     }
                 ],
