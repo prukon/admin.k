@@ -18,6 +18,7 @@ use App\Http\Controllers\Auth\RegisterController;
 
 Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
+//    Группы
     Route::get('admin/teams', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.team.index');
     Route::get('admin/teams/create', '\App\Http\Controllers\Admin\Team\CreateController')->name('admin.team.create');
     Route::post('admin/teams', '\App\Http\Controllers\Admin\Team\StoreController')->name('admin.team.store');
@@ -25,6 +26,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::patch('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\UpdateController')->name('admin.team.update');
     Route::delete('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\DestroyController')->name('admin.team.delete');
 
+//    Пользователи
     Route::get('admin/users', '\App\Http\Controllers\Admin\User\IndexController')->name('admin.user.index');
     Route::get('admin/users/create', '\App\Http\Controllers\Admin\User\CreateController')->name('admin.user.create');
     Route::post('admin/users', '\App\Http\Controllers\Admin\User\StoreController')->name('admin.user.store');
@@ -34,15 +36,20 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::delete('/admin/user/{user}', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
 
 
-
+//    Route::get('admin/reports', [\App\Http\Controllers\Admin\Report\ReportController::class, 'index'])->name('admin.report');
     Route::get('admin/setting-prices', [\App\Http\Controllers\Admin\SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
-
 //    Route::get('admin/setting-prices', [\App\Http\Controllers\Admin\SettingPricesController::class, 'index'])->name('admin.settingPrices.index');
-
     Route::get('/', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/admin/payments', [\App\Http\Controllers\Admin\PaymentsController::class, 'index'])->name('payments.index');
-    Route::get('/getPayments', [\App\Http\Controllers\Admin\PaymentsController::class, 'getPayments'])->name('payments.getPayments');
+
+
+//    Отчеты
+//        Route::get('/admin/payments', [\App\Http\Controllers\Admin\PaymentsController::class, 'index'])->name('payments.index');
+
+    Route::get('/admin/reports/payments', [\App\Http\Controllers\Admin\Report\ReportController::class, 'payments'])->name('payments');
+    Route::get('/admin/reports/debts', [\App\Http\Controllers\Admin\Report\ReportController::class, 'debts'])->name('debts');
+    Route::get('/getPayments', [\App\Http\Controllers\Admin\Report\ReportController::class, 'getPayments'])->name('payments.getPayments');
+    Route::get('/getDebts', [\App\Http\Controllers\Admin\Report\ReportController::class, 'getDebts'])->name('debts.getDebts');
 
 
 //AJAX
@@ -85,12 +92,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('/user/{id}/update-password', [\App\Http\Controllers\AccountSettingController::class, 'updatePassword']);
 
 
-
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
-
-
 
 
 Auth::routes();

@@ -10,11 +10,19 @@
                 <p>Консоль</p>
             </a>
         </li>
+{{--        @can('view', auth()->user())--}}
+{{--            <li class="nav-item">--}}
+{{--                <a href="/admin/payments" class="nav-link">--}}
+{{--                    <i class="nav-icon far fa-image"></i>--}}
+{{--                    <p>Платежи</p>--}}
+{{--                </a>--}}
+{{--            </li>--}}
+{{--        @endcan--}}
         @can('view', auth()->user())
             <li class="nav-item">
-                <a href="/admin/payments" class="nav-link">
+                <a href="/admin/reports/payments" class="nav-link">
                     <i class="nav-icon far fa-image"></i>
-                    <p>Платежи</p>
+                    <p>Отчеты</p>
                 </a>
             </li>
         @endcan
