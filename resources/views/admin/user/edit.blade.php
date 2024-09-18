@@ -125,24 +125,48 @@
                     <br>
                     <!-- Кнопка ИЗМЕНИТЬ ПАРОЛЬ -->
 
-                    <div class="update-pass d-inline-block mt-3 mr-3">
-                        <button type="button" id="cancel-change-password-btn" class="btn btn-primary mr-3">Отмена
-                        </button>
-                        <button type="button" id="change-password-btn" class="btn btn-primary mr-3">Изменить пароль
-                        </button>
-                        <div id="password-change-section" class="mt-3" style="display: none;">
-                            <div class="input-group">
-                                <input type="password" id="new-password" class="form-control"
-                                       placeholder="Новый пароль">
-                                <div class="input-group-append">
-                                    <button type="button" id="apply-password-btn" class="btn btn-success">Применить</button>
-                                </div>
-                            </div>
-                        </div>
-                        <p id="password-change-message" class="text-success mt-2" style="display:none;">Пароль изменен</p>
 
+                    <br>
+                    <button type="button" id="change-password-btn" class="btn btn-primary mr-3">Изменить пароль</button>
+{{--                    <button type="submit"  id="change-password-btn" class="btn btn-primary update-btn  ">Изменить пароль</button>--}}
+
+                    <div class="change-pass-wrap" id = "change-pass-wrap">
+                        <div class="update-pass d-inline-block mt-3 mr-3 d-flex flex-row align-items-center">
+                            <input type="password" id="new-password" class="form-control mr-2"
+                                   placeholder="Новый пароль">
+                            <button type="button" id="apply-password-btn" class="btn btn-primary mr-2">Применить
+                            </button>
+                            <button type="button" id="cancel-change-password-btn" class="btn btn-primary mr-2">Отмена
+                            </button>
+
+                        </div>
+
+                        <div class="form-check">
+                            <input type="checkbox" id="show-password" class="form-check-input">
+                            <label class="form-check-label" for="show-password">Показать пароль</label>
+                        </div>
+
+                        <div id="error-message" class="text-danger mt-2" style="display:none;">Пароль должен быть не менее 8 символов</div>
                     </div>
-<div class="password-description"><em>Длина не менее 8 символов</em></div>
+
+                    <div id="password-change-message" class="text-success ml-3" style="display:none;">Пароль
+                        изменен
+                    </div>
+
+
+                    <script>
+                        document.getElementById('show-password').addEventListener('change', function () {
+                            const passwordInput = document.getElementById('new-password');
+                            if (this.checked) {
+                                passwordInput.type = 'text';
+                            } else {
+                                passwordInput.type = 'password';
+                            }
+                        });
+                    </script>
+
+
+                    {{--<div class="password-description"><em>Длина не менее 8 символов</em></div>--}}
                 </form>
             </div>
         </div>
@@ -239,20 +263,66 @@
             let changePasswordBtn = function () {
                 document.getElementById('change-password-btn').addEventListener('click', function () {
                     document.getElementById('change-password-btn').style.display = 'none';
-                    document.getElementById('cancel-change-password-btn').style.display = 'inline-block';
-                    document.getElementById('password-change-section').style.display = 'inline-block';
-                    document.querySelector('#password-change-message').style.display = 'none';
-                    document.querySelector('.password-description').style.display = 'inline-block';
-
-
+                    document.getElementById('change-pass-wrap').style.display = 'inline-block';
                 });
             }
             // Клик по ПРИМЕНИТЬ в изменении пароля
+{{--            let applyPasswordBtn = function () {--}}
+{{--                document.getElementById('apply-password-btn').addEventListener('click', function () {--}}
+{{--                    var userId = '{{ $user->id }}';--}}
+{{--                    var newPassword = document.getElementById('new-password').value;--}}
+{{--                    var token = '{{ csrf_token() }}';--}}
+
+{{--                    fetch(`/admin/user/${userId}/update-password`, {--}}
+{{--                        method: 'POST',--}}
+{{--                        headers: {--}}
+{{--                            'Content-Type': 'application/json',--}}
+{{--                            'X-CSRF-TOKEN': token,--}}
+{{--                        },--}}
+{{--                        body: JSON.stringify({password: newPassword}),--}}
+{{--                    })--}}
+{{--                        .then(response => response.json())--}}
+{{--                        .then(data => {--}}
+{{--                            if (data.success) {--}}
+{{--                                document.getElementById('change-password-btn').style.display = 'inline-block';--}}
+{{--                                document.querySelector('#change-pass-wrap').style.display = 'none';--}}
+
+
+{{--                                function showPasswordChangeMessage() {--}}
+{{--                                    const message = document.getElementById('password-change-message');--}}
+{{--                                    message.style.display = 'block'; // Показываем сообщение--}}
+{{--                                    setTimeout(() => {--}}
+{{--                                        message.classList.add('fade-out'); // Начинаем плавное исчезновение--}}
+{{--                                    }, 2000); // Через 3 секунды--}}
+
+{{--                                    setTimeout(() => {--}}
+{{--                                        message.style.display = 'none'; // Полностью скрываем через 4 секунды (учитывая время на анимацию)--}}
+{{--                                        message.classList.remove('fade-out'); // Удаляем класс, чтобы можно было показать сообщение снова--}}
+{{--                                    }, 3000);--}}
+{{--                                }--}}
+
+{{--// Пример вызова функции--}}
+{{--                                showPasswordChangeMessage();--}}
+
+{{--                            }--}}
+{{--                        });--}}
+{{--                });--}}
+{{--            }--}}
+
             let applyPasswordBtn = function () {
                 document.getElementById('apply-password-btn').addEventListener('click', function () {
                     var userId = '{{ $user->id }}';
                     var newPassword = document.getElementById('new-password').value;
                     var token = '{{ csrf_token() }}';
+                    var errorMessage = document.getElementById('error-message');
+
+                    // Проверка длины пароля
+                    if (newPassword.length < 8) {
+                        errorMessage.style.display = 'block'; // Показываем сообщение об ошибке
+                        return; // Прерываем выполнение, если пароль слишком короткий
+                    } else {
+                        errorMessage.style.display = 'none'; // Скрываем сообщение об ошибке
+                    }
 
                     fetch(`/admin/user/${userId}/update-password`, {
                         method: 'POST',
@@ -265,27 +335,47 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                // document.getElementById('password-change-message').style.display = 'block';
                                 document.getElementById('change-password-btn').style.display = 'inline-block';
-                                document.getElementById('cancel-change-password-btn').style.display = 'none';
-                                document.querySelector('#password-change-section').style.display = 'none';
-                                document.querySelector('#password-change-message').style.display = 'inline-block';
-                                document.querySelector('.password-description').style.display = 'none';
+                                document.querySelector('#change-pass-wrap').style.display = 'none';
 
+                                function showPasswordChangeMessage() {
+                                    const message = document.getElementById('password-change-message');
+                                    message.style.display = 'block'; // Показываем сообщение
+                                    setTimeout(() => {
+                                        message.classList.add('fade-out'); // Начинаем плавное исчезновение
+                                    }, 2000); // Через 2 секунды
+
+                                    setTimeout(() => {
+                                        message.style.display = 'none'; // Полностью скрываем через 3 секунды
+                                        message.classList.remove('fade-out'); // Удаляем класс, чтобы можно было показать сообщение снова
+                                    }, 3000);
+                                }
+
+                                // Пример вызова функции
+                                showPasswordChangeMessage();
                             }
                         });
                 });
             }
+
+// Функция для показа/скрытия пароля
+            document.getElementById('show-password').addEventListener('change', function () {
+                const passwordInput = document.getElementById('new-password');
+                passwordInput.type = this.checked ? 'text' : 'password';
+            });
+
+
             // Клик по ОТМЕНА
             let cancelChangePasswordBtn = function () {
                 document.getElementById('cancel-change-password-btn').addEventListener('click', function () {
                     document.getElementById('change-password-btn').style.display = 'inline-block';
-                    document.getElementById('cancel-change-password-btn').style.display = 'none';
-                    document.getElementById('password-change-section').style.display = 'none';
-                    document.querySelector('.password-description').style.display = 'none';
+                    document.getElementById('change-pass-wrap').style.display = 'none';
+                    document.getElementById('error-message').style.display = 'none';
+
 
                 });
             }
+
             // AJAX Вызов модалки
             function showModal() {
                 document.getElementById('upload-photo').addEventListener('click', function () {

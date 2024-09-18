@@ -25,7 +25,9 @@ class UpdateController extends Controller
     {
         $data = $request->validated();
         $this->service->update($user, $data);
-        return redirect()->route('admin.user.index');
+//        return redirect()->route('admin.user.index');
+        return redirect()->route('admin.user.edit', ['user' => $user->id]);
+
     }
 
     public function updatePassword(Request $request, $id)

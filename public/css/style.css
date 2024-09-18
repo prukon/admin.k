@@ -708,7 +708,10 @@ select option[data-has-team="no"] {
     min-width: 140px;
 }
 .update-btn {
-    min-width: 140px;
+    min-width: 135px;
+}
+#change-password-btn {
+    min-width: 135px;
 
 }
 #new-password {
@@ -718,9 +721,7 @@ select option[data-has-team="no"] {
 .password-description {
 display: none;
 }
-#cancel-change-password-btn {
-     display: none;
-}
+
 
 .credit-notice {
     height: 100px;
@@ -743,4 +744,11 @@ display: none;
 }
 .credit-notice {
     display: none;
+}
+.change-pass-wrap {
+    display: none;
+}
+.fade-out {
+    transition: opacity 1s ease;
+    opacity: 0;
 }
