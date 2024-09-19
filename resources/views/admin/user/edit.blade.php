@@ -59,9 +59,24 @@
                         @enderror
                     </div>
 
+{{--                    <div class="mb-3">--}}
+{{--                        <label for="team">Группа</label>--}}
+{{--                        <select class="form-control" id='team' name='team_id'>--}}
+{{--                            @foreach($allTeams as $team)--}}
+{{--                                <option--}}
+{{--                                        {{ $team->id == $user->team_id ? 'selected' : ''}}--}}
+{{--                                        value="{{ $team->id }}">{{$team->title}}</option>--}}
+{{--                            @endforeach--}}
+{{--                        </select>--}}
+{{--                        @error('team_id')--}}
+{{--                        <p class="text-danger">{{'Выберите команду'}}</p>--}}
+{{--                        @enderror--}}
+{{--                    </div>--}}
+
                     <div class="mb-3">
                         <label for="team">Группа</label>
                         <select class="form-control" id='team' name='team_id'>
+                            <option value="" {{ $user->team_id == null ? 'selected' : '' }}>Без группы</option>
                             @foreach($allTeams as $team)
                                 <option
                                         {{ $team->id == $user->team_id ? 'selected' : ''}}

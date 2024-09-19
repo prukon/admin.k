@@ -32,11 +32,20 @@
                 <label for="team">Группа</label>
 
 
+{{--                <select class="form-select" id='team' name='team_id'>--}}
+{{--                    @foreach($allTeams as $team)--}}
+{{--                        <option--}}
+{{--                        {{ old('team_id') == $team->id ? 'selected' : "" }}--}}
+{{--                         value="{{$team->id}}">{{$team->title}}</option>--}}
+{{--                    @endforeach--}}
+{{--                </select>--}}
+{{--                --}}
                 <select class="form-select" id='team' name='team_id'>
+                    <option value="" {{ old('team_id') == null ? 'selected' : "" }}>Без группы</option>
                     @foreach($allTeams as $team)
                         <option
-                        {{ old('team_id') == $team->id ? 'selected' : "" }}
-                         value="{{$team->id}}">{{$team->title}}</option>
+                                {{ old('team_id') == $team->id ? 'selected' : "" }}
+                                value="{{$team->id}}">{{$team->title}}</option>
                     @endforeach
                 </select>
             </div>
