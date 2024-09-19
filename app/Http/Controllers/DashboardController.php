@@ -112,7 +112,11 @@ class DashboardController extends Controller
             $usersTeam = User::where('is_enabled', 1)
                 ->orderBy('name', 'asc')
                 ->get();
-//dump('all');
+        } elseif ($teamName == 'withoutTeam') {
+            $usersTeam = User::where('is_enabled', 1)
+                ->where('team_id', null)
+                ->orderBy('name', 'asc')
+                ->get();
         } else {
             $usersTeam = User::where('team_id', $team->id)->where('is_enabled', 1)
                 ->orderBy('name', 'asc')
@@ -124,11 +128,11 @@ class DashboardController extends Controller
         }
         $userWithoutTeam = User::where('team_id', null)->get();
 
-if ($teamWeekDayId){
+        if ($teamWeekDayId) {
 
-} else {
-    $teamWeekDayId = null;
-}
+        } else {
+            $teamWeekDayId = null;
+        }
 
 
         if ($usersTeam) {

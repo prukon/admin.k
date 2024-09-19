@@ -356,6 +356,7 @@ document.addEventListener('DOMContentLoaded', function () {
             success: function (response) {
                 if (response.success) {
                     let team = response.team;
+                    console.log(team);
                     let teamWeekDayId = response.teamWeekDayId;
                     let usersTeam = response.usersTeam;
                     let userWithoutTeam = response.userWithoutTeam;
@@ -387,28 +388,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     }
 
-                    //Изменение состава юзеров
-                    function updateSelectUsers() {
-                        var users = document.querySelectorAll('#single-select-user option');
-                        users.forEach((user, index) => {
-                            if (index !== 0) { // оставить только первый элемент
-                                user.remove();
-                            }
-                        });
-
-                        var selectElement = document.querySelector('#single-select-user');
-
-
-                        usersTeam.forEach(user => {
-                            var option = document.createElement('option');
-                            // option.value = user.id;   // Присвойте значение из свойства id
-                            option.textContent = user.name; // Отобразите имя пользователя
-                            selectElement.appendChild(option);
-                        });
-
-
-                    }
-
                     // Новое изменение состава
                     function newUpdateSelectUsers() {
 
@@ -424,10 +403,20 @@ document.addEventListener('DOMContentLoaded', function () {
                         // Проходим по каждому пользователю и добавляем опцию в select
 
                         let userList;
-                        if (team != null) {
+                        if (team == "Без групппы") {
+                            userList = userWithoutTeam;
+                            console.log(1)
+                            console.log(userList);
+                        } else if (team != null) {
                             userList = usersTeamWithUnteamUsers;
+                            console.log(2)
+                            console.log(team);
+                            console.log(userList);
                         } else {
                             userList = usersTeam;
+                            console.log(3)
+                            console.log(team);
+                            console.log(userList);
                         }
 
                         userList.forEach(function (user) {
@@ -451,14 +440,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     enableSetupBtn(user, team, inputDate);
                     apendWeekdays(weekdays);
-                    // if (user) {
-                    //     if (user.team_id > 0) {
-                    //         newUpdateSelectUsers();
-                    //     }
-                    // } else {
-                    //     newUpdateSelectUsers();
-                    //
-                    // }
                     newUpdateSelectUsers();
 
                 }
