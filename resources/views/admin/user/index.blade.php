@@ -11,7 +11,9 @@
             <input id="search-input" class="find-input mb-2 mb-md-0 mr-md-3" type="text" placeholder="Имя">
             <select id="search-select" class="find-select mb-2 mb-md-0 mr-md-3">
                 <option value="">Группа</option>
-                @foreach($allTeams as $team)
+                <option value="none">Без группы</option>
+
+            @foreach($allTeams as $team)
                     <option value="{{ $team->id }}">{{ $team->title }}</option>
                 @endforeach
             </select>

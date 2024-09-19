@@ -26,8 +26,21 @@ class UserFilter extends AbstractFilter
     }
 
 
+//    public function teamId(Builder $builder, $value)
+//    {
+//        $builder->where('team_id', $value);
+//    }
+
     public function teamId(Builder $builder, $value)
     {
-        $builder->where('team_id', $value);
+        if ($value === 'none') {
+            // Если передан 'none', ищем пользователей с team_id = null
+            $builder->whereNull('team_id');
+        } else {
+            // Иначе фильтруем по конкретному значению team_id
+            $builder->where('team_id', $value);
+        }
     }
+
+
 }
