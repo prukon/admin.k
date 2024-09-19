@@ -83,7 +83,6 @@
                 @enderror
             </div>
 
-
             <div class="mb-3">
                 <label for="activity">Активность</label>
                 <select name="is_enabled" class="form-select" id='activity' name='activity'>

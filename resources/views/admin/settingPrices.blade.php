@@ -45,7 +45,6 @@
                             selectElement.appendChild(option);
                         }
 
-
                     </script>
 
                 </div>

@@ -23,6 +23,8 @@ class StoreController extends Controller
         $data = $request->validated();
         $this->service->store($data);
         return redirect()->route('admin.user.index');
+//        return redirect()->route('admin.user.edit', ['user' => $user->id]);
+
     }
 
 }

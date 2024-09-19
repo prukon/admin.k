@@ -1,7 +1,9 @@
 document.addEventListener('DOMContentLoaded', function () {
+    let usersPrice = []; // Объявляем переменную вне всех функций, чтобы она была доступна глобально
 
 
     // AJAX ПОДРОБНО. Получение списка пользователей
+
     const detailButtons = document.querySelectorAll('.detail');
     for (let i = 0; i < detailButtons.length; i++) {
         let button = detailButtons[i];
@@ -22,30 +24,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     success: function (response) {
                         if (response.success) {
-                         //Обновление списка пользователей справа
+
+
+                            //Обновление списка пользователей справа
                             let updateUserListRightBar = function () {
-                             var usersPrice = response.usersPrice;
-                             var usersTeam = response.usersTeam;
-                             let rightBar = $('.wrap-users');
-                             rightBar.empty();
-                             for (i = 0; i < usersPrice.length; i++) {
-                                 let userTeam = usersTeam.find(team => team.id === usersPrice[i].user_id); // Находим соответствующего пользователя в usersTeam
+                                usersPrice = response.usersPrice;
+                                var usersTeam = response.usersTeam;
 
-                                 let checkClass = usersPrice[i].is_paid ? '' : 'display-none';
-                                 let inputDisabled = usersPrice[i].is_paid ? 'disabled' : '';
 
-                                 let userBlock = `
+                                let rightBar = $('.wrap-users');
+                                rightBar.empty();
+                                for (i = 0; i < usersPrice.length; i++) {
+                                    let userTeam = usersTeam.find(team => team.id === usersPrice[i].user_id); // Находим соответствующего пользователя в usersTeam
+
+                                    let checkClass = usersPrice[i].is_paid ? '' : 'display-none';
+                                    let inputDisabled = usersPrice[i].is_paid ? 'disabled' : '';
+
+                                    let userBlock = `
                 <div class="row mb-2">
                     <div id="${userTeam ? userTeam.id : 'Имя не найдено'}" class="user-name col-6">  ${userTeam ? userTeam.name : 'Имя не найдено'}</div>
                     <div class="user-price col-4"><input class="" type="number" value=${usersPrice[i].price} ${inputDisabled}></div>
                     <div class="check col-2"><span class="fa fa-check ${checkClass} green-check" aria-hidden="true"></span></div>
                 </div>
             `;
-                                 rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
-                                 document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
-                             }
+                                    rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
+                                    document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
+                                }
 
-                         }
+                            }
                             updateUserListRightBar();
                         }
                     },
@@ -63,7 +69,6 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#single-select-date').on('change', function () {
         document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
         let selectedMonth = $(this).val();
-        console.log(selectedMonth);
         $.ajax({
             url: '/update-date',
             method: 'GET',
@@ -96,7 +101,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const teamPriceInput = parentDiv.querySelector('.team-price input');
             const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
             teamPriceInput.classList.remove('animated-input');
-
 
 
             if (parentDiv) {
@@ -169,41 +173,35 @@ document.addEventListener('DOMContentLoaded', function () {
         //Выключаем кнопку
         document.querySelector('#set-price-all-users').setAttribute('disabled', 'disabled');
 
-
-       // Собираем юзеров в массив для отправки
-        var usersData = [];
-        let createUserData = function (usersData) {
-            // Получаем все элементы с классом 'row mb-2' внутри 'wrap-users'
+        let updateUsersPrice = function (usersPrice) {
             const userRows = document.querySelectorAll('.wrap-users .row.mb-2');
+            for (i = 0; i < usersPrice.length; i++) {
 
-            // Создаем массив для хранения данных
+                for (j = 0; j < userRows.length; j++) {
+                    let userId = userRows[j].querySelector('.user-name').getAttribute('id');
+                    let price = userRows[j].querySelector('.user-price input').value;
+                    if (usersPrice[i].user_id == userId) {
 
-            // Проходим по каждому пользователю и собираем его данные
-            userRows.forEach(row => {
-                let userId = row.querySelector('.user-name').getAttribute('id');
-                let price = row.querySelector('.user-price input').value;
-                let name = row.querySelector('.user-name').textContent;
+                        // Обновляем цену пользователя с фронта в usersPrice
+                        usersPrice[i].price = price;
+                    }
+                }
+            }
+            return usersPrice;
+        };
 
-                // Добавляем объект с данными пользователя в массив
-                usersData.push({
-                    id: userId,
-                    price: price,
-                    name: name,
-                });
-            });
-            return usersData;
-        }
-            createUserData(usersData);
+        usersPrice = updateUsersPrice(usersPrice);
 
         $.ajax({
             url: '/set-price-all-users',
             method: 'GET',
             data: {
                 selectedDate: selectedDate,
-                usersData: JSON.stringify(usersData) // Конвертируем массив объектов в строку JSON
+                usersPrice: JSON.stringify(usersPrice), // Конвертируем массив объектов в строку JSON
             },
             success: function (response) {
-                var usersData = response.usersData;
+                // usersData = response.usersData;
+                usersPrice = response.usersPrice;
 
                 document.querySelector('#set-price-all-users').removeAttribute('disabled');
 
@@ -211,19 +209,25 @@ document.addEventListener('DOMContentLoaded', function () {
                 let apendUserWithPrice = function () {
                     let rightBar = $('.wrap-users');
                     rightBar.empty();
-                    for (i = 0; i < usersData.length; i++) {
-                        let userBlock = `
-                <div class="row mb-2">
-                    <div id="${usersData[i].id}" class="user-name col-6">  ${usersData[i].name}   </div>
-                    <div class="user-price col-4">
-<!--                    <input class="" type="number" value=${usersData[i].price}>-->
-                      <input class="animated-input" type="number" value="${usersData[i].price}">
 
-                    </div>
-                    
-                    <div class="check col-2"><span class="fa fa-check display-none green-check" aria-hidden="true"></span></div>
-                </div>
-            `;
+                    for (let i = 0; i < usersPrice.length; i++) {
+
+                        let isPaidClass = usersPrice[i].is_paid == 0 ? 'display-none' : '';
+                        let inputClass = usersPrice[i].is_paid == 0 ? 'animated-input' : '';
+                        let inputDisabled = usersPrice[i].is_paid == 1 ? 'disabled' : '';
+
+                        let userBlock = `
+        <div class="row mb-2">
+            <div id="${usersPrice[i].user_id}" class="user-name col-6">  ${usersPrice[i].name}   </div>
+            <div class="user-price col-4">
+                <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
+            </div>
+            <div class="check col-2">
+                <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
+            </div>
+        </div>
+    `;
+
                         rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
                         document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
                     }

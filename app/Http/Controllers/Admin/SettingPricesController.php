@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 
 class SettingPricesController extends Controller
@@ -128,12 +129,13 @@ class SettingPricesController extends Controller
     {
         $selectedDate = $request->query('selectedDate');
         $teamId = $request->query('teamId');
-        $usersTeam = User::where('team_id', $teamId)->where('is_enabled', true)->orderBy('name', 'asc')->get();
+        $usersTeam = User::where('team_id', $teamId)
+            ->where('is_enabled', true)
+            ->orderBy('name', 'asc')
+            ->get();
+
         $usersPrice = [];
-
-
-
-        foreach ($usersTeam as $user) {
+            foreach ($usersTeam as $user) {
             $userPrice = UserPrice::firstOrCreate(
                 [
                     'month' => $selectedDate,
@@ -143,7 +145,9 @@ class SettingPricesController extends Controller
                     'price' => 0
                 ]
             );
-            $usersPrice[] = $userPrice;
+                $userPrice->name = $user->name;
+
+                $usersPrice[] = $userPrice;
         }
 
 
@@ -298,8 +302,6 @@ class SettingPricesController extends Controller
                     ]);
                 }
             }
-
-
         }
 
         return response()->json([
@@ -309,28 +311,33 @@ class SettingPricesController extends Controller
 
     //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
 
-    public function setPriceAllUsers(Request $request)
-    {
+        public function setPriceAllUsers(Request $request)
+        {
 
-        $selectedDate = $request->query('selectedDate');
-        $usersData = json_decode($request->query('usersData'), true);
+            $selectedDate = $request->query('selectedDate');
+            $usersPrice = json_decode($request->query('usersPrice'), true);
 
-        foreach ($usersData as $userData) {
+            foreach ($usersPrice as $priceData) {
 
-            $userPrice = UserPrice::where('user_id', $userData['id'])
-                ->where('month', $selectedDate)
-                ->first();
+                $userPriceRecord = UserPrice::where('user_id', $priceData['user_id'])
+                    ->where('month', $selectedDate)
+                    ->where('is_paid', 0)
+                    ->first();
 
-            if ($userPrice && $userPrice->is_paid == 0) {
-                $userPrice->update([
-                    'price' => $userData['price']
-                ]);
+                if ($userPriceRecord) {
+                    Log::info('Применить справа: ', ['id' => $priceData['id'], 'price' => $priceData['price']]);
+                    $userPriceRecord->update([
+                        'price' => $priceData['price']
+                    ]);
+                }
+
             }
-        }
 
-        return response()->json([
-            'success' => true,
-            'usersData' => $usersData,
-        ]);
-    }
+            return response()->json([
+                'success' => true,
+//                'usersData' => $usersData,
+                'usersPrice' => $usersPrice,
+                'selectedDate' => $selectedDate
+            ]);
+        }
 }

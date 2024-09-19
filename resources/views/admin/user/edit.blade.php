@@ -370,7 +370,7 @@
                 document.getElementById('cancel-change-password-btn').addEventListener('click', function () {
                     document.getElementById('change-password-btn').style.display = 'inline-block';
                     document.getElementById('change-pass-wrap').style.display = 'none';
-                    document.getElementById('error-message').style.display = 'none';
+                    document.getElementById('error-message ').style.display = 'none';
 
 
                 });
