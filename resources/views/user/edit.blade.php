@@ -16,7 +16,6 @@
 
         <h4 class="mt-3 mb-3">Редактирование пользователя</h4>
 
-
         <div class="row">
             {{--Аватар--}}
             <div class="col-12 col-lg-3 d-flex flex-column align-items-center">
@@ -72,7 +71,6 @@
                         @enderror
                     </div>
 
-
                     <div class="mb-3">
                         <label for="start_date" class="form-label">Дата начала занятий</label>
                         <input disabled type="date" name="start_date" class="form-control" id="start_date"
@@ -81,13 +79,6 @@
                         <p class="text-danger">{{'Укажите дату начала занятий'}}</p>
                         @enderror
                     </div>
-
-
-                    {{--            <div class="mb-3">--}}
-                    {{--                <label for="formFile" class="form-label">Фото</label>--}}
-                    {{--                <input class="form-control" type="file" id="formFile" name='image' value="{{ $user->image }}">--}}
-                    {{--            </div>--}}
-
 
                     <div class="mb-3">
                         <label for="exampleFormControlInput1" class="form-label">Адрес электронной почты*</label>
@@ -183,10 +174,6 @@
 
 
                     </div>
-                    {{--                <div class="modal-footer">--}}
-                    {{--                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>--}}
-                    {{--                    <button type="button" class="btn btn-primary" id="saveImageBtn">Загрузить</button>--}}
-                    {{--                </div>--}}
                 </div>
             </div>
         </div>

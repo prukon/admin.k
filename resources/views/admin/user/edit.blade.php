@@ -59,19 +59,19 @@
                         @enderror
                     </div>
 
-{{--                    <div class="mb-3">--}}
-{{--                        <label for="team">Группа</label>--}}
-{{--                        <select class="form-control" id='team' name='team_id'>--}}
-{{--                            @foreach($allTeams as $team)--}}
-{{--                                <option--}}
-{{--                                        {{ $team->id == $user->team_id ? 'selected' : ''}}--}}
-{{--                                        value="{{ $team->id }}">{{$team->title}}</option>--}}
-{{--                            @endforeach--}}
-{{--                        </select>--}}
-{{--                        @error('team_id')--}}
-{{--                        <p class="text-danger">{{'Выберите команду'}}</p>--}}
-{{--                        @enderror--}}
-{{--                    </div>--}}
+                    {{--                    <div class="mb-3">--}}
+                    {{--                        <label for="team">Группа</label>--}}
+                    {{--                        <select class="form-control" id='team' name='team_id'>--}}
+                    {{--                            @foreach($allTeams as $team)--}}
+                    {{--                                <option--}}
+                    {{--                                        {{ $team->id == $user->team_id ? 'selected' : ''}}--}}
+                    {{--                                        value="{{ $team->id }}">{{$team->title}}</option>--}}
+                    {{--                            @endforeach--}}
+                    {{--                        </select>--}}
+                    {{--                        @error('team_id')--}}
+                    {{--                        <p class="text-danger">{{'Выберите команду'}}</p>--}}
+                    {{--                        @enderror--}}
+                    {{--                    </div>--}}
 
                     <div class="mb-3">
                         <label for="team">Группа</label>
@@ -143,9 +143,9 @@
 
                     <br>
                     <button type="button" id="change-password-btn" class="btn btn-primary mr-3">Изменить пароль</button>
-{{--                    <button type="submit"  id="change-password-btn" class="btn btn-primary update-btn  ">Изменить пароль</button>--}}
+                    {{--                    <button type="submit"  id="change-password-btn" class="btn btn-primary update-btn  ">Изменить пароль</button>--}}
 
-                    <div class="change-pass-wrap" id = "change-pass-wrap">
+                    <div class="change-pass-wrap" id="change-pass-wrap">
                         <div class="update-pass d-inline-block mt-3 mr-3 d-flex flex-row align-items-center">
                             <input type="password" id="new-password" class="form-control mr-2"
                                    placeholder="Новый пароль">
@@ -161,7 +161,9 @@
                             <label class="form-check-label" for="show-password">Показать пароль</label>
                         </div>
 
-                        <div id="error-message" class="text-danger mt-2" style="display:none;">Пароль должен быть не менее 8 символов</div>
+                        <div id="error-message" class="text-danger mt-2" style="display:none;">Пароль должен быть не
+                            менее 8 символов
+                        </div>
                     </div>
 
                     <div id="password-change-message" class="text-success ml-3" style="display:none;">Пароль
@@ -250,6 +252,30 @@
     </div>
     </div>
     </div>
+
+
+    <!-- Модальное окно для подтверждения удаления -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeleteModalLabel">Подтверждение удаления</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Вы уверены, что хотите удалить этого пользователя?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="confirmDeleteBtn">Да</button>
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Нет</button>
+
+
+                </div>
+            </div>
+        </div>
+    </div>
+
 @endsection
 @section('scripts')
     <script>
@@ -281,48 +307,7 @@
                     document.getElementById('change-pass-wrap').style.display = 'inline-block';
                 });
             }
-            // Клик по ПРИМЕНИТЬ в изменении пароля
-{{--            let applyPasswordBtn = function () {--}}
-{{--                document.getElementById('apply-password-btn').addEventListener('click', function () {--}}
-{{--                    var userId = '{{ $user->id }}';--}}
-{{--                    var newPassword = document.getElementById('new-password').value;--}}
-{{--                    var token = '{{ csrf_token() }}';--}}
 
-{{--                    fetch(`/admin/user/${userId}/update-password`, {--}}
-{{--                        method: 'POST',--}}
-{{--                        headers: {--}}
-{{--                            'Content-Type': 'application/json',--}}
-{{--                            'X-CSRF-TOKEN': token,--}}
-{{--                        },--}}
-{{--                        body: JSON.stringify({password: newPassword}),--}}
-{{--                    })--}}
-{{--                        .then(response => response.json())--}}
-{{--                        .then(data => {--}}
-{{--                            if (data.success) {--}}
-{{--                                document.getElementById('change-password-btn').style.display = 'inline-block';--}}
-{{--                                document.querySelector('#change-pass-wrap').style.display = 'none';--}}
-
-
-{{--                                function showPasswordChangeMessage() {--}}
-{{--                                    const message = document.getElementById('password-change-message');--}}
-{{--                                    message.style.display = 'block'; // Показываем сообщение--}}
-{{--                                    setTimeout(() => {--}}
-{{--                                        message.classList.add('fade-out'); // Начинаем плавное исчезновение--}}
-{{--                                    }, 2000); // Через 3 секунды--}}
-
-{{--                                    setTimeout(() => {--}}
-{{--                                        message.style.display = 'none'; // Полностью скрываем через 4 секунды (учитывая время на анимацию)--}}
-{{--                                        message.classList.remove('fade-out'); // Удаляем класс, чтобы можно было показать сообщение снова--}}
-{{--                                    }, 3000);--}}
-{{--                                }--}}
-
-{{--// Пример вызова функции--}}
-{{--                                showPasswordChangeMessage();--}}
-
-{{--                            }--}}
-{{--                        });--}}
-{{--                });--}}
-{{--            }--}}
 
             let applyPasswordBtn = function () {
                 document.getElementById('apply-password-btn').addEventListener('click', function () {
@@ -471,16 +456,34 @@
 
             }
 
+            // Скрытие модалки
             function hideModal() {
-                $(document).ready(function() {
+                $(document).ready(function () {
                     // Закрытие модального окна при клике на крестик
-                    $('#uploadPhotoModal .close').on('click', function() {
+                    $('#uploadPhotoModal .close').on('click', function () {
                         $('#uploadPhotoModal').modal('hide');
                     });
                 });
             }
 
+            // Обратока мадалки для уделения
+            function deleteModal() {
+                const deleteForm = document.querySelector('form.delete');
+                const deleteButton = deleteForm.querySelector('input[type="submit"]');
+                const confirmDeleteButton = document.getElementById('confirmDeleteBtn');
 
+                // Отключаем стандартное поведение при клике на кнопку "Удалить"
+                deleteButton.addEventListener('click', function (event) {
+                    event.preventDefault(); // Останавливаем стандартное поведение
+                    $('#confirmDeleteModal').modal('show'); // Показываем модалку
+                });
+
+                // Обрабатываем нажатие на кнопку "Да" в модальном окне для удаления
+                confirmDeleteButton.addEventListener('click', function () {
+                    $('#confirmDeleteModal').modal('hide'); // Закрываем модалку
+                    deleteForm.submit(); // Отправляем форму для удаления
+                });
+            }
 
 
             apendUserNametoForm("{{ $user->name }}");
@@ -489,6 +492,7 @@
             cancelChangePasswordBtn();
             showModal();
             hideModal();
+            deleteModal();
         });
 
     </script>
