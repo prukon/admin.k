@@ -27,10 +27,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     let team = response.team;
                     let formattedBirthday = response.formattedBirthday;
 
-
-
-                    console.log(scheduleUser);
-
                     //Сброс всех значений цен до нуля
                     function refreshPrice() {
                         // Получаем все элементы с классом 'price-value' и устанавливаем значение '0'
