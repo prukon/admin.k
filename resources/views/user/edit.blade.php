@@ -352,12 +352,23 @@
 
             }
 
+            function hideModal() {
+                $(document).ready(function() {
+                    // Закрытие модального окна при клике на крестик
+                    $('#uploadPhotoModal .close').on('click', function() {
+                        $('#uploadPhotoModal').modal('hide');
+                    });
+                });
+            }
+
+
 
             apendUserNametoForm("{{ $currentUser->name }}");
             changePasswordBtn();
             applyPasswordBtn();
             cancelChangePasswordBtn();
             showModal();
+            hideModal();
 
         });
 
