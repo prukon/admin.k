@@ -240,14 +240,12 @@
                     function closeNotice() {
                         document.querySelector('.credit-notice .close').addEventListener('click', function () {
                             document.querySelector('.credit-notice').style.display = 'none';
-                            console.log(1);
                         });
 
                         function showCreditNotice() {
                             let creditNotice = document.querySelector(".credit-notice");
                             const creditNoticeSum = document.querySelector(".credit-notice .summ").textContent;
                             if (creditNoticeSum > 0) {
-                                console.log(3)
                                 creditNotice.style.display = 'block';
                             }
                         }
@@ -258,7 +256,6 @@
                         let creditNotice = document.querySelector(".credit-notice");
                         const creditNoticeSum = document.querySelector(".credit-notice .summ").textContent;
                         if (creditNoticeSum > 0) {
-                            console.log(3)
                             creditNotice.style.display = 'block';
                         }
                     }
@@ -299,8 +296,6 @@
                         const currentMonth = monthsInRussian[currentDate.getMonth()];
                         const currentYear = currentDate.getFullYear();
                         const currentFormatedDate = `${currentMonth} ${currentYear}`;
-                        // console.log("currentFormatedDate:");
-                        // console.log(currentFormatedDate);
 
                         // Перебираем каждый сезон
                         seasons.forEach(function (season) {
@@ -323,22 +318,17 @@
                                 const parts = date.split(' ');
                                 const seasonOnlyMonth = parts[0]; // "Апрель"
                                 const seasonOnlyYear = parts[1];  // "2022"
-                                // console.log(seasonOnlyMonth);
-                                // console.log(seasonOnlyYear);
 
                                 currentFormatedDatetoDate = convertStringToDate(currentFormatedDate)
                                 FormatedToDate = convertStringToDate(date);
                                 if (FormatedToDate >= currentFormatedDatetoDate) {
                                     return
                                 }
-                                console.log("FormatedToDate:");
-                                console.log(FormatedToDate);
                                 // Проверяем, если кнопка называется "Оплатить" и не отключена
                                 if (button && button.textContent.trim() === 'Оплатить' && !button.disabled) {
                                     // Получаем значение из price-value
                                     const priceValue = parseFloat(container.querySelector('.price-value').textContent.trim());
 
-                                    // console.log(container.querySelector('.price-value').textContent);
                                     // Добавляем значение к общей сумме для этого сезона
 
                                     totalSum += priceValue;

@@ -82,7 +82,18 @@ class DashboardController extends Controller
         $scheduleUser = ScheduleUser::where('user_id', $user->id)->get();
 
 
+
+
+
         if ($user) {
+
+            // Форматируем дату рождения (предполагаем, что дата хранится в поле 'birthday')
+            $formattedBirthday = $user->birthday ? Carbon::parse($user->birthday)->format('d.m.Y') : null;
+
+            // Форматируем inputDate, если требуется
+//            $formattedInputDate = $inputDate ? Carbon::parse($inputDate)->format('d.m.Y') : null;
+
+
             return response()->json([
                 'success' => true,
                 'user' => $user,
@@ -91,6 +102,11 @@ class DashboardController extends Controller
                 'scheduleUser' => $scheduleUser,
                 'team' => $team,
                 'inputDate' => $inputDate,
+
+                'formattedBirthday' => $formattedBirthday, // Отправляем форматированную дату рождения
+//                'inputDate' => $formattedInputDate, // Отправляем форматированную inputDate
+
+
             ]);
         } else {
             return response()->json([
@@ -162,6 +178,12 @@ class DashboardController extends Controller
         $activeWeekdays = $request->query('activeWeekdays');
         $user = User::where('name', $userName)->first();
         $team = Team::where('title', $teamName)->first();
+
+//upd
+
+if ($inputDate == '01.01.1970') {
+    $inputDate = '01.09.2024';
+}
         $inputDate = date('Y-m-d', strtotime($inputDate));
 
         //Обновление команды у юзера
@@ -172,7 +194,6 @@ class DashboardController extends Controller
             ]);
         }
 
-        ;
         //Обновление даты начала занятий у юзера
         function updateStartDate($user, $inputDate)
         {
@@ -181,7 +202,6 @@ class DashboardController extends Controller
             ]);
         }
 
-        ;
         //Обновление расписания у юзера
         function updateScheduleUsers($user, $inputDate)
         {
@@ -191,14 +211,17 @@ class DashboardController extends Controller
                     'date' => $inputDate,
                 ]
             );
+
+
         }
 
         function setSchedule($user, $activeWeekdays, $inputDate)
         {
             $startDate = Carbon::parse($inputDate);
-            $endDate = Carbon::parse('2025-05-31');
 
-            // Пробегаем через каждый день от $inputDate до 31 мая 2025 года
+            $endDate = Carbon::parse('2025-05-31'); //fix
+
+            // Пробегаем через каждый день от $inputDate до 31 мая 2025 года ($endDate)
             while ($startDate->lte($endDate)) {
                 // Проверяем, если текущий день недели (weekday_id) присутствует в массиве дней
                 if (!empty($activeWeekdays)) {
@@ -223,6 +246,7 @@ class DashboardController extends Controller
             }
         }
 
+
         foreach ($team->weekdays as $teamWeekDay) {
             $teamWeekDayId[] = $teamWeekDay->id;
         }
@@ -232,17 +256,26 @@ class DashboardController extends Controller
             updateScheduleUsers($user, $inputDate);
             setSchedule($user, $activeWeekdays, $inputDate);
             updateUserTeam($user, $team);
+            $scheduleUser = ScheduleUser::where('user_id', $user->id)->get();
+            $userTeam = Team::where('id', $user->team_id)->first();
+
 
             return response()->json([
                 'success' => true,
                 'userName' => $userName,
                 'inputDate' => $inputDate,
                 'teamWeekDays' => $activeWeekdays,
+//                'scheduleData' => $scheduleData, // Возвращаем данные для обновления календаря
+                'scheduleUser' => $scheduleUser, //upd
+                'userTeam' => $userTeam,
+
+
             ]);
         } else {
             return response()->json([
                 'success' => false]);
         }
+
     }
 
     //AJAX загрузка аватарки

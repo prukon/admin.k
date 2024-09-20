@@ -23,8 +23,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     let userTeam = response.userTeam;
                     let userPrice = response.userPrice;
                     let scheduleUser = response.scheduleUser;
-                    let team = response.team;
                     let inputDate = response.inputDate;
+                    let team = response.team;
+                    let formattedBirthday = response.formattedBirthday;
+
+
+
+                    console.log(scheduleUser);
 
                     //Сброс всех значений цен до нуля
                     function refreshPrice() {
@@ -125,13 +130,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                 // Store the border price (if needed)
                                 borderPrice[seasonId].push(borderPrices[j]);
 
-// console.log('priceValues[j]:');
-// console.log(priceValues[j]);
 
                                 // Accumulate the total sum of price values
                                 totalSumm[seasonId] += Number(priceValues[j].textContent);
-                                console.log('totalSumm[seasonId]:');
-                                console.log(totalSumm[seasonId]);
 
                             }
 
@@ -169,7 +170,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                 if (button && button.textContent.trim() === 'Оплатить' && !button.disabled) {
                                     // Получаем значение из price-value
                                     const priceValue = parseFloat(container.querySelector('.price-value').textContent.trim());
-                                    // console.log(container.querySelector('.price-value').textContent);
                                     // Добавляем значение к общей сумме для этого сезона
                                     totalSum += priceValue;
                                 } else {
@@ -198,8 +198,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     // Вставка дня рождения
                     function apendBirthdayToUser() {
-                        if (user.birthday) {
-                            $('.birthday-value').html(user.birthday);
+                        if (formattedBirthday) {
+                            $('.birthday-value').html(formattedBirthday);
                         } else $('.birthday-value').html("-");
 
                     }
@@ -266,7 +266,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
                             // Проверить, не открыт ли сезон уже
                             const isOpen = topSeason.querySelector(".fa-chevron-up") !== null;
-                            console.log(isOpen);
                             // Если кнопка найдена и сезон не открыт, кликнуть на неё
                             if (header && isOpen) {
                                 header.click();
@@ -356,7 +355,6 @@ document.addEventListener('DOMContentLoaded', function () {
             success: function (response) {
                 if (response.success) {
                     let team = response.team;
-                    console.log(team);
                     let teamWeekDayId = response.teamWeekDayId;
                     let usersTeam = response.usersTeam;
                     let userWithoutTeam = response.userWithoutTeam;
@@ -405,18 +403,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         let userList;
                         if (team == "Без групппы") {
                             userList = userWithoutTeam;
-                            console.log(1)
-                            console.log(userList);
+
                         } else if (team != null) {
                             userList = usersTeamWithUnteamUsers;
-                            console.log(2)
-                            console.log(team);
-                            console.log(userList);
                         } else {
                             userList = usersTeam;
-                            console.log(3)
-                            console.log(team);
-                            console.log(userList);
                         }
 
                         userList.forEach(function (user) {
@@ -504,16 +495,35 @@ document.addEventListener('DOMContentLoaded', function () {
                     let inputDate = response.inputDate;
                     let teamWeekDays = response.teamWeekDays;
                     let teamWeekDaysGet = response.teamWeekDaysGet;
+                    let scheduleUser = response.scheduleUser; //upd
+                    let userTeam = response.userTeam;
+
+
 
                     // Выключение кнопки Установить
                     function enabledBtn() {
                         $('#setup-btn').removeAttr('disabled');
                     }
 
+                    // Добавление название группы юзеру
+                    function apendTeamNameToUser() {
+                        if (userTeam) {
+                            $('.group-value').html(userTeam.title);
+                        } else
+                            $('.group-value').html('-');
+                    }
+
                     enabledBtn();
+                    updateGlobalScheduleData(scheduleUser);
+                    setBackgroundToCalendar(globalScheduleData);
+                    apendTeamNameToUser();
+
+                    // Обновление календаря
+                    // updateCalendar(response.scheduleData); // передаем данные для обновления
+
 
                 }
-                location.reload();
+                // location.reload();
             },
         })
     });
