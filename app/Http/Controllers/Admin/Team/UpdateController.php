@@ -23,6 +23,8 @@ class UpdateController extends Controller
 //        Обновление данных
         $this->service->update($team,$data);
 
-        return redirect()->route('admin.team.index');
+//        return redirect()->route('admin.team.index');
+        return redirect()->route('admin.team.edit', ['team' => $team->id]);
+
     }
 }
