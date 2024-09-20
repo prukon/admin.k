@@ -18,23 +18,48 @@
                 @enderror
             </div>
 
+{{--            <div class="mb-3">--}}
+{{--                <div class="form-group">--}}
+{{--                    <label for="weekdays">Расписание</label>--}}
+{{--                    <select multiple class="form-control" id="weekdays" name="weekdays[]">--}}
+{{--                        @foreach($weekdays as $weekday)--}}
+{{--                            <option--}}
+{{--                                    @foreach($team->weekdays as $teamWeekday)--}}
+{{--                                        {{$weekday->id === $teamWeekday->id ? 'selected' : ''}}--}}
+{{--                                    @endforeach--}}
+{{--                                    value="{{$weekday->id}}">{{$weekday->title}}</option>--}}
+{{--                        @endforeach--}}
+{{--                    </select>--}}
+{{--                    @error('weekdays')--}}
+{{--                    <p class="text-danger">{{'Укажите дни недели'}}</p>--}}
+{{--                    @enderror--}}
+{{--                </div>--}}
+{{--            </div>--}}
+
             <div class="mb-3">
                 <div class="form-group">
                     <label for="weekdays">Расписание</label>
-                    <select multiple class="form-control" id="weekdays" name="weekdays[]">
+                    <div id="weekdays">
                         @foreach($weekdays as $weekday)
-                            <option
-                                    @foreach($team->weekdays as $teamWeekday)
-                                        {{$weekday->id === $teamWeekday->id ? 'selected' : ''}}
-                                    @endforeach
-                                    value="{{$weekday->id}}">{{$weekday->title}}</option>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="weekday-{{$weekday->id}}" name="weekdays[]"
+                                       value="{{$weekday->id}}"
+                                @foreach($team->weekdays as $teamWeekday)
+                                    {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}
+                                        @endforeach
+                                >
+                                <label class="form-check-label" for="weekday-{{$weekday->id}}">
+                                    {{$weekday->title}}
+                                </label>
+                            </div>
                         @endforeach
-                    </select>
+                    </div>
                     @error('weekdays')
                     <p class="text-danger">{{'Укажите дни недели'}}</p>
                     @enderror
                 </div>
             </div>
+
 
             <div class="mb-3">
                 <label for="order_by" class="form-label">Сортировка</label>
