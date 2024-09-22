@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                         }
 
 // Блокировка кнопок оплаты
-                                        button.setAttribute('disabled', 'disabled');
+//                                         button.setAttribute('disabled', 'disabled');
                                     }
                                 }
 

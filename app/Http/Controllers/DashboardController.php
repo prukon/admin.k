@@ -81,18 +81,10 @@ class DashboardController extends Controller
         $userPrice = UserPrice::where('user_id', $user->id)->get();
         $scheduleUser = ScheduleUser::where('user_id', $user->id)->get();
 
-
-
-
-
         if ($user) {
 
             // Форматируем дату рождения (предполагаем, что дата хранится в поле 'birthday')
             $formattedBirthday = $user->birthday ? Carbon::parse($user->birthday)->format('d.m.Y') : null;
-
-            // Форматируем inputDate, если требуется
-//            $formattedInputDate = $inputDate ? Carbon::parse($inputDate)->format('d.m.Y') : null;
-
 
             return response()->json([
                 'success' => true,
@@ -102,11 +94,7 @@ class DashboardController extends Controller
                 'scheduleUser' => $scheduleUser,
                 'team' => $team,
                 'inputDate' => $inputDate,
-
                 'formattedBirthday' => $formattedBirthday, // Отправляем форматированную дату рождения
-//                'inputDate' => $formattedInputDate, // Отправляем форматированную inputDate
-
-
             ]);
         } else {
             return response()->json([
