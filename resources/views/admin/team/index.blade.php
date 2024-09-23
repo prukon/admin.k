@@ -7,6 +7,12 @@
 
         <h4 class="pt-3">Группы</h4>
 
+        <hr>
+        <div>
+            <a href="{{ route('admin.team.create') }}" class="btn btn-primary">Добавить группу</a>
+        </div>
+        <hr>
+
         @php
             $counter = 1;
         @endphp
@@ -14,7 +20,7 @@
         @foreach($allTeams as $team)
             <div class="team">
                 <a href="{{ route('admin.team.edit', $team->id) }}"
-                    style="{{ $team->is_enabled == 0 ? 'color: red;' : '' }}">
+                   style="{{ $team->is_enabled == 0 ? 'color: red;' : '' }}">
                     {{ $counter }}. {{$team->title}}
                 </a>
             </div>
@@ -23,19 +29,11 @@
             @endphp
         @endforeach
 
-
-
         <div class="mt-3">
             {{ $allTeams->withQueryString()->links() }}
         </div>
 
-
-        <div>
-            <a href="{{ route('admin.team.create') }}" class="btn btn-primary mb-3 mt-3">Добавить группу</a>
-        </div>
-
-
-        </div>
+    </div>
     {{--    </div>--}}
 
 @endsection

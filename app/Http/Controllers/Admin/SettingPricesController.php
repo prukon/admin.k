@@ -13,7 +13,11 @@ use App\Models\User;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
+//use Illuminate\Support\Facades\Log;
+use App\Models\Log;
+use Yajra\DataTables\DataTables;
+
+
 
 
 class SettingPricesController extends Controller
@@ -38,6 +42,8 @@ class SettingPricesController extends Controller
     {
         $allTeams = Team::all();
         $teamPrices = collect(); // Пустая коллекция по умолчанию
+        $logs = Log::with('author')->orderBy('created_at', 'desc')->get();
+
 
         if (isset($_GET['current-month'])) {
 
@@ -82,6 +88,7 @@ class SettingPricesController extends Controller
             "allTeams",
             'currentDate',
             'teamPrices',
+            'logs'
         ));
     }
 
@@ -311,7 +318,7 @@ class SettingPricesController extends Controller
 
     //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
 
-        public function setPriceAllUsers(Request $request)
+    public function setPriceAllUsers(Request $request)
         {
 
             $selectedDate = $request->query('selectedDate');
@@ -340,4 +347,28 @@ class SettingPricesController extends Controller
                 'selectedDate' => $selectedDate
             ]);
         }
+
+    // Метод для обработки DataTables запросов
+    public function getLogsData()
+    {
+        $logs = Log::with('author')->select('logs.*');
+
+        return DataTables::of($logs)
+            ->addColumn('author', function ($log) {
+                return $log->author ? $log->author->name : 'Неизвестно';
+            })
+            ->editColumn('created_at', function ($log) {
+                return $log->created_at->format('d.m.Y / H:i:s');
+            })
+            ->editColumn('type', function ($log) {
+                // Логика для преобразования типа
+                $typeLabels = [
+                    1 => 'Изменение цен',
+                    2 => 'Обновление',
+                    3 => 'Удаление',
+                ];
+                return $typeLabels[$log->type] ?? 'Неизвестный тип';
+            })
+            ->make(true);
+    }
 }

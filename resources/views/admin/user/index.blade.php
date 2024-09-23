@@ -5,24 +5,33 @@
 
     <div class="col-md-9 main-content users-list">
 
+
         <h4 class="pt-3 ">Пользователи</h4>
 
-        <div id="search-container" class="d-flex flex-column flex-md-row align-items-stretch align-items-md-center mb-3">
-            <input id="search-input" class="find-input mb-2 mb-md-0 mr-md-3" type="text" placeholder="Имя">
-            <select id="search-select" class="find-select mb-2 mb-md-0 mr-md-3">
-                <option value="">Группа</option>
-                <option value="none">Без группы</option>
+        <hr>
+        <div class="buttons d-flex flex-row align-items-center mb-3">
 
-            @foreach($allTeams as $team)
-                    <option value="{{ $team->id }}">{{ $team->title }}</option>
-                @endforeach
-            </select>
-            <button id="search-button" class="btn btn-primary">Найти</button>
+            <div id="search-container" class="d-flex flex-row align-items-center">
+                <input id="search-input" class="form-control mr-3" type="text" placeholder="Имя" style="height: 38px;">
+                <select id="search-select" class="form-control mr-3" style="height: 38px;">
+                    <option value="">Группа</option>
+                    <option value="none">Без группы</option>
+                    @foreach($allTeams as $team)
+                        <option value="{{ $team->id }}">{{ $team->title }}</option>
+                    @endforeach
+                </select>
+                <button id="search-button" class="btn btn-primary" style="height: 38px;">Найти</button>
+            </div>
+
+            <div class="ml-3 mr-3" style="width: 1px; height: 20px; background-color: #000;"></div>
+
+
+            <a href="{{ route('admin.user.create') }}" class="btn btn-primary ">Добавить пользователя</a>
+
         </div>
 
 
-
-
+        <hr>
         @php
             $counter = 1;
         @endphp
@@ -43,11 +52,6 @@
         <div class="mt-3">
             {{ $allUsers->withQueryString()->links() }}
         </div>
-
-        <div>
-            <a href="{{ route('admin.user.create') }}" class="btn btn-primary mb-3 mt-3">Добавить пользователя</a>
-        </div>
-
 
     </div>
 

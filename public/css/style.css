@@ -752,3 +752,14 @@ display: none;
     transition: opacity 1s ease;
     opacity: 0;
 }
+
+#search-input,
+#search-select,
+#search-button {
+    height: 35px!important;
+}
+
+/* Модальное окно на 90% ширины экрана */
+.modal-lg {
+    max-width: 90%;
+}

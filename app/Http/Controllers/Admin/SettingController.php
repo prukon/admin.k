@@ -35,8 +35,6 @@ class SettingController extends Controller
 
     public function index()
     {
-
-
         $setting = Setting::where('name', 'textForUsers')->first();
         $textForUsers = $setting ? $setting->text : null;
 
