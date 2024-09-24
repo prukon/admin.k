@@ -180,6 +180,9 @@ class SettingPricesController extends Controller
         $teamId = $request->query('teamId');
         $selectedDate = $request->query('selectedDate');
         $usersTeam = User::where('team_id', $teamId)->get();
+        $authorId = auth()->id(); // Авторизованный пользователь
+        $teamTitle = Team::where('id', $teamId)->first()->title;
+
 
         TeamPrice::updateOrCreate(
             [
@@ -190,6 +193,14 @@ class SettingPricesController extends Controller
                 'price' => $teamPrice
             ]
         );
+
+        Log::create([
+            'type' => 3, // Лог для обновления цены команды
+            'author_id' => $authorId,
+            'description' => "Обновлена цена : {$teamPrice} руб. Группа: {$teamTitle}. ID: {$teamId}. Дата: {$selectedDate}.",
+            'created_at' => now(),
+        ]);
+
 
         // Обновляем цены для пользователей
         $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
@@ -354,8 +365,8 @@ class SettingPricesController extends Controller
                 // Логика для преобразования типа
                 $typeLabels = [
                     1 => 'Изменение цен во всех группах',
-                    2 => 'Изменение цен в одной группе',
-                    3 => 'Удаление',
+                    2 => 'Индивидуальное изменение цен',
+                    3 => 'Изменение цен в одной группе',
                 ];
                 return $typeLabels[$log->type] ?? 'Неизвестный тип';
             })
