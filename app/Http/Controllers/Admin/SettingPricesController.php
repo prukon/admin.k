@@ -261,7 +261,7 @@ class SettingPricesController extends Controller
                     'type' => 1, // Лог для обновления цены команды
                     'author_id' => $authorId,
                     'description' => "Обновлена цена: {$teamData['price']} руб. Команда: {$team->title}. ID: {$team->id}. Дата: {$selectedDate}.",
-                    'created_at' => now(),
+                        'created_at' => now(),
                 ]);
             }
 
