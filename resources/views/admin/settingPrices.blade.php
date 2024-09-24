@@ -86,8 +86,6 @@
         </div>
     </div>
 
-
-
     <!-- Модальное окно прменения -->
     <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -152,6 +150,17 @@
                     { data: 'created_at', name: 'created_at' }
                 ],
                 order: [[4, 'desc']], // Сортировка по дате создания (последние записи первыми)
+
+                // Задаем ширину для столбца ID
+                columnDefs: [
+                    { width: "40px", targets: 0 }, // Устанавливаем ширину 50px для первого столбца
+                    { width: "150px", targets: 4 } // Устанавливаем ширину 50px для первого столбца
+
+                ],
+
+                autoWidth: false, // Отключаем автоширину, чтобы вручную заданные стили применялись
+
+
                 language: {
                     "processing": "Обработка...",
                     "search": "Поиск:",

@@ -15,10 +15,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 //use Illuminate\Support\Facades\Log;
 use App\Models\Log;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
-
-
-
 
 class SettingPricesController extends Controller
 {
@@ -91,45 +89,6 @@ class SettingPricesController extends Controller
             'logs'
         ));
     }
-
-//    public function index(FilterRequest $request)
-//    {
-//        dump("index");
-//
-////        $data = $request->validated();
-////        $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
-////
-//        $allTeams = Team::all();
-//        $allTeamsCount = Team::all()->count();
-//        $allUsersCount = User::all()->count();
-//        $teamPrices = collect(); // Пустая коллекция по умолчанию
-//
-//        $currentDate = Setting::where('id', 1)->first();
-//        $currentDate = $currentDate->date;
-//        if ($currentDate) {
-//            $teamPrices = TeamPrice::where('month', $currentDate)->get();
-//        }
-//
-//        //        Carbon::setLocale('ru');
-//        //        $currentDate = Carbon::now()->translatedFormat('F Y');
-//        // Устанавливаем локаль на русском
-//        //        if ($currentDate) {
-//        //            $teamPrices = TeamPrice::where('month', $currentDate)->get();
-//        //        }
-//
-//
-//        return view("admin/settingPrices", compact(
-//            "allTeams",
-////            "allUsers",
-//            "allUsersCount",
-//            "allTeamsCount",
-//            'currentDate',
-//            'teamPrices',
-////            "weekdays",
-////            "curTeam",
-////            "curUser"
-//        ));
-//    }
 
     // AJAX ПОДРОБНО. Получение списка пользователей
     public function getTeamPrice(Request $request)
@@ -266,13 +225,12 @@ class SettingPricesController extends Controller
     //AJAX ПРИМЕНИТЬ слева.Установка цен всем группам
     public function setPriceAllTeams(Request $request)
     {
-
         $selectedDate = $request->query('selectedDate');
         $teamsData = json_decode($request->query('teamsData'), true);
+        $authorId = auth()->id(); // Авторизованный пользователь
 
         // Перебираем массив и обновляем цены команд
         foreach ($teamsData as $teamData) {
-
             // Обновляем цены для групп
             $team = Team::where('title', $teamData['name'])->first();
             if ($team) {
@@ -286,7 +244,16 @@ class SettingPricesController extends Controller
                         'price' => $teamData['price']
                     ]
                 );
+
+                // Логируем успешное обновление цены для команды
+                Log::create([
+                    'type' => 1, // Лог для обновления цены команды
+                    'author_id' => $authorId,
+                    'description' => "Обновлена цена: {$teamData['price']} руб. Команда: {$team->title}. ID: {$team->id}. Дата: {$selectedDate}.",
+                    'created_at' => now(),
+                ]);
             }
+
             // Обновляем цены для пользователей
             $users = User::where('team_id', $team->id)->get(); // Предполагается, что пользователи связаны с командами
 
@@ -300,6 +267,14 @@ class SettingPricesController extends Controller
                     $userPrice->update([
                         'price' => $teamData['price']
                     ]);
+
+                    // Логируем успешное обновление цены для пользователя
+//                    Log::create([
+//                        'type' => 2, // Лог для обновления цены пользователя
+//                        'author_id' => $authorId,
+//                        'descr    iption' => "Обновлена цена для пользователя {$user['name']} (ID: {$user['id']}) на дату {$selectedDate}.",
+//                        'created_at' => now(),
+//                    ]);
                 } else {
                     UserPrice::create([
                         'user_id' => $user['id'],
@@ -307,6 +282,14 @@ class SettingPricesController extends Controller
                         'price' => $teamData['price'],
                         'is_paid' => false
                     ]);
+
+                    // Логируем создание новой записи цены для пользователя
+//                    Log::create([
+//                        'type' => 2, // Лог для создания цены пользователя
+//                        'author_id' => $authorId,
+//                        'description' => "Создана новая запись цены для пользователя {$user['name']} (ID: {$user['id']}) на дату {$selectedDate}.",
+//                        'created_at' => now(),
+//                    ]);
                 }
             }
         }
@@ -317,12 +300,13 @@ class SettingPricesController extends Controller
     }
 
     //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
-
     public function setPriceAllUsers(Request $request)
         {
 
             $selectedDate = $request->query('selectedDate');
             $usersPrice = json_decode($request->query('usersPrice'), true);
+            $authorId = auth()->id(); // Авторизованный пользователь
+
 
             foreach ($usersPrice as $priceData) {
 
@@ -332,17 +316,23 @@ class SettingPricesController extends Controller
                     ->first();
 
                 if ($userPriceRecord) {
-                    Log::info('Применить справа: ', ['id' => $priceData['id'], 'price' => $priceData['price']]);
+//                    Log::info('Применить справа: ', ['id' => $priceData['id'], 'price' => $priceData['price']]);
                     $userPriceRecord->update([
                         'price' => $priceData['price']
                     ]);
-                }
 
+                    // Логируем успешное обновление цены для команды
+                    Log::create([
+                        'type' => 2, // Лог для обновления цены команды
+                        'author_id' => $authorId,
+                        'description' => "Обновлена цена : {$priceData['price']} руб. Имя: {$priceData['name']}. ID: {$priceData['user_id']}. Дата: {$selectedDate}.",
+                        'created_at' => now(),
+                    ]);
+                }
             }
 
             return response()->json([
                 'success' => true,
-//                'usersData' => $usersData,
                 'usersPrice' => $usersPrice,
                 'selectedDate' => $selectedDate
             ]);
@@ -363,8 +353,8 @@ class SettingPricesController extends Controller
             ->editColumn('type', function ($log) {
                 // Логика для преобразования типа
                 $typeLabels = [
-                    1 => 'Изменение цен',
-                    2 => 'Обновление',
+                    1 => 'Изменение цен во всех группах',
+                    2 => 'Изменение цен в одной группе',
                     3 => 'Удаление',
                 ];
                 return $typeLabels[$log->type] ?? 'Неизвестный тип';
