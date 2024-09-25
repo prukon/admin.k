@@ -9,11 +9,15 @@ class Log extends Model
     protected $table = 'logs'; // Явно указываем таблицу, если нужно
 
 
-    protected $fillable = [
-        'type',
-        'author_id',
-        'description',
-    ];
+//    protected $fillable = [
+//        'type',
+//        'author_id',
+//        'description',
+//        'action'
+//    ];
+
+    protected $guarded = []; //разрешение на изменение данных в таблице}
+
 
     // Укажите, что поле created_at является датой
     protected $casts = [

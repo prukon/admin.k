@@ -109,5 +109,9 @@
     <!-- Модальное окно логов -->
     @include('includes.logModal')
     <!-- Модальное окно логов -->
-
+<script>
+    $(document).ready(function() {
+        showLogModal("{{ route('logs.data.settingPrice') }}"); // Здесь можно динамически передать route
+    })
+</script>
 @endsection

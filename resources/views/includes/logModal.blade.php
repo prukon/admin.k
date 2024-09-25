@@ -12,7 +12,7 @@
                     <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Тип</th>
+                        <th>Действие</th>
                         <th>Автор</th>
                         <th>Описание</th>
                         <th>Дата создания</th>
@@ -21,59 +21,69 @@
                 </table>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    $(document).ready(function() {
-        // Инициализация DataTables с серверной пагинацией
-        $('#logsTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: "{{ route('logs.data') }}", // URL для получения данных с сервера
-            columns: [
-                { data: 'id', name: 'id' },
-                { data: 'type', name: 'type' },
-                { data: 'author', name: 'author' },
-                { data: 'description', name: 'description' },
-                { data: 'created_at', name: 'created_at' }
-            ],
-            order: [[4, 'desc']], // Сортировка по дате создания (последние записи первыми)
+    function showLogModal(routeName) {
+        $(document).ready(function() {
+            // Инициализация DataTables с серверной пагинацией
+            $('#logsTable').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: routeName, // URL для получения данных с сервера
+                columns: [
+                    { data: 'id', name: 'id' },
+                    { data: 'action', name: 'action' },
+                    { data: 'author', name: 'author' },
+                    { data: 'description',
+                        name: 'description',
+                        render: function(data, type, row) {
+                            return data.replace(/\n/g, "<br>"); // Преобразование новых строк в <br>
+                        }
+                    },
+                    { data: 'created_at', name: 'created_at' }
+                ],
+                order: [[4, 'desc']], // Сортировка по дате создания (последние записи первыми)
 
-            // Задаем ширину для столбца ID
-            columnDefs: [
-                { width: "40px", targets: 0 }, // Устанавливаем ширину 50px для первого столбца
-                { width: "150px", targets: 4 } // Устанавливаем ширину 50px для первого столбца
+                // Задаем ширину для столбца ID
+                columnDefs: [
+                    { width: "40px", targets: 0 }, // id
+                    // { width: "150px", targets: 1 }, // Действие
+                    // { width: "150px", targets: 2 }, // Автор
+                    // { width: "400px", targets: 3 }, // Описание
+                    { width: "150px", targets: 4 }, // Дата создания
 
-            ],
+                ],
 
-            autoWidth: false, // Отключаем автоширину, чтобы вручную заданные стили применялись
+                autoWidth: false, // Отключаем автоширину, чтобы вручную заданные стили применялись
 
-
-            language: {
-                "processing": "Обработка...",
-                "search": "Поиск:",
-                "lengthMenu": "Показать _MENU_ записей",
-                "info": "Записи с _START_ до _END_ из _TOTAL_ записей",
-                "infoEmpty": "Записи с 0 до 0 из 0 записей",
-                "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                "loadingRecords": "Загрузка записей...",
-                "zeroRecords": "Записи отсутствуют.",
-                "emptyTable": "В таблице отсутствуют данные",
-                "paginate": {
-                    "first": "Первая",
-                    "previous": "Предыдущая",
-                    "next": "Следующая",
-                    "last": "Последняя"
-                },
-                "aria": {
-                    "sortAscending": ": активировать для сортировки столбца по возрастанию",
-                    "sortDescending": ": активировать для сортировки столбца по убыванию"
+                language: {
+                    "processing": "Обработка...",
+                    "search": "Поиск:",
+                    "lengthMenu": "Показать _MENU_ записей",
+                    "info": "Записи с _START_ до _END_ из _TOTAL_ записей",
+                    "infoEmpty": "Записи с 0 до 0 из 0 записей",
+                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
+                    "loadingRecords": "Загрузка записей...",
+                    "zeroRecords": "Записи отсутствуют.",
+                    "emptyTable": "В таблице отсутствуют данные",
+                    "paginate": {
+                        "first": "Первая",
+                        "previous": "Предыдущая",
+                        "next": "Следующая",
+                        "last": "Последняя"
+                    },
+                    "aria": {
+                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
+                        "sortDescending": ": активировать для сортировки столбца по убыванию"
+                    }
                 }
-            }
+            });
         });
-    });
+    }
+
 </script>

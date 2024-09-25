@@ -195,7 +195,8 @@ class SettingPricesController extends Controller
         );
 
         Log::create([
-            'type' => 3, // Лог для обновления цены команды
+            'type' => 1,
+            'action' => 3, // Лог для обновления цены команды
             'author_id' => $authorId,
             'description' => "Обновлена цена : {$teamPrice} руб. Группа: {$teamTitle}. ID: {$teamId}. Дата: {$selectedDate}.",
             'created_at' => now(),
@@ -258,7 +259,8 @@ class SettingPricesController extends Controller
 
                 // Логируем успешное обновление цены для команды
                 Log::create([
-                    'type' => 1, // Лог для обновления цены команды
+                    'type' => 1,
+                    'action' => 1,
                     'author_id' => $authorId,
                     'description' => "Обновлена цена: {$teamData['price']} руб. Команда: {$team->title}. ID: {$team->id}. Дата: {$selectedDate}.",
                         'created_at' => now(),
@@ -334,7 +336,8 @@ class SettingPricesController extends Controller
 
                     // Логируем успешное обновление цены для команды
                     Log::create([
-                        'type' => 2, // Лог для обновления цены команды
+                        'type' => 1,
+                        'action' => 2, // Лог для обновления цены команды
                         'author_id' => $authorId,
                         'description' => "Обновлена цена : {$priceData['price']} руб. Имя: {$priceData['name']}. ID: {$priceData['user_id']}. Дата: {$selectedDate}.",
                         'created_at' => now(),
@@ -352,7 +355,9 @@ class SettingPricesController extends Controller
     // Метод для обработки DataTables запросов
     public function getLogsData()
     {
-        $logs = Log::with('author')->select('logs.*');
+        $logs = Log::with('author')
+            ->where('type', 1) // Добавляем условие для фильтрации по type
+            ->select('logs.*');
 
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {
@@ -361,7 +366,7 @@ class SettingPricesController extends Controller
             ->editColumn('created_at', function ($log) {
                 return $log->created_at->format('d.m.Y / H:i:s');
             })
-            ->editColumn('type', function ($log) {
+            ->editColumn('action', function ($log) {
                 // Логика для преобразования типа
                 $typeLabels = [
                     1 => 'Изменение цен во всех группах',

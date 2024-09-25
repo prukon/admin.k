@@ -34,6 +34,8 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::patch('admin/users/{user}', '\App\Http\Controllers\Admin\User\UpdateController')->name('admin.user.update');
 //    Route::delete('', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
     Route::delete('/admin/user/{user}', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
+    Route::get('/admin/user/logs-data', '\App\Http\Controllers\Admin\User\LogsController')->name('logs.data.user');
+
 
 
 //    Route::get('admin/reports', [\App\Http\Controllers\Admin\Report\ReportController::class, 'index'])->name('admin.report');
@@ -67,8 +69,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/set-team-price', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setTeamPrice'])->name('setTeamPrice');
     Route::get('/set-price-all-teams', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllTeams'])->name('setPriceAllTeams');
     Route::get('/set-price-all-users', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
-
-    Route::get('/logs-data', [\App\Http\Controllers\Admin\SettingPricesController::class, 'getLogsData'])->name('logs.data');
+    Route::get('/setting-prices/logs-data', [\App\Http\Controllers\Admin\SettingPricesController::class, 'getLogsData'])->name('logs.data.settingPrice');
 
 
 
@@ -96,6 +97,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/account-settings/users/{user}/edit', [\App\Http\Controllers\AccountSettingController::class, 'index'])->name('user.edit');
     Route::patch('/account-settings/users/{user}', [\App\Http\Controllers\AccountSettingController::class, 'update'])->name('user.update');
     Route::post('/user/{id}/update-password', [\App\Http\Controllers\AccountSettingController::class, 'updatePassword']);
+//    Route::get('/account-settings/logs-data', [\App\Http\Controllers\AccountSettingController::class, 'getLogsData'])->name('logs.data.accountSettings');
 
 
 });

@@ -28,6 +28,8 @@
 
             <a href="{{ route('admin.user.create') }}" class="btn btn-primary ">Добавить пользователя</a>
 
+            <button type="button" class="btn btn-primary ml-3" id="logs" data-bs-toggle="modal" data-bs-target="#historyModal">История изменений</button>
+
         </div>
 
 
@@ -60,4 +62,13 @@
     </script>
     {{--    </div>--}}
     {{--    </div>--}}
+
+    <!-- Модальное окно логов -->
+    @include('includes.logModal')
+    <!-- Модальное окно логов -->
+    <script>
+        $(document).ready(function() {
+            showLogModal("{{ route('logs.data.user') }}"); // Здесь можно динамически передать route
+        })
+    </script>
 @endsection
