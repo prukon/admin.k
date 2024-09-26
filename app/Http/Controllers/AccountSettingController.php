@@ -29,9 +29,10 @@ class AccountSettingController extends Controller
     {
         $allTeams = Team::All();
         $currentUser = Auth::user();
+        $user = Auth::user();
 
 
-        return view('user.edit', compact('currentUser',
+        return view('user.edit', compact('user',
             'allTeams',
 
         ));
@@ -42,6 +43,8 @@ class AccountSettingController extends Controller
         $authorId = auth()->id(); // Авторизованный пользователь
         $oldData = User::where('id', $authorId)->first();
         $currentUser = Auth::user();
+        $user = Auth::user();
+
         $data = $request->validated();
         $this->service->update($user, $data);
         $authorName = User::where('id', $authorId)->first()->name;
@@ -55,7 +58,7 @@ class AccountSettingController extends Controller
             'created_at' => now(),
         ]);
 
-        return redirect()->route('user.edit', ['user' => $currentUser->id]);
+        return redirect()->route('user.edit', ['user' => $user->id]);
 
     }
 

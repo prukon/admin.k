@@ -59,7 +59,8 @@ class UpdateController extends Controller
             'created_at' => now(),
         ]);
 
-        return redirect()->route('admin.user.edit', ['user' => $user->id]);
+        return redirect()->route('admin.user.edit', ['user' => $user->id])->with('success', 'Пользователь успешно обновлен.');;
+
     }
 
     public function updatePassword(Request $request, $id)

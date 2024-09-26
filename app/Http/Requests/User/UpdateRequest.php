@@ -21,14 +21,37 @@ class UpdateRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Получаем ID пользователя из параметра маршрута
+        $userId = $this->route('user')->id;
+
         return [
-//            'name' => 'required|string|max:30',
             'birthday' => 'nullable|date',
-//            'team_id' => 'nullable|string',
-//            'start_date' => 'nullable|date',
-//            'image' => '',
-            'email' => 'required|string|email|max:20',  // Поле email обязательно, должно быть строкой, соответствовать формату email и не превышать 255 символов
-//            'is_enabled' => 'boolean',  // Поле is_enabled должно быть булевым значением
+            'email' => 'required|string|email|max:20|unique:users,email,' . $userId,
+        ];
+    }
+
+    public function attributes()
+    {
+        return [
+            'birthday' => 'Дата рождения',
+            'email' => 'Email',
+        ];
+    }
+    public function messages()
+    {
+        return [
+
+//            // Поле "Дата рождения"
+            'birthday.date' => 'Поле "Дата рождения" должно быть корректной датой.',
+            'birthday.before_or_equal' => 'Поле "Дата рождения" не может быть позднее сегодняшнего дня.',
+
+            // Поле "Email"
+            'email.required' => 'Поле "Email" обязательно для заполнения.',
+            'email.string' => 'Поле "Email" должно быть строкой.',
+            'email.email' => 'Поле "Email" должно быть действительным адресом электронной почты.',
+            'email.max' => 'Поле "Email" не должно превышать :max символов.',
+            'email.unique' => 'Этот email уже используется.',
+
         ];
     }
 }

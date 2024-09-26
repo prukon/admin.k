@@ -48,13 +48,11 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 
 //    Отчеты
-//        Route::get('/admin/payments', [\App\Http\Controllers\Admin\PaymentsController::class, 'index'])->name('payments.index');
 
     Route::get('/admin/reports/payments', [\App\Http\Controllers\Admin\Report\ReportController::class, 'payments'])->name('payments');
     Route::get('/admin/reports/debts', [\App\Http\Controllers\Admin\Report\ReportController::class, 'debts'])->name('debts');
     Route::get('/getPayments', [\App\Http\Controllers\Admin\Report\ReportController::class, 'getPayments'])->name('payments.getPayments');
     Route::get('/getDebts', [\App\Http\Controllers\Admin\Report\ReportController::class, 'getDebts'])->name('debts.getDebts');
-
 
 //AJAX
     Route::get('/update-date', [\App\Http\Controllers\Admin\SettingPricesController::class, 'updateDate'])->name('updateDate');
