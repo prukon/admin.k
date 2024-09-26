@@ -54,7 +54,7 @@ class StoreController extends Controller
 
         Log::create([
             'type' => 3, // Лог для обновления групп
-            'action' => 4, // Лог для создания учетной записи
+            'action' => 1, // Лог для создания учетной записи
             'author_id' => $authorId,
             'description' => sprintf(
                 "Название: %s, дни недели: %s, сортировка: %s, активность: %s",

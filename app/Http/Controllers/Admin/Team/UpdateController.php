@@ -85,4 +85,3 @@ class UpdateController extends Controller
         return redirect()->route('admin.team.edit', ['team' => $team->id]);
     }
 }
- 
