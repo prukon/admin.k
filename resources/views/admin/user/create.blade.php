@@ -59,27 +59,39 @@
                 @enderror
             </div>
 
-
-
-{{--            <div class="mb-3">--}}
-{{--                <label for="formFile" class="form-label">Фото</label>--}}
-{{--                <input class="form-control" type="file" id="formFile" name='image'>--}}
-{{--            </div>--}}
-
-
             <div class="mb-3">
                 <label for="exampleFormControlInput1" class="form-label">Адрес электронной почты*</label>
                 <input name="email" type="email" class="form-control" id="exampleFormControlInput1"
-                       placeholder="name@example.com" value="{{old('email')}}">
-                @error('email' )
-                <p class="text-danger">{{'Введите email'}}</p>
-                @enderror
+                       placeholder="name@example.com" value="{{ old('email') }}">
+                @if ($errors->has('email'))
+                    @foreach ($errors->get('email') as $error)
+                        <p class="text-danger">{{ $error }}</p>
+                    @endforeach
+                @endif
             </div>
+
+
+{{--            <div class="mb-3">--}}
+{{--                <label for="inputPassword6" class="col-form-label">Пароль*</label>--}}
+{{--                <input name='password' type="password" id="inputPassword6" class="form-control"--}}
+{{--                       aria-labelledby="passwordHelpInline">--}}
+
+{{--                <div class="form-check">--}}
+{{--                    <input class="form-check-input" type="checkbox" id="showPassword">--}}
+{{--                    <label class="form-check-label" for="showPassword">Показать пароль</label>--}}
+{{--                </div>--}}
+
+{{--                <span id="passwordHelpInline" class="form-text">Должно быть 8-20 символов.</span>--}}
+{{--                @error('password' )--}}
+{{--                <p class="text-danger">{{'Введите пароль от 8 символов'}}</p>--}}
+{{--                @enderror--}}
+{{--            </div>--}}
+
+
 
             <div class="mb-3">
                 <label for="inputPassword6" class="col-form-label">Пароль*</label>
-                <input name='password' type="password" id="inputPassword6" class="form-control"
-                       aria-labelledby="passwordHelpInline">
+                <input name="password" type="password" id="inputPassword6" class="form-control" aria-labelledby="passwordHelpInline">
 
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="showPassword">
@@ -87,10 +99,14 @@
                 </div>
 
                 <span id="passwordHelpInline" class="form-text">Должно быть 8-20 символов.</span>
-                @error('password' )
-                <p class="text-danger">{{'Введите пароль от 8 символов'}}</p>
-                @enderror
+
+                @if ($errors->has('password'))
+                    @foreach ($errors->get('password') as $error)
+                        <p class="text-danger">{{ $error }}</p>
+                    @endforeach
+                @endif
             </div>
+
 
             <div class="mb-3">
                 <label for="activity">Активность</label>
