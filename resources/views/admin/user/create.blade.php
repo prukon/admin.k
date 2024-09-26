@@ -1,7 +1,6 @@
 {{--@extends('layouts/main2')--}}
 @extends('layouts.admin2')
 
-
 @section('content')
 
     <div class="col-md-9 main-content user-data">
@@ -14,7 +13,7 @@
             @csrf
             <div class="mb-3">
                 <label for="title" class="form-label">Имя ученика*</label>
-                <input type="text" name="name" class="form-control" id="title"  value="{{old('name')}}">
+                <input type="text" name="name" class="form-control" id="title" value="{{old('name')}}">
                 @error('name' )
                 <p class="text-danger">{{'Введите имя'}}</p>
                 @enderror
@@ -31,15 +30,6 @@
             <div class="mb-3">
                 <label for="team">Группа</label>
 
-
-{{--                <select class="form-select" id='team' name='team_id'>--}}
-{{--                    @foreach($allTeams as $team)--}}
-{{--                        <option--}}
-{{--                        {{ old('team_id') == $team->id ? 'selected' : "" }}--}}
-{{--                         value="{{$team->id}}">{{$team->title}}</option>--}}
-{{--                    @endforeach--}}
-{{--                </select>--}}
-{{--                --}}
                 <select class="form-select" id='team' name='team_id'>
                     <option value="" {{ old('team_id') == null ? 'selected' : "" }}>Без группы</option>
                     @foreach($allTeams as $team)
@@ -49,7 +39,6 @@
                     @endforeach
                 </select>
             </div>
-
 
             <div class="mb-3">
                 <label for="start_date" class="form-label">Дата начала занятий</label>
@@ -70,32 +59,12 @@
                 @endif
             </div>
 
-
-{{--            <div class="mb-3">--}}
-{{--                <label for="inputPassword6" class="col-form-label">Пароль*</label>--}}
-{{--                <input name='password' type="password" id="inputPassword6" class="form-control"--}}
-{{--                       aria-labelledby="passwordHelpInline">--}}
-
-{{--                <div class="form-check">--}}
-{{--                    <input class="form-check-input" type="checkbox" id="showPassword">--}}
-{{--                    <label class="form-check-label" for="showPassword">Показать пароль</label>--}}
-{{--                </div>--}}
-
-{{--                <span id="passwordHelpInline" class="form-text">Должно быть 8-20 символов.</span>--}}
-{{--                @error('password' )--}}
-{{--                <p class="text-danger">{{'Введите пароль от 8 символов'}}</p>--}}
-{{--                @enderror--}}
-{{--            </div>--}}
-
-
-
             <div class="mb-3">
-                <label for="inputPassword6" class="col-form-label">Пароль*</label>
-                <input name="password" type="password" id="inputPassword6" class="form-control" aria-labelledby="passwordHelpInline">
-
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="showPassword">
-                    <label class="form-check-label" for="showPassword">Показать пароль</label>
+                <label for="passwordInput" class="col-form-label">Пароль*</label>
+                <div class="position-relative">
+                    <input name="password" type="password" id="passwordInput" class="form-control"
+                           aria-describedby="passwordHelpInline">
+                    <span toggle="#passwordInput" class="fa fa-fw fa-eye field-icon toggle-password"></span>
                 </div>
 
                 <span id="passwordHelpInline" class="form-text">Должно быть 8-20 символов.</span>
@@ -107,31 +76,47 @@
                 @endif
             </div>
 
-
             <div class="mb-3">
                 <label for="activity">Активность</label>
                 <select name="is_enabled" class="form-select" id='activity' name='activity'>
                     <option value="1">Да</option>
                     <option value="0">Нет</option>
                 </select>
-
             </div>
-            <span><a class="btn btn-danger" href="{{ route('admin.user.index') }}">Назад</a></span>
-            <button type="submit" class="btn btn-primary">Создать</button>
+
+            <hr class="mt-3">
+
+
+            <div class="buttons-wrap mb-3">
+                <button type="button" class="btn btn-danger"
+                        onclick="window.location='{{ route('admin.user.index') }}'">Назад
+                </button>
+                <button type="submit" class="ml-2 btn btn-primary">Создать</button>
+            </div>
         </form>
 
-        <script>
-            document.getElementById('showPassword').addEventListener('change', function () {
-                var passwordField = document.getElementById('inputPassword6');
-                if (this.checked) {
-                    passwordField.type = 'text';
-                } else {
-                    passwordField.type = 'password';
-                }
-            });
-        </script>
+    </div>
+    </div>
+    </div>
 
-    </div>
-    </div>
-    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Функция для показа/скрытия пароля с помощью иконки глаза
+            function showPassword() {
+                const togglePassword = document.querySelector('.toggle-password');
+                const passwordInput = document.querySelector('#passwordInput');
+
+                togglePassword.addEventListener('click', function () {
+                    // Переключаем тип input между 'password' и 'text'
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    // Меняем иконку глаза
+                    this.classList.toggle('fa-eye');
+                    this.classList.toggle('fa-eye-slash');
+                });
+            }
+
+            showPassword();
+        });
+    </script>
 @endsection

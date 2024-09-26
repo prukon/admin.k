@@ -18,31 +18,14 @@
                 @enderror
             </div>
 
-{{--            <div class="mb-3">--}}
-{{--                <div class="form-group">--}}
-{{--                    <label for="weekdays">Расписание</label>--}}
-{{--                    <select multiple class="form-control" id="weekdays" name="weekdays[]">--}}
-{{--                        @foreach($weekdays as $weekday)--}}
-{{--                            <option--}}
-{{--                                    @foreach($team->weekdays as $teamWeekday)--}}
-{{--                                        {{$weekday->id === $teamWeekday->id ? 'selected' : ''}}--}}
-{{--                                    @endforeach--}}
-{{--                                    value="{{$weekday->id}}">{{$weekday->title}}</option>--}}
-{{--                        @endforeach--}}
-{{--                    </select>--}}
-{{--                    @error('weekdays')--}}
-{{--                    <p class="text-danger">{{'Укажите дни недели'}}</p>--}}
-{{--                    @enderror--}}
-{{--                </div>--}}
-{{--            </div>--}}
-
             <div class="mb-3">
                 <div class="form-group">
                     <label for="weekdays">Расписание</label>
                     <div id="weekdays">
                         @foreach($weekdays as $weekday)
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="weekday-{{$weekday->id}}" name="weekdays[]"
+                                <input class="form-check-input" type="checkbox" id="weekday-{{$weekday->id}}"
+                                       name="weekdays[]"
                                        value="{{$weekday->id}}"
                                 @foreach($team->weekdays as $teamWeekday)
                                     {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}
@@ -59,7 +42,6 @@
                     @enderror
                 </div>
             </div>
-
 
             <div class="mb-3">
                 <label for="order_by" class="form-label">Сортировка</label>
@@ -82,20 +64,24 @@
                     @endfor
                 </select>
             </div>
+            <hr>
 
-            <span><a class="btn btn-danger" href="{{ route('admin.team.index') }}">Назад</a></span>
-            <button type="submit" class="btn btn-primary">Обновить</button>
-        </form>
+            <div class="buttons-wrap mb-3">
+                <button type="submit" class="btn btn-primary mr-2">Обновить</button>
+            </div>
 
-        <!-- Кнопка для удаления с модальным подтверждением -->
-        <form class="mt-3" id="delete-team-form" action="{{ route('admin.team.delete', $team->id)}}" method="post">
-            @csrf
-            @method('delete')
-            <input type="button" value="Удалить" class="btn btn-danger" id="delete-team-btn">
         </form>
+        <div class="buttons-wrap">
+            <form class="mt-3" id="delete-team-form" action="{{ route('admin.team.delete', $team->id)}}" method="post">
+                @csrf
+                @method('delete')
+                <button type="submit" class="btn btn-danger mb-3" id="delete-team-btn">Удалить</button>
+            </form>
+        </div>
 
         <!-- Модальное окно для подтверждения удаления -->
-        <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+        <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel"
+             aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -119,22 +105,27 @@
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Получаем форму и кнопки
-            const deleteForm = document.getElementById('delete-team-form');
-            const deleteButton = document.getElementById('delete-team-btn');
-            const confirmDeleteButton = document.getElementById('confirmDeleteBtn');
+            // Модалка подтверждения
+            function showConfirmModal() {
+                // Получаем форму и кнопки
+                const deleteForm = document.getElementById('delete-team-form');
+                const deleteButton = document.getElementById('delete-team-btn');
+                const confirmDeleteButton = document.getElementById('confirmDeleteBtn');
 
-            // Отключаем стандартное поведение кнопки "Удалить" и показываем модалку
-            deleteButton.addEventListener('click', function (event) {
-                event.preventDefault(); // Останавливаем стандартное поведение
-                $('#confirmDeleteModal').modal('show'); // Показываем модалку
-            });
+                // Отключаем стандартное поведение кнопки "Удалить" и показываем модалку
+                deleteButton.addEventListener('click', function (event) {
+                    event.preventDefault(); // Останавливаем стандартное поведение
+                    $('#confirmDeleteModal').modal('show'); // Показываем модалку
+                });
 
-            // Обрабатываем нажатие на кнопку "Да" в модальном окне для удаления
-            confirmDeleteButton.addEventListener('click', function () {
-                $('#confirmDeleteModal').modal('hide'); // Закрываем модалку
-                deleteForm.submit(); // Отправляем форму для удаления
-            });
+                // Обрабатываем нажатие на кнопку "Да" в модальном окне для удаления
+                confirmDeleteButton.addEventListener('click', function () {
+                    $('#confirmDeleteModal').modal('hide'); // Закрываем модалку
+                    deleteForm.submit(); // Отправляем форму для удаления
+                });
+            }
+
+            showConfirmModal();
         });
     </script>
 @endsection

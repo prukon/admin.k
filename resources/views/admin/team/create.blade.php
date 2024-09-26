@@ -50,8 +50,14 @@
                 </select>
             </div>
 
-            <span><a class="btn btn-danger" href="{{ route('admin.team.index') }}">Назад</a></span>
-            <button type="submit" class="btn btn-primary">Создать</button>
+            <hr>
+
+            <div class="buttons-wrap mb-3">
+                <button type="button" class="btn btn-danger"
+                        onclick="window.location='{{ route('admin.team.index') }}'">Назад
+                </button>
+                <button type="submit" class="ml-2 btn btn-primary">Создать</button>
+            </div>
 
         </form>
 

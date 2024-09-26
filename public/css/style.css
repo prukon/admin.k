@@ -697,25 +697,25 @@ select option[data-has-team="no"] {
     width: auto !important;
 }
 
-.buttons .back .btn  {
-    min-width: 140px;
-}
-.buttons .delete  .btn{
-    min-width: 140px;
-}
+/*.buttons .back .btn  {*/
+/*    min-width: 140px;*/
+/*}*/
+/*.buttons .delete  .btn{*/
+/*    min-width: 140px;*/
+/*}*/
 
  .update-pass .btn  {
     min-width: 140px;
 }
-.update-btn {
-    min-width: 135px;
-}
-#change-password-btn {
-    min-width: 135px;
+/*.update-btn {*/
+/*    min-width: 135px;*/
+/*}*/
+/*#change-password-btn {*/
+/*    min-width: 135px;*/
 
-}
+/*}*/
 #new-password {
-    width: 140px;
+    width: 200px;
     display: inline-block;
 }
 .password-description {
@@ -762,4 +762,34 @@ display: none;
 /* Модальное окно на 90% ширины экрана */
 .modal-lg {
     max-width: 90%;
+}
+
+.position-relative {
+    position: relative;
+}
+
+.field-icon {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #aaa;
+    z-index: 2; /* Добавьте это, если иконка перекрывается другими элементами */
+}
+
+.field-icon {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #aaa;
+}
+
+.position-relative {
+    position: relative;
+}
+.buttons-wrap button {
+    min-width: 140px;
 }
