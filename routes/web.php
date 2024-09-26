@@ -25,6 +25,8 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('admin/teams/{team}/edit', '\App\Http\Controllers\Admin\Team\EditController')->name('admin.team.edit');
     Route::patch('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\UpdateController')->name('admin.team.update');
     Route::delete('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\DestroyController')->name('admin.team.delete');
+    Route::get('/admin/teams/logs-data', '\App\Http\Controllers\Admin\Team\LogsController')->name('logs.data.team');
+
 
 //    Пользователи
     Route::get('admin/users', '\App\Http\Controllers\Admin\User\IndexController')->name('admin.user.index');

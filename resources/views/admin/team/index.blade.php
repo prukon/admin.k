@@ -8,8 +8,10 @@
         <h4 class="pt-3">Группы</h4>
 
         <hr>
-        <div>
-            <a href="{{ route('admin.team.create') }}" class="btn btn-primary">Добавить группу</a>
+        <div class="buttons d-flex flex-row align-items-center mb-3">
+        <a href="{{ route('admin.team.create') }}" class="btn btn-primary">Добавить группу</a>
+            <button type="button" class="btn btn-primary ml-3" id="logs" data-bs-toggle="modal" data-bs-target="#historyModal">История изменений</button>
+
         </div>
         <hr>
 
@@ -32,8 +34,14 @@
         <div class="mt-3">
             {{ $allTeams->withQueryString()->links() }}
         </div>
-
     </div>
-    {{--    </div>--}}
 
+    <!-- Модальное окно логов -->
+    @include('includes.logModal')
+    <!-- Модальное окно логов -->
+    <script>
+        $(document).ready(function() {
+            showLogModal("{{ route('logs.data.team') }}");
+        })
+    </script>
 @endsection

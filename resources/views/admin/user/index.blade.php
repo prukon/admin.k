@@ -60,8 +60,6 @@
     <script>
         clickToSearch()
     </script>
-    {{--    </div>--}}
-    {{--    </div>--}}
 
     <!-- Модальное окно логов -->
     @include('includes.logModal')

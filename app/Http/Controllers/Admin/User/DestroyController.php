@@ -24,6 +24,7 @@ class DestroyController extends Controller
             'description' => "Удален пользователь: {$user->name}  ID: {$user->id}.",
             'created_at' => now(),
         ]);
+
         return redirect()->route('admin.user.index');
     }
 }

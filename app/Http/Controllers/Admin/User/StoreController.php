@@ -31,7 +31,7 @@ class StoreController extends Controller
 
         Log::create([
             'type' => 2, // Лог для обновления юзеров
-            'action' => 4, // Лог для создания учетной записи
+            'action' => 1, // Лог для создания учетной записи
             'author_id' => $authorId,
             'description' => sprintf(
                 "Имя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s",
@@ -44,6 +44,7 @@ class StoreController extends Controller
             ),
             'created_at' => now(),
         ]);
+
 
         return redirect()->route('admin.user.index');
     }

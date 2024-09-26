@@ -59,11 +59,7 @@ class UpdateController extends Controller
             'created_at' => now(),
         ]);
 
-
-
-
         return redirect()->route('admin.user.edit', ['user' => $user->id]);
-
     }
 
     public function updatePassword(Request $request, $id)
@@ -71,7 +67,6 @@ class UpdateController extends Controller
 
         \Log::info('Метод запроса: ' . $request->method()); // Логируем метод
         \Log::info('CSRF токен: ' . $request->header('X-CSRF-TOKEN')); // Логируем CSRF токен
-
 
         $request->validate([
             'password' => 'required|min:8',

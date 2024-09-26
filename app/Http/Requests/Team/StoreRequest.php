@@ -22,12 +22,15 @@ class StoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => 'string',
-            'weekdays' => 'nullable|array', // Правило 'array' указывает, что значение должно быть массивом
-//            'description' => 'string',
-//            'image' => '',
+            'title' => 'required|string',
+            'weekdays' => 'nullable|array',
             'is_enabled' => 'boolean',
-            'order_by' => 'integer',
+            'order_by' => 'nullable|integer', // Здесь мы указываем, что это может быть null
         ];
     }
+
+    /**
+     * Modify the validated data before using it.
+     */
+ 
 }

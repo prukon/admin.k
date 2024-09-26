@@ -9,23 +9,34 @@ class TeamService
 {
     public function store($data)
     {
-//        Team::create($data);
 
-        $weekdays = $data['weekdays'];
+        // Проверяем, указана ли сортировка (order_by), если нет — устанавливаем значение по умолчанию 10
+        // Убедимся, что если 'order_by' отсутствует, оно будет установлено в 10
+        if (!isset($data['order_by']) || $data['order_by'] === null) {
+            $data['order_by'] = 10;
+        }
+
+         // Проверяем, есть ли ключ 'weekdays' в массиве $data
+        $weekdays = isset($data['weekdays']) ? $data['weekdays'] : [];
+
+        // Убираем поле 'weekdays' из данных перед сохранением основной записи
         unset($data['weekdays']);
+
+        // Создаем команду
         $team = Team::create($data);
 
-        //Способ с логированием даты создания и изменения записи в бд
-        foreach ($weekdays as $weekday) {
-            teamWeekday::firstOrCreate([
-                'weekday_id' => $weekday,
-                'team_id' => $team->id,
-            ]);
+        // Проверяем, есть ли дни недели для сохранения
+        if (!empty($weekdays)) {
+            // Способ с логированием даты создания и изменения записи в БД
+            foreach ($weekdays as $weekday) {
+                teamWeekday::firstOrCreate([
+                    'weekday_id' => $weekday,
+                    'team_id' => $team->id,
+                ]);
+            }
         }
-        //        $team->weekdays   ()->attach($weekday);   //Способ без логирования даты создания и изменения записи в бд
-
-
     }
+
 
     public function update($team, $data)
     {
