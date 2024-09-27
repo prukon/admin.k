@@ -87,9 +87,11 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee'); //Оплата клубного взноса
     Route::get('/payment/service', [\App\Http\Controllers\TransactionController::class, 'service'])->name('service'); //Оплата сервиса
 
+//    Страница Настойки
     Route::get('/admin/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->name('setting');
     Route::get('/admin/settings/registration-activity', [\App\Http\Controllers\Admin\SettingController::class, 'registrationActivity'])->name('registrationActivity');
     Route::get('/admin/settings/text-for-users', [\App\Http\Controllers\Admin\SettingController::class, 'textForUsers'])->name('textForUsers');
+    Route::get('/admin/settings/logs-all-data', [\App\Http\Controllers\Admin\SettingController::class, 'logsAllData'])->name('logs.all.data');
 
 
 //  Route::get('/account-settings', [\App\Http\Controllers\AccountSettingController::class, 'index'])->name('accountSettings');
@@ -98,7 +100,8 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/account-settings/users/{user}/edit', [\App\Http\Controllers\AccountSettingController::class, 'index'])->name('user.edit');
     Route::patch('/account-settings/users/{user}', [\App\Http\Controllers\AccountSettingController::class, 'update'])->name('user.update');
     Route::post('/user/{id}/update-password', [\App\Http\Controllers\AccountSettingController::class, 'updatePassword']);
-//    Route::get('/account-settings/logs-data', [\App\Http\Controllers\AccountSettingController::class, 'getLogsData'])->name('logs.data.accountSettings');
+
+    //    Route::get('/account-settings/logs-data', [\App\Http\Controllers\AccountSettingController::class, 'getLogsData'])->name('logs.data.accountSettings');
 
 
 });

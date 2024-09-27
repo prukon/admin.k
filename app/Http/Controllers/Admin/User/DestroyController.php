@@ -19,7 +19,7 @@ class DestroyController extends Controller
 
         Log::create([
             'type' => 2, // Лог для обновления юзеров
-            'action' => 3,
+            'action' => 24,
             'author_id' => $authorId,
             'description' => "Удален пользователь: {$user->name}  ID: {$user->id}.",
             'created_at' => now(),

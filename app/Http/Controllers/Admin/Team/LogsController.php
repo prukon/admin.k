@@ -34,9 +34,9 @@ class LogsController extends Controller
             ->editColumn('action', function ($log) {
                 // Логика для преобразования типа
                 $typeLabels = [
-                    1 => 'Создание группы',
-                    2 => 'Изменение группы',
-                    3 => 'Удаление группы',
+                    31 => 'Создание группы',
+                    32 => 'Изменение группы',
+                    33 => 'Удаление группы',
                 ];
                 return $typeLabels[$log->action] ?? 'Неизвестный тип';
             })

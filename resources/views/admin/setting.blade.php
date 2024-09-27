@@ -60,25 +60,33 @@
                         <tbody>
                         <tr>
                             <td class="col-4 align-middle">Журнал событий</td>
-                            <td class="col-6 text-center align-middle">
-                                <button id="btnTextForUsers" class="btn btn-primary mb-3 mt-3">Посмотреть</button>
+                            <td class="col-6 align-middle text-center">
+                                <button type="button" class="btn btn-primary fixed-width-btn width-160" id="logs" data-bs-toggle="modal" data-bs-target="#historyModal">История изменений</button>
                             </td>
                         </tr>
                         <tr>
                             <td class="col-4 align-middle">Оплата сервиса</td>
-                            <td class="col-6 text-center align-middle">
-                                <a href="/payment/service">
-                                    <button type="button" id="club-fee" class="btn btn-primary">Перейти к оплате</button>
-                                </a>
+                            <td class="col-6 align-middle text-center">
+                                <a href="/payment/service" id="club-fee" class="btn btn-primary fixed-width-btn width-160">Перейти к оплате</a>
                             </td>
                         </tr>
                         </tbody>
                     </table>
 
 
+
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Модальное окно логов -->
+    @include('includes.logModal')
+    <!-- Модальное окно логов -->
+    <script>
+        $(document).ready(function() {
+            showLogModal("{{ route('logs.all.data') }}");
+        })
+    </script>
 
 @endsection

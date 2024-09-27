@@ -30,8 +30,8 @@ class StoreController extends Controller
         $teamName = $team ? $team->title : '-';
 
         Log::create([
-            'type' => 2, // Лог для обновления юзеров
-            'action' => 1, // Лог для создания учетной записи
+            'type' => 2, // Лог для юзеров
+            'action' => 21, // Лог для создания учетной записи
             'author_id' => $authorId,
             'description' => sprintf(
                 "Имя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s",

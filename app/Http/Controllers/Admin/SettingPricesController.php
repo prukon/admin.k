@@ -77,11 +77,6 @@ class SettingPricesController extends Controller
         }
     }
 
-
-
-
-
-
         return view("admin/settingPrices", compact(
             "allTeams",
             'currentDate',
@@ -115,8 +110,6 @@ class SettingPricesController extends Controller
 
                 $usersPrice[] = $userPrice;
         }
-
-
 
 //        foreach ($usersTeam as $user) {
 //            $userPrice = UserPrice::where('month', $selectedDate)
@@ -196,7 +189,7 @@ class SettingPricesController extends Controller
 
         Log::create([
             'type' => 1,
-            'action' => 3, // Лог для обновления цены команды
+            'action' => 13, // Изменение цен в одной группе
             'author_id' => $authorId,
             'description' => "Обновлена цена : {$teamPrice} руб. Группа: {$teamTitle}. ID: {$teamId}. Дата: {$selectedDate}.",
             'created_at' => now(),
@@ -260,7 +253,7 @@ class SettingPricesController extends Controller
                 // Логируем успешное обновление цены для команды
                 Log::create([
                     'type' => 1,
-                    'action' => 1,
+                    'action' => 11, // Изменение цен во всех группах
                     'author_id' => $authorId,
                     'description' => "Обновлена цена: {$teamData['price']} руб. Команда: {$team->title}. ID: {$team->id}. Дата: {$selectedDate}.",
                         'created_at' => now(),
@@ -337,7 +330,7 @@ class SettingPricesController extends Controller
                     // Логируем успешное обновление цены для команды
                     Log::create([
                         'type' => 1,
-                        'action' => 2, // Лог для обновления цены команды
+                        'action' => 12, // Лог для обновления цены команды
                         'author_id' => $authorId,
                         'description' => "Обновлена цена : {$priceData['price']} руб. Имя: {$priceData['name']}. ID: {$priceData['user_id']}. Дата: {$selectedDate}.",
                         'created_at' => now(),
@@ -369,11 +362,11 @@ class SettingPricesController extends Controller
             ->editColumn('action', function ($log) {
                 // Логика для преобразования типа
                 $typeLabels = [
-                    1 => 'Изменение цен во всех группах',
-                    2 => 'Индивидуальное изменение цен',
-                    3 => 'Изменение цен в одной группе',
+                    11 => 'Изменение цен во всех группах', //Применить слева
+                    12 => 'Индивидуальное изменение цен', //Применить справа
+                    13 => 'Изменение цен в одной группе', //Кнопка "ок"
                 ];
-                return $typeLabels[$log->type] ?? 'Неизвестный тип';
+                return $typeLabels[$log->action] ?? 'Неизвестный тип';
             })
             ->make(true);
     }

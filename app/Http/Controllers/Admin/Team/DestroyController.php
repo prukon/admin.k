@@ -20,7 +20,7 @@ class DestroyController extends Controller
 
         Log::create([
             'type' => 3, // Лог для обновления групп
-            'action' => 3,
+            'action' => 33,
             'author_id' => $authorId,
             'description' => "Удалена группа: {$team->title}.  ID: {$team->id}.",
             'created_at' => now(),

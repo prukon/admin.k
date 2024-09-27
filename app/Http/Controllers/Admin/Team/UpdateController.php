@@ -59,7 +59,7 @@ class UpdateController extends Controller
         // Логирование старых и новых данных
         Log::create([
             'type' => 3, // Лог для обновления групп
-            'action' => 2, // Лог для обновления учетной записи
+            'action' => 32, // Лог для обновления учетной записи
             'author_id' => $authorId,
             'description' => sprintf(
                 "Старые:

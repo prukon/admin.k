@@ -799,6 +799,9 @@ display: none;
 .wrap-pay .logo {
     width: 60%;
 }
-.settings-table button {
-    width: 200px ;
+/*.settings-table button {*/
+/*    width: 200px ;*/
+/*} */
+.width-160 {
+    width: 160px;
 }

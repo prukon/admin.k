@@ -52,7 +52,7 @@ class AccountSettingController extends Controller
         // Логируем успешное обновление
         Log::create([
             'type' => 2, // Лог для обновления юзеров
-            'action' => 1, // Лог для обновления учетной записи
+            'action' => 23, // Лог для обновления учетной записи
             'author_id' => $authorId,
             'description' => "Имя: $authorName. ID: $authorId. \nСтарые:\n (" . Carbon::parse($oldData->birthday)->format('d.m.Y') . ", $oldData->email). \nНовые:\n (" . Carbon::parse($data['birthday'])->format('d.m.Y') . ", {$data['email']})",
             'created_at' => now(),

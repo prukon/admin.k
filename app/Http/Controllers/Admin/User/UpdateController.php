@@ -39,7 +39,7 @@ class UpdateController extends Controller
 
         Log::create([
             'type' => 2, // Лог для обновления юзеров
-            'action' => 2, // Лог для обновления учетной записи
+            'action' => 22, // Лог для обновления учетной записи
             'author_id' => $authorId,
             'description' => sprintf(
                 "Старые:\n Имя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s.\nНовые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s",

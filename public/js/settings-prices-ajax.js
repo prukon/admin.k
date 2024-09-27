@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     // AJAX ПОДРОБНО. Получение списка пользователей
-
     const detailButtons = document.querySelectorAll('.detail');
     for (let i = 0; i < detailButtons.length; i++) {
         let button = detailButtons[i];
