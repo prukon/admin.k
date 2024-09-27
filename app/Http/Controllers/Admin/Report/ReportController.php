@@ -20,25 +20,19 @@ class ReportController extends Controller
         $this->middleware('admin');
     }
 
-
     public function index()
     {
         return view("admin.report");
     }
 
-
     public function payments()
     {
         return view('admin.report.payment', ['activeTab' => 'payments']);
     }
-
     public function debts()
     {
         return view('admin.report.debt', ['activeTab' => 'debts']);
     }
-
-
-
     public function getPayments(Request $request)
     {
         if ($request->ajax()) {
@@ -71,7 +65,6 @@ class ReportController extends Controller
                 ->make(true);
         }
     }
-
     public function getDebts(Request $request)
     {
         if ($request->ajax()) {

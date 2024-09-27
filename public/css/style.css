@@ -793,3 +793,12 @@ display: none;
 .buttons-wrap button {
     min-width: 140px;
 }
+.wrap-umoney {
+    max-width: 220px;
+}
+.wrap-pay .logo {
+    width: 60%;
+}
+.settings-table button {
+    width: 200px ;
+}

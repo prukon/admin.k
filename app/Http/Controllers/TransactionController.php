@@ -28,7 +28,7 @@ class TransactionController extends Controller
             $outSum = $_POST['outSum'];
         }
         // Дополнительная логика, если необходимо
-        return view('payment', compact('paymentDate', 'outSum'));
+        return view('payment.payment', compact('paymentDate', 'outSum'));
 //        return view('payment');
     }
 
@@ -79,7 +79,11 @@ class TransactionController extends Controller
 
     public function clubFee()
     {
-        return view('clubFee');
+        return view('payment.clubFee');
+    }
+    public function service()
+    {
+        return view('payment.service');
     }
 }
 

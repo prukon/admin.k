@@ -616,8 +616,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-
-
     // -----Вызовы------
 
     addSelect2ToUser();

@@ -56,20 +56,25 @@
                         </tbody>
                     </table>
 
-                    <table class="table  table-bordered mt-5 ">
+                    <table class="table table-bordered mt-5 settings-table">
                         <tbody>
                         <tr>
-                            <td class="col-4">Оплата сервиса</td>
-                            <td colspan="col-6">
-                                <iframe src="https://yoomoney.ru/quickpay/fundraise/button?billNumber=1YJRbAR2lJs.230810&"
-                                        width="330" height="50" frameborder="0" allowtransparency="true"
-                                        scrolling="no"></iframe>
+                            <td class="col-4 align-middle">Журнал событий</td>
+                            <td class="col-6 text-center align-middle">
+                                <button id="btnTextForUsers" class="btn btn-primary mb-3 mt-3">Посмотреть</button>
                             </td>
-                            {{--                            <td class="col-2">--}}
-                            {{--                              </td>--}}
+                        </tr>
+                        <tr>
+                            <td class="col-4 align-middle">Оплата сервиса</td>
+                            <td class="col-6 text-center align-middle">
+                                <a href="/payment/service">
+                                    <button type="button" id="club-fee" class="btn btn-primary">Перейти к оплате</button>
+                                </a>
+                            </td>
                         </tr>
                         </tbody>
                     </table>
+
 
                 </div>
             </div>

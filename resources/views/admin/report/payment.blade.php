@@ -3,7 +3,7 @@
     @section('content')
 
         <script src="{{ asset('js/my-croppie.js') }}"></script>
-        <script src="{{ asset('js/settings-prices-ajax.js') }}"></script>
+{{--        <script src="{{ asset('js/settings-prices-ajax.js') }}"></script>--}}
 
         <div class="container-fluid main-content" xmlns="http://www.w3.org/1999/html">
             <h4 class="pt-3">Отчеты</h4>
@@ -50,7 +50,7 @@
                                                     data: null,
                                                     name: 'user_name',
                                                     render: function (data, type, row) {
-                                                        console.log('Data for user_name:', data);
+                                                        // console.log('Data for user_name:', data);
 
                                                         // Если user_id существует, делаем ссылку
                                                         if (row.user_id) {
