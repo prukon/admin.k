@@ -13,8 +13,6 @@
                 <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
                 <input type="hidden" name="userId" value="{{ auth()->user()->id }}">
                 <input type="hidden" name="outSum" id="outSum" value="">
-
-
                 <iframe src="https://yoomoney.ru/quickpay/fundraise/button?billNumber=1YJRbAR2lJs.230810&" width="330" height="50" frameborder="0" allowtransparency="true" scrolling="no"></iframe>
 
             </form>
@@ -37,8 +35,6 @@
 
                 });
             </script>
-
-
     </div>
 
 @endsection

@@ -13,22 +13,17 @@ class ModifyOrderByNullableInTeamsTable extends Migration
      */
     public function up()
     {
-        Schema::table('teams', function (Blueprint $table) {
-            // Изменяем поле 'order_by' на nullable
-            $table->integer('order_by')->nullable()->change();
+        Schema::table('logs', function (Blueprint $table) {
+            $table->unsignedBigInteger('author_id')->change();
+            // $table->foreign('author_id')->references('id')->on('users')->onDelete('cascade'); // Опционально
         });
     }
 
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
     public function down()
     {
-        Schema::table('teams', function (Blueprint $table) {
-            // Возвращаем поле в первоначальный вид (если нужно)
-            $table->integer('order_by')->nullable(false)->change();
+        Schema::table('logs', function (Blueprint $table) {
+            // $table->dropForeign(['author_id']); // Опционально
+            $table->integer('author_id')->change();
         });
     }
 }

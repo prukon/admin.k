@@ -115,6 +115,10 @@ class SettingController extends Controller
                     31 => 'Создание группы',
                     32 => 'Изменение группы',
                     33 => 'Удаление группы',
+
+                    40 => 'Авторизация',
+
+
                 ];
                 return $typeLabels[$log->action] ?? 'Неизвестный тип';
             })

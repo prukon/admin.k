@@ -9,13 +9,6 @@ class Log extends Model
     protected $table = 'logs'; // Явно указываем таблицу, если нужно
 
 
-//    protected $fillable = [
-//        'type',
-//        'author_id',
-//        'description',
-//        'action'
-//    ];
-
     protected $guarded = []; //разрешение на изменение данных в таблице}
 
 
@@ -32,14 +25,6 @@ class Log extends Model
     {
         return $this->belongsTo(User::class, 'author_id');
     }
-
-    // Массив для отображения типов логов
-//    public static $typeLabels = [
-//        1 => 'Изменение цен во всех группах',
-//        2 => 'Обновление',
-//        3 => 'Удаление',
-//        // Добавьте другие типы по необходимости
-//    ];
 
     // Аксессор для получения названия типа лога
     public function getTypeLabelAttribute()
