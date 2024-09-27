@@ -4,7 +4,6 @@
 
     <script src="{{ asset('js/settings-ajax.js') }}"></script>
 
-
     <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3">Настройки</h4>
         <div class="container">
@@ -20,7 +19,6 @@
                         </tr>
                         </thead>
                         <tbody>
-
                         <tr>
                             <td class="col-4">Регистрация на сайте</td>
                             <td class="col-6">
@@ -30,17 +28,13 @@
                                             {{ $isRegistrationActivity ? 'checked' : '' }}>
                                     <label class="form-check-label"
                                            for="registrationActivity">Включена/Выключена</label>
-
-
                                 </div>
-
                             </td>
                             <td class="col-2">
                                 <button id="btnRegistrationActivity" class="btn btn-primary mb-3 mt-3">Применить
                                 </button>
                             </td>
                         </tr>
-
 
                         <tr>
                             <td class="col-4">Текст уведомления у пользователей</td>
@@ -52,7 +46,6 @@
                                 <button id="btnTextForUsers" class="btn btn-primary mb-3 mt-3">Применить</button>
                             </td>
                         </tr>
-
                         </tbody>
                     </table>
 
@@ -72,9 +65,6 @@
                         </tr>
                         </tbody>
                     </table>
-
-
-
                 </div>
             </div>
         </div>

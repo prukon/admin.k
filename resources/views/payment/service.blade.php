@@ -6,7 +6,7 @@
 
         <div class="wrap-pay  wrap-umoney">
             <h5 class="pay-name mt-3 mb-3">ЮMoney</h5>
-            <img class="logo" src="{{ asset('storage/umoney.jpg') }}">
+            <img class="logo" src="{{ asset('storage/umoney.png') }}">
 
             <form class="mb-3 mt-3" id="paymentForm" action="{{ route('payment.pay') }}" method="POST"  onsubmit="return setOutSum();">
                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
