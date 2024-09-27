@@ -18,13 +18,20 @@ class LogUserLogin
     public function handle(Login $event)
     {
         $user = $event->user;
+        \Log::info('User ID:', ['id' => $user->id]); // Добавьте эту строку
+
+        if (!$user || !$user->id) {
+            \Log::error('Пользователь не найден при входе в систему.');
+            return;
+        }
+
+
         $ipAddress = Request::ip();
         $agent = new Agent();
-        $deviceType = $agent->device();
+//        $deviceType = $agent->device();
         $platform = $agent->platform();
         $browser = $agent->browser();
         $device = $agent->device();
-
         $userAgent = $agent->getUserAgent();
         $platformVersion = $agent->version($platform);
         $browserVersion = $agent->version($browser);
@@ -32,17 +39,11 @@ class LogUserLogin
         $isMobile = $agent->isMobile() ? 'Да' : 'Нет';
         $isTablet = $agent->isTablet() ? 'Да' : 'Нет';
         $isDesktop = $agent->isDesktop() ? 'Да' : 'Нет';
-        $isRobot = $agent->isRobot() ? 'Да' : 'Нет';
-
-
-
+//        $isRobot = $agent->isRobot() ? 'Да' : 'Нет';
 
         $description = "Логин: {$user->name}, IP: {$ipAddress}
         Платформа: {$platform} {$platformVersion}, Браузер: {$browser} {$browserVersion}, 
-        Устройство: {$device}, Моб. устройство: {$isMobile}, Планшет: {$isTablet}, ПК: {$isDesktop}
-        Языки: {$languages}, User-Agent: {$userAgent}";
-
-
+        Устройство: {$device},ПК: {$isDesktop}, Моб. устройство: {$isMobile}, Планшет: {$isTablet}";
 
         $logData = [
             'type' => 4,
@@ -51,5 +52,8 @@ class LogUserLogin
             'description' => $description,
         ];
 
+        \Log::info('Данные для сохранения в лог:', $logData);
+
+        Log::create($logData);
     }
 }
