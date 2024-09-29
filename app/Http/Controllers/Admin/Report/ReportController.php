@@ -72,6 +72,7 @@ class ReportController extends Controller
                 ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
                 ->select('users.name as user_name','users.id as user_id' , 'users_prices.month', 'users_prices.price')
                 ->where('users_prices.is_paid', 0)
+                ->where('users.is_enabled', 1)
                 ->where('users_prices.price', '>', 0)
                 ->where('users_prices.month', '<', 'Сентябрь 2024')
                 ->get();
