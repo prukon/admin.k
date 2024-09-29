@@ -66,17 +66,27 @@ class UpdateController extends Controller
     public function updatePassword(Request $request, $id)
     {
 
-        \Log::info('Метод запроса: ' . $request->method()); // Логируем метод
-        \Log::info('CSRF токен: ' . $request->header('X-CSRF-TOKEN')); // Логируем CSRF токен
+
+
+//        \Log::info('Метод запроса: ' . $request->method()); // Логируем метод
+//        \Log::info('CSRF токен: ' . $request->header('X-CSRF-TOKEN')); // Логируем CSRF токен
 
         $request->validate([
             'password' => 'required|min:8',
         ]);
+        $authorId = auth()->id(); // Авторизованный пользователь
 
         $user = User::findOrFail($id);
         $user->password = Hash::make($request->password);
         $user->save();
 
+        Log::create([
+            'type' => 2, // Лог для обновления юзеров
+            'action' => 25, // Лог для обновления учетной записи
+            'author_id' => $authorId,
+            'description' => ("Пользователю " . $user->name . " был изменен пароль."),
+            'created_at' => now(),
+        ]);
         return response()->json(['success' => true]);
     }
 }

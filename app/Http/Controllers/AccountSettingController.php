@@ -65,40 +65,29 @@ class AccountSettingController extends Controller
     public function updatePassword(Request $request, $id)
     {
 
-        \Log::info('Метод запроса: ' . $request->method()); // Логируем метод
-        \Log::info('CSRF токен: ' . $request->header('X-CSRF-TOKEN')); // Логируем CSRF токен
+//        \Log::info('Метод запроса: ' . $request->method()); // Логируем метод
+//        \Log::info('CSRF токен: ' . $request->header('X-CSRF-TOKEN')); // Логируем CSRF токен
 
         $request->validate([
             'password' => 'required|min:8',
         ]);
 //        $currentUser = Auth::user();
-
+        $authorId = auth()->id(); // Авторизованный пользователь
         $user = User::findOrFail($id);
         $user->password = Hash::make($request->password);
         $user->save();
 
+
+        Log::create([
+            'type' => 2, // Лог для обновления юзеров
+            'action' => 26, // Лог для обновления учетной записи
+            'author_id' => $authorId,
+            'description' => ($user->name . " изменил пароль."),
+            'created_at' => now(),
+        ]);
+
         return response()->json(['success' => true]);
     }
 
-//    public function getLogsData()
-//    {
-//        $logs = Log::with('author')->select('logs.*');
-//
-//        return DataTables::of($logs)
-//            ->addColumn('author', function ($log) {
-//                return $log->author ? $log->author->name : 'Неизвестно';
-//            })
-//            ->editColumn('created_at', function ($log) {
-//                return $log->created_at->format('d.m.Y / H:i:s');
-//            })
-//            ->editColumn('type', function ($log) {
-//                // Логика для преобразования типа
-//                $typeLabels = [
-//                    2 => 'Обновление юзера из учетной записи',
-//                ];
-//                return $typeLabels[$log->type] ?? 'Неизвестный тип';
-//            })
-//            ->make(true);
-//    }
 
 }
