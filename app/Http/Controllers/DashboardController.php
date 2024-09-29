@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
+use App\Models\Log;
 use App\Models\ScheduleUser;
 use App\Models\Setting;
 use App\Models\Team;
@@ -277,6 +278,8 @@ if ($inputDate == '01.01.1970') {
         $user = User::where('name', $userName)->first();
 
         if ($user) {
+            $authorId = auth()->id(); // Авторизованный пользователь
+
             $imageData = $request->input('croppedImage');
 
             // Разбираем строку base64 и сохраняем файл
@@ -294,6 +297,14 @@ if ($inputDate == '01.01.1970') {
             // Обновляем запись в базе данных
             $user->image_crop = $fileName;
             $user->save();
+
+            Log::create([
+                'type' => 2, // Лог для обновления юзеров
+                'action' => 27, // Лог для обновления учетной записи
+                'author_id' => $authorId,
+                'description' => ("Пользователю " . $userName . " был изменен аватар."),
+                'created_at' => now(),
+            ]);
 
             return response()->json(['success' => true, 'image_url' => '/storage/avatars/' . $fileName]);
         }

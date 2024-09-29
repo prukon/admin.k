@@ -565,7 +565,7 @@
 @endsection
 @section('scripts')
     <script>
-        const uploadUrl = "{{ route('profile.uploadAvatar') }}";
+        const uploadUrl = "{{ route('profile.user.uploadAvatar') }}";
     </script>
 
     <script>

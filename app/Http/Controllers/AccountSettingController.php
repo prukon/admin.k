@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use App\Models\Event;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
 
 
@@ -61,7 +62,6 @@ class AccountSettingController extends Controller
         return redirect()->route('user.edit', ['user' => $user->id]);
 
     }
-
     public function updatePassword(Request $request, $id)
     {
 
@@ -89,5 +89,50 @@ class AccountSettingController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function uploadAvatar(Request $request)
+    {
+        $request->validate([
+            'croppedImage' => 'required|string',
+        ]);
+
+        $userName = $request->input('userName');
+        $user = User::where('name', $userName)->first();
+
+        if ($user) {
+            $authorId = auth()->id(); // Авторизованный пользователь
+
+            $imageData = $request->input('croppedImage');
+
+            // Разбираем строку base64 и сохраняем файл
+            list($type, $imageData) = explode(';', $imageData);
+            list(, $imageData) = explode(',', $imageData);
+            $imageData = base64_decode($imageData);
+
+            // Генерация уникального имени файла
+            $fileName = Str::random(10) . '.png';
+            $path = public_path('storage/avatars/' . $fileName);
+
+            // Сохраняем файл
+            file_put_contents($path, $imageData);
+
+            // Обновляем запись в базе данных
+            $user->image_crop = $fileName;
+            $user->save();
+
+            Log::create([
+                'type' => 2, // Лог для обновления юзеров
+                'action' => 28, // Лог для обновления учетной записи
+                'author_id' => $authorId,
+                'description' => ($userName . " изменил аватар."),
+                'created_at' => now(),
+            ]);
+
+            return response()->json(['success' => true, 'image_url' => '/storage/avatars/' . $fileName]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Пользователь не найден']);
+    }
+
+ 
 
 }
