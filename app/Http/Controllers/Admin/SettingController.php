@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\Log;
+use App\Models\MenuItem;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\TeamPrice;
@@ -87,6 +88,8 @@ class SettingController extends Controller
             'textForUsers' => $textForUsers,
         ]);
     }
+
+    //Журнал логов
     public function logsAllData(Request $request) {
         $logs = Log::with('author')
 //            ->where('type', 1) // Добавляем условие для фильтрации по type
@@ -131,6 +134,25 @@ class SettingController extends Controller
             ->make(true);
     }
 
+
+    public function saveMenuItems(Request $request)
+    {
+        $menuItems = $request->input('menu_items');
+
+        // Очистка существующих пунктов меню
+        MenuItem::truncate();
+
+        // Сохранение новых пунктов меню
+        foreach ($menuItems as $item) {
+            MenuItem::create([
+                'name' => $item['name'],
+                'link' => $item['link'],
+                'target_blank' => isset($item['target_blank']) ? true : false,
+            ]);
+        }
+
+        return response()->json(['success' => true]);
+    }
 
 
 }

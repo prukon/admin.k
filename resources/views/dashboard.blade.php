@@ -237,6 +237,7 @@
                     updateGlobalScheduleData(scheduleUser);
                     var userPrice = {!! json_encode($userPriceArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
 
+                    // закрытие плашки с задолженностью у юзера
                     function closeNotice() {
                         document.querySelector('.credit-notice .close').addEventListener('click', function () {
                             document.querySelector('.credit-notice').style.display = 'none';
@@ -252,6 +253,7 @@
 
                     }
 
+                    // Показывать плашку с задолженностью юзеру
                     function showCreditNotice() {
                         let creditNotice = document.querySelector(".credit-notice");
                         const creditNoticeSum = document.querySelector(".credit-notice .summ").textContent;
@@ -286,7 +288,7 @@
                         return new Date(year, month);
                     }
 
-
+                    // Добавление сумм с задолженностями в плашки над сезонами и в общую плашку
                     function apendCreditTotalSummtoNotice() {
                         const seasons = document.querySelectorAll('.season');
                         let totalSumAllSeasons = 0;
@@ -308,7 +310,6 @@
 
                             // Перебираем все контейнеры с ценами
                             priceContainers.forEach(function (container) {
-
 
                                 // Находим кнопку внутри контейнера
                                 const button = container.querySelector('button.new-main-button');
@@ -345,7 +346,6 @@
                         const creditNoticeSumm = document.querySelector('.credit-notice .summ');
                         creditNoticeSumm.textContent = totalSumAllSeasons;
                     }
-
 
                     createSeasons()     //Создание сезонов
                     clickSeason()       //Измерение иконок при клике

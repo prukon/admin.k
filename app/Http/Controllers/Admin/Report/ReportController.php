@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
+use Carbon\Carbon;
 
 
 
@@ -67,6 +68,9 @@ class ReportController extends Controller
     }
     public function getDebts(Request $request)
     {
+
+        $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
+
         if ($request->ajax()) {
             $usersWithUnpaidPrices = DB::table('users_prices')
                 ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
@@ -74,7 +78,7 @@ class ReportController extends Controller
                 ->where('users_prices.is_paid', 0)
                 ->where('users.is_enabled', 1)
                 ->where('users_prices.price', '>', 0)
-                ->where('users_prices.month', '<', 'Сентябрь 2024')
+                ->where('users_prices.month', '<', $currentMonth)
                 ->get();
 
 
