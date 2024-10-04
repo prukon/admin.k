@@ -10,17 +10,19 @@
         <div class="container">
             <hr>
             <div class="buttons">
-                <button type="button" class="btn btn-primary" id="logs" data-bs-toggle="modal" data-bs-target="#historyModal">История изменений</button>
+                <button type="button" class="btn btn-primary" id="logs" data-bs-toggle="modal"
+                        data-bs-target="#historyModal">История изменений
+                </button>
                 <hr>
-             </div>
+            </div>
             <div class="row justify-content-md-center">
                 <div id='selectDate' class="col-10">
                     <select class="form-select" id="single-select-date" data-placeholder="Дата">
 
-{{--                        @if($currentDate)--}}
-{{--                            <option>{{ $currentDate }}</option>--}}
-{{--                        @endif --}}
-                            @if($currentDateString)
+                        {{--                        @if($currentDate)--}}
+                        {{--                            <option>{{ $currentDate }}</option>--}}
+                        {{--                        @endif --}}
+                        @if($currentDateString)
                             <option>{{ $currentDateString }}</option>
                         @endif
 
@@ -65,20 +67,24 @@
                     </button>
                     {{--                    <i class="info-cicle fa-solid fa-circle-info"></i>--}}
 
+                    @dump($teamPrices);
+                    @dump($allTeams);
                     @if(isset($teamPrices) && count($teamPrices) > 0)
-                        @dump($teamPrices);
-                    @for($i = 0; $i < count($teamPrices); $i++)
-                        <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
-                            <div class="team-name col-3">{{$allTeams[$i]->title}}</div>
-                            <div class="team-price col-2"><input class="" type="number"
-                                                                 value="{{ $teamPrices[$i]->price }}"></div>
-                            <div class="team-buttons col-7">
-                                <input class="ok btn btn-primary" type="button" value="ok" id="">
-                                <input class="detail btn btn-primary" type="button" value="Подробно" id="">
-                            </div>
-                        </div>
-                    @endfor
+                        @for($i = 0; $i < count($teamPrices); $i++)
+                            @if(isset($teamPrices[$i]) && isset($allTeams[$i]))
+                                <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
+                                    <div class="team-name col-3">{{$allTeams[$i]->title}}</div>
+                                    <div class="team-price col-2"><input class="" type="number"
+                                                                         value="{{ $teamPrices[$i]->price }}"></div>
+                                    <div class="team-buttons col-7">
+                                        <input class="ok btn btn-primary" type="button" value="ok" id="">
+                                        <input class="detail btn btn-primary" type="button" value="Подробно" id="">
+                                    </div>
+                                </div>
+                            @endif
+                        @endfor
                     @endif
+
                 </div>
                 <div class="col-md-auto"></div>
                 <div id='right_bar' class="col col-lg-5">
@@ -114,9 +120,9 @@
     <!-- Модальное окно логов -->
     @include('includes.logModal')
     <!-- Модальное окно логов -->
-<script>
-    $(document).ready(function() {
-        showLogModal("{{ route('logs.data.settingPrice') }}"); // Здесь можно динамически передать route
-    })
-</script>
+    <script>
+        $(document).ready(function () {
+            showLogModal("{{ route('logs.data.settingPrice') }}"); // Здесь можно динамически передать route
+        })
+    </script>
 @endsection
