@@ -65,6 +65,8 @@
                     </button>
                     {{--                    <i class="info-cicle fa-solid fa-circle-info"></i>--}}
 
+                    @if(isset($teamPrices) && count($teamPrices) > 0)
+                        @dump($teamPrices);
                     @for($i = 0; $i < count($teamPrices); $i++)
                         <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
                             <div class="team-name col-3">{{$allTeams[$i]->title}}</div>
@@ -76,7 +78,7 @@
                             </div>
                         </div>
                     @endfor
-
+                    @endif
                 </div>
                 <div class="col-md-auto"></div>
                 <div id='right_bar' class="col col-lg-5">

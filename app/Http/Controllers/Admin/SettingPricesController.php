@@ -304,7 +304,7 @@ class SettingPricesController extends Controller
             'teamId' => $teamId,
         ]);
     }
- 
+
     //AJAX ПРИМЕНИТЬ слева.Установка цен всем группам
     public function setPriceAllTeams(Request $request)
     {
