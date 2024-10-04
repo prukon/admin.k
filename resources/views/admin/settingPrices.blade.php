@@ -17,8 +17,11 @@
                 <div id='selectDate' class="col-10">
                     <select class="form-select" id="single-select-date" data-placeholder="Дата">
 
-                        @if($currentDate)
-                            <option>{{ $currentDate }}</option>
+{{--                        @if($currentDate)--}}
+{{--                            <option>{{ $currentDate }}</option>--}}
+{{--                        @endif --}}
+                            @if($currentDateString)
+                            <option>{{ $currentDateString }}</option>
                         @endif
 
                     </select>

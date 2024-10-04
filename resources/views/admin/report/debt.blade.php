@@ -43,6 +43,19 @@
 
 @section('scripts')
     <script type="text/javascript">
+        // Функция для форматирования даты
+        function formatDateToMonthYear(dateStr) {
+            // Преобразуем строку в объект Date
+            var date = new Date(dateStr);
+            // Определяем массив названий месяцев
+            var months = [
+                'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+            ];
+            // Форматируем дату в нужный вид "Месяц Год"
+            return months[date.getMonth()] + ' ' + date.getFullYear();
+        }
+
         $(function () {
             var table = $('#debts-table').DataTable({
                 processing: true,
@@ -55,28 +68,32 @@
                         data: null,
                         name: 'user_name',
                         render: function (data, type, row) {
-                            // Проверяем наличие user_id, если есть, делаем ссылку
                             if (row.user_id) {
                                 return '<a href="/admin/users/' + row.user_id + '/edit">' + row.user_name + '</a>';
                             } else {
-                                // Если user_id нет, просто выводим имя пользователя
                                 return row.user_name ? row.user_name : 'Без имени';
                             }
                         }
                     },
 
-                    {data: 'month', name: 'month'},
+                    {
+                        data: 'month',
+                        name: 'month',
+                        render: function (data, type, row) {
+                            // Преобразуем дату с помощью функции formatDateToMonthYear
+                            return formatDateToMonthYear(row.month);
+                        }
+                    },
+
                     {
                         data: 'price',
                         name: 'price',
                         render: function (data, type, row) {
-                            // Возвращаем значение напрямую из базы данных и добавляем " руб" в конце
                             return row.price;
                         }
                     }
                 ],
-                order: [[3, 'desc']], // Сортировка по столбцу "Сумма" в порядке убывания
-
+                order: [[3, 'desc']],
                 language: {
                     "processing": "Обработка...",
                     "search": "Поиск:",

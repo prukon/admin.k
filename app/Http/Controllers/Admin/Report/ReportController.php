@@ -70,21 +70,71 @@ class ReportController extends Controller
     {
 
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
+//dd($currentMonth)
+         function formatedDate($month)
+    {
+        // Массив соответствий русских и английских названий месяцев
+        $months = [
+            'Январь' => 'January',
+            'Февраль' => 'February',
+            'Март' => 'March',
+            'Апрель' => 'April',
+            'Май' => 'May',
+            'Июнь' => 'June',
+            'Июль' => 'July',
+            'Август' => 'August',
+            'Сентябрь' => 'September',
+            'Октябрь' => 'October',
+            'Ноябрь' => 'November',
+            'Декабрь' => 'December',
+        ];
 
+        // Разделение строки на месяц и год
+        $parts = explode(' ', $month);
+        if (count($parts) === 2 && isset($months[$parts[0]])) {
+            $month = $months[$parts[0]] . ' ' . $parts[1]; // Замена русского месяца на английский
+        } else {
+            return null; // Если формат не соответствует "Месяц Год", возвращаем null
+        }
+
+        // Преобразуем строку в объект DateTime
+        try {
+            $date = \DateTime::createFromFormat('F Y', $month); // F - имя месяца, Y - год
+            if ($date) {
+                return $date->format('Y-m-01'); // Всегда возвращаем первое число месяца
+            }
+            return null; // Возвращаем null, если не удалось преобразовать
+        } catch (\Exception $e) {
+            \Log::error('Ошибка преобразования даты: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+        $currentMonth = formatedDate($currentMonth);
+        $currentMonth = formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
+
+//         dd($currentMonth);
         if ($request->ajax()) {
             $usersWithUnpaidPrices = DB::table('users_prices')
                 ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
-                ->select('users.name as user_name','users.id as user_id' , 'users_prices.month', 'users_prices.price')
+                ->select('users.name as user_name','users.id as user_id' , 'users_prices.new_month', 'users_prices.price')
                 ->where('users_prices.is_paid', 0)
                 ->where('users.is_enabled', 1)
                 ->where('users_prices.price', '>', 0)
-                ->where('users_prices.month', '<', $currentMonth)
+                ->where('users_prices.new_month', '<', $currentMonth)
                 ->get();
+
 
 
             // Добавляем проверку на наличие данных
             if ($usersWithUnpaidPrices->isEmpty()) {
-                return response()->json(['error' => 'Данные не найдены'], 404);
+                // Возвращаем пустую таблицу, но в корректном формате для DataTables
+                return response()->json([
+                    'draw' => $request->get('draw'), // draw должен быть передан DataTables
+                    'recordsTotal' => 0,
+                    'recordsFiltered' => 0,
+                    'data' => [] // Пустой массив данных
+                ]);
             }
 
             return DataTables::of($usersWithUnpaidPrices)
@@ -93,7 +143,7 @@ class ReportController extends Controller
                     return $row->user_name ? $row->user_name : 'Без имени'; // Проверяем наличие имени пользователя
                 })
                 ->addColumn('month', function($row) {
-                    return $row->month; // Месяц
+                    return $row->new_month; // Месяц
                 })
                 ->addColumn('price', function($row) {
                     return number_format($row->price, 2) . ' руб'; // Формат цены

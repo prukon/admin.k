@@ -47,13 +47,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                 // Получаем все блоки с классом border_price
                                 const borderPrices = document.querySelectorAll('.border_price');
 
-// Проходим по каждому блоку
+                                // Проходим по каждому блоку
                                 for (let i = 0; i < borderPrices.length; i++) {
                                     const borderPrice = borderPrices[i];
                                     const button = borderPrice.querySelector('.new-main-button');
-
-                                    // var button = borderPrice.querySelector('.new-main-button');
-                                    //
 
                                     // Находим элемент с классом new-price-description внутри текущего блока
                                     const newPriceDescription = borderPrice.querySelector('.new-price-description');
@@ -63,8 +60,20 @@ document.addEventListener('DOMContentLoaded', function () {
                                         // Получаем текст месяца из блока и убираем пробелы
                                         const monthText = newPriceDescription.textContent.trim();
 
-                                        // Ищем объект в массиве, у которого month совпадает с текстом месяца
-                                        const matchedData = userPrice.find(item => item.month === monthText);
+                                        // Преобразуем дату из БД (new_month) в строку вида "Месяц ГГГГ" для сравнения
+                                        const formatMonth = (dateString) => {
+                                            const date = new Date(dateString);
+                                            const monthNames = [
+                                                "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                                                "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+                                            ];
+                                            const month = monthNames[date.getMonth()];
+                                            const year = date.getFullYear();
+                                            return `${month} ${year}`;
+                                        };
+
+                                        // Ищем объект в массиве, у которого преобразованная new_month совпадает с текстом месяца
+                                        const matchedData = userPrice.find(item => formatMonth(item.new_month) === monthText);
 
                                         // Если найдено совпадение, обновляем цену
                                         if (matchedData) {
@@ -75,13 +84,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                                     priceValue.textContent = matchedData.price;
                                                 }
                                             }
-                                            // borderPrice.querySelector('.new-main-button').removeAttribute('disabled');
-
-                                            // Получаем кнопку
 
                                             // Проверяем, если is_paid == true, меняем текст и делаем кнопку неактивной
                                             button.textContent = "Оплатить";
-
 
                                             if (matchedData.is_paid) {
                                                 button.textContent = "Оплачено";
@@ -94,15 +99,11 @@ document.addEventListener('DOMContentLoaded', function () {
                                                 button.setAttribute('disabled', 'disabled');
                                             }
                                         }
-
-// Блокировка кнопок оплаты
-//                                         button.setAttribute('disabled', 'disabled');
                                     }
                                 }
 
                             }
                         }
-
                     }
 
                     // Скрываем/отображаем сезоны, в которых не установленны/установлены суммы.
