@@ -67,24 +67,26 @@
                     </button>
                     {{--                    <i class="info-cicle fa-solid fa-circle-info"></i>--}}
 
-                    @dump($teamPrices);
-                    @dump($allTeams);
+
+
+{{--                    @dump($teamPrices);--}}
+{{--                    @dump($allTeams);--}}
                     @if(isset($teamPrices) && count($teamPrices) > 0)
                         @for($i = 0; $i < count($teamPrices); $i++)
-                            @if(isset($teamPrices[$i]) && isset($allTeams[$i]))
-                                <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
-                                    <div class="team-name col-3">{{$allTeams[$i]->title}}</div>
-                                    <div class="team-price col-2"><input class="" type="number"
-                                                                         value="{{ $teamPrices[$i]->price }}"></div>
-                                    <div class="team-buttons col-7">
-                                        <input class="ok btn btn-primary" type="button" value="ok" id="">
-                                        <input class="detail btn btn-primary" type="button" value="Подробно" id="">
-                                    </div>
+                            {{--                            @if(isset($teamPrices[$i]) && isset($allTeams[$i]))--}}
+
+                            <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
+                                <div class="team-name col-3">{{$allTeams[$i]->title}}</div>
+                                <div class="team-price col-2"><input class="" type="number"
+                                                                     value="{{ $teamPrices[$i]->price }}"></div>
+                                <div class="team-buttons col-7">
+                                    <input class="ok btn btn-primary" type="button" value="ok" id="">
+                                    <input class="detail btn btn-primary" type="button" value="Подробно" id="">
                                 </div>
-                            @endif
+                            </div>
+                            {{--                            @endif--}}
                         @endfor
                     @endif
-
                 </div>
                 <div class="col-md-auto"></div>
                 <div id='right_bar' class="col col-lg-5">
