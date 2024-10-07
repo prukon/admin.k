@@ -23,6 +23,12 @@
                         <div class="tab-pane fade {{ $activeTab == 'payments' ? 'show active' : '' }}" id="home" role="tabpanel">
                             <div class="container-fluid">
                                 <h4 class="pt-3">Платежи</h4>
+                                <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
+                                    <span class="fw-bold">Общая сумма платежей:</span>
+
+                                    <span class="fw-bold"> {{$totalPaidPrice}} руб</span>
+                                </div>
+
                                 <table class="table table-bordered" id="payments-table">
                                     <thead>
                                     <tr>

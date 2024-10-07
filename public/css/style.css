@@ -805,3 +805,6 @@ display: none;
 .width-160 {
     width: 160px;
 }
+.sum-dept-wrap {
+    max-width: 350px;
+}
