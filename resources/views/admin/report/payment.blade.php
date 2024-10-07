@@ -14,9 +14,9 @@
                         <li class="nav-item" role="presentation">
                             <a class="nav-link {{ $activeTab == 'payments' ? 'active' : '' }}" href="/admin/reports/payments" role="tab">Платежи</a>
                         </li>
-{{--                        <li class="nav-item" role="presentation">--}}
-{{--                            <a class="nav-link {{ $activeTab == 'debts' ? 'active' : '' }}" href="/admin/reports/debts" role="tab">Задолженности</a>--}}
-{{--                        </li>--}}
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {{ $activeTab == 'debts' ? 'active' : '' }}" href="/admin/reports/debts" role="tab">Задолженности</a>
+                        </li>
                     </ul>
 
                     <div class="tab-content" id="myTabContent">
