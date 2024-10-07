@@ -79,7 +79,6 @@ class ReportController extends Controller
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
 
-
             $totalUnpaidPrice = DB::table('users_prices')
                 ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
                 ->where('users_prices.is_paid', 0)
@@ -89,7 +88,6 @@ class ReportController extends Controller
                 ->sum('users_prices.price');
 
         $totalUnpaidPrice = number_format($totalUnpaidPrice, 0, '', ' ');
-
 
         return view('admin.report.debt', ['activeTab' => 'debts'],
         compact('totalUnpaidPrice'));
