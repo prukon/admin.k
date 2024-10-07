@@ -43,8 +43,8 @@
         <div class="buttons">
             <div class="row gy-2 index-user-wrap">
                 <div id="search-container" class="col-12 col-md-6">
-                    <input id="search-input" class="mr-2 search-input ps-3" type="text" placeholder="Имя">
-                    <select id="search-select" class="mr-2 search-select">
+                    <input id="search-input" class="mr-2 search-input ps-3 width-170" type="text" placeholder="Имя">
+                    <select id="search-select" class="mr-2 search-select width-170">
                         <option value="">Группа</option>
                         <option value="none">Без группы</option>
                         @foreach($allTeams as $team)
@@ -55,10 +55,10 @@
                 </div>
 
                 <div class="col-12 col-md-6">
-                    <button id="new-user" type="button" class="btn btn-primary mr-2 new-user"
+                    <button id="new-user" type="button" class="btn btn-primary mr-2 new-user width-170"
                             onclick="window.location.href='{{ route('admin.user.create') }}'">Новый пользователь
                     </button>
-                    <button  id="logs" type="button" class="btn btn-primary logs" data-bs-toggle="modal"
+                    <button  id="logs" type="button" class="btn btn-primary logs width-170" data-bs-toggle="modal"
                             data-bs-target="#historyModal">История изменений
                     </button>
                 </div>

@@ -9,8 +9,8 @@
 
         <hr>
         <div class="buttons d-flex flex-row align-items-center mb-3">
-        <a href="{{ route('admin.team.create') }}" class="btn btn-primary">Добавить группу</a>
-            <button type="button" class="btn btn-primary ml-3" id="logs" data-bs-toggle="modal" data-bs-target="#historyModal">История изменений</button>
+        <a href="{{ route('admin.team.create') }}" class="btn btn-primary mr-2 width-170">Добавить группу</a>
+            <button type="button" class="btn btn-primary width-170" id="logs" data-bs-toggle="modal" data-bs-target="#historyModal">История изменений</button>
 
         </div>
         <hr>

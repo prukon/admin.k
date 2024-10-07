@@ -1,24 +1,26 @@
 <!-- Модальное окно логов -->
 <div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h1 class="modal-title fs-5" id="historyModalLabel">История изменений</h1>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
-                <!-- Таблица для отображения логов -->
-                <table id="logsTable" class="display table table-striped w-100">
-                    <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Действие</th>
-                        <th>Автор</th>
-                        <th>Описание</th>
-                        <th>Дата создания</th>
-                    </tr>
-                    </thead>
-                </table>
+                <!-- Обернем таблицу в div с классом table-responsive для мобильной адаптации -->
+                <div class="table-responsive">
+                    <table id="logsTable" class="display table table-striped w-100">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Действие</th>
+                            <th>Автор</th>
+                            <th>Описание</th>
+                            <th>Дата создания</th>
+                        </tr>
+                        </thead>
+                    </table>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Закрыть</button>
@@ -39,7 +41,8 @@
                     { data: 'id', name: 'id' },
                     { data: 'action', name: 'action' },
                     { data: 'author', name: 'author' },
-                    { data: 'description',
+                    {
+                        data: 'description',
                         name: 'description',
                         render: function(data, type, row) {
                             return data.replace(/\n/g, "<br>"); // Преобразование новых строк в <br>
@@ -48,19 +51,11 @@
                     { data: 'created_at', name: 'created_at' }
                 ],
                 order: [[4, 'desc']], // Сортировка по дате создания (последние записи первыми)
-
-                // Задаем ширину для столбца ID
                 columnDefs: [
-                    { width: "40px", targets: 0 }, // id
-                    // { width: "150px", targets: 1 }, // Действие
-                    // { width: "150px", targets: 2 }, // Автор
-                    // { width: "400px", targets: 3 }, // Описание
-                    { width: "150px", targets: 4 }, // Дата создания
-
+                    { width: "40px", targets: 0 }, // ID
+                    { width: "150px", targets: 4 } // Дата создания
                 ],
-
                 autoWidth: false, // Отключаем автоширину, чтобы вручную заданные стили применялись
-
                 language: {
                     "processing": "Обработка...",
                     "search": "Поиск:",
@@ -85,5 +80,19 @@
             });
         });
     }
-
 </script>
+
+<style>
+    @media (max-width: 768px) {
+        .modal-dialog {
+            max-width: 100%;
+            margin: 0;
+        }
+        .modal-content {
+            width: 100%;
+        }
+        .table th, .table td {
+            white-space: nowrap;
+        }
+    }
+</style>

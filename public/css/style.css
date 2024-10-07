@@ -808,17 +808,6 @@ display: none;
 .sum-dept-wrap {
     max-width: 350px;
 }
-.index-user-wrap .search-input {
- width: 170px;
-}
-.index-user-wrap .search-select {
-    width: 170px;
-}
-
-.index-user-wrap .new-user {
-    width: 170px;
-}
-
-.index-user-wrap .logs {
-    width: 170px;
+.width-170 {
+    width: 170px!important;
 }
