@@ -23,7 +23,7 @@
                     <label for="weekdays">Расписание</label>
                     <div id="weekdays">
                         @foreach($weekdays as $weekday)
-                            <div class="form-check">
+                            <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" id="weekday-{{$weekday->id}}"
                                        name="weekdays[]"
                                        value="{{$weekday->id}}"
@@ -37,6 +37,7 @@
                             </div>
                         @endforeach
                     </div>
+
                     @error('weekdays')
                     <p class="text-danger">{{'Укажите дни недели'}}</p>
                     @enderror
