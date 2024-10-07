@@ -277,17 +277,41 @@ class SettingPricesController extends Controller
         // Обновляем цены для пользователей
         $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
 
+//        foreach ($users as $user) {
+//            $userPrice = UserPrice::where('user_id', $user['id'])
+//                ->where('new_month', $selectedDate)
+//                ->where('is_paid', false)
+//                ->first();
+//
+//            if ($userPrice) {
+//                $userPrice->update([
+//                    'price' => $teamPrice
+//                ]);
+//            } else {
+//                UserPrice::create([
+//                    'user_id' => $user['id'],
+//                    'new_month' => $selectedDate,
+//                    'price' => $teamPrice,
+//                    'is_paid' => false
+//                ]);
+//            }
+//        }
+
+
         foreach ($users as $user) {
             $userPrice = UserPrice::where('user_id', $user['id'])
                 ->where('new_month', $selectedDate)
-                ->where('is_paid', false)
                 ->first();
 
             if ($userPrice) {
-                $userPrice->update([
-                    'price' => $teamPrice
-                ]);
+                // Если запись существует и не оплачена, обновляем её
+                if (!$userPrice->is_paid) {
+                    $userPrice->update([
+                        'price' => $teamPrice
+                    ]);
+                }
             } else {
+                // Если записи нет, создаем новую
                 UserPrice::create([
                     'user_id' => $user['id'],
                     'new_month' => $selectedDate,
@@ -296,6 +320,7 @@ class SettingPricesController extends Controller
                 ]);
             }
         }
+
 
         return response()->json([
             'success' => true,
@@ -343,41 +368,50 @@ class SettingPricesController extends Controller
             // Обновляем цены для пользователей
             $users = User::where('team_id', $team->id)->get(); // Предполагается, что пользователи связаны с командами
 
+//            foreach ($users as $user) {
+//                $userPrice = UserPrice::where('user_id', $user['id'])
+//                    ->where('new_month', $selectedDate)
+//                    ->where('is_paid', false)
+//                    ->first();
+//
+//                if ($userPrice) {
+//                    $userPrice->update([
+//                        'price' => $teamData['price']
+//                    ]);
+//                } else {
+//                    UserPrice::create([
+//                        'user_id' => $user['id'],
+//                        'new_month' => $selectedDate,
+//                        'price' => $teamData['price'],
+//                        'is_paid' => false
+//                    ]);
+//                }
+//            }
+
+
             foreach ($users as $user) {
                 $userPrice = UserPrice::where('user_id', $user['id'])
                     ->where('new_month', $selectedDate)
-                    ->where('is_paid', false)
                     ->first();
 
                 if ($userPrice) {
-                    $userPrice->update([
-                        'price' => $teamData['price']
-                    ]);
-
-                    // Логируем успешное обновление цены для пользователя
-//                    Log::create([
-//                        'type' => 2, // Лог для обновления цены пользователя
-//                        'author_id' => $authorId,
-//                        'descr    iption' => "Обновлена цена для пользователя {$user['name']} (ID: {$user['id']}) на дату {$selectedDate}.",
-//                        'created_at' => now(),
-//                    ]);
+                    // Если запись существует и не оплачена, обновляем её
+                    if (!$userPrice->is_paid) {
+                        $userPrice->update([
+                            'price' => $teamData['price']
+                        ]);
+                    }
                 } else {
+                    // Если записи нет, создаем новую
                     UserPrice::create([
                         'user_id' => $user['id'],
                         'new_month' => $selectedDate,
                         'price' => $teamData['price'],
                         'is_paid' => false
                     ]);
-
-                    // Логируем создание новой записи цены для пользователя
-//                    Log::create([
-//                        'type' => 2, // Лог для создания цены пользователя
-//                        'author_id' => $authorId,
-//                        'description' => "Создана новая запись цены для пользователя {$user['name']} (ID: {$user['id']}) на дату {$selectedDate}.",
-//                        'created_at' => now(),
-//                    ]);
                 }
             }
+
         }
 
         return response()->json([
