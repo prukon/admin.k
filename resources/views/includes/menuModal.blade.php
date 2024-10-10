@@ -25,34 +25,34 @@
                         <th>Действия</th>
                     </tr>
                     </thead>
-{{--                    <tbody>--}}
-{{--                    @foreach ($menuItems as $item)--}}
-{{--                        <tr data-id="{{ $item->id }}">--}}
-{{--                            <td>{{ $loop->index + 1 }}</td>--}}
-{{--                            <td><input type="text" name="menu_items[{{ $item->id }}][name]" class="form-control" value="{{ $item->name }}"></td>--}}
-{{--                            <td><input type="text" name="menu_items[{{ $item->id }}][link]" class="form-control" value="{{ $item->link }}"></td>--}}
-{{--                            <td class="text-center"><input type="checkbox" name="menu_items[{{ $item->id }}][target_blank]" value="1" {{ $item->target_blank ? 'checked' : '' }}></td>--}}
-{{--                            <td><button type="button" class="btn btn-danger btn-sm deleteRow">Удалить</button></td>--}}
-{{--                        </tr>--}}
-{{--                    @endforeach--}}
-{{--                    </tbody>--}}
-{{--                    --}}
+                    {{--                    <tbody>--}}
+                    {{--                    @foreach ($menuItems as $item)--}}
+                    {{--                        <tr data-id="{{ $item->id }}">--}}
+                    {{--                            <td>{{ $loop->index + 1 }}</td>--}}
+                    {{--                            <td><input type="text" name="menu_items[{{ $item->id }}][name]" class="form-control" value="{{ $item->name }}"></td>--}}
+                    {{--                            <td><input type="text" name="menu_items[{{ $item->id }}][link]" class="form-control" value="{{ $item->link }}"></td>--}}
+                    {{--                            <td class="text-center"><input type="checkbox" name="menu_items[{{ $item->id }}][target_blank]" value="1" {{ $item->target_blank ? 'checked' : '' }}></td>--}}
+                    {{--                            <td><button type="button" class="btn btn-danger btn-sm deleteRow">Удалить</button></td>--}}
+                    {{--                        </tr>--}}
+                    {{--                    @endforeach--}}
+                    {{--                    </tbody>--}}
+                    {{--                    --}}
 
 
-{{--                    <tbody>--}}
-{{--                    @foreach ($menuItems as $item)--}}
-{{--                        <tr data-id="{{ $item->id }}">--}}
-{{--                            <td>{{ $loop->index + 1 }}</td>--}}
-{{--                            <td>--}}
-{{--                                <input type="text" name="menu_items[{{ $item->id }}][name]" class="form-control" value="{{ $item->name }}">--}}
-{{--                                <div class="text-danger error-message"></div> <!-- Контейнер для ошибки -->--}}
-{{--                            </td>--}}
-{{--                            <td><input type="text" name="menu_items[{{ $item->id }}][link]" class="form-control" value="{{ $item->link }}"></td>--}}
-{{--                            <td class="text-center"><input type="checkbox" name="menu_items[{{ $item->id }}][target_blank]" value="1" {{ $item->target_blank ? 'checked' : '' }}></td>--}}
-{{--                            <td><button type="button" class="btn btn-danger btn-sm deleteRow">Удалить</button></td>--}}
-{{--                        </tr>--}}
-{{--                    @endforeach--}}
-{{--                    </tbody>--}}
+                    {{--                    <tbody>--}}
+                    {{--                    @foreach ($menuItems as $item)--}}
+                    {{--                        <tr data-id="{{ $item->id }}">--}}
+                    {{--                            <td>{{ $loop->index + 1 }}</td>--}}
+                    {{--                            <td>--}}
+                    {{--                                <input type="text" name="menu_items[{{ $item->id }}][name]" class="form-control" value="{{ $item->name }}">--}}
+                    {{--                                <div class="text-danger error-message"></div> <!-- Контейнер для ошибки -->--}}
+                    {{--                            </td>--}}
+                    {{--                            <td><input type="text" name="menu_items[{{ $item->id }}][link]" class="form-control" value="{{ $item->link }}"></td>--}}
+                    {{--                            <td class="text-center"><input type="checkbox" name="menu_items[{{ $item->id }}][target_blank]" value="1" {{ $item->target_blank ? 'checked' : '' }}></td>--}}
+                    {{--                            <td><button type="button" class="btn btn-danger btn-sm deleteRow">Удалить</button></td>--}}
+                    {{--                        </tr>--}}
+                    {{--                    @endforeach--}}
+                    {{--                    </tbody>--}}
 
                     <tbody>
                     @foreach ($menuItems as $item)

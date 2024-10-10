@@ -167,6 +167,9 @@ class SettingController extends Controller
     }
 
     //сохрание меню в шапке
+
+    //сохрание меню в шапке
+    //сохрание меню в шапке
     public function saveMenuItems(Request $request)
     {
         $errors = [];
@@ -229,6 +232,7 @@ class SettingController extends Controller
 
         return response()->json(['success' => true]);
     }
+
 
 
 

@@ -6,41 +6,28 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>Kidslink.ru - сервис учета для детских садов, тематических школ и секций</title>
-
-
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
-
-
     {{--JQuery--}}
     <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
-
     {{--JQuery-UI--}}
     <script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>
-
     {{--Fontawesome--}}
     <script src="{{ asset('js/fontawesome/fontawesome.js') }}"></script>
-
     {{--Datapicker--}}
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.material.css') }}">
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.minimal.css') }}">
     <link rel="stylesheet" href="{{ asset('css/datapicker/themes-jquery-ui.css') }}">
     <script src="{{ asset('js/datapicker/datepicker.js') }}"></script>
-
-
     {{--scripts--}}
     <script src="{{ asset('js/main.js') }}"></script>
-
-
     <!-- Google Font: Source Sans Pro -->
-    <link rel="stylesheet"
-          href="{{ asset('https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback') }}">
+    <link rel="stylesheet" href="{{ asset('https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback') }}">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="{{ asset('plugins/fontawesome-free/css/all.min.css') }}">
     <!-- Ionicons -->
     <link rel="stylesheet" href="{{ asset('https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css') }}">
     <!-- Tempusdominus Bootstrap 4 -->
-    <link rel="stylesheet"
-          href="{{ asset('plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css') }}">
     <!-- iCheck -->
     <link rel="stylesheet" href="{{ asset('plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
     <!-- JQVMap -->
@@ -54,11 +41,9 @@
     <!-- summernote -->
     <link rel="stylesheet" href="{{ asset('plugins/summernote/summernote-bs4.min.css') }}">
 
-
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
 <div class="wrapper">
-
 
     <!-- Preloader -->
     {{--    <div class="preloader flex-column justify-content-center align-items-center">--}}
@@ -73,15 +58,23 @@
             <li class="nav-item">
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
-            <li class="nav-item d-none d-sm-inline-block">
-                <a target="_blank" href="https://fc-istok.ru/" class="nav-link">Главная</a>
-            <li class="nav-item d-none d-sm-inline-block">
-                <a target="_blank" href="https://fc-istok.ru/schedule.html" class="nav-link">Расписание занятий</a>
-            </li>
-            <li class="nav-item d-none d-sm-inline-block">
-                <a target="_blank" href="https://fc-istok.ru/#b6" class="nav-link">Контакты</a>
-            </li>
+{{--            <li class="nav-item d-none d-sm-inline-block">--}}
+{{--                <a target="_blank" href="https://fc-istok.ru/" class="nav-link">Главная</a>--}}
+{{--            <li class="nav-item d-none d-sm-inline-block">--}}
+{{--                <a target="_blank" href="https://fc-istok.ru/schedule.html" class="nav-link">Расписание занятий</a>--}}
+{{--            </li>--}}
+{{--            <li class="nav-item d-none d-sm-inline-block">--}}
+{{--                <a target="_blank" href="https://fc-istok.ru/#b6" class="nav-link">Контакты</a>--}}
+{{--            </li>--}}
+
+            @foreach($menuItems as $item)
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a target="{{ $item->target_blank ? '_blank' : '_self' }}" href="{{ $item->link }}" class="nav-link">{{ $item->name }}</a>
+                </li>
+            @endforeach
         </ul>
+
+
 
         <!-- Right navbar links -->
         <ul class="navbar-nav ml-auto social-menu mr-3">
@@ -373,8 +366,6 @@
 {{--<script src="{{ asset('dist/js/pages/dashboard.js') }}"></script>--}}
 @yield('scripts')
 
-
-
 {{--Cropie--}}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css">
 <link rel="stylesheet" href="{{ asset('css/croppie.css') }}">
@@ -388,12 +379,10 @@
 {{--Bootstrap--}}
 @vite(['resources/js/app.js', 'resources/sass/app.scss'])
 
-
 <link rel="stylesheet" href="{{ asset('css/fcistok.css') }}">
 <link rel="stylesheet" href="{{ asset('css/style.css') }}">
 <link rel="stylesheet" href="{{ asset('css/media-style.css') }}">
 <link rel="stylesheet" href="{{ asset('css/calendar.css') }}">
-
 
 <!-- Включение DataTables CSS -->
 <link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel="stylesheet">
@@ -402,5 +391,4 @@
 <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
 
 </body>
-
 </html>

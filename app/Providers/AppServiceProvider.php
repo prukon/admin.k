@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\MenuItem;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\User;
@@ -47,6 +48,12 @@ class AppServiceProvider extends ServiceProvider
 
 //        View::share('currentUserId', $currentUserId);
 //        View::share('currentUserName', $currentUserName);
+
+        // Загружаем пункты меню из базы данных и передаем их на все представления
+        View::composer('*', function ($view) {
+            $menuItems = MenuItem::all();
+            $view->with('menuItems', $menuItems);
+        });
 
     }
 }
