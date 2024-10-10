@@ -39,11 +39,14 @@ class SettingController extends Controller
 
     public function index()
     {
+        $menuItems = MenuItem::all();
         $setting = Setting::where('name', 'textForUsers')->first();
         $textForUsers = $setting ? $setting->text : null;
 
+
         return view("admin/setting", compact(
-            "textForUsers"
+            "textForUsers",
+            "menuItems"
         ));
     }
 //    AJAX Активность регистрации
@@ -135,24 +138,99 @@ class SettingController extends Controller
     }
 
 
+//    public function saveMenuItems(Request $request)
+//    {
+//        $menuItems = $request->input('menu_items');
+//
+//        // Очистка существующих пунктов меню
+//        MenuItem::truncate();
+//
+//        // Сохранение новых пунктов меню
+//        foreach ($menuItems as $item) {
+//            MenuItem::create([
+//                'name' => $item['name'],
+//                'link' => $item['link'],
+//                'target_blank' => isset($item['target_blank']) ? true : false,
+//            ]);
+//        }
+//
+//        return response()->json(['success' => true]);
+//    }
+
+    public function editMenu()
+    {
+        // Получаем все элементы меню из БД
+        $menuItems = MenuItem::all();
+
+        // Передаем данные в представление
+        return view('your_view', compact('menuItems'));
+    }
+
+    //сохрание меню в шапке
     public function saveMenuItems(Request $request)
     {
-        $menuItems = $request->input('menu_items');
+        $errors = [];
+        $validatedData = [];
 
-        // Очистка существующих пунктов меню
-        MenuItem::truncate();
-
-        // Сохранение новых пунктов меню
-        foreach ($menuItems as $item) {
-            MenuItem::create([
-                'name' => $item['name'],
-                'link' => $item['link'],
-                'target_blank' => isset($item['target_blank']) ? true : false,
+        foreach ($request->input('menu_items', []) as $key => $data) {
+            // Создаем валидатор для каждого элемента меню
+            $validator = \Validator::make($data, [
+                'name' => ['required', 'max:20', 'regex:/^[\pL\pN\s]+$/u'], // Буквы, цифры и пробелы
+                'link' => ['nullable', 'string'],
+            ], [
+                'name.required' => 'Заполните название.',
+                'name.max' => 'Название не может быть длиннее 20 символов.',
+                'name.regex' => 'Название не может содержать спецсимволы.',
             ]);
+
+
+            if ($validator->fails()) {
+                // Сохраняем ошибки в массиве с указанием ключа
+                foreach ($validator->errors()->messages() as $field => $messages) {
+                    $errors["menu_items[$key][$field]"] = $messages;
+                }
+            } else {
+                // Добавляем валидированные данные в массив
+                $validatedData[$key] = $data;
+            }
+        }
+
+        // Если есть ошибки, возвращаем их и выходим из метода
+        if (!empty($errors)) {
+            return response()->json(['success' => false, 'errors' => $errors], 422);
+        }
+
+        // Обработка существующих и новых записей
+        foreach ($validatedData as $key => $data) {
+            if (is_numeric($key)) {
+                // Обновление существующих записей
+                $menuItem = MenuItem::find($key);
+                if ($menuItem) {
+                    $menuItem->update([
+                        'name' => $data['name'],
+                        'link' => $data['link'] ?: '/#',  // Устанавливаем значение по умолчанию для ссылки
+                        'target_blank' => isset($data['target_blank']),
+                    ]);
+                }
+            } else {
+                // Создание новых записей
+                MenuItem::create([
+                    'name' => $data['name'],
+                    'link' => $data['link'] ?: '/#',  // Устанавливаем значение по умолчанию для ссылки
+                    'target_blank' => isset($data['target_blank']),
+                ]);
+            }
+        }
+
+        // Удаление элементов с переданными ID
+        if ($request->has('deleted_items')) {
+            MenuItem::whereIn('id', $request->input('deleted_items'))->delete();
         }
 
         return response()->json(['success' => true]);
     }
+
+
 
 
 }

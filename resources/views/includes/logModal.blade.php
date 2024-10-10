@@ -82,6 +82,8 @@
     }
 </script>
 
+
+
 <style>
     @media (max-width: 768px) {
         .modal-dialog {
