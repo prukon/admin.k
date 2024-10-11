@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 class Log extends Model
 {
     protected $table = 'logs'; // Явно указываем таблицу, если нужно
-
-
     protected $guarded = []; //разрешение на изменение данных в таблице}
 
 

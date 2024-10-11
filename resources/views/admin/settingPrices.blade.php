@@ -65,12 +65,7 @@
                 <div id='left_bar' class="col col-lg-5 mb-3">
                     <button id="set-price-all-teams" class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить
                     </button>
-                    {{--                    <i class="info-cicle fa-solid fa-circle-info"></i>--}}
 
-
-
-{{--                    @dump($teamPrices);--}}
-{{--                    @dump($allTeams);--}}
                     @if(isset($teamPrices) && count($teamPrices) > 0)
                         @for($i = 0; $i < count($teamPrices); $i++)
                             {{--                            @if(isset($teamPrices[$i]) && isset($allTeams[$i]))--}}
@@ -99,28 +94,14 @@
         </div>
     </div>
 
-    <!-- Модальное окно приенения -->
-    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="confirmModalLabel">Подтверждение действия</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    Вы уверены, что хотите применить изменения?
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" id="confirmApply">Да</button>
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Нет</button>
 
-                </div>
-            </div>
-        </div>
-    </div>
+
+    <!-- Модальное окно подтверждения -->
+    @include('includes.confirmModal')
 
     <!-- Модальное окно логов -->
     @include('includes.logModal')
+
     <!-- Модальное окно логов -->
     <script>
         $(document).ready(function () {

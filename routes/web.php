@@ -96,6 +96,11 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //    Route::post('/admin/settings/save-menu-items', [\App\Http\Controllers\Admin\SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems');
     Route::get('/edit-menu', [\App\Http\Controllers\Admin\SettingController::class, 'editMenu'])->name('editMenu');
     Route::post('/settings/save-menu-items', [\App\Http\Controllers\Admin\SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems');
+    Route::post('/settings/save-social-menu-items', [\App\Http\Controllers\Admin\SettingController::class, 'saveSocialItems'])->name('settings.saveSocialItems');
+
+
+
+
 
 
 //  Route::get('/account-settings', [\App\Http\Controllers\AccountSettingController::class, 'index'])->name('accountSettings');

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\MenuItem;
 use App\Models\Setting;
+use App\Models\SocialItem;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Pagination\Paginator;
@@ -53,6 +54,12 @@ class AppServiceProvider extends ServiceProvider
         View::composer('*', function ($view) {
             $menuItems = MenuItem::all();
             $view->with('menuItems', $menuItems);
+        });
+
+        // Загружаем пункты меню из базы данных и передаем их на все представления
+        View::composer('*', function ($view) {
+            $socialItems = SocialItem::all();
+            $view->with('socialItems', $socialItems);
         });
 
     }

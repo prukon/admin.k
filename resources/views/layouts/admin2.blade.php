@@ -58,14 +58,6 @@
             <li class="nav-item">
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
-{{--            <li class="nav-item d-none d-sm-inline-block">--}}
-{{--                <a target="_blank" href="https://fc-istok.ru/" class="nav-link">Главная</a>--}}
-{{--            <li class="nav-item d-none d-sm-inline-block">--}}
-{{--                <a target="_blank" href="https://fc-istok.ru/schedule.html" class="nav-link">Расписание занятий</a>--}}
-{{--            </li>--}}
-{{--            <li class="nav-item d-none d-sm-inline-block">--}}
-{{--                <a target="_blank" href="https://fc-istok.ru/#b6" class="nav-link">Контакты</a>--}}
-{{--            </li>--}}
 
             @foreach($menuItems as $item)
                 <li class="nav-item d-none d-sm-inline-block">
@@ -74,21 +66,36 @@
             @endforeach
         </ul>
 
-
-
         <!-- Right navbar links -->
         <ul class="navbar-nav ml-auto social-menu mr-3">
             <!-- Navbar Search -->
 
-            <li class="nav-item">
-                <a target="_blank" class="d-flex justify-content-center align-items-center"
-                   href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk" aria-hidden="true"></i></a>
-            </li>
-            <li class="nav-item ml-2">
-                <a target="_blank" class="d-flex justify-content-center align-items-center"
-                   href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i class="fa-brands fa-youtube"
-                                                                                      aria-hidden="true"></i></a>
-            </li>
+{{--            <li class="nav-item">--}}
+{{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
+{{--                   href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk" aria-hidden="true"></i></a>--}}
+{{--            </li>--}}
+{{--            <li class="nav-item ml-2">--}}
+{{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
+{{--                   href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i class="fa-brands fa-youtube"--}}
+{{--                                                                                      aria-hidden="true"></i></a>--}}
+{{--            </li>--}}
+
+            @foreach($socialItems as $social)
+                <li class="nav-item {{ $loop->first ? '' : 'ml-2' }}">
+                    <a target="_blank" class="d-flex justify-content-center align-items-center"
+                       href="{{ $social->link }}">
+                        @if($social->name === 'vk.com')
+                            @if($social->link != '#')
+                                <i class="fa-brands fa-vk" aria-hidden="true"></i>
+                            @endif
+                        @elseif($social->name === 'YouTube.com')
+                            @if($social->link != '#')
+                                <i class="fa-brands fa-youtube" aria-hidden="true"></i>
+                            @endif
+                        @endif
+                    </a>
+                </li>
+            @endforeach
 
             <li class="nav-item d-flex align-items-center">
                 <form method="POST" action="{{ route('logout') }}" class="d-flex align-items-center mb-0">

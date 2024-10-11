@@ -8,6 +8,7 @@ use App\Http\Requests\Team\FilterRequest;
 use App\Models\Log;
 use App\Models\MenuItem;
 use App\Models\Setting;
+use App\Models\SocialItem;
 use App\Models\Team;
 use App\Models\TeamPrice;
 use App\Models\UserPrice;
@@ -16,7 +17,6 @@ use App\Models\Weekday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Yajra\DataTables\DataTables;
-
 
 
 class SettingController extends Controller
@@ -40,17 +40,21 @@ class SettingController extends Controller
     public function index()
     {
         $menuItems = MenuItem::all();
+        $socialItems = SocialItem::all(); // Получаем все записи социальных сетей из базы данных
         $setting = Setting::where('name', 'textForUsers')->first();
         $textForUsers = $setting ? $setting->text : null;
 
 
         return view("admin/setting", compact(
             "textForUsers",
-            "menuItems"
+            "menuItems",
+            "socialItems"
         ));
     }
+
 //    AJAX Активность регистрации
-    public function registrationActivity(Request $request) {
+    public function registrationActivity(Request $request)
+    {
         $isRegistrationActivity = $request->query('isRegistrationActivity');
 
         // Обновляем цены для групп
@@ -72,19 +76,21 @@ class SettingController extends Controller
 
         ]);
     }
+
 //    AJAX Текст сообщения для юзеров
-    public function textForUsers(Request $request) {
+    public function textForUsers(Request $request)
+    {
         $textForUsers = $request->query('textForUsers');
-     if($textForUsers) {
-         Setting::updateOrCreate(
-             [
-                 'name' => "textForUsers",
-             ],
-             [
-                 'text' => $textForUsers
-             ]
-         );
-     }
+        if ($textForUsers) {
+            Setting::updateOrCreate(
+                [
+                    'name' => "textForUsers",
+                ],
+                [
+                    'text' => $textForUsers
+                ]
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -93,7 +99,8 @@ class SettingController extends Controller
     }
 
     //Журнал логов
-    public function logsAllData(Request $request) {
+    public function logsAllData(Request $request)
+    {
         $logs = Log::with('author')
 //            ->where('type', 1) // Добавляем условие для фильтрации по type
             ->select('logs.*');
@@ -126,10 +133,7 @@ class SettingController extends Controller
                     32 => 'Изменение группы',
                     33 => 'Удаление группы',
 
-
-
                     40 => 'Авторизация',
-
 
                 ];
                 return $typeLabels[$log->action] ?? 'Неизвестный тип';
@@ -137,38 +141,6 @@ class SettingController extends Controller
             ->make(true);
     }
 
-
-//    public function saveMenuItems(Request $request)
-//    {
-//        $menuItems = $request->input('menu_items');
-//
-//        // Очистка существующих пунктов меню
-//        MenuItem::truncate();
-//
-//        // Сохранение новых пунктов меню
-//        foreach ($menuItems as $item) {
-//            MenuItem::create([
-//                'name' => $item['name'],
-//                'link' => $item['link'],
-//                'target_blank' => isset($item['target_blank']) ? true : false,
-//            ]);
-//        }
-//
-//        return response()->json(['success' => true]);
-//    }
-
-    public function editMenu()
-    {
-        // Получаем все элементы меню из БД
-        $menuItems = MenuItem::all();
-
-        // Передаем данные в представление
-        return view('your_view', compact('menuItems'));
-    }
-
-    //сохрание меню в шапке
-
-    //сохрание меню в шапке
     //сохрание меню в шапке
     public function saveMenuItems(Request $request)
     {
@@ -179,53 +151,48 @@ class SettingController extends Controller
             // Создаем валидатор для каждого элемента меню
             $validator = \Validator::make($data, [
                 'name' => ['required', 'max:20', 'regex:/^[\pL\pN\s]+$/u'], // Буквы, цифры и пробелы
-                'link' => ['nullable', 'string'],
+                'link' => ['nullable', 'url'],
             ], [
                 'name.required' => 'Заполните название.',
                 'name.max' => 'Название не может быть длиннее 20 символов.',
                 'name.regex' => 'Название не может содержать спецсимволы.',
+                'link.url' => 'Введите корректный URL.',
             ]);
 
-
             if ($validator->fails()) {
-                // Сохраняем ошибки в массиве с указанием ключа
                 foreach ($validator->errors()->messages() as $field => $messages) {
                     $errors["menu_items[$key][$field]"] = $messages;
                 }
             } else {
-                // Добавляем валидированные данные в массив
+                // Приведение target_blank к числовому значению
+                $data['target_blank'] = !empty($data['target_blank']) ? 1 : 0;
                 $validatedData[$key] = $data;
             }
         }
 
-        // Если есть ошибки, возвращаем их и выходим из метода
         if (!empty($errors)) {
             return response()->json(['success' => false, 'errors' => $errors], 422);
         }
 
-        // Обработка существующих и новых записей
         foreach ($validatedData as $key => $data) {
             if (is_numeric($key)) {
-                // Обновление существующих записей
                 $menuItem = MenuItem::find($key);
                 if ($menuItem) {
                     $menuItem->update([
                         'name' => $data['name'],
-                        'link' => $data['link'] ?: '/#',  // Устанавливаем значение по умолчанию для ссылки
-                        'target_blank' => isset($data['target_blank']),
+                        'link' => $data['link'] ?: '/#',
+                        'target_blank' => $data['target_blank'],
                     ]);
                 }
             } else {
-                // Создание новых записей
                 MenuItem::create([
                     'name' => $data['name'],
-                    'link' => $data['link'] ?: '/#',  // Устанавливаем значение по умолчанию для ссылки
-                    'target_blank' => isset($data['target_blank']),
+                    'link' => $data['link'] ?: '/#',
+                    'target_blank' => $data['target_blank'],
                 ]);
             }
         }
 
-        // Удаление элементов с переданными ID
         if ($request->has('deleted_items')) {
             MenuItem::whereIn('id', $request->input('deleted_items'))->delete();
         }
@@ -233,8 +200,42 @@ class SettingController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function saveSocialItems(Request $request)
+    {
+        $errors = [];
+        $validatedData = [];
 
+        foreach ($request->input('social_items', []) as $key => $data) {
+            $validator = \Validator::make($data, [
+                'link' => ['nullable', 'url'], // Валидация только для URL
+            ], [
+                'link.url' => 'Введите корректный URL.',
+            ]);
 
+            if ($validator->fails()) {
+                foreach ($validator->errors()->messages() as $field => $messages) {
+                    $errors["social_items[$key][$field]"] = $messages;
+                }
+            } else {
+                $validatedData[$key] = $data;
+            }
+        }
 
+        if (!empty($errors)) {
+            return response()->json(['success' => false, 'errors' => $errors], 422);
+        }
+
+        foreach ($validatedData as $key => $data) {
+            $socialItem = SocialItem::find($key);
+            if ($socialItem) {
+                $socialItem->update([
+                    'name' => $data['name'], // Поле `name` сохраняется без валидации
+                    'link' => $data['link'] ?: '#',
+                ]);
+            }
+        }
+
+        return response()->json(['success' => true]);
+    }
 
 }

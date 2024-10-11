@@ -77,7 +77,6 @@ class SettingPricesController extends Controller
         }
     }
 
-
     public function index(FilterRequest $request)
     {
         $allTeams = Team::all();
