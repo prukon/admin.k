@@ -1,6 +1,15 @@
-document.addEventListener('DOMContentLoaded', function () {
-    let usersPrice = []; // Объявляем переменную вне всех функций, чтобы она была доступна глобально
 
+document.addEventListener('DOMContentLoaded', function () {
+
+    // Установка CSRF-токена для всех AJAX-запросов
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+
+
+    let usersPrice = []; // Объявляем переменную вне всех функций, чтобы она была доступна глобально
 
     // AJAX ПОДРОБНО. Получение списка пользователей
     const detailButtons = document.querySelectorAll('.detail');
@@ -75,7 +84,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 month: selectedMonth,
                 // _token: "{{ csrf_token() }}"
                 // _token: $('meta[name="csrf-token"]').attr('content')
-
             },
             success: function (response) {
 
@@ -178,22 +186,198 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     // Конец изменения
 
+
     //AJAX ПРИМЕНИТЬ СПРАВА.Установка цен всем ученикам
+    // $('#set-price-all-users').on('click', function () {
+    //     var token = '{{ csrf_token() }}';
+    //
+    //     // Выбранная дата
+    //     const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+    //     //Выключаем кнопку
+    //     document.querySelector('#set-price-all-users').setAttribute('disabled', 'disabled');
+    //
+    //     let updateUsersPrice = function (usersPrice) {
+    //         const userRows = document.querySelectorAll('.wrap-users .row.mb-2');
+    //         for (i = 0; i < usersPrice.length; i++) {
+    //
+    //             for (j = 0; j < userRows.length; j++) {
+    //                 let userId = userRows[j].querySelector('.user-name').getAttribute('id');
+    //                 let price = userRows[j].querySelector('.user-price input').value;
+    //                 if (usersPrice[i].user_id == userId) {
+    //
+    //                     // Обновляем цену пользователя с фронта в usersPrice
+    //                     usersPrice[i].price = price;
+    //                 }
+    //             }
+    //         }
+    //         return usersPrice;
+    //     };
+    //
+    //     usersPrice = updateUsersPrice(usersPrice);
+    //
+    //     console.log("usersPrice:");
+    //     console.log(usersPrice);
+    //     $.ajax({
+    //         url: '/set-price-all-users',
+    //         method: 'GET',
+    //         // method: 'POST',
+    //         data: {
+    //             selectedDate: selectedDate,
+    //             usersPrice: JSON.stringify(usersPrice), // Конвертируем массив объектов в строку JSON
+    //         },
+    //         success: function (response) {
+    //             // usersData = response.usersData;
+    //             usersPrice = response.usersPrice;
+    //
+    //             document.querySelector('#set-price-all-users').removeAttribute('disabled');
+    //
+    //             // Добавляем юзеров с ценами в колонку справа
+    //             let apendUserWithPrice = function () {
+    //                 let rightBar = $('.wrap-users');
+    //                 rightBar.empty();
+    //
+    //                 for (let i = 0; i < usersPrice.length; i++) {
+    //
+    //                     let isPaidClass = usersPrice[i].is_paid == 0 ? 'display-none' : '';
+    //                     let inputClass = usersPrice[i].is_paid == 0 ? 'animated-input' : '';
+    //                     let inputDisabled = usersPrice[i].is_paid == 1 ? 'disabled' : '';
+    //
+    //                     let userBlock = `
+    //     <div class="row mb-2">
+    //         <div id="${usersPrice[i].user_id}" class="user-name col-6">  ${usersPrice[i].name}   </div>
+    //         <div class="user-price col-4">
+    //             <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
+    //         </div>
+    //         <div class="check col-2">
+    //             <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
+    //         </div>
+    //     </div>
+    // `;
+    //
+    //                     rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
+    //                     document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
+    //                 }
+    //             }
+    //             apendUserWithPrice();
+    //
+    //         },
+    //         error: function (xhr, status, error) {
+    //             console.log('Error:', error);
+    //         }
+    //     });
+    //
+    // });
+
+    // $('#set-price-all-users').on('click', function () {
+    //     var token = '{{ csrf_token() }}';
+    //
+    //     // Выбранная дата
+    //     const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+    //     // Выключаем кнопку
+    //     document.querySelector('#set-price-all-users').setAttribute('disabled', 'disabled');
+    //
+    //     let updateUsersPrice = function (usersPrice) {
+    //         const userRows = document.querySelectorAll('.wrap-users .row.mb-2');
+    //         for (i = 0; i < usersPrice.length; i++) {
+    //
+    //             for (j = 0; j < userRows.length; j++) {
+    //                 let userId = userRows[j].querySelector('.user-name').getAttribute('id');
+    //                 let price = userRows[j].querySelector('.user-price input').value;
+    //                 if (usersPrice[i].user_id == userId) {
+    //
+    //                     // Обновляем цену пользователя с фронта в usersPrice
+    //                     usersPrice[i].price = price;
+    //                 }
+    //             }
+    //         }
+    //         return usersPrice;
+    //     };
+    //
+    //     usersPrice = updateUsersPrice(usersPrice);
+    //
+    //     // console.log("usersPrice:");
+    //     // console.log(usersPrice);
+    //
+    //
+    //     console.log("Selected Date:", selectedDate);
+    //     console.log("Users Price:", usersPrice);  // Проверьте, что это массив объектов
+    //     // $.ajax({
+    //     //     url: '/set-price-all-users',
+    //     //     method: 'POST',
+    //     //
+    //     //     data: {
+    //     //         selectedDate: selectedDate,
+    //     //         usersPrice: JSON.stringify(usersPrice), // Конвертируем массив объектов в строку JSON
+    //     //     },
+    //
+    //         $.ajax({
+    //             url: '/set-price-all-users',
+    //             method: 'POST',
+    //             contentType: 'application/json', // Указываем тип данных JSON
+    //             dataType: 'json', // Ожидаемый ответ от сервера в формате JSON
+    //             data: JSON.stringify({
+    //                 selectedDate: selectedDate,
+    //                 usersPrice: usersPrice,
+    //             }),
+    //
+    //
+    //
+    //         success: function (response) {
+    //             usersPrice = response.usersPrice;
+    //
+    //             document.querySelector('#set-price-all-users').removeAttribute('disabled');
+    //
+    //             // Добавляем юзеров с ценами в колонку справа
+    //             let apendUserWithPrice = function () {
+    //                 let rightBar = $('.wrap-users');
+    //                 rightBar.empty();
+    //
+    //                 for (let i = 0; i < usersPrice.length; i++) {
+    //
+    //                     let isPaidClass = usersPrice[i].is_paid == 0 ? 'display-none' : '';
+    //                     let inputClass = usersPrice[i].is_paid == 0 ? 'animated-input' : '';
+    //                     let inputDisabled = usersPrice[i].is_paid == 1 ? 'disabled' : '';
+    //
+    //                     let userBlock = `
+    //                     <div class="row mb-2">
+    //                         <div id="${usersPrice[i].user_id}" class="user-name col-6">  ${usersPrice[i].name}   </div>
+    //                         <div class="user-price col-4">
+    //                             <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
+    //                         </div>
+    //                         <div class="check col-2">
+    //                             <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
+    //                         </div>
+    //                     </div>
+    //                 `;
+    //
+    //                     rightBar.append(userBlock);
+    //                     document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
+    //                 }
+    //             }
+    //             apendUserWithPrice();
+    //
+    //         },
+    //         error: function (xhr, status, error) {
+    //             console.log('Error:', error);
+    //         }
+    //     });
+    //
+    // });
+
     $('#set-price-all-users').on('click', function () {
+        var token = '{{ csrf_token() }}';
+
         // Выбранная дата
         const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
-        //Выключаем кнопку
-        document.querySelector('#set-price-all-users').setAttribute('disabled', 'disabled');
 
+        // Функция для обновления цен пользователей
         let updateUsersPrice = function (usersPrice) {
             const userRows = document.querySelectorAll('.wrap-users .row.mb-2');
-            for (i = 0; i < usersPrice.length; i++) {
-
-                for (j = 0; j < userRows.length; j++) {
+            for (let i = 0; i < usersPrice.length; i++) {
+                for (let j = 0; j < userRows.length; j++) {
                     let userId = userRows[j].querySelector('.user-name').getAttribute('id');
                     let price = userRows[j].querySelector('.user-price input').value;
                     if (usersPrice[i].user_id == userId) {
-
                         // Обновляем цену пользователя с фронта в usersPrice
                         usersPrice[i].price = price;
                     }
@@ -202,17 +386,22 @@ document.addEventListener('DOMContentLoaded', function () {
             return usersPrice;
         };
 
+        // Обновляем данные о ценах пользователей
         usersPrice = updateUsersPrice(usersPrice);
+
+        console.log("Selected Date:", selectedDate);
+        console.log("Users Price:", usersPrice);
 
         $.ajax({
             url: '/set-price-all-users',
-            method: 'GET',
-            data: {
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify({
                 selectedDate: selectedDate,
-                usersPrice: JSON.stringify(usersPrice), // Конвертируем массив объектов в строку JSON
-            },
+                usersPrice: usersPrice,
+            }),
             success: function (response) {
-                // usersData = response.usersData;
                 usersPrice = response.usersPrice;
 
                 document.querySelector('#set-price-all-users').removeAttribute('disabled');
@@ -221,37 +410,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 let apendUserWithPrice = function () {
                     let rightBar = $('.wrap-users');
                     rightBar.empty();
-
                     for (let i = 0; i < usersPrice.length; i++) {
-
                         let isPaidClass = usersPrice[i].is_paid == 0 ? 'display-none' : '';
                         let inputClass = usersPrice[i].is_paid == 0 ? 'animated-input' : '';
                         let inputDisabled = usersPrice[i].is_paid == 1 ? 'disabled' : '';
 
                         let userBlock = `
-        <div class="row mb-2">
-            <div id="${usersPrice[i].user_id}" class="user-name col-6">  ${usersPrice[i].name}   </div>
-            <div class="user-price col-4">
-                <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
-            </div>
-            <div class="check col-2">
-                <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
-            </div>
-        </div>
-    `;
-
-                        rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
+                        <div class="row mb-2">
+                            <div id="${usersPrice[i].user_id}" class="user-name col-6">  ${usersPrice[i].name}   </div>
+                            <div class="user-price col-4">
+                                <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
+                            </div>
+                            <div class="check col-2">
+                                <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
+                            </div>
+                        </div>
+                    `;
+                        rightBar.append(userBlock);
                         document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
                     }
-                }
+                };
                 apendUserWithPrice();
-
             },
             error: function (xhr, status, error) {
                 console.log('Error:', error);
             }
         });
     });
+
 
 });
 

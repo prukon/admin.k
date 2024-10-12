@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+
     <title>Kidslink.ru - сервис учета для детских садов, тематических школ и секций</title>
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
     {{--JQuery--}}
@@ -82,18 +83,50 @@
 
             @foreach($socialItems as $social)
                 <li class="nav-item {{ $loop->first ? '' : 'ml-2' }}">
-                    <a target="_blank" class="d-flex justify-content-center align-items-center"
-                       href="{{ $social->link }}">
-                        @if($social->name === 'vk.com')
-                            @if($social->link != '#')
-                                <i class="fa-brands fa-vk" aria-hidden="true"></i>
-                            @endif
-                        @elseif($social->name === 'YouTube.com')
-                            @if($social->link != '#')
-                                <i class="fa-brands fa-youtube" aria-hidden="true"></i>
-                            @endif
+                    <a target="_blank" class="d-flex justify-content-center align-items-center" href="{{ $social->link }}">
+                        @if($social->name === 'vk.com' && $social->link != '#')
+                            <i class="fa-brands fa-vk" aria-hidden="true"></i>
+                        @elseif($social->name === 'YouTube.com' && $social->link != '#')
+                            <i class="fa-brands fa-youtube" aria-hidden="true"></i>
+                        @elseif($social->name === 'RuTube.ru' && $social->link != '#')
+                            <i class="fa-brands fa-rutube" aria-hidden="true"></i>
+                        @elseif($social->name === 'facebook.com' && $social->link != '#')
+                            <i class="fa-brands fa-facebook" aria-hidden="true"></i>
+                        @elseif($social->name === 'Instagram.com' && $social->link != '#')
+                            <i class="fa-brands fa-instagram" aria-hidden="true"></i>
+                        @elseif($social->name === 'Twitter.com' && $social->link != '#')
+                            <i class="fa-brands fa-twitter" aria-hidden="true"></i>
+                        @elseif($social->name === 'LinkedIn.com' && $social->link != '#')
+                            <i class="fa-brands fa-linkedin" aria-hidden="true"></i>
+                        @elseif($social->name === 'Telegram.org' && $social->link != '#')
+                            <i class="fa-brands fa-telegram" aria-hidden="true"></i>
+                        @elseif($social->name === 'Pinterest.com' && $social->link != '#')
+                            <i class="fa-brands fa-pinterest" aria-hidden="true"></i>
+                        @elseif($social->name === 'TikTok.com' && $social->link != '#')
+                            <i class="fa-brands fa-tiktok" aria-hidden="true"></i>
+                        @elseif($social->name === 'Reddit.com' && $social->link != '#')
+                            <i class="fa-brands fa-reddit" aria-hidden="true"></i>
+                        @elseif($social->name === 'Snapchat.com' && $social->link != '#')
+                            <i class="fa-brands fa-snapchat" aria-hidden="true"></i>
+                        @elseif($social->name === 'WhatsApp.com' && $social->link != '#')
+                            <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+                        @elseif($social->name === 'Discord.com' && $social->link != '#')
+                            <i class="fa-brands fa-discord" aria-hidden="true"></i>
+                        @elseif($social->name === 'Tumblr.com' && $social->link != '#')
+                            <i class="fa-brands fa-tumblr" aria-hidden="true"></i>
+                        @elseif($social->name === 'Dribbble.com' && $social->link != '#')
+                            <i class="fa-brands fa-dribbble" aria-hidden="true"></i>
+                        @elseif($social->name === 'GitHub.com' && $social->link != '#')
+                            <i class="fa-brands fa-github" aria-hidden="true"></i>
+                        @elseif($social->name === 'Vimeo.com' && $social->link != '#')
+                            <i class="fa-brands fa-vimeo" aria-hidden="true"></i>
+                        @elseif($social->name === 'Slack.com' && $social->link != '#')
+                            <i class="fa-brands fa-slack" aria-hidden="true"></i>
+                        @elseif($social->name === 'Dropbox.com' && $social->link != '#')
+                            <i class="fa-brands fa-dropbox" aria-hidden="true"></i>
                         @endif
                     </a>
+
                 </li>
             @endforeach
 

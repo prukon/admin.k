@@ -6,7 +6,9 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
 
 <div class="modal fade mt-3" id="menuModal" tabindex="-1" aria-labelledby="menuModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" style="margin: 0 auto;"> <!-- Установлено горизонтальное центрирование -->
+{{--    <div class="modal-dialog modal-lg" style="margin: 0 auto;"> <!-- Установлено горизонтальное центрирование -->--}}
+        <div class="modal-dialog d-flex justify-content-center">
+
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="menuModalLabel">Настройка меню в шапке</h5>
@@ -162,3 +164,38 @@
         });
     });
 </script>
+
+
+<style>
+    #menuModal .modal-dialog {
+        display: inline-block; /* Позволяет модалке занимать только необходимую ширину */
+        width: auto;
+    }
+
+    /* Задание ширины для столбцов таблицы */
+    #menuModal th:nth-child(1),
+    #menuModal td:nth-child(1) {
+        width: 70px;
+        text-align: center; /* Горизонтальное центрирование */
+        vertical-align: middle; /* Вертикальное центрирование */
+    }
+
+    #menuModal th:nth-child(2),
+    #menuModal td:nth-child(2) {
+        width: 150px;
+    }
+
+    #menuModal th:nth-child(3),
+    #menuModal td:nth-child(3) {
+        width: 300px;
+    }
+</style>
+
+{{--столбец пункт меню 70px--}}
+{{--столбец название 150px--}}
+{{--столбец ссылка 300 px--}}
+{{--столбец открывать в новой вкладке 300 px--}}
+{{--столбец действия 100 px--}}
+
+{{--Модалку отцентруй по горизонтали--}}
+{{--В модалке задай автоматическую ширину--}}

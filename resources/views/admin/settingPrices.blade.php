@@ -2,6 +2,9 @@
 @extends('layouts.admin2')
 @section('content')
 
+
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <script src="{{ asset('js/my-croppie.js') }}"></script>
     <script src="{{ asset('js/settings-prices-ajax.js') }}"></script>
 

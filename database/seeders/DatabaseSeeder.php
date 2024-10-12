@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\SocialItem;
 use App\Models\Team;
 use App\Models\TeamWeekday;
 use App\Models\User;
@@ -31,6 +32,32 @@ class DatabaseSeeder extends Seeder
             ['id' => 7, 'title' => 'Воскресенье', 'titleEn' => 'Sunday', 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
         ]);
         $weekdays = Weekday::all();
+
+        DB::table('social_items')->insert([
+            ['id' => 1, 'name' => 'vk.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['id' => 2, 'name' => 'YouTube.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 3, 'name' => 'RuTube.ru', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['id' => 4, 'name' => 'facebook.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['id' => 5, 'name' => 'Instagram.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 6, 'name' => 'Twitter.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 7, 'name' => 'LinkedIn.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['id' => 8, 'name' => 'Telegram.org', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 9, 'name' => 'Pinterest.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['id' => 10, 'name' => 'TikTok.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 11, 'name' => 'Reddit.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 12, 'name' => 'Snapchat.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['id' => 13, 'name' => 'WhatsApp.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 14, 'name' => 'Discord.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 15, 'name' => 'Tumblr.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 16, 'name' => 'Dribbble.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 17, 'name' => 'GitHub.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['id' => 18, 'name' => 'Vimeo.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 19, 'name' => 'Slack.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+//            ['id' => 20, 'name' => 'Dropbox.com', 'link' => null, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+        ]);
+
+//        $socialItem = SocialItem::all();
+
 
         // Заполнение таблицы teams
         DB::table('teams')->insert([
