@@ -23,7 +23,7 @@
                             <th>Пункт меню</th>
                             <th>Название</th>
                             <th>Ссылка</th>
-                            <th>Открывать в новой вкладке</th>
+                            <th>В новой вкладке</th>
                             <th>Действия</th>
                         </tr>
                         </thead>
@@ -72,14 +72,18 @@
 
             newRow.innerHTML = `
                 <td>${newItemIndex}</td>
-                <td>
-                    <input type="text" name="menu_items[new_${newItemIndex}][name]" class="form-control" data-key="menu_items[new_${newItemIndex}][name]">
-                    <div class="text-danger error-message"></div> <!-- Контейнер для ошибки названия -->
-                </td>
-                <td>
-                    <input type="text" name="menu_items[new_${newItemIndex}][link]" class="form-control">
-                    <div class="text-danger error-message"></div> <!-- Контейнер для ошибки ссылки -->
-                </td>
+
+
+
+<td>
+    <input type="text" name="menu_items[{{ $item->id }}][name]" class="form-control w-100" value="{{ $item->name }}" data-key="menu_items[{{ $item->id }}][name]">
+    <div class="text-danger error-message"></div>
+</td>
+<td>
+    <input type="text" name="menu_items[{{ $item->id }}][link]" class="form-control w-100" value="{{ $item->link }}">
+    <div class="text-danger error-message"></div>
+</td>
+
                 <td class="text-center">
                     <input type="checkbox" name="menu_items[new_${newItemIndex}][target_blank]" value="1">
                 </td>
@@ -166,28 +170,41 @@
 
 
 <style>
-    #menuModal .modal-dialog {
-        display: inline-block; /* Позволяет модалке занимать только необходимую ширину */
-        width: auto;
+
+
+    #menuModal #menuTable  {
+        width: max-content;
+    }
+        #menuModal .modal-dialog {
+        /*display: inline-block; !* Позволяет модалке занимать только необходимую ширину *!*/
+        /*width: auto;*/
+            max-width: 800px;
     }
 
     /* Задание ширины для столбцов таблицы */
     #menuModal th:nth-child(1),
     #menuModal td:nth-child(1) {
-        width: 70px;
+        width: 75px;
         text-align: center; /* Горизонтальное центрирование */
         vertical-align: middle; /* Вертикальное центрирование */
     }
 
+    /*Название*/
     #menuModal th:nth-child(2),
     #menuModal td:nth-child(2) {
         width: 150px;
     }
-
+        /*ссылка*/
     #menuModal th:nth-child(3),
     #menuModal td:nth-child(3) {
         width: 300px;
     }
+
+        /*Чек бокс*/
+        #menuModal th:nth-child(4),
+        #menuModal td:nth-child(4) {
+            width: 120px;
+        }
 </style>
 
 {{--столбец пункт меню 70px--}}

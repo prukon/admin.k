@@ -26,7 +26,7 @@
                         <tr>
                             <th>Иконка</th>
                             <th>Название</th>
-                            <th>Ссылка</th>
+                            <th>Ссылка</th> 
                         </tr>
                         </thead>
                         <tbody>
@@ -183,26 +183,26 @@
 <style>
 {{--    /* Применение автоматической ширины для модального окна */--}}
     #socialMenuModal .modal-dialog {
-        display: inline-block; /* Позволяет модалке занимать только необходимую ширину */
-        width: auto;
+        /*display: inline-block; !* Позволяет модалке занимать только необходимую ширину *!*/
+        /*width: auto;*/
     }
 
     /* Задание ширины для столбцов таблицы */
     #socialTable th:nth-child(1),
     #socialTable td:nth-child(1) {
-        width: 70px;
-        text-align: center; /* Горизонтальное центрирование */
-        vertical-align: middle; /* Вертикальное центрирование */
+        /*width: 70px;*/
+        /*text-align: center; !* Горизонтальное центрирование *!*/
+        /*vertical-align: middle; !* Вертикальное центрирование *!*/
     }
 
     #socialTable th:nth-child(2),
     #socialTable td:nth-child(2) {
-        width: 150px;
+        /*width: 150px;*/
     }
 
     #socialTable th:nth-child(3),
     #socialTable td:nth-child(3) {
-        width: 300px;
+        /*width: 300px;*/
     }
 </style>
 
