@@ -206,11 +206,19 @@ class SettingController extends Controller
         $validatedData = [];
 
         foreach ($request->input('social_items', []) as $key => $data) {
+//            $validator = \Validator::make($data, [
+//                'link' => ['nullable', 'url'], // Валидация только для URL
+//            ], [
+//                'link.url' => 'Введите корректный URL.',
+//            ]);
+
             $validator = \Validator::make($data, [
-                'link' => ['nullable', 'url'], // Валидация только для URL
+                'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
             ], [
-                'link.url' => 'Введите корректный URL.',
+                'link.regex' => 'Введите корректный URL.',
             ]);
+
+
 
             if ($validator->fails()) {
                 foreach ($validator->errors()->messages() as $field => $messages) {
@@ -230,7 +238,7 @@ class SettingController extends Controller
             if ($socialItem) {
                 $socialItem->update([
                     'name' => $data['name'], // Поле `name` сохраняется без валидации
-                    'link' => $data['link'] ?: '#',
+                    'link' => $data['link'] ?: '',
                 ]);
             }
         }

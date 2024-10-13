@@ -55,18 +55,18 @@
                                     <button type="button" class="btn btn-primary width-160" id="logs" data-bs-toggle="modal" data-bs-target="#historyModal">История изменений</button>
                                 </td>
                             </tr>
-{{--                            <tr>--}}
-{{--                                <td>Меню в шапке</td>--}}
-{{--                                <td class="text-center">--}}
-{{--                                    <button type="button" class="btn btn-primary width-160" data-bs-toggle="modal" data-bs-target="#menuModal">Настроить</button>--}}
-{{--                                </td>--}}
-{{--                            </tr>--}}
-{{--                            <tr>--}}
-{{--                                <td>Социальные сети</td>--}}
-{{--                                <td class="text-center">--}}
-{{--                                    <button type="button" class="btn btn-primary width-160" data-bs-toggle="modal" data-bs-target="#socialMenuModal">Настроить</button>--}}
-{{--                                </td>--}}
-{{--                            </tr>--}}
+                            <tr>
+                                <td>Меню в шапке</td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-primary width-160" data-bs-toggle="modal" data-bs-target="#menuModal">Настроить</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Социальные сети</td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-primary width-160" data-bs-toggle="modal" data-bs-target="#socialMenuModal">Настроить</button>
+                                </td>
+                            </tr>
                             <tr>
                                 <td>Оплата сервиса</td>
                                 <td class="text-center">
