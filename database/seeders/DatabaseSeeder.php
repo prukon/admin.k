@@ -22,6 +22,38 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
 
+
+        DB::table('menu_items')->insert([
+            [
+                'id' => null,
+                'name' => 'Главная',
+                'link' => 'https://fc-istok.ru/',
+                'target_blank' => '1',
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now()
+            ],
+            [
+                'id' => null,
+                'name' => 'Расписание занятий',
+                'link' => 'https://fc-istok.ru/schedule.html',
+                'target_blank' => '1',
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now()
+            ],
+            [
+                'id' => null,
+                'name' => 'Контакты',
+                'link' => 'https://fc-istok.ru/#b6',
+                'target_blank' => '1',
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now()
+            ],
+        ]);
+
+
+
+
+
         DB::table('weekdays')->insert([
             ['id' => 1, 'title' => 'Понедельник', 'titleEn' => 'Monday', 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
             ['id' => 2, 'title' => 'Вторник', 'titleEn' => 'Tuesday', 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],

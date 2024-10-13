@@ -138,9 +138,9 @@
                 body: formData,
             })
                 .then(response => {
-                    if (!response.ok) {
+                    if (response.status === 422) {
                         return response.json().then(data => {
-                            throw new Error(JSON.stringify(data.errors));
+                            throw data.errors;
                         });
                     }
                     return response.json();
@@ -151,8 +151,7 @@
                         location.reload();
                     }
                 })
-                .catch(error => {
-                    const errors = JSON.parse(error.message);
+                .catch(errors => {
                     Object.keys(errors).forEach((key) => {
                         const inputWithError = document.querySelector(`input[name="${key}"]`);
                         if (inputWithError) {

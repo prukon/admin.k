@@ -151,12 +151,12 @@ class SettingController extends Controller
             // Создаем валидатор для каждого элемента меню
             $validator = \Validator::make($data, [
                 'name' => ['required', 'max:20', 'regex:/^[\pL\pN\s]+$/u'], // Буквы, цифры и пробелы
-                'link' => ['nullable', 'url'],
+                'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
             ], [
                 'name.required' => 'Заполните название.',
                 'name.max' => 'Название не может быть длиннее 20 символов.',
                 'name.regex' => 'Название не может содержать спецсимволы.',
-                'link.url' => 'Введите корректный URL.',
+                'link.regex' => 'Введите корректный URL.',
             ]);
 
             if ($validator->fails()) {
@@ -180,14 +180,14 @@ class SettingController extends Controller
                 if ($menuItem) {
                     $menuItem->update([
                         'name' => $data['name'],
-                        'link' => $data['link'] ?: '/#',
+                        'link' => $data['link'] ?: '',
                         'target_blank' => $data['target_blank'],
                     ]);
                 }
             } else {
                 MenuItem::create([
                     'name' => $data['name'],
-                    'link' => $data['link'] ?: '/#',
+                    'link' => $data['link'] ?: '',
                     'target_blank' => $data['target_blank'],
                 ]);
             }
