@@ -138,16 +138,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // AJAX ПРИМЕНИТЬ СЛЕВА. Установка цен всем группам
     // Начало изменения
+    // let applyButton = document.getElementById('set-price-all-teams');
+    // let confirmButton = document.getElementById('confirmApply');
+    //
+    // // Отключаем немедленное выполнение действия при клике на "Применить1"
+    // applyButton.addEventListener('click', function (event) {
+    //     event.preventDefault();  // Останавливаем стандартное выполнение
+    //     $('#confirmModal').modal('show');  // Показываем модалку
+    // });
+    //
+    // // Обрабатываем нажатие на кнопку "Да" в модальном окне
+    // confirmButton.addEventListener('click', function () {
+    //     $('#confirmModal').modal('hide');  // Закрываем модалку
+    //
+    //     // Выполняем действия только после подтверждения
+    //     const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+    //
+    //     // Выключаем кнопку
+    //     document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
+    //
+    //     // Получаем массив команд и их цен
+    //     let teamsData = [];
+    //     document.querySelectorAll('.wrap-team').forEach(function (teamElement) {
+    //         let teamName = teamElement.querySelector('.team-name').textContent.trim();
+    //         let teamPrice = teamElement.querySelector('.team-price input').value;
+    //         teamsData.push({
+    //             name: teamName,
+    //             price: parseFloat(teamPrice)
+    //         });
+    //     });
+    //
+    //     $.ajax({
+    //         url: '/set-price-all-teams',
+    //         method: 'GET',
+    //         data: {
+    //             selectedDate: selectedDate,
+    //             teamsData: JSON.stringify(teamsData) // Конвертируем массив объектов в строку JSON
+    //         },
+    //         success: function (response) {
+    //             let cleanUrl = window.location.href.split('?')[0];
+    //             window.location.href = cleanUrl;
+    //         },
+    //         error: function (xhr, status, error) {
+    //             console.log('Error:', error);
+    //         }
+    //     });
+    // });
+    // // Конец изменения
+
     let applyButton = document.getElementById('set-price-all-teams');
     let confirmButton = document.getElementById('confirmApply');
 
-    // Отключаем немедленное выполнение действия при клике на "Применить1"
+// Отключаем немедленное выполнение действия при клике на "Применить"
     applyButton.addEventListener('click', function (event) {
         event.preventDefault();  // Останавливаем стандартное выполнение
         $('#confirmModal').modal('show');  // Показываем модалку
     });
 
-    // Обрабатываем нажатие на кнопку "Да" в модальном окне
+// Обрабатываем нажатие на кнопку "Да" в модальном окне
     confirmButton.addEventListener('click', function () {
         $('#confirmModal').modal('hide');  // Закрываем модалку
 
@@ -168,12 +216,29 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
 
+
+        if (teamsData.length === 0) {
+            console.error('Teams data is empty');
+            return;
+        }
+
+        console.log('Selected Date:', selectedDate);
+        console.log('Teams Data:', teamsData);
+
+
         $.ajax({
             url: '/set-price-all-teams',
-            method: 'GET',
-            data: {
+            method: 'POST',  // Меняем метод на POST
+            contentType: 'application/json', // Указываем тип контента JSON
+            data: JSON.stringify({ // Передаём данные в теле запроса в формате JSON
                 selectedDate: selectedDate,
-                teamsData: JSON.stringify(teamsData) // Конвертируем массив объектов в строку JSON
+                teamsData: teamsData
+            }),
+            beforeSend: function() {
+                console.log('Sending data:', {
+                    selectedDate: selectedDate,
+                    teamsData: teamsData
+                });
             },
             success: function (response) {
                 let cleanUrl = window.location.href.split('?')[0];
@@ -184,7 +249,15 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-    // Конец изменения
+// Конец изменения
+
+
+
+
+
+
+
+
 
 
     //AJAX ПРИМЕНИТЬ СПРАВА.Установка цен всем ученикам
@@ -363,7 +436,6 @@ document.addEventListener('DOMContentLoaded', function () {
     //     });
     //
     // });
-
     $('#set-price-all-users').on('click', function () {
         var token = '{{ csrf_token() }}';
 

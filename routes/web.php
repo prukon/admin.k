@@ -67,8 +67,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //    Установка цен
     Route::get('/get-team-price', [\App\Http\Controllers\Admin\SettingPricesController::class, 'getTeamPrice'])->name('getTeamPrice');
     Route::get('/set-team-price', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setTeamPrice'])->name('setTeamPrice');
-    Route::get('/set-price-all-teams', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllTeams'])->name('setPriceAllTeams');
-//    Route::get('/set-price-all-users', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
+//    Route::get('/set-price-all-teams', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllTeams'])->name('setPriceAllTeams');
+    Route::post('/set-price-all-teams', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllTeams'])->name('setPriceAllTeams');
+    //    Route::get('/set-price-all-users', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
     Route::post('/set-price-all-users', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
 
     Route::get('/setting-prices/logs-data', [\App\Http\Controllers\Admin\SettingPricesController::class, 'getLogsData'])->name('logs.data.settingPrice');

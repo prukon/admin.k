@@ -332,10 +332,29 @@ class SettingPricesController extends Controller
     //AJAX ПРИМЕНИТЬ слева.Установка цен всем группам
     public function setPriceAllTeams(Request $request)
     {
-        $selectedDate = $request->query('selectedDate');
+
+        // Получаем данные из тела запроса
+        $data = json_decode($request->getContent(), true);
+
+        $selectedDate = $data['selectedDate'] ?? null;
+        $teamsData = $data['teamsData'] ?? null;
+
+        if (is_null($teamsData) || !is_array($teamsData)) {
+            return response()->json(['error' => 'Invalid teams data1'], 400);
+        }
+
+
+//        $teamsData = json_decode($request->query('teamsData'), true);
+//        $selectedDate = json_decode($request->query('selectedDate'), true);
+//        $selectedDate = $request->query('selectedDate');
         $selectedDateString = $selectedDate;
         $selectedDate = $this->formatedDate($selectedDate);
-        $teamsData = json_decode($request->query('teamsData'), true);
+
+        if (is_null($teamsData) || !is_array($teamsData)) {
+            return response()->json(['error' => 'Invalid teams data2'], 400);
+        }
+
+
         $authorId = auth()->id(); // Авторизованный пользователь
 
         // Перебираем массив и обновляем цены команд
