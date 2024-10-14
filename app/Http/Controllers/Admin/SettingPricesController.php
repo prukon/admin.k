@@ -240,7 +240,7 @@ class SettingPricesController extends Controller
     //AJAX Кнопка ОК. Установка цен группе и юзерам.
     public function setTeamPrice(Request $request)
     {
-        
+
 //        $teamPrice = $request->query('teamPrice');
 //        $teamId = $request->query('teamId');
 //        $selectedDate = $request->query('selectedDate');

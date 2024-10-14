@@ -128,47 +128,6 @@ class ReportController extends Controller
     {
 
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
-//dd($currentMonth)
-//         function formatedDate($month)
-//    {
-//        // Массив соответствий русских и английских названий месяцев
-//        $months = [
-//            'Январь' => 'January',
-//            'Февраль' => 'February',
-//            'Март' => 'March',
-//            'Апрель' => 'April',
-//            'Май' => 'May',
-//            'Июнь' => 'June',
-//            'Июль' => 'July',
-//            'Август' => 'August',
-//            'Сентябрь' => 'September',
-//            'Октябрь' => 'October',
-//            'Ноябрь' => 'November',
-//            'Декабрь' => 'December',
-//        ];
-//
-//        // Разделение строки на месяц и год
-//        $parts = explode(' ', $month);
-//        if (count($parts) === 2 && isset($months[$parts[0]])) {
-//            $month = $months[$parts[0]] . ' ' . $parts[1]; // Замена русского месяца на английский
-//        } else {
-//            return null; // Если формат не соответствует "Месяц Год", возвращаем null
-//        }
-//
-//        // Преобразуем строку в объект DateTime
-//        try {
-//            $date = \DateTime::createFromFormat('F Y', $month); // F - имя месяца, Y - год
-//            if ($date) {
-//                return $date->format('Y-m-01'); // Всегда возвращаем первое число месяца
-//            }
-//            return null; // Возвращаем null, если не удалось преобразовать
-//        } catch (\Exception $e) {
-//            \Log::error('Ошибка преобразования даты: ' . $e->getMessage());
-//            return null;
-//        }
-//    }
-
-//        $currentMonth = formatedDate($currentMonth);
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
 
 //         dd($currentMonth);

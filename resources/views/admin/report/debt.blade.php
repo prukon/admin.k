@@ -100,7 +100,7 @@
                         }
                     }
                 ],
-                order: [[3, 'desc']],
+                order: [[2, 'asc']],
                 language: {
                     "processing": "Обработка...",
                     "search": "Поиск:",
