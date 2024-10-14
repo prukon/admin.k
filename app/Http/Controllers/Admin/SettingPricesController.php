@@ -156,8 +156,13 @@ class SettingPricesController extends Controller
     // AJAX ПОДРОБНО. Получение списка пользователей
     public function getTeamPrice(Request $request)
     {
-        $selectedDate = $request->query('selectedDate');
-        $teamId = $request->query('teamId');
+
+        // Получаем данные из тела запроса
+        $data = json_decode($request->getContent(), true);
+        $selectedDate = $data['selectedDate'] ?? null;
+        $teamId = $data['teamId'] ?? null;
+
+
         $usersTeam = User::where('team_id', $teamId)
             ->where('is_enabled', true)
             ->orderBy('name', 'asc')
@@ -180,15 +185,6 @@ class SettingPricesController extends Controller
 
             $usersPrice[] = $userPrice;
         }
-
-//        foreach ($usersTeam as $user) {
-//            $userPrice = UserPrice::where('month', $selectedDate)
-//                ->where('user_id', $user->id)
-//                ->first();
-//            if ($userPrice) {
-//                $usersPrice[] = $userPrice;
-//            }
-//        }
 
         if ($usersTeam) {
             return response()->json([
@@ -244,11 +240,7 @@ class SettingPricesController extends Controller
     //AJAX Кнопка ОК. Установка цен группе и юзерам.
     public function setTeamPrice(Request $request)
     {
-
-
-
-
-
+        
 //        $teamPrice = $request->query('teamPrice');
 //        $teamId = $request->query('teamId');
 //        $selectedDate = $request->query('selectedDate');

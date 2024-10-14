@@ -22,13 +22,43 @@ document.addEventListener('DOMContentLoaded', function () {
             const parentDiv = this.closest('.wrap-team');
             // Выводим id родительского div в консоль
             if (parentDiv) {
-                $.ajax({
-                    url: '/get-team-price',
-                    type: 'GET',
-                    data: {
-                        teamId: parentDiv.id,
-                        selectedDate: selectedDate
-                    },
+
+
+
+                // $.ajax({
+                //     url: '/set-team-price',
+                //     method: 'POST',
+                //     contentType: 'application/json', // Указываем тип контента JSON
+                //
+                //     data: JSON.stringify({
+                //         teamId: parentDiv.id,
+                //         teamPrice: teamPrice,
+                //         selectedDate: selectedDate,
+                //     }),
+
+
+
+                    $.ajax({
+                        url: '/get-team-price',
+                        method: 'POST',
+                        contentType: 'application/json', // Указываем тип контента JSON
+                        data:  JSON.stringify({
+                            teamId: parentDiv.id,
+                            selectedDate: selectedDate
+                        }),
+
+
+
+
+
+
+                // $.ajax({
+                //     url: '/get-team-price',
+                //     type: 'GET',
+                //     data: {
+                //         teamId: parentDiv.id,
+                //         selectedDate: selectedDate
+                //     },
 
                     success: function (response) {
                         if (response.success) {
@@ -123,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             teamPrice: teamPrice,
                             selectedDate: selectedDate,
                         }),
- 
+
 
 
                 // $.ajax({
