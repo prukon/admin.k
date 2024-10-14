@@ -242,12 +242,24 @@ class SettingPricesController extends Controller
     }
 
     //AJAX Кнопка ОК. Установка цен группе и юзерам.
-
     public function setTeamPrice(Request $request)
     {
-        $teamPrice = $request->query('teamPrice');
-        $teamId = $request->query('teamId');
-        $selectedDate = $request->query('selectedDate');
+
+
+
+
+
+//        $teamPrice = $request->query('teamPrice');
+//        $teamId = $request->query('teamId');
+//        $selectedDate = $request->query('selectedDate');
+        // Получаем данные из тела запроса
+        $data = json_decode($request->getContent(), true);
+        $teamPrice = $data['teamPrice'] ?? null;
+        $teamId = $data['teamId'] ?? null;
+        $selectedDate = $data['selectedDate'] ?? null;
+
+
+
         $usersTeam = User::where('team_id', $teamId)->get();
         $authorId = auth()->id(); // Авторизованный пользователь
         $teamTitle = Team::where('id', $teamId)->first()->title;
@@ -276,25 +288,6 @@ class SettingPricesController extends Controller
         // Обновляем цены для пользователей
         $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
 
-//        foreach ($users as $user) {
-//            $userPrice = UserPrice::where('user_id', $user['id'])
-//                ->where('new_month', $selectedDate)
-//                ->where('is_paid', false)
-//                ->first();
-//
-//            if ($userPrice) {
-//                $userPrice->update([
-//                    'price' => $teamPrice
-//                ]);
-//            } else {
-//                UserPrice::create([
-//                    'user_id' => $user['id'],
-//                    'new_month' => $selectedDate,
-//                    'price' => $teamPrice,
-//                    'is_paid' => false
-//                ]);
-//            }
-//        }
 
 
         foreach ($users as $user) {
@@ -438,59 +431,6 @@ class SettingPricesController extends Controller
     }
 
     //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
-//    public function setPriceAllUsers(Request $request)
-//    {
-//
-//        $selectedDate = $request->query('selectedDate');
-//
-//
-////        $usersPrice = json_decode($request->query('usersPrice'), true);
-//        // Вывод для отладки
-//        \Log::info('Request Data:', $request->all());
-//
-//        $usersPrice = $request->input('usersPrice'); // Убедитесь, что это массив
-//
-//        if (is_null($usersPrice) || !is_array($usersPrice)) {
-//            \Log::error('usersPrice не является массивом или пуст');
-//            return response()->json(['error' => 'Некорректные данные'], 400);
-//        }
-//
-//
-//
-//        $authorId = auth()->id(); // Авторизованный пользователь
-//        $selectedDateString = $selectedDate;
-//        $selectedDate = $this->formatedDate($selectedDate);
-//        foreach ($usersPrice as $priceData) {
-//
-//            $userPriceRecord = UserPrice::where('user_id', $priceData['user_id'])
-//                ->where('new_month', $selectedDate)
-//                ->where('is_paid', 0)
-//                ->first();
-//
-//            if ($userPriceRecord) {
-////                    Log::info('Применить справа: ', ['id' => $priceData['id'], 'price' => $priceData['price']]);
-//                $userPriceRecord->update([
-//                    'price' => $priceData['price']
-//                ]);
-//
-//                // Логируем успешное обновление цены для команды
-//                Log::create([
-//                    'type' => 1,
-//                    'action' => 12, // Лог для обновления цены команды
-//                    'author_id' => $authorId,
-//                    'description' => "Обновлена цена : {$priceData['price']} руб. Имя: {$priceData['name']}. ID: {$priceData['user_id']}. Дата: {$selectedDateString}.",
-//                    'created_at' => now(),
-//                ]);
-//            }
-//        }
-//
-//        return response()->json([
-//            'success' => true,
-//            'usersPrice' => $usersPrice,
-//            'selectedDate' => $selectedDate
-//        ]);
-//    }
-
     public function setPriceAllUsers(Request $request)
     {
         // Получаем JSON-содержимое запроса и декодируем его

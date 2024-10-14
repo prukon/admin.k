@@ -111,14 +111,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
             if (parentDiv) {
-                $.ajax({
-                    url: '/set-team-price',
-                    type: 'GET',
-                    data: {
-                        teamId: parentDiv.id,
-                        teamPrice: teamPrice,
-                        selectedDate: selectedDate,
-                    },
+
+
+                    $.ajax({
+                        url: '/set-team-price',
+                        method: 'POST',
+                        contentType: 'application/json', // Указываем тип контента JSON
+
+                        data: JSON.stringify({
+                            teamId: parentDiv.id,
+                            teamPrice: teamPrice,
+                            selectedDate: selectedDate,
+                        }),
+ 
+
+
+                // $.ajax({
+                //     url: '/set-team-price',
+                //     type: 'GET',
+                //     data: {
+                //         teamId: parentDiv.id,
+                //         teamPrice: teamPrice,
+                //         selectedDate: selectedDate,
+                //     },
 
                     success: function (response) {
                         if (response.success) {
@@ -137,55 +152,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // AJAX ПРИМЕНИТЬ СЛЕВА. Установка цен всем группам
-    // Начало изменения
-    // let applyButton = document.getElementById('set-price-all-teams');
-    // let confirmButton = document.getElementById('confirmApply');
-    //
-    // // Отключаем немедленное выполнение действия при клике на "Применить1"
-    // applyButton.addEventListener('click', function (event) {
-    //     event.preventDefault();  // Останавливаем стандартное выполнение
-    //     $('#confirmModal').modal('show');  // Показываем модалку
-    // });
-    //
-    // // Обрабатываем нажатие на кнопку "Да" в модальном окне
-    // confirmButton.addEventListener('click', function () {
-    //     $('#confirmModal').modal('hide');  // Закрываем модалку
-    //
-    //     // Выполняем действия только после подтверждения
-    //     const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
-    //
-    //     // Выключаем кнопку
-    //     document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
-    //
-    //     // Получаем массив команд и их цен
-    //     let teamsData = [];
-    //     document.querySelectorAll('.wrap-team').forEach(function (teamElement) {
-    //         let teamName = teamElement.querySelector('.team-name').textContent.trim();
-    //         let teamPrice = teamElement.querySelector('.team-price input').value;
-    //         teamsData.push({
-    //             name: teamName,
-    //             price: parseFloat(teamPrice)
-    //         });
-    //     });
-    //
-    //     $.ajax({
-    //         url: '/set-price-all-teams',
-    //         method: 'GET',
-    //         data: {
-    //             selectedDate: selectedDate,
-    //             teamsData: JSON.stringify(teamsData) // Конвертируем массив объектов в строку JSON
-    //         },
-    //         success: function (response) {
-    //             let cleanUrl = window.location.href.split('?')[0];
-    //             window.location.href = cleanUrl;
-    //         },
-    //         error: function (xhr, status, error) {
-    //             console.log('Error:', error);
-    //         }
-    //     });
-    // });
-    // // Конец изменения
-
     let applyButton = document.getElementById('set-price-all-teams');
     let confirmButton = document.getElementById('confirmApply');
 
