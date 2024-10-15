@@ -812,3 +812,8 @@ display: none;
 .width-170 {
     width: 170px!important;
 }
+
+.action-button {
+    color: white;
+    background-color: #f3a12b;
+}

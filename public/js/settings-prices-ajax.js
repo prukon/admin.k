@@ -16,28 +16,20 @@ document.addEventListener('DOMContentLoaded', function () {
     for (let i = 0; i < detailButtons.length; i++) {
         let button = detailButtons[i];
         button.addEventListener('click', function () {
+
+            // Сначала удаляем класс 'action-button' у всех кнопок
+            detailButtons.forEach(btn => btn.classList.remove('action-button'));
+
+            // Добавляем класс 'action-button' только к текущей нажатой кнопке
+            button.classList.add('action-button');
+
+
             const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
             document.querySelector('#right_bar .btn-setting-prices').setAttribute('disabled', 'disabled');
             // Находим родительский div (родителя с классом 'wrap-team')
             const parentDiv = this.closest('.wrap-team');
             // Выводим id родительского div в консоль
             if (parentDiv) {
-
-
-
-                // $.ajax({
-                //     url: '/set-team-price',
-                //     method: 'POST',
-                //     contentType: 'application/json', // Указываем тип контента JSON
-                //
-                //     data: JSON.stringify({
-                //         teamId: parentDiv.id,
-                //         teamPrice: teamPrice,
-                //         selectedDate: selectedDate,
-                //     }),
-
-
-
                     $.ajax({
                         url: '/get-team-price',
                         method: 'POST',
@@ -46,24 +38,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             teamId: parentDiv.id,
                             selectedDate: selectedDate
                         }),
-
-
-
-
-
-
-                // $.ajax({
-                //     url: '/get-team-price',
-                //     type: 'GET',
-                //     data: {
-                //         teamId: parentDiv.id,
-                //         selectedDate: selectedDate
-                //     },
-
                     success: function (response) {
                         if (response.success) {
-
-
                             //Обновление списка пользователей справа
                             let updateUserListRightBar = function () {
                                 usersPrice = response.usersPrice;
