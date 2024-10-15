@@ -136,6 +136,8 @@ class SettingController extends Controller
 
                     40 => 'Авторизация',
 
+                    50 => 'Платежи',
+
                 ];
                 return $typeLabels[$log->action] ?? 'Неизвестный тип';
             })

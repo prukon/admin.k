@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Log;
 use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
@@ -55,6 +56,14 @@ class RobokassaController extends Controller
             'payment_month' => $Shp_paymentDate,
             'summ' => $outSum,
             'payment_number' => $invId,
+        ]);
+
+        Log::create([
+            'type' => 1,
+            'action' => 50, // Изменение цен в одной группе
+            'author_id' => $user->name,
+            'description' => "Платеж на сумму: {$outSum} руб. Группа: {$teamName}. ID: {$Shp_userId}. Дата: {$Shp_paymentDate}.",
+            'created_at' => now(),
         ]);
     }
 }
