@@ -22,9 +22,6 @@
                 <div id='selectDate' class="col-10">
                     <select class="form-select" id="single-select-date" data-placeholder="Дата">
 
-                        {{--                        @if($currentDate)--}}
-                        {{--                            <option>{{ $currentDate }}</option>--}}
-                        {{--                        @endif --}}
                         @if($currentDateString)
                             <option>{{ $currentDateString }}</option>
                         @endif
@@ -71,8 +68,6 @@
 
                     @if(isset($teamPrices) && count($teamPrices) > 0)
                         @for($i = 0; $i < count($teamPrices); $i++)
-                            {{--                            @if(isset($teamPrices[$i]) && isset($allTeams[$i]))--}}
-
                             <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
                                 <div class="team-name col-3">{{$allTeams[$i]->title}}</div>
                                 <div class="team-price col-2"><input class="" type="number"
@@ -82,7 +77,6 @@
                                     <input class="detail btn btn-primary" type="button" value="Подробно" id="">
                                 </div>
                             </div>
-                            {{--                            @endif--}}
                         @endfor
                     @endif
                 </div>
@@ -96,8 +90,6 @@
             </div>
         </div>
     </div>
-
-
 
     <!-- Модальное окно подтверждения -->
     @include('includes.confirmModal')

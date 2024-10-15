@@ -139,9 +139,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
             teamPriceInput.classList.remove('animated-input');
 
-
             if (parentDiv) {
-
 
                     $.ajax({
                         url: '/set-team-price',
@@ -153,17 +151,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             teamPrice: teamPrice,
                             selectedDate: selectedDate,
                         }),
-
-
-
-                // $.ajax({
-                //     url: '/set-team-price',
-                //     type: 'GET',
-                //     data: {
-                //         teamId: parentDiv.id,
-                //         teamPrice: teamPrice,
-                //         selectedDate: selectedDate,
-                //     },
 
                     success: function (response) {
                         if (response.success) {
@@ -247,193 +234,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 // Конец изменения
 
-
-
-
-
-
-
-
-
-
     //AJAX ПРИМЕНИТЬ СПРАВА.Установка цен всем ученикам
-    // $('#set-price-all-users').on('click', function () {
-    //     var token = '{{ csrf_token() }}';
-    //
-    //     // Выбранная дата
-    //     const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
-    //     //Выключаем кнопку
-    //     document.querySelector('#set-price-all-users').setAttribute('disabled', 'disabled');
-    //
-    //     let updateUsersPrice = function (usersPrice) {
-    //         const userRows = document.querySelectorAll('.wrap-users .row.mb-2');
-    //         for (i = 0; i < usersPrice.length; i++) {
-    //
-    //             for (j = 0; j < userRows.length; j++) {
-    //                 let userId = userRows[j].querySelector('.user-name').getAttribute('id');
-    //                 let price = userRows[j].querySelector('.user-price input').value;
-    //                 if (usersPrice[i].user_id == userId) {
-    //
-    //                     // Обновляем цену пользователя с фронта в usersPrice
-    //                     usersPrice[i].price = price;
-    //                 }
-    //             }
-    //         }
-    //         return usersPrice;
-    //     };
-    //
-    //     usersPrice = updateUsersPrice(usersPrice);
-    //
-    //     console.log("usersPrice:");
-    //     console.log(usersPrice);
-    //     $.ajax({
-    //         url: '/set-price-all-users',
-    //         method: 'GET',
-    //         // method: 'POST',
-    //         data: {
-    //             selectedDate: selectedDate,
-    //             usersPrice: JSON.stringify(usersPrice), // Конвертируем массив объектов в строку JSON
-    //         },
-    //         success: function (response) {
-    //             // usersData = response.usersData;
-    //             usersPrice = response.usersPrice;
-    //
-    //             document.querySelector('#set-price-all-users').removeAttribute('disabled');
-    //
-    //             // Добавляем юзеров с ценами в колонку справа
-    //             let apendUserWithPrice = function () {
-    //                 let rightBar = $('.wrap-users');
-    //                 rightBar.empty();
-    //
-    //                 for (let i = 0; i < usersPrice.length; i++) {
-    //
-    //                     let isPaidClass = usersPrice[i].is_paid == 0 ? 'display-none' : '';
-    //                     let inputClass = usersPrice[i].is_paid == 0 ? 'animated-input' : '';
-    //                     let inputDisabled = usersPrice[i].is_paid == 1 ? 'disabled' : '';
-    //
-    //                     let userBlock = `
-    //     <div class="row mb-2">
-    //         <div id="${usersPrice[i].user_id}" class="user-name col-6">  ${usersPrice[i].name}   </div>
-    //         <div class="user-price col-4">
-    //             <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
-    //         </div>
-    //         <div class="check col-2">
-    //             <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
-    //         </div>
-    //     </div>
-    // `;
-    //
-    //                     rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
-    //                     document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
-    //                 }
-    //             }
-    //             apendUserWithPrice();
-    //
-    //         },
-    //         error: function (xhr, status, error) {
-    //             console.log('Error:', error);
-    //         }
-    //     });
-    //
-    // });
 
-    // $('#set-price-all-users').on('click', function () {
-    //     var token = '{{ csrf_token() }}';
-    //
-    //     // Выбранная дата
-    //     const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
-    //     // Выключаем кнопку
-    //     document.querySelector('#set-price-all-users').setAttribute('disabled', 'disabled');
-    //
-    //     let updateUsersPrice = function (usersPrice) {
-    //         const userRows = document.querySelectorAll('.wrap-users .row.mb-2');
-    //         for (i = 0; i < usersPrice.length; i++) {
-    //
-    //             for (j = 0; j < userRows.length; j++) {
-    //                 let userId = userRows[j].querySelector('.user-name').getAttribute('id');
-    //                 let price = userRows[j].querySelector('.user-price input').value;
-    //                 if (usersPrice[i].user_id == userId) {
-    //
-    //                     // Обновляем цену пользователя с фронта в usersPrice
-    //                     usersPrice[i].price = price;
-    //                 }
-    //             }
-    //         }
-    //         return usersPrice;
-    //     };
-    //
-    //     usersPrice = updateUsersPrice(usersPrice);
-    //
-    //     // console.log("usersPrice:");
-    //     // console.log(usersPrice);
-    //
-    //
-    //     console.log("Selected Date:", selectedDate);
-    //     console.log("Users Price:", usersPrice);  // Проверьте, что это массив объектов
-    //     // $.ajax({
-    //     //     url: '/set-price-all-users',
-    //     //     method: 'POST',
-    //     //
-    //     //     data: {
-    //     //         selectedDate: selectedDate,
-    //     //         usersPrice: JSON.stringify(usersPrice), // Конвертируем массив объектов в строку JSON
-    //     //     },
-    //
-    //         $.ajax({
-    //             url: '/set-price-all-users',
-    //             method: 'POST',
-    //             contentType: 'application/json', // Указываем тип данных JSON
-    //             dataType: 'json', // Ожидаемый ответ от сервера в формате JSON
-    //             data: JSON.stringify({
-    //                 selectedDate: selectedDate,
-    //                 usersPrice: usersPrice,
-    //             }),
-    //
-    //
-    //
-    //         success: function (response) {
-    //             usersPrice = response.usersPrice;
-    //
-    //             document.querySelector('#set-price-all-users').removeAttribute('disabled');
-    //
-    //             // Добавляем юзеров с ценами в колонку справа
-    //             let apendUserWithPrice = function () {
-    //                 let rightBar = $('.wrap-users');
-    //                 rightBar.empty();
-    //
-    //                 for (let i = 0; i < usersPrice.length; i++) {
-    //
-    //                     let isPaidClass = usersPrice[i].is_paid == 0 ? 'display-none' : '';
-    //                     let inputClass = usersPrice[i].is_paid == 0 ? 'animated-input' : '';
-    //                     let inputDisabled = usersPrice[i].is_paid == 1 ? 'disabled' : '';
-    //
-    //                     let userBlock = `
-    //                     <div class="row mb-2">
-    //                         <div id="${usersPrice[i].user_id}" class="user-name col-6">  ${usersPrice[i].name}   </div>
-    //                         <div class="user-price col-4">
-    //                             <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
-    //                         </div>
-    //                         <div class="check col-2">
-    //                             <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
-    //                         </div>
-    //                     </div>
-    //                 `;
-    //
-    //                     rightBar.append(userBlock);
-    //                     document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
-    //                 }
-    //             }
-    //             apendUserWithPrice();
-    //
-    //         },
-    //         error: function (xhr, status, error) {
-    //             console.log('Error:', error);
-    //         }
-    //     });
-    //
-    // });
     $('#set-price-all-users').on('click', function () {
-        var token = '{{ csrf_token() }}';
+        // var token = '{{ csrf_token() }}';
 
         // Выбранная дата
         const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
@@ -457,8 +261,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Обновляем данные о ценах пользователей
         usersPrice = updateUsersPrice(usersPrice);
 
-        console.log("Selected Date:", selectedDate);
-        console.log("Users Price:", usersPrice);
+        // console.log("Selected Date:", selectedDate);
+        // console.log("Users Price:", usersPrice);
 
         $.ajax({
             url: '/set-price-all-users',

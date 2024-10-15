@@ -36,12 +36,26 @@
                                     <button id="btnRegistrationActivity" class="btn btn-primary">Применить</button>
                                 </td>
                             </tr>
+{{--                            <tr>--}}
+{{--                                <td>Текст уведомления у пользователей</td>--}}
+{{--                                <td colspan="2">--}}
+{{--                                    <textarea class="form-control" id="textForUsers" rows="3">{{ trim($textForUsers) }}</textarea>--}}
+{{--                                </td>--}}
+{{--                            </tr>--}}
+
+
                             <tr>
-                                <td>Текст уведомления у пользователей</td>
-                                <td colspan="2">
-                                    <textarea class="form-control" id="textForUsers" rows="3">{{ trim($textForUsers) }}</textarea>
+                                <td class="col-4">Текст уведомления у пользователей</td>
+                                <td colspan="col-6">
+                                <textarea class="form-control text-start textForUsers" id="textForUsers"
+                                          rows="3">{{ trim($textForUsers) }}</textarea>
+                                </td>
+                                <td class="col-2">
+                                    <button id="btnTextForUsers" class="btn btn-primary mb-3 mt-3">Применить</button>
                                 </td>
                             </tr>
+
+
                             </tbody>
                         </table>
                     </div>
@@ -67,6 +81,7 @@
                                     <button type="button" class="btn btn-primary width-160" data-bs-toggle="modal" data-bs-target="#socialMenuModal">Настроить</button>
                                 </td>
                             </tr>
+
                             <tr>
                                 <td>Оплата сервиса</td>
                                 <td class="text-center">

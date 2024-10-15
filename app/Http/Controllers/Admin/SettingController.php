@@ -80,8 +80,10 @@ class SettingController extends Controller
 //    AJAX Текст сообщения для юзеров
     public function textForUsers(Request $request)
     {
-        $textForUsers = $request->query('textForUsers');
-        if ($textForUsers) {
+        // Получаем данные из тела запроса
+        $data = json_decode($request->getContent(), true);
+        $textForUsers = $data['textForUsers'] ?? null;
+
             Setting::updateOrCreate(
                 [
                     'name' => "textForUsers",
@@ -90,7 +92,6 @@ class SettingController extends Controller
                     'text' => $textForUsers
                 ]
             );
-        }
 
         return response()->json([
             'success' => true,
@@ -200,6 +201,7 @@ class SettingController extends Controller
         return response()->json(['success' => true]);
     }
 
+//    Сохранение соц. меню в шапке
     public function saveSocialItems(Request $request)
     {
         $errors = [];

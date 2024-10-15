@@ -151,10 +151,14 @@
                     У вас образовалась задолженность в размере <span class="summ"></span> руб.
                 </div>
             </div>
-            <div class="notification-wrap">
-                <div class="notification">{{$textForUsers}}</div>
-            </div>
-
+{{--            <div class="notification-wrap">--}}
+{{--                <div class="notification">{{$textForUsers}}</div>--}}
+{{--            </div>--}}
+                @if(!empty($textForUsers))
+                    <div class="notification-wrap">
+                        <div class="notification">{{ $textForUsers }}</div>
+                    </div>
+                @endif
 
             <h5 class="header-shedule display-none">Расписание:</h5>
 
