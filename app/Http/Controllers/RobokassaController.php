@@ -62,12 +62,12 @@ class RobokassaController extends Controller
             'type' => 5, //лог платежей
             'action' => 50, // лог платежей
             'author_id' => $Shp_userId,
-            'description' => "Платеж на сумму: {$outSum} руб. Группа: {$teamName}. ID: {$Shp_userId}. Дата: {$Shp_paymentDate}.",
+            'description' => "Платеж на сумму: " . intval($outSum) . " руб от $user->name. ID: {$Shp_userId}. Группа: {$teamName}. Период: {$Shp_paymentDate}.",
             'created_at' => now(),
         ]);
     }
 }
-
+ 
 
 
 
