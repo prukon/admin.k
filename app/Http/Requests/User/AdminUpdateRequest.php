@@ -36,7 +36,7 @@ class AdminUpdateRequest extends FormRequest
                 'date',
                 'before_or_equal:2030-12-31', // Или 'before_or_equal:today'
             ],
-            'email' => 'required|string|email|max:20|unique:users,email,' . $userId,
+            'email' => 'required|string|email|max:50|unique:users,email,' . $userId,
             'is_enabled' => 'boolean',
         ];
     }

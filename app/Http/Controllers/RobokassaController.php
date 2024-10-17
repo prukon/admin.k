@@ -59,8 +59,8 @@ class RobokassaController extends Controller
         ]);
 
         Log::create([
-            'type' => 1,
-            'action' => 50, // Изменение цен в одной группе
+            'type' => 5, //лог платежей
+            'action' => 50, // лог платежей
             'author_id' => $user->name,
             'description' => "Платеж на сумму: {$outSum} руб. Группа: {$teamName}. ID: {$Shp_userId}. Дата: {$Shp_paymentDate}.",
             'created_at' => now(),
