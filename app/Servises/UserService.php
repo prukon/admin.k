@@ -8,7 +8,9 @@ class UserService
 {
     public function store($data)
     {
-        User::create($data);
+//        User::create($data);
+        return User::create($data);
+
     }
 
     public function update($user, $data)

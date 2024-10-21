@@ -29,7 +29,6 @@ class UpdateRequest extends FormRequest
             'email' => 'required|string|email|max:20|unique:users,email,' . $userId,
         ];
     }
-
     public function attributes()
     {
         return [
