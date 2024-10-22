@@ -37,6 +37,9 @@
                         <!-- Модальное окно создания юзера -->
                         @include('includes.modal.createUser')
 
+                        <!-- Модальное окно редактирования юзера -->
+                        @include('includes.modal.editUser')
+
                     </div>
                 </div>
             </div>
@@ -49,10 +52,15 @@
             <div class="wrap-user-list">
                 @foreach($allUsers as $user)
                     <div class="user">
-                        <a href="{{ route('admin.user.edit', $user->id) }}"
-                           style="{{ $user->is_enabled == 0 ? 'color: red;' : '' }}">
+{{--                        <a href="{{ route('admin.user.edit', $user->id) }}"--}}
+{{--                           style="{{ $user->is_enabled == 0 ? 'color: red;' : '' }}">--}}
+{{--                            {{ $counter }}. {{$user->name}}--}}
+{{--                        </a>--}}
+
+                        <a href="javascript:void(0);" class="edit-user-link" data-id="{{ $user->id }}" style="{{ $user->is_enabled == 0 ? 'color: red;' : '' }}">
                             {{ $counter }}. {{$user->name}}
                         </a>
+
                     </div>
                     @php
                         $counter++;

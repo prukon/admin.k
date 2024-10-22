@@ -34,7 +34,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('admin/users', '\App\Http\Controllers\Admin\User\StoreController')->name('admin.user.store');
     Route::get('admin/users/{user}/edit', '\App\Http\Controllers\Admin\User\EditController')->name('admin.user.edit');
     Route::patch('admin/users/{user}', '\App\Http\Controllers\Admin\User\UpdateController')->name('admin.user.update');
-//    Route::delete('', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
     Route::delete('/admin/user/{user}', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
     Route::get('/admin/user/logs-data', '\App\Http\Controllers\Admin\User\LogsController')->name('logs.data.user');
 

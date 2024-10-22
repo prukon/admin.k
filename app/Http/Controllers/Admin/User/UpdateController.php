@@ -59,7 +59,8 @@ class UpdateController extends Controller
             'created_at' => now(),
         ]);
 
-        return redirect()->route('admin.user.edit', ['user' => $user->id])->with('success', 'Пользователь успешно обновлен.');;
+//        return redirect()->route('admin.user.edit', ['user' => $user->id])->with('success', 'Пользователь успешно обновлен.');;
+        return response()->json(['message' => 'Пользователь успешно обновлен']);
 
     }
 

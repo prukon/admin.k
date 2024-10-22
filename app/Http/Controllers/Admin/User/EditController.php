@@ -21,9 +21,16 @@ class EditController extends Controller
     {
         $allTeams = Team::All();
 
-        return view('admin.user.edit', compact('user',
-            'allTeams',
-        ));
+//        return view('admin.user.edit', compact('user',
+//            'allTeams',
+//        ));
+
+        return response()->json([
+            'user' => $user,
+            'teams' => $allTeams // Отправляем также список команд, если нужно
+
+        ]);
+
     }
 }
 
