@@ -335,47 +335,91 @@
                 });
 
                 // Сохранение обрезанного изображения и отправка через AJAX
+
+                // $('#saveImageBtn').on('click', function () {
+                //     $uploadCrop.croppie('result', {
+                //         type: 'base64',
+                //         size: 'viewport'
+                //     }).then(function (resp) {
+                //         // Заполняем скрытое поле base64 изображением
+                //         $('#croppedImage').val(resp);
+                //
+                //         let userName = $('#selectedUserName').val();
+                //
+                //         // Создаем FormData для отправки
+                //         var formData = new FormData();
+                //         formData.append('_token', $('input[name="_token"]').val()); // Добавляем CSRF-токен
+                //         formData.append('croppedImage', $('#croppedImage').val()); // Добавляем обрезанное изображение
+                //         formData.append('userName', userName); // Добавляем имя пользователя
+                //
+                //         // Отправка данных через AJAX
+                //         $.ajax({
+                //             url: uploadUrl, // URL маршрута
+                //             type: 'POST', // Метод POST
+                //             data: formData, // Данные формы
+                //             contentType: false,
+                //             processData: false,
+                //             success: function (response) {
+                //                 if (response.success) {
+                //                     // Обновляем изображение на странице
+                //                     $('#confirm-img').attr('src', response.image_url);
+                //                     console.log('Изображение успешно загружено!');
+                //                 } else {
+                //                     alert('Ошибка загрузки изображения');
+                //                 }
+                //                 location.reload();
+                //             },
+                //             error: function (xhr, status, error) {
+                //                 console.error('Ошибка:', error);
+                //                 alert('Ошибка на сервере');
+                //             }
+                //         });
+                //     });
+                // });
+
+                // Обработчик сохранения фото в модалке Croppie
                 $('#saveImageBtn').on('click', function () {
                     $uploadCrop.croppie('result', {
-                        type: 'base64',
+                        type: 'canvas',
                         size: 'viewport'
                     }).then(function (resp) {
-                        // Заполняем скрытое поле base64 изображением
-                        $('#croppedImage').val(resp);
+                        let userId = $('#edit-user-form').attr('action').split('/').pop();
+                        let token = $('input[name="_token"]').val();
 
-                        let userName = $('#selectedUserName').val();
-
-                        // Создаем FormData для отправки
-                        var formData = new FormData();
-                        formData.append('_token', $('input[name="_token"]').val()); // Добавляем CSRF-токен
-                        formData.append('croppedImage', $('#croppedImage').val()); // Добавляем обрезанное изображение
-                        formData.append('userName', userName); // Добавляем имя пользователя
-
-                        // Отправка данных через AJAX
                         $.ajax({
-                            url: uploadUrl, // URL маршрута
-                            type: 'POST', // Метод POST
-                            data: formData, // Данные формы
-                            contentType: false,
-                            processData: false,
+                            url: `/admin/user/${userId}/update-avatar`,
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': token
+                            },
+                            data: {
+                                avatar: resp // Здесь мы отправляем 'resp', который содержит данные base64
+                            },
                             success: function (response) {
                                 if (response.success) {
-                                    // Обновляем изображение на странице
-                                    $('#confirm-img').attr('src', response.image_url);
-                                    console.log('Изображение успешно загружено!');
-                                } else {
-                                    alert('Ошибка загрузки изображения');
+                                    // Обновляем аватарку в первой модалке
+                                    $('#confirm-img').attr('src', response.avatar_url); // Обновляем аватар на странице
+
+                                    // Закрываем модалку Croppie
+                                    $('#uploadPhotoModal').modal('hide');
+
+                                    // Возвращаемся к основной модалке и восстанавливаем прозрачность
+                                    $('#editUserModal').css('opacity', '1').modal('show');
                                 }
-                                location.reload();
                             },
-                            error: function (xhr, status, error) {
-                                console.error('Ошибка:', error);
-                                alert('Ошибка на сервере');
+                            error: function () {
+                                alert('Ошибка при загрузке аватарки');
                             }
                         });
                     });
                 });
+
+
+
             }
+
+
+
 
             // Скрытие модалки
             function hideModal() {

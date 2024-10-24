@@ -74,7 +74,13 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 
     Route::post('/profile/upload-avatar', [\App\Http\Controllers\DashboardController::class, 'uploadAvatar'])->name('profile.uploadAvatar');
+
+
     Route::post('/profile/upload-user-avatar', [\App\Http\Controllers\AccountSettingController::class, 'uploadAvatar'])->name('profile.user.uploadAvatar');
+    Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\AccountSettingController::class, 'updateAvatar'])->name('admin.user.update-avatar');
+
+
+
 
     //Страница выбора оплаты
     Route::post('/payment', [\App\Http\Controllers\TransactionController::class, 'index'])->name('payment');

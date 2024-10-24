@@ -62,6 +62,7 @@ class AccountSettingController extends Controller
         return redirect()->route('user.edit', ['user' => $user->id]);
 
     }
+
     public function updatePassword(Request $request, $id)
     {
 
@@ -133,6 +134,84 @@ class AccountSettingController extends Controller
         return response()->json(['success' => false, 'message' => 'Пользователь не найден']);
     }
 
- 
+
+//    public function updateAvatar(Request $request, User $user)
+//    {
+//        // Проверка наличия аватарки в запросе
+//        if ($request->has('avatar')) {
+//            $avatar = $request->input('avatar'); // Получаем данные base64 из запроса
+//
+//            // Разбираем строку base64 и сохраняем файл
+//            list($type, $avatar) = explode(';', $avatar);
+//            list(, $avatar) = explode(',', $avatar);
+//            $avatar = base64_decode($avatar);
+//
+//            // Генерация уникального имени файла
+//            $imageName = Str::random(10) . '.png';
+//            $path = public_path('/storage/avatars/' . $imageName);
+//
+//            dump($imageName);
+//            // Сохранение изображения на сервере
+//            file_put_contents($path, $avatar);
+//
+//            // Обновление записи пользователя
+//            $user->update(['image_crop' => $imageName]);
+//
+//            return response()->json([
+//                'success' => true,
+//                'avatar_url' => asset('/storage/avatars/' . $imageName)
+//            ]);
+//
+//        }
+//
+//        return response()->json(['success' => false], 400);
+//
+//    }
+
+
+    public function updateAvatar(Request $request, User $user)
+    {
+        // Проверка наличия аватарки в запросе
+        if ($request->has('avatar')) {
+            $avatar = $request->input('avatar'); // Получаем данные base64 из запроса
+
+            // Разбираем строку base64 и проверяем её валидность
+            if (preg_match('/^data:image\\/(\\w+);base64,/', $avatar, $type)) {
+                $avatar = substr($avatar, strpos($avatar, ',') + 1);
+                $type = strtolower($type[1]); // jpg, png, gif и т.д.
+
+                // Проверяем допустимые типы изображений
+                if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    return response()->json(['success' => false, 'message' => 'Недопустимый формат изображения'], 400);
+                }
+
+                $avatar = base64_decode($avatar);
+                if ($avatar === false) {
+                    return response()->json(['success' => false, 'message' => 'Ошибка декодирования изображения'], 400);
+                }
+
+                // Генерация уникального имени файла
+                $imageName = Str::random(10) . '.' . $type;
+                $path = public_path('/storage/avatars/' . $imageName);
+
+                // Сохранение изображения на сервере
+                if (file_put_contents($path, $avatar) === false) {
+                    return response()->json(['success' => false, 'message' => 'Ошибка при сохранении изображения'], 500);
+                }
+
+                // Обновление записи пользователя
+                $user->update(['image_crop' => $imageName]);
+
+                return response()->json([
+                    'success' => true,
+                    'avatar_url' => asset('/storage/avatars/' . $imageName)
+                ]);
+            } else {
+                return response()->json(['success' => false, 'message' => 'Некорректные данные изображения'], 400);
+            }
+        }
+
+        return response()->json(['success' => false, 'message' => 'Аватарка не найдена в запросе'], 400);
+    }
 
 }
