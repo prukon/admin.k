@@ -4,8 +4,6 @@
     @section('content')
 
         <div class="col-md-9 main-content users-list">
-
-
             <h4 class="pt-3 ">Пользователи</h4>
             <hr>
             <div class="buttons">

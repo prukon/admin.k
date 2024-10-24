@@ -314,6 +314,7 @@
 
 
 
+
                 // Получаем текущий URL аватарки
                 var currentAvatarUrl = $('#confirm-img').attr('src');
                 console.log('Текущий URL аватарки:', currentAvatarUrl);
