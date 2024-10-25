@@ -319,6 +319,10 @@
                 var currentAvatarUrl = $('#confirm-img').attr('src');
                 console.log('Текущий URL аватарки:', currentAvatarUrl);
 
+                $uploadCrop.croppie('bind', {
+                    url: '/img/white.jpg'
+                })
+
                 // Если аватарка не является изображением по умолчанию, загружаем её в Croppie
                 if (currentAvatarUrl && currentAvatarUrl !== '/img/default.png') {
                     $uploadCrop.croppie('bind', {
@@ -334,6 +338,7 @@
 
                 // При выборе файла изображение загружается в Croppie
                 $('#upload').on('change', function () {
+
                     var reader = new FileReader();
                     reader.onload = function (e) {
                         $uploadCrop.croppie('bind', {

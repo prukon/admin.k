@@ -162,7 +162,7 @@
                 return;
             }
             $uploadCrop = $('#upload-demo').croppie({
-                viewport: {width: 200, height: 250, type: 'square'},
+                viewport: {width: 138, height: 170, type: 'square'},
                 boundary: {width: 300, height: 300},
                 showZoomer: true
             });
@@ -210,7 +210,16 @@
 
                 // Получаем текущий URL аватарки
                 var currentAvatarUrl = $('#confirm-img').attr('src');
+                // var currentAvatarUrl = '/img/default.png'   ;
                 console.log('Текущий URL аватарки:', currentAvatarUrl);
+
+                $uploadCrop.croppie('bind', {
+                    url: '/img/white.jpg'
+                })
+
+                // $('#upload-demo').css('background-color', '#ffffff');
+
+
 
                 // Если аватарка не является изображением по умолчанию, загружаем её в Croppie
                 if (currentAvatarUrl && currentAvatarUrl !== '/img/default.png') {
