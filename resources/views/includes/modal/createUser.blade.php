@@ -30,10 +30,21 @@
                         <label for="email" class="form-label">Email*</label>
                         <input type="email" name="email" class="form-control" id="email">
                     </div>
-                    <div class="mb-3">
+{{--                    <div class="mb-3">--}}
+{{--                        <label for="password" class="form-label">Пароль*</label>--}}
+{{--                        <input type="password" name="password" class="form-control" id="password">--}}
+{{--                    </div>--}}
+
+
+                    <div class="mb-3 wrap-cur-password">
                         <label for="password" class="form-label">Пароль*</label>
-                        <input type="password" name="password" class="form-control" id="password">
+                        <div class="position-relative">
+                        <input type="password" id="password" class="form-control"
+                               placeholder="Пароль">
+                        <span toggle="#password" class="fa fa-fw fa-eye field-icon toggle-password"></span>
                     </div>
+                    </div>
+
                     <div class="mb-3">
                         <label for="is_enabled" class="form-label">Активность</label>
                         <select name="is_enabled" class="form-select" id="is_enabled">
@@ -56,6 +67,7 @@
 
 
 
+
         $('#create-user-form').on('submit', function (e) {
             e.preventDefault();
 
@@ -73,16 +85,6 @@
 
                     // Очищаем форму
                     $('#create-user-form')[0].reset();
-
-                    // if (response.user) {
-                    //     // Формируем HTML-код нового пользователя
-                    //     let newUser = `
-                    //     <div class="user">
-                    //         <a href="https://test.kidslink.ru/admin/users/${response.user.id}/edit" style="${response.user.is_enabled === 'Нет' ? 'color: red;' : ''}">
-                    //             ${response.user.name}
-                    //         </a>
-                    //     </div>
-                    // `;
 
                     if (response.user) {
                         // Формируем HTML-код нового пользователя
@@ -148,7 +150,7 @@
                     alert(response.message);
 
                     // Функция редактирования пользователя
-                    function editMidalUser() {
+                    function editModalUser() {
                         // Функция для показа/скрытия пароля с помощью иконки глаза  fix
                         function showPassword() {
                             const togglePassword = document.querySelector('.toggle-password');
@@ -412,7 +414,7 @@
 
                     }
 
-                    editMidalUser();
+                    editModalUser();
                 },
                 error: function (response) {
                     // Обрабатываем ошибки валидации
@@ -426,6 +428,22 @@
                 }
             });
         });
+        // Функция для показа/скрытия пароля с помощью иконки глаза  fix
+        function showCurPassword() {
+            const togglePassword = document.querySelector('.wrap-cur-password .toggle-password');
+            const passwordInput = document.querySelector('.wrap-cur-password #password');
+
+            togglePassword.addEventListener('click', function () {
+                // Переключаем тип input между 'password' и 'text'
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                // Меняем иконку глаза
+                this.classList.toggle('fa-eye');
+                this.classList.toggle('fa-eye-slash');
+            });
+        }
+        showCurPassword();
+
     });
 
 </script>

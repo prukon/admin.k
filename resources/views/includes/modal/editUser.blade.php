@@ -75,7 +75,7 @@
                     <!-- Блок изменения пароля -->
                     <div class="buttons-wrap change-pass-wrap" id="change-pass-wrap" style="display: none;">
                         <div class="d-flex align-items-center mt-3">
-                            <div class="position-relative">
+                            <div class="position-relative wrap-change-password">
                                 <input type="password" id="new-password" class="form-control"
                                        placeholder="Новый пароль">
                                 <span toggle="#new-password" class="fa fa-fw fa-eye field-icon toggle-password"></span>
@@ -171,10 +171,11 @@
 
         // Функция редактирования пользователя
         function editMidalUser() {
+
             // Функция для показа/скрытия пароля с помощью иконки глаза  fix
             function showPassword() {
-                const togglePassword = document.querySelector('.toggle-password');
-                const passwordInput = document.querySelector('#passwordInput');
+                const togglePassword = document.querySelector('.wrap-change-password .toggle-password');
+                const passwordInput = document.querySelector('.wrap-change-password #new-password');
 
                 togglePassword.addEventListener('click', function () {
                     // Переключаем тип input между 'password' и 'text'
@@ -185,7 +186,6 @@
                     this.classList.toggle('fa-eye-slash');
                 });
             }
-
             showPassword();
 
             // При выборе файла изображения загружаем его в Croppie
