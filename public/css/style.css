@@ -792,7 +792,7 @@ display: none;
     position: relative;
 }
 .buttons-wrap button {
-    min-width: 140px;
+    min-width: 100px;
 }
 .wrap-umoney {
     max-width: 220px;
@@ -816,4 +816,10 @@ display: none;
 .action-button {
     color: white;
     background-color: #f3a12b;
+}
+.change-password-btn {
+    width: 170px;
+}
+.save-change-modal {
+    width: 170px;
 }

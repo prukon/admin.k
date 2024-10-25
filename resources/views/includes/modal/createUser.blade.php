@@ -42,7 +42,7 @@
                         <input type="password" id="password"  name="password" class="form-control"
                                placeholder="Пароль">
                         <span toggle="#password" class="fa fa-fw fa-eye field-icon toggle-password"></span>
-                    </div> 
+                    </div>
                     </div>
 
                     <div class="mb-3">

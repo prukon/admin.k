@@ -92,12 +92,12 @@
 
                     <!-- Кнопка для изменения пароля -->
                     <div class="button-group buttons-wrap mt-3">
-                        <button type="button" id="change-password-btn" class="btn btn-danger ml-2">Изменить пароль
+                        <button type="button" id="change-password-btn" class="btn btn-danger  change-password-btn">Изменить пароль
                         </button>
                     </div>
 
                     <!-- Кнопка для сохранения данных -->
-                    <button type="submit" class="btn btn-primary mt-3">Сохранить изменения</button>
+                    <button type="submit" class="btn btn-primary mt-3 save-change-modal">Сохранить изменения</button>
                 </form>
             </div>
         </div>
