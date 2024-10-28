@@ -134,41 +134,6 @@ class AccountSettingController extends Controller
         return response()->json(['success' => false, 'message' => 'Пользователь не найден']);
     }
 
-
-//    public function updateAvatar(Request $request, User $user)
-//    {
-//        // Проверка наличия аватарки в запросе
-//        if ($request->has('avatar')) {
-//            $avatar = $request->input('avatar'); // Получаем данные base64 из запроса
-//
-//            // Разбираем строку base64 и сохраняем файл
-//            list($type, $avatar) = explode(';', $avatar);
-//            list(, $avatar) = explode(',', $avatar);
-//            $avatar = base64_decode($avatar);
-//
-//            // Генерация уникального имени файла
-//            $imageName = Str::random(10) . '.png';
-//            $path = public_path('/storage/avatars/' . $imageName);
-//
-//            dump($imageName);
-//            // Сохранение изображения на сервере
-//            file_put_contents($path, $avatar);
-//
-//            // Обновление записи пользователя
-//            $user->update(['image_crop' => $imageName]);
-//
-//            return response()->json([
-//                'success' => true,
-//                'avatar_url' => asset('/storage/avatars/' . $imageName)
-//            ]);
-//
-//        }
-//
-//        return response()->json(['success' => false], 400);
-//
-//    }
-
-
     public function updateAvatar(Request $request, User $user)
     {
         // Проверка наличия аватарки в запросе
@@ -212,6 +177,29 @@ class AccountSettingController extends Controller
         }
 
         return response()->json(['success' => false, 'message' => 'Аватарка не найдена в запросе'], 400);
+    }
+
+    public function deleteAvatar(User $user)
+    {
+        // Проверяем, существует ли файл аватарки
+        if ($user->image_crop && file_exists(public_path('storage/avatars/' . $user->image_crop))) {
+            // Удаляем файл аватарки
+            unlink(public_path('storage/avatars/' . $user->image_crop));
+        }
+
+        // Обновляем запись пользователя, устанавливая аватарку по умолчанию
+        $user->update(['image_crop' => null]);
+
+        // Логируем удаление аватарки
+        Log::create([
+            'type' => 2,
+            'action' => 29,
+            'author_id' => auth()->id(),
+            'description' => $user->name . " удалил аватар.",
+            'created_at' => now(),
+        ]);
+
+        return response()->json(['success' => true]);
     }
 
 }

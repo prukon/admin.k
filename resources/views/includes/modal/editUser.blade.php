@@ -5,8 +5,8 @@
 
 <!-- Модальное окно редактирования пользователя -->
 <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
+    <div class="modal-dialog ">
+        <div class="modal-content background-color-grey">
             <div class="modal-header">
                 <h5 class="modal-title" id="editUserModalLabel">Редактирование пользователя</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -18,14 +18,31 @@
 
                     <!-- Блок для аватарки -->
                     <div class="mb-3 d-flex flex-column align-items-center">
-                        <div class="avatar_wrapper d-flex align-items-center justify-content-center">
-                            <img id="confirm-img" src="/img/default.png" alt="Аватар по умолчанию"
-                                 class="img-thumbnail">
+                        <div>
+                            <div class="avatar_wrapper d-flex align-items-center justify-content-center">
+                                {{--                                <span>--}}
+                                <img id="confirm-img" src="/img/default.png" alt="Аватар по умолчанию"
+                                     class="img-thumbnail">
+                                {{--                            </span>--}}
+                            </div>
                         </div>
-                        <div class="container-form mt-2">
-                            <input id="selectedFile" class="disp-none" type="file" accept=".png, .jpg, .jpeg, .svg">
-                            <button id="upload-photo" class="btn-primary btn">Выбрать фото...</button>
+                        <div class="avatar-menu mt-3">
+                            <ul class=" ">
+{{--                                <li class="pl-3 pr-3 pt-1 pb-1">--}}
+{{--                                    <i class="fa-regular fa-image mr-2"></i>--}}
+{{--                                    <a href="#" id="open-photo">Открыть фотографию</a>--}}
+{{--                                </li>--}}
+                                <li class="pl-3 pr-3 pt-1 pb-1">
+                                    <i class="fa-regular fa-pen-to-square mr-2"></i>
+                                    <a href="#" id="update-photo">Обновить фотографию</a>
+                                </li>
+                                <li class="pl-3 pr-3 pt-1 pb-1">
+                                    <i class="fa-regular fa-trash-can mr-2"></i>
+                                    <a href="#" id="delete-photo">Удалить фотографию</a>
+                                </li>
+                            </ul>
                         </div>
+
                     </div>
 
                     <!-- Поле "Имя" -->
@@ -92,7 +109,8 @@
 
                     <!-- Кнопка для изменения пароля -->
                     <div class="button-group buttons-wrap mt-3">
-                        <button type="button" id="change-password-btn" class="btn btn-danger  change-password-btn">Изменить пароль
+                        <button type="button" id="change-password-btn" class="btn btn-danger  change-password-btn">
+                            Изменить пароль
                         </button>
                     </div>
 
@@ -100,14 +118,15 @@
                     <button type="submit" class="btn btn-primary mt-3 save-change-modal">Сохранить изменения</button>
                 </form>
             </div>
+
         </div>
     </div>
 </div>
 
 <!-- Модалка для редактирования аватарки -->
 <div class="modal fade" id="uploadPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
+    <div class="modal-dialog ">
+        <div class="modal-content background-color-grey">
             <div class="modal-header">
                 <h5 class="modal-title" id="uploadPhotoModalLabel">Редактирование аватарки</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -128,28 +147,6 @@
 
 <script>
 
-    // Функция для обработки ответа сервера после обновления аватарки
-    // function handleAvatarUpdateResponse(response) {
-    //     console.log('Ответ сервера:', response);
-    //
-    //     // Проверяем, есть ли success в ответе
-    //     if (response.success) {
-    //         // Получаем URL нового аватара
-    //         let newAvatarUrl = response.avatar_url + '?' + new Date().getTime();  // Добавляем метку времени для сброса кэша
-    //         console.log('Новый URL аватара:', newAvatarUrl);
-    //
-    //         // Устанавливаем новый URL на изображение в модалке
-    //         $('#confirm-img').attr('src', newAvatarUrl);
-    //         console.log('URL изображения после обновления:', $('#confirm-img').attr('src'));
-    //
-    //         // Здесь можно добавить сообщение о успешном обновлении или закрыть модалку
-    //         alert('Аватар успешно обновлен');
-    //     } else {
-    //         // Если ответа success нет, обрабатываем ошибку
-    //         console.error('Ошибка обновления аватарки. Ответ сервера не содержит success.');
-    //         alert('Не удалось обновить аватар.');
-    //     }
-    // }
 
     $(document).ready(function () {
 
@@ -186,6 +183,7 @@
                     this.classList.toggle('fa-eye-slash');
                 });
             }
+
             showPassword();
 
             // При выборе файла изображения загружаем его в Croppie
@@ -218,7 +216,6 @@
                 })
 
                 // $('#upload-demo').css('background-color', '#ffffff');
-
 
 
                 // Если аватарка не является изображением по умолчанию, загружаем её в Croppie
@@ -445,6 +442,83 @@
 
         editMidalUser();
         initializeCroppie();
+
+
+        document.getElementById('update-photo').addEventListener('click', function (e) {
+            e.preventDefault();
+            // Открытие модального окна для обновления аватарки
+            $('#uploadPhotoModal').modal('show');
+        });
+        
+        // /Показывать контекстое меню при наведении на аватар
+        $(document).ready(function() {
+            let menuTimeout;
+
+            // Показываем меню при наведении на аватар
+            $('.avatar_wrapper').hover(
+                function() {
+                    clearTimeout(menuTimeout);
+                    $(document).find('.avatar-menu').show();
+                    console.log(1)
+                },
+                function() {
+                    menuTimeout = setTimeout(() => {
+                        $(document).find('.avatar-menu').hide();
+                    }, 300); // добавляем небольшую задержку
+                    console.log(2)
+                }
+            );
+
+            // Устанавливаем обработчики для меню, чтобы оно не исчезало при наведении
+            $('.avatar-menu').hover(
+                function() {
+                    clearTimeout(menuTimeout); // отменяем таймер скрытия
+                    $(document).show();
+                    console.log(1)
+                },
+                function() {
+                    menuTimeout = setTimeout(() => {
+                        $(document).hide();
+                        $(document).find('.avatar-menu').hide();
+                    }, 300); // добавляем небольшую задержку перед скрытием
+                    console.log(2)
+                }
+            );
+        });
+
+        //Удаление аватарки
+        document.getElementById('delete-photo').addEventListener('click', function (e) {
+            e.preventDefault();
+
+            // Подтверждение удаления фотографии
+            if (confirm('Вы уверены, что хотите удалить фотографию?')) {
+                let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
+                let token = $('input[name="_token"]').val();
+
+                $.ajax({
+                    url: `/admin/user/${userId}/delete-avatar`, // Указываем маршрут для удаления аватарки
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': token
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            $('#confirm-img').attr('src', '/img/default.png'); // Устанавливаем аватарку по умолчанию
+                            alert('Аватарка успешно удалена');
+                        } else {
+                            alert('Ошибка удаления аватарки');
+                        }
+                    },
+                    error: function () {
+                        alert('Ошибка удаления аватарки. Проверьте лог сервера.');
+                    }
+                });
+            }
+        });
+
+
+
+
 
     });
 </script>

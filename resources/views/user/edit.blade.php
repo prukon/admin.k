@@ -194,9 +194,11 @@
             </div>
         </div>
 
+
+
+
         <div>
         </div>
-
     </div>
 
 
@@ -304,15 +306,13 @@
                 //     showZoomer: true
                 // });
 
+
                 // Инициализация Croppie для аватарки
                 $uploadCrop = $('#upload-demo').croppie({
                     viewport: { width: 200, height: 250, type: 'square' },
                     boundary: { width: 300, height: 300 },
                     showZoomer: true
                 });
-
-
-
 
 
                 // Получаем текущий URL аватарки

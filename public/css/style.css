@@ -170,6 +170,7 @@ footer .social-networks {
     width: 141px;
     border: solid 1px #e7a246;
     text-align: center;
+    position: relative;
 }
 
 .personal-data {
@@ -822,4 +823,68 @@ display: none;
 }
 .save-change-modal {
     width: 170px;
+}
+
+
+.avatar-container {
+    position: relative;
+    display: inline-block;
+}
+
+#user-avatar {
+    width: 150px; /* задайте нужный размер аватара */
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+.avatar-menu {
+    display: none;
+    position: absolute;
+
+    top: 195px;
+    left: auto;
+    /*width: 250px; !* тот же размер, что и аватар *!*/
+    width: auto;
+    /*height: 140px;*/
+    height: auto;
+    background-color: rgba(255, 255, 255);
+    border-radius: 10px;
+    /*display: flex;*/
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-menu ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    /*text-align: center;*/
+}
+
+.avatar-menu li {
+    margin: 5px 0;
+}
+
+.avatar-menu a {
+    text-decoration: none;
+    color: black;
+    /*font-weight: bold;*/
+    font-size: 14px;
+}
+
+.avatar-container:hover .avatar-menu {
+    display: flex;
+}
+
+.background-color-grey {
+    background-color: #f2f2f2;
+    /*background-color: red;*/
+}
+
+.avatar-menu ul li:hover {
+    background-color: #f0f0f0; /* Цвет фона при наведении */
+    border-radius: 5px; /* Закругление углов, если нужно */
+    cursor: pointer; /* Изменение курсора при наведении */
 }
