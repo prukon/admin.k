@@ -13,7 +13,7 @@ use App\Http\Controllers\Controller;
 
 class RobokassaController extends Controller
 {
-
+    //Расшифровка ссылки
     public function result(Request $request)
     {
         \Log::info('Request data:', $request->all());
@@ -40,13 +40,18 @@ class RobokassaController extends Controller
         echo "OK$invId\n";
         UserPrice::updateOrCreate([
             'user_id' => $Shp_userId,
-            'month' => $Shp_paymentDate],
+//            'month' => $Shp_paymentDate
+            'new_month' => $Shp_paymentDate
+        ],
             [
                 'is_paid' => 1
             ]);
         $user =  User::where('id', $Shp_userId)->first();
         $teamName = Team::where('id', $user->team_id)->first()->title;
         $currentDateTime = date('Y-m-d H:i:s');
+
+
+//        преобразовать $Shp_paymentDate в строковый фотмат "Сентябрь 2024"
 
         Payment::create([
             'user_id' => $Shp_userId,

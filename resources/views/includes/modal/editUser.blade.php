@@ -449,7 +449,7 @@
             // Открытие модального окна для обновления аватарки
             $('#uploadPhotoModal').modal('show');
         });
-        
+
         // /Показывать контекстое меню при наведении на аватар
         $(document).ready(function() {
             let menuTimeout;

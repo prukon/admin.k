@@ -54,6 +54,11 @@ function createSeasons() {
             }
 
             const paymentDate = `${monthsRu[key]} ${displaySeason}`;
+            // const formatedPaymentDate = paymentDate;
+
+            // console.log("paymentDate: " +  paymentDate);
+            // console.log("formatedPaymentDate: " +  formatedPaymentDate);
+
             var outSum = 22;
             div.innerHTML = `
             <div class="row align-items-center justify-content-center">
