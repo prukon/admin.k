@@ -18,7 +18,7 @@
                 <input type="hidden" name="userId" value="{{ auth()->user()->id }}">
                 <input type="hidden" name="outSum" value="{{ $outSum }}">
                 <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
-                <input type="hidden" name="paymentDate" value="{{ $formatedPaymentDate }}">
+                <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
                 <button type="submit" class="btn btn-bd-primary pay-btn">Оплатить</button>
             </form>
             <div class="pay-fee  mb-3">Комиссия: 0 руб.</div>
