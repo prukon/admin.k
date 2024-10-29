@@ -1,4 +1,3 @@
-    @extends('layouts.main2')
     @extends('layouts.admin2')
     @section('content')
 
@@ -70,7 +69,49 @@
 
                                                 {data: 'team_title', name: 'team_title'},
                                                 {data: 'summ', name: 'summ'},
-                                                {data: 'payment_month', name: 'payment_month'},
+
+                                                // {
+                                                //     data: 'payment_month',
+                                                //     name: 'payment_month',
+                                                //     render: function (data, type, row) {
+                                                //         if (data) {
+                                                //             const date = new Date(data);
+                                                //             const monthNames = [
+                                                //                 "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                                                //                 "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+                                                //             ];
+                                                //             const month = monthNames[date.getMonth()];
+                                                //             const year = date.getFullYear();
+                                                //             return `${month} ${year}`;
+                                                //         }
+                                                //         return data;
+                                                //     }
+                                                // },
+
+                                                {
+                                                    data: 'payment_month',
+                                                    name: 'payment_month',
+                                                    render: function (data, type, row) {
+                                                        if (data) {
+                                                            // Проверяем, находится ли дата в формате "2024-11-01"
+                                                            if (/\d{4}-\d{2}-\d{2}/.test(data)) {
+                                                                const date = new Date(data);
+                                                                const monthNames = [
+                                                                    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                                                                    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+                                                                ];
+                                                                const month = monthNames[date.getMonth()];
+                                                                const year = date.getFullYear();
+                                                                return `${month} ${year}`;
+                                                            } else {
+                                                                // Если строка уже в нужном формате, возвращаем её как есть
+                                                                return data;
+                                                            }
+                                                        }
+                                                        return data;
+                                                    }
+                                                },
+
                                                 {
                                                     data: 'operation_date',
                                                     name: 'operation_date',
