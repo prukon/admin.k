@@ -25,4 +25,19 @@ class EditController extends Controller
         ));
     }
 
+    public function edit($id)
+    {
+        $team = Team::with('weekdays')->findOrFail($id);
+        $weekdays = Weekday::all(); // Получаем все дни недели
+        return response()->json([
+            'id' => $team->id,
+            'title' => $team->title,
+            'order_by' => $team->order_by,
+            'is_enabled' => $team->is_enabled,
+            'team_weekdays' => $team->weekdays, // Дни недели, связанные с командой
+            'weekdays' => $weekdays // Все дни недели
+        ]);
+    }
+
+
 }

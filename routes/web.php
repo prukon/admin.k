@@ -22,8 +22,16 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('admin/teams', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.team.index');
     Route::get('admin/teams/create', '\App\Http\Controllers\Admin\Team\CreateController')->name('admin.team.create');
     Route::post('admin/teams', '\App\Http\Controllers\Admin\Team\StoreController')->name('admin.team.store');
-    Route::get('admin/teams/{team}/edit', '\App\Http\Controllers\Admin\Team\EditController')->name('admin.team.edit');
-    Route::patch('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\UpdateController')->name('admin.team.update');
+//    Route::get('admin/teams/{team}/edit', '\App\Http\Controllers\Admin\Team\EditController')->name('admin.team.edit');
+    Route::get('/admin/team/{id}/edit', [\App\Http\Controllers\Admin\Team\EditController::class, 'edit'])->name('admin.team.edit');
+
+//    Route::patch('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\UpdateController')->name('admin.team.update');
+    Route::patch('/admin/team/{id}', '\App\Http\Controllers\Admin\Team\UpdateController')->name('admin.team.update');
+
+
+
+
+
     Route::delete('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\DestroyController')->name('admin.team.delete');
     Route::get('/admin/teams/logs-data', '\App\Http\Controllers\Admin\Team\LogsController')->name('logs.data.team');
 

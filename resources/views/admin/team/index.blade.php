@@ -10,9 +10,16 @@
         <hr>
         <div class="buttons d-flex flex-row align-items-center mb-3">
         <a href="{{ route('admin.team.create') }}" class="btn btn-primary mr-2 width-170">Добавить группу</a>
+
+            <button id="new-team" type="button" class="btn btn-primary mr-2 new-team width-170"
+                    data-bs-toggle="modal" data-bs-target="#createTeamModal">
+                Добавить группу2
+            </button>
+
             <button type="button" class="btn btn-primary width-170" id="logs" data-bs-toggle="modal" data-bs-target="#historyModal">История изменений</button>
 
         </div>
+
         <hr>
 
         @php
@@ -21,8 +28,11 @@
 
         @foreach($allTeams as $team)
             <div class="team">
-                <a href="{{ route('admin.team.edit', $team->id) }}"
-                   style="{{ $team->is_enabled == 0 ? 'color: red;' : '' }}">
+{{--                <a href="{{ route('admin.team.edit', $team->id) }}"--}}
+{{--                   style="{{ $team->is_enabled == 0 ? 'color: red;' : '' }}">--}}
+{{--                    {{ $counter }}. {{$team->title}}--}}
+{{--                </a>--}}
+                <a href="javascript:void(0);" class="edit-team-link" data-id="{{ $team->id }}" style="{{ $team->is_enabled == 0 ? 'color: red;' : '' }}">
                     {{ $counter }}. {{$team->title}}
                 </a>
             </div>
@@ -35,6 +45,11 @@
             {{ $allTeams->withQueryString()->links() }}
         </div>
     </div>
+    <!-- Модальное окно создания юзера -->
+    @include('includes.modal.createTeam')
+
+    <!-- Модальное окно редактирования юзера -->
+    @include('includes.modal.editTeam')
 
     <!-- Модальное окно логов -->
     @include('includes.logModal')
