@@ -9,12 +9,12 @@
 
         <hr>
         <div class="buttons d-flex flex-row align-items-center mb-3">
-        <a href="{{ route('admin.team.create') }}" class="btn btn-primary mr-2 width-170">Добавить группу</a>
+{{--        <a href="{{ route('admin.team.create') }}" class="btn btn-primary mr-2 width-170">Добавить группу</a>--}}
 
             <button id="new-team" type="button" class="btn btn-primary mr-2 new-team width-170"
                     data-bs-toggle="modal" data-bs-target="#createTeamModal">
-                Добавить группу2
-            </button>
+                Добавить группу
+            </button> 
 
             <button type="button" class="btn btn-primary width-170" id="logs" data-bs-toggle="modal" data-bs-target="#historyModal">История изменений</button>
 
