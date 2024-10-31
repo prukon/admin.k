@@ -32,7 +32,13 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 
 
-    Route::delete('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\DestroyController')->name('admin.team.delete');
+//    Route::delete('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\DestroyController')->name('admin.team.delete');
+    Route::delete('admin/team/{team}', '\App\Http\Controllers\Admin\Team\DestroyController')->name('admin.team.delete');
+
+
+//    Route::delete('/admin/team/{id}', [UpdateController::class, 'destroy'])->name('admin.team.delete');
+
+
     Route::get('/admin/teams/logs-data', '\App\Http\Controllers\Admin\Team\LogsController')->name('logs.data.team');
 
 

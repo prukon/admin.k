@@ -5,6 +5,7 @@
 
 
 <!-- Модальное окно для редактирования группы -->
+<!-- Модальное окно для редактирования группы -->
 <div class="modal fade" id="editTeamModal" tabindex="-1" aria-labelledby="editTeamModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -50,8 +51,28 @@
                     <hr>
                     <div class="buttons-wrap mb-3">
                         <button type="button" class="btn btn-primary mr-2" id="update-team-btn">Обновить</button>
+                        <button type="button" class="btn btn-danger" id="delete-team-btn" data-bs-toggle="modal" data-bs-target="#deleteConfirmationModal">Удалить</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения удаления -->
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmationModalLabel">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Вы уверены, что хотите удалить эту группу?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="confirm-delete-team-btn">Удалить</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
             </div>
         </div>
     </div>
@@ -114,6 +135,27 @@
                         $('#edit-title-error').text(xhr.responseJSON.errors.title || '');
                         $('#edit-weekdays-error').text(xhr.responseJSON.errors.weekdays || '');
                     }
+                }
+            });
+        });
+
+        // Обработка удаления через AJAX
+        $('#confirm-delete-team-btn').on('click', function() {
+            const teamId = $('#edit-team-id').val();
+
+            $.ajax({
+                url: `/admin/team/${teamId}`, // маршрут удаления
+                type: 'DELETE',
+                data: {
+                    _token: $('input[name="_token"]').val()
+                },
+                success: function(response) {
+                    $('#deleteConfirmationModal').modal('hide');
+                    $('#editTeamModal').modal('hide');
+                    location.reload();
+                },
+                error: function(xhr) {
+                    alert('Ошибка при удалении группы.');
                 }
             });
         });

@@ -16,6 +16,7 @@ class DestroyController extends Controller
     public function __invoke(Team $team)
     {
         $authorId = auth()->id(); // Авторизованный пользователь
+
         $team->delete();
 
         Log::create([
@@ -26,6 +27,8 @@ class DestroyController extends Controller
             'created_at' => now(),
         ]);
 
-        return redirect()->route('admin.team.index');
+        return response()->json(['message' => 'Группа успешно удалена']);
+
+//        return redirect()->route('admin.team.index');
     }
 }
