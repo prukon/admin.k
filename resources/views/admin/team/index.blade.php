@@ -14,7 +14,7 @@
             <button id="new-team" type="button" class="btn btn-primary mr-2 new-team width-170"
                     data-bs-toggle="modal" data-bs-target="#createTeamModal">
                 Добавить группу
-            </button> 
+            </button>
 
             <button type="button" class="btn btn-primary width-170" id="logs" data-bs-toggle="modal" data-bs-target="#historyModal">История изменений</button>
 
