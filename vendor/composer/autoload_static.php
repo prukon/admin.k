@@ -588,6 +588,8 @@ class ComposerStaticInit553081a1dd5313a5936958b505fd08af
     );
 
     public static $classMap = array (
+        'App\\Console\\Commands\\ConvertRussianMonths' => __DIR__ . '/../..' . '/app/Console/Commands/ConvertRussianMonths.php',
+        'App\\Console\\Commands\\ConvertTeamPricesMonths' => __DIR__ . '/../..' . '/app/Console/Commands/ConvertTeamPricesMonths.php',
         'App\\Console\\Kernel' => __DIR__ . '/../..' . '/app/Console/Kernel.php',
         'App\\Exceptions\\Handler' => __DIR__ . '/../..' . '/app/Exceptions/Handler.php',
         'App\\Http\\Controllers\\AccountSettingController' => __DIR__ . '/../..' . '/app/Http/Controllers/AccountSettingController.php',
@@ -648,10 +650,11 @@ class ComposerStaticInit553081a1dd5313a5936958b505fd08af
         'App\\Listeners\\LogUserLogin' => __DIR__ . '/../..' . '/app/Listeners/LogUserLogin.php',
         'App\\Models\\Event' => __DIR__ . '/../..' . '/app/Models/Event.php',
         'App\\Models\\Log' => __DIR__ . '/../..' . '/app/Models/Log.php',
+        'App\\Models\\MenuItem' => __DIR__ . '/../..' . '/app/Models/MenuItem.php',
         'App\\Models\\Payment' => __DIR__ . '/../..' . '/app/Models/Payment.php',
         'App\\Models\\ScheduleUser' => __DIR__ . '/../..' . '/app/Models/ScheduleUser.php',
         'App\\Models\\Setting' => __DIR__ . '/../..' . '/app/Models/Setting.php',
-        'App\\Models\\Team' => __DIR__ . '/../..' . '/app/Models/Team.php',
+        'App\\Models\\SocialItem' => __DIR__ . '/../..' . '/app/Models/SocialItem.php',
         'App\\Models\\TeamPrice' => __DIR__ . '/../..' . '/app/Models/TeamPrice.php',
         'App\\Models\\TeamWeekday' => __DIR__ . '/../..' . '/app/Models/TeamWeekday.php',
         'App\\Models\\Traits\\Filterable' => __DIR__ . '/../..' . '/app/Models/Traits/Filterable.php',

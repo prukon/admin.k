@@ -6,6 +6,8 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'App\\Console\\Commands\\ConvertRussianMonths' => $baseDir . '/app/Console/Commands/ConvertRussianMonths.php',
+    'App\\Console\\Commands\\ConvertTeamPricesMonths' => $baseDir . '/app/Console/Commands/ConvertTeamPricesMonths.php',
     'App\\Console\\Kernel' => $baseDir . '/app/Console/Kernel.php',
     'App\\Exceptions\\Handler' => $baseDir . '/app/Exceptions/Handler.php',
     'App\\Http\\Controllers\\AccountSettingController' => $baseDir . '/app/Http/Controllers/AccountSettingController.php',
@@ -66,10 +68,11 @@ return array(
     'App\\Listeners\\LogUserLogin' => $baseDir . '/app/Listeners/LogUserLogin.php',
     'App\\Models\\Event' => $baseDir . '/app/Models/Event.php',
     'App\\Models\\Log' => $baseDir . '/app/Models/Log.php',
+    'App\\Models\\MenuItem' => $baseDir . '/app/Models/MenuItem.php',
     'App\\Models\\Payment' => $baseDir . '/app/Models/Payment.php',
     'App\\Models\\ScheduleUser' => $baseDir . '/app/Models/ScheduleUser.php',
     'App\\Models\\Setting' => $baseDir . '/app/Models/Setting.php',
-    'App\\Models\\Team' => $baseDir . '/app/Models/Team.php',
+    'App\\Models\\SocialItem' => $baseDir . '/app/Models/SocialItem.php',
     'App\\Models\\TeamPrice' => $baseDir . '/app/Models/TeamPrice.php',
     'App\\Models\\TeamWeekday' => $baseDir . '/app/Models/TeamWeekday.php',
     'App\\Models\\Traits\\Filterable' => $baseDir . '/app/Models/Traits/Filterable.php',
