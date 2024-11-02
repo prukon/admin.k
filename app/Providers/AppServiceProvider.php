@@ -5,7 +5,7 @@ namespace App\Providers;
 use App\Models\MenuItem;
 use App\Models\Setting;
 use App\Models\SocialItem;
-//use App\Models\Team;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +33,7 @@ class AppServiceProvider extends ServiceProvider
 //        Прокидывание переменной авторизации
         $setting = Setting::where('name', 'registrationActivity')->first();
         $isRegistrationActivity = $setting ? $setting->status : null;
-//        $allTeamsCount = Team::all()->count();
+        $allTeamsCount = Team::all()->count();
         $allUsersCount = User::all()->count();
 
 
@@ -44,7 +44,7 @@ class AppServiceProvider extends ServiceProvider
 //        }
 
         View::share('isRegistrationActivity', $isRegistrationActivity);
-//        View::share('allTeamsCount', $allTeamsCount);
+        View::share('allTeamsCount', $allTeamsCount);
         View::share('allUsersCount', $allUsersCount);
 
 //        View::share('currentUserId', $currentUserId);
