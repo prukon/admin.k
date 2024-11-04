@@ -891,3 +891,7 @@ display: none;
 .btn-secondary {
     border: none;
 }
+a.disabled {
+    pointer-events: none;
+    color: #ccc;
+}

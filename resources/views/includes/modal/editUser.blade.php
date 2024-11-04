@@ -38,7 +38,7 @@
                                 </li>
                                 <li class="pl-3 pr-3 pt-1 pb-1">
                                     <i class="fa-regular fa-trash-can mr-2"></i>
-                                    <a href="#" id="delete-photo">Удалить фотографию</a>
+                                    <a href="#" disabled id="delete-photo">Удалить фотографию</a>
                                 </li>
                             </ul>
                         </div>
@@ -165,6 +165,19 @@
             });
             console.log('Croppie успешно инициализирован.');
         }
+// Проверка, если аватарка дефолтная, отключаем кнопку "Удалить фотографию"
+        function toggleDeleteButton() {
+            const defaultAvatarUrl = '/img/default.png';
+            const currentAvatarUrl = $('#confirm-img').attr('src');
+            const deletePhotoButton = $('#delete-photo');
+
+            if (currentAvatarUrl === defaultAvatarUrl) {
+                deletePhotoButton.addClass('disabled').attr('disabled', true);
+            } else {
+                deletePhotoButton.removeClass('disabled').attr('disabled', false);
+            }
+        }
+
 
         // Функция редактирования пользователя
         function editMidalUser() {
@@ -402,6 +415,8 @@
                             $('#confirm-img').attr('src', '/img/default.png'); // Загружаем изображение по умолчанию, если аватарки нет
                             console.log('Загружено изображение по умолчанию');
                         }
+                        // Проверяем и переключаем кнопку удаления аватарки
+                        toggleDeleteButton();
 
                         // Открываем модальное окно
                         $('#editUserModal').modal('show');
@@ -505,6 +520,7 @@
                         if (response.success) {
                             $('#confirm-img').attr('src', '/img/default.png'); // Устанавливаем аватарку по умолчанию
                             alert('Аватарка успешно удалена');
+                            toggleDeleteButton();
                         } else {
                             alert('Ошибка удаления аватарки');
                         }
