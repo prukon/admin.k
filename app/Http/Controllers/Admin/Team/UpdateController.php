@@ -88,4 +88,3 @@ class UpdateController extends Controller
         }
     }
 }
-

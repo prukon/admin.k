@@ -38,7 +38,7 @@ class SettingPricesController extends Controller
      * @return \Illuminate\Contracts\Support\Renderable
      */
 
-   public function formatedDate($month)
+    public function formatedDate($month)
     {
         // Массив соответствий русских и английских названий месяцев
         $months = [
@@ -251,7 +251,6 @@ class SettingPricesController extends Controller
         $selectedDate = $data['selectedDate'] ?? null;
 
 
-
         $usersTeam = User::where('team_id', $teamId)->get();
         $authorId = auth()->id(); // Авторизованный пользователь
         $teamTitle = Team::where('id', $teamId)->first()->title;
@@ -279,7 +278,6 @@ class SettingPricesController extends Controller
 
         // Обновляем цены для пользователей
         $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
-
 
 
         foreach ($users as $user) {

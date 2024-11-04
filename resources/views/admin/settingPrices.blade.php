@@ -66,19 +66,41 @@
                     <button id="set-price-all-teams" class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить
                     </button>
 
+{{--                    @if(isset($teamPrices) && count($teamPrices) > 0)--}}
+{{--                        @for($i = 0; $i < count($teamPrices); $i++)--}}
+{{--                            <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">--}}
+{{--                                <div class="team-name col-3">{{$allTeams[$i]->title}}</div>--}}
+{{--                                <div class="team-price col-2"><input class="" type="number"--}}
+{{--                                                                     value="{{ $teamPrices[$i]->price }}"></div>--}}
+{{--                                <div class="team-buttons col-7">--}}
+{{--                                    <input class="ok btn btn-primary" type="button" value="ok" id="">--}}
+{{--                                    <input class="detail btn btn-primary" type="button" value="Подробно" id="">--}}
+{{--                                </div>--}}
+{{--                            </div>--}}
+{{--                        @endfor--}}
+{{--                    @endif--}}
+
+
                     @if(isset($teamPrices) && count($teamPrices) > 0)
                         @for($i = 0; $i < count($teamPrices); $i++)
+                            @if(isset($allTeams[$i])) <!-- Добавляем проверку на существование индекса $i -->
                             <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
-                                <div class="team-name col-3">{{$allTeams[$i]->title}}</div>
-                                <div class="team-price col-2"><input class="" type="number"
-                                                                     value="{{ $teamPrices[$i]->price }}"></div>
+                                <div class="team-name col-3">{{ $allTeams[$i]->title }}</div>
+                                <div class="team-price col-2">
+                                    <input class="" type="number" value="{{ $teamPrices[$i]->price }}">
+                                </div>
                                 <div class="team-buttons col-7">
                                     <input class="ok btn btn-primary" type="button" value="ok" id="">
                                     <input class="detail btn btn-primary" type="button" value="Подробно" id="">
                                 </div>
                             </div>
+                            @endif
                         @endfor
                     @endif
+
+
+
+
                 </div>
                 <div class="col-md-auto"></div>
                 <div id='right_bar' class="col col-lg-5">

@@ -28,11 +28,7 @@ class StoreController extends Controller
 
         $data = $request->validated();
         $this->service->store($data);
-
-
-//        $team = Team::find($data['team_id']);
-//        $teamName = $team ? $team->title : '-';
-
+        
 
         $weekdaysMap = [
             1 => 'пн',
