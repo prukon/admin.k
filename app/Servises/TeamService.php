@@ -17,10 +17,18 @@ class TeamService
         if (!empty($weekdays) && $team->id) {
             $team->weekdays()->sync($weekdays);
         }
+
+        return $team; // Возвращаем созданную команду
+
     }
 
     public function update($team, $data)
     {
+
+
+
+
+
         $weekdays = $data['weekdays'] ?? [];
         unset($data['weekdays']);
 

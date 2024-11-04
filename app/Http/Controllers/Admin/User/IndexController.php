@@ -26,20 +26,12 @@ if (isset($data['id'])) {
     $query->where('id', $data['id']);
 }
 
-        $allUsers= $query->get();
-
-//dd($allUsers);
-
         $filter = app()->make(UserFilter::class, ['queryParams'=> array_filter($data)]);
 
-//        $allUsers = User::filter($filter)->paginate(20);
         $allUsers = User::filter($filter)
             ->orderBy('name', 'asc') // сортировка по полю name по возрастанию
             ->paginate(20);
-//        $allTeams = Team::filter($filter)
-//            ->paginate(20);
         $allTeams = Team::all();
-
 
         return view("admin.user.index", compact(
             "allUsers" ,

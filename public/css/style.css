@@ -888,3 +888,6 @@ display: none;
     border-radius: 5px; /* Закругление углов, если нужно */
     cursor: pointer; /* Изменение курсора при наведении */
 }
+.btn-secondary {
+    border: none;
+}

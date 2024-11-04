@@ -8,6 +8,7 @@ use App\Models\Log;
 use App\Models\Team;
 use App\Servises\TeamService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class UpdateController extends Controller
 {
@@ -32,24 +33,21 @@ class UpdateController extends Controller
             return response()->json(['error' => 'Команда не найдена или не имеет ID'], 404);
         }
 
-        // Создаём копию данных с подгруженными днями недели
-        $oldData = $team->replicate();
-        $oldData->setRelation('weekdays', $team->weekdays); // Подгружаем связанные данные в копию
+        DB::transaction(function () use ($data, $authorId, $team) {
+            // Создаём копию данных с подгруженными днями недели
+            $oldData = $team->replicate();
+            $oldData->setRelation('weekdays', $team->weekdays); // Подгружаем связанные данные в копию
 
-        // Маппинг чисел в сокращения дней недели
-        $weekdaysMap = [
-            1 => 'пн',
-            2 => 'вт',
-            3 => 'ср',
-            4 => 'чт',
-            5 => 'пт',
-            6 => 'сб',
-            7 => 'вс',
-        ];
-
-        try {
-            // Обновление данных с использованием TeamService
-            $this->service->update($team, $data);
+            // Маппинг чисел в сокращения дней недели
+            $weekdaysMap = [
+                1 => 'пн',
+                2 => 'вт',
+                3 => 'ср',
+                4 => 'чт',
+                5 => 'пт',
+                6 => 'сб',
+                7 => 'вс',
+            ];
 
             // Преобразование старых и новых дней недели в сокращения
             $oldWeekdaysFormatted = $oldData->weekdays->pluck('id')->map(function ($day) use ($weekdaysMap) {
@@ -67,24 +65,25 @@ class UpdateController extends Controller
                 'author_id' => $authorId,
                 'description' => sprintf(
                     "Старые данные:
-                Название: %s, дни недели: %s, сортировка: %s, активность: %s.
-                Новые данные:
-                Название: %s, дни недели: %s, сортировка: %s, активность: %s.",
+                    Название: %s, дни недели: %s, сортировка: %s, активность: %s.
+                    Новые данные:
+                    Название: %s, дни недели: %s, сортировка: %s, активность: %s.",
                     $oldData->title,
                     !empty($oldWeekdaysFormatted) ? implode(', ', $oldWeekdaysFormatted) : 'не указаны',
                     $oldData->order_by ?? 'не указана',
                     $oldData->is_enabled ? 'Да' : 'Нет',
-                    $team->title,
+                    $data['title'],
                     !empty($newWeekdaysFormatted) ? implode(', ', $newWeekdaysFormatted) : 'не указаны',
-                    $team->order_by ?? 'не указана',
-                    $team->is_enabled ? 'Да' : 'Нет'
+                    $data['order_by'] ?? 'не указана',
+                    $data['is_enabled'] ? 'Да' : 'Нет'
                 ),
                 'created_at' => now(),
             ]);
 
-            return response()->json(['message' => 'Группа успешно обновлена']);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
+            // Обновление данных с использованием TeamService
+            $this->service->update($team, $data);
+        });
+
+        return response()->json(['message' => 'Группа успешно обновлена']);
     }
 }

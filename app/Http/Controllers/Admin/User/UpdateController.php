@@ -32,6 +32,7 @@ class UpdateController extends Controller
         $oldTeamName = $oldTeam ? $oldTeam->title : '-';
 
         $data = $request->validated();
+
         $this->service->update($user, $data);
 
         $team = Team::find($data['team_id']);
@@ -59,7 +60,6 @@ class UpdateController extends Controller
             'created_at' => now(),
         ]);
 
-//        return redirect()->route('admin.user.edit', ['user' => $user->id])->with('success', 'Пользователь успешно обновлен.');;
         return response()->json(['message' => 'Пользователь успешно обновлен']);
 
     }

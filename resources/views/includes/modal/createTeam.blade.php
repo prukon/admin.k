@@ -1,6 +1,9 @@
-<!-- Modal -->
+<!-- Подключение CSS Bootstrap (в head) -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-...ваш-интегрити-ключ..." crossorigin="anonymous">
 
-<!-- Модальное окно -->
+<!-- Ваш HTML-контент, включая модальные окна и форму -->
+
+<!-- Модальное окно для создания группы -->
 <div class="modal fade" id="createTeamModal" tabindex="-1" aria-labelledby="createTeamModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -61,14 +64,83 @@
     </div>
 </div>
 
+<!-- Модальное окно для успешного создания -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="successModalLabel">Успех</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body" id="successModalBody">
+                Группа создана успешно!
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Подключение JavaScript Bootstrap и ваш скрипт для работы с модальными окнами -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-...ваш-интегрити-ключ..." crossorigin="anonymous"></script>
+
 <script>
-    // Если нужно что-то еще настроить или добавить функционал, например, очистку формы, можно добавить обработчик событий
     document.addEventListener('DOMContentLoaded', function () {
         const teamForm = document.getElementById('teamForm');
+        const createTeamModalElement = document.getElementById('createTeamModal');
+        const successModalElement = document.getElementById('successModal');
 
         teamForm.addEventListener('submit', function (e) {
-            e.preventDefault();  // Останавливаем стандартную отправку для проверки перед отправкой
-            teamForm.submit();   // Если все ок, отправляем форму
+            e.preventDefault();  // Останавливаем стандартную отправку формы
+
+            // Собираем данные формы
+            const formData = new FormData(teamForm);
+
+            // Отправка данных с использованием AJAX
+            fetch(teamForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',  // Обозначаем, что это AJAX-запрос
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Ошибка HTTP: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.message) {
+                        // Закрываем модалку создания группы
+                        const createTeamModal = bootstrap.Modal.getInstance(createTeamModalElement);
+                        createTeamModal.hide();
+
+                        // Обновляем текст модального окна успешного создания группы
+                        const successModalBody = document.getElementById('successModalBody');
+                        successModalBody.textContent = `Группа "${data.team.title}" создана успешно!`;
+
+                        // Показываем модальное окно успешного создания группы
+                        const successModal = new bootstrap.Modal(successModalElement);
+                        successModal.show();
+
+                        // Очищаем форму
+                        teamForm.reset();
+                    } else {
+                        throw new Error('Произошла ошибка при создании группы.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка:', error.message);
+                    alert('Произошла ошибка при создании группы.');
+                });
+        });
+
+        // Добавляем перезагрузку страницы после закрытия `successModal`
+        successModalElement.addEventListener('hidden.bs.modal', function () {
+            window.location.reload();
         });
     });
 </script>

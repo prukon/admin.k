@@ -15,8 +15,8 @@ class CreateController extends BaseController
 
     public function __invoke()
     {
-        $allTeamsCount = Team::all()->count();
-        $allUsersCount  = User::all()->count();
+//        $allTeamsCount = Team::all()->count();
+//        $allUsersCount  = User::all()->count();
 
         $allTeams = Team::All();
         return view("admin.user.create", compact("allTeams", 'allUsersCount', 'allTeamsCount'));     }

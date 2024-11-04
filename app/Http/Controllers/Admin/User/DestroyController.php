@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\User;
 use App\Http\Controllers\Controller;
 use App\Models\Log;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class DestroyController extends Controller
 {
@@ -13,17 +14,23 @@ class DestroyController extends Controller
         $this->middleware('admin');
     }
 
-    public function __invoke(User $user) {
+    public function __invoke(User $user)
+    {
         $authorId = auth()->id(); // Авторизованный пользователь
-        $user->delete();
 
-        Log::create([
-            'type' => 2, // Лог для обновления юзеров
-            'action' => 24,
-            'author_id' => $authorId,
-            'description' => "Удален пользователь: {$user->name}  ID: {$user->id}.",
-            'created_at' => now(),
-        ]);
+        DB::transaction(function () use ($user, $authorId) {
+            // Удаление пользователя
+            $user->delete();
+
+            // Логирование удаления
+            Log::create([
+                'type' => 2, // Лог для обновления юзеров
+                'action' => 24,
+                'author_id' => $authorId,
+                'description' => "Удален пользователь: {$user->name}  ID: {$user->id}.",
+                'created_at' => now(),
+            ]);
+        });
 
         return redirect()->route('admin.user.index');
     }
