@@ -117,7 +117,6 @@ class SettingController extends Controller
                 ]
             );
 
-            // Логирование изменения пароля
             Log::create([
                 'type' => 1,
                 'action' => 70,
@@ -180,264 +179,6 @@ class SettingController extends Controller
             })
             ->make(true);
     }
-
-    //сохрание меню в шапке
-//    public function saveMenuItems(Request $request)
-//    {
-//        $errors = [];
-//        $validatedData = [];
-//        $authorId = auth()->id(); // Авторизованный пользователь
-//
-//
-//        foreach ($request->input('menu_items', []) as $key => $data) {
-//            // Создаем валидатор для каждого элемента меню
-//            $validator = \Validator::make($data, [
-//                'name' => ['required', 'max:20', 'regex:/^[\pL\pN\s]+$/u'], // Буквы, цифры и пробелы
-//                'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
-//            ], [
-//                'name.required' => 'Заполните название.',
-//                'name.max' => 'Название не может быть длиннее 20 символов.',
-//                'name.regex' => 'Название не может содержать спецсимволы.',
-//                'link.regex' => 'Введите корректный URL.',
-//            ]);
-//
-//            if ($validator->fails()) {
-//                foreach ($validator->errors()->messages() as $field => $messages) {
-//                    $errors["menu_items[$key][$field]"] = $messages;
-//                }
-//            } else {
-//                // Приведение target_blank к числовому значению
-//                $data['target_blank'] = !empty($data['target_blank']) ? 1 : 0;
-//                $validatedData[$key] = $data;
-//            }
-//        }
-//
-//        if (!empty($errors)) {
-//            return response()->json(['success' => false, 'errors' => $errors], 422);
-//        }
-//
-//        DB::transaction(function () use ($validatedData, $authorId, $request) {
-//
-//
-//            foreach ($validatedData as $key => $data) {
-//                if (is_numeric($key)) {
-//                    $menuItem = MenuItem::find($key);
-//                    if ($menuItem) {
-//                        $menuItem->update([
-//                            'name' => $data['name'],
-//                            'link' => $data['link'] ?: '',
-//                            'target_blank' => $data['target_blank'],
-//                        ]);
-//                    }
-//                } else {
-//                    MenuItem::create([
-//                        'name' => $data['name'],
-//                        'link' => $data['link'] ?: '',
-//                        'target_blank' => $data['target_blank'],
-//                    ]);
-//                }
-//            }
-//
-//            if ($request->has('deleted_items')) {
-//                MenuItem::whereIn('id', $request->input('deleted_items'))->delete();
-//            }
-//
-//
-//            Log::create([
-//                'type' => 1,
-//                'action' => 70,
-//                'author_id' => $authorId,
-//                'description' => ("Изменены пункты главного мен: " . $request),
-//                'created_at' => now(),
-//            ]);
-//        });
-//        return response()->json(['success' => true]);
-//    }
-
-
-
-//    public function saveMenuItems(Request $request)
-//    {
-//        $errors = [];
-//        $validatedData = [];
-//        $authorId = auth()->id(); // Авторизованный пользователь
-//        $changedItems = []; // Массив для хранения изменённых пунктов меню
-//
-//        foreach ($request->input('menu_items', []) as $key => $data) {
-//            // Создаем валидатор для каждого элемента меню
-//            $validator = \Validator::make($data, [
-//                'name' => ['required', 'max:20', 'regex:/^[\pL\pN\s]+$/u'], // Буквы, цифры и пробелы
-//                'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
-//            ], [
-//                'name.required' => 'Заполните название.',
-//                'name.max' => 'Название не может быть длиннее 20 символов.',
-//                'name.regex' => 'Название не может содержать спецсимволы.',
-//                'link.regex' => 'Введите корректный URL.',
-//            ]);
-//
-//            if ($validator->fails()) {
-//                foreach ($validator->errors()->messages() as $field => $messages) {
-//                    $errors["menu_items[$key][$field]"] = $messages;
-//                }
-//            } else {
-//                // Приведение target_blank к числовому значению
-//                $data['target_blank'] = !empty($data['target_blank']) ? 1 : 0;
-//                $validatedData[$key] = $data;
-//            }
-//        }
-//
-//        if (!empty($errors)) {
-//            return response()->json(['success' => false, 'errors' => $errors], 422);
-//        }
-//
-//        DB::transaction(function () use ($validatedData, $authorId, $request, &$changedItems) {
-//
-//            foreach ($validatedData as $key => $data) {
-//                if (is_numeric($key)) {
-//                    $menuItem = MenuItem::find($key);
-//                    if ($menuItem) {
-//                        // Сохраняем старые и новые данные для логирования
-//                        $oldData = $menuItem->toArray();
-//                        $menuItem->update([
-//                            'name' => $data['name'],
-//                            'link' => $data['link'] ?: '',
-//                            'target_blank' => $data['target_blank'],
-//                        ]);
-//
-//                        // Добавляем изменённый элемент в массив изменений
-//                        $changedItems[] = [
-//                            'id' => $menuItem->id,
-//                            'old' => $oldData,
-//                            'new' => $data
-//                        ];
-//                    }
-//                } else {
-//                    $newItem = MenuItem::create([
-//                        'name' => $data['name'],
-//                        'link' => $data['link'] ?: '',
-//                        'target_blank' => $data['target_blank'],
-//                    ]);
-//
-//                    // Добавляем новый элемент в массив изменений
-//                    $changedItems[] = [
-//                        'id' => $newItem->id,
-//                        'old' => null,
-//                        'new' => $data
-//                    ];
-//                }
-//            }
-//
-//            if ($request->has('deleted_items')) {
-//                MenuItem::whereIn('id', $request->input('deleted_items'))->delete();
-//
-//                // Логируем удалённые элементы
-//                foreach ($request->input('deleted_items') as $deletedId) {
-//                    $changedItems[] = [
-//                        'id' => $deletedId,
-//                        'old' => 'deleted',
-//                        'new' => null
-//                    ];
-//                }
-//            }
-//
-//            Log::create([
-//                'type' => 1,
-//                'action' => 70,
-//                'author_id' => $authorId,
-//                'description' => "Изменены пункты меню: " . json_encode($changedItems, JSON_UNESCAPED_UNICODE),
-//                'created_at' => now(),
-//            ]);
-//        });
-//
-//        return response()->json(['success' => true]);
-//    }
-
-
-//    public function saveMenuItems(Request $request)
-//    {
-//        $errors = [];
-//        $validatedData = [];
-//        $authorId = auth()->id(); // Авторизованный пользователь
-//        $changedItems = []; // Массив для хранения изменённых пунктов меню
-//
-//        foreach ($request->input('menu_items', []) as $key => $data) {
-//            // Создаем валидатор для каждого элемента меню
-//            $validator = \Validator::make($data, [
-//                'name' => ['required', 'max:20', 'regex:/^[\pL\pN\s]+$/u'], // Буквы, цифры и пробелы
-//                'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
-//            ], [
-//                'name.required' => 'Заполните название.',
-//                'name.max' => 'Название не может быть длиннее 20 символов.',
-//                'name.regex' => 'Название не может содержать спецсимволы.',
-//                'link.regex' => 'Введите корректный URL.',
-//            ]);
-//
-//            if ($validator->fails()) {
-//                foreach ($validator->errors()->messages() as $field => $messages) {
-//                    $errors["menu_items[$key][$field]"] = $messages;
-//                }
-//            } else {
-//                // Приведение target_blank к числовому значению
-//                $data['target_blank'] = !empty($data['target_blank']) ? 1 : 0;
-//                $validatedData[$key] = $data;
-//            }
-//        }
-//
-//        if (!empty($errors)) {
-//            return response()->json(['success' => false, 'errors' => $errors], 422);
-//        }
-//
-//        DB::transaction(function () use ($validatedData, $authorId, $request, &$changedItems) {
-//
-//            foreach ($validatedData as $key => $data) {
-//                if (is_numeric($key)) {
-//                    $menuItem = MenuItem::find($key);
-//                    if ($menuItem) {
-//                        // Сохраняем старые и новые данные для логирования в читаемом формате
-//                        $oldDescription = "{$menuItem->name}, {$menuItem->link}, " . ($menuItem->target_blank ? "Открывать в новой вкладке" : "Открывать в той же вкладке");
-//                        $newDescription = "{$data['name']}, {$data['link']}, " . ($data['target_blank'] ? "Открывать в новой вкладке" : "Открывать в той же вкладке");
-//
-//                        $changedItems[] = "\"$oldDescription\" на \"$newDescription\"";
-//
-//                        // Обновляем элемент
-//                        $menuItem->update([
-//                            'name' => $data['name'],
-//                            'link' => $data['link'] ?: '',
-//                            'target_blank' => $data['target_blank'],
-//                        ]);
-//                    }
-//                } else {
-//                    $newItem = MenuItem::create([
-//                        'name' => $data['name'],
-//                        'link' => $data['link'] ?: '',
-//                        'target_blank' => $data['target_blank'],
-//                    ]);
-//
-//                    $newDescription = "{$data['name']}, {$data['link']}, " . ($data['target_blank'] ? "Открывать в новой вкладке" : "Открывать в той же вкладке");
-//                    $changedItems[] = "Добавлен новый пункт меню: \"$newDescription\"";
-//                }
-//            }
-//
-//            if ($request->has('deleted_items')) {
-//                MenuItem::whereIn('id', $request->input('deleted_items'))->delete();
-//
-//                foreach ($request->input('deleted_items') as $deletedId) {
-//                    $changedItems[] = "Удалён пункт меню с ID: $deletedId";
-//                }
-//            }
-//
-//            Log::create([
-//                'type' => 1,
-//                'action' => 70,
-//                'author_id' => $authorId,
-//                'description' => "Изменены пункты меню:\n" . implode("\n", $changedItems),
-//                'created_at' => now(),
-//            ]);
-//        });
-//
-//        return response()->json(['success' => true]);
-//    }
-
 
     public function saveMenuItems(Request $request)
     {
@@ -529,29 +270,22 @@ class SettingController extends Controller
         return response()->json(['success' => true]);
     }
 
-
-
-
-
 //    Сохранение соц. меню в шапке
     public function saveSocialItems(Request $request)
     {
         $errors = [];
         $validatedData = [];
+        $authorId = auth()->id(); // Авторизованный пользователь
+        $oldItems = []; // Массив для хранения старых значений
+        $newItems = []; // Массив для хранения новых значений
 
         foreach ($request->input('social_items', []) as $key => $data) {
-//            $validator = \Validator::make($data, [
-//                'link' => ['nullable', 'url'], // Валидация только для URL
-//            ], [
-//                'link.url' => 'Введите корректный URL.',
-//            ]);
-
+            // Валидация поля `link` как URL
             $validator = \Validator::make($data, [
                 'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
             ], [
                 'link.regex' => 'Введите корректный URL.',
             ]);
-
 
             if ($validator->fails()) {
                 foreach ($validator->errors()->messages() as $field => $messages) {
@@ -566,15 +300,34 @@ class SettingController extends Controller
             return response()->json(['success' => false, 'errors' => $errors], 422);
         }
 
-        foreach ($validatedData as $key => $data) {
-            $socialItem = SocialItem::find($key);
-            if ($socialItem) {
-                $socialItem->update([
-                    'name' => $data['name'], // Поле `name` сохраняется без валидации
-                    'link' => $data['link'] ?: '',
-                ]);
+        DB::transaction(function () use ($authorId, $validatedData, &$oldItems, &$newItems) {
+            foreach ($validatedData as $key => $data) {
+                $socialItem = SocialItem::find($key);
+                if ($socialItem) {
+                    // Формируем старое значение
+                    $oldItems[] = "\"{$socialItem->name}, {$socialItem->link}\"";
+
+                    // Обновляем элемент и формируем новое значение
+                    $socialItem->update([
+                        'name' => $data['name'], // Поле `name` сохраняется без валидации
+                        'link' => $data['link'] ?: '',
+                    ]);
+
+                    $newItems[] = "\"{$data['name']}, {$data['link']}\"";
+                }
             }
-        }
+
+            // Формируем читаемый лог
+            $description = "Изменены социальные элементы:\n" . implode("\n", $oldItems) . "\nна:\n" . implode("\n", $newItems);
+
+            Log::create([
+                'type' => 1,
+                'action' => 70,
+                'author_id' => $authorId,
+                'description' => $description,
+                'created_at' => now(),
+            ]);
+        });
 
         return response()->json(['success' => true]);
     }
