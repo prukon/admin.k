@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\UserPrice;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -170,9 +171,9 @@ class DashboardController extends Controller
 
 //upd
 
-if ($inputDate == '01.01.1970') {
-    $inputDate = '01.09.2024';
-}
+        if ($inputDate == '01.01.1970') {
+            $inputDate = '01.09.2024';
+        }
         $inputDate = date('Y-m-d', strtotime($inputDate));
 
         //Обновление команды у юзера
@@ -267,51 +268,6 @@ if ($inputDate == '01.01.1970') {
 
     }
 
-    //AJAX загрузка аватарки
-    public function uploadAvatar(Request $request)
-    {
-        $request->validate([
-            'croppedImage' => 'required|string',
-        ]);
-
-        $userName = $request->input('userName');
-        $user = User::where('name', $userName)->first();
-
-        if ($user) {
-            $authorId = auth()->id(); // Авторизованный пользователь
-
-            $imageData = $request->input('croppedImage');
-
-            // Разбираем строку base64 и сохраняем файл
-            list($type, $imageData) = explode(';', $imageData);
-            list(, $imageData) = explode(',', $imageData);
-            $imageData = base64_decode($imageData);
-
-            // Генерация уникального имени файла
-            $fileName = Str::random(10) . '.png';
-            $path = public_path('storage/avatars/' . $fileName);
-
-            // Сохраняем файл
-            file_put_contents($path, $imageData);
-
-            // Обновляем запись в базе данных
-            $user->image_crop = $fileName;
-            $user->save();
-
-            Log::create([
-                'type' => 2, // Лог для обновления юзеров
-                'action' => 27, // Лог для обновления учетной записи
-                'author_id' => $authorId,
-                'description' => ("Пользователю " . $userName . " был изменен аватар."),
-                'created_at' => now(),
-            ]);
-
-            return response()->json(['success' => true, 'image_url' => '/storage/avatars/' . $fileName]);
-        }
-
-        return response()->json(['success' => false, 'message' => 'Пользователь не найден']);
-    }
-
     //AJAX Обработка контекстного меню календаря
     public function contentMenuCalendar(Request $request)
     {
@@ -324,44 +280,58 @@ if ($inputDate == '01.01.1970') {
 
         function updateSchedule($user, $date, $action)
         {
-            if ($action == 'add-freeze') {
-                ScheduleUser::updateOrCreate([
-                    'user_id' => $user->id,
-                    'date' => $date,
-                ],
-                    [
-                        'is_hospital' => 1,
-                    ]
-                );
-            } elseif ($action == 'add-training') {
-                ScheduleUser::updateOrCreate([
-                    'user_id' => $user->id,
-                    'date' => $date,
-                ],
-                    [
-                        'is_enabled' => 1,
-                    ]
-                );
-            } elseif ($action == 'remove-training') {
-                ScheduleUser::updateOrCreate([
-                    'user_id' => $user->id,
-                    'date' => $date,
-                ],
-                    [
-                        'is_enabled' => 0,
-                    ]
-                );
-            } elseif ($action == 'remove-freeze') {
-                ScheduleUser::updateOrCreate([
-                    'user_id' => $user->id,
-                    'date' => $date,
-                ],
-                    [
-                        'is_hospital' => 0,
-                    ]
-                );
-            }
+            DB::transaction(function () use ($date, $action, $user) {
+
+                if ($action == 'add-freeze') {
+                    ScheduleUser::updateOrCreate([
+                        'user_id' => $user->id,
+                        'date' => $date,
+                    ],
+                        [
+                            'is_hospital' => 1,
+                        ]
+                    );
+                } elseif ($action == 'add-training') {
+                    ScheduleUser::updateOrCreate([
+                        'user_id' => $user->id,
+                        'date' => $date,
+                    ],
+                        [
+                            'is_enabled' => 1,
+                        ]
+                    );
+                } elseif ($action == 'remove-training') {
+                    ScheduleUser::updateOrCreate([
+                        'user_id' => $user->id,
+                        'date' => $date,
+                    ],
+                        [
+                            'is_enabled' => 0,
+                        ]
+                    );
+                } elseif ($action == 'remove-freeze') {
+                    ScheduleUser::updateOrCreate([
+                        'user_id' => $user->id,
+                        'date' => $date,
+                    ],
+                        [
+                            'is_hospital' => 0,
+                        ]
+                    );
+                }
+
+                $authorId = auth()->id(); // Авторизованный пользователь
+
+                Log::create([
+                    'type' => 6, // Лог для обновления расписания
+                    'action' => 60, // Лог для обновления расписания
+                    'author_id' => $authorId,
+                    'description' => ("Пользователю " . $user->name . " было изменено индивидуальное расписание."),
+                    'created_at' => now(),
+                ]);
+            });
         }
+
 
         updateSchedule($user, $date, $action);
 

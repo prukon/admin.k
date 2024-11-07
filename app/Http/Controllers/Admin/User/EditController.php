@@ -16,14 +16,9 @@ class EditController extends Controller
         $this->middleware('admin');
     }
 
-
     public function __invoke(User $user)
     {
         $allTeams = Team::All();
-
-//        return view('admin.user.edit', compact('user',
-//            'allTeams',
-//        ));
 
         return response()->json([
             'user' => $user,

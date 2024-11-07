@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 
 
@@ -56,9 +57,12 @@ class SettingController extends Controller
     public function registrationActivity(Request $request)
     {
         $isRegistrationActivity = $request->query('isRegistrationActivity');
+        $authorId = auth()->id(); // Авторизованный пользователь
 
-        // Обновляем цены для групп
-        if ($isRegistrationActivity) {
+        DB::transaction(function () use ($isRegistrationActivity, $authorId) {
+
+
+//        if ($isRegistrationActivity) {
             $isRegistrationActivity = filter_var($isRegistrationActivity, FILTER_VALIDATE_BOOLEAN);
             // Обновляем или создаем запись в таблице team_prices
             Setting::updateOrCreate(
@@ -69,7 +73,22 @@ class SettingController extends Controller
                     'status' => $isRegistrationActivity
                 ]
             );
-        }
+//        }
+if($isRegistrationActivity == 1) {
+    $isRegistrationActivityValue = "Вкл.";
+} else {
+    $isRegistrationActivityValue = "Выкл.";
+}
+            // Логирование изменения пароля
+            Log::create([
+                'type' => 1,
+                'action' => 70,
+                'author_id' => $authorId,
+                'description' => ("Включение регистрации в сервисе: " . $isRegistrationActivityValue ),
+                'created_at' => now(),
+            ]);
+        
+        });
         return response()->json([
             'success' => true,
             'isRegistrationActivity' => $isRegistrationActivity,
@@ -137,6 +156,10 @@ class SettingController extends Controller
                     40 => 'Авторизация',
 
                     50 => 'Платежи',
+
+                    60 => 'Расписание',
+
+                    70 => 'Изменение настроек'
 
                 ];
                 return $typeLabels[$log->action] ?? 'Неизвестный тип';

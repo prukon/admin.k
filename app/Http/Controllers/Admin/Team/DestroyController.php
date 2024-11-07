@@ -17,8 +17,7 @@ class DestroyController extends Controller
     {
         $authorId = auth()->id(); // Авторизованный пользователь
 
-        DB::beginTransaction();
-        try {
+        DB::transaction(function () use ($team, $authorId) {
             // Обновляем пользователей, устанавливая team_id в null
             \App\Models\User::where('team_id', $team->id)->update(['team_id' => null]);
 
@@ -33,15 +32,9 @@ class DestroyController extends Controller
                 'description' => "Группа помечена как удалённая: {$team->title}. ID: {$team->id}.",
                 'created_at' => now(),
             ]);
+        });
 
-            DB::commit(); // Фиксируем транзакцию
-
-            return response()->json(['message' => 'Группа и её связь с пользователями успешно помечены как удалённые']);
-        } catch (\Exception $e) {
-            DB::rollBack(); // Откатываем транзакцию в случае ошибки
-
-            return response()->json(['message' => 'Ошибка при удалении группы и обновлении пользователей'], 500);
-        }
+        return response()->json(['message' => 'Группа и её связь с пользователями успешно помечены как удалённые']);
     }
 }
 

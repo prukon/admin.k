@@ -28,10 +28,10 @@
                         </div>
                         <div class="avatar-menu mt-3">
                             <ul class=" ">
-{{--                                <li class="pl-3 pr-3 pt-1 pb-1">--}}
-{{--                                    <i class="fa-regular fa-image mr-2"></i>--}}
-{{--                                    <a href="#" id="open-photo">Открыть фотографию</a>--}}
-{{--                                </li>--}}
+                                {{--                                <li class="pl-3 pr-3 pt-1 pb-1">--}}
+                                {{--                                    <i class="fa-regular fa-image mr-2"></i>--}}
+                                {{--                                    <a href="#" id="open-photo">Открыть фотографию</a>--}}
+                                {{--                                </li>--}}
                                 <li class="pl-3 pr-3 pt-1 pb-1">
                                     <i class="fa-regular fa-pen-to-square mr-2"></i>
                                     <a href="#" id="update-photo">Обновить фотографию</a>
@@ -165,6 +165,7 @@
             });
             console.log('Croppie успешно инициализирован.');
         }
+
 // Проверка, если аватарка дефолтная, отключаем кнопку "Удалить фотографию"
         function toggleDeleteButton() {
             const defaultAvatarUrl = '/img/default.png';
@@ -252,18 +253,28 @@
                 // initializeCroppie();
             });
 
-            // Обработчик закрытия модалки выбора фото и возврат к основной модалке
-            $('#uploadPhotoModal .close, #saveImageBtn').on('click', function () {
-                console.log('Закрытие второй модалки');
-                $('#uploadPhotoModal').modal('hide');
-                $('#editUserModal').css('opacity', '1').modal('show'); // Возвращаем основную модалку после закрытия модалки выбора фото
-            });
+            // function closeUploadAvatarModal() {
+            //     console.log('Закрытие второй модалки');
+            //     $('#uploadPhotoModal').modal('hide');
+            //     $('#editUserModal').css('opacity', '1').modal('show'); // Возвращаем основную модалку после закрытия модалки выбора фото
+            //     console.log("closeUploadAvatarModal()");
+            // }
 
-
-            // Использование обработчика события 'hidden.bs.modal' для восстановления прозрачности
-            $('#uploadPhotoModal').on('hidden.bs.modal', function () {
+            function closeUploadAvatarModal2() {
+               console.log("closeUploadAvatarModal2()");
                 console.log('Модалка Croppie закрыта, восстанавливаем прозрачность основной модалки');
                 $('#editUserModal').css('opacity', '1'); // Восстанавливаем прозрачность основной модалки
+            }
+
+            // // Обработчик закрытия модалки выбора фото и возврат к основной модалке
+            // $('#uploadPhotoModal .close').on('click', function () {
+            //     // closeUploadAvatarModal()
+            // });
+
+
+            // Закрытие второй модалки
+            $('#uploadPhotoModal').on('hidden.bs.modal', function () {
+                closeUploadAvatarModal2();
             });
 
             // Обработчик сохранения фото
@@ -328,6 +339,7 @@
                 }).catch(function (error) {
                     console.error('Ошибка при обработке изображения Croppie:', error);
                 });
+                // closeUploadAvatarModal();
             });
 
             // Показать/скрыть изменение пароля
@@ -385,7 +397,6 @@
             // Открываем модалку и загружаем данные пользователя для редактирования
             $('.edit-user-link').on('click', function () {
                 let userId = $(this).data('id'); // Получаем ID пользователя
-                console.log(1);
                 let url = `/admin/users/${userId}/edit`; // Маршрут для получения данных пользователя (GET)
                 console.log('Открываем модалку для редактирования пользователя с ID:', userId);
 
@@ -466,37 +477,33 @@
         });
 
         // /Показывать контекстое меню при наведении на аватар
-        $(document).ready(function() {
+        $(document).ready(function () {
             let menuTimeout;
 
             // Показываем меню при наведении на аватар
             $('.avatar_wrapper').hover(
-                function() {
+                function () {
                     clearTimeout(menuTimeout);
                     $(document).find('.avatar-menu').show();
-                    console.log(1)
                 },
-                function() {
+                function () {
                     menuTimeout = setTimeout(() => {
                         $(document).find('.avatar-menu').hide();
                     }, 300); // добавляем небольшую задержку
-                    console.log(2)
                 }
             );
 
             // Устанавливаем обработчики для меню, чтобы оно не исчезало при наведении
             $('.avatar-menu').hover(
-                function() {
+                function () {
                     clearTimeout(menuTimeout); // отменяем таймер скрытия
                     $(document).show();
-                    console.log(1)
                 },
-                function() {
+                function () {
                     menuTimeout = setTimeout(() => {
                         $(document).hide();
                         $(document).find('.avatar-menu').hide();
                     }, 300); // добавляем небольшую задержку перед скрытием
-                    console.log(2)
                 }
             );
         });
@@ -531,9 +538,6 @@
                 });
             }
         });
-
-
-
 
 
     });
