@@ -74,20 +74,21 @@ class SettingController extends Controller
                 ]
             );
 //        }
-if($isRegistrationActivity == 1) {
-    $isRegistrationActivityValue = "Вкл.";
-} else {
-    $isRegistrationActivityValue = "Выкл.";
-}
+            if ($isRegistrationActivity == 1) {
+                $isRegistrationActivityValue = "Вкл.";
+            } else {
+                $isRegistrationActivityValue = "Выкл.";
+            }
+
             // Логирование изменения пароля
             Log::create([
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
-                'description' => ("Включение регистрации в сервисе: " . $isRegistrationActivityValue ),
+                'description' => ("Включение регистрации в сервисе: " . $isRegistrationActivityValue),
                 'created_at' => now(),
             ]);
-        
+
         });
         return response()->json([
             'success' => true,
@@ -102,6 +103,9 @@ if($isRegistrationActivity == 1) {
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
         $textForUsers = $data['textForUsers'] ?? null;
+        $authorId = auth()->id(); // Авторизованный пользователь
+
+        DB::transaction(function () use ($textForUsers, $authorId) {
 
             Setting::updateOrCreate(
                 [
@@ -112,6 +116,15 @@ if($isRegistrationActivity == 1) {
                 ]
             );
 
+            // Логирование изменения пароля
+            Log::create([
+                'type' => 1,
+                'action' => 70,
+                'author_id' => $authorId,
+                'description' => ("Изменение текста уведомления: " . $textForUsers),
+                'created_at' => now(),
+            ]);
+        });
         return response()->json([
             'success' => true,
             'textForUsers' => $textForUsers,
@@ -244,7 +257,6 @@ if($isRegistrationActivity == 1) {
             ], [
                 'link.regex' => 'Введите корректный URL.',
             ]);
-
 
 
             if ($validator->fails()) {
