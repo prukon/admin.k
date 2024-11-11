@@ -81,11 +81,6 @@ class TransactionController extends Controller
         $userName = $request->userName;
         $outSum = $request->outSum;
 
-//       if($request->paymentDate) {
-//           $paymentDate = $request->paymentDate;
-//       } else {
-//           $paymentDate = "Клубный взнос";
-//       }
         if($request->formatedPaymentDate) {
             $paymentDate = $request->formatedPaymentDate;
         } else {

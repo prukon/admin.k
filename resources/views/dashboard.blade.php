@@ -373,7 +373,7 @@
 
 
     <script>
-        const uploadUrl = "{{ route('profile.uploadAvatar') }}";
+{{--        const uploadUrl = "{{ route('profile.uploadAvatar') }}";--}}
     </script>
 
     {{--    Модалка загрузка аватарки--}}
