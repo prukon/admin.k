@@ -56,7 +56,6 @@ class DashboardController extends Controller
         $textForUsers = Setting::where('name', 'textForUsers')->first();
         $textForUsers = $textForUsers ? $textForUsers->text : null;
 
-
         return view("dashboard", compact(
             "allTeams",
             "allUsers",

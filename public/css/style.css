@@ -189,6 +189,11 @@ footer .social-networks {
     left: auto;
 }
 
+
+.seasons {
+    margin-bottom: 30px;
+}
+
 .seasons .season {
     text-align: center;
     margin-top: 20px;
@@ -290,8 +295,12 @@ footer .social-networks {
 /*}*/
 
 .display-none {
-    display: none;
+    display: none!important;
 }
+.visibility-hidden {
+    visibility: hidden;
+}
+
 
 .weekday-disabled {
     border: 1px solid #ced4da;

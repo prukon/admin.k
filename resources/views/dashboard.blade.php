@@ -342,7 +342,21 @@
 
                             // Обновляем значение в is_credit_value для текущего сезона
                             const creditValueField = season.querySelector('.is_credit_value');
+                            const creditValueWrap = season.querySelector('.is_credit')
+
                             creditValueField.textContent = totalSum;
+                            // if (totalSum == 0) {
+                            //     creditValueWrap.classList.add('display-none');
+                            // } else {
+                            //     creditValueWrap.classList.remove('display-none');
+                            // }
+
+                            if (totalSum == 0) {
+                                creditValueWrap.classList.add('visibility-hidden');
+                            } else {
+                                creditValueWrap.classList.remove('visibility-hidden');
+                            }
+
                             totalSumAllSeasons += totalSum;
                         });
 
