@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\Event;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
@@ -47,18 +48,20 @@ class AccountSettingController extends Controller
         $user = Auth::user();
 
         $data = $request->validated();
-        $this->service->update($user, $data);
-        $authorName = User::where('id', $authorId)->first()->name;
 
-        // Логируем успешное обновление
-        Log::create([
-            'type' => 2, // Лог для обновления юзеров
-            'action' => 23, // Лог для обновления учетной записи
-            'author_id' => $authorId,
-            'description' => "Имя: $authorName. ID: $authorId. \nСтарые:\n (" . Carbon::parse($oldData->birthday)->format('d.m.Y') . ", $oldData->email). \nНовые:\n (" . Carbon::parse($data['birthday'])->format('d.m.Y') . ", {$data['email']})",
-            'created_at' => now(),
-        ]);
+        DB::transaction(function () use ($user, $authorId, $data, $oldData) {
+            $this->service->update($user, $data);
+            $authorName = User::where('id', $authorId)->first()->name;
 
+            // Логируем успешное обновление
+            Log::create([
+                'type' => 2, // Лог для обновления юзеров
+                'action' => 23, // Лог для обновления учетной записи
+                'author_id' => $authorId,
+                'description' => "Имя: $authorName. ID: $authorId. \nСтарые:\n (" . Carbon::parse($oldData->birthday)->format('d.m.Y') . ", $oldData->email). \nНовые:\n (" . Carbon::parse($data['birthday'])->format('d.m.Y') . ", {$data['email']})",
+                'created_at' => now(),
+            ]);
+        });
         return redirect()->route('user.edit', ['user' => $user->id]);
 
     }
@@ -66,30 +69,30 @@ class AccountSettingController extends Controller
     public function updatePassword(Request $request, $id)
     {
 
-//        \Log::info('Метод запроса: ' . $request->method()); // Логируем метод
-//        \Log::info('CSRF токен: ' . $request->header('X-CSRF-TOKEN')); // Логируем CSRF токен
-
         $request->validate([
             'password' => 'required|min:8',
         ]);
 //        $currentUser = Auth::user();
         $authorId = auth()->id(); // Авторизованный пользователь
         $user = User::findOrFail($id);
-        $user->password = Hash::make($request->password);
-        $user->save();
 
+        DB::transaction(function () use ($user, $authorId, $request) {
 
-        Log::create([
-            'type' => 2, // Лог для обновления юзеров
-            'action' => 26, // Лог для обновления учетной записи
-            'author_id' => $authorId,
-            'description' => ($user->name . " изменил пароль."),
-            'created_at' => now(),
-        ]);
+            $user->password = Hash::make($request->password);
+            $user->save();
 
+            Log::create([
+                'type' => 2, // Лог для обновления юзеров
+                'action' => 26, // Лог для обновления учетной записи
+                'author_id' => $authorId,
+                'description' => ($user->name . " изменил пароль."),
+                'created_at' => now(),
+            ]);
+        });
         return response()->json(['success' => true]);
     }
 
+    //обновление аватарки юзером
     public function uploadAvatar(Request $request)
     {
         $request->validate([
@@ -113,20 +116,23 @@ class AccountSettingController extends Controller
             $fileName = Str::random(10) . '.png';
             $path = public_path('storage/avatars/' . $fileName);
 
-            // Сохраняем файл
-            file_put_contents($path, $imageData);
+            DB::transaction(function () use ($path, $imageData, $user, $fileName, $authorId, $userName) {
 
-            // Обновляем запись в базе данных
-            $user->image_crop = $fileName;
-            $user->save();
+                // Сохраняем файл
+                file_put_contents($path, $imageData);
 
-            Log::create([
-                'type' => 2, // Лог для обновления юзеров
-                'action' => 28, // Лог для обновления учетной записи
-                'author_id' => $authorId,
-                'description' => ($userName . " изменил аватар."),
-                'created_at' => now(),
-            ]);
+                // Обновляем запись в базе данных
+                $user->image_crop = $fileName;
+                $user->save();
+
+                Log::create([
+                    'type' => 2, // Лог для обновления юзеров
+                    'action' => 28, // Лог для обновления учетной записи
+                    'author_id' => $authorId,
+                    'description' => ($userName . " изменил аватар."),
+                    'created_at' => now(),
+                ]);
+            });
 
             return response()->json(['success' => true, 'image_url' => '/storage/avatars/' . $fileName]);
         }
@@ -134,8 +140,12 @@ class AccountSettingController extends Controller
         return response()->json(['success' => false, 'message' => 'Пользователь не найден']);
     }
 
+
+    //обновление аватарки админином
     public function updateAvatar(Request $request, User $user)
     {
+        $authorId = auth()->id(); // Авторизованный пользователь
+
         // Проверка наличия аватарки в запросе
         if ($request->has('avatar')) {
             $avatar = $request->input('avatar'); // Получаем данные base64 из запроса
@@ -159,13 +169,25 @@ class AccountSettingController extends Controller
                 $imageName = Str::random(10) . '.' . $type;
                 $path = public_path('/storage/avatars/' . $imageName);
 
-                // Сохранение изображения на сервере
-                if (file_put_contents($path, $avatar) === false) {
-                    return response()->json(['success' => false, 'message' => 'Ошибка при сохранении изображения'], 500);
-                }
+                DB::transaction(function () use ($path,  $user,  $authorId, $avatar, $imageName) {
 
-                // Обновление записи пользователя
-                $user->update(['image_crop' => $imageName]);
+                    // Сохранение изображения на сервере
+                    if (file_put_contents($path, $avatar) === false) {
+                        return response()->json(['success' => false, 'message' => 'Ошибка при сохранении изображения'], 500);
+                    }
+
+                    // Обновление записи пользователя
+                    $user->update(['image_crop' => $imageName]);
+
+
+                    Log::create([
+                        'type' => 2, // Лог для обновления юзеров
+                        'action' => 27, // Лог для обновления учетной записи
+                        'author_id' => $authorId,
+                        'description' => ("Пользователю " . $user->name . " изменен аватар."),
+                        'created_at' => now(),
+                    ]);
+                });
 
                 return response()->json([
                     'success' => true,
@@ -186,19 +208,20 @@ class AccountSettingController extends Controller
             // Удаляем файл аватарки
             unlink(public_path('storage/avatars/' . $user->image_crop));
         }
+        DB::transaction(function () use ($user) {
 
-        // Обновляем запись пользователя, устанавливая аватарку по умолчанию
-        $user->update(['image_crop' => null]);
+            // Обновляем запись пользователя, устанавливая аватарку по умолчанию
+            $user->update(['image_crop' => null]);
 
-        // Логируем удаление аватарки
-        Log::create([
-            'type' => 2,
-            'action' => 29,
-            'author_id' => auth()->id(),
-            'description' => $user->name . " удалил аватар.",
-            'created_at' => now(),
-        ]);
-
+            // Логируем удаление аватарки
+            Log::create([
+                'type' => 2,
+                'action' => 29,
+                'author_id' => auth()->id(),
+                'description' => $user->name . " удалил аватар.",
+                'created_at' => now(),
+            ]);
+        });
         return response()->json(['success' => true]);
     }
 
