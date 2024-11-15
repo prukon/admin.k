@@ -622,6 +622,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     dayNames: ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
                     dayNamesShort: ['вск', 'пнд', 'втр', 'срд', 'чтв', 'птн', 'сбт'],
                     dayNamesMin: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+                    prevText: '<i class="fa-solid fa-caret-left"></i>', // Добавляем иконку для кнопки назад
+                    nextText: '<i class="fa-solid fa-caret-right"></i>'  // Добавляем иконку для кнопки вперед
+
                 });
                 $('#inlineCalendar').datepicker('setDate', new Date());
             });
