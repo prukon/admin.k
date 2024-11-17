@@ -5,11 +5,11 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="{{ asset('js/settings-ajax.js') }}"></script>
 
-    <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
-        <h4 class="pt-3">Настройки</h4>
+    <div class=" col-md-12 main-content text-start" xmlns="http://www.w3.org/1999/html">
+        <h4 class="pt-3 pb-3">Настройки</h4>
         <div class="container">
             <div class="row justify-content-md-center">
-                <div class="container mt-5">
+                <div class="container">
                     <!-- Адаптивная обертка для мобильных устройств -->
                     <div class="table-responsive">
 

@@ -5,7 +5,7 @@
 {{--        <script src="{{ asset('js/settings-prices-ajax.js') }}"></script>--}}
 
         <div class="container-fluid main-content" xmlns="http://www.w3.org/1999/html">
-            <h4 class="pt-3">Отчеты</h4>
+            <h4 class="pt-3 pb-3  text-start">Отчеты</h4>
             <div class="container-fluid">
 
                 <div class="row justify-content-md-center">
@@ -21,7 +21,7 @@
                     <div class="tab-content" id="myTabContent">
                         <div class="tab-pane fade {{ $activeTab == 'payments' ? 'show active' : '' }}" id="home" role="tabpanel">
                             <div class="container-fluid">
-                                <h4 class="pt-3">Платежи</h4>
+                                <h4 class="pt-3 text-start">Платежи</h4>
                                 <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
                                     <span class="fw-bold">Общая сумма платежей:</span>
 

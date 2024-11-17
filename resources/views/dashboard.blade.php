@@ -20,13 +20,13 @@
     </script>
 
 
-    <div class=" col-md-9 main-content" xmlns="http://www.w3.org/1999/html">
-        <h4 class="pt-3">Консоль</h4>
+    <div class=" col-md-12 main-content" xmlns="http://www.w3.org/1999/html">
+        <h4 class="pt-3 text-start">Консоль</h4>
         <div>
 
-
+ 
             @can('view', auth()->user())
-                <h5 class="choose-user-header">Выбор ученика:</h5>
+                <h5 class="choose-user-header text-start">Выбор ученика:</h5>
 
                 {{--Выбор ученика, группы, кнопка установить--}}
                 <div class="row choose-user">
@@ -71,10 +71,13 @@
 
                 {{--            Чекбоксы дней недели--}}
 
-                <div class="form-group">
-                    <label for="weekdays">Расписание</label>
+                <div class="form-group text-start">
+                    <label for="weekdays">  Расписание</label>
                     <div class="row weekday-checkbox">
-                        <div class="col-12 ">
+                            {{--<div class=" col-12 d-flex justify-content-between flex-wrap ">--}}
+                            <div class=" col-lg-12  d-flex justify-content-between flex-wrap ">
+
+
                             @foreach($weekdays as $weekday)
                                 <div class="form-check form-check-inline weekday-disabled">
                                     <input
@@ -86,7 +89,7 @@
                                             {{--                                            {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}--}}
                                             class="form-check-input " type="checkbox" id="{{$weekday->titleEn}}"
                                             value="{{$weekday->titleEn}}">
-                                    <label class="form-check-label"
+                                    <label class="form-check-label label-day"
                                            for="{{$weekday->titleEn}}">{{$weekday->title}}</label>
                                 </div>
                             @endforeach
@@ -160,7 +163,7 @@
                     </div>
                 @endif
 
-            <h5 class="header-shedule display-none">Расписание:</h5>
+            <h5 class="header-shedule display-none mt-3 mb-2">Расписание:</h5>
 
             <div class="mt-3 mb-3 calendar">
                 <div class="calendar-header">
@@ -245,7 +248,7 @@
                     function closeNotice() {
                         document.querySelector('.credit-notice .close').addEventListener('click', function () {
                             document.querySelector('.credit-notice').style.display = 'none';
-                        });
+                        }); 
 
                         function showCreditNotice() {
                             let creditNotice = document.querySelector(".credit-notice");

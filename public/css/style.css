@@ -135,7 +135,7 @@ footer .dev-author {
 
 footer .social-networks {
     color: black;
-}
+    }
 
 /*dashboard*/
 .welcome-text {
@@ -157,6 +157,7 @@ footer .social-networks {
 .weekday-checkbox {
     padding-top: 10px;
     padding-bottom: 10px;
+    font-size: 11px;
 }
 
 .weekday-checkbox .form-check {
@@ -206,7 +207,7 @@ footer .social-networks {
     position: absolute;
     left: 40px;
     top: -12px;
-    background: #f8f9fa;
+    background: #f4f6f9;
     padding: 0 10px;
     font-weight: 800;
     color: #8e1c13
@@ -315,7 +316,7 @@ footer .social-networks {
 .form-group .form-check .form-check-input {
     margin-top: revert;
     /*margin-left: -1.5em;*/
-    margin-left: -17px;
+    /*margin-left: -17px;*/
 }
 
 .btn-setting-prices {
@@ -338,10 +339,10 @@ footer .social-networks {
 }
 
 #wrap-bars .team-name, #wrap-bars .user-name {
-    padding-left: 12px;
-    text-align: left;
+    /*padding-left: 12px;*/
+    /*text-align: left;*/
     font-size: 13px;
-    padding-right: 0;
+    /*padding-right: 0;*/
 }
 
 #wrap-bars .team-price {
@@ -399,7 +400,7 @@ select option[data-has-team="no"] {
 
 .calendar {
     width: auto;
-    max-width: 900px;
+    /*max-width: 900px;*/
     margin: 0 auto;
     text-align: center;
     position: relative; /* Добавлено */
@@ -670,7 +671,7 @@ select option[data-has-team="no"] {
     border: solid 1px #f3a12b;
     padding: 10px;
     width: auto;
-    max-width: 900px;
+    /*max-width: 900px;*/
     margin: 0 auto;
 }
 
@@ -917,4 +918,88 @@ a.disabled {
 .ui-datepicker .ui-datepicker-next i {
     font-size: 16px; /* Задайте нужный размер иконки */
     color: #333; /* Цвет иконки, можно настроить */
+}
+
+.wrapper {
+    max-width: 1280px;
+}
+.layout-fixed .main-sidebar {
+    left: auto;
+}
+.sidebar-mini {
+    text-align: -webkit-center;
+}
+.text-light {
+    text-align: left;
+}
+.nav-sidebar {
+    text-align: left;
+}
+
+.weekday-checkbox .form-check {
+    margin-right: 1px;
+    width: 13%;
+
+    text-align: center;
+}
+.btn-choose-user .btn {
+    width: 100%;
+}
+.weekday-checkbox .form-check .form-check-input {
+    float: none;
+}
+
+@media (max-width: 767.98px) {
+    .label-day[for="Monday"]::after {
+        content: "пн.";
+    }
+    .label-day[for="Tuesday"]::after {
+        content: "вт.";
+    }
+    .label-day[for="Wednesday"]::after {
+        content: "ср.";
+    }
+    .label-day[for="Thursday"]::after {
+        content: "чт.";
+    }
+    .label-day[for="Friday"]::after {
+        content: "пт.";
+    }
+    .label-day[for="Saturday"]::after {
+        content: "суб.";
+    }
+    .label-day[for="Sunday"]::after {
+        content: "вск.";
+    }
+
+    /* Скрываем основной текст */
+    .label-day {
+        visibility: hidden;
+        position: relative;
+    }
+
+    /* Показываем сокращения */
+    .label-day::after {
+        visibility: visible;
+        position: absolute;
+        left: 0;
+    }
+}
+
+.header-wrap {
+    text-align: left;
+}
+.avatar-wrap {
+    text-align: left;
+}
+#left_bar .team-buttons .btn-primary  {
+font-size: 11px;
+}
+
+/*.wrap-users .user-name {*/
+     /*text-align: left;*/
+
+ /*}*/
+.wrap-users {
+    margin-left: 10px;
 }

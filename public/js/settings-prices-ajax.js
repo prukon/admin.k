@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                                     let userBlock = `
                 <div class="row mb-2">
-                    <div id="${userTeam ? userTeam.id : 'Имя не найдено'}" class="user-name col-6">  ${userTeam ? userTeam.name : 'Имя не найдено'}</div>
+                    <div id="${userTeam ? userTeam.id : 'Имя не найдено'}" class="user-name col-6 text-start">  ${userTeam ? userTeam.name : 'Имя не найдено'}</div>
                     <div class="user-price col-4"><input class="" type="number" value=${usersPrice[i].price} ${inputDisabled}></div>
                     <div class="check col-2"><span class="fa fa-check ${checkClass} green-check" aria-hidden="true"></span></div>
                 </div>
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Функция для обновления цен пользователей
         let updateUsersPrice = function (usersPrice) {
-            const userRows = document.querySelectorAll('.wrap-users .row.mb-2');
+                const userRows = document.querySelectorAll('.wrap-users .row .mb-2');
             for (let i = 0; i < usersPrice.length; i++) {
                 for (let j = 0; j < userRows.length; j++) {
                     let userId = userRows[j].querySelector('.user-name').getAttribute('id');

@@ -3,7 +3,7 @@
 
 @section('content')
 
-    <div class="col-md-9 main-content teams-list">
+    <div class="col-md-12 main-content teams-list text-start">
 
         <h4 class="pt-3">Группы</h4>
 

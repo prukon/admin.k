@@ -14,7 +14,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="edit-team-form" method="post">
+                <form id="edit-team-form" class="text-start" method="post">
                     @csrf
                     @method('patch')
                     <input type="hidden" id="edit-team-id">

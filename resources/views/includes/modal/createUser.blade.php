@@ -7,7 +7,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="create-user-form" method="post" action="{{ route('admin.user.store') }}">
+                <form id="create-user-form" class="text-start" method="post" action="{{ route('admin.user.store') }}">
                     @csrf
                     <!-- Поля для ввода данных пользователя -->
                     <div class="mb-3">
@@ -45,7 +45,7 @@
                             <option value="0">Нет</option>
                         </select>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer-modal-user">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                         <button type="submit" class="btn btn-primary">Создать</button>
                     </div>

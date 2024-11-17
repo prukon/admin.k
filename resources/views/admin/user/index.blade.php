@@ -3,8 +3,8 @@
 
     @section('content')
 
-        <div class="col-md-9 main-content users-list">
-            <h4 class="pt-3 ">Пользователи</h4>
+        <div class="col-md-12 main-content users-list">
+            <h4 class="pt-3 text-start">Пользователи</h4>
             <hr>
             <div class="buttons">
                 <div class="row gy-2 index-user-wrap">
@@ -47,7 +47,7 @@
                 $counter = 1;
             @endphp
 
-            <div class="wrap-user-list">
+            <div class="wrap-user-list text-start">
                 @foreach($allUsers as $user)
                     <div class="user">
 {{--                        <a href="{{ route('admin.user.edit', $user->id) }}"--}}

@@ -12,7 +12,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
-                <form id="teamForm" action="{{ route('admin.team.store') }}" method="post">
+                <form id="teamForm" class="text-start" action="{{ route('admin.team.store') }}" method="post">
                     @csrf
                     <div class="mb-3">
                         <label for="title" class="form-label">Название группы*</label>
@@ -54,7 +54,7 @@
                         </select>
                     </div>
 
-                    <div class="modal-footer">
+                    <div class="modal-footer-create-team">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                         <button type="submit" class="btn btn-primary">Создать</button>
                     </div>

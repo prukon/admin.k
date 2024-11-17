@@ -12,7 +12,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="edit-user-form" method="post">
+                <form id="edit-user-form" class="text-start" method="post">
                     @csrf
                     @method('patch')
 
@@ -46,19 +46,19 @@
                     </div>
 
                     <!-- Поле "Имя" -->
-                    <div class="mb-3">
-                        <label for="edit-name" class="form-label">Имя ученика*</label>
+                    <div class="mb-3 ">
+                        <label for="edit-name" class="form-label ">Имя ученика *</label>
                         <input type="text" name="name" class="form-control" id="edit-name" required>
                     </div>
 
                     <!-- Поле "Дата рождения" -->
-                    <div class="mb-3">
+                    <div class="mb-3 ">
                         <label for="edit-birthday" class="form-label">Дата рождения</label>
                         <input type="date" name="birthday" class="form-control" id="edit-birthday">
                     </div>
 
                     <!-- Поле "Группа" -->
-                    <div class="mb-3">
+                    <div class="mb-3 ">
                         <label for="edit-team" class="form-label">Группа</label>
                         <select class="form-control" id="edit-team" name="team_id">
                             <option value="">Без группы</option>
@@ -69,19 +69,19 @@
                     </div>
 
                     <!-- Поле "Дата начала занятий" -->
-                    <div class="mb-3">
+                    <div class="mb-3 ">
                         <label for="edit-start_date" class="form-label">Дата начала занятий</label>
                         <input type="date" name="start_date" class="form-control" id="edit-start_date">
                     </div>
 
                     <!-- Поле "Email" -->
-                    <div class="mb-3">
+                    <div class="mb-3 ">
                         <label for="edit-email" class="form-label">Адрес электронной почты*</label>
                         <input name="email" type="email" class="form-control" id="edit-email" required>
                     </div>
 
                     <!-- Поле "Активность" -->
-                    <div class="mb-3">
+                    <div class="mb-3 ">
                         <label for="edit-activity" class="form-label">Активность</label>
                         <select name="is_enabled" class="form-control" id="edit-activity">
                             <option value="0">Неактивен</option>

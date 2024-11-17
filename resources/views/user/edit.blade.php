@@ -8,8 +8,8 @@
 
     <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
 
-    <div class="col-md-12 main-content user-data">
-        <h4 class="mt-3 mb-3">Редактирование пользователя</h4>
+    <div class="col-md-12 main-content user-data text-start">
+        <h4 class="pt-3 pb-3">Редактирование пользователя</h4>
         <div class="row">
             {{--Аватар--}}
             <div class="col-12 col-lg-3 d-flex flex-column align-items-center">
@@ -30,7 +30,7 @@
                 </div>
             </div>
             {{--Данные пользователя--}}
-            <div class="col-12 col-lg-6 user-data-wrap mb-1">
+            <div class="col-12 col-lg-6 user-data-wrap mb-3">
                 <form action="{{ route('user.update', $user->id)}}" method="post">
                     {{-- Токен (система защиты) необходим при использовании любого роута кроме get. --}}
                     @csrf
@@ -148,7 +148,7 @@
 
 
         {{-- КНОПКИ --}}
-        <div class="row buttons-wrap d-flex justify-content-start align-items-center mb-3">
+        {{--<div class="row buttons-wrap d-flex justify-content-start align-items-center mb-3">--}}
 
             <!-- Блок изменения пароля -->
             <div class="change-pass-wrap" id="change-pass-wrap" style="display: none;">
