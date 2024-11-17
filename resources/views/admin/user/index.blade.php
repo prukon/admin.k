@@ -2,7 +2,7 @@
     @extends('layouts.admin2')
 
     @section('content')
-
+ 
         <div class="col-md-12 main-content users-list">
             <h4 class="pt-3 text-start">Пользователи</h4>
             <hr>
