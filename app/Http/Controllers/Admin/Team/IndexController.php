@@ -30,7 +30,7 @@ class IndexController extends Controller
         $allUsers = User::filter($filter)->paginate(20);
         $weekdays = Weekday::all();
 
-        return view("admin/team/index", compact("allTeams",
+        return view("admin/team", compact("allTeams",
             'allUsers',
             'weekdays'));
     }

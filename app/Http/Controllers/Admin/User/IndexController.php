@@ -33,9 +33,9 @@ if (isset($data['id'])) {
             ->paginate(20);
         $allTeams = Team::all();
 
-        return view("admin.user.index", compact(
+        return view("admin.user", compact(
             "allUsers" ,
-            "allTeams",
+            "allTeams"
 
         ));
     }

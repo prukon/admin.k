@@ -1,7 +1,6 @@
 @extends('layouts.app')
 {{--@extends('layouts/main2')--}}
 
-
 @section('content')
     <div class="container">
         <div class="row justify-content-center">
@@ -33,7 +32,6 @@
                                     <span class="invalid-feedback" role="alert"> <strong>{{ $message }}</strong></span>
                                     @enderror
                                 </div>
-
 
                             </div>
 

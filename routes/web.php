@@ -19,31 +19,16 @@ use App\Http\Controllers\Auth\RegisterController;
 Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 //    Группы
-    Route::get('admin/teams', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.team.index');
+    Route::get('admin/teams', '\App\Http\Controllers\Admin\Team\IndexController')->name('admin.team1');
     Route::get('admin/teams/create', '\App\Http\Controllers\Admin\Team\CreateController')->name('admin.team.create');
     Route::post('admin/teams', '\App\Http\Controllers\Admin\Team\StoreController')->name('admin.team.store');
-//    Route::get('admin/teams/{team}/edit', '\App\Http\Controllers\Admin\Team\EditController')->name('admin.team.edit');
     Route::get('/admin/team/{id}/edit', [\App\Http\Controllers\Admin\Team\EditController::class, 'edit'])->name('admin.team.edit');
-
-//    Route::patch('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\UpdateController')->name('admin.team.update');
     Route::patch('/admin/team/{id}', '\App\Http\Controllers\Admin\Team\UpdateController')->name('admin.team.update');
-
-
-
-
-
-//    Route::delete('admin/teams/{team}', '\App\Http\Controllers\Admin\Team\DestroyController')->name('admin.team.delete');
     Route::delete('admin/team/{team}', '\App\Http\Controllers\Admin\Team\DestroyController')->name('admin.team.delete');
-
-
-//    Route::delete('/admin/team/{id}', [UpdateController::class, 'destroy'])->name('admin.team.delete');
-
-
     Route::get('/admin/teams/logs-data', '\App\Http\Controllers\Admin\Team\LogsController')->name('logs.data.team');
 
-
 //    Пользователи
-    Route::get('admin/users', '\App\Http\Controllers\Admin\User\IndexController')->name('admin.user.index');
+    Route::get('admin/users', '\App\Http\Controllers\Admin\User\IndexController')->name('admin.user1');
     Route::get('admin/users/create', '\App\Http\Controllers\Admin\User\CreateController')->name('admin.user.create');
     Route::post('admin/users', '\App\Http\Controllers\Admin\User\StoreController')->name('admin.user.store');
     Route::get('admin/users/{user}/edit', '\App\Http\Controllers\Admin\User\EditController')->name('admin.user.edit');
@@ -52,16 +37,11 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/admin/user/logs-data', '\App\Http\Controllers\Admin\User\LogsController')->name('logs.data.user');
 
 
-
-//    Route::get('admin/reports', [\App\Http\Controllers\Admin\Report\ReportController::class, 'index'])->name('admin.report');
     Route::get('admin/setting-prices', [\App\Http\Controllers\Admin\SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
-//    Route::get('admin/setting-prices', [\App\Http\Controllers\Admin\SettingPricesController::class, 'index'])->name('admin.settingPrices.index');
     Route::get('/', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
 
-
 //    Отчеты
-
     Route::get('/admin/reports/payments', [\App\Http\Controllers\Admin\Report\ReportController::class, 'payments'])->name('payments');
     Route::get('/admin/reports/debts', [\App\Http\Controllers\Admin\Report\ReportController::class, 'debts'])->name('debts');
     Route::get('/getPayments', [\App\Http\Controllers\Admin\Report\ReportController::class, 'getPayments'])->name('payments.getPayments');
@@ -84,18 +64,11 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
     Route::get('/setting-prices/logs-data', [\App\Http\Controllers\Admin\SettingPricesController::class, 'getLogsData'])->name('logs.data.settingPrice');
 
-
-
-
-//    Route::post('/profile/upload-avatar', [\App\Http\Controllers\DashboardController::class, 'uploadAvatar'])->name('profile.uploadAvatar');
-
-
     Route::post('/profile/upload-user-avatar', [\App\Http\Controllers\AccountSettingController::class, 'uploadAvatar'])->name('profile.user.uploadAvatar');
+
     //Обновление аватара админом
     Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\AccountSettingController::class, 'updateAvatar'])->name('admin.user.update-avatar');
     Route::post('/admin/user/{user}/delete-avatar', [\App\Http\Controllers\AccountSettingController::class, 'deleteAvatar'])->name('user.delete-avatar');
-
-
 
 
     //Страница выбора оплаты
@@ -112,34 +85,19 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //    Страница Настойки
     Route::get('/admin/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->name('setting');
     Route::get('/admin/settings/registration-activity', [\App\Http\Controllers\Admin\SettingController::class, 'registrationActivity'])->name('registrationActivity');
-//    Route::get('/admin/settings/text-for-users', [\App\Http\Controllers\Admin\SettingController::class, 'textForUsers'])->name('textForUsers');
     Route::post('/admin/settings/text-for-users', [\App\Http\Controllers\Admin\SettingController::class, 'textForUsers'])->name('textForUsers');
-
-
     Route::get('/admin/settings/logs-all-data', [\App\Http\Controllers\Admin\SettingController::class, 'logsAllData'])->name('logs.all.data');
-//    Route::post('/admin/settings/save-menu-items', [\App\Http\Controllers\Admin\SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems');
     Route::get('/edit-menu', [\App\Http\Controllers\Admin\SettingController::class, 'editMenu'])->name('editMenu');
     Route::post('/settings/save-menu-items', [\App\Http\Controllers\Admin\SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems');
     Route::post('/settings/save-social-menu-items', [\App\Http\Controllers\Admin\SettingController::class, 'saveSocialItems'])->name('settings.saveSocialItems');
-
-
-
-
-
-
-//  Route::get('/account-settings', [\App\Http\Controllers\AccountSettingController::class, 'index'])->name('accountSettings');
 
 //Учетная запись
     Route::get('/account-settings/users/{user}/edit', [\App\Http\Controllers\AccountSettingController::class, 'index'])->name('user.edit');
     Route::patch('/account-settings/users/{user}', [\App\Http\Controllers\AccountSettingController::class, 'update'])->name('user.update');
     Route::post('/user/{id}/update-password', [\App\Http\Controllers\AccountSettingController::class, 'updatePassword']);
 
-    //    Route::get('/account-settings/logs-data', [\App\Http\Controllers\AccountSettingController::class, 'getLogsData'])->name('logs.data.accountSettings');
-
-
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
-
 
 Auth::routes();
