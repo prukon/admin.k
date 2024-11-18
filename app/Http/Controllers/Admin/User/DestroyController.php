@@ -16,7 +16,15 @@ class DestroyController extends Controller
 
     public function __invoke(User $user)
     {
+
+
+        // Проверяем, если пользователь не существует
+        if (!$user) {
+            return response()->json(['error' => 'Пользователь не найден'], 404);
+        }
+
         $authorId = auth()->id(); // Авторизованный пользователь
+
 
         DB::transaction(function () use ($user, $authorId) {
             // Удаление пользователя
@@ -31,7 +39,9 @@ class DestroyController extends Controller
                 'created_at' => now(),
             ]);
         });
+        return response()->json(['success' => 'Пользователь успешно удалён']);
 
-        return redirect()->route('admin.user.index');
+//        return redirect()->route('admin.user.index');
+
     }
 }

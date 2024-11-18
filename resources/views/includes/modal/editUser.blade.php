@@ -13,10 +13,10 @@
             </div>
             <div class="modal-body">
                 <form id="edit-user-form" class="text-start" method="post">
-                    @csrf
-                    @method('patch')
+                @csrf
+                @method('patch')
 
-                    <!-- Блок для аватарки -->
+                <!-- Блок для аватарки -->
                     <div class="mb-3 d-flex flex-column align-items-center">
                         <div>
                             <div class="avatar_wrapper d-flex align-items-center justify-content-center">
@@ -109,13 +109,18 @@
 
                     <!-- Кнопка для изменения пароля -->
                     <div class="button-group buttons-wrap mt-3">
-                        <button type="button" id="change-password-btn" class="btn btn-danger  change-password-btn">
+                        <button type="button" id="change-password-btn" class="btn btn-primary  change-password-btn">
                             Изменить пароль
                         </button>
                     </div>
 
                     <!-- Кнопка для сохранения данных -->
                     <button type="submit" class="btn btn-primary mt-3 save-change-modal">Сохранить изменения</button>
+                    <!-- Кнопка для сохранения данных -->
+
+                    {{--<button type="submit" class="btn btn-danger mt-3 save-change-modal">Удалить</button>--}}
+                    <button type="button" id="delete-user-btn" class="btn btn-danger mt-3">Удалить</button>
+
                 </form>
             </div>
 
@@ -144,6 +149,46 @@
         </div>
     </div>
 </div>
+
+<!-- Модалка для успешного удаления -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="successModalLabel">Успех</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Пользователь успешно удалён.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Модалка для ошибки -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="errorModalLabel">Ошибка</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Ошибка при удалении пользователя. Пожалуйста, попробуйте снова или проверьте лог сервера.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
 
 <script>
 
@@ -178,7 +223,6 @@
                 deletePhotoButton.removeClass('disabled').attr('disabled', false);
             }
         }
-
 
         // Функция редактирования пользователя
         function editMidalUser() {
@@ -261,7 +305,7 @@
             // }
 
             function closeUploadAvatarModal2() {
-               console.log("closeUploadAvatarModal2()");
+                console.log("closeUploadAvatarModal2()");
                 console.log('Модалка Croppie закрыта, восстанавливаем прозрачность основной модалки');
                 $('#editUserModal').css('opacity', '1'); // Восстанавливаем прозрачность основной модалки
             }
@@ -462,22 +506,19 @@
                     }
                 });
             });
-
-
         }
 
-        editMidalUser();
-        initializeCroppie();
+        //Клик по обновить фотографию
+        function clickToUpdatePhoto() {
+            document.getElementById('update-photo').addEventListener('click', function (e) {
+                e.preventDefault();
+                // Открытие модального окна для обновления аватарки
+                $('#uploadPhotoModal').modal('show');
+            });
+        }
 
-
-        document.getElementById('update-photo').addEventListener('click', function (e) {
-            e.preventDefault();
-            // Открытие модального окна для обновления аватарки
-            $('#uploadPhotoModal').modal('show');
-        });
-
-        // /Показывать контекстое меню при наведении на аватар
-        $(document).ready(function () {
+        // Показывать контекстое меню при наведении
+        function showContexMenu() {
             let menuTimeout;
 
             // Показываем меню при наведении на аватар
@@ -506,40 +547,130 @@
                     }, 300); // добавляем небольшую задержку перед скрытием
                 }
             );
-        });
+        }
 
         //Удаление аватарки
-        document.getElementById('delete-photo').addEventListener('click', function (e) {
-            e.preventDefault();
+        function deteleAvatar() {
+            document.getElementById('delete-photo').addEventListener('click', function (e) {
+                e.preventDefault();
 
-            // Подтверждение удаления фотографии
-            if (confirm('Вы уверены, что хотите удалить фотографию?')) {
-                let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
-                let token = $('input[name="_token"]').val();
+                // Подтверждение удаления фотографии
+                if (confirm('Вы уверены, что хотите удалить фотографию?')) {
+                    let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
+                    let token = $('input[name="_token"]').val();
 
-                $.ajax({
-                    url: `/admin/user/${userId}/delete-avatar`, // Указываем маршрут для удаления аватарки
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': token
-                    },
-                    success: function (response) {
-                        if (response.success) {
-                            $('#confirm-img').attr('src', '/img/default.png'); // Устанавливаем аватарку по умолчанию
-                            alert('Аватарка успешно удалена');
-                            toggleDeleteButton();
-                        } else {
-                            alert('Ошибка удаления аватарки');
+                    $.ajax({
+                        url: `/admin/user/${userId}/delete-avatar`, // Указываем маршрут для удаления аватарки
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': token
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                $('#confirm-img').attr('src', '/img/default.png'); // Устанавливаем аватарку по умолчанию
+                                alert('Аватарка успешно удалена');
+                                toggleDeleteButton();
+                            } else {
+                                alert('Ошибка удаления аватарки');
+                            }
+                        },
+                        error: function () {
+                            alert('Ошибка удаления аватарки. Проверьте лог сервера.');
                         }
-                    },
-                    error: function () {
-                        alert('Ошибка удаления аватарки. Проверьте лог сервера.');
+                    });
+                }
+            });
+        }
+
+        // function deleteUser() {
+        //     $(document).ready(function () {
+        //         // Обработчик клика по кнопке "Удалить"
+        //         $('#delete-user-btn').on('click', function (e) {
+        //             e.preventDefault();
+        //
+        //             if (confirm('Вы уверены, что хотите удалить пользователя?')) {
+        //                 let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
+        //                 let token = $('input[name="_token"]').val();
+        //
+        //                 $.ajax({
+        //                     url: `/admin/user/${userId}`,
+        //                     method: 'DELETE',
+        //                     headers: {
+        //                         'X-CSRF-TOKEN': token
+        //                     },
+        //                     success: function (response) {
+        //                         console.log('Ответ сервера:', response);
+        //                         if (response.success) {
+        //                             alert('Пользователь успешно удалён');
+        //                             $('#editUserModal').modal('hide');
+        //                             location.reload(); // Обновляем страницу после удаления
+        //                         } else {
+        //                             alert('Ошибка при удалении пользователя');
+        //                         }
+        //                     },
+        //                     error: function () {
+        //                         alert('Ошибка при удалении пользователя. Проверьте лог сервера.');
+        //                     }
+        //                 });
+        //             }
+        //         });
+        //     });
+        // }
+
+        function deleteUser() {
+            $(document).ready(function () {
+                // Обработчик клика по кнопке "Удалить"
+                $('#delete-user-btn').on('click', function (e) {
+                    e.preventDefault();
+
+                    if (confirm('Вы уверены, что хотите удалить пользователя?')) {
+                        let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
+                        let token = $('input[name="_token"]').val();
+
+                        $.ajax({
+                            url: `/admin/user/${userId}`,
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': token
+                            },
+                            success: function (response) {
+                                console.log('Ответ сервера:', response);
+                                if (response.success) {
+                                    $('#successModal').modal('show'); // Показываем модалку успеха
+                                    $('#editUserModal').modal('hide'); // Показываем модалку успеха
+                                } else {
+                                    $('#errorModal').modal('show'); // Показываем модалку ошибки
+                                    $('#editUserModal').modal('hide'); // Показываем модалку успеха
+
+                                }
+                            },
+                            error: function () {
+                                $('#errorModal').modal('show'); // Показываем модалку ошибки
+                            }
+                        });
                     }
                 });
-            }
-        });
+
+                // Перезагрузка страницы после закрытия модалки успеха
+                $('#successModal').on('hidden.bs.modal', function () {
+                    location.reload(); // Перезагружаем страницу после закрытия модалки успеха
+                });
+
+                // Перезагрузка страницы после закрытия модалки ошибки
+                $('#errorModal').on('hidden.bs.modal', function () {
+                    location.reload(); // Перезагружаем страницу после закрытия модалки ошибки
+                });
+            });
+        }
 
 
+
+        clickToUpdatePhoto();
+        editMidalUser();
+        initializeCroppie();
+        showContexMenu();
+        deteleAvatar();
+        deleteUser();
     });
 </script>
 
