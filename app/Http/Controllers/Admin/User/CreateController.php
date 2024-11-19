@@ -10,7 +10,7 @@ class CreateController extends BaseController
 {
     public function __construct()
     {
-        $this->middleware('admin');
+        $this->middleware('role:admin,superadmin');
     }
 
     public function __invoke()

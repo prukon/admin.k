@@ -20,7 +20,7 @@ class UpdateController extends Controller
     public function __construct(UserService $service)
     {
         $this->service = $service;
-        $this->middleware('admin');
+        $this->middleware('role:admin,superadmin');
     }
 
     public function __invoke(AdminUpdateRequest $request, User $user)

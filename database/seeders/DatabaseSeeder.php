@@ -22,6 +22,12 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
 
+
+        DB::table('roles')->insert(['name' => 'superadmin']);
+        DB::table('roles')->insert(['name' => 'admin']);
+        DB::table('roles')->insert(['name' => 'user']);
+
+
 //Добавление шапки меню
         DB::table('menu_items')->insert([
             [

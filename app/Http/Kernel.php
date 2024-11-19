@@ -70,4 +70,12 @@ class Kernel extends HttpKernel
 //        'user' => UserPanelMiddleware::class,
 
     );
+
+    protected $routeMiddleware = [
+//        'superuser' => \App\Http\Middleware\CheckSuperadmin::class,
+        'role' => \App\Http\Middleware\RoleMiddleware::class,
+
+    ];
+
+
 }

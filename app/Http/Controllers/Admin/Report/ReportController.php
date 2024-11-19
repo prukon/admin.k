@@ -14,11 +14,12 @@ use Carbon\Carbon;
 class ReportController extends Controller
 {
 
+
+
     public function __construct()
     {
-        $this->middleware('admin');
+        $this->middleware('role:admin,superadmin');
     }
-
    public function formatedDate($month)
     {
         // Массив соответствий русских и английских названий месяцев
