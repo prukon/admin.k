@@ -130,12 +130,63 @@
                 </li>
             @endforeach
 
+            {{--<li class="nav-item d-flex align-items-center">--}}
+                {{--<form method="POST" action="{{ route('logout') }}" class="d-flex align-items-center mb-0">--}}
+                    {{--@csrf--}}
+                    {{--<button type="submit" class="btn btn-primary logout">Выйти</button>--}}
+                {{--</form>--}}
+            {{--</li>--}}
+
+
+
             <li class="nav-item d-flex align-items-center">
-                <form method="POST" action="{{ route('logout') }}" class="d-flex align-items-center mb-0">
-                    @csrf
-                    <button type="submit" class="btn btn-primary logout">Выйти</button>
-                </form>
+                <button
+                        type="button"
+                        class="btn btn-primary logout"
+                        data-bs-toggle="modal"
+                        data-bs-target="#logoutModal">
+                    Выйти
+                </button>
             </li>
+
+            <script>
+                document.addEventListener('show.bs.modal', function (event) {
+                    const modal = event.target; // Получаем текущее модальное окно
+                    const wrapper = document.querySelector('.wrapper'); // Находим элемент wrapper
+
+                    if (wrapper && modal) {
+                        wrapper.prepend(modal); // Перемещаем модальное окно в начало wrapper
+                    }
+                });
+            </script>
+
+
+            {{--<!-- Модальное окно -->--}}
+            {{--<div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">--}}
+                {{--<div class="modal-dialog">--}}
+                    {{--<div class="modal-content">--}}
+                        {{--<div class="modal-header">--}}
+                            {{--<h5 class="modal-title" id="logoutModalLabel">Подтверждение выхода</h5>--}}
+                            {{--<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>--}}
+                        {{--</div>--}}
+                        {{--<div class="modal-body">--}}
+                            {{--Вы уверены, что хотите выйти?--}}
+                        {{--</div>--}}
+                        {{--<div class="modal-footer">--}}
+                            {{--<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>--}}
+                            {{--<form method="POST" action="{{ route('logout') }}" class="d-inline">--}}
+                                {{--@csrf--}}
+                                {{--<button type="submit" class="btn btn-danger">Выйти</button>--}}
+                            {{--</form>--}}
+                        {{--</div>--}}
+                    {{--</div>--}}
+                {{--</div>--}}
+            {{--</div>--}}
+
+
+            <!-- Модальное окно настройки меню -->
+            @include('includes.confirmLogout')
+
             {{--            <li class="nav-item">--}}
             {{--                <a class="nav-link" data-widget="navbar-search" href="#" role="button">--}}
             {{--                    <i class="fas fa-search"></i>--}}

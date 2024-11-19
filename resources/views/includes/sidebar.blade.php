@@ -54,7 +54,7 @@
             </a>
         </li>
         @endcan
-        
+
 
         @can('view', auth()->user())
             <li class="nav-item">
