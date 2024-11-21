@@ -72,13 +72,15 @@
             </a>
         </li>
 
+        <hr class="sidebar-separator">
+
         {{--Организация--}}
         @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
             <li class="nav-item">
-                <a href="/admin/company" class="nav-link">
+                <a href="/about" class="nav-link">
                     <i class="nav-icon fas fa-solid fa-briefcase"></i>
 
-                    <p>Организация<span class="badge badge-info right"></span></p>
+                    <p>О сервисе<span class="badge badge-info right"></span></p>
                 </a>
             </li>
         @endif

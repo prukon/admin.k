@@ -99,6 +99,8 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 //Организация
     Route::get('/admin/company', [\App\Http\Controllers\Admin\CompanyController::class, 'index'])->name('company');
+    Route::get('/about', [\App\Http\Controllers\AboutController::class, 'index'])->name('about');
+    Route::get('/terms', [\App\Http\Controllers\AboutController::class, 'terms'])->name('terms');
 
 
 
