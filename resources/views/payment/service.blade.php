@@ -5,6 +5,8 @@
         <h4 class="pt-3">Оплата сервиса</h4>
 
 
+
+
     <!-- Блок с тарифами -->
         <div class="row">
 
@@ -16,20 +18,55 @@
             <div class="col-md-6">
                 <div class="card mb-4 shadow-sm">
                     <div class="card-header text-center">
-                        <h4 class="my-0 font-weight-normal">Стандарт</h4>
+                        <h4 class="my-0 font-weight-normal">1 месяц</h4>
                     </div>
                     <div class="card-body text-center">
-                        <h1 class="card-title pricing-card-title">2 500 ₽ <small class="text-muted">/ месяц</small></h1>
+
+                        <h5>2 500 ₽</h5>
                         <ul class="list-unstyled mt-3 mb-4">
                             <li>Учет до 200 пользователей</li>
                             <li>Расширенные отчеты</li>
                             <li>Приоритетная поддержка</li>
                         </ul>
-                        <button type="button" class="btn btn-lg btn-block btn-primary">Оплатить</button>
+                        <form action="{{route('createPaymentYookassa')}}" method="post">
+                            <!-- Фиксированная сумма -->
+                            @csrf
+                            <input type="hidden" name="amount" value="3.00"> <!-- Укажите здесь фиксированную сумму -->
+                            <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить</button>
+                        </form>                    </div>
+                </div>
+            </div>
+
+            <!-- Тариф -->
+            <div class="col-md-6">
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header text-center">
+                        <h4 class="my-0 font-weight-normal">1 год</h4>
+                    </div>
+                    <div class="card-body text-center">
+
+                        <h5>27 000 ₽</h5>
+                        <ul class="list-unstyled mt-3 mb-4">
+                            <li>Учет до 200 пользователей</li>
+                            <li>Расширенные отчеты</li>
+                            <li>Приоритетная поддержка</li>
+                        </ul>
+                        <form action="{{route('createPaymentYookassa')}}" method="post">
+                            <!-- Фиксированная сумма -->
+                            @csrf
+                            <input type="hidden" name="amount" value="2.00"> <!-- Укажите здесь фиксированную сумму -->
+                            <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить</button>
+                        </form>
                     </div>
                 </div>
             </div>
+
+
+
         </div>
+
+
+
 
 
 

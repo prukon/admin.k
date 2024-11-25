@@ -9,6 +9,8 @@ use App\Models\UserPrice;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Http;
+use YooKassa\Client;
+
 
 
 class TransactionController extends Controller
@@ -124,10 +126,64 @@ class TransactionController extends Controller
     {
         return view('payment.clubFee');
     }
-    public function service()
+
+    public function service(Request $request)
     {
         return view('payment.service');
     }
+
+    public function createPaymentYookassa(Request $request)
+    {
+        $client = new Client();
+        $client->setAuth(config('yookassa.shop_id'), config('yookassa.secret_key'));
+
+        if ($_POST['amount']) {
+            $amount = $_POST['amount'];
+        }
+
+
+        try {
+            // Создаем платеж
+            $payment = $client->createPayment([
+                'amount' => [
+                    'value' => $amount, // Сумма в рублях
+                    'currency' => 'RUB',
+                ],
+                'confirmation' => [
+                    'type' => 'redirect',
+                    'return_url' => config('yookassa.success_url'),
+                ],
+                'capture' => true,
+                'description' => 'Оплата заказа №123',
+                'receipt' => [
+                    'customer' => [
+                        'email' => 'test@example.com', // Email покупателя
+                    ],
+                    'items' => [
+                        [
+                            'description' => 'Тестовый товар',
+                            'quantity' => 1,
+                            'amount' => [
+                                'value' => $amount, // Сумма
+                                'currency' => 'RUB',
+                            ],
+                            'vat_code' => 1,
+                            'payment_mode' => 'full_prepayment',
+                            'payment_subject' => 'commodity',
+                        ],
+                    ],
+                ],
+            ], uniqid('', true));
+
+            // Перенаправляем пользователя на страницу подтверждения оплаты
+            return redirect($payment->getConfirmation()->getConfirmationUrl());
+        } catch (\Exception $e) {
+            return back()->withErrors(['message' => 'Ошибка: ' . $e->getMessage()]);
+        }
+    }
+
+
+
 }
 
 

@@ -104,6 +104,16 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 
 
+    //Емани
+    Route::post('//payment/service/yookassa', [\App\Http\Controllers\TransactionController::class, 'createPaymentYookassa'])->name('createPaymentYookassa');
+
+
+
+
+//    Route::get('/success', [PaymentController::class, 'success'])->name('payment.success');
+//    Route::get('/fail', [PaymentController::class, 'fail'])->name('payment.fail');
+
+
 
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)

@@ -13,7 +13,8 @@
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
         "laravel/ui": "^4.3",
-        "yajra/laravel-datatables-oracle": "^10.11"
+        "yajra/laravel-datatables-oracle": "^10.11",
+        "yoomoney/yookassa-sdk-php": "^3.7"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
