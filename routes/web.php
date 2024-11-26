@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\WebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -106,12 +107,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
     //Емани
     Route::post('//payment/service/yookassa', [\App\Http\Controllers\TransactionController::class, 'createPaymentYookassa'])->name('createPaymentYookassa');
+//вебхук емани
+    Route::post('/webhook/yookassa', [\App\Http\Controllers\WebhookController::class, 'handleWebhook'])->name('webhook.yookassa');
 
-
-
-
-//    Route::get('/success', [PaymentController::class, 'success'])->name('payment.success');
-//    Route::get('/fail', [PaymentController::class, 'fail'])->name('payment.fail');
 
 
 
