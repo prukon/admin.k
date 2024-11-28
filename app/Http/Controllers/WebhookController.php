@@ -3,72 +3,133 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use YooKassa\Client;
+use Illuminate\Support\Facades\Log;
+use App\Models\ClientPayment;
 
 class WebhookController extends Controller
 {
+    /**
+     * Список разрешённых IP-адресов.
+     *
+     * @var array
+     */
+    private $allowedIps = [
+        '185.71.76.0/27',
+        '185.71.77.0/27',
+        '77.75.153.0/25',
+        '77.75.156.11',
+        '77.75.156.35',
+        '77.75.154.128/25',
+        '2a02:5180::/32', // IPv6
+    ];
+
+    /**
+     * Обработка вебхуков.
+     */
     public function handleWebhook(Request $request)
     {
-        $config = config('yookassa');
-        $secretKey = $config['secret_key'];
+        $clientIp = $request->ip();
 
-        // Получение тела запроса
-        $payload = $request->getContent();
-
-        // Получение сигнатуры из заголовка
-        $signature = $request->header('HTTP_YOOKASSA_SIGNATURE');
-
-        // Проверка сигнатуры
-        if (!$this->isValidSignature($payload, $signature, $secretKey)) {
-            return response()->json(['error' => 'Invalid signature'], 403);
+        // Проверяем IP-адрес клиента
+        if (!$this->isAllowedIp($clientIp)) {
+            Log::warning('Webhook request from unauthorized IP:', ['ip' => $clientIp]);
+            return response()->json(['error' => 'Unauthorized IP address.'], 403);
         }
 
-        // Расшифровка JSON-данных
-        $data = json_decode($payload, true);
+        // Логируем входящие данные
+        Log::info('Webhook received:', ['payload' => $request->all()]);
 
-        if (isset($data['event']) && isset($data['object'])) {
-            switch ($data['event']) {
-                case 'payment.succeeded':
-                    $this->handlePaymentSucceeded($data['object']);
-                    break;
+        // Обрабатываем успешный платёж
+        if ($request->input('event') === 'payment.succeeded') {
+            $payment = $request->input('object');
+            $paymentId = $payment['id'];
 
-                case 'payment.canceled':
-                    $this->handlePaymentCanceled($data['object']);
-                    break;
-
-                default:
-                    return response()->json(['error' => 'Unhandled event'], 400);
+            // Ищем запись в базе и обновляем её
+            $clientPayment = ClientPayment::where('payment_id', $paymentId)->first();
+            if ($clientPayment) {
+                $clientPayment->update([
+                    'payment_status' => 'succeeded',
+                ]);
+                Log::info("Платёж успешно завершён: Payment ID {$paymentId}");
+            } else {
+                Log::warning("Платёж с ID {$paymentId} не найден в базе.");
             }
         }
 
-        return response()->json(['status' => 'ok']);
+        // Возвращаем успешный ответ ЮKassa
+        return response()->json(['message' => 'Webhook processed successfully.'], 200);
     }
 
-    private function isValidSignature($payload, $signature, $secretKey)
+    /**
+     * Проверяет, разрешён ли IP-адрес клиента.
+     *
+     * @param string $ip
+     * @return bool
+     */
+    private function isAllowedIp($ip)
     {
-        $hash = hash_hmac('sha256', $payload, $secretKey);
-        return hash_equals($hash, $signature);
+        foreach ($this->allowedIps as $allowedIp) {
+            if ($this->ipInRange($ip, $allowedIp)) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    private function handlePaymentSucceeded($payment)
+    /**
+     * Проверяет, входит ли IP в диапазон.
+     *
+     * @param string $ip
+     * @param string $range
+     * @return bool
+     */
+    private function ipInRange($ip, $range)
     {
-        // Обработка успешного платежа
-        // Например, обновление статуса заказа в БД
-        $paymentId = $payment['id'];
-        $amount = $payment['amount']['value'];
+        if (strpos($range, '/') === false) {
+            // Если это одиночный IP
+            return $ip === $range;
+        }
 
-        \Log::info("Payment succeeded: ID {$paymentId}, Amount {$amount}");
+        // Если это диапазон CIDR
+        [$subnet, $bits] = explode('/', $range);
 
-        // Ваш код для обработки успешного платежа
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return (ip2long($ip) & ~((1 << (32 - $bits)) - 1)) === ip2long($subnet);
+        } elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            return $this->ipv6InRange($ip, $subnet, $bits);
+        }
+
+        return false;
     }
 
-    private function handlePaymentCanceled($payment)
+    /**
+     * Проверяет, входит ли IPv6-адрес в диапазон.
+     *
+     * @param string $ip
+     * @param string $subnet
+     * @param int $bits
+     * @return bool
+     */
+    private function ipv6InRange($ip, $subnet, $bits)
     {
-        // Обработка отмененного платежа
-        $paymentId = $payment['id'];
+        $ipBin = inet_pton($ip);
+        $subnetBin = inet_pton($subnet);
 
-        \Log::info("Payment canceled: ID {$paymentId}");
+        $mask = str_repeat('f', $bits >> 2);
+        switch ($bits % 4) {
+            case 1:
+                $mask .= '8';
+                break;
+            case 2:
+                $mask .= 'c';
+                break;
+            case 3:
+                $mask .= 'e';
+                break;
+        }
+        $mask = str_pad($mask, 32, '0');
+        $maskBin = pack('H*', $mask);
 
-        // Ваш код для обработки отмененного платежа
+        return ($ipBin & $maskBin) === ($subnetBin & $maskBin);
     }
 }

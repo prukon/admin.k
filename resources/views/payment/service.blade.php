@@ -28,12 +28,20 @@
                             <li>Расширенные отчеты</li>
                             <li>Приоритетная поддержка</li>
                         </ul>
+
+
                         <form action="{{route('createPaymentYookassa')}}" method="post">
                             <!-- Фиксированная сумма -->
                             @csrf
+{{--                            <input type="hidden" name="client_id" value="{{ $client->id }}"> <!-- client_id передаётся скрыто -->--}}
+                            <input type="hidden" name="client_id" value="1"> <!-- client_id передаётся скрыто -->
                             <input type="hidden" name="amount" value="3.00"> <!-- Укажите здесь фиксированную сумму -->
                             <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить</button>
-                        </form>                    </div>
+                        </form>
+
+
+
+                    </div>
                 </div>
             </div>
 
@@ -54,6 +62,7 @@
                         <form action="{{route('createPaymentYookassa')}}" method="post">
                             <!-- Фиксированная сумма -->
                             @csrf
+                            <input type="hidden" name="client_id" value="1"> <!-- client_id передаётся скрыто -->
                             <input type="hidden" name="amount" value="2.00"> <!-- Укажите здесь фиксированную сумму -->
                             <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить</button>
                         </form>

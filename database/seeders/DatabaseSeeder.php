@@ -22,6 +22,24 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
 
+//        INSERT INTO `clients` (`id`, `business_type`, `title`, `tax_id`, `registration_number`, `address`, `phone`, `email`, `website`, `created_at`, `updated_at`, `deleted_at`) VALUES ('1', 'individual_entrepreneur', 'Школа футбола \"Исток\"', '860904518893', '315784700040909', '', '', '', NULL, NULL, NULL, NULL);
+
+ DB::table('clients')->insert([
+     'id' => 1,
+     'business_type' => 'individual_entrepreneur',
+     'title' => 'Школа футбола "Исток"',
+     'tax_id' => '860904518893',
+     'registration_number' => '315784700040909',
+     'address' => null,
+     'phone' => null,
+     'email' => "-",
+     'website' => null,
+     'created_at' => Carbon::now(),
+     'updated_at' => Carbon::now(),
+     'deleted_at' => null,
+ ]);
+
+
 
         DB::table('roles')->insert(['name' => 'superadmin']);
         DB::table('roles')->insert(['name' => 'admin']);

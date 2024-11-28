@@ -107,8 +107,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
     //Емани
     Route::post('//payment/service/yookassa', [\App\Http\Controllers\TransactionController::class, 'createPaymentYookassa'])->name('createPaymentYookassa');
-//вебхук емани
-    Route::post('/webhook/yookassa', [\App\Http\Controllers\WebhookController::class, 'handleWebhook'])->name('webhook.yookassa');
 
 
 
@@ -116,5 +114,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
+
+//вебхук емани
+Route::post('/webhook/yookassa', [\App\Http\Controllers\WebhookController::class, 'handleWebhook'])->name('webhook.yookassa');
+
 
 Auth::routes();

@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ClientPayment;
 use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
+use function Illuminate\Http\Client\dump;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use function Termwind\dd;
 use YooKassa\Client;
 
 
@@ -141,6 +145,11 @@ class TransactionController extends Controller
             $amount = $_POST['amount'];
         }
 
+        if ($_POST['client_id']) {
+            $clientId = $_POST['client_id'];
+        }
+
+
 
         try {
             // Создаем платеж
@@ -174,6 +183,30 @@ class TransactionController extends Controller
                     ],
                 ],
             ], uniqid('', true));
+
+            \Log::info('Client ID: ' . $request->input('client_id'));
+            \Log::info('User ID: ' . auth()->id());
+            \Log::info('Payment ID: ' . $payment->id);
+            \Log::info('Amount: ' . $amount);
+
+            // Сохраняем данные платежа в БД
+            try {
+                ClientPayment::create([
+                    'client_id' => $clientId,
+                    'user_id' => auth()->id(),
+                    'payment_id' => $payment->id,
+                    'amount' => $amount,
+                    'payment_status' => 'pending',
+                    'payment_date' => Carbon::now(), // Указываем текущую дату и время
+                    'payment_method' => 'yookassa', // Укажите метод оплаты, например, 'yookassa'
+
+
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Ошибка при создании записи в ClientPayment: ' . $e->getMessage());
+                return back()->withErrors(['message' => 'Ошибка сохранения данных в БД.']);
+            }
+
 
             // Перенаправляем пользователя на страницу подтверждения оплаты
             return redirect($payment->getConfirmation()->getConfirmationUrl());
