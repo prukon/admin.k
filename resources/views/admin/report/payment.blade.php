@@ -70,24 +70,6 @@
                                                 {data: 'team_title', name: 'team_title'},
                                                 {data: 'summ', name: 'summ'},
 
-                                                // {
-                                                //     data: 'payment_month',
-                                                //     name: 'payment_month',
-                                                //     render: function (data, type, row) {
-                                                //         if (data) {
-                                                //             const date = new Date(data);
-                                                //             const monthNames = [
-                                                //                 "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-                                                //                 "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-                                                //             ];
-                                                //             const month = monthNames[date.getMonth()];
-                                                //             const year = date.getFullYear();
-                                                //             return `${month} ${year}`;
-                                                //         }
-                                                //         return data;
-                                                //     }
-                                                // },
-
                                                 {
                                                     data: 'payment_month',
                                                     name: 'payment_month',

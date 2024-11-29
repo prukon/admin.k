@@ -74,6 +74,7 @@ class ReportController extends Controller
         return view('admin.report.payment', ['activeTab' => 'payments'],
             compact('totalPaidPrice'));
     }
+
     public function debts()
     {
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
@@ -92,6 +93,7 @@ class ReportController extends Controller
         return view('admin.report.debt', ['activeTab' => 'debts'],
         compact('totalUnpaidPrice'));
     }
+
     public function getPayments(Request $request)
     {
         if ($request->ajax()) {
@@ -124,6 +126,7 @@ class ReportController extends Controller
                 ->make(true);
         }
     }
+
     public function getDebts(Request $request)
     {
 

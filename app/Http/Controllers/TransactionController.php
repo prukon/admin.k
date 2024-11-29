@@ -64,7 +64,7 @@ class TransactionController extends Controller
     }
 
 
-    //Станица выбора оплат
+    //Станица выбора оплат (Юзер)
     public function index()
     {
         if ($_POST['paymentDate']) {
@@ -80,7 +80,7 @@ class TransactionController extends Controller
 //        return view('payment');
     }
 
-    //Переход со страницы выбора оплат. Формирование ссылки.
+    //Переход со страницы выбора оплат. Формирование ссылки (Юзер)
     public function pay(Request $request)
     {
         $userId = $request->userId;
@@ -131,6 +131,7 @@ class TransactionController extends Controller
         return view('payment.clubFee');
     }
 
+//    Страница выбора оплат админ
     public function service(Request $request)
     {
         return view('payment.service');

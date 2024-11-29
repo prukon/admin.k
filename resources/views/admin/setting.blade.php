@@ -85,7 +85,7 @@
                             <tr>
                                 <td>Оплата сервиса</td>
                                 <td class="text-center">
-                                    <a href="/payment/service" id="club-fee" class="btn btn-primary width-160">Перейти к оплате</a>
+                                    <a href="/partner-payment/recharge" id="club-fee" class="btn btn-primary width-160">Перейти к оплате</a>
                                 </td>
                             </tr>
                             </tbody>

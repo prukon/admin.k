@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\PartnerPaymentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -81,7 +82,16 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     // Маршрут для страницы неудачной оплаты
     Route::get('/payment/fail', [\App\Http\Controllers\TransactionController::class, 'fail'])->name('payment.fail');
     Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee'); //Оплата клубного взноса
-    Route::get('/payment/service', [\App\Http\Controllers\TransactionController::class, 'service'])->name('service'); //Оплата сервиса
+
+
+//    Route::get('/payment/service', [\App\Http\Controllers\TransactionController::class, 'service'])->name('service'); //Оплата сервиса
+
+
+//  Страница оплаты сервиса адимон
+    Route::get('/partner-payment/recharge', [\App\Http\Controllers\PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge');
+    Route::get('/partner-payment/history', [\App\Http\Controllers\PartnerPaymentController::class, 'showHistory'])->name('partner.payment.history');
+    Route::get('/partner-payment/data', [\App\Http\Controllers\PartnerPaymentController::class, 'getPaymentsData'])->name('partner.payment.data');
+
 
 //    Страница Настойки
     Route::get('/admin/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->name('setting');
@@ -104,11 +114,8 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/terms', [\App\Http\Controllers\AboutController::class, 'terms'])->name('terms');
 
 
-
     //Емани
     Route::post('//payment/service/yookassa', [\App\Http\Controllers\TransactionController::class, 'createPaymentYookassa'])->name('createPaymentYookassa');
-
-
 
 
 });
