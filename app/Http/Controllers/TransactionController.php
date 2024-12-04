@@ -132,10 +132,10 @@ class TransactionController extends Controller
     }
 
 //    Страница выбора оплат админ
-    public function service(Request $request)
-    {
-        return view('payment.service');
-    }
+//    public function service(Request $request)
+//    {
+//        return view('payment.service');
+//    }
 
     public function createPaymentYookassa(Request $request)
     {

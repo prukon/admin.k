@@ -4,11 +4,11 @@
     <div class="col-md-12 main-content text-start">
         <h4 class="pt-3 pb-3">Управление платежами</h4>
 
-        <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
-            <span class="fw-bold">Баланс:</span>
+        {{--<div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">--}}
+            {{--<span class="fw-bold">Баланс:</span>--}}
 
-            <span class="fw-bold"> 123 руб</span>
-        </div>
+            {{--<span class="fw-bold"> 123 руб</span>--}}
+        {{--</div>--}}
 
         <!-- Вкладки -->
         <ul class="nav nav-tabs" id="paymentTabs" role="tablist">
@@ -51,7 +51,7 @@
                             <div class="col-md-6">
                                 <div class="card mb-4 shadow-sm">
                                     <div class="card-header text-center">
-                                        <h4 class="my-0 font-weight-normal">1 месяц</h4>
+                                        <h4 class="my-0 font-weight-normal">30 дней</h4>
                                     </div>
                                     <div class="card-body text-center">
                                         <h5>2 500 ₽</h5>
@@ -137,7 +137,7 @@
 
 
                 <div class="tab-pane fade show active" id="history" role="tabpanel" aria-labelledby="history-tab">
-                    <h4>История платежей</h4>
+                    <h4 >История платежей</h4>
 
                         <table id="paymentsTable" class="table table-bordered table-hover mt-3">
                             <thead>
@@ -168,7 +168,7 @@
                             ajax: '{{ route('partner.payment.data') }}',
                             columns: [
                                 { data: 'id', name: 'id' },
-                                { data: 'client_name', name: 'client_name' },
+                                { data: 'partner_name', name: 'partner_name' },
                                 { data: 'user_name', name: 'user_name' },
                                 { data: 'amount', name: 'amount' },
                                 { data: 'payment_date', name: 'payment_date' },

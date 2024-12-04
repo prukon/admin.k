@@ -22,9 +22,13 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
 
-//        INSERT INTO `clients` (`id`, `business_type`, `title`, `tax_id`, `registration_number`, `address`, `phone`, `email`, `website`, `created_at`, `updated_at`, `deleted_at`) VALUES ('1', 'individual_entrepreneur', 'Школа футбола \"Исток\"', '860904518893', '315784700040909', '', '', '', NULL, NULL, NULL, NULL);
+//        INSERT INTO `partners` (`id`, `business_type`, `title`, `tax_id`, `registration_number`, `address`, `phone`, `email`, `website`, `created_at`, `updated_at`, `deleted_at`) VALUES ('1', 'individual_entrepreneur', 'Школа футбола \"Исток\"', '860904518893', '315784700040909', '', '', '', NULL, NULL, NULL, NULL);
 
- DB::table('clients')->insert([
+
+//        INSERT INTO `partner_payments` (`id`, `payment_id`, `partner_id`, `user_id`, `amount`, `payment_date`, `payment_method`, `payment_status`, `description`, `created_at`, `updated_at`, `deleted_at`) VALUES (NULL, '', '1', '58', '2500', NOW(), 'ЮМани', 'succeeded', NULL, NULL, NULL, NULL);
+        
+
+ DB::table('partners')->insert([
      'id' => 1,
      'business_type' => 'individual_entrepreneur',
      'title' => 'Школа футбола "Исток"',

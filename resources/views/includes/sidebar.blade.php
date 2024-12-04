@@ -74,7 +74,19 @@
 
         <hr class="sidebar-separator">
 
-        {{--Организация--}}
+
+        {{--Оплата сервиса--}}
+        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
+            <li class="nav-item">
+                <a href="/partner-payment/recharge" class="nav-link">
+                    <i class="nav-icon fas fa-solid fa-briefcase"></i>
+
+                    <p>Оплата сервиса<span class="badge badge-info right"></span></p>
+                </a>
+            </li>
+        @endif
+
+        {{--О сервисе--}}
         @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
             <li class="nav-item">
                 <a href="/about" class="nav-link">
