@@ -28,7 +28,7 @@
         @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
             <li class="nav-item">
                 <a href="/admin/setting-prices?current-month" class="nav-link">
-                    <i class="nav-icon fa-solid fa-credit-card"></i>
+                    <i class="nav-icon fa-solid fa-receipt"></i>
                     <p>Установка цен</p>
                 </a>
             </li>
@@ -79,7 +79,7 @@
         @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
             <li class="nav-item">
                 <a href="/partner-payment/recharge" class="nav-link">
-                    <i class="nav-icon fas fa-solid fa-briefcase"></i>
+                    <i class="nav-icon fa-solid fa-credit-card"></i>
 
                     <p>Оплата сервиса<span class="badge badge-info right"></span></p>
                 </a>

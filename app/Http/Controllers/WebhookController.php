@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\ClientPayment;
+use App\Models\PartnerPayment;
 
 class WebhookController extends Controller
 {
@@ -45,9 +46,9 @@ class WebhookController extends Controller
             $paymentId = $payment['id'];
 
             // Ищем запись в базе и обновляем её
-            $clientPayment = ClientPayment::where('payment_id', $paymentId)->first();
-            if ($clientPayment) {
-                $clientPayment->update([
+            $partnerPayment = PartnerPayment::where('payment_id', $paymentId)->first();
+            if ($partnerPayment) {
+                $partnerPayment->update([
                     'payment_status' => 'succeeded',
                 ]);
                 Log::info("Платёж успешно завершён: Payment ID {$paymentId}");

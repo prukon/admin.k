@@ -336,7 +336,7 @@
                     {{--                    <h6> Почта: {{auth()->user()->email}}</h6>--}}
                     <h6> Роль: {{auth()->user()->role}}</h6>
 
-                    <h6> Баланс:  <a href="/partner-payment/recharge"><span class="badge badge-success">100 руб </span></a> </h6>
+                    {{--<h6> Баланс:  <a href="/partner-payment/recharge"><span class="badge badge-success">100 руб </span></a> </h6>--}}
 
                 </div>
             </div>

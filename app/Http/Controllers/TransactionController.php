@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ClientPayment;
+//use App\Models\ClientPayment;
+use App\Models\Partner;
+use App\Models\PartnerPayment;
+
 use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
@@ -14,6 +17,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use function Termwind\dd;
 use YooKassa\Client;
+
+
 
 
 
@@ -75,6 +80,8 @@ class TransactionController extends Controller
         if ($_POST['outSum']) {
             $outSum = $_POST['outSum'];
         }
+
+
         // Дополнительная логика, если необходимо
         return view('payment.payment', compact('paymentDate', 'outSum', 'formatedPaymentDate'));
 //        return view('payment');
@@ -87,7 +94,7 @@ class TransactionController extends Controller
         $userName = $request->userName;
         $outSum = $request->outSum;
 
-        if($request->formatedPaymentDate) {
+        if ($request->formatedPaymentDate) {
             $paymentDate = $request->formatedPaymentDate;
         } else {
             $paymentDate = "Клубный взнос";
@@ -131,50 +138,49 @@ class TransactionController extends Controller
         return view('payment.clubFee');
     }
 
-//    Страница выбора оплат админ
-//    public function service(Request $request)
-//    {
-//        return view('payment.service');
-//    }
 
     public function createPaymentYookassa(Request $request)
     {
+        // Валидация входных данных
+        $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'partner_id' => 'required|exists:partners,id',
+        ]);
+
         $client = new Client();
         $client->setAuth(config('yookassa.shop_id'), config('yookassa.secret_key'));
 
-        if ($_POST['amount']) {
-            $amount = $_POST['amount'];
+        $amount = $request->input('amount');
+        $partnerId = $request->input('partner_id');
+        $userId = auth()->id();
+
+        if (!$userId) {
+            return back()->withErrors(['message' => 'Пользователь не аутентифицирован.']);
         }
-
-        if ($_POST['client_id']) {
-            $clientId = $_POST['client_id'];
-        }
-
-
 
         try {
-            // Создаем платеж
             $payment = $client->createPayment([
                 'amount' => [
-                    'value' => $amount, // Сумма в рублях
+                    'value' => $amount,
                     'currency' => 'RUB',
                 ],
                 'confirmation' => [
                     'type' => 'redirect',
                     'return_url' => config('yookassa.success_url'),
+//                    'return_url' => $returnUrl,
                 ],
                 'capture' => true,
                 'description' => 'Оплата заказа №123',
                 'receipt' => [
                     'customer' => [
-                        'email' => 'test@example.com', // Email покупателя
+                        'email' => 'test@example.com',
                     ],
                     'items' => [
                         [
                             'description' => 'Тестовый товар',
                             'quantity' => 1,
                             'amount' => [
-                                'value' => $amount, // Сумма
+                                'value' => $amount,
                                 'currency' => 'RUB',
                             ],
                             'vat_code' => 1,
@@ -185,44 +191,35 @@ class TransactionController extends Controller
                 ],
             ], uniqid('', true));
 
-            \Log::info('Client ID: ' . $request->input('client_id'));
-            \Log::info('User ID: ' . auth()->id());
-            \Log::info('Payment ID: ' . $payment->id);
-            \Log::info('Amount: ' . $amount);
+            $confirmationUrl = $payment->getConfirmation()->getConfirmationUrl();
 
-            // Сохраняем данные платежа в БД
-            try {
-                ClientPayment::create([
-                    'client_id' => $clientId,
-                    'user_id' => auth()->id(),
+            if (!$confirmationUrl) {
+                return back()->withErrors(['message' => 'Не удалось получить URL подтверждения платежа.']);
+            }
+
+            // Используем транзакцию
+            \DB::transaction(function () use ($payment, $partnerId, $userId, $amount) {
+                PartnerPayment::create([
+                    'partner_id' => $partnerId,
+                    'user_id' => $userId,
                     'payment_id' => $payment->id,
                     'amount' => $amount,
                     'payment_status' => 'pending',
-                    'payment_date' => Carbon::now(), // Указываем текущую дату и время
-                    'payment_method' => 'yookassa', // Укажите метод оплаты, например, 'yookassa'
-
-
+                    'payment_date' => Carbon::now(),
+                    'payment_method' => 'yookassa',
                 ]);
-            } catch (\Exception $e) {
-                \Log::error('Ошибка при создании записи в ClientPayment: ' . $e->getMessage());
-                return back()->withErrors(['message' => 'Ошибка сохранения данных в БД.']);
-            }
+            });
 
+            // Перенаправляем пользователя на страницу подтверждения
+            return redirect($confirmationUrl);
 
-            // Перенаправляем пользователя на страницу подтверждения оплаты
-            return redirect($payment->getConfirmation()->getConfirmationUrl());
         } catch (\Exception $e) {
+            \Log::error('Ошибка при создании платежа или записи в базу: ' . $e->getMessage());
             return back()->withErrors(['message' => 'Ошибка: ' . $e->getMessage()]);
         }
     }
 
-
-
 }
-
-
-
-
 
 
 
