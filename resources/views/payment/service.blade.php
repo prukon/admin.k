@@ -66,7 +66,7 @@
                                             {{--                            <input type="hidden" name="client_id" value="{{ $client->id }}"> <!-- client_id передаётся скрыто -->--}}
 {{--                                            <input type="hidden" name="partner_id" value="{{ $partner->id }}">--}}
                                             <input type="hidden" name="partner_id" value="1">
-                                            <input type="hidden" name="amount" value="3.00">
+                                            <input type="hidden" name="amount" value="2500.00">
                                             <!-- Укажите здесь фиксированную сумму -->
                                             <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить
                                             </button>
@@ -94,7 +94,7 @@
                                             @csrf
                                             <input type="hidden" name="client_id" value="1">
                                             <!-- client_id передаётся скрыто -->
-                                            <input type="hidden" name="amount" value="2.00">
+                                            <input type="hidden" name="amount" value="27000.00">
                                             <!-- Укажите здесь фиксированную сумму -->
                                             <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить
                                             </button>
