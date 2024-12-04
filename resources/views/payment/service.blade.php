@@ -90,12 +90,9 @@
                                             <li>Отчеты</li>
                                         </ul>
                                         <form action="{{route('createPaymentYookassa')}}" method="post">
-                                            <!-- Фиксированная сумма -->
                                             @csrf
-                                            <input type="hidden" name="client_id" value="1">
-                                            <!-- client_id передаётся скрыто -->
+                                            <input type="hidden" name="partner_id" value="1">
                                             <input type="hidden" name="amount" value="27000.00">
-                                            <!-- Укажите здесь фиксированную сумму -->
                                             <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить
                                             </button>
                                         </form>
