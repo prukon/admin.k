@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Функция для обновления цен пользователей
         let updateUsersPrice = function (usersPrice) {
-                const userRows = document.querySelectorAll('.wrap-users .row .mb-2');
+                const userRows = document.querySelectorAll('.wrap-users .mb-2');
             for (let i = 0; i < usersPrice.length; i++) {
                 for (let j = 0; j < userRows.length; j++) {
                     let userId = userRows[j].querySelector('.user-name').getAttribute('id');
