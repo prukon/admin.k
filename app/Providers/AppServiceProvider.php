@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\MenuItem;
+use App\Models\PartnerAccess;
 use App\Models\Setting;
 use App\Models\SocialItem;
 use App\Models\Team;
@@ -60,6 +61,15 @@ class AppServiceProvider extends ServiceProvider
         View::composer('*', function ($view) {
             $socialItems = SocialItem::all();
             $view->with('socialItems', $socialItems);
+        });
+
+
+        //Получаем срок оплаты сервиса
+        $latestEndDate = PartnerAccess::where('is_active', 1)->max('end_date');
+
+        View::composer('*', function ($view) {
+            $latestEndDate = PartnerAccess::where('is_active', 1)->max('end_date');
+            $view->with('latestEndDate', $latestEndDate);
         });
 
     }

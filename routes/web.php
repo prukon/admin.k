@@ -115,7 +115,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 
     //Емани
-    Route::post('//payment/service/yookassa', [\App\Http\Controllers\TransactionController::class, 'createPaymentYookassa'])->name('createPaymentYookassa');
+    Route::post('//payment/service/yookassa', [\App\Http\Controllers\PartnerPaymentController::class, 'createPaymentYookassa'])->name('createPaymentYookassa');
 
 
 });

@@ -47,10 +47,10 @@
 <div class="wrapper">
 
     <!-- Preloader -->
-    {{--    <div class="preloader flex-column justify-content-center align-items-center">--}}
-    {{--        <img class="animation__shake" src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="AdminLTELogo" height="60"--}}
-    {{--             width="60">--}}
-    {{--    </div>--}}
+        {{--<div class="preloader flex-column justify-content-center align-items-center">--}}
+            {{--<img class="animation__shake" src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="AdminLTELogo" height="60"--}}
+                 {{--width="60">--}}
+        {{--</div>--}}
 
     <!-- Navbar -->
     <nav class="main-header navbar navbar-expand navbar-white navbar-light">
@@ -130,14 +130,6 @@
                 </li>
             @endforeach
 
-            {{--<li class="nav-item d-flex align-items-center">--}}
-                {{--<form method="POST" action="{{ route('logout') }}" class="d-flex align-items-center mb-0">--}}
-                    {{--@csrf--}}
-                    {{--<button type="submit" class="btn btn-primary logout">Выйти</button>--}}
-                {{--</form>--}}
-            {{--</li>--}}
-
-
 
             <li class="nav-item d-flex align-items-center">
                 <button
@@ -160,28 +152,6 @@
                 });
             </script>
 
-
-            {{--<!-- Модальное окно -->--}}
-            {{--<div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">--}}
-                {{--<div class="modal-dialog">--}}
-                    {{--<div class="modal-content">--}}
-                        {{--<div class="modal-header">--}}
-                            {{--<h5 class="modal-title" id="logoutModalLabel">Подтверждение выхода</h5>--}}
-                            {{--<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>--}}
-                        {{--</div>--}}
-                        {{--<div class="modal-body">--}}
-                            {{--Вы уверены, что хотите выйти?--}}
-                        {{--</div>--}}
-                        {{--<div class="modal-footer">--}}
-                            {{--<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>--}}
-                            {{--<form method="POST" action="{{ route('logout') }}" class="d-inline">--}}
-                                {{--@csrf--}}
-                                {{--<button type="submit" class="btn btn-danger">Выйти</button>--}}
-                            {{--</form>--}}
-                        {{--</div>--}}
-                    {{--</div>--}}
-                {{--</div>--}}
-            {{--</div>--}}
 
 
             <!-- Модальное окно настройки меню -->
@@ -271,43 +241,43 @@
             {{--                </div>--}}
             {{--            </li>--}}
             <!-- Notifications Dropdown Menu -->
-            {{--            <li class="nav-item dropdown">--}}
-            {{--                <a class="nav-link" data-toggle="dropdown" href="#">--}}
-            {{--                    <i class="far fa-bell"></i>--}}
-            {{--                    <span class="badge badge-warning navbar-badge">15</span>--}}
-            {{--                </a>--}}
-            {{--                <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
-            {{--                    <span class="dropdown-item dropdown-header">15 Notifications</span>--}}
-            {{--                    <div class="dropdown-divider"></div>--}}
-            {{--                    <a href="#" class="dropdown-item">--}}
-            {{--                        <i class="fas fa-envelope mr-2"></i> 4 new messages--}}
-            {{--                        <span class="float-right text-muted text-sm">3 mins</span>--}}
-            {{--                    </a>--}}
-            {{--                    <div class="dropdown-divider"></div>--}}
-            {{--                    <a href="#" class="dropdown-item">--}}
-            {{--                        <i class="fas fa-users mr-2"></i> 8 friend requests--}}
-            {{--                        <span class="float-right text-muted text-sm">12 hours</span>--}}
-            {{--                    </a>--}}
-            {{--                    <div class="dropdown-divider"></div>--}}
-            {{--                    <a href="#" class="dropdown-item">--}}
-            {{--                        <i class="fas fa-file mr-2"></i> 3 new reports--}}
-            {{--                        <span class="float-right text-muted text-sm">2 days</span>--}}
-            {{--                    </a>--}}
-            {{--                    <div class="dropdown-divider"></div>--}}
-            {{--                    <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>--}}
-            {{--                </div>--}}
-            {{--            </li>--}}
-            {{--            <li class="nav-item">--}}
-            {{--                <a class="nav-link" data-widget="fullscreen" href="#" role="button">--}}
-            {{--                    <i class="fas fa-expand-arrows-alt"></i>--}}
-            {{--                </a>--}}
-            {{--            </li>--}}
-            {{--            <li class="nav-item">--}}
-            {{--                <a class="nav-link" data-widget="control-sidebar" data-controlsidebar-slide="true" href="#"--}}
-            {{--                   role="button">--}}
-            {{--                    <i class="fas fa-th-large"></i>--}}
-            {{--                </a>--}}
-            {{--            </li>--}}
+                        {{--<li class="nav-item dropdown">--}}
+                            {{--<a class="nav-link" data-toggle="dropdown" href="#">--}}
+                                {{--<i class="far fa-bell"></i>--}}
+                                {{--<span class="badge badge-warning navbar-badge">15</span>--}}
+                            {{--</a>--}}
+                            {{--<div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
+                                {{--<span class="dropdown-item dropdown-header">15 Notifications</span>--}}
+                                {{--<div class="dropdown-divider"></div>--}}
+                                {{--<a href="#" class="dropdown-item">--}}
+                                    {{--<i class="fas fa-envelope mr-2"></i> 4 new messages--}}
+                                    {{--<span class="float-right text-muted text-sm">3 mins</span>--}}
+                                {{--</a>--}}
+                                {{--<div class="dropdown-divider"></div>--}}
+                                {{--<a href="#" class="dropdown-item">--}}
+                                    {{--<i class="fas fa-users mr-2"></i> 8 friend requests--}}
+                                    {{--<span class="float-right text-muted text-sm">12 hours</span>--}}
+                                {{--</a>--}}
+                                {{--<div class="dropdown-divider"></div>--}}
+                                {{--<a href="#" class="dropdown-item">--}}
+                                    {{--<i class="fas fa-file mr-2"></i> 3 new reports--}}
+                                    {{--<span class="float-right text-muted text-sm">2 days</span>--}}
+                                {{--</a>--}}
+                                {{--<div class="dropdown-divider"></div>--}}
+                                {{--<a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>--}}
+                            {{--</div>--}}
+                        {{--</li>--}}
+                        {{--<li class="nav-item">--}}
+                            {{--<a class="nav-link" data-widget="fullscreen" href="#" role="button">--}}
+                                {{--<i class="fas fa-expand-arrows-alt"></i>--}}
+                            {{--</a>--}}
+                        {{--</li>--}}
+                        {{--<li class="nav-item">--}}
+                            {{--<a class="nav-link" data-widget="control-sidebar" data-controlsidebar-slide="true" href="#"--}}
+                               {{--role="button">--}}
+                                {{--<i class="fas fa-th-large"></i>--}}
+                            {{--</a>--}}
+                        {{--</li>--}}
         </ul>
     </nav>
     <!-- /.navbar -->
@@ -332,11 +302,11 @@
                 <div class="info text-light">
                     <a href="#" class="d-block"></a>
                     <h6> Имя: {{auth()->user()->name}}</h6>
-                    <h6> Id: {{auth()->user()->id}}</h6>
-                    {{--                    <h6> Почта: {{auth()->user()->email}}</h6>--}}
+{{--                    <h6> Id: {{auth()->user()->id}}</h6>--}}
+                                        <h6> Почта: {{auth()->user()->email}}</h6>
                     <h6> Роль: {{auth()->user()->role}}</h6>
 
-                    {{--<h6> Баланс:  <a href="/partner-payment/recharge"><span class="badge badge-success">100 руб </span></a> </h6>--}}
+                    <h6> Оплачено до:  <a href="/partner-payment/recharge"><span class="badge badge-success latestEndDate">{{$latestEndDate}} </span></a> </h6>
 
                 </div>
             </div>

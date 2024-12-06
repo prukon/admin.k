@@ -16,7 +16,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use function Termwind\dd;
-use YooKassa\Client;
 
 
 
@@ -68,7 +67,6 @@ class TransactionController extends Controller
         }
     }
 
-
     //Станица выбора оплат (Юзер)
     public function index()
     {
@@ -117,7 +115,7 @@ class TransactionController extends Controller
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
 
-//    Успешная оплата
+//    Успешная оплата (для юзеров и партнеров)
     public function success(Request $request)
     {
         \Log::info('Robokassa payment successful', $request->all());
@@ -125,7 +123,7 @@ class TransactionController extends Controller
         return view('payment.success'); // Предполагается, что у вас есть такой вид
     }
 
-//    Неудачная оплата
+//    Неудачная оплата (для юзеров и партнеров)
     public function fail(Request $request)
     {
         \Log::error('Robokassa payment failed', $request->all());
@@ -133,91 +131,12 @@ class TransactionController extends Controller
         return view('payment.fail'); // Предполагается, что у вас есть такой вид
     }
 
+    //Страница Клубный взнос
     public function clubFee()
     {
         return view('payment.clubFee');
     }
 
-
-    public function createPaymentYookassa(Request $request)
-    {
-        // Валидация входных данных
-        $request->validate([
-            'amount' => 'required|numeric|min:1',
-            'partner_id' => 'required|exists:partners,id',
-        ]);
-
-        $client = new Client();
-        $client->setAuth(config('yookassa.shop_id'), config('yookassa.secret_key'));
-
-        $amount = $request->input('amount');
-        $partnerId = $request->input('partner_id');
-        $userId = auth()->id();
-
-        if (!$userId) {
-            return back()->withErrors(['message' => 'Пользователь не аутентифицирован.']);
-        }
-
-        try {
-            $payment = $client->createPayment([
-                'amount' => [
-                    'value' => $amount,
-                    'currency' => 'RUB',
-                ],
-                'confirmation' => [
-                    'type' => 'redirect',
-                    'return_url' => config('yookassa.success_url'),
-//                    'return_url' => $returnUrl,
-                ],
-                'capture' => true,
-                'description' => 'Оплата заказа №123',
-                'receipt' => [
-                    'customer' => [
-                        'email' => 'test@example.com',
-                    ],
-                    'items' => [
-                        [
-                            'description' => 'Тестовый товар',
-                            'quantity' => 1,
-                            'amount' => [
-                                'value' => $amount,
-                                'currency' => 'RUB',
-                            ],
-                            'vat_code' => 1,
-                            'payment_mode' => 'full_prepayment',
-                            'payment_subject' => 'commodity',
-                        ],
-                    ],
-                ],
-            ], uniqid('', true));
-
-            $confirmationUrl = $payment->getConfirmation()->getConfirmationUrl();
-
-            if (!$confirmationUrl) {
-                return back()->withErrors(['message' => 'Не удалось получить URL подтверждения платежа.']);
-            }
-
-            // Используем транзакцию
-            \DB::transaction(function () use ($payment, $partnerId, $userId, $amount) {
-                PartnerPayment::create([
-                    'partner_id' => $partnerId,
-                    'user_id' => $userId,
-                    'payment_id' => $payment->id,
-                    'amount' => $amount,
-                    'payment_status' => 'pending',
-                    'payment_date' => Carbon::now(),
-                    'payment_method' => 'yookassa',
-                ]);
-            });
-
-            // Перенаправляем пользователя на страницу подтверждения
-            return redirect($confirmationUrl);
-
-        } catch (\Exception $e) {
-            \Log::error('Ошибка при создании платежа или записи в базу: ' . $e->getMessage());
-            return back()->withErrors(['message' => 'Ошибка: ' . $e->getMessage()]);
-        }
-    }
 
 }
 

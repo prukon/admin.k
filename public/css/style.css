@@ -1014,3 +1014,7 @@ font-size: 11px;
 .sidebar-separator {
     color:white;
 }
+
+.info .latestEndDate {
+    vertical-align: middle;
+}
