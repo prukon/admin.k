@@ -14,7 +14,7 @@
                 <h5 class="modal-title" id="menuModalLabel">Настройка меню в шапке</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body text-start">
                 <button type="button" class="btn btn-secondary mb-3" id="addMenuItem">Новый пункт меню</button>
                 <div class="table-responsive"> <!-- Добавлен контейнер для адаптивности таблицы -->
                     <table class="table" id="menuTable">

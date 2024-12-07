@@ -39,7 +39,6 @@
             {{------------------------------------}}
             <!-- Вкладка "Пополнить счет" -->
 
-
                 <div class="tab-pane fade show active" id="recharge" role="tabpanel" aria-labelledby="recharge-tab">
                     <h4>Оплата сервиса</h4>
                     <!-- Ваш код для отображения тарифов -->
@@ -184,6 +183,8 @@
                                             searchable: false
                                         },
                                     ],
+                                    order: [[4, 'desc']], // Сортировка по столбцу "Дата" в порядке убывания
+
                                     language: {
                                         "processing": "Обработка...",
                                         "search": "Поиск:",

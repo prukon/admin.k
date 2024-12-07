@@ -55,7 +55,6 @@
                                                     data: null,
                                                     name: 'user_name',
                                                     render: function (data, type, row) {
-                                                        // console.log('Data for user_name:', data);
 
                                                         // Если user_id существует, делаем ссылку
                                                         if (row.user_id) {

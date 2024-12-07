@@ -14,17 +14,22 @@ use YooKassa\Client;
 
 class PartnerPaymentController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('role:admin,superadmin');
+    }
+
 
 //    Страница Пополнить счет
     public function showRecharge()
     {
-        return view('payment.service', ['activeTab' => 'recharge']);
+        return view('payment.paymentPartner', ['activeTab' => 'recharge']);
     }
 
     //    Страница История платежей
     public function showHistory()
     {
-        return view('payment.service', ['activeTab' => 'history']);
+        return view('payment.paymentPartner', ['activeTab' => 'history']);
     }
 
 //    Формирование таблицы для Истории платежей
@@ -190,6 +195,5 @@ class PartnerPaymentController extends Controller
             return back()->withErrors(['message' => 'Ошибка: ' . $e->getMessage()]);
         }
     }
-
 
 }

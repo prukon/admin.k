@@ -21,9 +21,7 @@
                     </div>
 
                     <div class="col-12 col-md-6">
-{{--                        <button id="new-user" type="button" class="btn btn-primary mr-2 new-user width-170"--}}
-{{--                                onclick="window.location.href='{{ route('admin.user.create') }}'">Новый пользователь--}}
-{{--                        </button>--}}
+
                         <button id="new-user" type="button" class="btn btn-primary mr-2 new-user width-170"
                                 data-bs-toggle="modal" data-bs-target="#createUserModal">
                             Новый пользователь
@@ -50,10 +48,6 @@
             <div class="wrap-user-list text-start">
                 @foreach($allUsers as $user)
                     <div class="user">
-{{--                        <a href="{{ route('admin.user.edit', $user->id) }}"--}}
-{{--                           style="{{ $user->is_enabled == 0 ? 'color: red;' : '' }}">--}}
-{{--                            {{ $counter }}. {{$user->name}}--}}
-{{--                        </a>--}}
 
                         <a href="javascript:void(0);" class="edit-user-link" data-id="{{ $user->id }}" style="{{ $user->is_enabled == 0 ? 'color: red;' : '' }}">
                             {{ $counter }}. {{$user->name}}
@@ -64,7 +58,6 @@
                         $counter++;
                     @endphp
                 @endforeach
-
 
                 <div class="mt-3">
                     {{ $allUsers->withQueryString()->links() }}

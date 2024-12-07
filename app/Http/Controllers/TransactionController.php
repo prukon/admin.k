@@ -79,13 +79,11 @@ class TransactionController extends Controller
             $outSum = $_POST['outSum'];
         }
 
-
         // Дополнительная логика, если необходимо
-        return view('payment.payment', compact('paymentDate', 'outSum', 'formatedPaymentDate'));
-//        return view('payment');
+        return view('payment.paymentUser', compact('paymentDate', 'outSum', 'formatedPaymentDate'));
     }
 
-    //Переход со страницы выбора оплат. Формирование ссылки (Юзер)
+    //Переход со страницы выбора оплат. Формирование ссылки робокасса (Юзер)
     public function pay(Request $request)
     {
         $userId = $request->userId;
@@ -136,7 +134,6 @@ class TransactionController extends Controller
     {
         return view('payment.clubFee');
     }
-
 
 }
 

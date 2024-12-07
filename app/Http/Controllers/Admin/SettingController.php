@@ -41,16 +41,16 @@ class SettingController extends Controller
 
     public function index()
     {
-        $menuItems = MenuItem::all();
-        $socialItems = SocialItem::all(); // Получаем все записи социальных сетей из базы данных
+//        $menuItems = MenuItem::all();
+//        $socialItems = SocialItem::all(); // Получаем все записи социальных сетей из базы данных
         $setting = Setting::where('name', 'textForUsers')->first();
         $textForUsers = $setting ? $setting->text : null;
 
 
         return view("admin/setting", compact(
-            "textForUsers",
-            "menuItems",
-            "socialItems"
+            "textForUsers"
+//            "menuItems",
+//            "socialItems"
         ));
     }
 

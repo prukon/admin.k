@@ -75,6 +75,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
     //Страница выбора оплаты
     Route::post('/payment', [\App\Http\Controllers\TransactionController::class, 'index'])->name('payment');
+
     //Страница оплаты робокассы
     Route::post('/payment/pay', [\App\Http\Controllers\TransactionController::class, 'pay'])->name('payment.pay');
     // Маршрут для страницы успешной оплаты

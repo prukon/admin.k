@@ -2,7 +2,7 @@
 @section('content')
 
     <div class=" col-md-12 main-content  text-start " xmlns="http://www.w3.org/1999/html">
-        <h4 class="pt-3 pb-3">Оплата клубного взноса</h4>
+        <h4 class="pt-3 pb-3">Оплата клубного взноса2</h4>
 
         <div class="pay-info mb-3">
             <div>Имя пользователя: <span class="bolt-text">{{ auth()->user()->name }}</span></div>

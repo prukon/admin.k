@@ -306,7 +306,7 @@
                                         <h6> Почта: {{auth()->user()->email}}</h6>
                     <h6> Роль: {{auth()->user()->role}}</h6>
 
-                    <h6> Оплачено до:  <a href="/partner-payment/recharge"><span class="badge badge-success latestEndDate">{{$latestEndDate}} </span></a> </h6>
+                    <h6> Оплачено до:  <a href="/partner-payment/history"><span class="badge badge-success latestEndDate">{{$latestEndDate}} </span></a> </h6>
 
                 </div>
             </div>
