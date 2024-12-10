@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PartnerAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use App\Models\ClientPayment;
+//use App\Models\ClientPayment;
 use App\Models\PartnerPayment;
+use App\Models\PartnerAccess;
+
 
 class WebhookController extends Controller
 {
-    /**
-     * Список разрешённых IP-адресов.
-     *
-     * @var array
-     */
+//Разрешенные IP адреса
     private $allowedIps = [
         '185.71.76.0/27',
         '185.71.77.0/27',
@@ -24,9 +23,7 @@ class WebhookController extends Controller
         '2a02:5180::/32', // IPv6
     ];
 
-    /**
-     * Обработка вебхуков.
-     */
+//      Обработка вебхуков
     public function handleWebhook(Request $request)
     {
         $clientIp = $request->ip();
@@ -40,33 +37,44 @@ class WebhookController extends Controller
         // Логируем входящие данные
         Log::info('Webhook received:', ['payload' => $request->all()]);
 
-        // Обрабатываем успешный платёж
+        // Проверка входящих данных
+        $request->validate([
+            'event' => 'required|string',
+            'object.id' => 'required|string',
+        ]);
+
         if ($request->input('event') === 'payment.succeeded') {
             $payment = $request->input('object');
             $paymentId = $payment['id'];
 
-            // Ищем запись в базе и обновляем её
-            $partnerPayment = PartnerPayment::where('payment_id', $paymentId)->first();
-            if ($partnerPayment) {
-                $partnerPayment->update([
-                    'payment_status' => 'succeeded',
-                ]);
-                Log::info("Платёж успешно завершён: Payment ID {$paymentId}");
-            } else {
-                Log::warning("Платёж с ID {$paymentId} не найден в базе.");
+            try {
+                \DB::transaction(function () use ($paymentId) {
+                    $partnerPayment = PartnerPayment::where('payment_id', $paymentId)->first();
+                    if (!$partnerPayment) {
+                        throw new \Exception("Платёж с ID {$paymentId} не найден в базе.");
+                    }
+
+                    $partnerPayment->update(['payment_status' => 'succeeded']);
+                    Log::info("Платёж успешно завершён: Payment ID {$paymentId}");
+
+                    $partnerAccesses = PartnerAccess::where('partner_payment_id', $partnerPayment->id)->first();
+                    if (!$partnerAccesses) {
+                        throw new \Exception("Период с partnerPaymentId {$partnerPayment->id} не найден в базе.");
+                    }
+
+                    $partnerAccesses->update(['is_active' => 1]);
+                    Log::info("Период успешно активирован: partnerPaymentId: {$partnerPayment->id}");
+                });
+            } catch (\Exception $e) {
+                Log::error("Ошибка при обработке вебхука: " . $e->getMessage());
+                return response()->json(['error' => 'Internal server error.'], 500);
             }
         }
 
-        // Возвращаем успешный ответ ЮKassa
         return response()->json(['message' => 'Webhook processed successfully.'], 200);
     }
 
-    /**
-     * Проверяет, разрешён ли IP-адрес клиента.
-     *
-     * @param string $ip
-     * @return bool
-     */
+//   Проверяет, разрешён ли IP-адрес клиента.
     private function isAllowedIp($ip)
     {
         foreach ($this->allowedIps as $allowedIp) {
@@ -77,13 +85,7 @@ class WebhookController extends Controller
         return false;
     }
 
-    /**
-     * Проверяет, входит ли IP в диапазон.
-     *
-     * @param string $ip
-     * @param string $range
-     * @return bool
-     */
+//     Проверяет, входит ли IP в диапазон.
     private function ipInRange($ip, $range)
     {
         if (strpos($range, '/') === false) {
@@ -103,14 +105,7 @@ class WebhookController extends Controller
         return false;
     }
 
-    /**
-     * Проверяет, входит ли IPv6-адрес в диапазон.
-     *
-     * @param string $ip
-     * @param string $subnet
-     * @param int $bits
-     * @return bool
-     */
+//    Проверяет, входит ли IPv6-адрес в диапазон.
     private function ipv6InRange($ip, $subnet, $bits)
     {
         $ipBin = inet_pton($ip);

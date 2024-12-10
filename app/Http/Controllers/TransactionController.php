@@ -116,7 +116,7 @@ class TransactionController extends Controller
 //    Успешная оплата (для юзеров и партнеров)
     public function success(Request $request)
     {
-        \Log::info('Robokassa payment successful', $request->all());
+        \Log::info('Переход на страницу успешной оплаты', $request->all());
 
         return view('payment.success'); // Предполагается, что у вас есть такой вид
     }
@@ -124,7 +124,7 @@ class TransactionController extends Controller
 //    Неудачная оплата (для юзеров и партнеров)
     public function fail(Request $request)
     {
-        \Log::error('Robokassa payment failed', $request->all());
+        \Log::error('Переход на страницу неудачной оплаты', $request->all());
 
         return view('payment.fail'); // Предполагается, что у вас есть такой вид
     }

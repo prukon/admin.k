@@ -14,7 +14,7 @@ class PartnerAccess extends Model
     // protected $primaryKey = 'id'; // Можно опустить, так как 'id' — значение по умолчанию
 
     protected $fillable = [
-        'payment_id',
+        'partner_payment_id',
         'start_date',
         'end_date',
         'is_active',

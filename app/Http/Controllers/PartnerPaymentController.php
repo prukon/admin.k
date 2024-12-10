@@ -35,14 +35,20 @@ class PartnerPaymentController extends Controller
 //    Формирование таблицы для Истории платежей
     public function getPaymentsData(Request $request)
     {
-        $query = PartnerPayment::with(['partner', 'user'])->select('partner_payments.*');
+        $query = PartnerPayment::with(['partner', 'user'])
+            ->leftJoin('partner_accesses', 'partner_payments.id', '=', 'partner_accesses.partner_payment_id')
+            ->select(
+                'partner_payments.*',
+                'partner_accesses.start_date as access_start_date',
+                'partner_accesses.end_date as access_end_date'
+            );
 
         return DataTables::of($query)
             ->addColumn('partner_name', function ($payment) {
-                return $payment->partner->title ?? 'N/A';
+                return optional($payment->partner)->title ?? 'N/A';
             })
             ->addColumn('user_name', function ($payment) {
-                return $payment->user->name ?? 'N/A';
+                return optional($payment->user)->name ?? 'N/A';
             })
             ->editColumn('amount', function ($payment) {
                 return number_format($payment->amount, 2, ',', ' ') . ' ₽';
@@ -51,17 +57,27 @@ class PartnerPaymentController extends Controller
                 return $payment->payment_method ?? 'N/A';
             })
             ->editColumn('payment_date', function ($payment) {
-                return $payment->payment_date->format('d.m.Y H:i');
+                return $payment->payment_date
+                    ? \Carbon\Carbon::parse($payment->payment_date)->format('d.m.y H:i')
+                    : 'N/A';
+            })
+            ->addColumn('payment_period', function ($payment) {
+                if ($payment->access_start_date && $payment->access_end_date) {
+                    $startDate = \Carbon\Carbon::parse($payment->access_start_date)->format('d.m.y'); // Формат с двумя цифрами года
+                    $endDate = \Carbon\Carbon::parse($payment->access_end_date)->format('d.m.y');
+                    return "$startDate - $endDate";
+                }
+                return 'N/A';
             })
             ->editColumn('payment_status', function ($payment) {
-                $status = match($payment->payment_status){
+                $status = match ($payment->payment_status) {
                 'succeeded' => 'Успешно',
                 'pending' => 'В ожидании',
                 'canceled' => 'Отменён',
                 default => 'Неизвестно',
             };
 
-            $statusClass = match($payment->payment_status){
+            $statusClass = match ($payment->payment_status) {
             'succeeded' => 'badge-success',
                 'pending' => 'badge-warning',
                 default => 'badge-danger',
@@ -69,9 +85,12 @@ class PartnerPaymentController extends Controller
 
             return '<span class="badge ' . $statusClass . '">' . $status . '</span>';
         })
-            ->rawColumns(['payment_status'])// Разрешить HTML
+            ->rawColumns(['payment_status']) // Разрешить HTML
             ->make(true);
     }
+
+
+
 
     //    Формирование платежа Yookassa
     public function createPaymentYookassa(Request $request)
@@ -134,20 +153,16 @@ class PartnerPaymentController extends Controller
 
             // Используем транзакцию
             \DB::transaction(function () use ($payment, $partnerId, $userId, $amount) {
-
-
-//                Начало оплаченного периода берем от последнего оплаченного периода
+                // Получаем дату начала активности
                 $latestEndDate = PartnerAccess::where('is_active', 1)->max('end_date');
 
                 if ($latestEndDate) {
                     $activityStartDate = Carbon::parse($latestEndDate)->addDays(1);
-
                 } else {
                     $activityStartDate = Partner::where('id', $partnerId)->value('activity_start_date');
                 }
 
-
-//                Формируем конечную дату
+                // Формируем конечную дату
                 if ($activityStartDate) {
                     $activityStartDateParse = Carbon::parse($activityStartDate);
                     $endDate = $activityStartDateParse->addDays(29); // Добавить 30 дней
@@ -155,7 +170,8 @@ class PartnerPaymentController extends Controller
                     throw new \Exception('Не удалось получить дату начала активности партнера.');
                 }
 
-                PartnerPayment::create([
+                // Создаем запись платежа
+                $partnerPayment = PartnerPayment::create([
                     'partner_id' => $partnerId,
                     'user_id' => $userId,
                     'payment_id' => $payment->id,
@@ -165,14 +181,13 @@ class PartnerPaymentController extends Controller
                     'payment_method' => 'yookassa',
                 ]);
 
+                // Создаем доступ с привязкой к записи платежа
                 PartnerAccess::create([
-                    'payment_id' => $payment->id,
+                    'partner_payment_id' => $partnerPayment->id, // Используем ID записи платежа
                     'start_date' => $activityStartDate,
                     'end_date' => $endDate,
                     'is_active' => 0,
                 ]);
-
-
             });
 
             // Перенаправляем пользователя на страницу подтверждения

@@ -22,13 +22,15 @@
     {{--scripts--}}
     <script src="{{ asset('js/main.js') }}"></script>
     <!-- Google Font: Source Sans Pro -->
-    <link rel="stylesheet" href="{{ asset('https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback') }}">
+    <link rel="stylesheet"
+          href="{{ asset('https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback') }}">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="{{ asset('plugins/fontawesome-free/css/all.min.css') }}">
     <!-- Ionicons -->
     <link rel="stylesheet" href="{{ asset('https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css') }}">
     <!-- Tempusdominus Bootstrap 4 -->
-    <link rel="stylesheet" href="{{ asset('plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css') }}">
+    <link rel="stylesheet"
+          href="{{ asset('plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css') }}">
     <!-- iCheck -->
     <link rel="stylesheet" href="{{ asset('plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
     <!-- JQVMap -->
@@ -47,12 +49,16 @@
 <div class="wrapper">
 
     <!-- Preloader -->
-        {{--<div class="preloader flex-column justify-content-center align-items-center">--}}
-            {{--<img class="animation__shake" src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="AdminLTELogo" height="60"--}}
-                 {{--width="60">--}}
-        {{--</div>--}}
+{{--<div class="preloader flex-column justify-content-center align-items-center">--}}
+{{--<img class="animation__shake" src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="AdminLTELogo" height="60"--}}
+{{--width="60">--}}
+{{--</div>--}}
 
-    <!-- Navbar -->
+<!-- Navbar -->
+    @php
+        $user = auth()->user();
+    @endphp
+    
     <nav class="main-header navbar navbar-expand navbar-white navbar-light">
         <!-- Left navbar links -->
         <ul class="navbar-nav">
@@ -60,9 +66,12 @@
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
 
+
+
             @foreach($menuItems as $item)
                 <li class="nav-item d-none d-sm-inline-block">
-                    <a target="{{ $item->target_blank ? '_blank' : '_self' }}" href="{{ $item->link }}" class="nav-link">{{ $item->name }}</a>
+                    <a target="{{ $item->target_blank ? '_blank' : '_self' }}" href="{{ $item->link }}"
+                       class="nav-link">{{ $item->name }}</a>
                 </li>
             @endforeach
         </ul>
@@ -71,19 +80,20 @@
         <ul class="navbar-nav ml-auto social-menu mr-3">
             <!-- Navbar Search -->
 
-{{--            <li class="nav-item">--}}
-{{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
-{{--                   href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk" aria-hidden="true"></i></a>--}}
-{{--            </li>--}}
-{{--            <li class="nav-item ml-2">--}}
-{{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
-{{--                   href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i class="fa-brands fa-youtube"--}}
-{{--                                                                                      aria-hidden="true"></i></a>--}}
-{{--            </li>--}}
+            {{--            <li class="nav-item">--}}
+            {{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
+            {{--                   href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk" aria-hidden="true"></i></a>--}}
+            {{--            </li>--}}
+            {{--            <li class="nav-item ml-2">--}}
+            {{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
+            {{--                   href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i class="fa-brands fa-youtube"--}}
+            {{--                                                                                      aria-hidden="true"></i></a>--}}
+            {{--            </li>--}}
 
             @foreach($socialItems as $social)
                 <li class="nav-item {{ $loop->first ? '' : 'ml-2' }}">
-                    <a target="_blank" class="d-flex justify-content-center align-items-center" href="{{ $social->link }}">
+                    <a target="_blank" class="d-flex justify-content-center align-items-center"
+                       href="{{ $social->link }}">
                         @if($social->name === 'vk.com' && $social->link != '')
                             <i class="fa-brands fa-vk" aria-hidden="true"></i>
                         @elseif($social->name === 'YouTube.com' && $social->link != '')
@@ -153,7 +163,6 @@
             </script>
 
 
-
             <!-- Модальное окно настройки меню -->
             @include('includes.confirmLogout')
 
@@ -179,7 +188,7 @@
             {{--                </div>--}}
             {{--            </li>--}}
 
-            <!-- Messages Dropdown Menu -->
+        <!-- Messages Dropdown Menu -->
             {{--            <li class="nav-item dropdown">--}}
             {{--                <a class="nav-link" data-toggle="dropdown" href="#">--}}
             {{--                    <i class="far fa-comments"></i>--}}
@@ -240,44 +249,44 @@
             {{--                    <a href="#" class="dropdown-item dropdown-footer">See All Messages</a>--}}
             {{--                </div>--}}
             {{--            </li>--}}
-            <!-- Notifications Dropdown Menu -->
-                        {{--<li class="nav-item dropdown">--}}
-                            {{--<a class="nav-link" data-toggle="dropdown" href="#">--}}
-                                {{--<i class="far fa-bell"></i>--}}
-                                {{--<span class="badge badge-warning navbar-badge">15</span>--}}
-                            {{--</a>--}}
-                            {{--<div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
-                                {{--<span class="dropdown-item dropdown-header">15 Notifications</span>--}}
-                                {{--<div class="dropdown-divider"></div>--}}
-                                {{--<a href="#" class="dropdown-item">--}}
-                                    {{--<i class="fas fa-envelope mr-2"></i> 4 new messages--}}
-                                    {{--<span class="float-right text-muted text-sm">3 mins</span>--}}
-                                {{--</a>--}}
-                                {{--<div class="dropdown-divider"></div>--}}
-                                {{--<a href="#" class="dropdown-item">--}}
-                                    {{--<i class="fas fa-users mr-2"></i> 8 friend requests--}}
-                                    {{--<span class="float-right text-muted text-sm">12 hours</span>--}}
-                                {{--</a>--}}
-                                {{--<div class="dropdown-divider"></div>--}}
-                                {{--<a href="#" class="dropdown-item">--}}
-                                    {{--<i class="fas fa-file mr-2"></i> 3 new reports--}}
-                                    {{--<span class="float-right text-muted text-sm">2 days</span>--}}
-                                {{--</a>--}}
-                                {{--<div class="dropdown-divider"></div>--}}
-                                {{--<a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>--}}
-                            {{--</div>--}}
-                        {{--</li>--}}
-                        {{--<li class="nav-item">--}}
-                            {{--<a class="nav-link" data-widget="fullscreen" href="#" role="button">--}}
-                                {{--<i class="fas fa-expand-arrows-alt"></i>--}}
-                            {{--</a>--}}
-                        {{--</li>--}}
-                        {{--<li class="nav-item">--}}
-                            {{--<a class="nav-link" data-widget="control-sidebar" data-controlsidebar-slide="true" href="#"--}}
-                               {{--role="button">--}}
-                                {{--<i class="fas fa-th-large"></i>--}}
-                            {{--</a>--}}
-                        {{--</li>--}}
+        <!-- Notifications Dropdown Menu -->
+            {{--<li class="nav-item dropdown">--}}
+            {{--<a class="nav-link" data-toggle="dropdown" href="#">--}}
+            {{--<i class="far fa-bell"></i>--}}
+            {{--<span class="badge badge-warning navbar-badge">15</span>--}}
+            {{--</a>--}}
+            {{--<div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
+            {{--<span class="dropdown-item dropdown-header">15 Notifications</span>--}}
+            {{--<div class="dropdown-divider"></div>--}}
+            {{--<a href="#" class="dropdown-item">--}}
+            {{--<i class="fas fa-envelope mr-2"></i> 4 new messages--}}
+            {{--<span class="float-right text-muted text-sm">3 mins</span>--}}
+            {{--</a>--}}
+            {{--<div class="dropdown-divider"></div>--}}
+            {{--<a href="#" class="dropdown-item">--}}
+            {{--<i class="fas fa-users mr-2"></i> 8 friend requests--}}
+            {{--<span class="float-right text-muted text-sm">12 hours</span>--}}
+            {{--</a>--}}
+            {{--<div class="dropdown-divider"></div>--}}
+            {{--<a href="#" class="dropdown-item">--}}
+            {{--<i class="fas fa-file mr-2"></i> 3 new reports--}}
+            {{--<span class="float-right text-muted text-sm">2 days</span>--}}
+            {{--</a>--}}
+            {{--<div class="dropdown-divider"></div>--}}
+            {{--<a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>--}}
+            {{--</div>--}}
+            {{--</li>--}}
+            {{--<li class="nav-item">--}}
+            {{--<a class="nav-link" data-widget="fullscreen" href="#" role="button">--}}
+            {{--<i class="fas fa-expand-arrows-alt"></i>--}}
+            {{--</a>--}}
+            {{--</li>--}}
+            {{--<li class="nav-item">--}}
+            {{--<a class="nav-link" data-widget="control-sidebar" data-controlsidebar-slide="true" href="#"--}}
+            {{--role="button">--}}
+            {{--<i class="fas fa-th-large"></i>--}}
+            {{--</a>--}}
+            {{--</li>--}}
         </ul>
     </nav>
     <!-- /.navbar -->
@@ -302,32 +311,36 @@
                 <div class="info text-light">
                     <a href="#" class="d-block"></a>
                     <h6> Имя: {{auth()->user()->name}}</h6>
-{{--                    <h6> Id: {{auth()->user()->id}}</h6>--}}
-                                        <h6> Почта: {{auth()->user()->email}}</h6>
+                    {{--                    <h6> Id: {{auth()->user()->id}}</h6>--}}
+                    <h6> Почта: {{auth()->user()->email}}</h6>
                     <h6> Роль: {{auth()->user()->role}}</h6>
 
-                    <h6> Оплачено до:  <a href="/partner-payment/history"><span class="badge badge-success latestEndDate">{{$latestEndDate}} </span></a> </h6>
+                    @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
+
+                        <h6> Оплачено до: <a href="/partner-payment/history"><span
+                                        class="badge badge-success latestEndDate">{{$latestEndDate}} </span></a></h6>
+                    @endif
 
                 </div>
             </div>
 
 
             <!-- SidebarSearch Form -->
-            {{--            <div class="form-inline">--}}
-            {{--                <div class="input-group" data-widget="sidebar-search">--}}
-            {{--                    <input class="form-control form-control-sidebar" type="search" placeholder="Search"--}}
-            {{--                           aria-label="Search">--}}
-            {{--                    <div class="input-group-append">--}}
-            {{--                        <button class="btn btn-sidebar">--}}
-            {{--                            <i class="fas fa-search fa-fw"></i>--}}
-            {{--                        </button>--}}
-            {{--                    </div>--}}
-            {{--                </div>--}}
-            {{--            </div>--}}
+        {{--            <div class="form-inline">--}}
+        {{--                <div class="input-group" data-widget="sidebar-search">--}}
+        {{--                    <input class="form-control form-control-sidebar" type="search" placeholder="Search"--}}
+        {{--                           aria-label="Search">--}}
+        {{--                    <div class="input-group-append">--}}
+        {{--                        <button class="btn btn-sidebar">--}}
+        {{--                            <i class="fas fa-search fa-fw"></i>--}}
+        {{--                        </button>--}}
+        {{--                    </div>--}}
+        {{--                </div>--}}
+        {{--            </div>--}}
 
-            <!-- Sidebar Menu -->
-            @include('includes.sidebar')
-            <!-- /.sidebar-menu -->
+        <!-- Sidebar Menu -->
+        @include('includes.sidebar')
+        <!-- /.sidebar-menu -->
         </div>
         <!-- /.sidebar -->
     </aside>
@@ -335,25 +348,25 @@
     <!-- Content Wrapper. Contains page content -->
     <div class="content-wrapper">
         <!-- Content Header (Page header) -->
-        {{--        <div class="content-header">--}}
-        {{--            <div class="container-fluid">--}}
-        {{--                <div class="row mb-2">--}}
-        {{--                    <div class="col-sm-6">--}}
-        {{--                        <h1 class="m-0">Dashboard</h1>--}}
-        {{--                    </div>--}}
-        {{--                    <!-- /.col -->--}}
+    {{--        <div class="content-header">--}}
+    {{--            <div class="container-fluid">--}}
+    {{--                <div class="row mb-2">--}}
+    {{--                    <div class="col-sm-6">--}}
+    {{--                        <h1 class="m-0">Dashboard</h1>--}}
+    {{--                    </div>--}}
+    {{--                    <!-- /.col -->--}}
 
-        {{--                    <div class="col-sm-6">--}}
-        {{--                        <ol class="breadcrumb float-sm-right">--}}
-        {{--                            <li class="breadcrumb-item"><a href="#">Home</a></li>--}}
-        {{--                            <li class="breadcrumb-item active">Dashboard v1</li>--}}
-        {{--                        </ol>--}}
-        {{--                    </div><!-- /.col -->--}}
+    {{--                    <div class="col-sm-6">--}}
+    {{--                        <ol class="breadcrumb float-sm-right">--}}
+    {{--                            <li class="breadcrumb-item"><a href="#">Home</a></li>--}}
+    {{--                            <li class="breadcrumb-item active">Dashboard v1</li>--}}
+    {{--                        </ol>--}}
+    {{--                    </div><!-- /.col -->--}}
 
-        {{--                </div><!-- /.row -->--}}
-        {{--            </div><!-- /.container-fluid -->--}}
-        {{--        </div>--}}
-        <!-- /.content-header -->
+    {{--                </div><!-- /.row -->--}}
+    {{--            </div><!-- /.container-fluid -->--}}
+    {{--        </div>--}}
+    <!-- /.content-header -->
 
         <!-- Main content -->
         <section class="content">

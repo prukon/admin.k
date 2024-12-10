@@ -65,7 +65,7 @@
                                             {{--                            <input type="hidden" name="client_id" value="{{ $client->id }}"> <!-- client_id передаётся скрыто -->--}}
 {{--                                            <input type="hidden" name="partner_id" value="{{ $partner->id }}">--}}
                                             <input type="hidden" name="partner_id" value="1">
-                                            <input type="hidden" name="amount" value="2500.00">
+                                            <input type="hidden" name="amount" value="1.00">
                                             <!-- Укажите здесь фиксированную сумму -->
                                             <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить
                                             </button>
@@ -149,7 +149,8 @@
                                     <th>Партнер</th>
                                     <th>Пользователь</th>
                                     <th>Сумма</th>
-                                    <th>Дата</th>
+                                    <th>Дата платежа</th>
+                                    <th>Период оплаты</th>
                                     <th>Метод оплаты</th>
                                     <th>Статус</th>
                                 </tr>
@@ -175,6 +176,13 @@
                                         {data: 'user_name', name: 'user_name'},
                                         {data: 'amount', name: 'amount'},
                                         {data: 'payment_date', name: 'payment_date'},
+
+                                        // {data: 'payment_date', name: 'payment_date'},
+
+                                        {data: 'payment_period', name: 'payment_period'},
+
+
+
                                         {data: 'payment_method', name: 'payment_method'},
                                         {
                                             data: 'payment_status',
