@@ -320,7 +320,7 @@
                         <h6> Оплачено до: <a href="/partner-payment/history"><span
                                         class="badge badge-success latestEndDate">
                                     {{ \Carbon\Carbon::parse($latestEndDate)->format('d.m.Y') }}
-                                    
+
                                 </span></a></h6>
                     @endif
 
