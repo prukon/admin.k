@@ -58,7 +58,7 @@
     @php
         $user = auth()->user();
     @endphp
-    
+
     <nav class="main-header navbar navbar-expand navbar-white navbar-light">
         <!-- Left navbar links -->
         <ul class="navbar-nav">
@@ -318,7 +318,10 @@
                     @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
 
                         <h6> Оплачено до: <a href="/partner-payment/history"><span
-                                        class="badge badge-success latestEndDate">{{$latestEndDate}} </span></a></h6>
+                                        class="badge badge-success latestEndDate">
+                                    {{ \Carbon\Carbon::parse($latestEndDate)->format('d.m.Y') }}
+                                    
+                                </span></a></h6>
                     @endif
 
                 </div>
