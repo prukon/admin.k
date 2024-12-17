@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ClientPayment;
 use App\Models\Partner;
 use App\Models\PartnerAccess;
 use App\Models\PartnerPayment;
@@ -23,6 +22,8 @@ class PartnerPaymentController extends Controller
 //    Страница Пополнить счет
     public function showRecharge()
     {
+
+
         return view('payment.paymentPartner', ['activeTab' => 'recharge']);
     }
 
@@ -98,18 +99,30 @@ class PartnerPaymentController extends Controller
         // Валидация входных данных
         $request->validate([
             'amount' => 'required|numeric|min:1',
+            'days' => 'required|numeric|min:1',
             'partner_id' => 'required|exists:partners,id',
+            'description' => 'required',
         ]);
 
         $client = new Client();
         $client->setAuth(config('yookassa.shop_id'), config('yookassa.secret_key'));
 
         $amount = $request->input('amount');
+        $days = $request->input('days');
         $partnerId = $request->input('partner_id');
-        $userId = auth()->id();
+        $description = $request->input('description');
+        $curUser = auth()->user();
 
-        if (!$userId) {
+        if (!$curUser) {
             return back()->withErrors(['message' => 'Пользователь не аутентифицирован.']);
+        }
+        $curUserId = $curUser->id;
+
+
+        if ($curUser->email){
+            $curUserEmail = $curUser->email;
+        } else {
+            $curUserEmail = "test@test.ru";
         }
 
         try {
@@ -124,14 +137,14 @@ class PartnerPaymentController extends Controller
 //                    'return_url' => $returnUrl,
                 ],
                 'capture' => true,
-                'description' => 'Оплата заказа №123',
+                'description' => $description,
                 'receipt' => [
                     'customer' => [
-                        'email' => 'test@example.com',
+                        'email' => $curUserEmail,
                     ],
                     'items' => [
                         [
-                            'description' => 'Тестовый товар',
+                            'description' => $description,
                             'quantity' => 1,
                             'amount' => [
                                 'value' => $amount,
@@ -152,7 +165,7 @@ class PartnerPaymentController extends Controller
             }
 
             // Используем транзакцию
-            \DB::transaction(function () use ($payment, $partnerId, $userId, $amount) {
+            \DB::transaction(function () use ($payment, $partnerId, $curUserId, $amount) {
                 // Получаем дату начала активности
                 $latestEndDate = PartnerAccess::where('is_active', 1)->max('end_date');
 
@@ -173,7 +186,7 @@ class PartnerPaymentController extends Controller
                 // Создаем запись платежа
                 $partnerPayment = PartnerPayment::create([
                     'partner_id' => $partnerId,
-                    'user_id' => $userId,
+                    'user_id' => $curUserId,
                     'payment_id' => $payment->id,
                     'amount' => $amount,
                     'payment_status' => 'pending',

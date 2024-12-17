@@ -90,11 +90,22 @@ class TransactionController extends Controller
         $userName = $request->userName;
         $outSum = $request->outSum;
 
-        if ($request->formatedPaymentDate) {
+//        if ($request->formatedPaymentDate) {
+//            $paymentDate = $request->formatedPaymentDate;
+//        } else {
+//            $paymentDate = "Клубный взнос";
+//        }
+
+        if ($request->has('formatedPaymentDate')) {
             $paymentDate = $request->formatedPaymentDate;
         } else {
+            \Log::warning('formatedPaymentDate отсутствует в запросе');
             $paymentDate = "Клубный взнос";
         }
+
+
+
+
 
         $invId = "";
         $isTest = 1;
