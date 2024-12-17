@@ -38,12 +38,18 @@ class RobokassaController extends Controller
                 exit();
             }
 
+
+        // Проверка $Shp_paymentDate на формат даты
+        $isValidDate = preg_match('/^\d{4}-\d{2}-\d{2}$/', $Shp_paymentDate) && strtotime($Shp_paymentDate);
+        $newMonthValue = $isValidDate ? $Shp_paymentDate : null;
+
+
+
 // success
             echo "OK$invId\n";
             UserPrice::updateOrCreate([
                 'user_id' => $Shp_userId,
-//            'month' => $Shp_paymentDate
-                'new_month' => $Shp_paymentDate
+                'new_month' => $newMonthValue
             ],
                 [
                     'is_paid' => 1
