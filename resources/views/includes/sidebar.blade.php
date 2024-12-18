@@ -24,6 +24,16 @@
             </li>
         @endif
 
+        {{--Платежи юзера--}}
+        @if($user && ($user->role == 'user'))
+            <li class="nav-item">
+                <a href="/reports/payments" class="nav-link">
+                    <i class="nav-icon fa-solid fa-receipt"></i>
+                    <p>Платежи</p>
+                </a>
+            </li>
+        @endif
+
         {{--Установка цен--}}
         @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
             <li class="nav-item">

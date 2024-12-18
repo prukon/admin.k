@@ -65,12 +65,11 @@ class AppServiceProvider extends ServiceProvider
 
 
         //Получаем срок оплаты сервиса
-        $latestEndDate = PartnerAccess::where('is_active', 1)->max('end_date');
-
         View::composer('*', function ($view) {
             $latestEndDate = PartnerAccess::where('is_active', 1)->max('end_date');
             $view->with('latestEndDate', $latestEndDate);
         });
+
 
     }
 }

@@ -1,26 +1,29 @@
 <?php
 
-namespace App\Http\Controllers\Admin\Report;
+namespace App\Http\Controllers\User\Report;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
+use function Illuminate\Http\Client\dump;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+//use function Termwind\dd;
+//use function Termwind\dd;
 use Yajra\DataTables\DataTables;
 use Carbon\Carbon;
 
 class ReportController extends Controller
 {
-
-
+    protected $curUser; // Определяем свойство для хранения текущего пользователя
 
     public function __construct()
     {
-        $this->middleware('role:admin,superadmin');
+        $this->middleware(['auth', 'role:user']); // Применяем middleware auth и role:user
     }
-   public function formatedDate($month)
+
+    public function formatedDate($month)
     {
         // Массив соответствий русских и английских названий месяцев
         $months = [
@@ -59,55 +62,44 @@ class ReportController extends Controller
         }
     }
 
-    public function index()
+    public function showUserPayments()
     {
-        return view("admin.report");
-    }
+        $this->curUser  = auth()->user();
+//        dd($this->curUser->id); // Отладка текущего пользователя
 
-    public function payments()
-    {
+
         $totalPaidPrice = DB::table('payments')
-            ->sum('payments.summ');
+            ->where('user_name',$this->curUser->name) // Сначала фильтрация по user_id
+            ->sum('payments.summ');      // Затем вычисление суммы
 
+//        dd($totalPaidPrice);
         $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
 
-        return view('admin.report.payment', ['activeTab' => 'payments'],
+
+        return view('user.report.payment', ['activeTab' => 'payments'],
             compact('totalPaidPrice'));
     }
 
-    public function debts()
+    public function getUserPayments(Request $request)
     {
-        $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
-        $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
+        $this->curUser  = auth()->user();
 
-            $totalUnpaidPrice = DB::table('users_prices')
-                ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
-                ->where('users_prices.is_paid', 0)
-                ->where('users.is_enabled', 1)
-                ->where('users_prices.price', '>', 0)
-                ->where('users_prices.new_month', '<', $currentMonth)
-                ->sum('users_prices.price');
 
-        $totalUnpaidPrice = number_format($totalUnpaidPrice, 0, '', ' ');
-
-        return view('admin.report.debt', ['activeTab' => 'debts'],
-        compact('totalUnpaidPrice'));
-    }
-
-    public function getPayments(Request $request)
-    {
         if ($request->ajax()) {
-            $payments = Payment::with(['user.team'])->get();
+            $payments = Payment::with(['user.team'])
+                ->where('user_name',$this->curUser->name) // Сначала фильтрация по user_id
+                ->get();
+
 
             return DataTables::of($payments)
                 ->addIndexColumn()
-                ->addColumn('user_name', function($row) {
+                ->addColumn('user_name', function ($row) {
                     // Проверяем, есть ли пользователь в таблице payments
                     return $row->user_name
                         ? $row->user_name // Возвращаем имя пользователя из payments
                         : ($row->user ? $row->user->name : 'Без пользователя'); // Или из связанной модели, если нет в payments
                 })
-                ->addColumn('user_id', function($row) {
+                ->addColumn('user_id', function ($row) {
                     // Возвращаем user_id, если он существует, иначе null
                     return $row->user ? $row->user->id : null;
                 })
@@ -127,59 +119,4 @@ class ReportController extends Controller
         }
     }
 
-    public function getDebts(Request $request)
-    {
-
-        $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
-        $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
-
-//         dd($currentMonth);
-        if ($request->ajax()) {
-            $usersWithUnpaidPrices = DB::table('users_prices')
-                ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
-                ->select('users.name as user_name','users.id as user_id' , 'users_prices.new_month', 'users_prices.price')
-                ->where('users_prices.is_paid', 0)
-                ->where('users.is_enabled', 1)
-                ->where('users_prices.price', '>', 0)
-                ->where('users_prices.new_month', '<', $currentMonth)
-                ->get();
-
-            // Добавляем проверку на наличие данных
-            if ($usersWithUnpaidPrices->isEmpty()) {
-                // Возвращаем пустую таблицу, но в корректном формате для DataTables
-                return response()->json([
-                    'draw' => $request->get('draw'), // draw должен быть передан DataTables
-                    'recordsTotal' => 0,
-                    'recordsFiltered' => 0,
-                    'data' => [] // Пустой массив данных
-                ]);
-            }
-
-            return DataTables::of($usersWithUnpaidPrices)
-                ->addIndexColumn()
-                ->addColumn('user_name', function($row) {
-                    return $row->user_name ? $row->user_name : 'Без имени'; // Проверяем наличие имени пользователя
-                })
-                ->addColumn('month', function($row) {
-                    return $row->new_month; // Месяц
-                })
-                ->addColumn('price', function($row) {
-                    return number_format($row->price, 2) . ' руб'; // Формат цены
-                })
-                ->make(true);
-        }
-    }
-
-
-
-
-
-    public function showUserPayments() {
-        $totalPaidPrice = DB::table('payments') ->sum('payments.summ');
-        $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
-
-
-        return view('user.report.payment', ['activeTab' => 'payments'],
-            compact('totalPaidPrice'));
-    }
 }
