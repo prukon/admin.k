@@ -32,8 +32,8 @@
                 <div class="row choose-user">
 
 
-                    <div class="col-md-3 col-12 mb-3  team-select">
-                        <select class="form-select" id="single-select-team" data-placeholder="Группа">
+                    <div class="col-md-3 col-12 mb-3 team-select text-start">
+                        <select class="form-select text-start" id="single-select-team" data-placeholder="Группа">
                             <option value="all">Все группы</option>
                             <option value="withoutTeam">Без группы</option>
 

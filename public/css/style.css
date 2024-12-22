@@ -1018,3 +1018,7 @@ font-size: 11px;
 .info .latestEndDate {
     vertical-align: middle;
 }
+
+.select2-results {
+    text-align: left;
+}
