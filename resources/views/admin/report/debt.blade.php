@@ -96,13 +96,33 @@
                         }
                     },
 
+                    // {
+                    //     data: 'price',
+                    //     name: 'price',
+                    //     render: function (data, type, row) {
+                    //         return row.price;
+                    //     }
+                    // }
+
                     {
                         data: 'price',
                         name: 'price',
                         render: function (data, type, row) {
-                            return row.price;
+                            if (type === 'display') {
+                                // Функция для форматирования числа с запятыми
+                                function formatNumber(number) {
+                                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                                }
+
+                                const formattedPrice = formatNumber(row.price);
+                                return `${formattedPrice} руб`; // Отображение значения с символом рубля
+                            }
+                            return parseFloat(row.price); // Для сортировки возвращаем число
                         }
                     }
+
+
+
                 ],
                 order: [[2, 'asc']],
                 language: {

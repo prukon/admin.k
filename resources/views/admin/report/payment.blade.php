@@ -17,7 +17,7 @@
                             <a class="nav-link {{ $activeTab == 'debts' ? 'active' : '' }}" href="/admin/reports/debts" role="tab">Задолженности</a>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <a class="nav-link {{ $activeTab == 'debts' ? 'active' : '' }}" href="/admin/reports/ltv" role="tab">LTV</a>
+                            <a class="nav-link {{ $activeTab == 'ltv' ? 'active' : '' }}" href="/admin/reports/ltv" role="tab">LTV</a>
                         </li>
                     </ul>
 
@@ -70,7 +70,25 @@
                                                 },
 
                                                 {data: 'team_title', name: 'team_title'},
-                                                {data: 'summ', name: 'summ'},
+                                                // {data: 'summ', name: 'summ'},
+
+                                                {
+                                                    data: 'summ',
+                                                    name: 'summ',
+                                                    render: function (data, type, row) {
+                                                        if (type === 'display') {
+                                                            // Функция для форматирования числа с запятыми
+                                                            function formatNumber(number) {
+                                                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                                                            }
+
+                                                            const formattedPrice = formatNumber(row.summ);
+                                                            return `${formattedPrice} руб`; // Отображение значения с символом рубля
+                                                        }
+                                                        return parseFloat(row.summ); // Для сортировки возвращаем число
+                                                    }
+                                                },
+
 
                                                 {
                                                     data: 'payment_month',

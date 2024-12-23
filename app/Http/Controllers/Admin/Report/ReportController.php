@@ -142,8 +142,12 @@ class ReportController extends Controller
                         : 'Без команды'; // Если команды нет
                 })
                 ->addColumn('summ', function ($row) {
-                    return number_format($row->summ, 0) . ' руб'; // Формат суммы
+//                    return number_format($row->summ, 0) . ' руб'; // Формат суммы
+                    return (float) $row->summ;
+
                 })
+
+
                 ->addColumn('operation_date', function ($row) {
                     return $row->operation_date; // Дата операции
                 })
@@ -188,7 +192,9 @@ class ReportController extends Controller
                     return $row->new_month; // Месяц
                 })
                 ->addColumn('price', function($row) {
-                    return number_format($row->price, 2) . ' руб'; // Формат цены
+//                    return number_format($row->price, 2) . ' руб'; // Формат цены
+
+                    return (float) $row->price;
                 })
                 ->make(true);
         }

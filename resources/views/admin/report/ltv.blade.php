@@ -116,7 +116,13 @@
                         name: 'total_price',
                         render: function (data, type, row) {
                             if (type === 'display') {
-                                return row.total_price + ' руб'; // Отображение значения с символом рубля
+                                // Функция для форматирования числа с запятыми
+                                function formatNumber(number) {
+                                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                                }
+
+                                const formattedPrice = formatNumber(row.total_price);
+                                return `${formattedPrice} руб`; // Отображение значения с символом рубля
                             }
                             return parseFloat(row.total_price); // Для сортировки возвращаем число
                         }
