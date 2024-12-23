@@ -20,7 +20,8 @@
                 <hr>
             </div>
             <div class="row justify-content-md-center">
-                <div id='selectDate' class="col-10">
+                {{--<div id='selectDate' class="col-10">--}}
+                <div id='selectDate' class="selectDate">
                     <select class="form-select" id="single-select-date" data-placeholder="Дата">
 
                         @if($currentDateString)
@@ -65,7 +66,7 @@
             <div class="row justify-content-center  mt-3 " id='wrap-bars'>
                 {{--<div id='left_bar' class="col col-lg-5 mb-3">--}}
                 <div id='left_bar' class="col-12 col-lg-5 mb-3 ">
-                    <button id="set-price-all-teams" class="btn btn-primary btn-setting-prices mb-3 mt-3">Применить
+                    <button id="set-price-all-teams" class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-teams">Применить
                     </button>
 
                     @if(isset($teamPrices) && count($teamPrices) > 0)
@@ -91,7 +92,7 @@
                 </div>
                 <div class="col-md-auto"></div>
                 <div id='right_bar' class="col-12 col-lg-5">
-                    <button disabled id="set-price-all-users" class="btn btn-primary btn-setting-prices mb-3 mt-3">
+                    <button disabled id="set-price-all-users" class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-users">
                         Применить
                     </button>
                     <div class="row mb-2 wrap-users"></div>

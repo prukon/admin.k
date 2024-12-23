@@ -196,7 +196,7 @@ footer .social-networks {
 }
 
 .seasons .season {
-    text-align: center;
+    /*text-align: center;*/
     margin-top: 20px;
     /*padding-bottom: 23px;*/
     border: 1px solid #f3a12b;
@@ -1033,3 +1033,14 @@ font-size: 11px;
 #editPhotoModal {
     z-index: 1060;
 }
+.selectDate {
+    max-width: 500px;
+    width: 100%;
+    padding: 0;
+}
+.set-price-all-teams {
+    max-width: 500px;
+}
+.set-price-all-users {
+    max-width: 500px;
+}  
