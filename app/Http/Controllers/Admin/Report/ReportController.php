@@ -206,21 +206,6 @@ class ReportController extends Controller
 
 
 
-//            $usersWithTotalUnpaidPrices = DB::table('users_prices')
-//                ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
-//                ->select(
-//                    'users.name as user_name',
-//                    'users.id as user_id',
-//                    DB::raw('SUM(users_prices.price) as total_price')
-//                )
-//                ->where('users_prices.is_paid', 0)
-//                ->where('users.is_enabled', 1)
-//                ->where('users_prices.price', '>', 0)
-//                ->groupBy('users.id', 'users.name')
-//                ->get();
-
-
-
             $usersWithTotalUnpaidPrices = DB::table('users_prices')
                 ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
                 ->select(
