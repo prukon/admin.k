@@ -1022,3 +1022,14 @@ font-size: 11px;
 .select2-results {
     text-align: left;
 }
+
+
+/*Первая модалка*/
+#editUserModal {
+    z-index: 1050;
+}
+
+/*Вторя модалка*/
+#editPhotoModal {
+    z-index: 1060;
+}

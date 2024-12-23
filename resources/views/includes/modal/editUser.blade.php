@@ -129,7 +129,8 @@
 </div>
 
 <!-- Модалка для редактирования аватарки -->
-<div class="modal fade" id="uploadPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
+{{--<div class="modal fade" id="uploadPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">--}}
+<div class="modal fade" id="editPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
     <div class="modal-dialog ">
         <div class="modal-content background-color-grey">
             <div class="modal-header">
@@ -294,6 +295,9 @@
                     keyboard: false      // Отключаем закрытие модалки по клавише Esc
                 }).modal('show'); // Открываем модалку для выбора фото
 
+
+
+
                 // initializeCroppie();
             });
 
@@ -360,7 +364,7 @@
                                         alert('Аватар успешно обновлен');
 
                                         // Закрытие второй модалки и возврат к основной модалке
-                                        $('#uploadPhotoModal').modal('hide');
+                                        $('#editPhotoModal').modal('hide');
                                         $('#editUserModal').css('opacity', '1').modal('show');
                                     } else {
                                         console.error('Ответ сервера не содержит success:', response);
@@ -513,7 +517,8 @@
             document.getElementById('update-photo').addEventListener('click', function (e) {
                 e.preventDefault();
                 // Открытие модального окна для обновления аватарки
-                $('#uploadPhotoModal').modal('show');
+                // $('#uploadPhotoModal').modal('show');
+                $('#editPhotoModal').modal('show');
             });
         }
 
