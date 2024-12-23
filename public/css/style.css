@@ -1043,4 +1043,7 @@ font-size: 11px;
 }
 .set-price-all-users {
     max-width: 500px;
-}  
+}
+.select2-selection__rendered{
+    text-align: left;
+}

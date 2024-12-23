@@ -286,10 +286,31 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     }
 
-                    // Закрашивание юзеров без команды
-                    function apendStyleToUserWithoutTeam() {
+                    //отключение форм для юзеров и суперюзеров
+                    function disabledPaymentForm(role) {
+                        if (role == "admin" || role == "superadmin" ) {
+                            // Получаем все формы на странице
+                            const forms = document.querySelectorAll('form');
 
+// Перебираем каждую форму и отключаем её
+                            forms.forEach((form) => {
+                                form.addEventListener('submit', (event) => {
+                                    event.preventDefault(); // Отменяем отправку формы
+                                });
+
+                                // Отключаем кнопку отправки, если она есть
+                                const submitButton = form.querySelector('button[type="submit"]');
+                                if (submitButton) {
+                                    submitButton.disabled = true; // Делаем кнопку неактивной
+                                }
+
+                                // Добавляем визуальные эффекты, чтобы показать, что форма отключена
+                                form.style.opacity = '0.5';
+                                form.style.pointerEvents = 'none';
+                            });
+                        }
                     }
+
 
                     showHeaderShedule();
                     refreshPrice();
@@ -309,6 +330,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     createCalendar();
                     openFirstSeason();
                     // apendStyleToUserWithoutTeam();
+
+                    disabledPaymentForm(currentUserRole);
 
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
