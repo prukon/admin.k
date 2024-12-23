@@ -46,8 +46,11 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //    Отчеты
     Route::get('/admin/reports/payments', [\App\Http\Controllers\Admin\Report\ReportController::class, 'payments'])->name('payments');
     Route::get('/admin/reports/debts', [\App\Http\Controllers\Admin\Report\ReportController::class, 'debts'])->name('debts');
+    Route::get('/admin/reports/ltv', [\App\Http\Controllers\Admin\Report\ReportController::class, 'ltv'])->name('ltv');
+
     Route::get('/getPayments', [\App\Http\Controllers\Admin\Report\ReportController::class, 'getPayments'])->name('payments.getPayments');
     Route::get('/getDebts', [\App\Http\Controllers\Admin\Report\ReportController::class, 'getDebts'])->name('debts.getDebts');
+    Route::get('/getLtv', [\App\Http\Controllers\Admin\Report\ReportController::class, 'getLtv'])->name('ltv.getLtv');
 
 
     //    Отчеты юзера

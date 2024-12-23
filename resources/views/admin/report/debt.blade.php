@@ -17,7 +17,7 @@
                         <a class="nav-link {{ $activeTab == 'debts' ? 'active' : '' }}" href="/admin/reports/debts" role="tab">Задолженности</a>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link {{ $activeTab == 'debts' ? 'active' : '' }}" href="/admin/reports/ltv" role="tab">LTV</a>
+                        <a class="nav-link {{ $activeTab == 'ltv' ? 'active' : '' }}" href="/admin/reports/ltv" role="tab">LTV</a>
                     </li>
 
                 </ul>
