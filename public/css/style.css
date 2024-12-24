@@ -1047,3 +1047,31 @@ font-size: 11px;
 .select2-selection__rendered{
     text-align: left;
 }
+.wrap-icon {
+    border: #f3a12b solid 1px;
+    padding: 6px;
+    background-color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 13px;
+    width: 35px;
+}
+.wrap-icon:hover {
+    background-color: #f3a12b;
+    color: white;
+
+}
+
+.fieldModalLabel {
+z-index: 2000;
+}
+.errorFieldModal {
+    z-index: 2010;
+
+}
+.successFieldModal {
+    z-index: 2010;
+}
+.confirmDeleteModal {
+    z-index: 2009;
+}

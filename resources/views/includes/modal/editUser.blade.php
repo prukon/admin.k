@@ -80,6 +80,34 @@
                         <input name="email" type="email" class="form-control" id="edit-email" required>
                     </div>
 
+
+                    <!-- Поле "Теги" -->
+                    <div class="mb-3">
+                        <label for="tags-wrapper" class="form-label">Теги</label>
+                        <div id="tags-wrapper" class="tags-wrapper">
+                            <!-- Список тегов -->
+                            <div id="tags-list">
+                                <!-- Пример: тег с названием и значением -->
+                                <!-- Эти элементы добавляются динамически -->
+                            </div>
+
+                            <!-- Кнопка добавления нового тега -->
+                            <button type="button" id="add-tag-btn" class="btn btn-secondary mt-2">Добавить тег</button>
+                        </div>
+                    </div>
+
+                    <!-- Шаблон для нового тега -->
+                    <template id="tag-template">
+                        <div class="tag-item d-flex align-items-center mb-2">
+                            <input type="text" name="tags[][name]" class="form-control mr-2"
+                                   placeholder="Название тега">
+                            <input type="text" name="tags[][value]" class="form-control mr-2"
+                                   placeholder="Значение тега">
+                            <button type="button" class="btn btn-danger btn-sm remove-tag-btn">Удалить</button>
+                        </div>
+                    </template>
+
+
                     <!-- Поле "Активность" -->
                     <div class="mb-3 ">
                         <label for="edit-activity" class="form-label">Активность</label>
@@ -189,8 +217,6 @@
 </div>
 
 
-
-
 <script>
 
 
@@ -294,8 +320,6 @@
                     backdrop: 'static',  // Запрещаем закрытие модалки при клике вне её
                     keyboard: false      // Отключаем закрытие модалки по клавише Esc
                 }).modal('show'); // Открываем модалку для выбора фото
-
-
 
 
                 // initializeCroppie();
@@ -668,6 +692,25 @@
             });
         }
 
+        // Добавление/удаление тегов
+        function addTags() {
+            const addTagBtn = document.getElementById('add-tag-btn');
+            const tagsList = document.getElementById('tags-list');
+            const tagTemplate = document.getElementById('tag-template');
+
+            // Добавление нового тега
+            addTagBtn.addEventListener('click', function () {
+                const tagItem = tagTemplate.content.cloneNode(true);
+                tagsList.appendChild(tagItem);
+            });
+
+            // Удаление тега
+            tagsList.addEventListener('click', function (e) {
+                if (e.target.classList.contains('remove-tag-btn')) {
+                    e.target.closest('.tag-item').remove();
+                }
+            });
+        }
 
 
         clickToUpdatePhoto();
@@ -676,6 +719,7 @@
         showContexMenu();
         deteleAvatar();
         deleteUser();
+        addTags();
     });
 </script>
 

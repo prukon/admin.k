@@ -12,6 +12,11 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use App\Models\Tag;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
+
+
 
 class UpdateController extends Controller
 {
@@ -96,5 +101,63 @@ class UpdateController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function storeFields(Request $request)
+    {
+        // Получаем все поля, которые были отправлены
+        $fields = $request->input('fields', []);
+
+        // Сначала удалим те теги, которых больше нет в запросе
+        // Получаем все существующие теги
+        $existingFieldIds = Tag::pluck('id')->toArray();
+        $submittedFieldIds = array_filter(array_column((array) $fields, 'id'));
+
+        // Находим все ID, которые есть в базе, но не были отправлены в запросе (т.е. удалены)
+        $fieldsToDelete = array_diff($existingFieldIds, $submittedFieldIds);
+
+        // Удаляем все найденные поля
+        Tag::whereIn('id', $fieldsToDelete)->delete();
+
+        // Обрабатываем каждый тег в запросе
+// Обрабатываем каждый тег в запросе
+        foreach ($fields as $key => $field) {
+            $fieldId = $field['id'] ?? null;
+
+            // Транслитерируем name в slug с помощью Str::slug
+            $slug = Str::slug($field['name']); // Применяем транслитерацию и замену пробелов на дефисы
+
+            // Валидация для каждого поля
+            $request->validate([
+                "fields.$key.name" => 'required|string|max:255',
+                "fields.$key.slug" => [
+                    'required',
+                    'string',
+                    'max:255',
+                    Rule::unique('tags', 'slug')->ignore($fieldId),
+                ],
+                "fields.$key.field_type" => 'required|string',
+            ]);
+
+            // Если у поля есть ID, то это обновление существующего тега
+            if ($fieldId) {
+                $tag = Tag::findOrFail($fieldId);
+                $tag->update([
+                    'name' => $field['name'],
+                    'slug' => $slug, // Используем транслитерированный slug
+                    'field_type' => $field['field_type'],
+                ]);
+            } else {
+                // Если ID нет, создаем новый тег
+                Tag::create([
+                    'name' => $field['name'],
+                    'slug' => $slug, // Используем транслитерированный slug
+                    'field_type' => $field['field_type'],
+                ]);
+            }
+        }
+
+
+        // Возвращаем успешный ответ
+        return response()->json(['message' => 'Поля успешно сохранены']);
+    }
 
 }

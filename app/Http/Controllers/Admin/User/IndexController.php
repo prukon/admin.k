@@ -8,6 +8,8 @@ use App\Http\Requests\User\FilterRequest;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Models\Tag; // Модель для работы с таблицей тегов
+
 
 class IndexController extends Controller
 {
@@ -21,8 +23,10 @@ class IndexController extends Controller
         $data = $request->validated();
 //        dd($data);
         $query = User::query();
+        $fields = Tag::all();
 
-if (isset($data['id'])) {
+
+        if (isset($data['id'])) {
     $query->where('id', $data['id']);
 }
 
@@ -35,7 +39,8 @@ if (isset($data['id'])) {
 
         return view("admin.user", compact(
             "allUsers" ,
-            "allTeams"
+            "allTeams",
+            'fields'
 
         ));
     }

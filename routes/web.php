@@ -37,6 +37,10 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::patch('admin/users/{user}', '\App\Http\Controllers\Admin\User\UpdateController')->name('admin.user.update');
     Route::delete('/admin/user/{user}', '\App\Http\Controllers\Admin\User\DestroyController')->name('admin.user.delete');
     Route::get('/admin/user/logs-data', '\App\Http\Controllers\Admin\User\LogsController')->name('logs.data.user');
+    Route::post('/admin/field/store', [\App\Http\Controllers\Admin\User\UpdateController::class, 'storeFields'])->name('admin.field.store');
+    Route::delete('/admin/field/delete/{id}', [\App\Http\Controllers\Admin\User\UpdateController::class, 'deleteField'])->name('admin.field.delete');
+
+
 
 
     Route::get('admin/setting-prices', [\App\Http\Controllers\Admin\SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');

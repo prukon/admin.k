@@ -52,8 +52,11 @@ class PartnerPaymentController extends Controller
                 return optional($payment->user)->name ?? 'N/A';
             })
             ->editColumn('amount', function ($payment) {
-                return number_format($payment->amount, 2, ',', ' ') . ' ₽';
+//                return number_format($payment->amount, 2, ',', ' ') . ' ₽';
+                return (float) $payment->amount;
+
             })
+
             ->editColumn('payment_method', function ($payment) {
                 return $payment->payment_method ?? 'N/A';
             })

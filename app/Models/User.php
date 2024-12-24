@@ -59,5 +59,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Payment::class);
     }
+
+    public function tagValues()
+    {
+        return $this->hasMany(UserTagValue::class, 'user_id');
+    }
 }
 

@@ -180,7 +180,27 @@
                                         {data: 'id', name: 'id'},
                                         {data: 'partner_name', name: 'partner_name'},
                                         {data: 'user_name', name: 'user_name'},
-                                        {data: 'amount', name: 'amount'},
+                                        // {data: 'amount', name: 'amount'},
+
+                                        {
+                                            data: 'amount',
+                                            name: 'amount',
+                                            render: function (data, type, row) {
+                                                if (type === 'display') {
+                                                    // Функция для форматирования числа с запятыми
+                                                    function formatNumber(number) {
+                                                        return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                                                    }
+
+                                                    const formattedPrice = formatNumber(row.amount);
+                                                    return `${formattedPrice} руб`; // Отображение значения с символом рубля
+                                                }
+                                                return parseFloat(row.amount); // Для сортировки возвращаем число
+                                            }
+                                        },
+
+
+
                                         {data: 'payment_date', name: 'payment_date'},
 
                                         // {data: 'payment_date', name: 'payment_date'},
