@@ -51,6 +51,12 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    protected $fillable = [
+        'fields', // Добавьте это поле в список fillable
+    ];
+
+
     public function team()
     {
         return $this->belongsTo(Team::class);
@@ -60,9 +66,19 @@ class User extends Authenticatable
         return $this->hasMany(Payment::class);
     }
 
-    public function tagValues()
+    public function fieldValues()
     {
-        return $this->hasMany(UserTagValue::class, 'user_id');
+        return $this->hasMany(UserFieldValue::class, 'user_id');
+    }
+
+
+
+
+    public function fields()
+    {
+        return $this->belongsToMany(UserField::class, 'user_field_values', 'user_id', 'field_id')
+            ->withPivot('value')
+            ->withTimestamps();
     }
 }
 

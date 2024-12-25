@@ -13,9 +13,10 @@ use App\Models\User;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use App\Models\Log;
+
 
 //use Illuminate\Support\Facades\Log;
-use App\Models\Log;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 

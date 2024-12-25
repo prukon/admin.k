@@ -74,6 +74,17 @@
                         <input type="date" name="start_date" class="form-control" id="edit-start_date">
                     </div>
 
+
+                    <div class="mb-3">
+                        <label for="edit-fields" class="form-label">Теги</label>
+                        <input type="text" name="fields" class="form-control" id="edit-fields"
+                               value="{{ isset($user->fields) ? $user->fields : '' }}">
+                    </div>
+
+
+
+
+
                     <!-- Поле "Email" -->
                     <div class="mb-3 ">
                         <label for="edit-email" class="form-label">Адрес электронной почты*</label>
@@ -81,31 +92,23 @@
                     </div>
 
 
-                    <!-- Поле "Теги" -->
+
+                @if($fields->isNotEmpty()) <!-- Проверяем, есть ли пользовательские поля -->
                     <div class="mb-3">
-                        <label for="tags-wrapper" class="form-label">Теги</label>
-                        <div id="tags-wrapper" class="tags-wrapper">
-                            <!-- Список тегов -->
-                            <div id="tags-list">
-                                <!-- Пример: тег с названием и значением -->
-                                <!-- Эти элементы добавляются динамически -->
+                        <h5>Пользовательские поля</h5>
+                        @foreach($fields as $field)
+                            <div class="mb-3">
+                                <label for="custom-{{ $field->slug }}" class="form-label">{{ $field->name }}</label>
+                                @if($field->field_type == 'string')
+                                    <input type="text" name="custom[{{ $field->slug }}]" class="form-control" id="custom-{{ $field->slug }}" value="{{ old('custom.' . $field->slug, $user->custom_fields[$field->slug] ?? '') }}">
+                                @elseif($field->field_type == 'textarea')
+                                    <textarea name="custom[{{ $field->slug }}]" class="form-control" id="custom-{{ $field->slug }}">{{ old('custom.' . $field->slug, $user->custom_fields[$field->slug] ?? '') }}</textarea>
+                                @endif
                             </div>
-
-                            <!-- Кнопка добавления нового тега -->
-                            <button type="button" id="add-tag-btn" class="btn btn-secondary mt-2">Добавить тег</button>
-                        </div>
+                        @endforeach
                     </div>
+                @endif
 
-                    <!-- Шаблон для нового тега -->
-                    <template id="tag-template">
-                        <div class="tag-item d-flex align-items-center mb-2">
-                            <input type="text" name="tags[][name]" class="form-control mr-2"
-                                   placeholder="Название тега">
-                            <input type="text" name="tags[][value]" class="form-control mr-2"
-                                   placeholder="Значение тега">
-                            <button type="button" class="btn btn-danger btn-sm remove-tag-btn">Удалить</button>
-                        </div>
-                    </template>
 
 
                     <!-- Поле "Активность" -->
@@ -466,74 +469,8 @@
                 $('#error-message').hide();
             });
 
-            // Открываем модалку и загружаем данные пользователя для редактирования
-            $('.edit-user-link').on('click', function () {
-                let userId = $(this).data('id'); // Получаем ID пользователя
-                let url = `/admin/users/${userId}/edit`; // Маршрут для получения данных пользователя (GET)
-                console.log('Открываем модалку для редактирования пользователя с ID:', userId);
 
-                // AJAX-запрос для получения данных пользователя
-                $.ajax({
-                    url: url,
-                    method: 'GET',
-                    success: function (response) {
-                        console.log('Данные пользователя получены:', response);
 
-                        // Заполняем поля в модалке
-                        $('#edit-name').val(response.user.name);
-                        $('#edit-birthday').val(response.user.birthday);
-                        $('#edit-team').val(response.user.team_id);
-                        $('#edit-start_date').val(response.user.start_date);
-                        $('#edit-email').val(response.user.email);
-                        $('#edit-activity').val(response.user.is_enabled);
-
-                        // Устанавливаем маршрут для обновления пользователя в форме
-                        $('#edit-user-form').attr('action', `/admin/users/${userId}`);
-
-                        // Проверяем, есть ли аватарка, и устанавливаем её в модалку
-                        if (response.user.image_crop) {
-                            $('#confirm-img').attr('src', `/storage/avatars/${response.user.image_crop}`); // Загружаем текущую аватарку
-                            console.log('Текущая аватарка пользователя:', response.user.image_crop);
-                        } else {
-                            $('#confirm-img').attr('src', '/img/default.png'); // Загружаем изображение по умолчанию, если аватарки нет
-                            console.log('Загружено изображение по умолчанию');
-                        }
-                        // Проверяем и переключаем кнопку удаления аватарки
-                        toggleDeleteButton();
-
-                        // Открываем модальное окно
-                        $('#editUserModal').modal('show');
-                    },
-                    error: function () {
-                        console.error('Ошибка при загрузке данных пользователя');
-                    }
-                });
-            });
-
-            // Обработчик обновления данных пользователя
-            $('#edit-user-form').on('submit', function (e) {
-                e.preventDefault();
-
-                let form = $(this);
-                let url = form.attr('action');
-
-                console.log('Отправляем форму для обновления пользователя с URL:', url);
-
-                // AJAX-запрос для обновления данных пользователя
-                $.ajax({
-                    url: url,
-                    method: 'PATCH',
-                    data: form.serialize(),
-                    success: function () {
-                        console.log('Данные пользователя успешно обновлены');
-                        $('#editUserModal').modal('hide');
-                        location.reload(); // Обновляем страницу
-                    },
-                    error: function () {
-                        console.error('Ошибка при обновлении данных пользователя');
-                    }
-                });
-            });
         }
 
         //Клик по обновить фотографию
@@ -692,23 +629,81 @@
             });
         }
 
-        // Добавление/удаление тегов
-        function addTags() {
-            const addTagBtn = document.getElementById('add-tag-btn');
-            const tagsList = document.getElementById('tags-list');
-            const tagTemplate = document.getElementById('tag-template');
+        // Открываем модалку и загружаем данные пользователя для редактирования
+        function editUserLink() {
+            $('.edit-user-link').on('click', function () {
+                let userId = $(this).data('id'); // Получаем ID пользователя
+                let url = `/admin/users/${userId}/edit`; // Маршрут для получения данных пользователя (GET)
+                console.log('Открываем модалку для редактирования пользователя с ID:', userId);
 
-            // Добавление нового тега
-            addTagBtn.addEventListener('click', function () {
-                const tagItem = tagTemplate.content.cloneNode(true);
-                tagsList.appendChild(tagItem);
+                // AJAX-запрос для получения данных пользователя
+                $.ajax({
+                    url: url,
+                    method: 'GET',
+                    success: function (response) {
+                        console.log('Данные пользователя получены:', response);
+                        console.log('response.user', response.user);
+                        console.log('response.user.fields', response.user.fields);
+
+
+                        // Заполняем поля в модалке
+                        $('#edit-name').val(response.user.name);
+                        $('#edit-birthday').val(response.user.birthday);
+                        $('#edit-team').val(response.user.team_id);
+                        $('#edit-start_date').val(response.user.start_date);
+                        $('#edit-email').val(response.user.email);
+                        $('#edit-activity').val(response.user.is_enabled);
+
+                        // Устанавливаем маршрут для обновления пользователя в форме
+                        $('#edit-user-form').attr('action', `/admin/users/${userId}`);
+
+                        // Проверяем, есть ли аватарка, и устанавливаем её в модалку
+                        if (response.user.image_crop) {
+                            $('#confirm-img').attr('src', `/storage/avatars/${response.user.image_crop}`); // Загружаем текущую аватарку
+                            console.log('Текущая аватарка пользователя:', response.user.image_crop);
+                        } else {
+                            $('#confirm-img').attr('src', '/img/default.png'); // Загружаем изображение по умолчанию, если аватарки нет
+                            console.log('Загружено изображение по умолчанию');
+                        }
+                        // Проверяем и переключаем кнопку удаления аватарки
+                        toggleDeleteButton();
+
+                        // Открываем модальное окно
+                        $('#editUserModal').modal('show');
+                    },
+                    error: function () {
+                        console.error('Ошибка при загрузке данных пользователя');
+                    }
+                });
             });
+        }
 
-            // Удаление тега
-            tagsList.addEventListener('click', function (e) {
-                if (e.target.classList.contains('remove-tag-btn')) {
-                    e.target.closest('.tag-item').remove();
-                }
+        // Обработчик обновления данных пользователя
+        function editUserForm() {
+            $('#edit-user-form').on('submit', function (e) {
+                e.preventDefault();
+
+                let form = $(this);
+                let url = form.attr('action');
+
+                console.log('Отправляем форму для обновления пользователя с URL:', url);
+
+                console.log('form.serialize():' + form.serialize());
+
+                // AJAX-запрос для обновления данных пользователя
+                $.ajax({
+                    url: url,
+                    method: 'PATCH',
+                    data: form.serialize(),
+                    success: function () {
+                        console.log('Данные пользователя успешно обновлены');
+                        $('#editUserModal').modal('hide');
+                        // location.reload(); // Обновляем страницу
+                    },
+                    error: function () {
+                        console.error('Ошибка при обновлении данных пользователя');
+                    }
+                });
             });
         }
 
@@ -719,7 +714,8 @@
         showContexMenu();
         deteleAvatar();
         deleteUser();
-        addTags();
+        editUserLink();
+        editUserForm();
     });
 </script>
 

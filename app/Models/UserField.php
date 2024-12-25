@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Tag extends Model
+class UserField extends Model
 {
     use HasFactory;
 
-    protected $table = 'tags';
+    protected $table = 'user_fields';
 
     protected $fillable = [
         'name',
@@ -17,8 +17,8 @@ class Tag extends Model
         'field_type',
     ];
 
-    public function userTagValues()
+    public function userFieldValues()
     {
-        return $this->hasMany(UserTagValue::class, 'tag_id');
+        return $this->hasMany(UserFieldValue::class, 'field_id');
     }
 }

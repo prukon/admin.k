@@ -4,18 +4,23 @@ namespace App\Http\Controllers\Admin\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\AdminUpdateRequest;
-use App\Models\Log;
 use App\Models\Team;
 use App\Models\User;
 use App\Servises\UserService;
 use Carbon\Carbon;
+use function Illuminate\Http\Client\dump;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use App\Models\Tag;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
+
+use App\Models\UserField;
+use App\Models\UserFieldValue;
+use App\Models\Log;
+
+//use Illuminate\Support\Facades\Log;
 
 
 class UpdateController extends Controller
@@ -34,8 +39,10 @@ class UpdateController extends Controller
         $oldData = User::where('id', $user->id)->first();
         $oldTeam = Team::find($user->team_id);
         $oldTeamName = $oldTeam ? $oldTeam->title : '-';
-
         $data = $request->validated();
+//        Log::info('Полученные данные:', $data);
+
+        var_dump('Содержимое массива $data:', $data);
 
         DB::transaction(function () use ($user, $authorId, $data, $oldData, $oldTeamName) {
             // Обновление пользователя с помощью сервиса
@@ -68,7 +75,6 @@ class UpdateController extends Controller
                 'created_at' => now(),
             ]);
         });
-
         return response()->json(['message' => 'Пользователь успешно обновлен']);
     }
 
@@ -108,14 +114,14 @@ class UpdateController extends Controller
 
         // Сначала удалим те теги, которых больше нет в запросе
         // Получаем все существующие теги
-        $existingFieldIds = Tag::pluck('id')->toArray();
+        $existingFieldIds = UserField::pluck('id')->toArray();
         $submittedFieldIds = array_filter(array_column((array) $fields, 'id'));
 
         // Находим все ID, которые есть в базе, но не были отправлены в запросе (т.е. удалены)
         $fieldsToDelete = array_diff($existingFieldIds, $submittedFieldIds);
 
         // Удаляем все найденные поля
-        Tag::whereIn('id', $fieldsToDelete)->delete();
+        UserField::whereIn('id', $fieldsToDelete)->delete();
 
         // Обрабатываем каждый тег в запросе
 // Обрабатываем каждый тег в запросе
@@ -132,22 +138,22 @@ class UpdateController extends Controller
                     'required',
                     'string',
                     'max:255',
-                    Rule::unique('tags', 'slug')->ignore($fieldId),
+                    Rule::unique('user_fields', 'slug')->ignore($fieldId),
                 ],
                 "fields.$key.field_type" => 'required|string',
             ]);
 
             // Если у поля есть ID, то это обновление существующего тега
             if ($fieldId) {
-                $tag = Tag::findOrFail($fieldId);
-                $tag->update([
+                $userField = UserField::findOrFail($fieldId);
+                $userField->update([
                     'name' => $field['name'],
                     'slug' => $slug, // Используем транслитерированный slug
                     'field_type' => $field['field_type'],
                 ]);
             } else {
                 // Если ID нет, создаем новый тег
-                Tag::create([
+                UserField::create([
                     'name' => $field['name'],
                     'slug' => $slug, // Используем транслитерированный slug
                     'field_type' => $field['field_type'],
@@ -159,5 +165,6 @@ class UpdateController extends Controller
         // Возвращаем успешный ответ
         return response()->json(['message' => 'Поля успешно сохранены']);
     }
+
 
 }

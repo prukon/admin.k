@@ -24,7 +24,7 @@ class AdminUpdateRequest extends FormRequest
         $userId = $this->route('user')->id;
 
         return [
-            'name' => 'required|string|max:30',
+            'name' => 'required|string|max:50',
             'birthday' => [
                 'nullable',
                 'date',
@@ -38,6 +38,8 @@ class AdminUpdateRequest extends FormRequest
             ],
             'email' => 'required|string|email|max:50|unique:users,email,' . $userId,
             'is_enabled' => 'boolean',
+            'custom.*' => 'nullable|string|max:255', // Замените правила в зависимости от типа данных
+
         ];
     }
 

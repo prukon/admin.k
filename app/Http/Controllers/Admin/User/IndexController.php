@@ -8,7 +8,8 @@ use App\Http\Requests\User\FilterRequest;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
-use App\Models\Tag; // Модель для работы с таблицей тегов
+use App\Models\UserField; // Модель для работы с таблицей тегов
+
 
 
 class IndexController extends Controller
@@ -23,7 +24,7 @@ class IndexController extends Controller
         $data = $request->validated();
 //        dd($data);
         $query = User::query();
-        $fields = Tag::all();
+        $fields = UserField::all();
 
 
         if (isset($data['id'])) {

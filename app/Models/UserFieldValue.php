@@ -5,15 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class UserTagValue extends Model
+class UserFieldValue extends Model
 {
     use HasFactory;
 
-    protected $table = 'user_tag_values';
+    protected $table = 'user_field_values';
 
     protected $fillable = [
         'user_id',
-        'tag_id',
+        'field_id',
         'value',
     ];
 
@@ -22,8 +22,8 @@ class UserTagValue extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function tag()
+    public function field()
     {
-        return $this->belongsTo(Tag::class);
+        return $this->belongsTo(UserField::class);
     }
 }
