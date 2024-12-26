@@ -75,40 +75,20 @@
                     </div>
 
 
+                @if($fields->isNotEmpty()) <!-- Проверяем, есть ли пользовательские поля -->
                     <div class="mb-3">
-                        <label for="edit-fields" class="form-label">Теги</label>
-                        <input type="text" name="fields" class="form-control" id="edit-fields"
-                               value="{{ isset($user->fields) ? $user->fields : '' }}">
+                        {{--<h5>Пользовательские поля</h5>--}}
+                        <div id="custom-fields-container"> <!-- Контейнер для пользовательских полей -->
+
+                        </div>
                     </div>
+                @endif
 
-
-
-
-
-                    <!-- Поле "Email" -->
+                <!-- Поле "Email" -->
                     <div class="mb-3 ">
                         <label for="edit-email" class="form-label">Адрес электронной почты*</label>
                         <input name="email" type="email" class="form-control" id="edit-email" required>
                     </div>
-
-
-
-                @if($fields->isNotEmpty()) <!-- Проверяем, есть ли пользовательские поля -->
-                    <div class="mb-3">
-                        <h5>Пользовательские поля</h5>
-                        @foreach($fields as $field)
-                            <div class="mb-3">
-                                <label for="custom-{{ $field->slug }}" class="form-label">{{ $field->name }}</label>
-                                @if($field->field_type == 'string')
-                                    <input type="text" name="custom[{{ $field->slug }}]" class="form-control" id="custom-{{ $field->slug }}" value="{{ old('custom.' . $field->slug, $user->custom_fields[$field->slug] ?? '') }}">
-                                @elseif($field->field_type == 'textarea')
-                                    <textarea name="custom[{{ $field->slug }}]" class="form-control" id="custom-{{ $field->slug }}">{{ old('custom.' . $field->slug, $user->custom_fields[$field->slug] ?? '') }}</textarea>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-
 
 
                     <!-- Поле "Активность" -->
@@ -199,7 +179,6 @@
         </div>
     </div>
 </div>
-
 
 <!-- Модалка для ошибки -->
 <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
@@ -470,7 +449,6 @@
             });
 
 
-
         }
 
         //Клик по обновить фотографию
@@ -644,6 +622,7 @@
                         console.log('Данные пользователя получены:', response);
                         console.log('response.user', response.user);
                         console.log('response.user.fields', response.user.fields);
+                        console.log('response.user.fields', response.fields);
 
 
                         // Заполняем поля в модалке
@@ -667,6 +646,112 @@
                         }
                         // Проверяем и переключаем кнопку удаления аватарки
                         toggleDeleteButton();
+
+
+                        // Заполняем пользовательские поля
+                        let customFieldsContainer = $('#custom-fields-container');
+                        customFieldsContainer.empty(); // Очищаем контейнер перед заполнением
+
+
+                        // ---
+                        // if (response.user.fields && response.user.fields.length > 0) {
+                        //     response.user.fields.forEach(function (field) {
+                        //         let fieldHtml = '';
+                        //
+                        //         if (field.field_type === 'string') {
+                        //             fieldHtml = `
+                        //         <div class="mb-3 custom-field" data-slug="${field.slug}">
+                        //             <label for="custom-${field.slug}" class="form-label">${field.name}</label>
+                        //             <input type="text" name="custom[${field.slug}]" class="form-control" id="custom-${field.slug}" value="${field.pivot.value || ''}">
+                        //         </div>`;
+                        //         } else if (field.field_type === 'textarea') {
+                        //             fieldHtml = `
+                        //         <div class="mb-3 custom-field" data-slug="${field.slug}">
+                        //             <label for="custom-${field.slug}" class="form-label">${field.name}</label>
+                        //             <textarea name="custom[${field.slug}]" class="form-control" id="custom-${field.slug}">${field.pivot.value || ''}</textarea>
+                        //         </div>`;
+                        //         }
+                        //
+                        //         customFieldsContainer.append(fieldHtml);
+                        //     });
+                        // } else {
+                        //
+                        //     customFieldsContainer.append('<p>Нет пользовательских полей.</p>');
+                        // }
+                        // ---
+
+                        //
+                        // if (response.fields) {
+                        //     response.fields.forEach(function (field) {
+                        //         fieldHtml = `
+                        //         <div class="mb-3 custom-field" data-slug="${field.slug}">
+                        //             <label for="custom-${field.slug}" class="form-label">${field.name}</label>
+                        //             <input type="text" name="custom[${field.slug}]" class="form-control" id="custom-${field.slug}" value="">
+                        //         </div>`;
+                        //         customFieldsContainer.append(fieldHtml);
+                        //     });
+                        // }
+                        //
+                        //
+                        //
+                        // if (response.user.fields) {
+                        //     response.fields.forEach(function (field) {
+                        //         response.user.fields.forEach(function (userField) {
+                        //
+                        //             if (userField.slug == field.slug) {
+                        //                 fieldHtml = `
+                        //         <div class="mb-3 custom-field" data-slug="${field.slug}">
+                        //             <label for="custom-${field.slug}" class="form-label">${field.name}</label>
+                        //             <input type="text" name="custom[${field.slug}]" class="form-control" id="custom-${field.slug}" value="${userField.pivot.value || ''}">
+                        //         </div>`;
+                        //             }
+                        //             customFieldsContainer.append(fieldHtml);
+                        //
+                        //         });
+                        //     });
+                        // }
+
+
+                        if (response.fields) {
+                            response.fields.forEach(function(field) {
+
+                                // По умолчанию поле будет пустым.
+                                let userValue = '';
+
+                                // Проверяем, существует ли блок полей у пользователя
+                                // и ищем нужный slug.
+                                if (response.user && response.user.fields) {
+                                    const userField = response.user.fields.find(function(uf) {
+                                        return uf.slug === field.slug;
+                                    });
+
+                                    // Если поле для данного slug есть у пользователя,
+                                    // подставляем значение.
+                                    if (userField) {
+                                        userValue = userField.pivot.value || '';
+                                    }
+                                }
+
+                                // Генерируем HTML с корректной value.
+                                const fieldHtml = `
+            <div class="mb-3 custom-field" data-slug="${field.slug}">
+                <label for="custom-${field.slug}" class="form-label">${field.name}</label>
+                <input
+                    type="text"
+                    name="custom[${field.slug}]"
+                    class="form-control"
+                    id="custom-${field.slug}"
+                    value="${userValue}"
+                />
+            </div>
+        `;
+
+                                customFieldsContainer.append(fieldHtml);
+                            });
+                        }
+
+
+
 
                         // Открываем модальное окно
                         $('#editUserModal').modal('show');
@@ -698,7 +783,7 @@
                     success: function () {
                         console.log('Данные пользователя успешно обновлены');
                         $('#editUserModal').modal('hide');
-                        // location.reload(); // Обновляем страницу
+                        location.reload(); // Обновляем страницу
                     },
                     error: function () {
                         console.error('Ошибка при обновлении данных пользователя');

@@ -52,9 +52,9 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
-    protected $fillable = [
-        'fields', // Добавьте это поле в список fillable
-    ];
+//    protected $fillable = [
+//        'fields', // Добавьте это поле в список fillable
+//    ];
 
 
     public function team()

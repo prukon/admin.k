@@ -25,7 +25,8 @@
                     @foreach($fields as $index => $field)
                         <tr data-id="{{ $field->id }}">
                             <td>{{ $index + 1 }}</td>
-                            <td><input type="text" class="form-control field-name" value="{{ $field->name }}">
+                            <td>
+                                <input type="text" class="form-control field-name" value="{{ $field->name }}">
                                 <div class="invalid-feedback" style="display: none;">Заполните поле</div>
                             </td>
 
@@ -75,7 +76,6 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                </button>
             </div>
         </div>
     </div>
@@ -203,7 +203,6 @@
                 const id = $(this).data('id'); // ID, если поле уже существует в базе данных
                 const name = $(this).find('.field-name').val();
                 const fieldType = $(this).find('.field-type').val();
-                const slug = generateSlug(name); // Генерация slug из name
 
                 // Проверка на заполненность поля "название"
                 if (!name) {
@@ -212,12 +211,11 @@
                 } else {
                     $(this).find('.invalid-feedback').hide(); // Скрываем ошибку, если поле заполнено
                 }
-                console.log(slug);
 
                 fieldsData.push({
                     id: id || null,
                     name: name,
-                    slug: slug,  // Отправляем slug на сервер
+                    // Поле slug убираем из запроса (т.к. оно формируется на сервере)
                     field_type: fieldType
                 });
             });
@@ -235,11 +233,9 @@
                     _token: '{{ csrf_token() }}',
                     fields: fieldsData
                 },
-
                 success: function (response) {
                     $('#dataUpdatedModal').modal('show'); // Показываем модалку успешного обновления
-                    $('#fieldModal').modal('hide'); // Закрываем текущую модалку
-                    // location.reload(); // Перезагружаем страницу после успешного добавления
+                    $('#fieldModal').modal('hide');       // Закрываем текущую модалку
                 },
                 error: function (response) {
                     let errorMessage = 'Произошла ошибка при сохранении данных.';
@@ -247,22 +243,10 @@
                         errorMessage = response.responseJSON.message; // Используем сообщение с сервера, если оно есть
                     }
                     $('#error-message').text(errorMessage); // Устанавливаем сообщение ошибки
-                    $('#errorFieldModal').modal('show'); // Показываем модалку ошибки
+                    $('#errorFieldModal').modal('show');    // Показываем модалку ошибки
                 }
             });
         });
-
-        // Генерация slug из name
-        function generateSlug(name) {
-            if (!name) return ''; // Если имя пустое, возвращаем пустую строку
-            return name
-                .toString()
-                .toLowerCase()
-                .replace(/\s+/g, '-') // Заменяем пробелы на дефисы
-                .replace(/[^\w\-]+/g, '') // Убираем все символы, кроме букв, цифр и дефисов
-                .replace(/--+/g, '-') // Заменяем несколько дефисов на один
-                .trim('-'); // Убираем дефис в начале и в конце
-        }
     });
 
     // Перезагрузка страницы при нажатии "ОК" в модалке успешного обновления

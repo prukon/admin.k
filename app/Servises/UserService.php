@@ -2,11 +2,9 @@
 
 namespace App\Servises;
 
-use App\Models\Tag;
 use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserFieldValue;
-use App\Models\UserTagValue;
 use Illuminate\Support\Facades\Log;
 
 class UserService
@@ -38,7 +36,7 @@ class UserService
 //                        Log::info('Найден тег для slug:', ['tag_id' => $userField->id]);
 
                         // Сохраняем или обновляем значение пользовательского поля
-                        UserFieldValue::updateOrCreate( 
+                        UserFieldValue::updateOrCreate(
                             [
                                 'user_id' => $user->id,
                                 'field_id' => $userField->id,

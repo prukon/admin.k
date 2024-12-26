@@ -42,7 +42,7 @@ class UpdateController extends Controller
         $data = $request->validated();
 //        Log::info('Полученные данные:', $data);
 
-        var_dump('Содержимое массива $data:', $data);
+//        var_dump('Содержимое массива $data:', $data);
 
         DB::transaction(function () use ($user, $authorId, $data, $oldData, $oldTeamName) {
             // Обновление пользователя с помощью сервиса
@@ -111,6 +111,9 @@ class UpdateController extends Controller
     {
         // Получаем все поля, которые были отправлены
         $fields = $request->input('fields', []);
+//        var_dump($fields);
+
+
 
         // Сначала удалим те теги, которых больше нет в запросе
         // Получаем все существующие теги
@@ -134,12 +137,12 @@ class UpdateController extends Controller
             // Валидация для каждого поля
             $request->validate([
                 "fields.$key.name" => 'required|string|max:255',
-                "fields.$key.slug" => [
-                    'required',
-                    'string',
-                    'max:255',
-                    Rule::unique('user_fields', 'slug')->ignore($fieldId),
-                ],
+//                "fields.$key.slug" => [
+//                    'required',
+//                    'string',
+//                    'max:255',
+//                    Rule::unique('user_fields', 'slug')->ignore($fieldId),
+//                ],
                 "fields.$key.field_type" => 'required|string',
             ]);
 

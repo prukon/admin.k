@@ -372,7 +372,7 @@
                     function disabledPaymentForm(role) {
                         if (role == "admin" || role == "superadmin" ) {
                             // Получаем все формы на странице
-                            const forms = document.querySelectorAll('form');
+                            const forms = document.querySelectorAll('.seasons form');
 
 // Перебираем каждую форму и отключаем её
                             forms.forEach((form) => {
