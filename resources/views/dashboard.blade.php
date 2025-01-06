@@ -143,31 +143,19 @@
                                 @endif </span></div>
 
 
-
-
-
-
                         <div class="fields-wrap">
-                            @if($curUser->fields->isNotEmpty())
-                                @foreach($curUser->fields as $field)
-                                    {{--@if(!empty($field->pivot->value))--}}
-
-                                    <div class="fields-title">
-                                        {{ $field->name }}:
-                                        <span class="fields-value">{{ $field->pivot->value ?? '-' }}</span>
-                                    </div>
-                                    {{--@endif--}}
-
-                                @endforeach
-                            @else
-                                <p>Нет дополнительных полей у пользователя.</p>
-                            @endif
+                            @foreach($allFields as $field)
+                                <div class="fields-title">
+                                    {{ $field->name }}:
+                                    <span class="fields-value">{{ $userFieldValues[$field->id] ?? '-' }}</span>
+                                </div>
+                            @endforeach
                         </div>
 
 
-                        
-                        <div class="display-none count-training">Количество тренировок: <span
-                                    class="count-training-value">223</span></div>
+
+                        {{--<div class="display-none count-training">Количество тренировок: <span--}}
+                                    {{--class="count-training-value">223</span></div>--}}
                     </div>
                     <div class="mt-3">
                         <a href="/payment/club-fee">
@@ -396,7 +384,7 @@
 
 
                     function disabledPaymentForm(role) {
-                        if (role == "admin" || role == "superadmin" ) {
+                        if (role == "admin" || role == "superadmin") {
                             // Получаем все формы на странице
                             const forms = document.querySelectorAll('.seasons form');
 
@@ -418,7 +406,6 @@
                             });
                         }
                     }
-
 
 
                     createSeasons()     //Создание сезонов

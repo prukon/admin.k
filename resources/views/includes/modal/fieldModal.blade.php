@@ -31,11 +31,11 @@
                             </td>
 
                             <td>
-                                <select class="form-select field-type">
+                                <select disabled class="form-select field-type">
                                     <option value="string" {{ $field->field_type == 'string' ? 'selected' : '' }}>
                                         Текст
                                     </option>
-                                    <option value="text" {{ $field->field_type == 'text' ? 'selected' : '' }}>
+                                    <option value="text"  {{ $field->field_type == 'text' ? 'selected' : '' }}>
                                         Многострочный текст
                                     </option>
                                     <option value="select" {{ $field->field_type == 'select' ? 'selected' : '' }}>

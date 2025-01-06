@@ -11,6 +11,7 @@ use App\Models\Team;
 use App\Models\TeamPrice;
 use App\Models\TeamWeekday;
 use App\Models\User;
+use App\Models\UserField;
 use App\Models\UserPrice;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
@@ -57,9 +58,10 @@ class DashboardController extends Controller
         $textForUsers = Setting::where('name', 'textForUsers')->first();
         $textForUsers = $textForUsers ? $textForUsers->text : null;
 
+        $allFields = UserField::all();
 
         $userFields = User::with('fields')->findOrFail($curUser->id);
-
+        $userFieldValues = $curUser->fields->pluck('pivot.value', 'id');
 
         return view("dashboard", compact(
             "allTeams",
@@ -72,7 +74,9 @@ class DashboardController extends Controller
             "scheduleUserArray",
             "userPriceArray",
             "textForUsers",
-            "userFields"
+            "userFields",
+            "userFieldValues",
+            "allFields"
         ));
     }
 
