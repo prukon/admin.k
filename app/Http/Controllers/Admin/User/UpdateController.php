@@ -33,16 +33,13 @@ class UpdateController extends Controller
         $this->middleware('role:admin,superadmin');
     }
 
-    public function __invoke(AdminUpdateRequest $request, User $user)
+    public function __invoke1(AdminUpdateRequest $request, User $user)
     {
         $authorId = auth()->id(); // Авторизованный пользователь
         $oldData = User::where('id', $user->id)->first();
         $oldTeam = Team::find($user->team_id);
         $oldTeamName = $oldTeam ? $oldTeam->title : '-';
         $data = $request->validated();
-//        Log::info('Полученные данные:', $data);
-
-//        var_dump('Содержимое массива $data:', $data);
 
         DB::transaction(function () use ($user, $authorId, $data, $oldData, $oldTeamName) {
             // Обновление пользователя с помощью сервиса
@@ -78,6 +75,74 @@ class UpdateController extends Controller
         return response()->json(['message' => 'Пользователь успешно обновлен']);
     }
 
+    public function __invoke(AdminUpdateRequest $request, User $user)
+    {
+        $authorId = auth()->id(); // Авторизованный пользователь
+        $oldData = User::where('id', $user->id)->first();
+        $oldTeam = Team::find($user->team_id);
+        $oldTeamName = $oldTeam ? $oldTeam->title : '-';
+        $data = $request->validated();
+
+        // Получаем старые значения пользовательских полей
+        $oldCustomData = UserFieldValue::where('user_id', $user->id)->get()->keyBy('field_id')->toArray();
+
+        DB::transaction(function () use ($user, $authorId, $data, $oldData, $oldTeamName, $oldCustomData) {
+            // Обновление пользователя с помощью сервиса
+            $this->service->update($user, $data);
+
+            // Обработка команды для новой команды
+            $team = Team::find($data['team_id']);
+            $teamName = $team ? $team->title : '-';
+
+            // Логирование изменений в кастомных полях
+            $customLogDescription = '';
+            if (array_key_exists('custom', $data) && is_array($data['custom'])) {
+                foreach ($data['custom'] as $slug => $value) {
+                    $userField = UserField::where('slug', $slug)->first();
+
+                    if ($userField) {
+                        $oldValue = $oldCustomData[$userField->id]['value'] ?? null;
+                        if ($oldValue !== $value) {
+                            $customLogDescription .= sprintf(
+                                "\n%s: %s -> %s",
+                                $userField->name, // Используем название поля
+                                $oldValue ?? '-',
+                                $value !== null ? $value : '-' // Новое значение или "-"
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Создание лога обновления данных пользователя с добавлением изменений в кастомных полях
+            Log::create([
+                'type' => 2, // Лог для обновления юзеров
+                'action' => 22, // Лог для обновления учетной записи
+                'author_id' => $authorId,
+                'description' => sprintf(
+                    "Старые:\n Имя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s.\nНовые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s%s",
+                    $oldData->name,
+                    isset($oldData->birthday) ? Carbon::parse($oldData->birthday)->format('d.m.Y') : '-',
+                    isset($oldData->start_date) ? Carbon::parse($oldData->start_date)->format('d.m.Y') : '-',
+                    $oldTeamName,
+                    $oldData->email,
+                    $oldData->is_enabled ? 'Да' : 'Нет',
+                    $data['name'],
+                    isset($data['birthday']) ? Carbon::parse($data['birthday'])->format('d.m.Y') : '-',
+                    isset($data['start_date']) ? Carbon::parse($data['start_date'])->format('d.m.Y') : '-',
+                    $teamName,
+                    $data['email'],
+                    $data['is_enabled'] ? 'Да' : 'Нет',
+                    $customLogDescription // Добавляем описание изменений кастомных полей
+                ),
+                'created_at' => now(),
+            ]);
+        });
+
+        return response()->json(['message' => 'Пользователь успешно обновлен']);
+    }
+
+
     public function updatePassword(Request $request, $id)
     {
         $request->validate([
@@ -107,7 +172,7 @@ class UpdateController extends Controller
         return response()->json(['success' => true]);
     }
 
-
+//Обработка создания/изменения/удаления доп. полей
     public function storeFields(Request $request)
     {
         // Получаем все поля, которые были отправлены
@@ -180,7 +245,7 @@ class UpdateController extends Controller
                             'type' => 2,
                             'action' => 25,
                             'author_id' => $authorId,
-                            'description' => "Обновлено поле с ID: $fieldId. изменения: " . implode(', ', $changes),
+                            'description' => "Обновлено поле ID: $fieldId. изменения: " . implode(', ', $changes),
                             'created_at' => now(),
                         ]);
                     }

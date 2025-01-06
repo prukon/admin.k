@@ -33,7 +33,6 @@ class UserService
                     $userField = UserField::where('slug', $slug)->first();
 
                     if ($userField) {
-//                        Log::info('Найден тег для slug:', ['tag_id' => $userField->id]);
 
                         // Сохраняем или обновляем значение пользовательского поля
                         UserFieldValue::updateOrCreate(
@@ -58,6 +57,58 @@ class UserService
         }
     }
 
+    public function update2($user, $data)
+    {
+        try {
+            // Исключаем поле 'custom' из данных для обновления пользователя
+            $userData = array_diff_key($data, ['custom' => '']);
+            $user->update($userData);
+
+            // Логируем старые значения полей 'custom'
+            $oldCustomData = UserFieldValue::where('user_id', $user->id)->get()->keyBy('field_id')->toArray();
+
+            // Проверка на наличие пользовательских полей
+            if (array_key_exists('custom', $data) && is_array($data['custom'])) {
+                foreach ($data['custom'] as $slug => $value) {
+                    $userField = UserField::where('slug', $slug)->first();
+
+                    if ($userField) {
+                        // Сохраняем или обновляем значение пользовательского поля
+                        UserFieldValue::updateOrCreate(
+                            [
+                                'user_id' => $user->id,
+                                'field_id' => $userField->id,
+                            ],
+                            ['value' => $value]
+                        );
+
+                        // Логируем изменение значения поля 'custom'
+                        $oldValue = $oldCustomData[$userField->id]['value'] ?? null;
+                        if ($oldValue !== $value) {
+                            Log::create([
+                                'type' => 2, // Лог для обновления данных
+                                'action' => 22, // Лог для обновления учетной записи
+                                'author_id' => auth()->id(),
+                                'description' => sprintf(
+                                    "Изменение поля custom:\nSlug: %s\nСтарое значение: %s\nНовое значение: %s",
+                                    $slug,
+                                    $oldValue ?? '-',
+                                    $value
+                                ),
+                                'created_at' => now(),
+                            ]);
+                        }
+                    } else {
+                        Log::warning('Тег не найден для slug:', ['slug' => $slug]);
+                    }
+                }
+            } else {
+                Log::warning('Поле custom отсутствует или не является массивом:', ['custom' => $data['custom'] ?? null]);
+            }
+        } catch (\Exception $e) {
+            throw $e;
+        }
+    }
 
 
 
