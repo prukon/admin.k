@@ -53,8 +53,13 @@ class DashboardController extends Controller
         $scheduleUserArray = ScheduleUser::where('user_id', $curUser->id)->get()->toArray();
         $userPriceArray = UserPrice::where('user_id', $curUser->id)->get()->toArray();
 
+
         $textForUsers = Setting::where('name', 'textForUsers')->first();
         $textForUsers = $textForUsers ? $textForUsers->text : null;
+
+
+        $userFields = User::with('fields')->findOrFail($curUser->id);
+
 
         return view("dashboard", compact(
             "allTeams",
@@ -66,7 +71,9 @@ class DashboardController extends Controller
             "scheduleUser",
             "scheduleUserArray",
             "userPriceArray",
-            "textForUsers"));
+            "textForUsers",
+            "userFields"
+        ));
     }
 
     //AJAX Изменение юзера

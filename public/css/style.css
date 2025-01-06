@@ -1075,3 +1075,7 @@ z-index: 2000;
 .confirmDeleteModal {
     z-index: 2009;
 }
+
+.fields-value {
+    font-weight: 600;
+}

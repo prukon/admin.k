@@ -135,11 +135,37 @@
                                 @else
                                     -
                                 @endif </span></div>
+
                         <div class="birthday">Дата рождения:<span class="birthday-value"> @if($curUser->birthday)
                                     {{ \Carbon\Carbon::parse($curUser->birthday)->format('d.m.Y') }}
                                 @else
                                     -
                                 @endif </span></div>
+
+
+
+
+
+
+                        <div class="fields-wrap">
+                            @if($curUser->fields->isNotEmpty())
+                                @foreach($curUser->fields as $field)
+                                    {{--@if(!empty($field->pivot->value))--}}
+
+                                    <div class="fields-title">
+                                        {{ $field->name }}:
+                                        <span class="fields-value">{{ $field->pivot->value ?? '-' }}</span>
+                                    </div>
+                                    {{--@endif--}}
+
+                                @endforeach
+                            @else
+                                <p>Нет дополнительных полей у пользователя.</p>
+                            @endif
+                        </div>
+
+
+                        
                         <div class="display-none count-training">Количество тренировок: <span
                                     class="count-training-value">223</span></div>
                     </div>
