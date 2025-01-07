@@ -145,7 +145,7 @@
 
                         <div class="fields-wrap">
                             @foreach($allFields as $field)
-                                <div class="fields-title">
+                                <div class="fields-title" data-id="{{$field->id}}">
                                     {{ $field->name }}:
                                     <span class="fields-value">{{ $userFieldValues[$field->id] ?? '-' }}</span>
                                 </div>

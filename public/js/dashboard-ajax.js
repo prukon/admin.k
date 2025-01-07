@@ -1,4 +1,4 @@
-    // <script src="js/main.js"></script>
+// <script src="js/main.js"></script>
 
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -26,6 +26,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     let inputDate = response.inputDate;
                     let team = response.team;
                     let formattedBirthday = response.formattedBirthday;
+
+                    let userFieldValues = response.userFieldValues;
+                    let userFields = response.userFields;
+
 
                     //Сброс всех значений цен до нуля
                     function refreshPrice() {
@@ -217,6 +221,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     }
 
+
+                    // Вставка кастомных полей
+                    function apendUserFieldValues(userFieldValues) {
+
+                        // Очищаем значения перед заполнением
+                        const fields = document.querySelectorAll('.fields-title');
+                        fields.forEach(field => {
+                            const valueElement = field.querySelector('.fields-value');
+                            if (valueElement) {
+                                valueElement.textContent = '-';
+                            }
+                        });
+
+
+                        if (userFieldValues) {
+                            const fields = document.querySelectorAll('.fields-title');
+                            fields.forEach(field => {
+                                const id = field.getAttribute('data-id');
+                                if (userFieldValues[id]) {
+                                    const valueElement = field.querySelector('.fields-value');
+                                   valueElement.textContent = userFieldValues[id];
+                                }
+                            });
+                        }
+                    }
+
+
                     // Вставка аватарки юзеру
                     function apendImageToUser() {
                         if (user.image_crop) {
@@ -288,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     //отключение форм для юзеров и суперюзеров
                     function disabledPaymentForm(role) {
-                        if (role == "admin" || role == "superadmin" ) {
+                        if (role == "admin" || role == "superadmin") {
                             // Получаем все формы на странице
                             const forms = document.querySelectorAll('form');
 
@@ -332,6 +363,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     // apendStyleToUserWithoutTeam();
 
                     disabledPaymentForm(currentUserRole);
+
+                    apendUserFieldValues(userFieldValues);
 
                 } else {
                     $('#user-details').html('<p>' + response.message + '</p>');
@@ -533,7 +566,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     let teamWeekDaysGet = response.teamWeekDaysGet;
                     let scheduleUser = response.scheduleUser; //upd
                     let userTeam = response.userTeam;
-
 
 
                     // Выключение кнопки Установить

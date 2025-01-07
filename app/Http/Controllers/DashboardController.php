@@ -59,7 +59,6 @@ class DashboardController extends Controller
         $textForUsers = $textForUsers ? $textForUsers->text : null;
 
         $allFields = UserField::all();
-
         $userFields = User::with('fields')->findOrFail($curUser->id);
         $userFieldValues = $curUser->fields->pluck('pivot.value', 'id');
 
@@ -93,6 +92,10 @@ class DashboardController extends Controller
         $userPrice = UserPrice::where('user_id', $user->id)->get();
         $scheduleUser = ScheduleUser::where('user_id', $user->id)->get();
 
+        $allFields = UserField::all();
+        $userFields = User::with('fields')->findOrFail($user->id);
+        $userFieldValues = $user->fields->pluck('pivot.value', 'id');
+
         if ($user) {
 
             // Форматируем дату рождения (предполагаем, что дата хранится в поле 'birthday')
@@ -107,6 +110,10 @@ class DashboardController extends Controller
                 'team' => $team,
                 'inputDate' => $inputDate,
                 'formattedBirthday' => $formattedBirthday, // Отправляем форматированную дату рождения
+                "userFields"  => $userFields,
+                "userFieldValues"  => $userFieldValues,
+                "allFields" => $allFields,
+
             ]);
         } else {
             return response()->json([
