@@ -100,6 +100,21 @@
                         </select>
                     </div>
 
+
+                @if($user && ($user->role == 'superadmin'))
+                        <div class="mb-3 ">
+                            <label for="edit-activity" class="form-label">Права</label>
+                            <select name="is_enabled" class="form-control" id="edit-activity">
+                                <option value="0">user</option>
+                                <option value="1">Admin</option>
+                                <option value="1">SuperAdmin</option>
+                            </select>
+                        </div>
+                    @endif
+
+
+
+
                     <!-- Блок изменения пароля -->
                     <div class="buttons-wrap change-pass-wrap" id="change-pass-wrap" style="display: none;">
                         <div class="d-flex align-items-center mt-3">

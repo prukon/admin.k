@@ -5,6 +5,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\PartnerPaymentController;
+use Illuminate\Support\Facades\Mail;
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -16,6 +19,7 @@ use App\Http\Controllers\PartnerPaymentController;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+Auth::routes();
 
 
 Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
@@ -132,6 +136,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('//payment/service/yookassa', [\App\Http\Controllers\PartnerPaymentController::class, 'createPaymentYookassa'])->name('createPaymentYookassa');
 
 
+
+
+
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
@@ -140,4 +147,22 @@ Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class,
 Route::post('/webhook/yookassa', [\App\Http\Controllers\WebhookController::class, 'handleWebhook'])->name('webhook.yookassa');
 
 
-Auth::routes();
+Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');
+
+
+
+Route::get('/test-mail', function () {
+    $details = [
+        'title' => 'Тестовое письмо',
+        'body' => 'Это тестовое письмо для проверки отправки почты через SMTP.'
+    ];
+
+    Mail::raw($details['body'], function ($message) {
+        $message->to('prukon@gmail.com') // Замените на реальный адрес получателя
+        ->subject('Тестовое письмо из Laravel');
+    });
+
+    return 'Письмо отправлено!';
+});
+
+//Auth::routes(['verify' => true]);

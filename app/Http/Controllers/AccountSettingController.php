@@ -30,7 +30,7 @@ class AccountSettingController extends Controller
     public function index()
     {
         $allTeams = Team::All();
-        $currentUser = Auth::user();
+//        $currentUser = Auth::user();
         $user = Auth::user();
 
 
@@ -44,7 +44,7 @@ class AccountSettingController extends Controller
     {
         $authorId = auth()->id(); // Авторизованный пользователь
         $oldData = User::where('id', $authorId)->first();
-        $currentUser = Auth::user();
+//        $currentUser = Auth::user();
         $user = Auth::user();
 
         $data = $request->validated();

@@ -42,6 +42,8 @@ class DashboardController extends Controller
 
     public function index(FilterRequest $request)
     {
+
+
         $data = $request->validated();
         $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
         $allUsersSelect = User::where('is_enabled', true)->orderBy('name', 'asc')->get();
