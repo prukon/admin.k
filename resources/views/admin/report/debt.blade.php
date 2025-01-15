@@ -80,7 +80,7 @@
                         name: 'user_name',
                         render: function (data, type, row) {
                             if (row.user_id) {
-                                return '<a href="/admin/users/' + row.user_id + '/edit">' + row.user_name + '</a>';
+                                return row.user_name;
                             } else {
                                 return row.user_name ? row.user_name : 'Без имени';
                             }

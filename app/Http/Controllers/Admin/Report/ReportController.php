@@ -20,6 +20,7 @@ class ReportController extends Controller
     {
         $this->middleware('role:admin,superadmin');
     }
+
    public function formatedDate($month)
     {
         // Массив соответствий русских и английских названий месяцев
@@ -64,6 +65,16 @@ class ReportController extends Controller
         return view("admin.report");
     }
 
+    public function showUserPayments() {
+        $totalPaidPrice = DB::table('payments') ->sum('payments.summ');
+        $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
+
+
+        return view('user.report.payment', ['activeTab' => 'payments'],
+            compact('totalPaidPrice'));
+    }
+
+    //Отчет Платежи
     public function payments()
     {
         $totalPaidPrice = DB::table('payments')
@@ -75,49 +86,7 @@ class ReportController extends Controller
             compact('totalPaidPrice'));
     }
 
-    public function debts()
-    {
-        $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
-        $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
-
-            $totalUnpaidPrice = DB::table('users_prices')
-                ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
-                ->where('users_prices.is_paid', 0)
-                ->where('users.is_enabled', 1)
-                ->where('users_prices.price', '>', 0)
-                ->where('users_prices.new_month', '<', $currentMonth)
-                ->sum('users_prices.price');
-
-        $totalUnpaidPrice = number_format($totalUnpaidPrice, 0, '', ' ');
-
-        return view('admin.report.debt', ['activeTab' => 'debts'],
-        compact('totalUnpaidPrice'));
-    }
-
-    public function ltv()
-    {
-        $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
-        $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
-
-            $totalUnpaidPrice = DB::table('users_prices')
-                ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
-                ->where('users_prices.is_paid', 0)
-                ->where('users.is_enabled', 1)
-                ->where('users_prices.price', '>', 0)
-                ->where('users_prices.new_month', '<', $currentMonth)
-                ->sum('users_prices.price');
-
-        $totalUnpaidPrice = number_format($totalUnpaidPrice, 0, '', ' ');
-
-        return view('admin.report.ltv', ['activeTab' => 'ltv'],
-        compact('totalUnpaidPrice'));
-    }
-
-
-
-
-
-
+    //Данные для отчета Платежи
     public function getPayments(Request $request)
     {
         if ($request->ajax()) {
@@ -155,6 +124,27 @@ class ReportController extends Controller
         }
     }
 
+    //Отчет Задолженности
+    public function debts()
+    {
+        $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
+        $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
+
+        $totalUnpaidPrice = DB::table('users_prices')
+            ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
+            ->where('users_prices.is_paid', 0)
+            ->where('users.is_enabled', 1)
+            ->where('users_prices.price', '>', 0)
+            ->where('users_prices.new_month', '<', $currentMonth)
+            ->sum('users_prices.price');
+
+        $totalUnpaidPrice = number_format($totalUnpaidPrice, 0, '', ' ');
+
+        return view('admin.report.debt', ['activeTab' => 'debts'],
+            compact('totalUnpaidPrice'));
+    }
+
+    //Данные для отчета Задолженности
     public function getDebts(Request $request)
     {
 
@@ -200,6 +190,27 @@ class ReportController extends Controller
         }
     }
 
+    //Отчет LTV
+    public function ltv()
+    {
+        $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
+        $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
+
+        $totalUnpaidPrice = DB::table('users_prices')
+            ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
+            ->where('users_prices.is_paid', 0)
+            ->where('users.is_enabled', 1)
+            ->where('users_prices.price', '>', 0)
+            ->where('users_prices.new_month', '<', $currentMonth)
+            ->sum('users_prices.price');
+
+        $totalUnpaidPrice = number_format($totalUnpaidPrice, 0, '', ' ');
+
+        return view('admin.report.ltv', ['activeTab' => 'ltv'],
+            compact('totalUnpaidPrice'));
+    }
+
+    //Данные для отчета LTV
     public function getLtv(Request $request)
     {
 
@@ -257,18 +268,5 @@ class ReportController extends Controller
                 })
                 ->make(true);
         }
-    }
-
-
-
-
-
-    public function showUserPayments() {
-        $totalPaidPrice = DB::table('payments') ->sum('payments.summ');
-        $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
-
-
-        return view('user.report.payment', ['activeTab' => 'payments'],
-            compact('totalPaidPrice'));
     }
 }
