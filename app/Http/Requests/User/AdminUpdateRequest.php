@@ -39,6 +39,7 @@ class AdminUpdateRequest extends FormRequest
             'email' => 'required|string|email|max:50|unique:users,email,' . $userId,
             'is_enabled' => 'boolean',
             'custom.*' => 'nullable|string|max:255', // Замените правила в зависимости от типа данных
+            'role' => 'required|string|max:12',
 
         ];
     }
@@ -52,6 +53,7 @@ class AdminUpdateRequest extends FormRequest
             'start_date' => 'Дата начала занятий',
             'email' => 'Email',
             'is_enabled' => 'Активность',
+            'role' => 'Роль',
         ];
     }
     public function messages()
@@ -83,6 +85,9 @@ class AdminUpdateRequest extends FormRequest
 
             // Поле "Активность"
             'is_enabled.boolean' => 'Поле "Активность" должно быть истинным или ложным.',
+
+            // Поле "Роль"
+            'role.boolean' => 'Выберите поле "Права" из списка',
         ];
     }
 }

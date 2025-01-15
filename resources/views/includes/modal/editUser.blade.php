@@ -103,16 +103,14 @@
 
                 @if($user && ($user->role == 'superadmin'))
                         <div class="mb-3 ">
-                            <label for="edit-activity" class="form-label">Права</label>
-                            <select name="is_enabled" class="form-control" id="edit-activity">
-                                <option value="0">user</option>
-                                <option value="1">Admin</option>
-                                <option value="1">SuperAdmin</option>
+                            <label for="role" class="form-label">Права</label>
+                            <select name="role" class="form-control" id="role">
+                                <option value="user">user</option>
+                                <option value="admin">admin</option>
+                                <option value="superadmin">superadmin</option>
                             </select>
                         </div>
                     @endif
-
-
 
 
                     <!-- Блок изменения пароля -->
@@ -357,7 +355,7 @@
                     console.log('Base64 данных изображения:', resp);
 
                     var action = $('#edit-user-form').attr('action');
-                    console.log('Action формы:', action);
+                    // console.log('Action формы:', action);
 
                     if (action) {
                         let userId = action.split('/').pop();
@@ -541,41 +539,6 @@
             });
         }
 
-        // function deleteUser() {
-        //     $(document).ready(function () {
-        //         // Обработчик клика по кнопке "Удалить"
-        //         $('#delete-user-btn').on('click', function (e) {
-        //             e.preventDefault();
-        //
-        //             if (confirm('Вы уверены, что хотите удалить пользователя?')) {
-        //                 let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
-        //                 let token = $('input[name="_token"]').val();
-        //
-        //                 $.ajax({
-        //                     url: `/admin/user/${userId}`,
-        //                     method: 'DELETE',
-        //                     headers: {
-        //                         'X-CSRF-TOKEN': token
-        //                     },
-        //                     success: function (response) {
-        //                         console.log('Ответ сервера:', response);
-        //                         if (response.success) {
-        //                             alert('Пользователь успешно удалён');
-        //                             $('#editUserModal').modal('hide');
-        //                             location.reload(); // Обновляем страницу после удаления
-        //                         } else {
-        //                             alert('Ошибка при удалении пользователя');
-        //                         }
-        //                     },
-        //                     error: function () {
-        //                         alert('Ошибка при удалении пользователя. Проверьте лог сервера.');
-        //                     }
-        //                 });
-        //             }
-        //         });
-        //     });
-        // }
-
         function deleteUser() {
             $(document).ready(function () {
                 // Обработчик клика по кнопке "Удалить"
@@ -627,17 +590,18 @@
             $('.edit-user-link').on('click', function () {
                 let userId = $(this).data('id'); // Получаем ID пользователя
                 let url = `/admin/users/${userId}/edit`; // Маршрут для получения данных пользователя (GET)
-                console.log('Открываем модалку для редактирования пользователя с ID:', userId);
+                // console.log('Открываем модалку для редактирования пользователя с ID:', userId);
+
 
                 // AJAX-запрос для получения данных пользователя
                 $.ajax({
                     url: url,
                     method: 'GET',
                     success: function (response) {
-                        console.log('Данные пользователя получены:', response);
-                        console.log('response.user', response.user);
-                        console.log('response.user.fields', response.user.fields);
-                        console.log('response.user.fields', response.fields);
+                        // console.log('Данные пользователя получены:', response);
+                        // console.log('response.user', response.user);
+                        // console.log('response.user.fields', response.user.fields);
+                        // console.log('response.user.fields', response.fields);
 
 
                         // Заполняем поля в модалке
@@ -647,6 +611,7 @@
                         $('#edit-start_date').val(response.user.start_date);
                         $('#edit-email').val(response.user.email);
                         $('#edit-activity').val(response.user.is_enabled);
+                        $('#role').val(response.user.role);
 
                         // Устанавливаем маршрут для обновления пользователя в форме
                         $('#edit-user-form').attr('action', `/admin/users/${userId}`);
@@ -778,7 +743,7 @@
             });
         }
 
-        // Обработчик обновления данных пользователя
+        // ОТПРАВКА AJAX.-> /User/UpdateControlle Обработчик обновления данных пользователя
         function editUserForm() {
             $('#edit-user-form').on('submit', function (e) {
                 e.preventDefault();
@@ -786,9 +751,9 @@
                 let form = $(this);
                 let url = form.attr('action');
 
-                console.log('Отправляем форму для обновления пользователя с URL:', url);
+                // console.log('Отправляем форму для обновления пользователя с URL:', url);
+                // console.log('form.serialize():' + form.serialize());
 
-                console.log('form.serialize():' + form.serialize());
 
                 // AJAX-запрос для обновления данных пользователя
                 $.ajax({
@@ -798,6 +763,7 @@
                     success: function () {
                         console.log('Данные пользователя успешно обновлены');
                         $('#editUserModal').modal('hide');
+
                         location.reload(); // Обновляем страницу
                     },
                     error: function () {

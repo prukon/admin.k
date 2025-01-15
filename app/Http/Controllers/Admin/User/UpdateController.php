@@ -73,6 +73,7 @@ class UpdateController extends Controller
                 }
             }
 
+
             // Создание лога обновления данных пользователя с добавлением изменений в кастомных полях
             Log::create([
                 'type' => 2, // Лог для обновления юзеров
@@ -98,7 +99,10 @@ class UpdateController extends Controller
             ]);
         });
 
-        return response()->json(['message' => 'Пользователь успешно обновлен']);
+        return response()->json([
+            'message' => 'Пользователь успешно обновлен',
+            'data' => $data,
+            ]);
     }
 
 
