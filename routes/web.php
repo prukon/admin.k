@@ -126,6 +126,19 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('/user/{id}/update-password', [\App\Http\Controllers\AccountSettingController::class, 'updatePassword']);
 
 
+    //Учетная запись админа
+    Route::get('/admin/account-settings/users/{user}/edit', [\App\Http\Controllers\Admin\AccountSettingController::class, 'user'])->name('admin.cur.user.edit');
+    Route::get('/admin/account-settings/partner/{user}/edit', [\App\Http\Controllers\Admin\AccountSettingController::class, 'partner'])->name('admin.cur.company.edit');
+    Route::patch('/admin/account-settings/users/{user}', [\App\Http\Controllers\Admin\AccountSettingController::class, 'update'])->name('admin.cur.user.update');
+    Route::patch('/admin/account-settings/partner/{partner}', [\App\Http\Controllers\Admin\AccountSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
+
+
+//    Route::patch('/admin/account-settings/users/{user}', function () {
+//        dd('test');
+//    })->name('admin.cur.user.update');
+
+    Route::post('/admin/user/{id}/update-password', [\App\Http\Controllers\Admin\AccountSettingController::class, 'updatePassword']);
+
 //Организация
     Route::get('/admin/company', [\App\Http\Controllers\Admin\CompanyController::class, 'index'])->name('company');
     Route::get('/about', [\App\Http\Controllers\AboutController::class, 'index'])->name('about');
@@ -151,18 +164,18 @@ Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController
 
 
 
-Route::get('/test-mail', function () {
-    $details = [
-        'title' => 'Тестовое письмо',
-        'body' => 'Это тестовое письмо для проверки отправки почты через SMTP.'
-    ];
-
-    Mail::raw($details['body'], function ($message) {
-        $message->to('prukon@gmail.com') // Замените на реальный адрес получателя
-        ->subject('Тестовое письмо из Laravel');
-    });
-
-    return 'Письмо отправлено!';
-});
+//Route::get('/test-mail', function () {
+//    $details = [
+//        'title' => 'Тестовое письмо',
+//        'body' => 'Это тестовое письмо для проверки отправки почты через SMTP.'
+//    ];
+//
+//    Mail::raw($details['body'], function ($message) {
+//        $message->to('prukon@gmail.com') // Замените на реальный адрес получателя
+//        ->subject('Тестовое письмо из Laravel');
+//    });
+//
+//    return 'Письмо отправлено!';
+//});
 
 //Auth::routes(['verify' => true]);

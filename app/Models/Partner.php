@@ -25,6 +25,10 @@ class Partner extends Model
         'phone',
         'email',
         'website',
+
+        'bank_name',
+        'bank_bik',
+        'bank_account',
     ];
 
     /**
@@ -65,4 +69,35 @@ class Partner extends Model
             'payment_id' // Local key on PartnerPayment table...
         );
     }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'partner_user');
+    }
+
+    /**
+     * Пример метода создания/обновления партнёра.
+     * Можно вызывать, например, Partner::store($data).
+     */
+    public static function store(array $data)
+    {
+        return self::create($data);
+    }
+
+    /**
+     * Пример метода для назначения (привязки) нескольких пользователей к партнёру.
+     */
+    public function attachUsers(array $userIds)
+    {
+        return $this->users()->attach($userIds);
+    }
+
+    /**
+     * Пример метода для синхронизации пользователей (удалит «лишние» связи).
+     */
+    public function syncUsers(array $userIds)
+    {
+        return $this->users()->sync($userIds);
+    }
+
 }

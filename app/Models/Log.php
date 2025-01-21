@@ -17,7 +17,11 @@ class Log extends Model
 
     public $timestamps = false; // Отключаем автоматическое создание временных меток
 
-    const CREATED_AT = 'created_at'; // Используем кастомное поле для времени создания
+    const CREATED_AT = 'created_at';
+
+    public static function info($string, array $array)
+    {
+    } // Используем кастомное поле для времени создания
 
     public function author()
     {

@@ -13,8 +13,8 @@ class UpdateRequest extends FormRequest
     {
         return true;
     }
-
     /**
+     *
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -25,10 +25,13 @@ class UpdateRequest extends FormRequest
         $userId = $this->route('user')->id;
 
         return [
+
+
             'birthday' => 'nullable|date',
             'email' => 'required|string|email|max:20|unique:users,email,' . $userId,
         ];
     }
+
     public function attributes()
     {
         return [
@@ -36,6 +39,7 @@ class UpdateRequest extends FormRequest
             'email' => 'Email',
         ];
     }
+
     public function messages()
     {
         return [

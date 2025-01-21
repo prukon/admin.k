@@ -7,15 +7,21 @@ use App\Models\UserField;
 use App\Models\UserFieldValue;
 use Illuminate\Support\Facades\Log;
 
+
+
+
 class UserService
 {
+    //  - Создание учетной записи юзера
     public function store($data)
     {
-//        User::create($data);
         return User::create($data);
 
     }
 
+//  - Редактировние учетной записи юзера
+//  - Редактировние учетной записи админа
+//  - Редактировние юзера на старанице Юзеры
     public function update($user, $data)
     {
         try {
@@ -59,7 +65,7 @@ class UserService
         }
     }
 
-
+    //  - Редактировние юзера на старанице Юзеры
     public function delete($user)
     {
         $user->delete();

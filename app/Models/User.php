@@ -65,5 +65,26 @@ class User extends Authenticatable
     {
         $this->notify(new ResetPasswordNotification($token));
     }
+
+//Связь многие-ко-многим с партнёрами.
+    public function partners()
+    {
+        return $this->belongsToMany(Partner::class, 'partner_user');
+    }
+
+// Пример метода для удобного добавления партнёра к пользователю.
+    public function attachPartner($partnerId)
+    {
+        return $this->partners()->attach($partnerId);
+    }
+
+//     Пример метода для синхронизации партнёров (заменяет текущие связи новыми).
+
+    public function syncPartners(array $partnerIds)
+    {
+        return $this->partners()->sync($partnerIds);
+    }
+
+
 }
 

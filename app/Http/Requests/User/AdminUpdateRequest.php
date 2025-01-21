@@ -39,7 +39,7 @@ class AdminUpdateRequest extends FormRequest
             'email' => 'required|string|email|max:50|unique:users,email,' . $userId,
             'is_enabled' => 'boolean',
             'custom.*' => 'nullable|string|max:255', // Замените правила в зависимости от типа данных
-            'role' => 'required|string|max:12',
+            'role' => 'string|max:12',
 
         ];
     }
@@ -56,6 +56,7 @@ class AdminUpdateRequest extends FormRequest
             'role' => 'Роль',
         ];
     }
+
     public function messages()
     {
         return [
@@ -87,7 +88,8 @@ class AdminUpdateRequest extends FormRequest
             'is_enabled.boolean' => 'Поле "Активность" должно быть истинным или ложным.',
 
             // Поле "Роль"
-            'role.boolean' => 'Выберите поле "Права" из списка',
+            'role.string'   => 'Роль должна быть строкой.',
+            'role.max'      => 'Роль не может превышать :max символов.',
         ];
     }
 }

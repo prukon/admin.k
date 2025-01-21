@@ -75,13 +75,26 @@
         @endif
 
         {{--Учетная запись--}}
+        @if($user && ($user->role == 'user'))
+
         <li class="nav-item">
             <a href="/account-settings/users/{{ Auth::user()->id }}/edit" class="nav-link">
                 <i class="nav-icon fa-solid fa-user"></i>
                 <p>Учетная запись</p>
             </a>
         </li>
+        @endif
 
+        {{--Учетная запись Админа--}}
+        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
+        <li class="nav-item">
+            <a href="/admin/account-settings/users/{{ Auth::user()->id }}/edit" class="nav-link">
+                <i class="nav-icon fa-solid fa-user"></i>
+                <p>Учетная запись</p>
+            </a>
+        </li>
+            </li>
+        @endif
         <hr class="sidebar-separator">
 
 
