@@ -21,8 +21,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
 
-//use App\Models\Log;
-use Illuminate\Support\Facades\Log;
+use App\Models\Log;
+//use Illuminate\Support\Facades\Log;
 
 
 
@@ -98,24 +98,96 @@ class AccountSettingController extends Controller
 
     public function updatePartner(UpdateRequest $request, Partner $partner)
     {
-        // Смотрим, что пришло в запрос:
-        Log::info('Начало updatePartner', [
-            'partner_id' => $partner->id,
-            'request_data' => $request->all()
-        ]);
+        $authorId = auth()->id(); // Авторизованный пользователь
+        $authorName = User::where('id', $authorId)->value('name');
+
+        // Сохраняем старые данные до обновления
+        $oldData = $partner->toArray();
+
+
 
         // Данные, валидированные в Request
         $data = $request->validated();
-        Log::info('Валидированные данные', ['data' => $data]);
 
-        // Обновление партнёра
-        $partner->update($data);
-        Log::info('Партнёр обновлён', ['partner_id' => $partner->id]);
+        DB::transaction(function () use ($partner, $authorId, $authorName, $oldData, $data ) {
 
+            // Определим, есть ли вообще изменения
+            $changedFields = [];
+            foreach ($data as $key => $newValue) {
+                // Проверяем, было ли поле в старых данных и отличается ли оно
+                $oldValue = $oldData[$key] ?? null;
+                if ($oldValue != $newValue) {
+                    $changedFields[] = $key;
+                }
+            }
+
+        $oldTitle = $oldData['title'] ?? null;
+        $oldId = $oldData['id'] ?? null;
+
+            // Если изменений нет, просто выходим из транзакции без записи лога
+            if (empty($changedFields)) {
+                return;
+            }
+
+            // Обновление партнёра
+            $partner->update($data);
+
+            // Словарь переводов для поля business_type
+            $businessTypeTranslate = [
+                'company'                     => 'ООО',
+                'individual_entrepreneur'     => 'ИП',
+                'physical_person'             => 'Физ. лицо',
+                'non_commercial_organization' => 'НКО',
+            ];
+
+
+            // Формируем строку старых значений (только изменяемых полей,
+            // но по требованию можно выводить абсолютно все поля $data)
+            $oldString = '(' . implode(', ', array_map(function ($key) use ($oldData) {
+                    return $oldData[$key] ?? '';
+                }, array_keys($data))) . ')';
+
+            // Формируем строку новых значений
+//            $newString = '(' . implode(', ', array_map(function ($key) use ($data) {
+//                    return $data[$key] ?? '';
+//                }, array_keys($data))) . ')';
+
+
+            // Формируем строку новых значений
+            $newString = '(' . implode(', ', array_map(function ($key) use ($data, $businessTypeTranslate) {
+                    $value = $data[$key] ?? '';
+                    if ($key === 'business_type' && isset($businessTypeTranslate[$value])) {
+                        $value = $businessTypeTranslate[$value];
+                    }
+                    return $value; 
+                }, array_keys($data))) . ')';
+
+            // Собираем строку для описания лога
+            // Пример вывода:
+            // Имя: Админ. ID: 1.
+            // Старые:
+            // (11.06.1989, admin@admin.ru).
+            // Новые:
+            // (11.06.1989, admin@admin.ru1).
+            $description = "Название: {$oldTitle}. ID: {$oldId}.\n"
+                . "Старые:\n{$oldString}.\n"
+                . "Новые:\n{$newString}.";
+
+            // Записываем лог
+            Log::create([
+                'type'       => 2,   // или ваш тип для обновления
+                'action'     => 80,  // или ваш action для обновления партнера
+                'author_id'  => $authorId,
+                'description'=> $description,
+                'created_at' => now(),
+            ]);
+        });
         // Редирект с сообщением об успешном обновлении
         return redirect()->route('admin.cur.company.edit', $partner->id)
             ->with('success', 'Данные партнёра успешно обновлены.');
+
     }
+
 
 
     public function updatePassword(Request $request, $id)
