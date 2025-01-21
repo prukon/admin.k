@@ -159,7 +159,7 @@ class AccountSettingController extends Controller
                     if ($key === 'business_type' && isset($businessTypeTranslate[$value])) {
                         $value = $businessTypeTranslate[$value];
                     }
-                    return $value; 
+                    return $value;
                 }, array_keys($data))) . ')';
 
             // Собираем строку для описания лога

@@ -594,15 +594,12 @@
 
 
     <script>
-        console.log(11);
-
 
         const uploadUrl = "{{ route('profile.user.uploadAvatar') }}";
     </script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            console.log(1);
 
             //Добавление имени пользователя в скрытое поле формы для формы отправки аватарки
             function appendUserNametoForm(name) {
@@ -784,8 +781,6 @@
                 });
             }
 
-            console.log(2);
-
             // Функция для показа/скрытия пароля с помощью иконки глаза
             function showPassword() {
                 const togglePassword = document.querySelector('.toggle-password');
@@ -822,6 +817,9 @@
                     $('#requisites').show();
 
 
+                    console.log(businessType);
+                    console.log( $('#kpp_wrapper'));
+
                     // Меняем заголовок поля регистрации
                     if (businessType === 'company' || businessType === 'non_commercial_organization') {
                         $('#label-registration_number').text('ОГРН');
@@ -830,8 +828,7 @@
                     } else if (businessType === 'individual_entrepreneur') {
                         $('#label-registration_number').text('ОГРНИП');
                         $('#kpp_wrapper').hide();
-                        console.log(2);
-
+                        // console.log(22);
                     }
                 }
 
@@ -844,7 +841,6 @@
 
                 }
             }
-
 
             // По изменению селекта — снова вызываем
             $('#business_type').change(function () {
@@ -860,7 +856,6 @@
             hideModal();
             showPassword();
             toggleFields();
-
         });
 
     </script>

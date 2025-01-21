@@ -317,11 +317,26 @@
 
                     @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
 
-                        <h6> Оплачено до: <a href="/partner-payment/history"><span
-                                        class="badge badge-success latestEndDate">
-                                    {{ \Carbon\Carbon::parse($latestEndDate)->format('d.m.Y') }}
+                        {{--<h6> Оплачено до: <a href="/partner-payment/history"><span--}}
+                                        {{--class="badge badge-success latestEndDate">--}}
+                                    {{--{{ \Carbon\Carbon::parse($latestEndDate)->format('d.m.Y') }}--}}
+                                {{--</span></a></h6>--}}
 
-                                </span></a></h6>
+                        @php
+                            $parsedDate = \Carbon\Carbon::parse($latestEndDate);
+                            // Проверяем, меньше ли текущая дата, чем $parsedDate
+                            $isFuture = now()->lessThan($parsedDate);
+                        @endphp
+
+                        <h6>
+                            Оплачено до:
+                            <a href="/partner-payment/history">
+        <span class="badge {{ $isFuture ? 'badge-success' : 'badge-danger' }} latestEndDate">
+            {{ $parsedDate->format('d.m.Y') }}
+        </span>
+                            </a>
+                        </h6>
+
                     @endif
 
                 </div>
