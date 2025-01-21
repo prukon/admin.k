@@ -29,6 +29,8 @@ class Partner extends Model
         'bank_name',
         'bank_bik',
         'bank_account',
+        'kpp',
+
     ];
 
     /**

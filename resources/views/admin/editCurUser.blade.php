@@ -442,6 +442,21 @@
                                             @enderror
                                         </div>
 
+                                        {{-- КПП --}}
+                                        <div class="mb-3 " id ='kpp_wrapper'>
+                                            <label for="kpp" class="form-label">КПП</label>
+                                            <input type="text"
+                                                   class="form-control"
+                                                   id="kpp"
+                                                   name="kpp"
+                                                   value="{{ old('kpp', $partner->kpp) }}">
+                                            @error('kpp')
+                                            <p class="text-danger">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+
+
                                         {{-- Регистрационный номер (ОГРН / ОГРНИП) --}}
                                         <div class="mb-3" id="registration_number_wrapper">
                                             <label for="registration_number" class="form-label" id="label-registration_number">ОГРН (ОГРНИП)</label>
@@ -794,6 +809,7 @@
                 // меняем заголовок поля title на "ФИО"
                 if (businessType === 'physical_person') {
                     $('#tax_id_wrapper').hide();
+                    $('#kpp_wrapper').hide();
                     $('#registration_number_wrapper').hide();
                     $('#requisites').hide();
 
@@ -801,6 +817,7 @@
                     // Для остальных типов показываем поля tax_id и registration_number,
                     // и меняем заголовок поля title на "Наименование"
                     $('#tax_id_wrapper').show();
+                    $('#kpp_wrapper').show();
                     $('#registration_number_wrapper').show();
                     $('#requisites').show();
 
@@ -808,16 +825,23 @@
                     // Меняем заголовок поля регистрации
                     if (businessType === 'company' || businessType === 'non_commercial_organization') {
                         $('#label-registration_number').text('ОГРН');
+                        $('#kpp_wrapper').show();
+
                     } else if (businessType === 'individual_entrepreneur') {
                         $('#label-registration_number').text('ОГРНИП');
+                        $('#kpp_wrapper').hide();
+                        console.log(2);
+
                     }
                 }
 
                 // Поля банка (показываем только для company, non_commercial_organization, individual_entrepreneur)
                 if (businessType === 'physical_person') {
                     $('#bankFields').hide();
+
                 } else {
                     $('#bankFields').show();
+
                 }
             }
 

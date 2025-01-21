@@ -43,6 +43,16 @@ class UpdateRequest extends FormRequest
                 'max:100',
                 'unique:partners,tax_id,' . $partnerId,
             ],
+
+            // только цифры, макс 100 символов,
+            'kpp' => [
+                'nullable',
+                'regex:/^[0-9]+$/',    // только цифры
+                'max:100',
+//                'unique:partners,tax_id,' . $partnerId,
+            ],
+
+
             // только цифры, макс 100 символов, + уникальность
             'registration_number' => [
                 'nullable',
@@ -108,6 +118,7 @@ class UpdateRequest extends FormRequest
             'business_type'       => 'Тип бизнеса',
             'title'               => 'Наименование',
             'tax_id'              => 'ИНН',
+            'kpp'                 => 'КПП',
             'registration_number' => 'Регистрационный номер',
             'address'             => 'Адрес',
             'phone'               => 'Телефон',
@@ -116,6 +127,7 @@ class UpdateRequest extends FormRequest
             'bank_name'           => 'Наименование банка',
             'bank_bik'            => 'БИК',
             'bank_account'        => 'Расчетный счет',
+
         ];
     }
 
@@ -139,6 +151,10 @@ class UpdateRequest extends FormRequest
             'tax_id.regex'   => 'Поле «:attribute» может содержать только цифры.',
             'tax_id.max'     => 'Поле «:attribute» не может превышать :max символов.',
             'tax_id.unique'  => 'Указанный «:attribute» уже зарегистрирован в системе.',
+
+            // kpp
+            'kpp.regex'   => 'Поле «:attribute» может содержать только цифры.',
+            'kpp.max'     => 'Поле «:attribute» не может превышать :max символов.',
 
             // registration_number
             'registration_number.regex'  => 'Поле «:attribute» может содержать только цифры.',
