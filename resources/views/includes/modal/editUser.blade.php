@@ -90,7 +90,6 @@
                         <input name="email" type="email" class="form-control" id="edit-email" required>
                     </div>
 
-
                     <!-- Поле "Активность" -->
                     <div class="mb-3 ">
                         <label for="edit-activity" class="form-label">Активность</label>
@@ -100,8 +99,7 @@
                         </select>
                     </div>
 
-
-                @if($user && ($user->role == 'superadmin'))
+                    @if($user && ($user->role == 'superadmin'))
                         <div class="mb-3 ">
                             <label for="role" class="form-label">Права</label>
                             <select name="role" class="form-control" id="role">
@@ -112,8 +110,7 @@
                         </div>
                     @endif
 
-
-                    <!-- Блок изменения пароля -->
+                <!-- Блок изменения пароля -->
                     <div class="buttons-wrap change-pass-wrap" id="change-pass-wrap" style="display: none;">
                         <div class="d-flex align-items-center mt-3">
                             <div class="position-relative wrap-change-password">
@@ -143,7 +140,9 @@
                     <!-- Кнопка для сохранения данных -->
 
                     {{--<button type="submit" class="btn btn-danger mt-3 save-change-modal">Удалить</button>--}}
-                    <button type="button" id="delete-user-btn" class="btn btn-danger mt-3">Удалить</button>
+                    <button type="button" id="delete-user-btn" class="btn btn-danger mt-3 confirm-delete-modal">
+                        Удалить
+                    </button>
 
                 </form>
             </div>
@@ -175,45 +174,17 @@
     </div>
 </div>
 
-<!-- Модалка для успешного удаления -->
-<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="successModalLabel">Успех</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Пользователь успешно удалён.
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Модалка для ошибки -->
-<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="errorModalLabel">Ошибка</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Ошибка при удалении пользователя. Пожалуйста, попробуйте снова или проверьте лог сервера.
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Модальное окно подтверждения удаления -->
+@include('includes.modal.confirmDeleteModal')
 
+<!-- Модальное окно успешного обновления данных -->
+@include('includes.modal.successModal')
+
+<!-- Модальное окно ошибки -->
+@include('includes.modal.errorModal')
 
 <script>
-
 
     $(document).ready(function () {
 
@@ -233,7 +204,7 @@
             console.log('Croppie успешно инициализирован.');
         }
 
-// Проверка, если аватарка дефолтная, отключаем кнопку "Удалить фотографию"
+        // Проверка, если аватарка дефолтная, отключаем кнопку "Удалить фотографию"
         function toggleDeleteButton() {
             const defaultAvatarUrl = '/img/default.png';
             const currentAvatarUrl = $('#confirm-img').attr('src');
@@ -316,27 +287,14 @@
                     keyboard: false      // Отключаем закрытие модалки по клавише Esc
                 }).modal('show'); // Открываем модалку для выбора фото
 
-
-                // initializeCroppie();
             });
 
-            // function closeUploadAvatarModal() {
-            //     console.log('Закрытие второй модалки');
-            //     $('#uploadPhotoModal').modal('hide');
-            //     $('#editUserModal').css('opacity', '1').modal('show'); // Возвращаем основную модалку после закрытия модалки выбора фото
-            //     console.log("closeUploadAvatarModal()");
-            // }
 
             function closeUploadAvatarModal2() {
                 console.log("closeUploadAvatarModal2()");
                 console.log('Модалка Croppie закрыта, восстанавливаем прозрачность основной модалки');
                 $('#editUserModal').css('opacity', '1'); // Восстанавливаем прозрачность основной модалки
             }
-
-            // // Обработчик закрытия модалки выбора фото и возврат к основной модалке
-            // $('#uploadPhotoModal .close').on('click', function () {
-            //     // closeUploadAvatarModal()
-            // });
 
 
             // Закрытие второй модалки
@@ -540,50 +498,32 @@
         }
 
         function deleteUser() {
-            $(document).ready(function () {
-                // Обработчик клика по кнопке "Удалить"
-                $('#delete-user-btn').on('click', function (e) {
-                    e.preventDefault();
+            $('#confirmDeleteBtn').on('click', function () {
+                let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
+                let token = $('input[name="_token"]').val();
 
-                    if (confirm('Вы уверены, что хотите удалить пользователя?')) {
-                        let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
-                        let token = $('input[name="_token"]').val();
-
-                        $.ajax({
-                            url: `/admin/user/${userId}`,
-                            method: 'DELETE',
-                            headers: {
-                                'X-CSRF-TOKEN': token
-                            },
-                            success: function (response) {
-                                console.log('Ответ сервера:', response);
-                                if (response.success) {
-                                    $('#successModal').modal('show'); // Показываем модалку успеха
-                                    $('#editUserModal').modal('hide'); // Показываем модалку успеха
-                                } else {
-                                    $('#errorModal').modal('show'); // Показываем модалку ошибки
-                                    $('#editUserModal').modal('hide'); // Показываем модалку успеха
-
-                                }
-                            },
-                            error: function () {
-                                $('#errorModal').modal('show'); // Показываем модалку ошибки
-                            }
-                        });
+                $.ajax({
+                    url: `/admin/user/${userId}`,
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': token
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            $('#successModal').modal('show'); // Показываем модалку успеха
+                            $('#editUserModal').modal('hide'); // Показываем модалку успеха
+                        } else {
+                            $('#error-message').text('Произошла ошибка при удалении пользователя.'); // Устанавливаем сообщение ошибки
+                            $('#errorModal').modal('show')
+                        }
+                    },
+                    error: function (response) {
+                        $('#error-message').text('Произошла ошибка при удалении пользователя.'); // Устанавливаем сообщение ошибки
+                        $('#errorModal').modal('show');    // Показываем модалку ошибки
                     }
                 });
-
-                // Перезагрузка страницы после закрытия модалки успеха
-                $('#successModal').on('hidden.bs.modal', function () {
-                    location.reload(); // Перезагружаем страницу после закрытия модалки успеха
-                });
-
-                // Перезагрузка страницы после закрытия модалки ошибки
-                $('#errorModal').on('hidden.bs.modal', function () {
-                    location.reload(); // Перезагружаем страницу после закрытия модалки ошибки
-                });
             });
-        }
+        };
 
         // Открываем модалку и загружаем данные пользователя для редактирования
         function editUserLink() {
@@ -598,12 +538,6 @@
                     url: url,
                     method: 'GET',
                     success: function (response) {
-                        // console.log('Данные пользователя получены:', response);
-                        // console.log('response.user', response.user);
-                        // console.log('response.user.fields', response.user.fields);
-                        // console.log('response.user.fields', response.fields);
-
-
                         // Заполняем поля в модалке
                         $('#edit-name').val(response.user.name);
                         $('#edit-birthday').val(response.user.birthday);
@@ -632,68 +566,8 @@
                         let customFieldsContainer = $('#custom-fields-container');
                         customFieldsContainer.empty(); // Очищаем контейнер перед заполнением
 
-
-                        // ---
-                        // if (response.user.fields && response.user.fields.length > 0) {
-                        //     response.user.fields.forEach(function (field) {
-                        //         let fieldHtml = '';
-                        //
-                        //         if (field.field_type === 'string') {
-                        //             fieldHtml = `
-                        //         <div class="mb-3 custom-field" data-slug="${field.slug}">
-                        //             <label for="custom-${field.slug}" class="form-label">${field.name}</label>
-                        //             <input type="text" name="custom[${field.slug}]" class="form-control" id="custom-${field.slug}" value="${field.pivot.value || ''}">
-                        //         </div>`;
-                        //         } else if (field.field_type === 'textarea') {
-                        //             fieldHtml = `
-                        //         <div class="mb-3 custom-field" data-slug="${field.slug}">
-                        //             <label for="custom-${field.slug}" class="form-label">${field.name}</label>
-                        //             <textarea name="custom[${field.slug}]" class="form-control" id="custom-${field.slug}">${field.pivot.value || ''}</textarea>
-                        //         </div>`;
-                        //         }
-                        //
-                        //         customFieldsContainer.append(fieldHtml);
-                        //     });
-                        // } else {
-                        //
-                        //     customFieldsContainer.append('<p>Нет пользовательских полей.</p>');
-                        // }
-                        // ---
-
-                        //
-                        // if (response.fields) {
-                        //     response.fields.forEach(function (field) {
-                        //         fieldHtml = `
-                        //         <div class="mb-3 custom-field" data-slug="${field.slug}">
-                        //             <label for="custom-${field.slug}" class="form-label">${field.name}</label>
-                        //             <input type="text" name="custom[${field.slug}]" class="form-control" id="custom-${field.slug}" value="">
-                        //         </div>`;
-                        //         customFieldsContainer.append(fieldHtml);
-                        //     });
-                        // }
-                        //
-                        //
-                        //
-                        // if (response.user.fields) {
-                        //     response.fields.forEach(function (field) {
-                        //         response.user.fields.forEach(function (userField) {
-                        //
-                        //             if (userField.slug == field.slug) {
-                        //                 fieldHtml = `
-                        //         <div class="mb-3 custom-field" data-slug="${field.slug}">
-                        //             <label for="custom-${field.slug}" class="form-label">${field.name}</label>
-                        //             <input type="text" name="custom[${field.slug}]" class="form-control" id="custom-${field.slug}" value="${userField.pivot.value || ''}">
-                        //         </div>`;
-                        //             }
-                        //             customFieldsContainer.append(fieldHtml);
-                        //
-                        //         });
-                        //     });
-                        // }
-
-
                         if (response.fields) {
-                            response.fields.forEach(function(field) {
+                            response.fields.forEach(function (field) {
 
                                 // По умолчанию поле будет пустым.
                                 let userValue = '';
@@ -701,7 +575,7 @@
                                 // Проверяем, существует ли блок полей у пользователя
                                 // и ищем нужный slug.
                                 if (response.user && response.user.fields) {
-                                    const userField = response.user.fields.find(function(uf) {
+                                    const userField = response.user.fields.find(function (uf) {
                                         return uf.slug === field.slug;
                                     });
 
@@ -729,9 +603,6 @@
                                 customFieldsContainer.append(fieldHtml);
                             });
                         }
-
-
-
 
                         // Открываем модальное окно
                         $('#editUserModal').modal('show');
@@ -772,7 +643,6 @@
                 });
             });
         }
-
 
         clickToUpdatePhoto();
         editMidalUser();

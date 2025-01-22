@@ -828,7 +828,6 @@
                     } else if (businessType === 'individual_entrepreneur') {
                         $('#label-registration_number').text('ОГРНИП');
                         $('#kpp_wrapper').hide();
-                        // console.log(22);
                     }
                 }
 

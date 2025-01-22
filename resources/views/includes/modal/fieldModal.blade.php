@@ -1,5 +1,5 @@
 <!-- Модальное окно для настройки полей -->
-<div class="modal fade" id="fieldModal" tabindex="-1" aria-labelledby="fieldModalLabel" aria-hidden="true">
+<div class="modal fade" id="fieldModal" tabindex="-1" aria-labelledby="fieldModalLabel">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -23,7 +23,8 @@
                     <tbody>
                     <!-- Существующие поля будут загружаться сюда -->
                     @foreach($fields as $index => $field)
-                        <tr data-id="{{ $field->id }}">
+                        <tr data-id="{{ $field->id }}"  id="{{ $field->id }}">
+
                             <td>{{ $index + 1 }}</td>
                             <td>
                                 <input type="text" class="form-control field-name" value="{{ $field->name }}">
@@ -35,7 +36,7 @@
                                     <option value="string" {{ $field->field_type == 'string' ? 'selected' : '' }}>
                                         Текст
                                     </option>
-                                    <option value="text"  {{ $field->field_type == 'text' ? 'selected' : '' }}>
+                                    <option value="text" {{ $field->field_type == 'text' ? 'selected' : '' }}>
                                         Многострочный текст
                                     </option>
                                     <option value="select" {{ $field->field_type == 'select' ? 'selected' : '' }}>
@@ -44,7 +45,7 @@
                                 </select>
                             </td>
                             <td>
-                                <button type="button" class="btn btn-danger btn-sm delete-field-btn">Удалить</button>
+                                <button type="button" class="btn btn-danger btn-sm confirm-delete-modal">Удалить</button>
                             </td>
                         </tr>
                     @endforeach
@@ -59,115 +60,41 @@
     </div>
 </div>
 
-
 <!-- Модальное окно ошибки -->
-<div class="modal fade errorFieldModal" id="errorFieldModal" tabindex="-1" aria-labelledby="errorModalLabel"
-     aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="errorModalLabel">Ошибка</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-danger" id="error-message">
-                    Произошла ошибка при сохранении данных.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Модальное окно успешного сохранения -->
-<div class="modal fade successFieldModal" id="successFieldModal" tabindex="-1" aria-labelledby="successModalLabel"
-     aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="successModalLabel">Поле успешно сохранено</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-success" id="success-message">
-                    Поле было успешно сохранено.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">ОК</button>
-            </div>
-        </div>
-    </div>
-</div>
-
+@include('includes.modal.errorModal')
 
 <!-- Модальное окно подтверждения удаления -->
-<div class="modal fade confirmDeleteModal" id="confirmDeleteModal" tabindex="-1"
-     aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="confirmDeleteModalLabel">Подтвердите удаление</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Вы уверены, что хотите удалить это поле?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Удалить</button>
-            </div>
-        </div>
-    </div>
-</div>
-
+@include('includes.modal.confirmDeleteModal')
 
 <!-- Модальное окно успешного обновления данных -->
-<div class="modal fade" id="dataUpdatedModal" tabindex="-1" aria-labelledby="dataUpdatedModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="dataUpdatedModalLabel">Данные успешно обновлены</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-success">
-                    Данные были успешно обновлены.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">ОК</button>
-            </div>
-        </div>
-    </div>
-</div>
-
+@include('includes.modal.successModal')
 
 <script>
     $(document).ready(function () {
         let fieldIdToDelete = null; // ID поля для удаления
 
-        // Функция для добавления новой строки в таблицу
+            // Функция для добавления новой строки в таблицу
         $('#new-field-btn').on('click', function () {
+            // Генерируем случайный ID в диапазоне от 10000 до 20000
+            const randomId = Math.floor(Math.random() * (20000 - 10000 + 1)) + 10000;
+
             const newRow = `
-            <tr>
-                <td></td>
-                <td>
-                    <input type="text" class="form-control field-name" placeholder="Введите название">
-                    <div class="invalid-feedback" style="display: none;">Заполните поле</div>
-                </td>
-                <td>
-                    <select class="form-select field-type">
-                        <option value="string">Текст</option>
-                        <option value="text">Многострочный текст</option>
-                        <option value="select">Список</option>
-                    </select>
-                </td>
-                <td><button type="button" class="btn btn-danger btn-sm delete-field-btn">Удалить</button></td>
-            </tr>
-        `;
+        <tr id="${randomId}">
+            <td></td>
+            <td>
+                <input type="text" class="form-control field-name" placeholder="Введите название">
+                <div class="invalid-feedback" style="display: none;">Заполните поле</div>
+            </td>
+            <td>
+                <select class="form-select field-type">
+                    <option value="string">Текст</option>
+                    <option value="text">Многострочный текст</option>
+                    <option value="select">Список</option>
+                </select>
+            </td>
+            <td><button type="button" class="btn btn-danger btn-sm confirm-delete-modal">Удалить</button></td>
+        </tr>
+    `;
             $('#fields-table tbody').append(newRow);
             updateRowNumbers();
         });
@@ -178,21 +105,6 @@
                 $(this).find('td:first').text(index + 1);
             });
         }
-
-        // Удаление поля с подтверждением
-        $(document).on('click', '.delete-field-btn', function () {
-            const row = $(this).closest('tr');
-            fieldIdToDelete = row.data('id'); // Сохраняем ID для удаления
-            $('#confirmDeleteModal').modal('show'); // Показываем модалку подтверждения
-        });
-
-        // Подтверждение удаления
-        $('#confirmDeleteBtn').on('click', function () {
-            if (fieldIdToDelete) {
-                $(`#fields-table tr[data-id=${fieldIdToDelete}]`).remove(); // Удаляем строку из таблицы
-                $('#confirmDeleteModal').modal('hide'); // Закрываем модалку
-            }
-        });
 
         // Сохранение изменений
         $('#save-fields-btn').on('click', function () {
@@ -225,6 +137,8 @@
                 return;
             }
 
+            console.log(fieldsData);
+
             // Отправка данных на сервер
             $.ajax({
                 url: '{{ route('admin.field.store') }}',  // Путь к контроллеру для сохранения
@@ -234,23 +148,32 @@
                     fields: fieldsData
                 },
                 success: function (response) {
-                    $('#dataUpdatedModal').modal('show'); // Показываем модалку успешного обновления
+                    $('#successModal').modal('show'); // Показываем модалку успешного обновления
                     $('#fieldModal').modal('hide');       // Закрываем текущую модалку
                 },
                 error: function (response) {
-                    let errorMessage = 'Произошла ошибка при сохранении данных.';
-                    if (response.responseJSON && response.responseJSON.message) {
-                        errorMessage = response.responseJSON.message; // Используем сообщение с сервера, если оно есть
-                    }
-                    $('#error-message').text(errorMessage); // Устанавливаем сообщение ошибки
-                    $('#errorFieldModal').modal('show');    // Показываем модалку ошибки
+                    $('#error-message').text('Произошла ошибка при сохранении данных.'); // Устанавливаем сообщение ошибки
+                    $('#errorModal').modal('show');    // Показываем модалку ошибки
+                    $('#fieldModal').modal('hide');       // Закрываем текущую модалку
+
                 }
             });
         });
+
+
+        // Отображение модалки удаления
+        $(document).on('click', '.confirm-delete-modal', function () {
+            const row = $(this).closest('tr');
+            // fieldIdToDelete = row.('id'); // Сохраняем ID для удаления
+            fieldIdToDelete = row.attr('id'); // Получаем значение из "id"
+        });
+
+        // Подтверждение удаления внутри модалки
+        $('#confirmDeleteBtn').on('click', function () {
+            if (fieldIdToDelete) {
+                $(`#fields-table tr[id=${fieldIdToDelete}]`).remove(); // Удаляем строку из таблицы
+            }
+        });
     });
 
-    // Перезагрузка страницы при нажатии "ОК" в модалке успешного обновления
-    $('#dataUpdatedModal .btn-primary').on('click', function () {
-        location.reload(); // Перезагружаем страницу
-    });
 </script>

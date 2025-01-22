@@ -1010,6 +1010,9 @@ font-size: 11px;
 .modal {
     z-index: 1055;
 }
+.errorModal {
+    z-index: 1100;
+}
 
 .sidebar-separator {
     color:white;
