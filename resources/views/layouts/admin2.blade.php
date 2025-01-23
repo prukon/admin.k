@@ -142,13 +142,7 @@
 
 
             <li class="nav-item d-flex align-items-center">
-                <button
-                        type="button"
-                        class="btn btn-primary logout"
-                        data-bs-toggle="modal"
-                        data-bs-target="#logoutModal">
-                    Выйти
-                </button>
+                <button type="button" class="btn btn-primary logout confirm-logout-modal" data-bs-toggle="modal" data-bs-target="#logoutModal">Выйти</button>
             </li>
 
             <script>
@@ -164,7 +158,49 @@
 
 
             <!-- Модальное окно настройки меню -->
-            @include('includes.confirmLogout')
+            {{--@include('includes.confirmLogout')--}}
+
+        <!-- Модальное окно подтверждения удаления -->
+            @include('includes.modal.confirmDeleteModal')
+
+
+            <script>
+                // Вызов модалки логаута
+                $(document).on('click', '.confirm-logout-modal', function () {
+                    logoutUser();
+                });
+
+                //Выполнение логаута
+                function logoutUser() {
+                    // Показываем модалку с текстом и передаём колбэк, который выполнит выход
+                    showConfirmDeleteModal(
+                        "Подтверждение выхода",
+                        "Вы уверены, что хотите выйти?",
+                        function() {
+                            $.ajax({
+                                url: "{{ route('logout') }}",   // маршрут выхода
+                                type: "POST",                  // метод запроса
+                                data: {
+                                    _token: "{{ csrf_token() }}" // обязательно передаём CSRF-токен
+                                },
+                                success: function(response) {
+                                    // Закрываем модальное окно
+                                    // $('#deleteConfirmationModal').modal('hide');
+                                    // Перезагружаем страницу или перенаправляем, если нужно
+                                    location.reload();
+                                },
+                                error: function(xhr) {
+                                    // alert('Ошибка при попытке выйти.');
+                                    location.reload();
+                                }
+                            });
+                        }
+                    );
+                }
+
+            </script>
+
+
 
             {{--            <li class="nav-item">--}}
             {{--                <a class="nav-link" data-widget="navbar-search" href="#" role="button">--}}

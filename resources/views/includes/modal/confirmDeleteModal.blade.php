@@ -52,7 +52,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Удалить</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Да</button>
             </div>
         </div>
     </div>
