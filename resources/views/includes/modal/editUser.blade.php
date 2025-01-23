@@ -497,34 +497,6 @@
             });
         }
 
-        function deleteUser() {
-            $('#confirmDeleteBtn').on('click', function () {
-                let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
-                let token = $('input[name="_token"]').val();
-
-                $.ajax({
-                    url: `/admin/user/${userId}`,
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': token
-                    },
-                    success: function (response) {
-                        if (response.success) {
-                            $('#successModal').modal('show'); // Показываем модалку успеха
-                            $('#editUserModal').modal('hide'); // Показываем модалку успеха
-                        } else {
-                            $('#error-message').text('Произошла ошибка при удалении пользователя.'); // Устанавливаем сообщение ошибки
-                            $('#errorModal').modal('show')
-                        }
-                    },
-                    error: function (response) {
-                        $('#error-message').text('Произошла ошибка при удалении пользователя.'); // Устанавливаем сообщение ошибки
-                        $('#errorModal').modal('show');    // Показываем модалку ошибки
-                    }
-                });
-            });
-        };
-
         // Открываем модалку и загружаем данные пользователя для редактирования
         function editUserLink() {
             $('.edit-user-link').on('click', function () {
@@ -625,7 +597,6 @@
                 // console.log('Отправляем форму для обновления пользователя с URL:', url);
                 // console.log('form.serialize():' + form.serialize());
 
-
                 // AJAX-запрос для обновления данных пользователя
                 $.ajax({
                     url: url,
@@ -644,15 +615,52 @@
             });
         }
 
+
+
+
+        // Вызов модалки удаления
+        $(document).on('click', '.confirm-delete-modal', function () {
+            deleteUser();
+        });
+
+        function deleteUser() {
+            // Показываем модалку с текстом и передаём колбэк, который удалит пользователя
+            showConfirmDeleteModal(
+                "Удаление пользователя",
+                "Вы уверены, что хотите удалить пользователя?",
+                function() {
+                    let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
+                    let token = $('input[name="_token"]').val();
+
+                    $.ajax({
+                        url: `/admin/user/${userId}`,
+                        method: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': token },
+                        success: function (response) {
+                            if (response.success) {
+                                $('#successModal').modal('show');
+                                $('#editUserModal').modal('hide');
+                            } else {
+                                $('#error-message').text('Произошла ошибка при удалении пользователя.');
+                                $('#errorModal').modal('show');
+                            }
+                        },
+                        error: function () {
+                            $('#error-message').text('Произошла ошибка при удалении пользователя.');
+                            $('#errorModal').modal('show');
+                        }
+                    });
+                }
+            );
+        }
+
+
         clickToUpdatePhoto();
         editMidalUser();
         initializeCroppie();
         showContexMenu();
         deteleAvatar();
-        deleteUser();
         editUserLink();
         editUserForm();
     });
 </script>
-
-

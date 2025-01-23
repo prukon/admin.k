@@ -1,50 +1,82 @@
-
-{{--Для работы модалки подтврждения удаления добавить в шаблон кнопку с классом:
-confirm-delete-modal
-
-Выполнить подтвержденное действие вызывать по классу:
-#confirmDeleteBtn
-
+{{--
+        Вызов модалки удаления в шаблоне
 Пример:
-        $('#confirmDeleteBtn').on('click', function () {
 
+  $(document).on('click', '.КЛАСС по которорому вызываем удаление', function () {
+            deleteUser();
         });
+
+            function deleteUser() {
+            // Показываем модалку с текстом и передаём колбэк, который удалит пользователя
+            showConfirmDeleteModal(
+                "Удаление пользователя",
+                "Вы уверены, что хотите удалить пользователя?",
+                function() {
+                    //Код выполняемый при удалении
+
+                    $.ajax({
+                        url: `/admin/user/${userId}`,
+                        method: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': token },
+                        success: function (response) {
+                            if (response.success) {
+                                $('#successModal').modal('show');
+                                $('#editUserModal').modal('hide');
+                            } else {
+                                $('#error-message').text('Произошла ошибка при удалении пользователя.');
+                                $('#errorModal').modal('show');
+                            }
+                        },
+                        error: function () {
+                            $('#error-message').text('Произошла ошибка при удалении пользователя.');
+                            $('#errorModal').modal('show');
+                        }
+                    });
+                }
+            );
+        }
 --}}
 
 
 
-
-<!-- Модальное окно подтверждения удаления -->
-<div class="modal fade confirmDeleteModal" id="confirmDeleteModal" tabindex="-1"
-     aria-labelledby="confirmDeleteModalLabel">
+<!-- confirmDeleteModal.blade -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="confirmDeleteModalLabel">Подтвердите удаление</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="confirmDeleteModalLabel">Заголовок</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
-                Вы уверены, что хотите удалить это поле?
+                Текст
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-danger confirmDeleteBtn" id="confirmDeleteBtn">Удалить</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Удалить</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    $(document).ready(function () {
+    function showConfirmDeleteModal(headerText, messageText, confirmCallback) {
+        // Подменяем текст
+        $('#confirmDeleteModalLabel').text(headerText);
+        $('#confirmDeleteModal .modal-body').text(messageText);
 
-        // Отображение модалки удаления
-        $(document).on('click', '.confirm-delete-modal', function () {
-            $('#confirmDeleteModal').modal('show'); // Показываем модалку подтверждения
-        });
+        // Перед тем, как навесить новый обработчик, уберём старые
+        $('#confirmDeleteBtn').off('click');
 
-        // Подтверждение удаления внутри модалки
+        // Навешиваем обработчик под текущее действие
         $('#confirmDeleteBtn').on('click', function () {
-                $('#confirmDeleteModal').modal('hide'); // Закрываем модалку
+            if (typeof confirmCallback === 'function') {
+                confirmCallback();
+            }
+            // Закроем модалку при успехе (или оставим открытой, если надо)
+            $('#confirmDeleteModal').modal('hide');
         });
-    });
+
+        // Показываем модалку
+        $('#confirmDeleteModal').modal('show');
+    }
 </script>

@@ -45,7 +45,7 @@
                                 </select>
                             </td>
                             <td>
-                                <button type="button" class="btn btn-danger btn-sm confirm-delete-modal">Удалить</button>
+                                <button type="button" class="btn btn-danger btn-sm confirm-delete-field-modal">Удалить</button>
                             </td>
                         </tr>
                     @endforeach
@@ -92,7 +92,7 @@
                     <option value="select">Список</option>
                 </select>
             </td>
-            <td><button type="button" class="btn btn-danger btn-sm confirm-delete-modal">Удалить</button></td>
+            <td><button type="button" class="btn btn-danger btn-sm confirm-delete-field-modal">Удалить</button></td>
         </tr>
     `;
             $('#fields-table tbody').append(newRow);
@@ -137,8 +137,6 @@
                 return;
             }
 
-            console.log(fieldsData);
-
             // Отправка данных на сервер
             $.ajax({
                 url: '{{ route('admin.field.store') }}',  // Путь к контроллеру для сохранения
@@ -160,20 +158,28 @@
             });
         });
 
-
         // Отображение модалки удаления
-        $(document).on('click', '.confirm-delete-modal', function () {
+        $(document).on('click', '.confirm-delete-field-modal', function () {
             const row = $(this).closest('tr');
-            // fieldIdToDelete = row.('id'); // Сохраняем ID для удаления
             fieldIdToDelete = row.attr('id'); // Получаем значение из "id"
+            deleteField()
         });
 
-        // Подтверждение удаления внутри модалки
-        $('#confirmDeleteBtn').on('click', function () {
-            if (fieldIdToDelete) {
-                $(`#fields-table tr[id=${fieldIdToDelete}]`).remove(); // Удаляем строку из таблицы
-            }
-        });
+        //Удаление доп. поля
+        function deleteField() {
+            // Показываем ту же модалку, но логика при клике — другая
+            showConfirmDeleteModal(
+                "Удаление поля",
+                "Вы уверены, что хотите удалить это поле?",
+                function() {
+                    console.log(fieldIdToDelete);
+
+                    if (fieldIdToDelete) {
+                        $(`#fields-table tr[id=${fieldIdToDelete}]`).remove();
+                    }
+                }
+            );
+        }
     });
 
 </script>
