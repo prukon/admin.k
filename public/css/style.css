@@ -1010,9 +1010,7 @@ font-size: 11px;
 .modal {
     z-index: 1055;
 }
-.errorModal {
-    /*z-index: 1100;*/
-}
+
 
 .confirm-modal {
     /*z-index: 1090;*/
@@ -1082,6 +1080,10 @@ z-index: 2000;
 #successModal {
     z-index: 2010;
 }
+#errorModal {
+    z-index: 2010;
+}
+
 .confirmDeleteModal {
     z-index: 2000;
 }

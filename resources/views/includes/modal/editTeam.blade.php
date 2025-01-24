@@ -114,14 +114,10 @@
                 type: 'PATCH',
                 data: formData,
                 success: function(response) {
-                    $('#editTeamModal').modal('hide');
-                    location.reload();
+                    showSuccessModal("Редактирование группы", "Группа успешно отредактирована.", 1);
                 },
                 error: function(xhr) {
-                    if (xhr.responseJSON && xhr.responseJSON.errors) {
-                        $('#edit-title-error').text(xhr.responseJSON.errors.title || '');
-                        $('#edit-weekdays-error').text(xhr.responseJSON.errors.weekdays || '');
-                    }
+                    $('#errorModal').modal('show');
                 }
             });
         });
@@ -148,12 +144,10 @@
                             _token: $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#deleteConfirmationModal').modal('hide');
-                            $('#editTeamModal').modal('hide');
-                            location.reload();
+                            showSuccessModal("Удаление группы", "Группа успешно удалена.", 1);
                         },
                         error: function(xhr) {
-                            alert('Ошибка при удалении группы.');
+                            $('#errorModal').modal('show');
                         }
                     });
                     // ----

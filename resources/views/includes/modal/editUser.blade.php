@@ -338,24 +338,29 @@
                                         let newAvatarUrl = response.avatar_url + '?' + new Date().getTime();
                                         $('#confirm-img').attr('src', newAvatarUrl);
                                         console.log('URL изображения после обновления:', $('#confirm-img').attr('src'));
-                                        alert('Аватар успешно обновлен');
+                                        showSuccessModal("Обновление аватара", "Аватар успешно обновлен.");
+
+
 
                                         // Закрытие второй модалки и возврат к основной модалке
                                         $('#editPhotoModal').modal('hide');
                                         $('#editUserModal').css('opacity', '1').modal('show');
                                     } else {
-                                        console.error('Ответ сервера не содержит success:', response);
-                                        alert('Не удалось обновить аватар. Ошибка ответа.');
+                                        // console.error('Ответ сервера не содержит success:', response);
+                                        // alert('Не удалось обновить аватар. Ошибка ответа.');
+                                        $('#errorModal').modal('show');
                                     }
                                 } catch (error) {
-                                    console.error('Ошибка обработки ответа от сервера:', error);
+                                    $('#errorModal').modal('show');
+                                    // console.error('Ошибка обработки ответа от сервера:', error);
                                 }
                             },
                             error: function (xhr, status, error) {
-                                console.error('Ошибка при загрузке аватарки:', error);
-                                console.log('Статус ответа:', status);
-                                console.log('Ответ сервера:', xhr.responseText);
-                                alert('Ошибка при загрузке аватарки. Проверьте лог сервера.');
+                                // console.error('Ошибка при загрузке аватарки:', error);
+                                // console.log('Статус ответа:', status);
+                                // console.log('Ответ сервера:', xhr.responseText);
+                                // alert('Ошибка при загрузке аватарки. Проверьте лог сервера.');
+                                $('#errorModal').modal('show');
                             }
                         });
                     } else {
@@ -404,6 +409,7 @@
                             $('#change-password-btn').show();
                             $('#change-pass-wrap').hide();
                             $('#password-change-message').show().delay(3000).fadeOut();
+                            showSuccessModal("Обновление пароля", "Пароль успешно обновлен.");
                         }
                     },
                     error: function () {
@@ -483,14 +489,16 @@
                         success: function (response) {
                             if (response.success) {
                                 $('#confirm-img').attr('src', '/img/default.png'); // Устанавливаем аватарку по умолчанию
-                                alert('Аватарка успешно удалена');
+                                showSuccessModal("Удаление аватара", "Аватар успешно удален.");
                                 toggleDeleteButton();
                             } else {
-                                alert('Ошибка удаления аватарки');
+                                // alert('Ошибка удаления аватарки');
+                                $('#errorModal').modal('show');
                             }
                         },
                         error: function () {
-                            alert('Ошибка удаления аватарки. Проверьте лог сервера.');
+                            // alert('Ошибка удаления аватарки. Проверьте лог сервера.');
+                            $('#errorModal').modal('show');
                         }
                     });
                 }
@@ -586,7 +594,7 @@
             });
         }
 
-        // ОТПРАВКА AJAX.-> /User/UpdateControlle Обработчик обновления данных пользователя
+        // ОТПРАВКА AJAX.-> /User/UpdateController Обработчик обновления данных пользователя
         function editUserForm() {
             $('#edit-user-form').on('submit', function (e) {
                 e.preventDefault();
@@ -603,20 +611,15 @@
                     method: 'PATCH',
                     data: form.serialize(),
                     success: function () {
-                        console.log('Данные пользователя успешно обновлены');
-                        $('#editUserModal').modal('hide');
-
-                        location.reload(); // Обновляем страницу
+                        showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлен.", 1);
                     },
                     error: function () {
-                        console.error('Ошибка при обновлении данных пользователя');
+                        $('#errorModal').modal('show');
+                        // console.error('Ошибка при обновлении данных пользователя');
                     }
                 });
             });
         }
-
-
-
 
         // Вызов модалки удаления
         $(document).on('click', '.confirm-delete-modal', function () {
@@ -638,8 +641,7 @@
                         headers: { 'X-CSRF-TOKEN': token },
                         success: function (response) {
                             if (response.success) {
-                                $('#successModal').modal('show');
-                                $('#editUserModal').modal('hide');
+                                showSuccessModal("Удаление пользователя", "Пользователь успешно удален.", 1);
                             } else {
                                 $('#error-message').text('Произошла ошибка при удалении пользователя.');
                                 $('#errorModal').modal('show');

@@ -323,8 +323,7 @@
 
                                             success: function (response) {
                                                 if (response.success) {
-                                                    // var isRegistrationActivity = response.isRegistrationActivity;
-                                                    $('#successModal').modal('show');
+                                                    showSuccessModal("Обновление правил регистрации", "Правила регистрации обновлены.", 1);
                                                 }
                                             }
                                         });
@@ -368,7 +367,7 @@
                                                 var textForUsers = response.textForUsers;
 
                                                 textForUsersTextarea.classList.add('animated-input');
-                                                $('#successModal').modal('show');
+                                                showSuccessModal("Обновление текста", "Текст для пользователей обновлен.", 1);
                                             }
                                         }
                                     });
@@ -472,8 +471,7 @@
                                     })
                                     .then(response => {
                                         if (response.success) {
-                                            $('#successModal').modal('show');
-                                            // location.reload();
+                                            showSuccessModal("Обновление меню", "Главное меню в шапке сайта обновлено.", 1);
                                         }
                                     })
                                     .catch(errors => {
@@ -526,9 +524,7 @@
                                     })
                                     .then(response => {
                                         if (response.success) {
-                                            $('#successModal').modal('show');
-                                            // alert('Социальные сети успешно сохранены.');
-                                            // location.reload();
+                                            showSuccessModal("Обновление меню", "Меню  соц. сетей обновлено.", 1);
                                         }
                                     })
                                     .catch(error => {

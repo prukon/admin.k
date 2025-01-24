@@ -430,10 +430,6 @@
 
 
 
-    <script>
-        {{--        const uploadUrl = "{{ route('profile.uploadAvatar') }}";--}}
-    </script>
-
     {{--    Модалка загрузка аватарки--}}
     <div class="modal fade" id="uploadPhotoModal" tabindex="-1" role="dialog" aria-labelledby="uploadPhotoModalLabel"
          aria-hidden="true">
@@ -475,4 +471,11 @@
         </div>
     </div>
 
+
+
+    <!-- Модальное окно успешного обновления данных -->
+    @include('includes.modal.successModal')
+
+    <!-- Модальное окно ошибки -->
+    @include('includes.modal.errorModal')
 @endsection

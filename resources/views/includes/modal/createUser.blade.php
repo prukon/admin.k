@@ -56,22 +56,29 @@
 </div>
 
 <!-- Модальное окно для подтверждения успешного создания пользователя -->
-<div class="modal fade" id="successUserModal" tabindex="-1" aria-labelledby="successUserModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="successUserModalLabel">Пользователь создан</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Пользователь был успешно создан.
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">ОК</button>
-            </div>
-        </div>
-    </div>
-</div>
+{{--<div class="modal fade" id="successUserModal" tabindex="-1" aria-labelledby="successUserModalLabel" aria-hidden="true">--}}
+    {{--<div class="modal-dialog">--}}
+        {{--<div class="modal-content">--}}
+            {{--<div class="modal-header">--}}
+                {{--<h5 class="modal-title" id="successUserModalLabel">Пользователь создан</h5>--}}
+                {{--<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>--}}
+            {{--</div>--}}
+            {{--<div class="modal-body">--}}
+                {{--Пользователь был успешно создан.--}}
+            {{--</div>--}}
+            {{--<div class="modal-footer">--}}
+                {{--<button type="button" class="btn btn-primary" data-bs-dismiss="modal">ОК</button>--}}
+            {{--</div>--}}
+        {{--</div>--}}
+    {{--</div>--}}
+{{--</div>--}}
+@include('includes.modal.confirmDeleteModal')
+
+<!-- Модальное окно успешного обновления данных -->
+@include('includes.modal.successModal')
+
+<!-- Модальное окно ошибки -->
+@include('includes.modal.errorModal')
 
 <script>
     $(document).ready(function () {
@@ -102,30 +109,25 @@
                 method: $(this).attr('method'),
                 data: $(this).serialize(),
                 success: function (response) {
-                    // Закрываем модальное окно создания пользователя
-                    $('#createUserModal').modal('hide');
-
-                    // Очищаем форму
-                    $('#create-user-form')[0].reset();
-
-                    // Открываем модальное окно успешного создания пользователя
-                    $('#successUserModal').modal('show');
+                    showSuccessModal("Создание пользователя", "Пользователь успешно создан.", 1);
                 },
                 error: function (response) {
                     let errors = response.responseJSON.errors;
                     if (errors) {
-                        for (let field in errors) {
-                            $(`#${field}`).addClass('is-invalid');
-                            $(`#${field}`).after(`<div class="invalid-feedback">${errors[field][0]}</div>`);
-                        }
+                        $('#errorModal').modal('show');
+
+                        // for (let field in errors) {
+                        //     $(`#${field}`).addClass('is-invalid');
+                        //     $(`#${field}`).after(`<div class="invalid-feedback">${errors[field][0]}</div>`);
+                        // }
                     }
                 }
             });
         });
 
         // Перезагрузка страницы после закрытия модального окна успеха
-        $('#successUserModal').on('hidden.bs.modal', function () {
-            location.reload();
-        });
+        // $('#successUserModal').on('hidden.bs.modal', function () {
+        //     location.reload();
+        // });
     });
 </script>

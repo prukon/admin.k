@@ -589,9 +589,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Обновление календаря
                     // updateCalendar(response.scheduleData); // передаем данные для обновления
 
-
+                    showSuccessModal("Установка расписания", "Расписание успешно обновлено.");
                 }
                 // location.reload();
+
             },
         })
     });

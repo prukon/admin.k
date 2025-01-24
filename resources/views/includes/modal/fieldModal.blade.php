@@ -146,8 +146,7 @@
                     fields: fieldsData
                 },
                 success: function (response) {
-                    $('#successModal').modal('show'); // Показываем модалку успешного обновления
-                    $('#fieldModal').modal('hide');       // Закрываем текущую модалку
+                    showSuccessModal("Обновление полей", "Пользовательские поля успешно обновлены.", 1);
                 },
                 error: function (response) {
                     $('#error-message').text('Произошла ошибка при сохранении данных.'); // Устанавливаем сообщение ошибки
