@@ -1079,6 +1079,9 @@ z-index: 2000;
 .successFieldModal {
     z-index: 2010;
 }
+#successModal {
+    z-index: 2010;
+}
 .confirmDeleteModal {
     z-index: 2000;
 }
@@ -1086,6 +1089,66 @@ z-index: 2000;
     z-index: 1900;
 }
 
+
 .fields-value {
     font-weight: 600;
+}
+
+#menuModal #menuTable {
+    width: max-content;
+}
+
+#menuModal .modal-dialog {
+    /*display: inline-block; !* Позволяет модалке занимать только необходимую ширину *!*/
+    /*width: auto;*/
+    max-width: 800px;
+}
+
+/* Задание ширины для столбцов таблицы */
+#menuModal th:nth-child(1),
+#menuModal td:nth-child(1) {
+    width: 75px;
+    text-align: center; /* Горизонтальное центрирование */
+    vertical-align: middle; /* Вертикальное центрирование */
+}
+
+/*Название*/
+#menuModal th:nth-child(2),
+#menuModal td:nth-child(2) {
+    width: 150px;
+}
+
+/*ссылка*/
+#menuModal th:nth-child(3),
+#menuModal td:nth-child(3) {
+    width: 300px;
+}
+
+/*Чек бокс*/
+#menuModal th:nth-child(4),
+#menuModal td:nth-child(4) {
+    width: 120px;
+}
+
+#socialMenuModal .modal-dialog {
+    /*display: inline-block; !* Позволяет модалке занимать только необходимую ширину *!*/
+    /*width: auto;*/
+}
+
+/* Задание ширины для столбцов таблицы */
+#socialTable th:nth-child(1),
+#socialTable td:nth-child(1) {
+    /*width: 70px;*/
+    /*text-align: center; !* Горизонтальное центрирование *!*/
+    /*vertical-align: middle; !* Вертикальное центрирование *!*/
+}
+
+#socialTable th:nth-child(2),
+#socialTable td:nth-child(2) {
+    /*width: 150px;*/
+}
+
+#socialTable th:nth-child(3),
+#socialTable td:nth-child(3) {
+    /*width: 300px;*/
 }

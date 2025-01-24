@@ -1,5 +1,5 @@
 <!-- Модальное окно логов -->
-<div class="modal fade mt-3" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
+<div class="modal fade mt-3" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel">
     <div class="modal-dialog modal-lg modal-fullscreen-sm-down" style="margin: 0 auto;"> <!-- Горизонтальное центрирование -->
         <div class="modal-content">
             <div class="modal-header">
@@ -31,7 +31,6 @@
 
 <script>
     function showLogModal(routeName) {
-        $(document).ready(function() {
             // Инициализация DataTables с серверной пагинацией
             $('#logsTable').DataTable({
                 processing: true,
@@ -78,7 +77,6 @@
                     }
                 }
             });
-        });
     }
 </script>
 
