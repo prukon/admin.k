@@ -11,4 +11,10 @@ class TeamPrice extends Model
 
     protected $table = 'team_prices'; //явное указание к какой таблице в БД привязана модель
     protected $guarded = []; //разрешение на изменение данных в таблице}
+
+
+    public function team()
+    {
+        return $this->belongsTo(Team::class, 'team_id', 'id');
+    }
 }

@@ -28,7 +28,7 @@ class DestroyController extends Controller
                 'type' => 3, // Лог для обновления групп
                 'action' => 33,
                 'author_id' => $authorId,
-                'description' => "Группа помечена как удалённая: {$team->title}. ID: {$team->id}.",
+                'description' => "Группа удалена: {$team->title}. ID: {$team->id}.",
                 'created_at' => now(),
             ]);
         });

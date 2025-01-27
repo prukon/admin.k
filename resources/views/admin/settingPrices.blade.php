@@ -104,7 +104,7 @@
                             class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-users">
                         Применить
                     </button>
-                    <div class="row mb-2 wrap-users"></div>
+                    <div class="row mb-2 wrap-users text-start "></div>
                 </div>
             </div>
         </div>

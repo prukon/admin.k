@@ -18,6 +18,7 @@ use App\Models\Log;
 
 //use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use function Termwind\dd;
 use Yajra\DataTables\DataTables;
 
 
@@ -81,6 +82,7 @@ class SettingPricesController extends Controller
     public function index(FilterRequest $request)
     {
         $allTeams = Team::all();
+//        dump($allTeams);
         $teamPrices = collect(); // Пустая коллекция по умолчанию
         $logs = Log::with('author')->orderBy('created_at', 'desc')->get();
 
@@ -125,16 +127,18 @@ class SettingPricesController extends Controller
 
 //         Устанавливаем локаль на русском
             if ($currentDate) {
-                $teamPrices = TeamPrice::where('new_month', $currentDate)->get();
-//            dd($teamPrices);
+                $teamPrices = TeamPrice::where('new_month', $currentDate)
+                    ->whereHas('team', function($query) {
+                        $query->whereNull('deleted_at');
+                    })
+                    ->get();
             }
-        } else {
 
+        } else {
             $currentDate = Setting::where('id', 1)->first();
             $currentDate = $currentDate->date;
             $currentDateString = $currentDate;
             $currentDate = $this->formatedDate($currentDate);
-//            dd($currentDate);
             if ($currentDate) {
                 $teamPrices = TeamPrice::where('new_month', $currentDate)->get();
             }

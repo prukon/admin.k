@@ -104,58 +104,105 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+
+
     //AJAX Кнопка ОК. Установка цен группе и юзерам.
+    // const okButtons = document.querySelectorAll('.ok');
+    // for (let i = 0; i < okButtons.length; i++) {
+    //     let button = okButtons[i];
+    //     button.addEventListener('click', function () {
+    //         const parentDiv = this.closest('.wrap-team');
+    //         const teamPrice = parentDiv.querySelector('.team-price input').value;
+    //         const teamPriceInput = parentDiv.querySelector('.team-price input');
+    //         const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+    //         teamPriceInput.classList.remove('animated-input');
+    //
+    //         if (parentDiv) {
+    //
+    //             $.ajax({
+    //                 url: '/set-team-price',
+    //                 method: 'POST',
+    //                 contentType: 'application/json', // Указываем тип контента JSON
+    //
+    //                 data: JSON.stringify({
+    //                     teamId: parentDiv.id,
+    //                     teamPrice: teamPrice,
+    //                     selectedDate: selectedDate,
+    //                 }),
+    //
+    //                 success: function (response) {
+    //                     if (response.success) {
+    //
+    //                         teamPriceInput.classList.add('animated-input');
+    //
+    //                         var teamPrice = response.teamPrice;
+    //                         var selectedDate = response.selectedDate;
+    //                         var teamId = response.teamId;
+    //
+    //                     }
+    //                 }
+    //             });
+    //         }
+    //     });
+    // }
+
+
+    // Вешаем обработчики на кнопки с классом .ok
     const okButtons = document.querySelectorAll('.ok');
     for (let i = 0; i < okButtons.length; i++) {
         let button = okButtons[i];
         button.addEventListener('click', function () {
             const parentDiv = this.closest('.wrap-team');
-            const teamPrice = parentDiv.querySelector('.team-price input').value;
             const teamPriceInput = parentDiv.querySelector('.team-price input');
+            const teamPrice = teamPriceInput.value;
+            // Ваш уже полученный select
             const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+
+            // Убираем старый класс
             teamPriceInput.classList.remove('animated-input');
 
+            // Если элемент есть, вызываем модалку и передаём логику в confirmCallback
             if (parentDiv) {
+                showConfirmDeleteModal(
+                    'Подтвердите действие',
+                    'Вы действительно хотите установить цену для этой команды?',
+                    function () {
+                        // Весь AJAX-запрос исполняется внутри этого колбэка
+                        $.ajax({
+                            url: '/set-team-price',
+                            method: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({
+                                teamId: parentDiv.id,
+                                teamPrice: teamPrice,
+                                selectedDate: selectedDate,
+                            }),
+                            success: function (response) {
+                                if (response.success) {
+                                    // Возвращаем класс при успешном ответе
+                                    teamPriceInput.classList.add('animated-input');
 
-                $.ajax({
-                    url: '/set-team-price',
-                    method: 'POST',
-                    contentType: 'application/json', // Указываем тип контента JSON
-
-                    data: JSON.stringify({
-                        teamId: parentDiv.id,
-                        teamPrice: teamPrice,
-                        selectedDate: selectedDate,
-                    }),
-
-                    success: function (response) {
-                        if (response.success) {
-
-                            teamPriceInput.classList.add('animated-input');
-
-                            var teamPrice = response.teamPrice;
-                            var selectedDate = response.selectedDate;
-                            var teamId = response.teamId;
-
-                        }
+                                    // Можно использовать полученные данные из ответа
+                                    var teamPrice = response.teamPrice;
+                                    var selectedDate = response.selectedDate;
+                                    var teamId = response.teamId;
+                                    // Если нужно что-то сделать с этими данными — делайте тут
+                                }
+                            }
+                        });
                     }
-                });
+                );
             }
         });
     }
 
 
-    // Вызов модалки установки цен СЛЕВА
-    $(document).on('click', '.set-price-all-teams', function () {
-        setPriceAllTeams();
-    });
 
     //ПРИМЕНИТЬ СЛЕВА. Установка цен всем группам
-    function setPriceAllTeams() {
+    $('.set-price-all-teams').on('click', function () {
         showConfirmDeleteModal(
             "Установка цена всем группам",
-            "Вы уверены, что хотите применить изменения?",
-            function() {
+            "Вы уверены, что хотите применить изменения?", function() {
                 // ----
                 // Выполняем действия только после подтверждения
                 const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
@@ -188,28 +235,24 @@ document.addEventListener('DOMContentLoaded', function () {
                         selectedDate: selectedDate,
                         teamsData: teamsData
                     }),
-                    beforeSend: function() {
-                        console.log('Sending data:', {
-                            selectedDate: selectedDate,
-                            teamsData: teamsData
-                        });
-                    },
                     success: function (response) {
-                        let cleanUrl = window.location.href.split('?')[0];
-                        window.location.href = cleanUrl;
+                        showSuccessModal("Установка цен всем группам", "Цены  всем группам успешно обновлены.", 1);
                     },
                     error: function (xhr, status, error) {
                         console.log('Error:', error);
                     }
                 });
-                // ----
+
             }
         );
-    }
+    });
+
 
     // ПРИМЕНИТЬ СПРАВА. Установка цен всем ученикам
     $('#set-price-all-users').on('click', function () {
-        // var token = '{{ csrf_token() }}';
+        showConfirmDeleteModal(
+            "Установка цен в одной группе",
+            "Вы уверены, что хотите применить изменения?", function () {
 
         // Выбранная дата
         const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
@@ -247,6 +290,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 document.querySelector('#set-price-all-users').removeAttribute('disabled');
 
+                showSuccessModal("Установка цен в одной группе", "Цены ученикам в выбранной группе успешно обновлены.");
+
                 // Добавляем юзеров с ценами в колонку справа
                 let apendUserWithPrice = function () {
                     let rightBar = $('.wrap-users');
@@ -277,5 +322,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log('Error:', error);
             }
         });
+            }
+        );
     });
 });

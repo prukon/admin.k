@@ -17,6 +17,13 @@ class Team extends Model
     protected $table = 'teams'; //явное указание к какой таблице в БД привязана модель
     protected $guarded = []; //разрешение на изменение данных в таблице
 
+
+    public function teamPrices()
+    {
+        return $this->hasMany(TeamPrice::class, 'team_id', 'id');
+    }
+
+
     public function weekdays()
     {
         return $this->belongsToMany(Weekday::class, 'team_weekdays','team_id', 'weekday_id' );
