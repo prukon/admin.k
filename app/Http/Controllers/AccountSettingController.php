@@ -4,7 +4,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\User\UpdateRequest;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 use App\Models\Team;
 use App\Models\User;
 use App\Servises\UserService;
@@ -54,7 +55,7 @@ class AccountSettingController extends Controller
             $authorName = User::where('id', $authorId)->first()->name;
 
             // Логируем успешное обновление
-            Log::create([
+            MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 23, // Лог для обновления учетной записи
                 'author_id' => $authorId,
@@ -81,7 +82,7 @@ class AccountSettingController extends Controller
             $user->password = Hash::make($request->password);
             $user->save();
 
-            Log::create([
+            MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 26, // Лог для обновления учетной записи
                 'author_id' => $authorId,
@@ -125,7 +126,7 @@ class AccountSettingController extends Controller
                 $user->image_crop = $fileName;
                 $user->save();
 
-                Log::create([
+                MyLog::create([
                     'type' => 2, // Лог для обновления юзеров
                     'action' => 28, // Лог для обновления учетной записи
                     'author_id' => $authorId,
@@ -180,7 +181,7 @@ class AccountSettingController extends Controller
                     $user->update(['image_crop' => $imageName]);
 
 
-                    Log::create([
+                    MyLog::create([
                         'type' => 2, // Лог для обновления юзеров
                         'action' => 27, // Лог для обновления учетной записи
                         'author_id' => $authorId,
@@ -214,7 +215,7 @@ class AccountSettingController extends Controller
             $user->update(['image_crop' => null]);
 
             // Логируем удаление аватарки
-            Log::create([
+            MyLog::create([
                 'type' => 2,
                 'action' => 29,
                 'author_id' => auth()->id(),

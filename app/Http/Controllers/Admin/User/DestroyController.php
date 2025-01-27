@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Admin\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -31,7 +32,7 @@ class DestroyController extends Controller
             $user->delete();
 
             // Логирование удаления
-            Log::create([
+            MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 24,
                 'author_id' => $authorId,

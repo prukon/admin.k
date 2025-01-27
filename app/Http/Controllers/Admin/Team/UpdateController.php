@@ -4,7 +4,8 @@ namespace App\Http\Controllers\Admin\Team;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Team\UpdateRequest;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 use App\Models\Team;
 use App\Servises\TeamService;
 use Carbon\Carbon;
@@ -59,7 +60,7 @@ class UpdateController extends Controller
             })->toArray();
 
             // Логирование изменений
-            Log::create([
+            MyLog::create([
                 'type' => 3,
                 'action' => 32,
                 'author_id' => $authorId,

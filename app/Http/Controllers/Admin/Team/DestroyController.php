@@ -2,7 +2,8 @@
 namespace App\Http\Controllers\Admin\Team;
 
 use App\Http\Controllers\Controller;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 use App\Models\Team;
 use Illuminate\Support\Facades\DB;
 
@@ -24,7 +25,7 @@ class DestroyController extends Controller
             $team->delete();
 
             // Логирование
-            Log::create([
+            MyLog::create([
                 'type' => 3, // Лог для обновления групп
                 'action' => 33,
                 'author_id' => $authorId,

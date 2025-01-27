@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
@@ -71,7 +72,7 @@ class RobokassaController extends Controller
                 'payment_number' => $invId,
             ]);
 
-            Log::create([
+        MyLog::create([
                 'type' => 5, //лог платежей
                 'action' => 50, // лог платежей
                 'author_id' => $Shp_userId,

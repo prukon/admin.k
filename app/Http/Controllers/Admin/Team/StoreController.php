@@ -4,7 +4,8 @@ namespace App\Http\Controllers\Admin\Team;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Team\StoreRequest;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 use App\Models\Team;
 use App\Models\teamWeekday;
 use App\Servises\TeamService;
@@ -49,7 +50,7 @@ class StoreController extends Controller
             }
 
             // Создание лога
-            Log::create([
+            MyLog::create([
                 'type' => 3, // Лог для обновления групп
                 'action' => 31, // Лог для создания учетной записи
                 'author_id' => $authorId,

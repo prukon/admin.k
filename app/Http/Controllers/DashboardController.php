@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
-use App\Models\Log;
+//use App\Models\Log;
+
+use App\Models\MyLog;
 use App\Models\ScheduleUser;
 use App\Models\Setting;
 use App\Models\Team;
@@ -341,13 +343,14 @@ class DashboardController extends Controller
 
                 $authorId = auth()->id(); // Авторизованный пользователь
 
-                Log::create([
+                MyLog::create([
                     'type' => 6, // Лог для обновления расписания
                     'action' => 60, // Лог для обновления расписания
                     'author_id' => $authorId,
                     'description' => ("Пользователю " . $user->name . " было изменено индивидуальное расписание."),
                     'created_at' => now(),
                 ]);
+
             });
         }
 

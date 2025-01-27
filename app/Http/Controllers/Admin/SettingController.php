@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 use App\Models\MenuItem;
 use App\Models\Setting;
 use App\Models\SocialItem;
@@ -82,7 +83,7 @@ class SettingController extends Controller
             }
 
             // Логирование изменения пароля
-            Log::create([
+            MyLog::create([
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
@@ -117,7 +118,7 @@ class SettingController extends Controller
                 ]
             );
 
-            Log::create([
+            MyLog::create([
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
@@ -134,9 +135,9 @@ class SettingController extends Controller
     //Журнал логов
     public function logsAllData(Request $request)
     {
-        $logs = Log::with('author')
+        $logs = MyLog::with('author')
 //            ->where('type', 1) // Добавляем условие для фильтрации по type
-            ->select('logs.*');
+            ->select('my_logs.*'); 
 
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {
@@ -267,7 +268,7 @@ class SettingController extends Controller
             // Формируем читаемый лог
             $description = "Изменены пункты меню:\n" . implode("\n", $oldItems) . "\nна:\n" . implode("\n", $newItems);
 
-            Log::create([
+            MyLog::create([
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
@@ -329,7 +330,7 @@ class SettingController extends Controller
             // Формируем читаемый лог
             $description = "Изменены социальные элементы:\n" . implode("\n", $oldItems) . "\nна:\n" . implode("\n", $newItems);
 
-            Log::create([
+            MyLog::create([
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,

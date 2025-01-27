@@ -21,7 +21,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
 
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 //use Illuminate\Support\Facades\Log;
 
 
@@ -84,7 +85,7 @@ class AccountSettingController extends Controller
             $authorName = User::where('id', $authorId)->first()->name;
 
             // Логируем успешное обновление
-            Log::create([
+            MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 23, // Лог для обновления учетной записи
                 'author_id' => $authorId,
@@ -185,7 +186,7 @@ class AccountSettingController extends Controller
                 . "Новые:\n{$newString}.";
 
             // Записываем лог
-            Log::create([
+            MyLog::create([
                 'type'       => 2,   // или ваш тип для обновления
                 'action'     => 80,  // или ваш action для обновления партнера
                 'author_id'  => $authorId,
@@ -220,7 +221,7 @@ class AccountSettingController extends Controller
             $user->password = Hash::make($request->password);
             $user->save();
 
-            Log::create([
+            MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 26, // Лог для обновления учетной записи
                 'author_id' => $authorId,
@@ -264,7 +265,7 @@ class AccountSettingController extends Controller
                 $user->image_crop = $fileName;
                 $user->save();
 
-                Log::create([
+                MyLog::create([
                     'type' => 2, // Лог для обновления юзеров
                     'action' => 28, // Лог для обновления учетной записи
                     'author_id' => $authorId,
@@ -318,7 +319,7 @@ class AccountSettingController extends Controller
                     $user->update(['image_crop' => $imageName]);
 
 
-                    Log::create([
+                    MyLog::create([
                         'type' => 2, // Лог для обновления юзеров
                         'action' => 27, // Лог для обновления учетной записи
                         'author_id' => $authorId,
@@ -352,7 +353,7 @@ class AccountSettingController extends Controller
             $user->update(['image_crop' => null]);
 
             // Логируем удаление аватарки
-            Log::create([
+            MyLog::create([
                 'type' => 2,
                 'action' => 29,
                 'author_id' => auth()->id(),

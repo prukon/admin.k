@@ -4,7 +4,8 @@ namespace App\Http\Controllers\Admin\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\StoreRequest;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 use App\Models\Team;
 use App\Servises\TeamService;
 use App\Servises\UserService;
@@ -41,7 +42,7 @@ class StoreController extends Controller
             $teamName = $team ? $team->title : '-';
 
             // Логируем создание пользователя
-            Log::create([
+            MyLog::create([
                 'type' => 2, // Лог для юзеров
                 'action' => 21, // Лог для создания учетной записи
                 'author_id' => $authorId,

@@ -4,7 +4,8 @@ namespace App\Listeners;
 
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Request;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 use Jenssegers\Agent\Agent;
 
 class LogUserLogin
@@ -54,6 +55,6 @@ class LogUserLogin
 
         \Log::info('Данные для сохранения в лог:', $logData);
 
-        Log::create($logData);
+        MyLog::create($logData);
     }
 }

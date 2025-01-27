@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Admin\User;
 use App\Http\Controllers\Controller;
 use App\Http\Filters\UserFilter;
 use App\Http\Requests\User\FilterRequest;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -21,9 +22,9 @@ class LogsController extends Controller
 
     public function __invoke(FilterRequest $request)
     {
-        $logs = Log::with('author')
+        $logs = MyLog::with('author')
             ->where('type', 2) // User логи
-            ->select('logs.*');
+            ->select('my_logs.*');
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {
                 return $log->author ? $log->author->name : 'Неизвестно';

@@ -13,7 +13,8 @@ use App\Models\User;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 
 
 //use Illuminate\Support\Facades\Log;
@@ -84,7 +85,7 @@ class SettingPricesController extends Controller
         $allTeams = Team::all();
 //        dump($allTeams);
         $teamPrices = collect(); // Пустая коллекция по умолчанию
-        $logs = Log::with('author')->orderBy('created_at', 'desc')->get();
+        $logs = MyLog::with('author')->orderBy('created_at', 'desc')->get();
 
         if (isset($_GET['current-month'])) {
 
@@ -268,7 +269,7 @@ class SettingPricesController extends Controller
                 ]
             );
 
-            Log::create([
+            MyLog::create([
                 'type' => 1,
                 'action' => 13, // Изменение цен в одной группе
                 'author_id' => $authorId,
@@ -361,7 +362,7 @@ class SettingPricesController extends Controller
                     );
 
                     // Логируем успешное обновление цены для команды
-                    Log::create([
+                    MyLog::create([
                         'type' => 1,
                         'action' => 11, // Изменение цен во всех группах
                         'author_id' => $authorId,
@@ -497,7 +498,7 @@ class SettingPricesController extends Controller
                         ]);
 
                         // Логируем успешное обновление цены для команды
-                        Log::create([
+                        MyLog::create([
                             'type' => 1,
                             'action' => 12, // Лог для обновления цены команды
                             'author_id' => $authorId,
@@ -523,9 +524,9 @@ class SettingPricesController extends Controller
     // Метод для обработки DataTables запросов
     public function getLogsData()
     {
-        $logs = Log::with('author')
+        $logs = MyLog::with('author')
             ->where('type', 1) // Добавляем условие для фильтрации по type
-            ->select('logs.*');
+            ->select('my_logs.*');
 
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {

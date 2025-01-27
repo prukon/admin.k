@@ -18,7 +18,8 @@ use Illuminate\Validation\Rule;
 
 use App\Models\UserField;
 use App\Models\UserFieldValue;
-use App\Models\Log;
+//use App\Models\Log;
+use App\Models\MyLog;
 
 //use Illuminate\Support\Facades\Log;
 
@@ -75,7 +76,7 @@ class UpdateController extends Controller
 
 
             // Создание лога обновления данных пользователя с добавлением изменений в кастомных полях
-            Log::create([
+            MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 22, // Лог для обновления учетной записи
                 'author_id' => $authorId,
@@ -123,7 +124,7 @@ class UpdateController extends Controller
             $user->save();
 
             // Логирование изменения пароля
-            Log::create([
+            MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 25, // Лог для обновления учетной записи
                 'author_id' => $authorId,
@@ -160,7 +161,7 @@ class UpdateController extends Controller
 
                 // Логируем удаление полей
                 foreach ($fieldsToDeleteRecords as $deletedField) {
-                    Log::create([
+                    MyLog::create([
                         'type' => 2,
                         'action' => 25,
                         'author_id' => $authorId,
@@ -204,7 +205,7 @@ class UpdateController extends Controller
                         ]);
 
                         // Логируем только если были изменения
-                        Log::create([
+                        MyLog::create([
                             'type' => 2,
                             'action' => 25,
                             'author_id' => $authorId,
@@ -221,7 +222,7 @@ class UpdateController extends Controller
                     ]);
 
                     // Логируем создание нового поля
-                    Log::create([
+                    MyLog::create([
                         'type' => 2,
                         'action' => 25,
                         'author_id' => $authorId,
