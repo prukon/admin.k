@@ -63,12 +63,13 @@
                                     </div>
                                     {{--Данные пользователя--}}
                                     <div class="col-12 col-lg-6 user-data-wrap mb-3">
-                                        <form action="{{ route('admin.cur.user.update', $user->id)}}" method="post">
-                                            {{-- Токен (система защиты) необходим при использовании любого роута кроме get. --}}
-                                            @csrf
-                                            @method('patch')
 
-                                            {{-- Поле "Имя" --}}
+                                        <form id="userUpdateForm"
+                                              action="{{ route('admin.cur.user.update', $user->id)}}" method="post">
+                                        @csrf
+                                        @method('patch')
+
+                                        <!-- Поле "Имя" -->
                                             <div class="mb-3">
                                                 <label for="name" class="form-label">Имя*</label>
                                                 <input type="text" name="name" class="form-control" id="name"
@@ -78,20 +79,18 @@
                                                 @enderror
                                             </div>
 
-                                            {{-- Поле "Дата рождения" --}}
+                                            <!-- Поле "Дата рождения" -->
                                             <div class="mb-3">
                                                 <label for="birthday" class="form-label">Дата рождения</label>
-                                                {{--                        <input type="date" name="birthday" class="form-control" id="birthday" value="{{ old('birthday', $user->birthday) }}">--}}
                                                 <input type="date" name="birthday" class="form-control" id="birthday"
                                                        value="{{ old('birthday', $user->birthday) }}"
                                                        max="{{ date('Y-m-d') }}">
-
                                                 @error('birthday')
                                                 <p class="text-danger">{{ $message }}</p>
                                                 @enderror
                                             </div>
 
-                                            {{-- Поле "Группа" --}}
+                                            <!-- Поле "Группа" -->
                                             <div class="mb-3">
                                                 <label for="team" class="form-label">Группа</label>
                                                 <select class="form-control" id="team" name="team_id">
@@ -109,7 +108,7 @@
                                                 @enderror
                                             </div>
 
-                                            {{-- Поле "Email" --}}
+                                            <!-- Поле "Email" -->
                                             <div class="mb-3">
                                                 <label for="email" class="form-label">Адрес электронной почты*</label>
                                                 <input name="email" type="email" class="form-control" id="email"
@@ -120,7 +119,7 @@
                                                 @enderror
                                             </div>
 
-                                            {{-- Блок изменения пароля --}}
+                                            <!-- Блок изменения пароля (пример) -->
                                             <div class="buttons-wrap change-pass-wrap" id="change-pass-wrap"
                                                  style="display: none;">
                                                 <div class="d-flex align-items-center mt-3">
@@ -138,14 +137,13 @@
                                                     </button>
                                                 </div>
                                                 <div id="error-message" class="text-danger mt-2" style="display:none;">
-                                                    Пароль должен быть не
-                                                    менее 8 символов
+                                                    Пароль должен быть не менее 8 символов
                                                 </div>
                                             </div>
 
                                             <hr class="mt-3">
 
-                                            {{-- Кнопки "Обновить" и "Изменить пароль" --}}
+                                            <!-- Кнопки -->
                                             <div class="button-group buttons-wrap mt-3">
                                                 <button type="submit" class="btn btn-primary update-btn">Обновить
                                                 </button>
@@ -153,7 +151,6 @@
                                                         class="btn btn-danger ml-2">Изменить пароль
                                                 </button>
                                             </div>
-
                                         </form>
                                     </div>
                                 </div>
@@ -211,7 +208,7 @@
                     <div class="tab-pane fade {{ $activeTab == 'partner' ? 'show active' : '' }}" role="tabpanel">
                         <div class="container-fluid ">
 
-                            {{--<form action="{{ route('admin.cur.partner.update', $partner->id) }}"  method="POST">--}}
+                            {{--<form action="{{ route('admin.cur.partner.update', $partner->id) }}" method="POST">--}}
                                 {{--@csrf--}}
                                 {{--@method('PATCH')--}}
                                 {{--<div class="row text-start">--}}
@@ -219,8 +216,8 @@
                                     {{--<div class="col-12 col-lg-5 user-data-wrap mb-3">--}}
                                         {{--<h4>Основная информация</h4>--}}
                                         {{-- Тип бизнеса --}}
-                                        {{--<div class="mb-3 ">--}}
-                                            {{--<label for="business_type" class="form-label ">Тип бизнеса*</label>--}}
+                                        {{--<div class="mb-3">--}}
+                                            {{--<label for="business_type" class="form-label">Тип бизнеса*</label>--}}
                                             {{--<select name="business_type" id="business_type"--}}
                                                     {{--class="form-control">--}}
                                                 {{--<option value="company"--}}
@@ -240,16 +237,19 @@
                                                     {{--Физическое лицо--}}
                                                 {{--</option>--}}
                                             {{--</select>--}}
+
                                             {{--@error('business_type')--}}
                                             {{--<p class="text-danger">{{ $message }}</p>--}}
                                             {{--@enderror--}}
                                         {{--</div>--}}
 
-                                        {{-- Наименование (или ФИО для физ.лица) --}}
+                                        {{-- Наименование (или ФИО) --}}
                                         {{--<div class="mb-3">--}}
-                                            {{--<label for="title" class="form-label"--}}
-                                                   {{--id="label-title">Наименование*</label>--}}
-                                            {{--<input type="text" class="form-control" id="title" name="title"--}}
+                                            {{--<label for="title" class="form-label">Наименование*</label>--}}
+                                            {{--<input type="text"--}}
+                                                   {{--class="form-control"--}}
+                                                   {{--id="title"--}}
+                                                   {{--name="title"--}}
                                                    {{--value="{{ old('title', $partner->title) }}">--}}
                                             {{--@error('title')--}}
                                             {{--<p class="text-danger">{{ $message }}</p>--}}
@@ -257,21 +257,40 @@
                                         {{--</div>--}}
 
                                         {{-- ИНН --}}
-                                        {{--<div class="mb-3" id="tax_id_wrapper">--}}
+                                        {{--<div class="mb-3 " id='tax_id_wrapper'>--}}
                                             {{--<label for="tax_id" class="form-label">ИНН</label>--}}
-                                            {{--<input type="text" name="tax_id" class="form-control" id="tax_id"--}}
+                                            {{--<input type="text"--}}
+                                                   {{--class="form-control"--}}
+                                                   {{--id="tax_id"--}}
+                                                   {{--name="tax_id"--}}
                                                    {{--value="{{ old('tax_id', $partner->tax_id) }}">--}}
                                             {{--@error('tax_id')--}}
                                             {{--<p class="text-danger">{{ $message }}</p>--}}
                                             {{--@enderror--}}
                                         {{--</div>--}}
 
+                                        {{-- КПП --}}
+                                        {{--<div class="mb-3 " id='kpp_wrapper'>--}}
+                                            {{--<label for="kpp" class="form-label">КПП</label>--}}
+                                            {{--<input type="text"--}}
+                                                   {{--class="form-control"--}}
+                                                   {{--id="kpp"--}}
+                                                   {{--name="kpp"--}}
+                                                   {{--value="{{ old('kpp', $partner->kpp) }}">--}}
+                                            {{--@error('kpp')--}}
+                                            {{--<p class="text-danger">{{ $message }}</p>--}}
+                                            {{--@enderror--}}
+                                        {{--</div>--}}
+
+
                                         {{-- Регистрационный номер (ОГРН / ОГРНИП) --}}
                                         {{--<div class="mb-3" id="registration_number_wrapper">--}}
                                             {{--<label for="registration_number" class="form-label"--}}
                                                    {{--id="label-registration_number">ОГРН (ОГРНИП)</label>--}}
-                                            {{--<input type="text" name="registration_number" class="form-control"--}}
+                                            {{--<input type="text"--}}
+                                                   {{--class="form-control"--}}
                                                    {{--id="registration_number"--}}
+                                                   {{--name="registration_number"--}}
                                                    {{--value="{{ old('registration_number', $partner->registration_number) }}">--}}
                                             {{--@error('registration_number')--}}
                                             {{--<p class="text-danger">{{ $message }}</p>--}}
@@ -281,7 +300,10 @@
                                         {{-- Адрес --}}
                                         {{--<div class="mb-3">--}}
                                             {{--<label for="address" class="form-label">Почтовый адрес</label>--}}
-                                            {{--<input type="text" name="address" class="form-control" id="address"--}}
+                                            {{--<input type="text"--}}
+                                                   {{--class="form-control"--}}
+                                                   {{--id="address"--}}
+                                                   {{--name="address"--}}
                                                    {{--value="{{ old('address', $partner->address) }}">--}}
                                             {{--@error('address')--}}
                                             {{--<p class="text-danger">{{ $message }}</p>--}}
@@ -291,19 +313,23 @@
                                         {{-- Телефон --}}
                                         {{--<div class="mb-3">--}}
                                             {{--<label for="phone" class="form-label">Телефон</label>--}}
-                                            {{--<input type="text" name="phone" class="form-control" id="phone"--}}
+                                            {{--<input type="text"--}}
+                                                   {{--class="form-control"--}}
+                                                   {{--id="phone"--}}
+                                                   {{--name="phone"--}}
                                                    {{--value="{{ old('phone', $partner->phone) }}">--}}
                                             {{--@error('phone')--}}
                                             {{--<p class="text-danger">{{ $message }}</p>--}}
                                             {{--@enderror--}}
                                         {{--</div>--}}
 
-                                        {{-- Email --}}
+                                        {{-- E-mail партнёра --}}
                                         {{--<div class="mb-3">--}}
-                                            {{--<label for="email-partner" class="form-label">E-mail--}}
-                                                {{--партнёра*</label>--}}
-                                            {{--<input type="email" name="email" class="form-control"--}}
+                                            {{--<label for="email-partner" class="form-label">E-mail партнёра*</label>--}}
+                                            {{--<input type="email"--}}
+                                                   {{--class="form-control"--}}
                                                    {{--id="email-partner"--}}
+                                                   {{--name="email"--}}
                                                    {{--value="{{ old('email', $partner->email) }}">--}}
                                             {{--@error('email')--}}
                                             {{--<p class="text-danger">{{ $message }}</p>--}}
@@ -313,7 +339,10 @@
                                         {{-- Сайт --}}
                                         {{--<div class="mb-3">--}}
                                             {{--<label for="website" class="form-label">Сайт</label>--}}
-                                            {{--<input type="text" name="website" class="form-control" id="website"--}}
+                                            {{--<input type="text"--}}
+                                                   {{--class="form-control"--}}
+                                                   {{--id="website"--}}
+                                                   {{--name="website"--}}
                                                    {{--value="{{ old('website', $partner->website) }}">--}}
                                             {{--@error('website')--}}
                                             {{--<p class="text-danger">{{ $message }}</p>--}}
@@ -321,14 +350,15 @@
                                         {{--</div>--}}
                                     {{--</div>--}}
 
-                                    {{-- реквизиты --}}
+                                    {{-- Реквизиты --}}
                                     {{--<div class="col-12 col-lg-5 user-data-wrap mb-3">--}}
-                                       {{--<h4>Реквизиты</h4>--}}
+                                        {{--<h4 id="requisites">Реквизиты</h4>--}}
                                         {{--<div id="bankFields">--}}
                                             {{--<div class="mb-3">--}}
-                                                {{--<label for="bank_name" class="form-label">Наименование--}}
-                                                    {{--банка</label>--}}
-                                                {{--<input type="text" class="form-control" id="bank_name"--}}
+                                                {{--<label for="bank_name" class="form-label">Наименование банка</label>--}}
+                                                {{--<input type="text"--}}
+                                                       {{--class="form-control"--}}
+                                                       {{--id="bank_name"--}}
                                                        {{--name="bank_name"--}}
                                                        {{--value="{{ old('bank_name', $partner->bank_name) }}">--}}
                                                 {{--@error('bank_name')--}}
@@ -338,7 +368,9 @@
 
                                             {{--<div class="mb-3">--}}
                                                 {{--<label for="bank_bik" class="form-label">БИК</label>--}}
-                                                {{--<input type="text" class="form-control" id="bank_bik"--}}
+                                                {{--<input type="text"--}}
+                                                       {{--class="form-control"--}}
+                                                       {{--id="bank_bik"--}}
                                                        {{--name="bank_bik"--}}
                                                        {{--value="{{ old('bank_bik', $partner->bank_bik) }}">--}}
                                                 {{--@error('bank_bik')--}}
@@ -347,9 +379,10 @@
                                             {{--</div>--}}
 
                                             {{--<div class="mb-3">--}}
-                                                {{--<label for="bank_account" class="form-label">Расчетный--}}
-                                                    {{--счет</label>--}}
-                                                {{--<input type="text" class="form-control" id="bank_account"--}}
+                                                {{--<label for="bank_account" class="form-label">Расчетный счет</label>--}}
+                                                {{--<input type="text"--}}
+                                                       {{--class="form-control"--}}
+                                                       {{--id="bank_account"--}}
                                                        {{--name="bank_account"--}}
                                                        {{--value="{{ old('bank_account', $partner->bank_account) }}">--}}
                                                 {{--@error('bank_account')--}}
@@ -360,11 +393,14 @@
                                     {{--</div>--}}
 
                                     {{-- Кнопка отправки формы --}}
-                                    {{--<button type="submit" class="btn btn-primary width-170 mb-3">Обновить данные</button>--}}
+                                    {{--<button type="submit" class="btn btn-primary width-170 mb-3">Обновить данные--}}
+                                    {{--</button>--}}
                                 {{--</div>--}}
                             {{--</form>--}}
 
-                            <form action="{{ route('admin.cur.partner.update', $partner->id) }}" method="POST">
+                            <form id="partnerUpdateForm"
+                                  action="{{ route('admin.cur.partner.update', $partner->id) }}"
+                                  method="POST">
                                 @csrf
                                 @method('PATCH')
                                 <div class="row text-start">
@@ -374,43 +410,24 @@
                                         {{-- Тип бизнеса --}}
                                         <div class="mb-3">
                                             <label for="business_type" class="form-label">Тип бизнеса*</label>
-                                            {{--<select name="business_type" id="business_type" class="form-control">--}}
-                                                {{--<option value="company"--}}
-                                                        {{--{{ old('business_type', $partner->business_type) === 'company' ? 'selected' : '' }}>--}}
-                                                    {{--ООО--}}
-                                                {{--</option>--}}
-                                                {{--<option value="individual_entrepreneur"--}}
-                                                        {{--{{ old('business_type', $partner->business_type) === 'individual_entrepreneur' ? 'selected' : '' }}>--}}
-                                                    {{--ИП--}}
-                                                {{--</option>--}}
-                                                {{-- Если в FormRequest разрешено только 2 варианта, то остальные можно не выводить --}}
-                                            {{--</select>--}}
-
-
-
-                                            <select name="business_type" id="business_type"
-                                            class="form-control">
-                                            <option value="company"
-                                            {{ old('business_type', $partner->business_type) === 'company' ? 'selected' : '' }}>
-                                            ООО
-                                            </option>
-                                            <option value="individual_entrepreneur"
-                                            {{ old('business_type', $partner->business_type) === 'individual_entrepreneur' ? 'selected' : '' }}>
-                                            ИП
-                                            </option>
-                                            <option value="non_commercial_organization"
-                                            {{ old('business_type', $partner->business_type) === 'non_commercial_organization' ? 'selected' : '' }}>
-                                            НКО
-                                            </option>
-                                            <option value="physical_person"
-                                            {{ old('business_type', $partner->business_type) === 'physical_person' ? 'selected' : '' }}>
-                                            Физическое лицо
-                                            </option>
+                                            <select name="business_type" id="business_type" class="form-control">
+                                                <option value="company"
+                                                        {{ old('business_type', $partner->business_type) === 'company' ? 'selected' : '' }}>
+                                                    ООО
+                                                </option>
+                                                <option value="individual_entrepreneur"
+                                                        {{ old('business_type', $partner->business_type) === 'individual_entrepreneur' ? 'selected' : '' }}>
+                                                    ИП
+                                                </option>
+                                                <option value="non_commercial_organization"
+                                                        {{ old('business_type', $partner->business_type) === 'non_commercial_organization' ? 'selected' : '' }}>
+                                                    НКО
+                                                </option>
+                                                <option value="physical_person"
+                                                        {{ old('business_type', $partner->business_type) === 'physical_person' ? 'selected' : '' }}>
+                                                    Физическое лицо
+                                                </option>
                                             </select>
-
-
-
-
                                             @error('business_type')
                                             <p class="text-danger">{{ $message }}</p>
                                             @enderror
@@ -419,10 +436,7 @@
                                         {{-- Наименование (или ФИО) --}}
                                         <div class="mb-3">
                                             <label for="title" class="form-label">Наименование*</label>
-                                            <input type="text"
-                                                   class="form-control"
-                                                   id="title"
-                                                   name="title"
+                                            <input type="text" class="form-control" id="title" name="title"
                                                    value="{{ old('title', $partner->title) }}">
                                             @error('title')
                                             <p class="text-danger">{{ $message }}</p>
@@ -430,12 +444,9 @@
                                         </div>
 
                                         {{-- ИНН --}}
-                                        <div class="mb-3 " id ='tax_id_wrapper'>
+                                        <div class="mb-3 " id='tax_id_wrapper'>
                                             <label for="tax_id" class="form-label">ИНН</label>
-                                            <input type="text"
-                                                   class="form-control"
-                                                   id="tax_id"
-                                                   name="tax_id"
+                                            <input type="text" class="form-control" id="tax_id" name="tax_id"
                                                    value="{{ old('tax_id', $partner->tax_id) }}">
                                             @error('tax_id')
                                             <p class="text-danger">{{ $message }}</p>
@@ -443,27 +454,20 @@
                                         </div>
 
                                         {{-- КПП --}}
-                                        <div class="mb-3 " id ='kpp_wrapper'>
+                                        <div class="mb-3 " id='kpp_wrapper'>
                                             <label for="kpp" class="form-label">КПП</label>
-                                            <input type="text"
-                                                   class="form-control"
-                                                   id="kpp"
-                                                   name="kpp"
+                                            <input type="text" class="form-control" id="kpp" name="kpp"
                                                    value="{{ old('kpp', $partner->kpp) }}">
                                             @error('kpp')
                                             <p class="text-danger">{{ $message }}</p>
                                             @enderror
                                         </div>
 
-
-
-                                        {{-- Регистрационный номер (ОГРН / ОГРНИП) --}}
+                                        {{-- Регистрационный номер --}}
                                         <div class="mb-3" id="registration_number_wrapper">
-                                            <label for="registration_number" class="form-label" id="label-registration_number">ОГРН (ОГРНИП)</label>
-                                            <input type="text"
-                                                   class="form-control"
-                                                   id="registration_number"
-                                                   name="registration_number"
+                                            <label for="registration_number" class="form-label"
+                                                   id="label-registration_number">ОГРН (ОГРНИП)</label>
+                                            <input type="text" class="form-control" id="registration_number" name="registration_number"
                                                    value="{{ old('registration_number', $partner->registration_number) }}">
                                             @error('registration_number')
                                             <p class="text-danger">{{ $message }}</p>
@@ -473,10 +477,7 @@
                                         {{-- Адрес --}}
                                         <div class="mb-3">
                                             <label for="address" class="form-label">Почтовый адрес</label>
-                                            <input type="text"
-                                                   class="form-control"
-                                                   id="address"
-                                                   name="address"
+                                            <input type="text" class="form-control" id="address" name="address"
                                                    value="{{ old('address', $partner->address) }}">
                                             @error('address')
                                             <p class="text-danger">{{ $message }}</p>
@@ -486,10 +487,7 @@
                                         {{-- Телефон --}}
                                         <div class="mb-3">
                                             <label for="phone" class="form-label">Телефон</label>
-                                            <input type="text"
-                                                   class="form-control"
-                                                   id="phone"
-                                                   name="phone"
+                                            <input type="text" class="form-control" id="phone" name="phone"
                                                    value="{{ old('phone', $partner->phone) }}">
                                             @error('phone')
                                             <p class="text-danger">{{ $message }}</p>
@@ -499,10 +497,7 @@
                                         {{-- E-mail партнёра --}}
                                         <div class="mb-3">
                                             <label for="email-partner" class="form-label">E-mail партнёра*</label>
-                                            <input type="email"
-                                                   class="form-control"
-                                                   id="email-partner"
-                                                   name="email"
+                                            <input type="email" class="form-control" id="email-partner" name="email"
                                                    value="{{ old('email', $partner->email) }}">
                                             @error('email')
                                             <p class="text-danger">{{ $message }}</p>
@@ -512,10 +507,7 @@
                                         {{-- Сайт --}}
                                         <div class="mb-3">
                                             <label for="website" class="form-label">Сайт</label>
-                                            <input type="text"
-                                                   class="form-control"
-                                                   id="website"
-                                                   name="website"
+                                            <input type="text" class="form-control" id="website" name="website"
                                                    value="{{ old('website', $partner->website) }}">
                                             @error('website')
                                             <p class="text-danger">{{ $message }}</p>
@@ -525,14 +517,11 @@
 
                                     {{-- Реквизиты --}}
                                     <div class="col-12 col-lg-5 user-data-wrap mb-3">
-                                        <h4 id = "requisites">Реквизиты</h4>
+                                        <h4 id="requisites">Реквизиты</h4>
                                         <div id="bankFields">
                                             <div class="mb-3">
                                                 <label for="bank_name" class="form-label">Наименование банка</label>
-                                                <input type="text"
-                                                       class="form-control"
-                                                       id="bank_name"
-                                                       name="bank_name"
+                                                <input type="text" class="form-control" id="bank_name" name="bank_name"
                                                        value="{{ old('bank_name', $partner->bank_name) }}">
                                                 @error('bank_name')
                                                 <p class="text-danger">{{ $message }}</p>
@@ -541,10 +530,7 @@
 
                                             <div class="mb-3">
                                                 <label for="bank_bik" class="form-label">БИК</label>
-                                                <input type="text"
-                                                       class="form-control"
-                                                       id="bank_bik"
-                                                       name="bank_bik"
+                                                <input type="text" class="form-control" id="bank_bik" name="bank_bik"
                                                        value="{{ old('bank_bik', $partner->bank_bik) }}">
                                                 @error('bank_bik')
                                                 <p class="text-danger">{{ $message }}</p>
@@ -553,10 +539,7 @@
 
                                             <div class="mb-3">
                                                 <label for="bank_account" class="form-label">Расчетный счет</label>
-                                                <input type="text"
-                                                       class="form-control"
-                                                       id="bank_account"
-                                                       name="bank_account"
+                                                <input type="text" class="form-control" id="bank_account" name="bank_account"
                                                        value="{{ old('bank_account', $partner->bank_account) }}">
                                                 @error('bank_account')
                                                 <p class="text-danger">{{ $message }}</p>
@@ -570,6 +553,7 @@
                                 </div>
                             </form>
 
+
                         </div>
                     </div>
                 </div>
@@ -578,20 +562,18 @@
         </div>
     </div>
 
+    <!-- Модальное окно подтверждения удаления -->
+    @include('includes.modal.confirmDeleteModal')
 
+    <!-- Модальное окно успешного обновления данных -->
+    @include('includes.modal.successModal')
+
+    <!-- Модальное окно ошибки -->
+    @include('includes.modal.errorModal')
 
 @endsection
 
-
-
-
-
-
-
-
-
 @section('scripts')
-
 
     <script>
 
@@ -654,22 +636,7 @@
                             if (data.success) {
                                 document.getElementById('change-password-btn').style.display = 'inline-block';
                                 document.querySelector('#change-pass-wrap').style.display = 'none';
-
-                                function showPasswordChangeMessage() {
-                                    const message = document.getElementById('password-change-message');
-                                    message.style.display = 'block'; // Показываем сообщение
-                                    setTimeout(() => {
-                                        message.classList.add('fade-out'); // Начинаем плавное исчезновение
-                                    }, 2000); // Через 2 секунды
-
-                                    setTimeout(() => {
-                                        message.style.display = 'none'; // Полностью скрываем через 3 секунды
-                                        message.classList.remove('fade-out'); // Удаляем класс, чтобы можно было показать сообщение снова
-                                    }, 3000);
-                                }
-
-                                // Пример вызова функции
-                                showPasswordChangeMessage();
+                                showSuccessModal("Изменение пароля", "Пароль успешно изменен.");
                             }
                         });
                 });
@@ -756,13 +723,11 @@
                             processData: false,
                             success: function (response) {
                                 if (response.success) {
-                                    // Обновляем изображение на странице
                                     $('#confirm-img').attr('src', response.image_url);
-                                    console.log('Изображение успешно загружено!');
+                                    showSuccessModal("Обновление аватара", "Аватар успешно обновлен.", 1);
                                 } else {
                                     alert('Ошибка загрузки изображения');
                                 }
-                                location.reload();
                             },
                             error: function (xhr, status, error) {
                                 console.error('Ошибка:', error);
@@ -796,7 +761,7 @@
                 });
             }
 
-//Изменение полей формы органзиациии в зависимости от еее типа
+            //Изменение полей формы органзиациии в зависимости от еее типа
             function toggleFields() {
                 const businessType = $('#business_type').val();
 
@@ -818,7 +783,7 @@
 
 
                     console.log(businessType);
-                    console.log( $('#kpp_wrapper'));
+                    console.log($('#kpp_wrapper'));
 
                     // Меняем заголовок поля регистрации
                     if (businessType === 'company' || businessType === 'non_commercial_organization') {
@@ -846,6 +811,78 @@
                 toggleFields();
             });
 
+            //Обновление юзера
+            function updateUserData() {
+                // Отслеживаем событие отправки формы
+                $('#userUpdateForm').on('submit', function (e) {
+                    e.preventDefault(); // Отключаем стандартную отправку формы
+
+                    // Собираем данные формы
+                    let formData = $(this).serialize();
+                    console.log(formData);
+                    console.log('123');
+
+                    // AJAX-запрос
+                    $.ajax({
+                        url: $(this).attr('action'),   // Используем URL из атрибута action
+                        type: 'PATCH',                 // Метод PATCH (Laravel примет, т.к. есть _method=patch)
+                        data: formData,
+                        success: function (response) {
+                            // Действия при успешном ответе
+                            // Вы можете, например, вывести сообщение об успехе или сделать редирект:
+                            // alert('Данные пользователя успешно обновлены!');
+                            showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлен.", 1);
+                            console.log(response);
+                        },
+                        error: function (xhr, status, error) {
+                            // Действия при ошибке
+                            // Например, можно обработать валидационные ошибки (422) или другие
+                            if (xhr.status === 422) {
+                                // Ошибки валидации
+                                let errors = xhr.responseJSON.errors;
+                                console.log(errors);
+                                // Сделайте подсветку полей или вывод сообщений об ошибках по своему вкусу
+                            } else {
+                                alert('Произошла ошибка при обновлении пользователя!');
+                            }
+                        }
+                    });
+                });
+            }
+
+            //Обновление партнера
+            function updatePartnerData() {
+                $('#partnerUpdateForm').on('submit', function (e) {
+                    e.preventDefault(); // Останавливаем стандартную отправку формы
+
+                    let form = $(this);
+                    {{--let formData = form.serialize(); // Сериализуем все поля (включая @csrf и @method)--}}
+                    let formData = $(this).serialize();
+
+                    $.ajax({
+                    url: form.attr('action'),  // берем URL из action
+                        type: 'PATCH',            // метод запроса
+                        data: formData,
+                        success: function (response) {
+                        console.log('1');
+                            showSuccessModal("Редактирование организации", "Данные организации успешно обновлены.", 1);
+                    },
+                    error: function (xhr) {
+                        // Обработка ошибок
+                        if (xhr.status === 422) {
+                            // Ошибки валидации (Unprocessable Entity)
+                            let errors = xhr.responseJSON.errors;
+                            console.log(errors);
+                            // Здесь можно пробежаться по errors и вывести их на страницу
+                            // или показать alert
+                        } else {
+                            alert('Произошла ошибка. Попробуйте ещё раз.');
+                        }
+                    }
+                });
+            });
+            }
+
             // Вызов функций при загрузке страницы
             appendUserNametoForm("{{ $user->name }}");
             changePasswordBtn();
@@ -855,6 +892,8 @@
             hideModal();
             showPassword();
             toggleFields();
+            updateUserData();
+            updatePartnerData();
         });
 
     </script>

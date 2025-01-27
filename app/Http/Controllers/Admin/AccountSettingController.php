@@ -88,11 +88,22 @@ class AccountSettingController extends Controller
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 23, // Лог для обновления учетной записи
                 'author_id' => $authorId,
-                'description' => "Имя: $authorName. ID: $authorId. \nСтарые:\n (" . Carbon::parse($oldData->birthday)->format('d.m.Y') . ", $oldData->email). \nНовые:\n (" . Carbon::parse($data['birthday'])->format('d.m.Y') . ", {$data['email']})",
+                'description' => "Имя: $authorName. ID: $authorId. 
+                Старые:\n ( $oldData->name, " . Carbon::parse($oldData->birthday)->format('d.m.Y') . ", $oldData->email). 
+               Новые:\n ({$data['name']}, " . Carbon::parse($data['birthday'])->format('d.m.Y') . ", {$data['email']})",
                 'created_at' => now(),
             ]);
         });
-        return redirect()->route('admin.cur.user.edit', ['user' => $user->id]);
+//        return redirect()->route('admin.cur.user.edit', ['user' => $user->id]);
+
+        // Если запрос пришёл по AJAX, вернём JSON
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Пользователь успешно обновлен',
+                // Можно вернуть и актуальные данные пользователя, если нужно
+            ]);
+
 
     }
 
@@ -183,11 +194,15 @@ class AccountSettingController extends Controller
             ]);
         });
         // Редирект с сообщением об успешном обновлении
-        return redirect()->route('admin.cur.company.edit', $partner->id)
-            ->with('success', 'Данные партнёра успешно обновлены.');
+//        return redirect()->route('admin.cur.company.edit', $partner->id)
+//            ->with('success', 'Данные партнёра успешно обновлены.');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Данные партнёра успешно обновлены.',
+        ]);
 
     }
-
 
 
     public function updatePassword(Request $request, $id)
