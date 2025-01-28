@@ -17,7 +17,7 @@ class CreateMyLogsTable extends Migration
             $table->bigIncrements('id');        // Первичный ключ, автоинкремент
             $table->integer('type');            // Целочисленное поле для типа лога
             $table->integer('action')->nullable(); // Добавление нового столбца после столбца 'type'
-            $table->integer('author_id');       // ID автора (пользователя)
+            $table->unsignedBigInteger('author_id'); // ID автора (пользователя) как bigint(20) UNSIGNED
             $table->text('description');        // Текстовое поле для описания
             $table->timestamp('created_at')->useCurrent(); // Время создания
         });

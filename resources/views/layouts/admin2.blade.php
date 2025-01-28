@@ -44,6 +44,8 @@
     <!-- summernote -->
     <link rel="stylesheet" href="{{ asset('plugins/summernote/summernote-bs4.min.css') }}">
 
+
+
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
 <div class="wrapper">
@@ -518,6 +520,16 @@
 
 <!-- Включение DataTables JS -->
 <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+
+
+
+
+
+<script src="https://daruse.ru/assets/js/snowfall.js"></script>
+<script type="text/javascript">
+    $(document).snowfall();
+</script>
+
 
 </body>
 </html>

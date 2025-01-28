@@ -137,7 +137,7 @@ class SettingController extends Controller
     {
         $logs = MyLog::with('author')
 //            ->where('type', 1) // Добавляем условие для фильтрации по type
-            ->select('my_logs.*'); 
+            ->select('my_logs.*');
 
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {
