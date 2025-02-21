@@ -31,53 +31,6 @@ document.addEventListener('DOMContentLoaded', function () {
             // Выводим id родительского div в консоль
             if (parentDiv) {
 
-
-            //    $.ajax({
-            //         url: '/get-team-price',
-            //         method: 'POST',
-            //         contentType: 'application/json', // Указываем тип контента JSON
-            //         data:  JSON.stringify({
-            //             teamId: parentDiv.id,
-            //             selectedDate: selectedDate
-            //         }),
-            //         success: function (response) {
-            //             if (response.success) {
-            //                 //Обновление списка пользователей справа
-            //                 let updateUserListRightBar = function () {
-            //                     usersPrice = response.usersPrice;
-            //                     var usersTeam = response.usersTeam;
-            //
-            //
-            //                     let rightBar = $('.wrap-users');
-            //                     rightBar.empty();
-            //                     for (i = 0; i < usersPrice.length; i++) {
-            //                         let userTeam = usersTeam.find(team => team.id === usersPrice[i].user_id); // Находим соответствующего пользователя в usersTeam
-            //
-            //                         let checkClass = usersPrice[i].is_paid ? '' : 'display-none';
-            //                         let inputDisabled = usersPrice[i].is_paid ? 'disabled' : '';
-            //
-            //                         let userBlock = `
-            //     <div class="row mb-2">
-            //         <div id="${userTeam ? userTeam.id : 'Имя не найдено'}" class="user-name col-6 text-start">  ${userTeam ? userTeam.name : 'Имя не найдено'}</div>
-            //         <div class="user-price col-4"><input class="" type="number" value=${usersPrice[i].price} ${inputDisabled}></div>
-            //         <div class="check col-2"><span class="fa fa-check ${checkClass} green-check" aria-hidden="true"></span></div>
-            //     </div>
-            // `;
-            //                         rightBar.append(userBlock); // Добавляем каждый блок с пользователем внутрь right_bar
-            //                         document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
-            //                     }
-            //
-            //                 }
-            //                 updateUserListRightBar();
-            //             }
-            //         },
-            //         error: function (xhr, status, error) {
-            //             console.error('Ошибка: ' + error);
-            //             console.error('Статус: ' + status);
-            //             console.dir(xhr);
-            //         }
-            //     });
-
                 $.ajax({
                     url: '/get-team-price',
                     method: 'POST',
@@ -96,10 +49,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                 let rightBar = $('.wrap-users');
                                 rightBar.empty();
 
-                                // Допустим, мы хотим вывести в порядке,
-                                // в котором объекты идут в массиве usersPrice:
-                                // (если нужна сортировка по имени, можно сначала
-                                // отсортировать массив usersPrice по userTeam.name).
                                 for (let i = 0; i < usersPrice.length; i++) {
                                     let userTeam = usersTeam.find(team => team.id === usersPrice[i].user_id);
 

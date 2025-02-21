@@ -75,25 +75,25 @@
                             class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-teams">Применить
                     </button>
 
-                @if(isset($teamPrices) && count($teamPrices) > 0)
-                    @for($i = 0; $i < count($teamPrices); $i++)
-                        @if(isset($allTeams[$i])) <!-- Добавляем проверку на существование индекса $i -->
-                            <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team ">
-
-                                {{--<div class=" col-lg-12  d-flex justify-content-between flex-wrap ">--}}
-
-                                <div class="team-name col-3">{{ $allTeams[$i]->title }}</div>
-                                <div class="team-price col-4">
-                                    <input class="" type="number" value="{{ $teamPrices[$i]->price }}">
+                    @if(isset($teamPrices) && count($teamPrices) > 0)
+                        @for($i = 0; $i < count($teamPrices); $i++)
+                            @if(isset($allTeams[$i])) <!-- Добавляем проверку на существование индекса $i -->
+                            <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
+                                <div class="team-name col-3">
+                                    {{ ($i + 1) . '. ' . $allTeams[$i]->title }}
                                 </div>
-                                <div class="team-buttons col-5 d-flex ">
-                                    <input class="ok btn btn-primary mr-2" type="button" value="ok" id="">
-                                    <input class="detail btn btn-primary" type="button" value="Подробно" id="">
+                                <div class="team-price col-4">
+                                    <input type="number" value="{{ $teamPrices[$i]->price }}">
+                                </div>
+                                <div class="team-buttons col-5 d-flex">
+                                    <input class="ok btn btn-primary mr-2" type="button" value="ok">
+                                    <input class="detail btn btn-primary" type="button" value="Подробно">
                                 </div>
                             </div>
                             @endif
                         @endfor
                     @endif
+
 
                 </div>
                 <div class="col-md-auto"></div>
