@@ -12,7 +12,7 @@ use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
 
 
-class User extends Authenticatable
+class   User extends Authenticatable
 
 {
     use HasApiTokens, HasFactory, Notifiable;

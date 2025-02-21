@@ -24,6 +24,8 @@ class UserFieldValue extends Model
 
     public function field()
     {
-        return $this->belongsTo(UserField::class);
+//        return $this->belongsTo(UserField::class);
+        return $this->belongsTo(UserField::class, 'field_id');
+
     }
 }

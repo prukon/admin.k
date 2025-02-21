@@ -163,6 +163,8 @@ class SettingController extends Controller
                     27 => 'Изменение аватара (админ)',
                     28 => 'Изменение аватара',
                     29 => 'Удаление аватара',
+                    210 => 'Изменение доп полей пользователя',
+
 
 
 
@@ -180,12 +182,14 @@ class SettingController extends Controller
 
                     70 => 'Изменение настроек',
 
-                    80 => 'Изменение партнера'
+                    80 => 'Изменение партнера',
+
+
 
 
 
                 ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип';
+                return $typeLabels[$log->action] ?? 'Неизвестный тип (setting)';
             })
             ->make(true);
     }

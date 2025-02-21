@@ -22,7 +22,7 @@ class UserService
 //  - Редактировние учетной записи юзера
 //  - Редактировние учетной записи админа
 //  - Редактировние юзера на старанице Юзеры
-    public function update($user, $data)
+    public function updateold($user, $data)
     {
         try {
 
@@ -64,6 +64,104 @@ class UserService
             throw $e;
         }
     }
+
+    public function update2($user, $data)
+    {
+        try {
+            // Исключаем поле 'custom' из данных для обновления пользователя
+            $userData = array_diff_key($data, ['custom' => '']);
+
+            // Обновляем основные поля пользователя
+            $user->update($userData);
+
+            // Проверяем наличие пользовательских полей
+            if (!empty($data['custom']) && is_array($data['custom'])) {
+                foreach ($data['custom'] as $slug => $value) {
+                    $userField = UserField::where('slug', $slug)->first();
+
+                    if ($userField) {
+                        // Проверяем, может ли пользователь редактировать это поле
+                        $permissions = $userField->permissions ?? [];
+                        $isEditable = empty($permissions) || in_array($user->role, $permissions);
+
+                        if ($isEditable) {
+                            // Сохраняем или обновляем значение пользовательского поля
+                            UserFieldValue::updateOrCreate(
+                                [
+                                    'user_id' => $user->id,
+                                    'field_id' => $userField->id,
+                                ],
+                                ['value' => $value]
+                            );
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            throw $e;
+        }
+    }
+
+
+    public function update($user, $data)
+    {
+        try {
+            // Проверяем, что данные пришли
+            if (!empty($data['custom']) && is_array($data['custom'])) {
+                \Log::info('Полученные кастомные поля:', $data['custom']);
+            } else {
+                \Log::warning('Данные custom отсутствуют или не являются массивом.');
+            }
+
+            // Исключаем 'custom' из основного массива
+            $userData = array_diff_key($data, ['custom' => '']);
+
+            // Обновляем основные поля пользователя
+            $user->update($userData);
+
+            // Проверяем наличие пользовательских полей
+            if (!empty($data['custom']) && is_array($data['custom'])) {
+                foreach ($data['custom'] as $slug => $value) {
+                    $userField = UserField::where('slug', $slug)->first();
+
+                    if ($userField) {
+                        // Проверяем, может ли пользователь редактировать это поле
+                        $permissions = $userField->permissions ?? [];
+                        $isEditable = empty($permissions) || in_array($user->role, $permissions);
+
+                        \Log::info("Обработка поля {$slug}: Редактируемое - " . ($isEditable ? 'Да' : 'Нет'));
+
+                        if ($isEditable) {
+                            $updated = UserFieldValue::updateOrCreate(
+                                [
+                                    'user_id' => $user->id,
+                                    'field_id' => $userField->id,
+                                ],
+                                ['value' => $value]
+                            );
+
+                            \Log::info("Обновлено поле {$slug} с ID {$userField->id} для пользователя {$user->id}: {$value}");
+                        } else {
+                            \Log::warning("Пользователь {$user->id} не может редактировать поле {$slug}");
+                        }
+                    } else {
+                        \Log::warning("Поле с slug {$slug} не найдено в базе.");
+                    }
+                }
+            } else {
+                \Log::warning('Поле custom отсутствует или не является массивом.');
+            }
+        } catch (\Exception $e) {
+            \Log::error('Ошибка при обновлении пользователя:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+
+
 
     //  - Редактировние юзера на старанице Юзеры
     public function delete($user)

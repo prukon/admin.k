@@ -9,7 +9,6 @@
         <h4 class="pt-3 pb-3">Пользовательское соглашение</h4>
         <div class="container">
 
-
             <div class="container mt-5">
                 <!-- Заголовок страницы -->
             {{--<div class="text-center mb-5">--}}
@@ -75,7 +74,6 @@
                     </ul>
                 </div>
             </div>
-
 
         </div>
     </div>

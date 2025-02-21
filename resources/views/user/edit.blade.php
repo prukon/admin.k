@@ -87,6 +87,43 @@
                         @enderror
                     </div>
 
+                    @if($fields->isNotEmpty())
+                        <div class="mb-3">
+                            {{--<h5>Пользовательские поля</h5>--}}
+                            <div id="custom-fields-container">
+                                @foreach($fields as $field)
+                                    {{-- Зададим какую-то переменную со значением поля, если нужно --}}
+                                    @php
+//                                        $userValue = $userValue[$field->slug] ?? '';
+                                        $userFieldValue = $userFieldValues[$field->id] ?? '';
+                                        $isEditable = $editableFields[$field->id] ?? false;
+
+                                    @endphp
+
+                                    <div class="mb-3 custom-field" data-slug="{{ $field->slug }}">
+                                        <label for="custom-{{ $field->slug }}" class="form-label">
+                                            {{ $field->name }}
+                                        </label>
+                                        <input
+                                                type="text"
+                                                name="custom[{{ $field->slug }}]"
+                                                class="form-control"
+                                                id="custom-{{ $field->slug }}"
+                                                value="{{ old("custom.{$field->slug}", $userFieldValue) }}"
+                                                {{ $isEditable ? '' : 'disabled' }}
+                                        />
+
+                                        @if(!$isEditable)
+                                            <!-- Добавляем скрытое поле, чтобы данные передавались -->
+                                            <input type="hidden" name="custom[{{ $field->slug }}]" value="{{ $userFieldValue }}">
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+
                     {{-- Поле "Email" --}}
                     <div class="mb-3">
                         <label for="email" class="form-label">Адрес электронной почты*</label>

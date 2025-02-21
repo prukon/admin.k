@@ -1,6 +1,4 @@
-.testDiv {
-    color: red;
-}
+/*хедер*/
 
 :root {
     --color-main-grey: #4e4e4e;
@@ -81,72 +79,1083 @@ header .tel {
     color: var(--color-main-grey);
 }
 
+/*Боковое меню*/
 
-<
-/
-style >
+/*.btn-bd-primary {*/
+/*    !*--bs-btn-font-weight: 600;*!*/
+/*    --bs-btn-font-size: 14px;*/
+/*    --bs-btn-color: black;*/
+/*    --bs-btn-bg: white;*/
+/*    --bs-btn-border-color: #f3a12b;*/
+/*    --bs-btn-hover-color: white;*/
+/*    --bs-btn-hover-bg: #f3a12b;*/
+/*    --bs-btn-hover-border-color: #f3a12b;*/
+/*    --bs-btn-active-color: #f3a12b;*/
+/*}*/
 
-<
-style >
-    /*media*/
+/*.btn-bd-primary-active {*/
+/*    !*--bs-btn-font-weight: 600;*!*/
+/*    --bs-btn-font-size: 14px;*/
+/*    --bs-btn-color: white;*/
+/*    --bs-btn-bg: #f3a12b;*/
+/*    --bs-btn-border-color: #f3a12b;*/
+/*    --bs-btn-hover-color: white;*/
+/*    --bs-btn-hover-bg: #f3a12b;*/
+/*    --bs-btn-active-color: #f3a12b;*/
+/*    --bs-btn-hover-border-color: #f3a12b;*/
+/*    --bs-btn-focus-shadow-rgb: ;*/
+/*}*/
 
-@media screen and (max-width: 1399px) {
-    header .main-menu {
-        font-size: 12px;
+/*.side-menu button {*/
+/*    width: 100%;*/
+/*}*/
+
+/*футер*/
+
+footer {
+    background-color: #f3f5f7;
+}
+
+footer .company-details {
+    margin-bottom: 15px;
+    margin-top: 15px;
+}
+
+footer .social-networks {
+    margin-bottom: 15px;
+}
+
+footer .copyright {
+    margin-bottom: 15px;
+}
+
+footer .dev-author {
+    margin-right: 5px;
+}
+
+footer .social-networks {
+    color: black;
+}
+
+/*dashboard*/
+.welcome-text {
+    margin-top: 10px;
+}
+
+.welcome-text span {
+    font-weight: 600;
+}
+
+.choose-user-header {
+    margin: 20px 0;
+}
+
+.choose-user {
+    padding-bottom: 10px;
+}
+
+.weekday-checkbox {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 11px;
+}
+
+.weekday-checkbox .form-check {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-right: 5px;
+}
+
+.avatar_wrapper {
+    height: 190px;
+    width: 141px;
+    border: solid 1px #e7a246;
+    text-align: center;
+    position: relative;
+}
+
+.personal-data {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.change-team {
+    text-decoration: underline;
+    color: gray;
+}
+
+/*select2*/
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+    right: 10px; /* Регулируйте значение в соответствии с вашим дизайном */
+    left: auto;
+}
+
+
+.seasons {
+    margin-bottom: 30px;
+}
+
+.seasons .season {
+    /*text-align: center;*/
+    margin-top: 20px;
+    /*padding-bottom: 23px;*/
+    border: 1px solid #f3a12b;
+    position: relative;
+}
+
+.seasons .header-season {
+    position: absolute;
+    left: 40px;
+    top: -12px;
+    background: #f4f6f9;
+    padding: 0 10px;
+    font-weight: 800;
+    color: #8e1c13
+}
+
+.seasons .is_credit {
+    margin-top: 24px;
+    display: block;
+    font-weight: 600;
+    color: #8e1c13;
+    margin-bottom: 20px;
+}
+
+.seasons .border_price {
+    /*display: inline-block;*/
+    display: none;
+    border-style: dotted;
+    border-width: 1px 1px 1px 1px;
+    border-color: #f3a12b;
+    padding-top: 25px;
+    padding-bottom: 25px;
+    margin-right: 15px;
+    margin-left: 15px;
+    margin-bottom: 15px;
+    margin-top: 15px;
+    width: 100%;
+    max-width: 220px;
+}
+
+.seasons .price-value {
+    color: #8e1c13;
+    font-weight: 900;
+    font-size: 36px;
+    line-height: 43px;
+    text-align: center;
+    width: auto;
+}
+
+.seasons .hide-currency {
+    color: #8e1c13;
+    font-weight: 900;
+    font-size: 36px;
+    line-height: 43px;
+    text-align: center;
+    width: auto;
+}
+
+.seasons .new-price-description {
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 22px;
+    color: #817f8a;
+    margin-top: 5px;
+}
+
+.seasons .new-main-button {
+    width: 80%;
+    margin-top: 15px;
+    border-color: #f3a12b;
+    width: 90%;
+}
+
+.seasons .new-main-button:hover {
+    background-color: #f3a12b;
+    color: white;
+    border-color: white;
+}
+
+.new-main-button-wrap {
+    display: block;
+    text-align: center;
+}
+
+/*.seasons .new-main-button {*/
+/*    margin-top: 20px;*/
+/*    margin-bottom: 20px;*/
+/*    text-align: center;*/
+/*    border: 1px solid #f3a12b;*/
+/*    padding: 10px 40px;*/
+/*    width: 90%;*/
+/*    box-sizing: border-box;*/
+/*    border-radius: 5px;*/
+/*    transition: .3s all ease;*/
+/*    text-decoration: none;*/
+/*    text-transform: uppercase;*/
+/*}*/
+
+.display-none {
+    display: none!important;
+}
+.visibility-hidden {
+    visibility: hidden;
+}
+
+
+.weekday-disabled {
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+}
+
+.weekday-enabled {
+    border: dotted 2px #f2a133;
+    border-radius: 5px;
+}
+
+.form-group .form-check .form-check-input {
+    margin-top: revert;
+    /*margin-left: -1.5em;*/
+    /*margin-left: -17px;*/
+}
+
+.btn-setting-prices {
+    width: 80%;
+}
+
+.wrap-setting-prices {
+    text-align: center;
+}
+
+#left_bar, #right_bar {
+    text-align: center;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+}
+
+#right_bar .btn-setting-prices:disabled, #left_bar .btn-setting-prices:disabled {
+    background-color: white;
+    color: black;
+}
+
+#wrap-bars .team-name, #wrap-bars .user-name {
+    /*padding-left: 12px;*/
+    /*text-align: left;*/
+    font-size: 13px;
+    /*padding-right: 0;*/
+}
+
+#wrap-bars .team-price {
+    padding: 0;
+}
+
+#wrap-bars .team-price input, #wrap-bars .user-price input {
+    width: 100px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    font-size: 12px;
+}
+
+#wrap-bars .team-buttons {
+    text-align: right;
+}
+
+#wrap-bars .check .fa-check {
+    color: #00cb00;
+}
+
+#right_bar .display-none {
+    display: none;
+
+}
+
+.display-none {
+    display: none;
+}
+
+.info-cicle {
+    color: #343a40;
+}
+
+.choose-user .btn-primary {
+    background-color: white;
+    color: black;
+}
+
+.user-without-team {
+    color: #f2a133;
+}
+
+select option[data-has-team="no"] {
+    color: red; /* Применение красного цвета к тексту */
+}
+
+/*Календарь*/
+/*.calendar {*/
+/*    width: 300px;*/
+/*    margin: 0 auto;*/
+/*    text-align: center;*/
+/*    position: relative;*/
+/*}*/
+
+.calendar {
+    width: auto;
+    /*max-width: 900px;*/
+    margin: 0 auto;
+    text-align: center;
+    position: relative; /* Добавлено */
+    border: solid 1px #f3a12b;
+    padding: 10px;
+}
+
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.calendar-header div {
+    cursor: pointer;
+    font-size: 14px;
+    padding: 5px 10px;
+    /*background-color: #ddd;*/
+    border-radius: 5px;
+    user-select: none;
+}
+
+.calendar-header div:hover {
+    background-color: #ccc;
+}
+
+.days-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+}
+
+.days-header div, .days div {
+    width: 14.28%;
+    padding: 5px 0;
+}
+
+.days {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.days div {
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+/* Контекстное меню */
+.context-menu {
+    display: none;
+    position: absolute; /* Изменено на absolute */
+    background-color: white !important;
+    border: 1px solid #ccc;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    padding: 5px 0;
+    width: 200px;
+}
+
+.context-menu-item {
+    padding: 8px 10px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.context-menu-item:hover {
+    background-color: #f0f0f0;
+}
+
+#calendar-title, #prev-month, #next-month {
+    border: solid 1px;
+    border-color: #f3a12b;
+    background-color: white;
+}
+
+.scheduled-day {
+    background-color: #ffbe619e; /* Пример цвета для дней с расписанием */
+}
+
+.is_enabled {
+    background-color: #ffbe619e; /* Пример цвета для оплаченных дней */
+}
+
+.is_hospital {
+    background-color: rgba(21, 131, 245, 0.53); /* Пример цвета для неоплаченных дней */
+}
+
+.today {
+    color: red;
+}
+
+
+#upload {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: white;
+    border: 1px solid #f3a12b;
+    border-radius: 5px; /* скругленные края */
+    padding: 5px 10px; /* добавим немного padding для лучшего внешнего вида */
+    cursor: pointer;
+    outline: none;
+    width: 150px; /* можно задать ширину для лучшего отображения */
+}
+
+#upload::-webkit-file-upload-button {
+    visibility: hidden;
+}
+
+#upload::before {
+    content: 'Выбрать фото'; /* можно задать текст по умолчанию */
+    display: inline-block;
+    background: white;
+    /*border: 1px solid blue;*/
+    border-radius: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+    color: black;
+}
+
+#upload:hover::before {
+    background: #f3a12b; /* добавим эффект при наведении */
+    color: white;
+}
+
+#upload:hover {
+    background: #f3a12b; /* добавим эффект при наведении */
+}
+
+#upload:active::before {
+    background: #f3a12b; /* эффект при нажатии */
+}
+
+.avatar-wrap .container-form {
+    width: 141px;
+}
+
+.personal-data-header {
+    font-size: 13px;
+}
+
+.personal-data .value-wrap {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.email-value, .name-value, .group-value, .birthday-value, .count-training-value {
+    font-weight: 600;
+}
+
+.pay-btn {
+    border: solid 1px;
+    border-color: #f3a12b;
+    background-color: white;
+}
+
+.pay-btn:hover {
+    background-color: #f3a12b;
+    color: white;
+    border-color: white;
+}
+
+.wrap-pay {
+    border: 1px solid #f3a12b;
+    border-radius: 5px;
+    text-align: center;
+    max-width: 200px;
+}
+
+.bolt-text {
+    font-weight: 700
+}
+
+.club-fee {
+    width: 100%;
+    max-width: 500px;
+}
+
+.users-list .user a {
+    text-decoration: none;
+}
+
+.users-list .user a:hover {
+    text-decoration: underline;
+}
+
+.teams-list .team a {
+    text-decoration: none;
+}
+
+.teams-list .team a:hover {
+    text-decoration: underline;
+}
+
+.fa-youtube {
+    color: red;
+    text-decoration: none;
+}
+
+.social-menu a {
+    text-decoration: none;
+    font-size: 16px;
+}
+
+.user-data input::placeholder {
+    opacity: 0.5; /* Установите нужный уровень прозрачности, 0.5 означает 50% прозрачности */
+}
+
+.team-data input::placeholder {
+    opacity: 0.5; /* Установите нужный уровень прозрачности, 0.5 означает 50% прозрачности */
+}
+
+
+/*.input-button-group {*/
+/*    display: flex;*/
+/*    align-items: center;*/
+/*}*/
+
+
+#search-container .find-input,
+#search-container .find-select,
+#search-container .btn {
+    height: 40px; /* Установите нужную высоту */
+}
+
+#search-container {
+    display: flex;
+    align-items: center;
+}
+
+#search-container .mr-3 {
+    margin-right: 1rem;
+}
+
+#search-container .find-input {
+    /*flex: 1; !* Инпут растягивается, занимая оставшееся пространство *!*/
+}
+
+#search-container .find-select {
+    /*flex: 0 0 200px; !* Ширина селекта, можно настроить под нужный размер *!*/
+}
+
+#search-input {
+    max-width: 3500px;
+    border: 1px solid #f3a12b;
+    border-radius: 5px;
+}
+
+#search-select {
+    border: 1px solid #f3a12b;
+    border-radius: 5px;
+}
+
+@media (max-width: 768px) {
+    #search-select, #search-button {
+        height: 40px; /* Задайте желаемую высоту */
+        padding: 0 10px; /* Обновите внутренние отступы при необходимости */
     }
 
-    header .tel {
-        font-size: 12px;
+    #search-select {
+        line-height: normal; /* Обновите, чтобы содержимое выглядело корректно */
     }
 }
 
-@media screen and (max-width: 991px) {
-    header .main-menu {
-        font-size: 11px;
-        Letter-spacing: 0.4px;
-    }
+.notification-wrap {
+    border: solid 1px #f3a12b;
+    padding: 10px;
+    width: auto;
+    /*max-width: 900px;*/
+    margin: 0 auto;
+}
 
-    header .tel {
-        font-size: 11px;
+.navbar-nav .nav-item {
+    display: flex;
+    align-items: center;
+}
+
+.logout {
+    margin-left: 20px;
+}
+@keyframes borderAnimation {
+    0% {
+        border-color: #79c979;
+    ;
+    }
+    50% {
+        border-color: #00a400;
+    }
+    100% {
+        border-color: #79c979;
     }
 }
 
-@media screen and (max-width: 767px) {
-    .social-networks {
-        margin-right: 0;
+.animated-input {
+    animation: borderAnimation 2s ease-in-out;
+}
+.buttons .back  {
+    width: auto !important;
+}
+.buttons .delete {
+    width: auto !important;
+}
+
+.buttons .update-pass  {
+    width: auto !important;
+}
+
+/*.buttons .back .btn  {*/
+/*    min-width: 140px;*/
+/*}*/
+/*.buttons .delete  .btn{*/
+/*    min-width: 140px;*/
+/*}*/
+
+.update-pass .btn  {
+    min-width: 140px;
+}
+/*.update-btn {*/
+/*    min-width: 135px;*/
+/*}*/
+/*#change-password-btn {*/
+/*    min-width: 135px;*/
+
+/*}*/
+#new-password {
+    width: 200px;
+    display: inline-block;
+}
+.password-description {
+    display: none;
+}
+
+
+.credit-notice {
+    height: 100px;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 16px;
+    background-color: #fbd49b1f;
+    padding: 20px;
+    border: 1px solid #f5c6cb;
+    position: relative;
+}
+
+.credit-notice .close {
+    position: absolute;
+    right: -10px;
+    top: -10px;
+    font-size: 20px;
+    color: #8e1c13;
+    opacity: 1;
+}
+.credit-notice {
+    display: none;
+}
+.change-pass-wrap {
+    display: none;
+}
+.fade-out {
+    transition: opacity 1s ease;
+    opacity: 0;
+}
+
+#search-input,
+#search-select,
+#search-button {
+    height: 35px!important;
+}
+
+/* Модальное окно на 90% ширины экрана */
+.modal-lg {
+    max-width: 90%;
+}
+
+.position-relative {
+    position: relative;
+}
+
+.field-icon {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #aaa;
+    z-index: 2; /* Добавьте это, если иконка перекрывается другими элементами */
+}
+
+.field-icon {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #aaa;
+}
+
+.position-relative {
+    position: relative;
+}
+.buttons-wrap button {
+    min-width: 100px;
+}
+.wrap-umoney {
+    max-width: 220px;
+}
+.wrap-pay .logo {
+    width: 60%;
+}
+/*.settings-table button {*/
+/*    width: 200px ;*/
+/*} */
+.width-160 {
+    width: 160px;
+}
+.sum-dept-wrap {
+    max-width: 350px;
+}
+.width-170 {
+    width: 170px!important;
+}
+
+.action-button {
+    color: white;
+    background-color: #f3a12b;
+}
+.change-password-btn {
+    width: 170px;
+}
+.save-change-modal {
+    width: 170px;
+}
+
+
+.avatar-container {
+    position: relative;
+    display: inline-block;
+}
+
+#user-avatar {
+    width: 150px; /* задайте нужный размер аватара */
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+.avatar-menu {
+    display: none;
+    position: absolute;
+
+    top: 195px;
+    left: auto;
+    /*width: 250px; !* тот же размер, что и аватар *!*/
+    width: auto;
+    /*height: 140px;*/
+    height: auto;
+    background-color: rgba(255, 255, 255);
+    border-radius: 10px;
+    /*display: flex;*/
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-menu ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    /*text-align: center;*/
+}
+
+.avatar-menu li {
+    margin: 5px 0;
+}
+
+.avatar-menu a {
+    text-decoration: none;
+    color: black;
+    /*font-weight: bold;*/
+    font-size: 14px;
+}
+
+.avatar-container:hover .avatar-menu {
+    display: flex;
+}
+
+.background-color-grey {
+    background-color: #f2f2f2;
+    /*background-color: red;*/
+}
+
+.avatar-menu ul li:hover {
+    background-color: #f0f0f0; /* Цвет фона при наведении */
+    border-radius: 5px; /* Закругление углов, если нужно */
+    cursor: pointer; /* Изменение курсора при наведении */
+}
+.btn-secondary {
+    border: none;
+}
+a.disabled {
+    pointer-events: none;
+    color: #ccc;
+}
+
+/* Убираем стандартные изображения стрелок */
+.ui-datepicker .ui-datepicker-prev, .ui-datepicker .ui-datepicker-next {
+    background: none !important;
+    border: none !important;
+}
+
+/* Настраиваем стиль для стрелок Font Awesome */
+.ui-datepicker .ui-datepicker-prev i,
+.ui-datepicker .ui-datepicker-next i {
+    font-size: 16px; /* Задайте нужный размер иконки */
+    color: #333; /* Цвет иконки, можно настроить */
+}
+
+.wrapper {
+    max-width: 1280px;
+}
+.layout-fixed .main-sidebar {
+    left: auto;
+}
+.sidebar-mini {
+    text-align: -webkit-center;
+}
+.text-light {
+    text-align: left;
+}
+.nav-sidebar {
+    text-align: left;
+}
+
+.weekday-checkbox .form-check {
+    margin-right: 1px;
+    width: 13%;
+
+    text-align: center;
+}
+.btn-choose-user .btn {
+    width: 100%;
+}
+.weekday-checkbox .form-check .form-check-input {
+    float: none;
+}
+
+@media (max-width: 767.98px) {
+    .label-day[for="Monday"]::after {
+        content: "пн.";
+    }
+    .label-day[for="Tuesday"]::after {
+        content: "вт.";
+    }
+    .label-day[for="Wednesday"]::after {
+        content: "ср.";
+    }
+    .label-day[for="Thursday"]::after {
+        content: "чт.";
+    }
+    .label-day[for="Friday"]::after {
+        content: "пт.";
+    }
+    .label-day[for="Saturday"]::after {
+        content: "суб.";
+    }
+    .label-day[for="Sunday"]::after {
+        content: "вск.";
     }
 
-    header .main-menu a {
-        padding-right: 4px;
+    /* Скрываем основной текст */
+    .label-day {
+        visibility: hidden;
+        position: relative;
+    }
+
+    /* Показываем сокращения */
+    .label-day::after {
+        visibility: visible;
+        position: absolute;
+        left: 0;
     }
 }
 
-@media screen and (max-width: 575px) {
-    header .main-menu {
-        font-size: 10px;
-        Letter-spacing: 0.4px;
-    }
-
-    header .main-menu a {
-        padding-right: 4px;
-    }
-
-    header .tel {
-        font-size: 11px;
-    }
+.header-wrap {
+    text-align: left;
+}
+.avatar-wrap {
+    text-align: left;
+}
+#left_bar .team-buttons .btn-primary  {
+    font-size: 11px;
 }
 
-@media screen and (max-width: 464px) {
-    header .main-menu {
-        font-size: 9px;
-        Letter-spacing: 0.4px;
-    }
+/*.wrap-users .user-name {*/
+/*text-align: left;*/
 
-    header .main-menu a {
-        padding-right: 4px;
-    }
-
-    header .tel {
-        font-size: 10px;
-    }
+/*}*/
+.wrap-users {
+    margin-left: 10px;
 }
+.modal-backdrop {
+    z-index: 1040;
+}
+
+.modal {
+    z-index: 1055;
+}
+
+
+.confirm-modal {
+    /*z-index: 1090;*/
+}
+
+.sidebar-separator {
+    color:white;
+}
+
+.info .latestEndDate {
+    vertical-align: middle;
+}
+
+.select2-results {
+    text-align: left;
+}
+
+
+/*Первая модалка*/
+#editUserModal {
+    z-index: 1050;
+}
+
+/*Вторя модалка*/
+#editPhotoModal {
+    z-index: 1060;
+}
+.selectDate {
+    max-width: 500px;
+    width: 100%;
+    padding: 0;
+}
+.set-price-all-teams {
+    max-width: 500px;
+}
+.set-price-all-users {
+    max-width: 500px;
+}
+.select2-selection__rendered{
+    text-align: left;
+}
+.wrap-icon {
+    border: #f3a12b solid 1px;
+    padding: 6px;
+    background-color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 13px;
+    width: 35px;
+}
+.wrap-icon:hover {
+    background-color: #f3a12b;
+    color: white;
+
+}
+
+.fieldModalLabel {
+    z-index: 2000;
+}
+.errorFieldModal {
+    z-index: 2010;
+
+}
+.successFieldModal {
+    z-index: 2010;
+}
+#successModal {
+    z-index: 2010;
+}
+#errorModal {
+    z-index: 2010;
+}
+
+.confirmDeleteModal {
+    z-index: 2000;
+}
+#confirmDeleteModal {
+    z-index: 1900;
+}
+
+
+.fields-value {
+    font-weight: 600;
+}
+
+#menuModal #menuTable {
+    width: max-content;
+}
+
+#menuModal .modal-dialog {
+    /*display: inline-block; !* Позволяет модалке занимать только необходимую ширину *!*/
+    /*width: auto;*/
+    max-width: 800px;
+}
+
+/* Задание ширины для столбцов таблицы */
+#menuModal th:nth-child(1),
+#menuModal td:nth-child(1) {
+    width: 75px;
+    text-align: center; /* Горизонтальное центрирование */
+    vertical-align: middle; /* Вертикальное центрирование */
+}
+
+/*Название*/
+#menuModal th:nth-child(2),
+#menuModal td:nth-child(2) {
+    width: 150px;
+}
+
+/*ссылка*/
+#menuModal th:nth-child(3),
+#menuModal td:nth-child(3) {
+    width: 300px;
+}
+
+/*Чек бокс*/
+#menuModal th:nth-child(4),
+#menuModal td:nth-child(4) {
+    width: 120px;
+}
+
+#socialMenuModal .modal-dialog {
+    /*display: inline-block; !* Позволяет модалке занимать только необходимую ширину *!*/
+    /*width: auto;*/
+}
+
+/* Задание ширины для столбцов таблицы */
+#socialTable th:nth-child(1),
+#socialTable td:nth-child(1) {
+    /*width: 70px;*/
+    /*text-align: center; !* Горизонтальное центрирование *!*/
+    /*vertical-align: middle; !* Вертикальное центрирование *!*/
+}
+
+#socialTable th:nth-child(2),
+#socialTable td:nth-child(2) {
+    /*width: 150px;*/
+}
+
+#socialTable th:nth-child(3),
+#socialTable td:nth-child(3) {
+    /*width: 300px;*/
+}
+
+.select2-results__options li {
+    font-size: 14px!important;
+}
+

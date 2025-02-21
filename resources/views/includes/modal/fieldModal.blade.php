@@ -17,13 +17,14 @@
                         <th>№</th>
                         <th>Название</th>
                         <th>Тип поля</th>
+                        <th>Разрешено редактировать</th>
                         <th>Удалить</th>
                     </tr>
                     </thead>
                     <tbody>
                     <!-- Существующие поля будут загружаться сюда -->
                     @foreach($fields as $index => $field)
-                        <tr data-id="{{ $field->id }}"  id="{{ $field->id }}">
+                        <tr data-id="{{ $field->id }}" id="{{ $field->id }}">
 
                             <td>{{ $index + 1 }}</td>
                             <td>
@@ -45,7 +46,43 @@
                                 </select>
                             </td>
                             <td>
-                                <button type="button" class="btn btn-danger btn-sm confirm-delete-field-modal">Удалить</button>
+                                <!-- Чекбоксы для разрешений -->
+                                <div class="form-check">
+                                    <input
+                                            class="form-check-input permission-admin"
+                                            type="checkbox"
+                                            value="admin"
+                                            id="permission-admin-{{ $field->id }}"
+                                            {{ in_array('admin', $field->permissions) ? 'checked' : '' }}
+                                    >
+                                    <label class="form-check-label" for="permission-admin-{{ $field->id }}">Админ</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input
+                                            class="form-check-input permission-manager"
+                                            type="checkbox"
+                                            value="manager"
+                                            id="permission-manager-{{ $field->id }}"
+                                            {{ in_array('manager', $field->permissions) ? 'checked' : '' }}
+                                    >
+                                    <label class="form-check-label" for="permission-manager-{{ $field->id }}">Менеджер</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input
+                                            class="form-check-input permission-user"
+                                            type="checkbox"
+                                            value="user"
+                                            id="permission-user-{{ $field->id }}"
+                                            {{ in_array('user', $field->permissions) ? 'checked' : '' }}
+                                    >
+                                    <label class="form-check-label" for="permission-user-{{ $field->id }}">Пользователь</label>
+                                </div>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-danger btn-sm confirm-delete-field-modal">Удалить
+                                </button>
                             </td>
                         </tr>
                     @endforeach
@@ -73,7 +110,7 @@
     $(document).ready(function () {
         let fieldIdToDelete = null; // ID поля для удаления
 
-            // Функция для добавления новой строки в таблицу
+        // Функция для добавления новой строки в таблицу
         $('#new-field-btn').on('click', function () {
             // Генерируем случайный ID в диапазоне от 10000 до 20000
             const randomId = Math.floor(Math.random() * (20000 - 10000 + 1)) + 10000;
@@ -92,6 +129,23 @@
                     <option value="select">Список</option>
                 </select>
             </td>
+               <td>
+
+               <div class="form-check">
+  <input class="form-check-input permission-admin" type="checkbox" value="admin" id="permission-admin">
+  <label class="form-check-label" for="permission-admin">Админ</label>
+</div>
+
+<div class="form-check">
+  <input class="form-check-input permission-manager" type="checkbox" value="manager" id="permission-manager">
+  <label class="form-check-label" for="permission-manager">Менеджер</label>
+</div>
+
+<div class="form-check">
+  <input class="form-check-input permission-user" type="checkbox" value="user" id="permission-user">
+  <label class="form-check-label" for="permission-user">Пользователь</label>
+</div>
+
             <td><button type="button" class="btn btn-danger btn-sm confirm-delete-field-modal">Удалить</button></td>
         </tr>
     `;
@@ -116,6 +170,18 @@
                 const name = $(this).find('.field-name').val();
                 const fieldType = $(this).find('.field-type').val();
 
+                // Сбор данных о разрешениях
+                const permissions = [];
+                if ($(this).find('.permission-admin').is(':checked')) {
+                    permissions.push('admin');
+                }
+                if ($(this).find('.permission-manager').is(':checked')) {
+                    permissions.push('manager');
+                }
+                if ($(this).find('.permission-user').is(':checked')) {
+                    permissions.push('user');
+                }
+
                 // Проверка на заполненность поля "название"
                 if (!name) {
                     $(this).find('.invalid-feedback').show(); // Показываем ошибку
@@ -128,7 +194,8 @@
                     id: id || null,
                     name: name,
                     // Поле slug убираем из запроса (т.к. оно формируется на сервере)
-                    field_type: fieldType
+                    field_type: fieldType,
+                    permissions: permissions // Добавляем разрешения
                 });
             });
 
@@ -170,7 +237,7 @@
             showConfirmDeleteModal(
                 "Удаление поля",
                 "Вы уверены, что хотите удалить это поле?",
-                function() {
+                function () {
                     console.log(fieldIdToDelete);
 
                     if (fieldIdToDelete) {

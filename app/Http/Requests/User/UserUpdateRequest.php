@@ -4,7 +4,7 @@ namespace App\Http\Requests\User;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class AdminUpdateRequest extends FormRequest
+class UserUpdateRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -24,7 +24,7 @@ class AdminUpdateRequest extends FormRequest
         $userId = $this->route('user')->id;
 
         return [
-            'name' => 'required|string|max:80',
+            'name' => 'required|string|max:50',
             'birthday' => [
                 'nullable',
                 'date',
@@ -36,7 +36,7 @@ class AdminUpdateRequest extends FormRequest
                 'date',
                 'before_or_equal:2030-12-31', // Или 'before_or_equal:today'
             ],
-            'email' => 'required|string|email|max:255|unique:users,email,' . $userId,
+            'email' => 'required|string|email|max:50|unique:users,email,' . $userId,
             'is_enabled' => 'boolean',
             'custom.*' => 'nullable|string|max:255', // Замените правила в зависимости от типа данных
             'role' => 'string|max:12',

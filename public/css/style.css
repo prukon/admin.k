@@ -1154,3 +1154,8 @@ z-index: 2000;
 #socialTable td:nth-child(3) {
     /*width: 300px;*/
 }
+
+.select2-results__options li {
+    font-size: 15px!important;
+}
+

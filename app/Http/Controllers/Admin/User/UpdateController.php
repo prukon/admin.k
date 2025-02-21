@@ -18,10 +18,7 @@ use Illuminate\Validation\Rule;
 
 use App\Models\UserField;
 use App\Models\UserFieldValue;
-//use App\Models\Log;
 use App\Models\MyLog;
-
-//use Illuminate\Support\Facades\Log;
 
 
 class UpdateController extends Controller
@@ -74,7 +71,6 @@ class UpdateController extends Controller
                 }
             }
 
-
             // Создание лога обновления данных пользователя с добавлением изменений в кастомных полях
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
@@ -107,7 +103,7 @@ class UpdateController extends Controller
     }
 
 
-    public function updatePassword(Request $request, $id)
+        public function updatePassword(Request $request, $id)
     {
         $request->validate([
             'password' => 'required|min:8',
@@ -126,7 +122,7 @@ class UpdateController extends Controller
             // Логирование изменения пароля
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
-                'action' => 25, // Лог для обновления учетной записи
+                'action' => 210, // Лог для обновления учетной записи
                 'author_id' => $authorId,
                 'description' => ("Пользователю " . $user->name . " был изменен пароль."),
                 'created_at' => now(),
@@ -137,103 +133,119 @@ class UpdateController extends Controller
     }
 
 //Обработка создания/изменения/удаления доп. полей
-    public function storeFields(Request $request)
-    {
-        // Получаем все поля, которые были отправлены
-        $fields = $request->input('fields', []);
-        $authorId = auth()->id(); // Получаем ID текущего пользователя
+        public function storeFields(Request $request)
+        {
+            // Получаем все поля, которые были отправлены
+            $fields = $request->input('fields', []);
+            $authorId = auth()->id(); // Получаем ID текущего пользователя
 
-        // Выполняем все операции в рамках транзакции
-        DB::transaction(function () use ($fields, $request, $authorId) {
-            // Сначала удалим те теги, которых больше нет в запросе
-            $existingFieldIds = UserField::pluck('id')->toArray();
-            $submittedFieldIds = array_filter(array_column((array) $fields, 'id'));
+            // Выполняем все операции в рамках транзакции
+            DB::transaction(function () use ($fields, $request, $authorId) {
+                // Сначала удалим те теги, которых больше нет в запросе
+                $existingFieldIds = UserField::pluck('id')->toArray();
+                $submittedFieldIds = array_filter(array_column((array) $fields, 'id'));
 
-            // Находим все ID, которые есть в базе, но не были отправлены в запросе (т.е. удалены)
-            $fieldsToDelete = array_diff($existingFieldIds, $submittedFieldIds);
+                // Находим все ID, которые есть в базе, но не были отправлены в запросе (т.е. удалены)
+                $fieldsToDelete = array_diff($existingFieldIds, $submittedFieldIds);
 
 
-            $fieldsToDeleteRecords = UserField::whereIn('id', $fieldsToDelete)->get();
+                $fieldsToDeleteRecords = UserField::whereIn('id', $fieldsToDelete)->get();
 
-            // Удаляем все найденные поля
-            if (!empty($fieldsToDelete)) {
-                UserField::whereIn('id', $fieldsToDelete)->delete();
+                // Удаляем все найденные поля
+                if (!empty($fieldsToDelete)) {
+                    UserField::whereIn('id', $fieldsToDelete)->delete();
 
-                // Логируем удаление полей
-                foreach ($fieldsToDeleteRecords as $deletedField) {
-                    MyLog::create([
-                        'type' => 2,
-                        'action' => 25,
-                        'author_id' => $authorId,
-                        'description' => "Удалено поле: {$deletedField->name}. ID: {$deletedField->id}",
-                        'created_at' => now(),
-                    ]);
-                }
-            }
-
-            // Обрабатываем каждый тег в запросе
-            foreach ($fields as $key => $field) {
-                $fieldId = $field['id'] ?? null;
-
-                // Транслитерируем name в slug с помощью Str::slug
-                $slug = Str::slug($field['name']); // Применяем транслитерацию и замену пробелов на дефисы
-
-                // Валидация для каждого поля
-                $request->validate([
-                    "fields.$key.name" => 'required|string|max:255',
-                    "fields.$key.field_type" => 'required|string',
-                ]);
-
-                if ($fieldId) {
-                    // Обновление существующего поля
-                    $userField = UserField::findOrFail($fieldId);
-
-                    // Проверяем, изменились ли значения
-                    $changes = [];
-                    if ($userField->name !== $field['name']) {
-                        $changes[] = "имя с '{$userField->name}' на '{$field['name']}'";
-                    }
-                    if ($userField->field_type !== $field['field_type']) {
-                        $changes[] = "тип с '{$userField->field_type}' на '{$field['field_type']}'";
-                    }
-
-                    if (!empty($changes)) {
-                        $userField->update([
-                            'name' => $field['name'],
-                            'slug' => $slug,
-                            'field_type' => $field['field_type'],
-                        ]);
-
-                        // Логируем только если были изменения
+                    // Логируем удаление полей
+                    foreach ($fieldsToDeleteRecords as $deletedField) {
                         MyLog::create([
                             'type' => 2,
-                            'action' => 25,
+                            'action' => 210,
                             'author_id' => $authorId,
-                            'description' => "Обновлено поле ID: $fieldId. изменения: " . implode(', ', $changes),
+                            'description' => "Удалено поле: {$deletedField->name}. ID: {$deletedField->id}",
                             'created_at' => now(),
                         ]);
                     }
-                } else {
-                    // Создание нового поля
-                    $newField = UserField::create([
-                        'name' => $field['name'],
-                        'slug' => $slug,
-                        'field_type' => $field['field_type'],
-                    ]);
-
-                    // Логируем создание нового поля
-                    MyLog::create([
-                        'type' => 2,
-                        'action' => 25,
-                        'author_id' => $authorId,
-                        'description' => "Создано новое поле {$field['name']}. ID: {$newField->id}",
-                        'created_at' => now(),
-                    ]);
                 }
-            }
-        });
 
-        // Возвращаем успешный ответ
-        return response()->json(['message' => 'Поля успешно сохранены']);
-    }
+                // Обрабатываем каждый тег в запросе
+                foreach ($fields as $key => $field) {
+                    $fieldId = $field['id'] ?? null;
+
+                    // Транслитерируем name в slug с помощью Str::slug
+                    $slug = Str::slug($field['name']); // Применяем транслитерацию и замену пробелов на дефисы
+
+                    // Валидация для каждого поля
+//                    $request->validate([
+//                        "fields.$key.name" => 'required|string|max:255',
+//                        "fields.$key.field_type" => 'required|string',
+//                    ]);
+
+                    $request->validate([
+                        "fields.$key.name" => 'required|string|max:255',
+                        "fields.$key.field_type" => 'required|string|in:string,text,select',
+                        "fields.$key.permissions" => 'required|array',
+                        "fields.$key.permissions.*" => 'in:admin,manager,user',
+                    ]);
+                    // Сбор данных о разрешениях
+                    $permissions = $field['permissions'] ?? [];
+
+                    if ($fieldId) {
+                        // Обновление существующего поля
+                        $userField = UserField::findOrFail($fieldId);
+
+                        // Проверяем, изменились ли значения
+                        $changes = [];
+                        if ($userField->name !== $field['name']) {
+                            $changes[] = "имя с '{$userField->name}' на '{$field['name']}'";
+                        }
+                        if ($userField->field_type !== $field['field_type']) {
+                            $changes[] = "тип с '{$userField->field_type}' на '{$field['field_type']}'";
+                        }
+                        if ($userField->permissions !== $permissions) {
+                            $changes[] = "разрешения с '" . implode(',', $userField->permissions ?? []) . "' на '" . implode(',', $permissions) . "'";
+                        }
+
+                        if (!empty($changes)) {
+                            $userField->update([
+                                'name' => $field['name'],
+                                'slug' => $slug,
+                                'field_type' => $field['field_type'],
+                                'permissions' => $permissions, // Добавляем обновление permissions
+
+                            ]);
+
+                            // Логируем только если были изменения
+                            MyLog::create([
+                                'type' => 2,
+                                'action' => 210,
+                                'author_id' => $authorId,
+                                'description' => "Обновлено поле: $userField->name . ID: $fieldId.  Изменения: " . implode(', ', $changes),
+                                'created_at' => now(),
+                            ]);
+                        }
+                    } else {
+                        // Создание нового поля
+                        $newField = UserField::create([
+                            'name' => $field['name'],
+                            'slug' => $slug,
+                            'field_type' => $field['field_type'],
+                            'permissions' => $permissions, // Сохраняем разрешения
+
+                        ]);
+
+                        // Логируем создание нового поля
+                        MyLog::create([
+                            'type' => 2,
+                            'action' => 210,
+                            'author_id' => $authorId,
+                            'description' => "Создано новое поле {$field['name']}. ID: {$newField->id}",
+                            'created_at' => now(),
+                        ]);
+                    }
+                }
+            });
+
+            // Возвращаем успешный ответ
+            return response()->json(['message' => 'Поля успешно сохранены']);
+        }
 }

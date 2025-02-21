@@ -104,6 +104,7 @@
                             <label for="role" class="form-label">Права</label>
                             <select name="role" class="form-control" id="role">
                                 <option value="user">user</option>
+                                <option value="user">manager</option>
                                 <option value="admin">admin</option>
                                 <option value="superadmin">superadmin</option>
                             </select>

@@ -15,9 +15,19 @@ class UserField extends Model
         'name',
         'slug',
         'field_type',
+        'permissions', // Добавьте это
+    ];
+
+    protected $casts = [
+        'permissions' => 'array', // Преобразование JSON в массив
     ];
 
     public function userFieldValues()
+    {
+        return $this->hasMany(UserFieldValue::class, 'field_id');
+    }
+
+    public function values()
     {
         return $this->hasMany(UserFieldValue::class, 'field_id');
     }

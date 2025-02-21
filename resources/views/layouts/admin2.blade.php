@@ -511,7 +511,9 @@
 @vite(['resources/js/app.js', 'resources/sass/app.scss'])
 
 <link rel="stylesheet" href="{{ asset('css/fcistok.css') }}">
-<link rel="stylesheet" href="{{ asset('css/style.css') }}">
+{{--<link rel="stylesheet" href="{{ asset('css/style.css') }}">--}}
+@vite(['resources/css/style.css'])
+
 <link rel="stylesheet" href="{{ asset('css/media-style.css') }}">
 <link rel="stylesheet" href="{{ asset('css/calendar.css') }}">
 
@@ -524,7 +526,7 @@
 
 
 
-
+{{--снежинки--}}
 <script src="https://daruse.ru/assets/js/snowfall.js"></script>
 <script type="text/javascript">
     $(document).snowfall();
