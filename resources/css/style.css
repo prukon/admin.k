@@ -1159,3 +1159,9 @@ a.disabled {
     font-size: 14px!important;
 }
 
+@media (max-width: 991px) {
+    #left_bar .wrap-team {
+        text-align: left;
+        margin-left: 10px;
+    }
+}
