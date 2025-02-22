@@ -79,10 +79,10 @@
                         @for($i = 0; $i < count($teamPrices); $i++)
                             @if(isset($allTeams[$i])) <!-- Добавляем проверку на существование индекса $i -->
                             <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
-                                <div class="team-name col-3">
+                                <div class="team-name col-4">
                                     {{ ($i + 1) . '. ' . $allTeams[$i]->title }}
                                 </div>
-                                <div class="team-price col-4">
+                                <div class="team-price col-3">
                                     <input type="number" value="{{ $teamPrices[$i]->price }}">
                                 </div>
                                 <div class="team-buttons col-5 d-flex">

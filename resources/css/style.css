@@ -1165,3 +1165,6 @@ a.disabled {
         margin-left: 10px;
     }
 }
+#left_bar .wrap-team {
+    text-align: left;
+}
