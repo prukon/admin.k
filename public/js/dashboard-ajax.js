@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', function () {
             },
 
             success: function (response) {
+
+
+
                 if (response.success) {
                     let user = response.user;
                     let userTeam = response.userTeam;

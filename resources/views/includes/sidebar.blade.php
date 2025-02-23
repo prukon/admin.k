@@ -44,6 +44,17 @@
             </li>
         @endif
 
+        {{--Журнал расписания--}}
+        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
+            <li class="nav-item">
+                <a href="/schedule" class="nav-link">
+{{--                    <i class="nav-icon fa-solid fa-receipt"></i>--}}
+                    <i class="nav-icon fa-solid fa-calendar-days"></i>
+                    <p>Журнал расписания</p>
+                </a>
+            </li>
+        @endif
+
         {{--Пользователи--}}
         @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
             <li class="nav-item">

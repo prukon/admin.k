@@ -11,4 +11,11 @@ class ScheduleUser extends Model
 
     protected $table = 'schedule_users'; //явное указание к какой таблице в БД привязана модель
     protected $guarded = []; //разрешение на изменение данных в таблице
+
+
+    protected $casts = [
+//        'date' => 'date',
+        'date' => 'datetime:Y-m-d',
+    ];
 }
+

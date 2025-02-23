@@ -150,6 +150,13 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 
 
+//Журнал расписания
+    Route::get('/schedule', [\App\Http\Controllers\Admin\ScheduleController::class, 'index'])->name('schedule.index');
+    Route::post('/schedule/update', [\App\Http\Controllers\Admin\ScheduleController::class, 'update'])->name('schedule.update');
+
+
+
+
 
 
 });
