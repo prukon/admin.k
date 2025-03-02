@@ -1168,3 +1168,12 @@ a.disabled {
 #left_bar .wrap-team {
     text-align: left;
 }
+
+#scheduleTable .schedule-cell i {
+    font-size: 10px;
+}
+#scheduleTable .schedule-cell  {
+    padding: 0;
+    margin: 0;
+}
+

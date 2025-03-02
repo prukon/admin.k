@@ -2,81 +2,107 @@
 
 namespace App\Http\Controllers\Admin;
 
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Carbon\Carbon;
+
+use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\ScheduleUser;
-
-// Модель для таблицы schedule_users
+use Carbon\Carbon;
+use App\Models\Team;
 
 class ScheduleController extends Controller
 {
-    /**
-     * Отображение страницы с расписанием.
-     *
-     * @param Request $request
-     * @return \Illuminate\View\View
-     */
     public function index(Request $request)
     {
-        // Получаем год и месяц из запроса (либо текущие по умолчанию)
-        $year = $request->get('year', date('Y'));
-        $month = $request->get('month', date('m'));
+        // Фильтры: год, месяц и группа
+        $year    = $request->get('year', date('Y'));
+        $month   = $request->get('month', date('m'));
+        $team_id = $request->get('team', 'all'); // значения: all, none или id команды
 
-        // Определяем, сколько дней в выбранном месяце
-        $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
+        // Начало и конец месяца
+        $startOfMonth = Carbon::createFromDate($year, $month, 1);
+        $endOfMonth   = $startOfMonth->copy()->endOfMonth();
 
-        // Получаем всех пользователей (при необходимости, фильтруем/сортируем)
-        $users = User::where('is_enabled', 1)->orderBy('name')->get();
+        // Получаем пользователей, фильтруя по группе если требуется
+        $usersQuery = User::query()->where('is_enabled', 1);
+        if ($team_id != 'all') {
+            if ($team_id == 'none') {
+                $usersQuery->whereNull('team_id');
+            } else {
+                $usersQuery->where('team_id', $team_id);
+            }
+        }
+        $users = $usersQuery->orderBy('name')->get();
 
-        // Загружаем все записи расписания за выбранный месяц
-        $startOfMonth = Carbon::create($year, $month, 1)->startOfDay();
-        $endOfMonth = Carbon::create($year, $month, $daysInMonth)->endOfDay();
-
-        $scheduleData = ScheduleUser::whereBetween('date', [$startOfMonth, $endOfMonth])
+        // Получаем записи расписания для выбранных пользователей за месяц
+        $scheduleEntries = ScheduleUser::whereIn('user_id', $users->pluck('id'))
+            ->whereBetween('date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
             ->get()
-            ->groupBy(function ($item) {
-                // Ключ будет вида: user_id . '_' . date(формат YYYY-MM-DD)
-                return $item->user_id . '_' . $item->date->format('Y-m-d');
+            ->keyBy(function ($item) {
+                return $item->user_id . '_' . Carbon::parse($item->date)->format('Y-m-d');
             });
 
-        return view('schedule.index', compact('year', 'month', 'daysInMonth', 'users', 'scheduleData'));
+        // Получаем статус оплаты из таблицы users_prices по полю new_month
+        $userPrices = \DB::table('users_prices')
+            ->select('user_id', 'is_paid')
+            ->whereYear('new_month', $year)
+            ->whereMonth('new_month', $month)
+            ->get()
+            ->keyBy('user_id');
+
+        // Получаем список групп (команд) для фильтра
+        $teams = Team::where('is_enabled', 1)->orderBy('order_by')->get();
+
+        // Если выбрана конкретная группа, получаем дни недели, в которые у этой группы есть расписание
+        $teamWeekdays = [];
+        if($team_id !== 'all' && $team_id !== 'none'){
+            $teamWeekdays = \DB::table('team_weekdays')
+                ->where('team_id', $team_id)
+                ->pluck('weekday_id')
+                ->toArray();
+        }
+
+        return view('admin.schedule.index', compact(
+            'year',
+            'month',
+            'team_id',
+            'users',
+            'scheduleEntries',
+            'userPrices',
+            'teams',
+            'startOfMonth',
+            'endOfMonth',
+            'teamWeekdays'
+        ));
     }
 
-    /**
-     * Обработка обновления расписания (AJAX или обычным POST).
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
-     */
     public function update(Request $request)
     {
-        // Ожидаем получить:
-        // user_id, date, status (N, Z, R), is_paid, description
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'date' => 'required|date',
-            'status' => 'required|in:N,Z,R',
-            'is_paid' => 'required|boolean',
+        // Валидация входных данных
+        $data = $request->validate([
+            'user_id'     => 'required|integer',
+            'date'        => 'required|date_format:Y-m-d',
+            'status'      => 'required|in:N,R,Z',
             'description' => 'nullable|string'
         ]);
 
-        // Ищем или создаём запись
-        $schedule = ScheduleUser::firstOrNew([
-            'user_id' => $request->input('user_id'),
-            'date' => $request->input('date'),
-        ]);
+        // Обновляем или создаём запись расписания
+        $schedule = ScheduleUser::updateOrCreate(
+            [
+                'user_id' => $data['user_id'],
+                'date'    => $data['date']
+            ],
+            [
+                'status'      => $data['status'],
+                'description' => $data['description'] ?? null
+            ]
+        );
 
-        $schedule->status = $request->input('status');
-        $schedule->is_paid = $request->input('is_paid');
-        $schedule->description = $request->input('description', '');
-        $schedule->save();
-
-        // Возвращаем ответ (JSON для Ajax)
-        return response()->json([
-            'message' => 'Запись успешно обновлена',
-            'data' => $schedule,
-        ]);
+        return response()->json(['success' => true]);
     }
 }
+
+
+
+
+

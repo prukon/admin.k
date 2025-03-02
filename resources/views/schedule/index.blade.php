@@ -1,48 +1,94 @@
+{{-- resources/views/schedule/index.blade.php --}}
+
 {{--@extends('layouts.app')--}}
 @extends('layouts.admin2')
 
 
 
-
-
 @section('content')
-    <div class="container">
-        <h2>Управление расписанием</h2>
+    <div class="container-fluid">
+        <h1>Журнал расписания</h1>
 
-        {{-- Форма выбора года и месяца --}}
-        <form action="{{ route('schedule.index') }}" method="GET" class="row row-cols-lg-auto g-3 align-items-center mb-3">
-            <div class="col-12">
-                <label for="year" class="form-label">Год:</label>
-                <select name="year" id="year" class="form-select">
-                    @for($y = date('Y') - 1; $y <= date('Y') + 1; $y++)
-                        <option value="{{ $y }}" {{ $y == $year ? 'selected' : '' }}>{{ $y }}</option>
-                    @endfor
-                </select>
-            </div>
-            <div class="col-12">
-                <label for="month" class="form-label">Месяц:</label>
-                <select name="month" id="month" class="form-select">
-                    @for($m = 1; $m <= 12; $m++)
-                        <option value="{{ $m }}" {{ $m == $month ? 'selected' : '' }}>
-                            {{ $m }} ({{ \Carbon\Carbon::create()->month($m)->locale('ru')->monthName }})
-                        </option>
-                    @endfor
-                </select>
-            </div>
-
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary">Показать</button>
+        <!-- Фильтры -->
+        <form method="GET" action="{{ route('schedule.index') }}" class="mb-3">
+            <div class="row">
+                <div class="col-md-2">
+                    <label for="year" class="form-label">Год</label>
+                    <select name="year" id="year" class="form-select">
+                        @for($y = date('Y') - 5; $y <= date('Y') + 5; $y++)
+                            <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>{{ $y }}</option>
+                        @endfor
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="month" class="form-label">Месяц</label>
+                    <select name="month" id="month" class="form-select">
+                        @for($m = 1; $m <= 12; $m++)
+                            <option value="{{ $m }}" {{ $month == $m ? 'selected' : '' }}>
+                                {{ \Carbon\Carbon::create(null, $m, 1)->format('F') }}
+                            </option>
+                        @endfor
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="team" class="form-label">Группа</label>
+                    <select name="team" id="team" class="form-select">
+                        <option value="all" {{ $teamFilter === 'all' ? 'selected' : '' }}>Все группы</option>
+                        <option value="none" {{ $teamFilter === 'none' ? 'selected' : '' }}>Без группы</option>
+                        @foreach($teams as $team)
+                            <option value="{{ $team->id }}" {{ $teamFilter == $team->id ? 'selected' : '' }}>{{ $team->title }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2 align-self-end">
+                    <button type="submit" class="btn btn-primary">Применить</button>
+                </div>
             </div>
         </form>
 
-        {{-- Обёртка, чтобы DataTables мог корректно фиксировать заголовок и показывать скроллы --}}
+        <!-- Легенда для мобильных устройств (сворачиваемая) -->
+        <div class="d-md-none mb-3">
+            <button class="btn btn-info" type="button" data-bs-toggle="collapse" data-bs-target="#legendCollapse" aria-expanded="false" aria-controls="legendCollapse">
+                Показать легенду
+            </button>
+            <div class="collapse" id="legendCollapse">
+                <div class="card card-body">
+                    <p><i class="fa-solid fa-check" style="color:green;"></i> - Оплата месяца (столбец "Статус")</p>
+                    <p><span style="color:red; font-weight:bold;">Н</span> - Негативный статус</p>
+                    <p><i class="fa-solid fa-check" style="color:yellow;"></i> - Рабочий день</p>
+                    <p><i class="fa-solid fa-snowflake" style="color:deepskyblue;"></i> - Заморозка</p>
+                    <p><span class="comment-indicator"></span> - Наличие комментария</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Легенда для десктопа -->
+        <div class="d-none d-md-block mb-3">
+            <div class="card card-body">
+                <p><i class="fa-solid fa-check" style="color:green;"></i> - Оплата месяца (столбец "Статус")</p>
+                <p><span style="color:red; font-weight:bold;">Н</span> - Негативный статус (ячейка)</p>
+                <p><i class="fa-solid fa-check" style="color:yellow;"></i> - Рабочий день (ячейка)</p>
+                <p><i class="fa-solid fa-snowflake" style="color:deepskyblue;"></i> - Заморозка (ячейка)</p>
+                <p><span class="comment-indicator"></span> - Наличие комментария (ячейка)</p>
+            </div>
+        </div>
+
+        <!-- Таблица расписания -->
         <div class="table-responsive">
-            <table id="scheduleTable" class="table table-bordered table-hover table-sm" style="width: 100%;">
-                <thead class="table-light">
+            <table id="scheduleTable" class="table table-bordered table-sm">
+                <thead>
                 <tr>
-                    <th style="min-width: 150px;">ФИО</th>
+                    <th>ФИО</th>
+                    <th>Статус</th>
                     @for($d = 1; $d <= $daysInMonth; $d++)
-                        <th class="text-center" style="min-width: 40px;">{{ $d }}</th>
+                        @php
+                            $currentDate = \Carbon\Carbon::create($year, $month, $d);
+                            $weekday = $currentDate->dayOfWeekIso; // 1 - понедельник, 7 - воскресенье
+                            $highlight = (isset($teamWeekdays) && in_array($weekday, $teamWeekdays)) ? 'border border-1' : '';
+                        @endphp
+                        <th class="{{ $highlight }}">
+                            {{ $d }}<br>{{ $currentDate->format('D') }}
+                        </th>
                     @endfor
                 </tr>
                 </thead>
@@ -50,44 +96,39 @@
                 @foreach($users as $user)
                     <tr>
                         <td>{{ $user->name }}</td>
+                        <td class="text-center">
+                            @if(isset($userPayments[$user->id]))
+                                <i class="fa-solid fa-check" style="color:green;"></i>
+                            @endif
+                        </td>
                         @for($d = 1; $d <= $daysInMonth; $d++)
                             @php
-                                $currentDate = \Carbon\Carbon::create($year, $month, $d)->format('Y-m-d');
-                                $key = $user->id . '_' . $currentDate;
-
-                                // Безопасно извлекаем запись (иначе может быть null).
-                                $entry = optional($scheduleData->get($key))->first();
-
-                                // Статус (R, Z, N) и признак оплаты
-                                $status  = $entry ? $entry->status : 'N';
-                                $isPaid  = $entry ? $entry->is_paid : 0;
-                                $comment = $entry ? $entry->description : '';
-
-                                // Цвет фона
-                                $bgColor = '';
-                                if ($status === 'R') {
-                                    $bgColor = $isPaid
-                                        ? 'background-color: #5cb85c;'   // Зеленый (оплачено)
-                                        : 'background-color: #f0ad4e;';  // Желтый (не оплачено)
-                                } elseif ($status === 'Z') {
-                                    $bgColor = 'background-color: #5bc0de;'; // Синий
+                                $dateStr = \Carbon\Carbon::create($year, $month, $d)->toDateString();
+                                $schedule = isset($scheduleRecords[$user->id]) ? $scheduleRecords[$user->id]->firstWhere('date', $dateStr) : null;
+                                $cellCode = '';
+                                $cellComment = '';
+                                if($schedule && $schedule->description){
+                                    if(str_contains($schedule->description, '::')){
+                                        list($cellCode, $cellComment) = explode('::', $schedule->description, 2);
+                                    } else {
+                                        $cellCode = $schedule->description;
+                                    }
+                                }
+                                $cellContent = '';
+                                if($cellCode === 'N'){
+                                    $cellContent = '<span style="color:red; font-weight:bold;">Н</span>';
+                                } elseif($cellCode === 'R'){
+                                    $cellContent = '<i class="fa-solid fa-check" style="color:yellow;"></i>';
+                                } elseif($cellCode === 'Z'){
+                                    $cellContent = '<i class="fa-solid fa-snowflake" style="color:deepskyblue;"></i>';
                                 }
                             @endphp
-                            <td
-                                    class="schedule-cell text-center align-middle"
-                                    style="cursor: pointer; {{ $bgColor }}"
-                                    data-user-id="{{ $user->id }}"
-                                    data-date="{{ $currentDate }}"
-                                    data-status="{{ $status }}"
-                                    data-is-paid="{{ $isPaid }}"
-                                    data-comment="{{ $comment }}"
-                            >
-                                @if($status === 'R')
-                                    <i class="fa fa-check"></i>
-                                @elseif($status === 'Z')
-                                    <i class="fa fa-times"></i>
+                            <td class="schedule-cell" data-user-id="{{ $user->id }}" data-date="{{ $dateStr }}"
+                                style="width: 10px; height: 10px; padding:0; text-align: center; vertical-align: middle; position: relative; cursor: pointer;">
+                                {!! $cellContent !!}
+                                @if($cellComment)
+                                    <div style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 10px solid red; border-left: 10px solid transparent;"></div>
                                 @endif
-                                {{-- Если N, оставляем пусто --}}
                             </td>
                         @endfor
                     </tr>
@@ -97,169 +138,95 @@
         </div>
     </div>
 
-    {{-- Модальное окно для изменения статуса --}}
-    <div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalLabel" aria-hidden="true">
+    <!-- Модальное окно для редактирования ячейки -->
+    <div class="modal fade" id="cellModal" tabindex="-1" aria-labelledby="cellModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="scheduleForm">
-                    @csrf
+            <form id="cellForm">
+                <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="scheduleModalLabel">Изменить расписание</h5>
-                        <!-- Крестик Bootstrap 5 -->
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title" id="cellModalLabel">Редактирование ячейки</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                     </div>
                     <div class="modal-body">
-
-                        <input type="hidden" id="formUserId" name="user_id">
-                        <input type="hidden" id="formDate" name="date">
-
+                        <input type="hidden" name="user_id" id="modalUserId">
+                        <input type="hidden" name="date" id="modalDate">
                         <div class="mb-3">
-                            <label for="formStatus" class="form-label">Статус:</label>
-                            <select name="status" id="formStatus" class="form-select">
-                                <option value="N">N (не был)</option>
-                                <option value="Z">Z (заморозка)</option>
-                                <option value="R">R (рабочий день)</option>
+                            <label for="code" class="form-label">Статус дня</label>
+                            <select name="code" id="code" class="form-select">
+                                <option value="">-- Выберите --</option>
+                                <option value="N">Н</option>
+                                <option value="R">Рабочий день</option>
+                                <option value="Z">Заморозка</option>
                             </select>
                         </div>
-
                         <div class="mb-3">
-                            <label for="formIsPaid" class="form-label">Оплачен:</label>
-                            <select name="is_paid" id="formIsPaid" class="form-select">
-                                <option value="0">Нет</option>
-                                <option value="1">Да</option>
-                            </select>
+                            <label for="comment" class="form-label">Комментарий</label>
+                            <textarea name="comment" id="comment" class="form-control" rows="2"></textarea>
                         </div>
-
-                        <div class="mb-3">
-                            <label for="formComment" class="form-label">Комментарий:</label>
-                            <textarea name="description" id="formComment" class="form-control"></textarea>
-                        </div>
-
                     </div>
                     <div class="modal-footer">
-                        <!-- Кнопка «Закрыть» Bootstrap 5 -->
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                         <button type="submit" class="btn btn-primary">Сохранить</button>
                     </div>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     </div>
 @endsection
 
 @section('scripts')
-    <!-- jQuery (если нужно для DataTables, можно без jQuery если использовать DataTables с ImportMap) -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-    <!-- Popper & Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
-
-    <!-- DataTables -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.1/css/dataTables.bootstrap5.min.css">
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
-
-    <!-- FixedHeader плагин для DataTables (фиксирует шапку при прокрутке) -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/fixedheader/3.3.1/css/fixedHeader.bootstrap5.min.css">
-    <script src="https://cdn.datatables.net/fixedheader/3.3.1/js/dataTables.fixedHeader.min.js"></script>
-
-    <!-- Font Awesome (иконки галочка/крестик) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
-    <style>
-        /* Чтобы горизонтальный скролл был всегда виден, указываем фиксированную высоту для тела таблицы */
-        div.dataTables_wrapper div.dataTables_scrollBody {
-            overflow-x: auto !important;
-            overflow-y: auto !important;
-        }
-    </style>
-
     <script>
-        $(document).ready(function() {
-            // Инициализация DataTables с фиксированной шапкой и скроллом
-            let table = $('#scheduleTable').DataTable({
-                scrollX: true,
-                scrollY: '50vh',       // фиксированная высота, чтобы видеть горизонтальную прокрутку сразу
-                scrollCollapse: true,
-                fixedHeader: true,     // фиксируем шапку
+        $(document).ready(function(){
+            // Инициализация DataTables
+            $('#scheduleTable').DataTable({
                 paging: false,
                 searching: false,
-                ordering: false,
                 info: false,
+                scrollX: true,
             });
 
-            // Обработка клика по ячейке для открытия модалки
-            $('.schedule-cell').on('click', function(e) {
+            // Обработчик клика (или правого клика) по ячейке расписания
+            $('.schedule-cell').on('contextmenu click', function(e){
                 e.preventDefault();
-                let userId   = $(this).data('user-id');
-                let date     = $(this).data('date');
-                let status   = $(this).data('status');
-                let isPaid   = $(this).data('is-paid');
-                let comment  = $(this).data('comment');
+                var userId = $(this).data('user-id');
+                var date = $(this).data('date');
+                // Попытка определить текущий статус ячейки по содержимому
+                var currentContent = $(this).html();
+                var code = '';
+                if(currentContent.indexOf('fa-check') !== -1 && currentContent.indexOf('yellow') !== -1){
+                    code = 'R';
+                } else if(currentContent.indexOf('fa-snowflake') !== -1){
+                    code = 'Z';
+                } else if(currentContent.indexOf('Н') !== -1){
+                    code = 'N';
+                }
 
-                // Заполняем форму
-                $('#formUserId').val(userId);
-                $('#formDate').val(date);
-                $('#formStatus').val(status);
-                $('#formIsPaid').val(isPaid);
-                $('#formComment').val(comment);
+                $('#modalUserId').val(userId);
+                $('#modalDate').val(date);
+                $('#code').val(code);
+                $('#comment').val(''); // можно расширить логику для парсинга комментария, если потребуется
 
-                // Открываем модальное окно
-                $('#scheduleModal').modal('show');
+                var modal = new bootstrap.Modal(document.getElementById('cellModal'));
+                modal.show();
             });
 
-            // Отправка формы (AJAX) на обновление
-            $('#scheduleForm').on('submit', function(e) {
+            // Отправка данных из модального окна (AJAX-запрос)
+            $('#cellForm').submit(function(e){
                 e.preventDefault();
-                let formData = $(this).serialize();
-
                 $.ajax({
-                    url: '{{ route("schedule.update") }}',
-                    type: 'POST',
-                    data: formData,
-                    success: function(response) {
-                        let userId  = $('#formUserId').val();
-                        let date    = $('#formDate').val();
-                        let status  = $('#formStatus').val();
-                        let isPaid  = $('#formIsPaid').val();
-                        let comment = $('#formComment').val();
-
-                        // Обновляем ячейку
-                        let cell = $('.schedule-cell[data-user-id="'+userId+'"][data-date="'+date+'"]');
-                        cell.data('status', status);
-                        cell.data('is-paid', isPaid);
-                        cell.data('comment', comment);
-
-                        // Цвет фона
-                        let bgColor = '';
-                        if (status === 'R') {
-                            bgColor = (isPaid == 1)
-                                ? 'background-color: #5cb85c;'
-                                : 'background-color: #f0ad4e;';
-                        } else if (status === 'Z') {
-                            bgColor = 'background-color: #5bc0de;';
-                        }
-                        // N – без цвета
-
-                        cell.attr('style', 'cursor: pointer; text-align: center; vertical-align: middle; ' + bgColor);
-
-                        // Ставим нужную иконку
-                        let iconHtml = '';
-                        if (status === 'R') {
-                            iconHtml = '<i class="fa fa-check"></i>';
-                        } else if (status === 'Z') {
-                            iconHtml = '<i class="fa fa-times"></i>';
-                        }
-                        // N – пусто
-
-                        cell.html(iconHtml);
-
-                        // Закрываем модалку
-                        $('#scheduleModal').modal('hide');
+                    url: "{{ route('schedule.update') }}",
+                    method: "POST",
+                    data: $(this).serialize(),
+                    headers: {
+                        'X-CSRF-TOKEN': "{{ csrf_token() }}"
                     },
-                    error: function(xhr) {
-                        alert('Произошла ошибка при обновлении данных');
+                    success: function(response){
+                        if(response.status === 'success'){
+                            location.reload();
+                        }
+                    },
+                    error: function(){
+                        alert('Ошибка при сохранении данных.');
                     }
                 });
             });

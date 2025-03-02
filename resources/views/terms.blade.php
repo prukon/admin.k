@@ -6,7 +6,7 @@
     <script src="{{ asset('js/settings-ajax.js') }}"></script>
 
     <div class="col-md-12 main-content text-start">
-        <h4 class="pt-3 pb-3">Пользовательское соглашение</h4>
+        <h4 class="pt-3 pb-3 ">Пользовательское соглашение</h4>
         <div class="container">
 
             <div class="container mt-5">

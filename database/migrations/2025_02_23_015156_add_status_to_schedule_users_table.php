@@ -11,7 +11,7 @@ class AddStatusToScheduleUsersTable extends Migration
         Schema::table('schedule_users', function (Blueprint $table) {
             // Добавляем колонку 'status' с возможными значениями N, Z, R.
             // Можно использовать ENUM, но для переносимости часто используют varchar.
-            $table->string('status', 1)->default('N')->after('user_id')
+            $table->string('status', 1)->default('R')->after('user_id')
                 ->comment('N - отсутствует, Z - заморозка, R - рабочий день');
         });
     }
