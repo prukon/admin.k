@@ -348,12 +348,13 @@ class SettingPricesController extends Controller
             // Перебираем массив и обновляем цены команд
             foreach ($teamsData as $teamData) {
                 // Обновляем цены для групп
-                $team = Team::where('title', $teamData['name'])->first();
-                if ($team) {
+//                $team = Team::where('title', $teamData['name'])->first();
+                $teamId = $teamData['teamId'];
+                if ($teamId) {
                     // Обновляем или создаем запись в таблице team_prices
                     TeamPrice::updateOrCreate(
                         [
-                            'team_id' => $team->id,
+                            'team_id' => $teamId,
                             'new_month' => $selectedDate
                         ],
                         [
@@ -366,13 +367,14 @@ class SettingPricesController extends Controller
                         'type' => 1,
                         'action' => 11, // Изменение цен во всех группах
                         'author_id' => $authorId,
-                        'description' => "Обновлена цена: {$teamData['price']} руб. Команда: {$team->title}. ID: {$team->id}. Дата: {$selectedDateString}.",
+                        'description' => "Обновлена цена: {$teamData['price']} руб. Команда: {$teamId}. ID: {$teamId}. Дата: {$selectedDateString}.",
                         'created_at' => now(),
                     ]);
                 }
 
                 // Обновляем цены для пользователей
-                $users = User::where('team_id', $team->id)->get(); // Предполагается, что пользователи связаны с командами
+                $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
+
 
                 foreach ($users as $user) {
                     $userPrice = UserPrice::where('user_id', $user['id'])

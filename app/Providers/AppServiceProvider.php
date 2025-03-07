@@ -32,10 +32,16 @@ class AppServiceProvider extends ServiceProvider
         Paginator::useBootstrap();
 
 //        Прокидывание переменной авторизации
-        $setting = Setting::where('name', 'registrationActivity')->first();
-        $isRegistrationActivity = $setting ? $setting->status : null;
-        $allTeamsCount = Team::all()->count();
-        $allUsersCount = User::all()->count();
+//         $setting = Setting::where('name', 'registrationActivity')->first();
+//         $isRegistrationActivity = $setting ? $setting->status : null;
+//         $allTeamsCount = Team::all()->count();
+//         $allUsersCount = User::all()->count();
+
+  $setting = 1;
+    $isRegistrationActivity = 1;
+    $allTeamsCount = 2;
+    $allUsersCount =3;
+
 
 
         // Убедитесь, что запрос инициализирован

@@ -226,10 +226,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 let teamsData = [];
                 document.querySelectorAll('.wrap-team').forEach(function (teamElement) {
                     let teamName = teamElement.querySelector('.team-name').textContent.trim();
+                    let teamId = teamElement.id;
                     let teamPrice = teamElement.querySelector('.team-price input').value;
                     teamsData.push({
                         name: teamName,
-                        price: parseFloat(teamPrice)
+                        price: parseFloat(teamPrice),
+                        teamId: teamId
                     });
                 });
 
