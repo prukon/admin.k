@@ -37,6 +37,15 @@
         }
 --}}
 
+<script>
+// showConfirmDeleteModal(
+// "Удаление пользователя",
+// "Вы уверены, что хотите удалить пользователя?",
+// function() {
+//
+// });
+</script>
+
 
 
 <!-- confirmDeleteModal.blade -->

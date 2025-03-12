@@ -8,7 +8,6 @@ use App\Http\Controllers\PartnerPaymentController;
 use Illuminate\Support\Facades\Mail;
 
 
-
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -43,8 +42,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/admin/user/logs-data', '\App\Http\Controllers\Admin\User\LogsController')->name('logs.data.user');
     Route::post('/admin/field/store', [\App\Http\Controllers\Admin\User\UpdateController::class, 'storeFields'])->name('admin.field.store');
     Route::delete('/admin/field/delete/{id}', [\App\Http\Controllers\Admin\User\UpdateController::class, 'deleteField'])->name('admin.field.delete');
-
-
 
 
     Route::get('admin/setting-prices', [\App\Http\Controllers\Admin\SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
@@ -149,12 +146,21 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('//payment/service/yookassa', [\App\Http\Controllers\PartnerPaymentController::class, 'createPaymentYookassa'])->name('createPaymentYookassa');
 
 
-
 //Журнал расписания
     Route::get('/schedule', [\App\Http\Controllers\Admin\ScheduleController::class, 'index'])->name('schedule.index');
     Route::post('/schedule/update', [\App\Http\Controllers\Admin\ScheduleController::class, 'update'])->name('schedule.update');
 
 
+    // ...
+    Route::get('statuses', [\App\Http\Controllers\Admin\StatusController::class, 'index'])->name('statuses.index');
+    Route::post('statuses', [\App\Http\Controllers\Admin\StatusController::class, 'store'])->name('statuses.store');
+    Route::patch('/admin/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'update'])->name('statuses.update');
+    Route::delete('/admin/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'destroy'])->name('statuses.destroy');
+
+
+//    Route::put('/admin/statuses/{id}', function ($id) {
+//        return response()->json(['message' => 'Маршрут найден', 'id' => $id]);
+//    });
 
 
 

@@ -84,7 +84,10 @@ class   User extends Authenticatable
     {
         return $this->partners()->sync($partnerIds);
     }
-
+    public function partner()
+    {
+        return $this->belongsTo(Partner::class, 'partner_id');
+    }
 
 }
 

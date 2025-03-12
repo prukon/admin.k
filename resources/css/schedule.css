@@ -1,0 +1,480 @@
+    /* Убираем скролл страницы при полноэкранном режиме */
+body.no-scroll {
+    overflow: hidden !important;
+}
+
+/* Более конкретные селекторы для избежания конфликтов */
+.schedule-table-container .schedule-table th,
+.schedule-table-container .schedule-table td {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.schedule-table-container .schedule-table tr:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+.schedule-user-name {
+    white-space: nowrap;
+    /*max-width: 200px;*/
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+#schedule-table {
+    border-collapse: collapse;
+}
+
+#schedule-table table.dataTable tbody .schedule-user-name {
+    /*padding: 0!important;*/
+    border-collapse: collapse;
+
+}
+
+table.dataTable tbody th, table.dataTable tbody td {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+}
+
+
+.schedule-day-header {
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+
+}
+
+.table-number {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+}
+
+.schedule-payment-status {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    width: 30px;
+    position: unset;
+}
+
+.schedule-payment-status i {
+    width: 30px;
+}
+
+
+.schedule-user-name {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+}
+
+
+.schedule-fullscreen-wrapper .wrap-filter-year {
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-month {
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-team {
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-legend {
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-fullscreen {
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.schedule-fullscreen-wrapper .wrap-filter-search {
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-top: 0;
+    padding-bottom: 0;
+    text-align: left;
+}
+
+
+.schedule-day-header {
+    min-width: 5px;
+    min-height: 5px;
+    padding: 0;
+    font-size: 8px;
+}
+
+.schedule-cell {
+    min-width: 5px;
+    min-height: 5px;
+    padding: 0;
+    font-size: 8px;
+    vertical-align: middle !important;
+}
+
+/* Подсветка столбцов расписания выбранной группы */
+.highlight-column {
+    /*border: 2px solid rgba(197, 132, 38, 0.72) !important;*/
+    border: solid 1px #f3a12b !important;
+
+}
+
+/* Полноэкранный режим: обёртка для фильтров и таблицы */
+.schedule-fullscreen-wrapper.fullscreen {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    z-index: 1050;
+    overflow: hidden; /* убираем скролл всей страницы */
+    padding-top: 50px; /* Отступ для фиксированных фильтров */
+}
+
+.schedule-fullscreen-wrapper.fullscreen .schedule-controls {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1060;
+    background: #fff;
+    padding: 10px;
+    margin: 0; /* Устраняем возможные "рывки" */
+}
+
+/* Скролл только для таблицы */
+.schedule-fullscreen-wrapper.fullscreen .schedule-table-container {
+    overflow: auto;
+    height: calc(100% - 50px);
+}
+
+/* Закрепление заголовков таблицы – top: 0, чтобы примыкал к верхней границе контейнера */
+/*.schedule-fullscreen-wrapper.fullscreen .schedule-table thead th {*/
+/*    position: sticky;*/
+/*    top: 0;*/
+/*    background-color: #fff;*/
+/*    z-index: 2;*/
+/*}*/
+/* Замените на такой вариант */
+.schedule-fullscreen-wrapper.fullscreen .schedule-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #fff;
+    z-index: 500; /* увеличенный z-index, чтобы не было «прокрутки» за заголовком */
+}
+
+
+/* Выравнивание радиобатонов по левому краю */
+.schedule-modal-content .form-check {
+    text-align: left;
+}
+
+.schedule-controls .table-search {
+    width: 200px;
+}
+
+@media only screen and (max-width: 768px) {
+    .schedule-fullscreen-wrapper .schedule-filter-team {
+        font-size: 12px;
+        width: 100px;
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+
+    .schedule-fullscreen-wrapper .schedule-filter-year {
+        font-size: 12px;
+        width: 65px;
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+
+    .schedule-fullscreen-wrapper .schedule-filter-month {
+        font-size: 12px;
+        width: 90px;
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+
+    .schedule-fullscreen-wrapper .wrap-filter-search input {
+        font-size: 12px;
+        /*width: 85px;*/
+        padding-left: 2px;
+        padding-right: 0px;
+        height: 33px;
+        width: 100%;;
+    }
+
+    .schedule-fullscreen-wrapper .wrap-filter-fullscreen button {
+        font-size: 12px;
+        width: 30px;
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+
+    #btn-legend {
+        display: none;
+    }
+
+
+    .schedule-fullscreen-wrapper .wrap-filter-year {
+        padding-left: 0px;
+    }
+
+    /*wrap-filter-year*/
+    /*wrap-filter-month*/
+    /*wrap-filter-team*/
+    /*wrap-filter-legend*/
+    /*wrap-filter-fullscreen*/
+    /*wrap-filter-search*/
+    #btn-settings {
+        display: none;
+    }
+
+}
+
+/* Закрепление первых двух столбцов */
+.schedule-table .sticky-col-1 {
+    position: sticky;
+    left: 0;
+    background-color: #fff;
+    z-index: 5; /* значение z-index может быть скорректировано при необходимости */
+}
+
+/*.schedule-table .sticky-col-2 {*/
+/*    position: sticky;*/
+/*    !*left: 50px; !* подберите отступ, чтобы не перекрывало первый столбец *!*!*/
+/*    background-color: #fff;*/
+/*    z-index: 5;*/
+/*}*/
+
+/* Первый столбец (#) */
+.schedule-table .sticky-col-1 {
+    position: sticky;
+    left: 0;
+    background-color: #fff;
+    /*z-index: 501; !* чтобы точно было выше «прокручиваемой» части *!*/
+}
+
+/* Второй столбец (ФИО).
+   left подберите так, чтобы второй столбец не налезал на первый.
+   Если ширина первого столбца около 40-50px, то left: 40px или 50px.
+*/
+.schedule-table .sticky-col-2 {
+    position: sticky;
+    /*left: 50px;*/
+    background-color: #fff;
+    /*z-index: 501;*/
+}
+
+
+/* Исправляем левый бордер при подсветке столбца */
+.schedule-table-container .schedule-table td.highlight-column,
+.schedule-table-container .schedule-table th.highlight-column {
+    /*border: 1px solid RED !important;*/
+    border: solid 1px #f3a12b !important;
+
+    box-sizing: border-box;
+}
+
+
+/* ------------------------------------- */
+/* === Глобальная настройка таблицы ===  */
+/* ------------------------------------- */
+
+/* Чтобы между ячейками не было "щелей", через которые видно прокрутку */
+.schedule-table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+/* Общие границы */
+.schedule-table th,
+.schedule-table td {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    background-color: #fff; /* Белый фон, чтобы за ней не было видно движения */
+    box-sizing: border-box;
+}
+
+/* ----------------------------------------------- */
+/* === Закрепление первой строки (thead) ===       */
+/* ----------------------------------------------- */
+/* Только в полноэкранном режиме */
+.schedule-fullscreen-wrapper.fullscreen .schedule-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 40; /* достаточно большое, чтобы быть выше рядов и прокрутки */
+}
+
+/* А в обычном режиме заголовок "не липкий" */
+/*.schedule-fullscreen-wrapper:not(.fullscreen) .schedule-table thead th {*/
+/*    position: static;*/
+/*    z-index: auto;*/
+/*}*/
+
+/* ----------------------------------------------- */
+/* === Закрепление первых 2-х столбцов ===         */
+/* ----------------------------------------------- */
+/* В ОБОИХ режимах (обычном и fullscreen) */
+.schedule-table .sticky-col-1 {
+    position: sticky;
+    left: 0;
+    z-index: 41; /* чуть выше ячеек */
+    background-color: #fff;
+}
+
+.schedule-table .sticky-col-2 {
+    position: sticky;
+    /*left: 60px; !* подберите под вашу ширину первого столбца *!*/
+    z-index: 41;
+    background-color: #fff;
+}
+
+/* ----------------------------------------------- */
+/* === "Подсвеченные" колонки расписания ===       */
+/* ----------------------------------------------- */
+.schedule-table td.highlight-column,
+.schedule-table th.highlight-column {
+    border: 1px solid #f3a12b !important; /* или ваш цвет, можно #007bff */
+    box-sizing: border-box;
+}
+
+/* ----------------------------------------------- */
+/* === Прокрутка контейнера + fullscreen ===       */
+/* ----------------------------------------------- */
+
+/* В полноэкранном режиме делаем контейнер
+   с таблицей прокручиваемым */
+.schedule-fullscreen-wrapper.fullscreen .schedule-table-container {
+    position: relative;
+    overflow: auto;
+    height: calc(100% - 50px);
+}
+
+/* А само тело страницы в этот момент
+   не прокручивается (видели в вашем коде).
+   Это можно оставить, если уже работает. */
+
+/* Если нужно (иногда помогает скрыть "ползунок"
+   за закреплёнными столбцами), можно
+   задать стили для полосы прокрутки:
+.schedule-table-container::-webkit-scrollbar {
+    background: transparent;
+}
+...
+*/
+
+/* ------------------------------------ */
+/* === Дополнительная мелкая подстройка */
+/* ------------------------------------ */
+
+/* Уменьшим "пустоты", чтобы
+   нигде не просвечивало: */
+.schedule-table td,
+.schedule-table th {
+    padding: 2px !important; /* или как вам удобно */
+    margin: 0;
+}
+
+
+.zi-50 {
+    z-index: 50 !important;
+}
+
+
+.cell-size {
+    width: 20px !important;
+    /*width: 100%;*/
+    height: 100%;
+    font-size: 10px;
+}
+
+.col-number {
+    width: 20px !important;
+}
+
+.col-name {
+    max-width: 140px;
+    left: 23px;
+    position: sticky !important;
+    z-index: 50 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
+.schedule-user-name {
+    max-width: 140px;
+    left: 23px;
+    font-size: 13px;
+}
+
+.schedule-day-header div {
+    font-size: 10px;
+}
+
+.number-line {
+    font-size: 13px;
+}
+
+
+
+#editStatusModal {
+    z-index: 2100!important;
+}
+
+#createStatusModal {
+    z-index: 2100!important;
+}
+
+#settingsModal {
+    /*width: 50% !important;*/
+}
+
+/* Чтобы модалка #settingsModal была шириной 50% и оставалась по центру,
+переопределяем ширину .modal-dialog внутри #settingsModal. */
+#settingsModal .modal-dialog {
+    width: 50% !important; /* или max-width: 50%; */
+    margin: auto !important; /* центрируем */
+}
+
+/* Для выбранной иконки */
+.icon-item {
+    cursor: pointer;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.icon-item.selected {
+    background-color: #e8f0fe; /* Светлый фон */
+    border: 2px solid #007bff;
+}
+
+
+

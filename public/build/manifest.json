@@ -1,6 +1,11 @@
 {
+  "resources/css/schedule.css": {
+    "file": "assets/schedule-DHOBloBl.css",
+    "src": "resources/css/schedule.css",
+    "isEntry": true
+  },
   "resources/css/style.css": {
-    "file": "assets/style-BBl7Dg9V.css",
+    "file": "assets/style-DucUoUMh.css",
     "src": "resources/css/style.css",
     "isEntry": true
   },

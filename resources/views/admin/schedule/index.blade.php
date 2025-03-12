@@ -48,10 +48,12 @@
                     @endforeach
                 </select>
             </div>
-            <!-- Кнопка Легенда -->
-            <div class="col-auto wrap-filter-legend">
-                <button id="btn-legend" class="btn btn-primary schedule-btn-legend">Легенда</button>
+
+            <!-- Кнопка Настройки -->
+            <div class="col-auto wrap-filter-setting">
+                <button class="btn btn-primary" id="btn-settings">Настройки</button>
             </div>
+
             <!-- Кнопка полноэкранного/обычного режима -->
             <div class="col-auto wrap-filter-fullscreen">
                 <button id="btn-fullscreen" class="btn btn-primary schedule-btn-fullscreen">
@@ -69,9 +71,6 @@
             <table id="schedule-table" class="table table-bordered schedule-table">
                 <thead>
                 <tr>
-                    {{--                    <th class="text-center align-middle table-number" style="width:auto;">#</th>--}}
-                    {{--                    <th style="max-width:150px;" class="schedule-user-name">ФИО</th>--}}
-
                     <th class="text-center align-middle sticky-col-1 zi-50 col-number">№</th>
                     <th class="sticky-col-2 zi-50 col-name">ФИО</th>
 
@@ -101,10 +100,8 @@
                 <tbody>
                 @foreach($users as $index => $user)
                     <tr data-user-id="{{ $user->id }}">
-                        {{--                        <td class="text-center align-middle">{{ $index + 1 }}</td>--}}
-                        {{--                        <td class="schedule-user-name">{{ $user->name }}</td>--}}
 
-                        <td class="text-center align-middle sticky-col-1">{{ $index + 1 }}</td>
+                        <td class="text-center align-middle sticky-col-1 number-line">{{ $index + 1 }}</td>
                         <td class="schedule-user-name sticky-col-2">{{ $user->name }}</td>
 
                         <td class="text-center">
@@ -132,19 +129,45 @@
                                     }
                                 }
                             @endphp
-                            <td class="schedule-cell text-center @if(isset($teamWeekdays) && count($teamWeekdays) && in_array($day->format('N'), $teamWeekdays)) highlight-column @endif"
+
+                            @php
+                                $entry   = $scheduleEntries->has($dateKey) ? $scheduleEntries->get($dateKey) : null;
+                                $statusId = $entry?->status_id; // null или число
+                                $statusObject = $statusId ? $availableStatuses->where('id', $statusId)->first() : null;
+                                $cellName = $statusObject?->name ?? '';
+                                $cellIcon = $statusObject?->icon ?? '';
+                                $cellColor= $statusObject?->color ?? '';
+                            @endphp
+
+                            <td class="schedule-cell text-center
+                                @if(isset($teamWeekdays) && count($teamWeekdays) && in_array($day->format('N'), $teamWeekdays)) highlight-column @endif"
+
                                 data-user-id="{{ $user->id }}"
                                 data-date="{{ $day->format('Y-m-d') }}"
-                                data-comment="{{ $entry ? $entry->description : '' }}"
-                                style="width: 5px; height: 5px; padding: 0; margin: 0; background-color: {{ $bgColor }}; position: relative; cursor: pointer;">
-                                <div class="cell-content d-flex justify-content-center align-items-center cell-size">
-                                    {!! $cellStatus ?: $cellIcon !!}
-                                </div>
+                                style=
+                                "width: 5px;
+                                        height: 5px;
+                                        padding: 0;
+                                        margin: 0;
+                                        background-color: {{ $cellColor }};
+                                        position: relative;
+                                        cursor: pointer;"
+
+                                data-status-id="{{ $statusId }}"
+                                data-comment="{{ $entry?->description }}"
+                                style="background-color:{{ $cellColor ? $cellColor : 'transparent' }};">
+                                @if($cellIcon)
+                                    <i class="{{ $cellIcon }}"></i>
+                                @else
+                                    {{ $cellName }}
+                                @endif
+
                                 @if($entry && !empty($entry->description))
                                     <div class="cell-comment-indicator"
                                          style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>
                                 @endif
                             </td>
+
                         @endforeach
                     </tr>
                 @endforeach
@@ -163,29 +186,46 @@
                 </div>
                 <div class="modal-body">
                     <form id="cellEditForm">
+
                         <input type="hidden" name="user_id" id="edit-user-id">
                         <input type="hidden" name="date" id="edit-date">
+
                         <div class="mb-3">
-                            <label class="form-label">Статус</label>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="status" id="statusR" value="R">
-                                <label class="form-check-label" for="statusR">
-                                    <i class="fas fa-check"></i> Рабочий день
+                            <label class="form-label d-block">Статус</label>
+
+                            <!-- Радиокнопка для варианта "не выбрано" -->
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio"
+                                       name="status_id" id="status-empty" value="">
+                                <label class="form-check-label" for="status-empty">
+                                    -- не выбрано --
                                 </label>
                             </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="status" id="statusN" value="N">
-                                <label class="form-check-label" for="statusN">
-                                    <span style="color: #fff; background-color: red; padding: 2px 4px;">Н</span> Не был
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="status" id="statusZ" value="Z">
-                                <label class="form-check-label" for="statusZ">
-                                    <i class="fas fa-snowflake"></i> Заморозка
-                                </label>
-                            </div>
+
+                            @foreach($availableStatuses as $st)
+                                <div class="form-check mb-2 d-flex align-items-center">
+                                    <input class="form-check-input"
+                                           type="radio"
+                                           name="status_id"
+                                           id="status-{{ $st->id }}"
+                                           value="{{ $st->id }}"
+                                           data-icon="{{ $st->icon }}"
+                                           data-color="{{ $st->color }}">
+
+                                    <label class="form-check-label ms-2" for="status-{{ $st->id }}">
+            <span style="display: inline-block;
+                    background-color: {{ $st->color }};
+                    padding: 0.3rem;
+                    border-radius: 0.25rem;">
+                <i class="{{ $st->icon }}"></i>
+            </span>
+                                        <span class="ms-1">{{ $st->name }}</span>
+                                    </label>
+                                </div>
+                            @endforeach
+
                         </div>
+
                         <div class="mb-3">
                             <label for="description" class="form-label">Комментарий</label>
                             <textarea class="form-control" id="description" name="description" rows="3"></textarea>
@@ -197,49 +237,402 @@
         </div>
     </div>
 
-    <!-- Модальное окно для легенды -->
-    <div class="modal fade" id="legendModal" tabindex="-1" aria-labelledby="legendModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content schedule-modal-content">
+    <!-- Модальное окно подтверждения удаления -->
+    @include('includes.modal.confirmDeleteModal')
+
+    <!-- Модальное окно успешного обновления данных -->
+    @include('includes.modal.successModal')
+
+
+    <!-- Модальное окно "Настройки" -->
+    <!-- МОДАЛКА НАСТРОЕК (СПИСОК СТАТУСОВ) -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <!-- Обратите внимание на .modal-dialog, стили см. в CSS -->
+        <div class="modal-dialog" id="settingsModalDialog">
+            <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="legendModalLabel">Легенда</h5>
+                    <h5 class="modal-title" id="settingsModalLabel">Настройки статусов</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <div class="modal-body" style="text-align: left;">
-                    <ul class="list-unstyled">
-                        <li>
-                <span style="display:inline-block; background: #fff; padding:2px;">
-                    <i class="fas fa-check text-success"></i>
-                </span>
-                            &nbsp;Оплаченный период.
-                        </li>
-                        <li>
-                <span style="display:inline-block; background: rgba(255,255,0,0.3); padding:2px;">
-                    <i class="fas fa-check" style="color: black;"></i>
-                </span>
-                            &nbsp;Учебный день согласно расписанию.
-                        </li>
-                        <li>
-                <span style="display:inline-block; background: rgba(0,191,255,0.3); padding:2px;">
-                    <i class="fas fa-snowflake"></i>
-                </span>
-                            &nbsp;Заморозка.
-                        </li>
-                        <li>
-                <span style="display:inline-block; background: rgba(255,0,0,0.3); padding:2px;">
-                    Н
-                </span>
-                            &nbsp;Не был.
-                        </li>
-                        <li>
-                            <span style="display:inline-block; width:0; height:0; border-top:5px solid red; border-left:5px solid transparent;"></span>
-                            &nbsp;Комментарий.
-                        </li>
-                    </ul>
+                <div class="modal-body">
+                    <div class="text-start">
+                        <!-- Кнопка "Новый статус" (открывает createStatusModal) -->
+                        <button type="button" class="btn btn-primary mb-3" id="btn-new-status">
+                            Новый статус
+                        </button>
+                    </div>
+                    <!-- Таблица статусов -->
+                    <table id="statuses-table" class="table">
+                        <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Иконка/Цвет</th>
+                            <th>Действия</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <!-- Заполняется динамически -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Кнопки внизу: "Отменить" (закрыть), "Сохранить" (перезагрузить страницу) -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    {{--<button type="button" class="btn btn-primary" id="btnSaveChanges">Сохранить</button>--}}
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- МОДАЛКА СОЗДАНИЯ СТАТУСА -->
+    <div class="modal fade" id="createStatusModal" tabindex="-1" aria-labelledby="createStatusModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="createStatusForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="createStatusModalLabel">Создать статус</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="createName" class="form-label">Название</label>
+                            <input type="text" class="form-control" id="createName" name="name" required>
+                        </div>
+
+                        <!-- Выбор иконки -->
+                        <div class="mb-3">
+                            <label class="form-label">Иконка</label>
+                            <input type="hidden" id="createIcon" name="icon">
+                            <div id="createIconList" class="d-flex flex-wrap gap-2">
+                                <div class="icon-item border p-2 text-center" data-icon="fas fa-snowflake">
+                                    <i class="fas fa-snowflake fa-2x"></i>
+                                </div>
+                                <div class="icon-item border p-2 text-center" data-icon="fas fa-check">
+                                    <i class="fas fa-check fa-2x"></i>
+                                </div>
+                                <div class="icon-item border p-2 text-center" data-icon="fas fa-bell">
+                                    <i class="fas fa-bell fa-2x"></i>
+                                </div>
+                                <div class="icon-item border p-2 text-center" data-icon="fas fa-star">
+                                    <i class="fas fa-star fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Выбор цвета -->
+                        <div class="mb-3">
+                            <label for="createColor" class="form-label">Цвет</label>
+                            <input type="color" class="form-control form-control-color" id="createColor" name="color"
+                                   title="Выберите цвет">
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-success">Создать</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА РЕДАКТИРОВАНИЯ СТАТУСА -->
+    <div class="modal fade" id="editStatusModal" tabindex="-1" aria-labelledby="editStatusModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="editStatusForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editStatusModalLabel">Редактирование статуса</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Скрытое поле для ID -->
+                        <input type="hidden" id="editStatusId" name="status_id">
+
+                        <div class="mb-3">
+                            <label for="editName" class="form-label">Название</label>
+                            <input type="text" class="form-control" id="editName" name="name" required>
+                        </div>
+
+                        <!-- Выбор иконки -->
+                        <div class="mb-3">
+                            <label class="form-label">Иконка</label>
+                            <input type="hidden" id="editIcon" name="icon">
+                            <div id="editIconList" class="d-flex flex-wrap gap-2">
+                                <div class="icon-item border p-2 text-center" data-icon="fas fa-snowflake">
+                                    <i class="fas fa-snowflake fa-2x"></i>
+                                </div>
+                                <div class="icon-item border p-2 text-center" data-icon="fas fa-check">
+                                    <i class="fas fa-check fa-2x"></i>
+                                </div>
+                                <div class="icon-item border p-2 text-center" data-icon="fas fa-bell">
+                                    <i class="fas fa-bell fa-2x"></i>
+                                </div>
+                                <div class="icon-item border p-2 text-center" data-icon="fas fa-star">
+                                    <i class="fas fa-star fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editColor" class="form-label">Цвет</label>
+                            <input type="color" class="form-control form-control-color" id="editColor" name="color"
+                                   title="Выберите цвет">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Модалки
+            var settingsModalEl = document.getElementById('settingsModal');
+            var settingsModal = new bootstrap.Modal(settingsModalEl);
+
+            var createStatusModalEl = document.getElementById('createStatusModal');
+            var createStatusModal = new bootstrap.Modal(createStatusModalEl);
+
+            var editStatusModalEl = document.getElementById('editStatusModal');
+            var editStatusModal = new bootstrap.Modal(editStatusModalEl);
+
+            // Кнопка "Настройки"
+            var btnSettings = document.getElementById('btn-settings');
+            // Таблица статусов
+            var statusesTableBody = document.querySelector('#statuses-table tbody');
+            // Кнопка "Новый статус"
+            var btnNewStatus = document.getElementById('btn-new-status');
+
+            // При клике "Настройки" — грузим статусы и показываем модалку
+            btnSettings.addEventListener('click', function () {
+                loadStatuses();
+                settingsModal.show();
+            });
+
+            // "Новый статус" — сбрасываем форму и показываем модалку создания
+            btnNewStatus.addEventListener('click', function () {
+                document.getElementById('createStatusForm').reset();
+                // Сбрасываем выбранные иконки
+                document.querySelectorAll('#createIconList .icon-item').forEach(i => i.classList.remove('selected'));
+                document.getElementById('createIcon').value = '';
+                createStatusModal.show();
+            });
+
+            // Кнопка "Сохранить" внизу модалки "Настройки" — перезагружаем страницу
+            // var btnSaveChanges = document.getElementById('btnSaveChanges');
+            // btnSaveChanges.addEventListener('click', function () {
+            //     window.location.reload();
+            // });
+
+            // Загрузка статусов
+            function loadStatuses() {
+                fetch("{{ route('statuses.index') }}")
+                    .then(resp => resp.json())
+                    .then(data => {
+                        statusesTableBody.innerHTML = '';
+                        data.statuses.forEach(st => {
+                            let tr = document.createElement('tr');
+                            tr.innerHTML = `
+                        <td>
+                            ${st.name}
+                            ${
+                                // Если системный, показываем иконку с ховером (пример)
+                                st.is_system
+                                    ? `<i class="fas fa-question-circle ms-1"
+                                      data-bs-toggle="tooltip"
+                                      title="Системный статус. Невозможно удалить"
+                                   ></i>`
+                                    : ''
+                                }
+                        </td>
+                        <td>
+                            ${
+                                st.icon
+                                    ? `<i class="${st.icon}"
+                                     style="background-color: ${st.color};
+                                            color: #fff;
+                                            padding: 5px;
+                                            border-radius: 3px;"></i>`
+                                    : ''
+                                }
+                        </td>
+                        <td>
+                            ${
+                                st.is_system
+                                    ? ''
+                                    : `<button class="btn btn-sm btn-success"
+                                           data-action="edit"
+                                           data-id="${st.id}"
+                                           data-name="${st.name}"
+                                           data-icon="${st.icon ?? ''}"
+                                           data-color="${st.color ?? ''}">
+                                       Изменить
+                                   </button>
+                                   <button class="btn btn-sm btn-danger"
+                                           data-action="delete"
+                                           data-id="${st.id}">
+                                       Удалить
+                                   </button>`
+                                }
+                        </td>
+                    `;
+                            statusesTableBody.appendChild(tr);
+                        });
+
+                        // Инициализируем Bootstrap Tooltip (иконки вопроса)
+                        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                            return new bootstrap.Tooltip(tooltipTriggerEl);
+                        });
+                    })
+                    .catch(err => console.error(err));
+            }
+
+            // СОЗДАНИЕ СТАТУСА
+            var createStatusForm = document.getElementById('createStatusForm');
+            createStatusForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                let formData = new FormData(createStatusForm);
+
+                fetch("{{ route('statuses.store') }}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: formData
+                })
+                    .then(resp => resp.json())
+                    .then(data => {
+                        if (data.success) {
+                            showSuccessModal("Создание статуса", "Статус успешно создан.", 1);
+                        } else {
+                            // alert(data.error ?? 'Ошибка при создании статуса');
+                            $('#errorModal').modal('show');
+                        }
+                    })
+                    .catch(err => console.error(err));
+            });
+
+            // РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ
+            var editStatusForm = document.getElementById('editStatusForm');
+            statusesTableBody.addEventListener('click', function (e) {
+                let action = e.target.dataset.action;
+                if (action === 'edit') {
+                    let id = e.target.dataset.id;
+                    let name = e.target.dataset.name;
+                    let icon = e.target.dataset.icon;
+                    let color = e.target.dataset.color || '#ffffff';
+
+                    // Заполняем форму
+                    document.getElementById('editStatusId').value = id;
+                    document.getElementById('editName').value = name;
+                    document.getElementById('editIcon').value = icon;
+                    document.getElementById('editColor').value = color;
+
+                    // Сбрасываем/подсвечиваем нужную иконку
+                    document.querySelectorAll('#editIconList .icon-item').forEach(item => {
+                        item.classList.remove('selected');
+                        if (item.dataset.icon === icon) {
+                            item.classList.add('selected');
+                        }
+                    });
+                    editStatusModal.show();
+                } else if (action === 'delete') {
+
+
+                    showConfirmDeleteModal(
+                        "Удаление статуса",
+                        "Вы уверены, что хотите удалить этот статус? (Ранее установленные значения для дней с этим статусом останутся без изменений.)",
+                        function () {
+                            let id = e.target.dataset.id;
+
+
+                            fetch("{{ url('admin/statuses') }}/" + id, {
+                                method: 'DELETE',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                }
+                            })
+                                .then(resp => resp.json())
+                                .then(d => {
+                                    if (d.success) {
+                                        showSuccessModal("Удаление статуса", "Статус успешно удален.", 1);
+                                        // loadStatuses();
+                                    } else {
+                                        // alert(d.error ?? 'Ошибка при удалении статуса');
+                                        $('#errorModal').modal('show');
+
+                                    }
+                                })
+                                .catch(err => console.error(err));
+                        });
+
+
+                }
+            });
+
+            // Сабмит формы редактирования (исправление 405: POST + _method=PATCH)
+            editStatusForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                let statusId = document.getElementById('editStatusId').value;
+                let formData = new FormData(editStatusForm);
+                formData.append('_method', 'PATCH'); // Laravel "увидит" PATCH
+
+                fetch("{{ url('admin/statuses') }}/" + statusId, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: formData
+                })
+                    .then(resp => resp.json())
+                    .then(d => {
+                        if (d.success) {
+                            showSuccessModal("Редактирование статуса", "Статус успешно обновлен.", 1);
+
+                            // editStatusModal.hide();
+                            // loadStatuses();
+
+                        } else {
+                            alert(d.error ?? 'Ошибка при обновлении статуса');
+                        }
+                    })
+                    .catch(err => console.error(err));
+            });
+
+            // Выбор иконки (Create)
+            let createIconList = document.getElementById('createIconList');
+            createIconList.querySelectorAll('.icon-item').forEach(item => {
+                item.addEventListener('click', function () {
+                    createIconList.querySelectorAll('.icon-item').forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                    document.getElementById('createIcon').value = this.dataset.icon;
+                });
+            });
+
+            // Выбор иконки (Edit)
+            let editIconList = document.getElementById('editIconList');
+            editIconList.querySelectorAll('.icon-item').forEach(item => {
+                item.addEventListener('click', function () {
+                    editIconList.querySelectorAll('.icon-item').forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                    document.getElementById('editIcon').value = this.dataset.icon;
+                });
+            });
+        });
+    </script>
+
+    <!-- Конец модальное окно "Настройки" -->
+
 @endsection
 
 @section('scripts')
@@ -258,440 +651,7 @@
           href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/locales/bootstrap-datepicker.ru.min.js"></script>
-
-    <style>
-        /* Убираем скролл страницы при полноэкранном режиме */
-        body.no-scroll {
-            overflow: hidden !important;
-        }
-
-        /* Более конкретные селекторы для избежания конфликтов */
-        .schedule-table-container .schedule-table th,
-        .schedule-table-container .schedule-table td {
-            border: 1px solid rgba(0, 0, 0, 0.1);
-        }
-
-        .schedule-table-container .schedule-table tr:hover {
-            background-color: rgba(0, 123, 255, 0.1);
-        }
-
-        .schedule-user-name {
-            white-space: nowrap;
-            /*max-width: 200px;*/
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-
-        #schedule-table {
-            border-collapse: collapse;
-        }
-
-        #schedule-table table.dataTable tbody .schedule-user-name {
-            /*padding: 0!important;*/
-            border-collapse: collapse;
-
-        }
-
-        table.dataTable tbody th, table.dataTable tbody td {
-            padding-top: 2px !important;
-            padding-bottom: 2px !important;
-            padding-left: 2px !important;
-            padding-right: 2px !important;
-        }
-
-
-        .schedule-day-header {
-            padding-top: 5px !important;
-            padding-bottom: 5px !important;
-            padding-left: 10px !important;
-            padding-right: 10px !important;
-
-        }
-
-        .table-number {
-            padding-top: 2px !important;
-            padding-bottom: 2px !important;
-            padding-left: 2px !important;
-            padding-right: 2px !important;
-        }
-
-        .schedule-payment-status {
-            padding-top: 10px !important;
-            padding-bottom: 10px !important;
-            padding-left: 4px !important;
-            padding-right: 4px !important;
-            text-align: center !important;
-            width: 30px;
-            position: unset;
-        }
-
-        .schedule-payment-status i {
-            width: 30px;
-        }
-
-
-        .schedule-user-name {
-            padding-top: 10px !important;
-            padding-bottom: 10px !important;
-            padding-left: 4px !important;
-            padding-right: 4px !important;
-        }
-
-
-        .schedule-fullscreen-wrapper .wrap-filter-year {
-            padding-left: 2px;
-            padding-right: 2px;
-            padding-top: 0;
-            padding-bottom: 0;
-        }
-
-        .schedule-fullscreen-wrapper .wrap-filter-month {
-            padding-left: 2px;
-            padding-right: 2px;
-            padding-top: 0;
-            padding-bottom: 0;
-        }
-
-        .schedule-fullscreen-wrapper .wrap-filter-team {
-            padding-left: 2px;
-            padding-right: 2px;
-            padding-top: 0;
-            padding-bottom: 0;
-        }
-
-        .schedule-fullscreen-wrapper .wrap-filter-legend {
-            padding-left: 2px;
-            padding-right: 2px;
-            padding-top: 0;
-            padding-bottom: 0;
-        }
-
-        .schedule-fullscreen-wrapper .wrap-filter-fullscreen {
-            padding-left: 2px;
-            padding-right: 2px;
-            padding-top: 0;
-            padding-bottom: 0;
-        }
-
-        .schedule-fullscreen-wrapper .wrap-filter-search {
-            padding-left: 2px;
-            padding-right: 2px;
-            padding-top: 0;
-            padding-bottom: 0;
-            text-align: left;
-        }
-
-
-        .schedule-day-header {
-            min-width: 5px;
-            min-height: 5px;
-            padding: 0;
-            font-size: 8px;
-        }
-
-        .schedule-cell {
-            min-width: 5px;
-            min-height: 5px;
-            padding: 0;
-            font-size: 8px;
-        }
-
-        /* Подсветка столбцов расписания выбранной группы */
-        .highlight-column {
-            /*border: 2px solid rgba(197, 132, 38, 0.72) !important;*/
-            border: solid 1px #f3a12b !important;
-
-        }
-
-        /* Полноэкранный режим: обёртка для фильтров и таблицы */
-        .schedule-fullscreen-wrapper.fullscreen {
-            position: fixed !important;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #fff;
-            z-index: 1050;
-            overflow: hidden; /* убираем скролл всей страницы */
-            padding-top: 50px; /* Отступ для фиксированных фильтров */
-        }
-
-        .schedule-fullscreen-wrapper.fullscreen .schedule-controls {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            z-index: 1060;
-            background: #fff;
-            padding: 10px;
-            margin: 0; /* Устраняем возможные "рывки" */
-        }
-
-        /* Скролл только для таблицы */
-        .schedule-fullscreen-wrapper.fullscreen .schedule-table-container {
-            overflow: auto;
-            height: calc(100% - 50px);
-        }
-
-        /* Закрепление заголовков таблицы – top: 0, чтобы примыкал к верхней границе контейнера */
-        /*.schedule-fullscreen-wrapper.fullscreen .schedule-table thead th {*/
-        /*    position: sticky;*/
-        /*    top: 0;*/
-        /*    background-color: #fff;*/
-        /*    z-index: 2;*/
-        /*}*/
-        /* Замените на такой вариант */
-        .schedule-fullscreen-wrapper.fullscreen .schedule-table thead th {
-            position: sticky;
-            top: 0;
-            background-color: #fff;
-            z-index: 500; /* увеличенный z-index, чтобы не было «прокрутки» за заголовком */
-        }
-
-
-        /* Выравнивание радиобатонов по левому краю */
-        .schedule-modal-content .form-check {
-            text-align: left;
-        }
-
-        .schedule-controls .table-search {
-            width: 200px;
-        }
-
-        @media only screen and (max-width: 768px) {
-            .schedule-fullscreen-wrapper .schedule-filter-team {
-                font-size: 12px;
-                width: 100px;
-                padding-left: 2px;
-                padding-right: 2px;
-            }
-
-            .schedule-fullscreen-wrapper .schedule-filter-year {
-                font-size: 12px;
-                width: 65px;
-                padding-left: 2px;
-                padding-right: 2px;
-            }
-
-            .schedule-fullscreen-wrapper .schedule-filter-month {
-                font-size: 12px;
-                width: 90px;
-                padding-left: 2px;
-                padding-right: 2px;
-            }
-
-            .schedule-fullscreen-wrapper .wrap-filter-search input {
-                font-size: 12px;
-                /*width: 85px;*/
-                padding-left: 2px;
-                padding-right: 0px;
-                height: 33px;
-                width: 100%;;
-            }
-
-            .schedule-fullscreen-wrapper .wrap-filter-fullscreen button {
-                font-size: 12px;
-                width: 30px;
-                padding-left: 2px;
-                padding-right: 2px;
-            }
-
-            #btn-legend {
-                display: none;
-            }
-
-
-            .schedule-fullscreen-wrapper .wrap-filter-year {
-                padding-left: 0px;
-            }
-
-            /*wrap-filter-year*/
-            /*wrap-filter-month*/
-            /*wrap-filter-team*/
-            /*wrap-filter-legend*/
-            /*wrap-filter-fullscreen*/
-            /*wrap-filter-search*/
-
-        }
-
-        /* Закрепление первых двух столбцов */
-        .schedule-table .sticky-col-1 {
-            position: sticky;
-            left: 0;
-            background-color: #fff;
-            z-index: 5; /* значение z-index может быть скорректировано при необходимости */
-        }
-
-        /*.schedule-table .sticky-col-2 {*/
-        /*    position: sticky;*/
-        /*    !*left: 50px; !* подберите отступ, чтобы не перекрывало первый столбец *!*!*/
-        /*    background-color: #fff;*/
-        /*    z-index: 5;*/
-        /*}*/
-
-        /* Первый столбец (#) */
-        .schedule-table .sticky-col-1 {
-            position: sticky;
-            left: 0;
-            background-color: #fff;
-            /*z-index: 501; !* чтобы точно было выше «прокручиваемой» части *!*/
-        }
-
-        /* Второй столбец (ФИО).
-           left подберите так, чтобы второй столбец не налезал на первый.
-           Если ширина первого столбца около 40-50px, то left: 40px или 50px.
-        */
-        .schedule-table .sticky-col-2 {
-            position: sticky;
-            /*left: 50px;*/
-            background-color: #fff;
-            /*z-index: 501;*/
-        }
-
-
-        /* Исправляем левый бордер при подсветке столбца */
-        .schedule-table-container .schedule-table td.highlight-column,
-        .schedule-table-container .schedule-table th.highlight-column {
-            /*border: 1px solid RED !important;*/
-            border: solid 1px #f3a12b !important;
-
-            box-sizing: border-box;
-        }
-
-
-        /* ------------------------------------- */
-        /* === Глобальная настройка таблицы ===  */
-        /* ------------------------------------- */
-
-        /* Чтобы между ячейками не было "щелей", через которые видно прокрутку */
-        .schedule-table {
-            border-collapse: separate !important;
-            border-spacing: 0 !important;
-        }
-
-        /* Общие границы */
-        .schedule-table th,
-        .schedule-table td {
-            border: 1px solid rgba(0, 0, 0, 0.2);
-            background-color: #fff; /* Белый фон, чтобы за ней не было видно движения */
-            box-sizing: border-box;
-        }
-
-        /* ----------------------------------------------- */
-        /* === Закрепление первой строки (thead) ===       */
-        /* ----------------------------------------------- */
-        /* Только в полноэкранном режиме */
-        .schedule-fullscreen-wrapper.fullscreen .schedule-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 40; /* достаточно большое, чтобы быть выше рядов и прокрутки */
-        }
-
-        /* А в обычном режиме заголовок "не липкий" */
-        /*.schedule-fullscreen-wrapper:not(.fullscreen) .schedule-table thead th {*/
-        /*    position: static;*/
-        /*    z-index: auto;*/
-        /*}*/
-
-        /* ----------------------------------------------- */
-        /* === Закрепление первых 2-х столбцов ===         */
-        /* ----------------------------------------------- */
-        /* В ОБОИХ режимах (обычном и fullscreen) */
-        .schedule-table .sticky-col-1 {
-            position: sticky;
-            left: 0;
-            z-index: 41; /* чуть выше ячеек */
-            background-color: #fff;
-        }
-
-        .schedule-table .sticky-col-2 {
-            position: sticky;
-            /*left: 60px; !* подберите под вашу ширину первого столбца *!*/
-            z-index: 41;
-            background-color: #fff;
-        }
-
-        /* ----------------------------------------------- */
-        /* === "Подсвеченные" колонки расписания ===       */
-        /* ----------------------------------------------- */
-        .schedule-table td.highlight-column,
-        .schedule-table th.highlight-column {
-            border: 1px solid #f3a12b !important; /* или ваш цвет, можно #007bff */
-            box-sizing: border-box;
-        }
-
-        /* ----------------------------------------------- */
-        /* === Прокрутка контейнера + fullscreen ===       */
-        /* ----------------------------------------------- */
-
-        /* В полноэкранном режиме делаем контейнер
-           с таблицей прокручиваемым */
-        .schedule-fullscreen-wrapper.fullscreen .schedule-table-container {
-            position: relative;
-            overflow: auto;
-            height: calc(100% - 50px);
-        }
-
-        /* А само тело страницы в этот момент
-           не прокручивается (видели в вашем коде).
-           Это можно оставить, если уже работает. */
-
-        /* Если нужно (иногда помогает скрыть "ползунок"
-           за закреплёнными столбцами), можно
-           задать стили для полосы прокрутки:
-        .schedule-table-container::-webkit-scrollbar {
-            background: transparent;
-        }
-        ...
-        */
-
-        /* ------------------------------------ */
-        /* === Дополнительная мелкая подстройка */
-        /* ------------------------------------ */
-
-        /* Уменьшим "пустоты", чтобы
-           нигде не просвечивало: */
-        .schedule-table td,
-        .schedule-table th {
-            padding: 2px !important; /* или как вам удобно */
-            margin: 0;
-        }
-
-
-        .zi-50 {
-            z-index: 50 !important;
-        }
-
-
-        .cell-size {
-            width: 20px!important;
-            /*width: 100%;*/
-            height: 100%;
-            font-size: 10px;
-        }
-
-        .col-number {
-            width: 20px !important;
-        }
-
-        .col-name {
-            max-width: 140px;
-            left: 23px;
-            position: sticky!important;
-            z-index: 50!important;
-        }
-        .schedule-user-name {
-            max-width: 140px;
-            left: 23px;
-            font-size: 13px;
-        }
-        .schedule-day-header div {
-            font-size: 10px;
-        }
-
-
-    </style>
+    @vite(['resources/css/schedule.css',])
 
     <script>
         $(document).ready(function () {
@@ -757,33 +717,28 @@
             // Открытие модального окна для редактирования ячейки
             var cellEditModal = new bootstrap.Modal(document.getElementById('cellEditModal'), {});
             var currentCell;
+
+
             $(document).on('click', '.schedule-cell', function () {
                 currentCell = $(this);
-                var userId = $(this).attr('data-user-id');
-                var date = $(this).attr('data-date');
-                // Используем attr для получения актуального комментария
-                var comment = $(this).attr('data-comment') || '';
+                let userId = $(this).data('user-id');
+                let date = $(this).data('date');
+                let statusId = $(this).data('status-id') || '';
+                let comment = $(this).data('comment') || '';
+
                 $('#edit-user-id').val(userId);
                 $('#edit-date').val(date);
+                $('#edit-status-id').val(statusId);
                 $('#description').val(comment);
 
-                // Предустановка выбранного радиобатона, если значение уже установлено
-                var cellContent = $(this).find('.cell-content').html().trim();
-                if (cellContent.indexOf('fa-check') !== -1) {
-                    $('#statusR').prop('checked', true);
-                } else if (cellContent.indexOf('Н') !== -1) {
-                    $('#statusN').prop('checked', true);
-                } else if (cellContent.indexOf('fa-snowflake') !== -1) {
-                    $('#statusZ').prop('checked', true);
-                } else {
-                    $('input[name="status"]').prop('checked', false);
-                }
                 cellEditModal.show();
-            });
+            })
+
 
             // Отправка данных формы редактирования ячейки
             $('#cellEditForm').on('submit', function (e) {
                 e.preventDefault();
+
                 $.ajax({
                     url: "{{ route('schedule.update') }}",
                     method: "POST",
@@ -791,45 +746,54 @@
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
+
+
                     success: function (response) {
                         if (response.success) {
-                            var status = $('input[name="status"]:checked').val();
-                            var content = '';
-                            var bgColor = '';
-                            if (status === 'R') {
-                                content = '<i class="fas fa-check"></i>';
-                                bgColor = 'rgba(255,255,0,0.3)';
-                            } else if (status === 'N') {
-                                content = 'Н';
-                                bgColor = 'rgba(255,0,0,0.3)';
-                            } else if (status === 'Z') {
-                                content = '<i class="fas fa-snowflake"></i>';
-                                bgColor = 'rgba(0,191,255,0.3)';
-                            }
-                            currentCell.find('.cell-content').html(content);
-                            currentCell.css('background-color', bgColor);
+                            // Вместо #edit-status-id ищем выбранную радиокнопку
+                            let chosenRadio = $('input[name="status_id"]:checked');
+                            let chosenStatusId = chosenRadio.val();
 
-                            // Обработка комментария: обновляем атрибут data-comment
-                            var comment = $('#description').val().trim();
-                            currentCell.attr('data-comment', comment);
-                            if (comment !== '') {
-                                if (currentCell.find('.cell-comment-indicator').length == 0) {
-                                    currentCell.append('<div class="cell-comment-indicator" style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>');
-                                }
+                            // Достаем data-icon, data-color из выбранной радиокнопки
+                            let icon = chosenRadio.data('icon') || '';
+                            let color = chosenRadio.data('color') || '';
+
+                            console.log(icon);
+                            console.log(color);
+
+                            // Чтобы получить текст (название статуса) – берём текст из соответствующего label
+                            // (или его часть). Можно просто отрезать иконку, а можно хранить имя статуса
+                            // в отдельном data-атрибуте, если нужна точность.
+                            // Ниже – упрощённо всё из label, не забыв trim()
+                            let text = chosenRadio.closest('.form-check').find('label').text().trim();
+
+                            // Вставляем иконку или текст в ячейку
+                            if (icon) {
+                                currentCell.html('<i class="' + icon + '"></i>');
                             } else {
-                                currentCell.find('.cell-comment-indicator').remove();
+                                currentCell.text(text);
                             }
+
+                            // Фоновый цвет
+                            currentCell.css('background-color', color);
+                            console.log(currentCell);
+
+
+                            // Ставим атрибуты на ячейку – чтобы при повторном клике данные были актуальны
+                            currentCell.attr('data-status-id', chosenStatusId);
+                            currentCell.attr('data-comment', $('#description').val().trim());
+
+                            // ... остальной код (уголок для комментария и т.д.) ...
+
+                            // Закрываем модалку
                             cellEditModal.hide();
                         }
                     }
+
+
                 });
             });
 
-            // Открытие модального окна легенды
-            $('#btn-legend').on('click', function () {
-                var legendModal = new bootstrap.Modal(document.getElementById('legendModal'), {});
-                legendModal.show();
-            });
 
             // Полноэкранный / обычный режим
             $('#btn-fullscreen').on('click', function () {
@@ -854,6 +818,6 @@
             });
         });
     </script>
+
+
 @endsection
-
-

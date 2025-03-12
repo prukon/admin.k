@@ -9,11 +9,23 @@ use App\Models\User;
 use App\Models\ScheduleUser;
 use Carbon\Carbon;
 use App\Models\Team;
+use App\Models\Status;
+
+
 
 class ScheduleController extends Controller
 {
     public function index(Request $request)
     {
+
+        $partnerId = $request->user()->partner_id ?? null;
+
+        $availableStatuses = Status::where('partner_id', $partnerId)
+           // ->where('is_deleted', false)
+            ->orderBy('is_system', 'desc')
+            ->get();
+
+
         // Фильтры: год, месяц и группа
         $year    = $request->get('year', date('Y'));
         $month   = $request->get('month', date('m'));
@@ -72,11 +84,12 @@ class ScheduleController extends Controller
             'teams',
             'startOfMonth',
             'endOfMonth',
-            'teamWeekdays'
+            'teamWeekdays',
+            'availableStatuses'
         ));
     }
 
-    public function update(Request $request)
+    public function update2(Request $request)
     {
         // Валидация входных данных
         $data = $request->validate([
@@ -100,6 +113,31 @@ class ScheduleController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function update(Request $request)
+    {
+        $data = $request->validate([
+            'user_id'   => 'required|integer|exists:users,id',
+            'date'      => 'required|date_format:Y-m-d',
+            'status_id' => 'required|exists:statuses,id',
+            'description' => 'nullable|string'
+        ]);
+
+        $schedule = ScheduleUser::updateOrCreate(
+            [
+                'user_id' => $data['user_id'],
+                'date'    => $data['date']
+            ],
+            [
+                'status_id'   => $data['status_id'],
+                'description' => $data['description'] ?? null
+            ]
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+
 }
 
 
