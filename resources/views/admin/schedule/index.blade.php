@@ -251,9 +251,11 @@
     <!-- Модальное окно логов -->
     @include('includes.logModal')
 
-
-    showLogModal("{{ route('logs.data.schedule') }}"); // Здесь можно динамически передать route
-
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            showLogModal("{{ route('logs.data.schedule') }}"); // Здесь можно динамически передать route
+        });
+    </script>
 
 
     <!-- Модальное окно "Настройки" -->

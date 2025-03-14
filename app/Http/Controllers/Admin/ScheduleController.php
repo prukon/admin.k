@@ -116,9 +116,9 @@ class ScheduleController extends Controller
     public function getLogsData()
     {
         $logs = MyLog::with('author')
-      //      ->where('type', 9) // Добавляем условие для фильтрации по type
+            ->where('type', 9) // Добавляем условие для фильтрации по type
             ->select('my_logs.*');
- dump($logs);
+// dump($logs);
 
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {
@@ -130,7 +130,10 @@ class ScheduleController extends Controller
             ->editColumn('action', function ($log) {
                 // Логика для преобразования типа
                 $typeLabels = [
-                    90 => 'Удаление статуса расписания',
+                    90 => 'Создание статуса расписания',
+                    91 => 'Изменение статуса расписания',
+                    92 => 'Удаление статуса расписания',
+
                 ];
                 return $typeLabels[$log->action] ?? 'Неизвестный тип';
             })
