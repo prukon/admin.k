@@ -4,13 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 
+use App\Models\MyLog;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\ScheduleUser;
 use Carbon\Carbon;
 use App\Models\Team;
 use App\Models\Status;
-
+use Yajra\DataTables\DataTables;
 
 
 class ScheduleController extends Controller
@@ -89,31 +90,6 @@ class ScheduleController extends Controller
         ));
     }
 
-    public function update2(Request $request)
-    {
-        // Валидация входных данных
-        $data = $request->validate([
-            'user_id'     => 'required|integer',
-            'date'        => 'required|date_format:Y-m-d',
-            'status'      => 'required|in:N,R,Z',
-            'description' => 'nullable|string'
-        ]);
-
-        // Обновляем или создаём запись расписания
-        $schedule = ScheduleUser::updateOrCreate(
-            [
-                'user_id' => $data['user_id'],
-                'date'    => $data['date']
-            ],
-            [
-                'status'      => $data['status'],
-                'description' => $data['description'] ?? null
-            ]
-        );
-
-        return response()->json(['success' => true]);
-    }
-
     public function update(Request $request)
     {
         $data = $request->validate([
@@ -137,7 +113,29 @@ class ScheduleController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function getLogsData()
+    {
+        $logs = MyLog::with('author')
+      //      ->where('type', 9) // Добавляем условие для фильтрации по type
+            ->select('my_logs.*');
+ dump($logs);
 
+        return DataTables::of($logs)
+            ->addColumn('author', function ($log) {
+                return $log->author ? $log->author->name : 'Неизвестно';
+            })
+            ->editColumn('created_at', function ($log) {
+                return $log->created_at->format('d.m.Y / H:i:s');
+            })
+            ->editColumn('action', function ($log) {
+                // Логика для преобразования типа
+                $typeLabels = [
+                    90 => 'Удаление статуса расписания',
+                ];
+                return $typeLabels[$log->action] ?? 'Неизвестный тип';
+            })
+            ->make(true);
+    }
 }
 
 

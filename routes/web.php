@@ -149,9 +149,12 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //Журнал расписания
     Route::get('/schedule', [\App\Http\Controllers\Admin\ScheduleController::class, 'index'])->name('schedule.index');
     Route::post('/schedule/update', [\App\Http\Controllers\Admin\ScheduleController::class, 'update'])->name('schedule.update');
+    Route::get('/schedule/logs-data', [\App\Http\Controllers\Admin\ScheduleController::class, 'getLogsData'])->name('logs.data.schedule');
 
 
-    // ...
+
+
+    // Статусы
     Route::get('statuses', [\App\Http\Controllers\Admin\StatusController::class, 'index'])->name('statuses.index');
     Route::post('statuses', [\App\Http\Controllers\Admin\StatusController::class, 'store'])->name('statuses.store');
     Route::patch('/admin/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'update'])->name('statuses.update');

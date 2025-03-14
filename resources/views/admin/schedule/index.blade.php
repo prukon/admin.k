@@ -60,9 +60,14 @@
                     <i class="fas fa-expand"></i>
                 </button>
             </div>
+
             <!-- Поисковая строка -->
             <div class="col wrap-filter-search">
                 <input type="text" id="table-search" class="form-control table-search" placeholder="Поиск">
+            </div>
+            {{--Логи--}}
+            <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#historyModal">
+                <i class="fa-solid fa-clock-rotate-left logs "></i>
             </div>
         </div>
 
@@ -242,6 +247,13 @@
 
     <!-- Модальное окно успешного обновления данных -->
     @include('includes.modal.successModal')
+
+    <!-- Модальное окно логов -->
+    @include('includes.logModal')
+
+
+    showLogModal("{{ route('logs.data.schedule') }}"); // Здесь можно динамически передать route
+
 
 
     <!-- Модальное окно "Настройки" -->
@@ -458,7 +470,7 @@
                                 st.icon
                                     ? `<i class="${st.icon}"
                                      style="background-color: ${st.color};
-                                            color: #fff;
+                                            color: #000000;
                                             padding: 5px;
                                             border-radius: 3px;"></i>`
                                     : ''

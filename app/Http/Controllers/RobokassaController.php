@@ -20,7 +20,7 @@ class RobokassaController extends Controller
     {
         \Log::info('Request data:', $request->all());
 
-        DB::transaction(function () use ($request, ) {
+        DB::transaction(function () use ($request) {
 
             // Проверка подписи и обработка данных от Robokassa
             $password2 = config('robokassa.password2');
