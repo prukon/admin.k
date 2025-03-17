@@ -1,4 +1,4 @@
-    /* Убираем скролл страницы при полноэкранном режиме */
+/* Убираем скролл страницы при полноэкранном режиме */
 body.no-scroll {
     overflow: hidden !important;
 }
@@ -237,8 +237,8 @@ table.dataTable tbody th, table.dataTable tbody td {
         padding-right: 2px;
     }
 
-    #btn-legend {
-        display: none;
+    .btn-history-modal {
+        display: none !important;
     }
 
 
@@ -442,13 +442,12 @@ table.dataTable tbody th, table.dataTable tbody td {
 }
 
 
-
 #editStatusModal {
-    z-index: 2100!important;
+    z-index: 2100 !important;
 }
 
 #createStatusModal {
-    z-index: 2100!important;
+    z-index: 2100 !important;
 }
 
 #settingsModal {
@@ -471,10 +470,28 @@ table.dataTable tbody th, table.dataTable tbody td {
     align-items: center;
     justify-content: center;
 }
+
 .icon-item.selected {
     background-color: #e8f0fe; /* Светлый фон */
     border: 2px solid #007bff;
 }
 
+.schedule-col-setup {
+    vertical-align: middle !important;
+}
+
+.edit-user-info:hover {
+    color: #0d6efd; /* Синий цвет, как у Bootstrap */
+}
 
 
+/* Если хотите dashed-рамку для тех дней,
+   которые соответствуют расписанию всей группы */
+.highlight-border {
+    border: 2px dashed #0d6efd !important;
+    border-radius: 5px;
+}
+
+.edit-user-schedule:hover {
+    color: #0d6efd; /* подсветка при наведении */
+}

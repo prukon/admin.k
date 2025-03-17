@@ -66,7 +66,7 @@
                 <input type="text" id="table-search" class="form-control table-search" placeholder="Поиск">
             </div>
             {{--Логи--}}
-            <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#historyModal">
+            <div class="wrap-icon btn btn-history-modal" data-bs-toggle="modal" data-bs-target="#historyModal">
                 <i class="fa-solid fa-clock-rotate-left logs "></i>
             </div>
         </div>
@@ -78,9 +78,10 @@
                 <tr>
                     <th class="text-center align-middle sticky-col-1 zi-50 col-number">№</th>
                     <th class="sticky-col-2 zi-50 col-name">ФИО</th>
-
                     <th class="schedule-payment-status sticky-col-2"><i class="nav-icon fa-solid fa-ruble-sign"></i>
                     </th>
+                    <th class="schedule-col-setup sticky-col-3 text-center"><i
+                                class="nav-icon fa-solid fa-ruble-sign"></i></th>
 
                     @php
                         $days = [];
@@ -109,12 +110,25 @@
                         <td class="text-center align-middle sticky-col-1 number-line">{{ $index + 1 }}</td>
                         <td class="schedule-user-name sticky-col-2">{{ $user->name }}</td>
 
+
                         <td class="text-center">
                             @if(isset($userPrices[$user->id]) && $userPrices[$user->id]->is_paid == 1)
                                 <i class="fas fa-circle-check text-success"></i>
                             @endif
                         </td>
-                        @foreach($days as $day)
+
+                        <!-- В ячейке таблицы, рядом с юзером -->
+                        <td class="text-center">
+                            <i class="fa-regular fa-pen-to-square edit-user-schedule"
+                               data-user-id="{{ $user->id }}"
+                               style="cursor: pointer;"
+                               title="Редактировать расписание"
+                            ></i>
+                        </td>
+
+
+
+                    @foreach($days as $day)
                             @php
                                 $dateKey = $user->id . '_' . $day->format('Y-m-d');
                                 $entry   = $scheduleEntries->has($dateKey) ? $scheduleEntries->get($dateKey) : null;
@@ -241,6 +255,47 @@
             </div>
         </div>
     </div>
+
+    <!-- Модалка №1: редактирование расписания конкретного пользователя -->
+    <div class="modal fade" id="userScheduleModal" tabindex="-1" aria-labelledby="userScheduleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 id="userScheduleModalLabel" class="modal-title">Расписание ученика</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body" id="userScheduleModalContent">
+                    <!-- Содержимое будет динамически подставляться через JS -->
+                    Загрузка...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка №2: выбор группы, если у пользователя группы нет -->
+    <div class="modal fade" id="chooseGroupModal" tabindex="-1" aria-labelledby="chooseGroupModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 id="chooseGroupModalLabel" class="modal-title">Выбрать группу</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="selectGroup" class="form-label">Доступные группы:</label>
+                        <select class="form-select" id="selectGroup">
+                            <option value="">-- выбрать --</option>
+                            @foreach($teams as $team)
+                                <option value="{{ $team->id }}">{{ $team->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button id="btnSaveUserGroup" class="btn btn-primary">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Модальное окно подтверждения удаления -->
     @include('includes.modal.confirmDeleteModal')
@@ -440,11 +495,6 @@
                 createStatusModal.show();
             });
 
-            // Кнопка "Сохранить" внизу модалки "Настройки" — перезагружаем страницу
-            // var btnSaveChanges = document.getElementById('btnSaveChanges');
-            // btnSaveChanges.addEventListener('click', function () {
-            //     window.location.reload();
-            // });
 
             // Загрузка статусов
             function loadStatuses() {
@@ -678,11 +728,15 @@
             }
 
             // Инициализация DataTables (без стандартного поля поиска – убрали 'f' из dom)
-            var numDays = {{ count($days) }};
+                    {{--            var numDays = {{ count($days    ) }};--}}
+            var numDays = $('.schedule-day-header').length;
+
             var dtColumns = [
                 {orderable: false}, // Номер строки
                 {orderable: true}, // ФИО
-                {orderable: true}  // Статус оплаты
+                {orderable: true}, // Статус оплаты
+                {orderable: false}  // Кнопка редактирования
+
             ];
             for (var i = 0; i < numDays; i++) {
                 dtColumns.push({orderable: false});
@@ -705,6 +759,28 @@
             $('#table-search').on('keyup', function () {
                 table.search(this.value).draw();
             });
+
+
+
+            // Открытие модального окна редактирования расписания
+            $(document).on('click', '.fa-pen-to-square', function () {
+                var userId = $(this).closest('tr').data('user-id');
+
+                $.ajax({
+                    url: '/schedule/user/' + userId + '/edit',
+                    method: 'GET',
+                    success: function (response) {
+                        if (response.success) {
+                            $('#editUserModal .modal-body').html(response.html);
+                            $('#editUserModal').modal('show');
+                        }
+                    }
+                });
+            });
+
+
+
+
 
             // Перезагрузка страницы при изменении фильтров; проверяем, в полноэкранном ли режиме
             $('.schedule-filter-year, .schedule-filter-month, .schedule-filter-team').on('change', function () {
@@ -830,6 +906,191 @@
                 }
                 window.history.replaceState({}, '', newUrl);
             });
+        });
+    </script>
+
+
+{{--Редактирования расписания юзера--}}
+
+    <script>
+        $(document).ready(function(){
+
+            let userScheduleModalEl = document.getElementById('userScheduleModal');
+            let userScheduleModal   = new bootstrap.Modal(userScheduleModalEl);
+
+            // При клике на иконку "карандаш"
+            $(document).on('click', '.edit-user-schedule', function(){
+                let userId = $(this).data('user-id');
+                // Очищаем содержимое перед загрузкой
+                $('#userScheduleModalContent').html('Загрузка...');
+
+                // Запрашиваем информацию о пользователе
+                $.ajax({
+                    url: '/admin/user-schedule/' + userId,
+                    method: 'GET',
+                    success: function(resp){
+                        if(!resp.success) {
+                            $('#userScheduleModalContent').html('Ошибка при получении данных.');
+                            userScheduleModal.show();
+                            return;
+                        }
+                        let user = resp.user; // { id, name, team_id, team_title }
+                        let groupWeekdays = resp.groupWeekdays; // [1,2,4] например
+                        let defaultFrom   = resp.defaultFrom;   // "2025-03-17"
+                        let defaultTo     = resp.defaultTo;     // "2025-08-31"
+
+                        let html = `
+                    <div>
+                        <p><strong>ФИО:</strong> ${user.name}</p>
+                `;
+                        // Если нет группы — кнопка "Выбрать группу", иначе название группы
+                        if(!user.team_id){
+                            html += `
+                        <p><strong>Группа:</strong> <span class="text-danger">не выбрана</span></p>
+                        <button type="button"
+                                class="btn btn-primary mb-3"
+                                id="btnChooseGroup"
+                                data-user-id="${user.id}">
+                            Выбрать группу
+                        </button>
+                    `;
+                        } else {
+                            html += `<p><strong>Группа:</strong> ${user.team_title}</p>`;
+                        }
+
+                        // Далее – чекбоксы пн–вс:
+                        // Понедельник=1, Вторник=2, ..., Воскресенье=7 (по ISO)
+                        let days = [
+                            {id:1, label:'Пн'},
+                            {id:2, label:'Вт'},
+                            {id:3, label:'Ср'},
+                            {id:4, label:'Чт'},
+                            {id:5, label:'Пт'},
+                            {id:6, label:'Суб'},
+                            {id:7, label:'Вск'},
+                        ];
+                        html += `<div class="mb-3">`;
+                        html += `<label>Выберите дни для этого ученика:</label>`;
+                        days.forEach((d)=>{
+                            // Если d.id есть в groupWeekdays, обрамим чекбокс рамкой (для наглядности)
+                            // Например, добавим класс .highlight-border
+                            let highlight = groupWeekdays.includes(d.id) ? 'highlight-border' : '';
+                            html += `
+                        <div class="form-check ${highlight}" style="display:inline-block; margin-right: 10px; padding: 5px; border: 1px solid transparent;">
+                            <input class="form-check-input user-day-chk" type="checkbox" value="${d.id}" id="chk_${d.id}">
+                            <label class="form-check-label" for="chk_${d.id}">${d.label}</label>
+                        </div>
+                    `;
+                        });
+                        html += `</div>`;
+
+                        // Поля "От" и "До" (datepickers)
+                        html += `
+                    <div class="mb-3">
+                        <label for="dateFrom" class="form-label">От:</label>
+                        <input type="date" id="dateFrom" class="form-control" value="${defaultFrom}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="dateTo" class="form-label">До:</label>
+                        <input type="date" id="dateTo" class="form-control" value="${defaultTo}">
+                    </div>
+                `;
+
+                        // Кнопка "Сохранить"
+                        html += `
+                    <button type="button" class="btn btn-success" id="btnSaveUserSchedule" data-user-id="${user.id}">
+                        Сохранить расписание
+                    </button>
+                `;
+
+                        html += `</div>`;
+
+                        // Помещаем всё в модалку
+                        $('#userScheduleModalContent').html(html);
+
+                        // Дополнительно можем раскрасить рамку, если dayId есть в groupWeekdays
+                        $('.highlight-border').css('border', '2px dashed #0d6efd');
+
+                        // Показываем модалку
+                        userScheduleModal.show();
+                    },
+                    error: function(){
+                        $('#userScheduleModalContent').html('Ошибка AJAX-запроса.');
+                        userScheduleModal.show();
+                    }
+                });
+            });
+
+
+            // Клик по кнопке "Выбрать группу" (внутри основной модалки)
+            let chooseGroupModalEl = document.getElementById('chooseGroupModal');
+            let chooseGroupModal   = new bootstrap.Modal(chooseGroupModalEl);
+
+            $(document).on('click', '#btnChooseGroup', function(){
+                let userId = $(this).data('user-id');
+                $('#chooseGroupModal').data('user-id', userId);
+                $('#selectGroup').val(''); // сбрасываем
+                chooseGroupModal.show();
+            });
+
+            // Сохранение группы пользователю
+            $('#btnSaveUserGroup').on('click', function(){
+                let userId = $('#chooseGroupModal').data('user-id');
+                let teamId = $('#selectGroup').val();
+
+                $.ajax({
+                    url: '/admin/user/' + userId + '/set-group',
+                    method: 'POST',
+                    headers: {'X-CSRF-TOKEN':'{{ csrf_token() }}'},
+                    data: { team_id: teamId },
+                    success: function(resp){
+                        if(resp.success){
+                            alert('Группа назначена пользователю!');
+                            // Закрываем chooseGroupModal
+                            chooseGroupModal.hide();
+                            // И перезагружаем блок в userScheduleModal,
+                            // чтобы теперь отобразилось новое название группы.
+                            // Самый простой способ — просто заново кликнуть по иконке:
+                            userScheduleModal.hide();
+                            $('.edit-user-schedule[data-user-id="'+ userId +'"]').trigger('click');
+                        }
+                    }
+                });
+            });
+
+
+            // Клик по кнопке "Сохранить расписание" (чекбоксы + диапазон дат)
+            $(document).on('click', '#btnSaveUserSchedule', function(){
+                let userId  = $(this).data('user-id');
+                let checked = [];
+                $('.user-day-chk:checked').each(function(){
+                    checked.push($(this).val());
+                });
+                let dateFrom = $('#dateFrom').val();
+                let dateTo   = $('#dateTo').val();
+
+                $.ajax({
+                    url: '/admin/user/' + userId + '/update-schedule-range',
+                    method: 'POST',
+                    headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'},
+                    data: {
+                        weekdays: checked,
+                        date_from: dateFrom,
+                        date_to: dateTo
+                    },
+                    success: function(resp){
+                        if(resp.success){
+                            alert('Расписание обновлено!');
+                            // Можно закрыть модалку
+                            userScheduleModal.hide();
+                            // И возможно, перезагрузить таблицу или обновить её часть.
+                        } else {
+                            alert('Ошибка при сохранении расписания.');
+                        }
+                    }
+                });
+            });
+
         });
     </script>
 

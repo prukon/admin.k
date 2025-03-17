@@ -9,9 +9,12 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\ScheduleUser;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use App\Models\Team;
 use App\Models\Status;
 use Yajra\DataTables\DataTables;
+use Illuminate\Support\Facades\Log;
+
 
 
 class ScheduleController extends Controller
@@ -113,6 +116,7 @@ class ScheduleController extends Controller
         return response()->json(['success' => true]);
     }
 
+
     public function getLogsData()
     {
         $logs = MyLog::with('author')
@@ -138,6 +142,226 @@ class ScheduleController extends Controller
                 return $typeLabels[$log->action] ?? 'Неизвестный тип';
             })
             ->make(true);
+    }
+
+    public function getUserInfo(User $user)
+    {
+        // Загружаем группу, если есть
+        $user->load('team.weekdays');  // Загрузим team + привязанные weekdays
+
+        // Если у юзера нет группы, мы просто вернём JSON с user_name, и признаком, что group отсутствует
+        // Если есть — вернём и дни недели группы (например, где хранится расписание).
+        // Допустим, в таблице weekdays есть поля: id, name (Понедельник, Вторник и т.д.)
+
+        // Готовим массив дней [id => name], которые у команды включены
+        $teamWeekdays = [];
+        if($user->team) {
+            // Допустим, у team.weekdays уже есть привязанные дни
+            foreach($user->team->weekdays as $wd) {
+                $teamWeekdays[] = $wd->id;  // только id или можно и название
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id'          => $user->id,
+                'name'        => $user->name,
+                'team_id'     => $user->team?->id,
+            'team_title'  => $user->team?->title,
+            'weekdays'    => $teamWeekdays,
+        ],
+    ]);
+}
+
+    public function clearTeamWeekdays(Team $team)
+    {
+        // Удаляем все записи о днях недели для этой команды
+        $team->weekdays()->detach();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Расписание команды очищено.'
+        ]);
+    }
+
+
+
+    public function getUserScheduleInfo(User $user)
+    {
+        // Подгружаем команду (если есть) и дни недели команды, чтобы визуально выделять
+        $user->load('team.weekdays');
+
+        // Собираем массив ID-шников дней недели группы
+        // (team.weekdays, если у вас есть pivot team_weekdays)
+        $groupWeekdays = [];
+        if ($user->team) {
+            foreach ($user->team->weekdays as $w) {
+                $groupWeekdays[] = $w->id; // 1=Пн, 2=Вт и т.д.
+            }
+        }
+
+        // Пример: хотим по умолчанию "от" = сегодня, "до" = ближайший 31 августа текущего или следующего года
+        $today = now()->format('Y-m-d');
+        // Проверим, прошёл ли 31 августа
+        $year = now()->year;
+        $aug31 = \Carbon\Carbon::create($year, 8, 31);
+        if (now()->greaterThan($aug31)) {
+            // если уже прошли 31 августа, берём следующий год
+            $year++;
+        }
+        $defaultTo = \Carbon\Carbon::create($year, 8, 31)->format('Y-m-d');
+
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id'         => $user->id,
+                'name'       => $user->name,
+                'team_id'    => $user->team?->id,
+            'team_title' => $user->team?->title,
+        ],
+        'groupWeekdays' => $groupWeekdays, // для визуального выделения
+        'defaultFrom'    => $today,        // дата "От"
+        'defaultTo'      => $defaultTo,    // дата "До"
+    ]);
+}
+
+    public function setUserGroup(Request $request, User $user)
+    {
+        $request->validate([
+            'team_id' => 'nullable|exists:teams,id'
+        ]);
+        $user->update(['team_id' => $request->team_id]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Группа успешно назначена.',
+        ]);
+    }
+
+    public function updateUserScheduleRange2(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'weekdays'  => 'array',
+            'weekdays.*'=> 'in:1,2,3,4,5,6,7', // пн–вс
+            'date_from' => 'required|date',
+            'date_to'   => 'required|date|after_or_equal:date_from',
+        ]);
+//        \Log::error('updateUserScheduleRange' . $data);
+
+
+        $weekdays = $data['weekdays'] ?? [];
+        $dateFrom = \Carbon\Carbon::parse($data['date_from']);
+        $dateTo   = \Carbon\Carbon::parse($data['date_to']);
+
+        // 1) Удаляем все записи для этого пользователя в выбранном диапазоне
+        //    (в реальном коде подумайте, хотите ли вы "полностью" выпиливать
+        //     или делать remove только для выбранных weekday'ев)
+        \DB::table('schedule_users')
+            ->where('user_id', $user->id)
+            ->whereBetween('date', [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')])
+            ->delete();
+
+        // 2) Создаём записи для каждой даты в диапазоне, если день недели входит в $weekdays
+        $period = \Carbon\CarbonPeriod::create($dateFrom, $dateTo);
+        $inserts = [];
+        foreach ($period as $date) {
+            // День недели в Carbon: Пн=1, Вт=2, ..., Вс=7
+            // Учтите, что isoWeekday() даёт Пн=1 ... Вс=7
+            // Если у вас в БД вдруг Пн=1 ... Вс=7, то всё ок.
+            $dw = $date->isoWeekday();
+            if (in_array($dw, $weekdays)) {
+                $inserts[] = [
+                    'user_id' => $user->id,
+                    'date'    => $date->format('Y-m-d'),
+                    'status_id' => 1,
+                    'description' => null,
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ];
+            }
+        }
+
+
+        if (!empty($inserts)) {
+            \DB::table('schedule_users')->insert($inserts);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Расписание пользователя обновлено в заданном диапазоне.',
+        ]);
+    }
+
+    public function updateUserScheduleRange(Request $request, User $user)
+    {
+        // Добавим лог входных данных
+        Log::info('===> updateUserScheduleRange: входные данные', [
+            'user_id'    => $user->id,
+            'payload'    => $request->all(),
+        ]);
+
+        $data = $request->validate([
+            'weekdays'  => 'array',
+            'weekdays.*'=> 'in:1,2,3,4,5,6,7', // пн(1)–вс(7) по isoWeekday
+            'date_from' => 'required|date',
+            'date_to'   => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $weekdays = $data['weekdays'] ?? [];
+        $dateFrom = Carbon::parse($data['date_from']);
+        $dateTo   = Carbon::parse($data['date_to']);
+
+        // Логируем, что распарсили
+        Log::debug('Парсинг дат', [
+            'dateFrom' => $dateFrom->format('Y-m-d'),
+            'dateTo'   => $dateTo->format('Y-m-d'),
+            'weekdays' => $weekdays,
+        ]);
+
+        // 1) Удаляем все записи для этого пользователя в выбранном диапазоне
+        Log::info('Удаляем старые записи', [
+            'user_id' => $user->id,
+            'range'   => [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')],
+        ]);
+
+        \DB::table('schedule_users')
+            ->where('user_id', $user->id)
+            ->whereBetween('date', [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')])
+            ->delete();
+
+        // 2) Создаём вставки
+        $period = CarbonPeriod::create($dateFrom, $dateTo);
+        $inserts = [];
+        foreach ($period as $date) {
+            // isoWeekday(): Пн=1 ... Вс=7
+            $dw = $date->isoWeekday();
+            if (in_array($dw, $weekdays)) {
+                $inserts[] = [
+                    'user_id'    => $user->id,
+                    'date'       => $date->format('Y-m-d'),
+                    // Если нужно принудительно status_id=1:
+                    'status_id'  => 2,
+                    'description'=> null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+        }
+
+        Log::debug('Сформирован массив для вставки', ['inserts' => $inserts]);
+
+        if (!empty($inserts)) {
+            \DB::table('schedule_users')->insert($inserts);
+            Log::info('Новые записи успешно добавлены', ['count' => count($inserts)]);
+        } else {
+            Log::warning('Массив $inserts пуст, записи не вставлены');
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Расписание пользователя обновлено в заданном диапазоне.',
+        ]);
     }
 }
 

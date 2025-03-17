@@ -150,6 +150,22 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/schedule', [\App\Http\Controllers\Admin\ScheduleController::class, 'index'])->name('schedule.index');
     Route::post('/schedule/update', [\App\Http\Controllers\Admin\ScheduleController::class, 'update'])->name('schedule.update');
     Route::get('/schedule/logs-data', [\App\Http\Controllers\Admin\ScheduleController::class, 'getLogsData'])->name('logs.data.schedule');
+//    Route::get('/schedule/user/{id}/edit', [\App\Http\Controllers\Admin\ScheduleController::class, 'edit']);
+
+
+
+
+    // 1) Получить информацию о пользователе + его группе + расписании группы (только для визуала)
+    Route::get('/admin/user-schedule/{user}', [\App\Http\Controllers\Admin\ScheduleController::class, 'getUserScheduleInfo'])
+        ->name('user.schedule.info');
+
+// 2) Установить или сменить группу пользователю
+    Route::post('/admin/user/{user}/set-group', [\App\Http\Controllers\Admin\ScheduleController::class, 'setUserGroup'])
+        ->name('user.set.group');
+
+// 3) Обновить расписание конкретного юзера в указанном диапазоне
+    Route::post('/admin/user/{user}/update-schedule-range', [\App\Http\Controllers\Admin\ScheduleController::class, 'updateUserScheduleRange'])
+        ->name('user.update.schedule');
 
 
 
