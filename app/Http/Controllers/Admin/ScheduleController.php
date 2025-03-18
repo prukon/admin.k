@@ -14,7 +14,7 @@ use App\Models\Team;
 use App\Models\Status;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\Log;
-
+use Illuminate\Support\Facades\DB;
 
 
 class ScheduleController extends Controller
@@ -93,8 +93,11 @@ class ScheduleController extends Controller
         ));
     }
 
-    public function update(Request $request)
+//    обновление расписания ячейки
+    public function update2(Request $request)
     {
+        $authorId = auth()->id(); // Авторизованный пользователь
+
         $data = $request->validate([
             'user_id'   => 'required|integer|exists:users,id',
             'date'      => 'required|date_format:Y-m-d',
@@ -102,16 +105,94 @@ class ScheduleController extends Controller
             'description' => 'nullable|string'
         ]);
 
-        $schedule = ScheduleUser::updateOrCreate(
-            [
-                'user_id' => $data['user_id'],
-                'date'    => $data['date']
-            ],
-            [
-                'status_id'   => $data['status_id'],
-                'description' => $data['description'] ?? null
-            ]
-        );
+
+        DB::transaction(function () use ($authorId, $data) {
+
+            $user = User::find($data['user_id']);
+            $status = Status::find( $data['status_id']);
+
+            $schedule = ScheduleUser::updateOrCreate(
+                [
+                    'user_id' => $data['user_id'],
+                    'date'    => $data['date']
+                ],
+                [
+                    'status_id'   => $data['status_id'],
+                    'description' => $data['description'] ?? null
+                ]
+            );
+            // Логирование
+            MyLog::create([
+                'type' => 9,
+                'action' => 93,
+                'author_id' => $authorId,
+                'description' => ("Дата: " . $data['date'] . ", Имя: " .  $user->name . " Статус: " . $status->name . " Комментарий: " . $data['description']),
+                'created_at' => now(),
+            ]);
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+
+    public function update(Request $request)
+    {
+        $authorId = auth()->id();
+
+        $data = $request->validate([
+            'user_id'     => 'required|integer|exists:users,id',
+            'date'        => 'required|date_format:Y-m-d',
+            'status_id'   => 'required|exists:statuses,id',
+            'description' => 'nullable|string'
+        ]);
+
+        DB::transaction(function () use ($authorId, $data) {
+            $user = User::find($data['user_id']);
+            $status = Status::find($data['status_id']);
+
+            $existingSchedule = ScheduleUser::where('user_id', $data['user_id'])
+                ->where('date', $data['date'])
+                ->first();
+
+            $oldStatusName = $existingSchedule && $existingSchedule->statusRelation
+                ? $existingSchedule->statusRelation->name
+                : 'не было';
+
+            $schedule = ScheduleUser::updateOrCreate(
+                [
+                    'user_id' => $data['user_id'],
+                    'date'    => $data['date']
+                ],
+                [
+                    'status_id'   => $data['status_id'],
+                    'description' => $data['description'] ?? null
+                ]
+            );
+
+            $schedule->refresh();
+
+            $newStatusName = $schedule->statusRelation
+                ? $schedule->statusRelation->name
+                : 'неопределён';
+
+            // Преобразуем дату к нужному формату:
+            $formattedDate = Carbon::parse($data['date'])->format('d.m.Y');
+
+            MyLog::create([
+                'type'       => 9,
+                'action'     => 93,
+                'author_id'  => $authorId,
+                'description' => sprintf(
+                    'Дата: "%s", Имя: "%s",%sСтатус до: "%s", Статус после: "%s"',
+                    $formattedDate,
+                    $user->name,
+                    "\n", // перенос строки
+                    $oldStatusName,
+                    $newStatusName
+                ),
+                'created_at' => now(),
+            ]);
+        });
 
         return response()->json(['success' => true]);
     }
@@ -137,6 +218,10 @@ class ScheduleController extends Controller
                     90 => 'Создание статуса расписания',
                     91 => 'Изменение статуса расписания',
                     92 => 'Удаление статуса расписания',
+
+                    93 => 'Изменение расписания (дня)',
+
+
 
                 ];
                 return $typeLabels[$log->action] ?? 'Неизвестный тип';
@@ -184,8 +269,6 @@ class ScheduleController extends Controller
             'message' => 'Расписание команды очищено.'
         ]);
     }
-
-
 
     public function getUserScheduleInfo(User $user)
     {

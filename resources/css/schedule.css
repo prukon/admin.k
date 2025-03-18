@@ -473,7 +473,7 @@ table.dataTable tbody th, table.dataTable tbody td {
 
 .icon-item.selected {
     background-color: #e8f0fe; /* Светлый фон */
-    border: 2px solid #007bff;
+    /*border: 2px solid #007bff;*/
 }
 
 .schedule-col-setup {
@@ -481,17 +481,48 @@ table.dataTable tbody th, table.dataTable tbody td {
 }
 
 .edit-user-info:hover {
-    color: #0d6efd; /* Синий цвет, как у Bootstrap */
+    /*color: #0d6efd; !* Синий цвет, как у Bootstrap *!*/
 }
 
 
 /* Если хотите dashed-рамку для тех дней,
    которые соответствуют расписанию всей группы */
 .highlight-border {
-    border: 2px dashed #0d6efd !important;
+    border: dotted 2px #f2a133!important;
     border-radius: 5px;
 }
 
 .edit-user-schedule:hover {
-    color: #0d6efd; /* подсветка при наведении */
+    /*color: #0d6efd; !* подсветка при наведении *!*/
+}
+
+.day-checkbox {
+    display: inline-flex;         /* чтобы чекбокс и текст были в строку */
+    align-items: center;          /* по вертикали центрируем */
+    /*border: 2px dashed #ffa500;   !* пунктирная оранжевая рамка *!*/
+    /*border-radius: 5px;           !* скруглённые углы *!*/
+
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-right: 5px;
+    padding-left: 23px;
+
+    /*margin-right: 0.5rem;         !* отступы между днями *!*/
+    cursor: pointer;              /* вся область кликабельна */
+    font-weight: 100!important;
+    margin-right: 0!important;         /* отступ между галочкой и текстом */
+
+}
+
+.day-checkbox input[type="checkbox"] {
+}
+.highlight-group {
+    /*border-color: #0d6efd; !* голубой цвет *!*/
+    border-style: dashed;  /* пунктир */
+    /* можно и фон залить, если нужно:
+    background-color: rgba(13,110,253,0.1);
+    */
+}
+#chooseGroupModal {
+    z-index: 1060!important;
 }

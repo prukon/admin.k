@@ -78,10 +78,13 @@
                 <tr>
                     <th class="text-center align-middle sticky-col-1 zi-50 col-number">№</th>
                     <th class="sticky-col-2 zi-50 col-name">ФИО</th>
-                    <th class="schedule-payment-status sticky-col-2"><i class="nav-icon fa-solid fa-ruble-sign"></i>
+
+                    <th class="schedule-payment-status sticky-col-2">
+                        <i class="nav-icon fa-solid fa-ruble-sign"></i>
                     </th>
-                    <th class="schedule-col-setup sticky-col-3 text-center"><i
-                                class="nav-icon fa-solid fa-ruble-sign"></i></th>
+                    <th class="schedule-col-setup sticky-col-3 text-center">
+                        <i class="fa-solid fa-user-pen"></i>
+                    </th>
 
                     @php
                         $days = [];
@@ -127,8 +130,7 @@
                         </td>
 
 
-
-                    @foreach($days as $day)
+                        @foreach($days as $day)
                             @php
                                 $dateKey = $user->id . '_' . $day->format('Y-m-d');
                                 $entry   = $scheduleEntries->has($dateKey) ? $scheduleEntries->get($dateKey) : null;
@@ -257,11 +259,12 @@
     </div>
 
     <!-- Модалка №1: редактирование расписания конкретного пользователя -->
-    <div class="modal fade" id="userScheduleModal" tabindex="-1" aria-labelledby="userScheduleModalLabel" aria-hidden="true">
+    <div class="modal fade" id="userScheduleModal" tabindex="-1" aria-labelledby="userScheduleModalLabel"
+         aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 id="userScheduleModalLabel" class="modal-title">Расписание ученика</h5>
+                    <h5 id="userScheduleModalLabel" class="modal-title">Личное расписание ученика</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body" id="userScheduleModalContent">
@@ -273,7 +276,8 @@
     </div>
 
     <!-- Модалка №2: выбор группы, если у пользователя группы нет -->
-    <div class="modal fade" id="chooseGroupModal" tabindex="-1" aria-labelledby="chooseGroupModalLabel" aria-hidden="true">
+    <div class="modal fade" id="chooseGroupModal" tabindex="-1" aria-labelledby="chooseGroupModalLabel"
+         aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -295,22 +299,6 @@
             </div>
         </div>
     </div>
-
-
-    <!-- Модальное окно подтверждения удаления -->
-    @include('includes.modal.confirmDeleteModal')
-
-    <!-- Модальное окно успешного обновления данных -->
-    @include('includes.modal.successModal')
-
-    <!-- Модальное окно логов -->
-    @include('includes.logModal')
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            showLogModal("{{ route('logs.data.schedule') }}"); // Здесь можно динамически передать route
-        });
-    </script>
 
 
     <!-- Модальное окно "Настройки" -->
@@ -461,6 +449,37 @@
         </div>
     </div>
 
+    <!-- Модальное окно подтверждения удаления -->
+    @include('includes.modal.confirmDeleteModal')
+
+    <!-- Модальное окно успешного обновления данных -->
+    @include('includes.modal.successModal')
+
+    <!-- Модальное окно логов -->
+    @include('includes.logModal')
+
+@endsection
+
+@section('scripts')
+    <!-- Подключение необходимых CDN -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <!-- Datepicker (Bootstrap Datepicker) -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/locales/bootstrap-datepicker.ru.min.js"></script>
+    @vite(['resources/css/schedule.css',])
+
+
+    {{--Настройки--}}
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // Модалки
@@ -695,28 +714,6 @@
         });
     </script>
 
-    <!-- Конец модальное окно "Настройки" -->
-
-@endsection
-
-@section('scripts')
-    <!-- Подключение необходимых CDN -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- DataTables -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-    <!-- Datepicker (Bootstrap Datepicker) -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/locales/bootstrap-datepicker.ru.min.js"></script>
-    @vite(['resources/css/schedule.css',])
-
     <script>
         $(document).ready(function () {
             // Проверяем, есть ли в URL fullscreen=1; если да, активируем полноэкранный режим
@@ -761,7 +758,6 @@
             });
 
 
-
             // Открытие модального окна редактирования расписания
             $(document).on('click', '.fa-pen-to-square', function () {
                 var userId = $(this).closest('tr').data('user-id');
@@ -777,9 +773,6 @@
                     }
                 });
             });
-
-
-
 
 
             // Перезагрузка страницы при изменении фильтров; проверяем, в полноэкранном ли режиме
@@ -907,19 +900,15 @@
                 window.history.replaceState({}, '', newUrl);
             });
         });
-    </script>
 
-
-{{--Редактирования расписания юзера--}}
-
-    <script>
-        $(document).ready(function(){
+        {{--Редактирования расписания юзера--}}
+        $(document).ready(function () {
 
             let userScheduleModalEl = document.getElementById('userScheduleModal');
-            let userScheduleModal   = new bootstrap.Modal(userScheduleModalEl);
+            let userScheduleModal = new bootstrap.Modal(userScheduleModalEl);
 
             // При клике на иконку "карандаш"
-            $(document).on('click', '.edit-user-schedule', function(){
+            $(document).on('click', '.edit-user-schedule', function () {
                 let userId = $(this).data('user-id');
                 // Очищаем содержимое перед загрузкой
                 $('#userScheduleModalContent').html('Загрузка...');
@@ -928,23 +917,23 @@
                 $.ajax({
                     url: '/admin/user-schedule/' + userId,
                     method: 'GET',
-                    success: function(resp){
-                        if(!resp.success) {
+                    success: function (resp) {
+                        if (!resp.success) {
                             $('#userScheduleModalContent').html('Ошибка при получении данных.');
                             userScheduleModal.show();
                             return;
                         }
                         let user = resp.user; // { id, name, team_id, team_title }
                         let groupWeekdays = resp.groupWeekdays; // [1,2,4] например
-                        let defaultFrom   = resp.defaultFrom;   // "2025-03-17"
-                        let defaultTo     = resp.defaultTo;     // "2025-08-31"
+                        let defaultFrom = resp.defaultFrom;   // "2025-03-17"
+                        let defaultTo = resp.defaultTo;     // "2025-08-31"
 
                         let html = `
                     <div>
                         <p><strong>ФИО:</strong> ${user.name}</p>
                 `;
                         // Если нет группы — кнопка "Выбрать группу", иначе название группы
-                        if(!user.team_id){
+                        if (!user.team_id) {
                             html += `
                         <p><strong>Группа:</strong> <span class="text-danger">не выбрана</span></p>
                         <button type="button"
@@ -961,31 +950,37 @@
                         // Далее – чекбоксы пн–вс:
                         // Понедельник=1, Вторник=2, ..., Воскресенье=7 (по ISO)
                         let days = [
-                            {id:1, label:'Пн'},
-                            {id:2, label:'Вт'},
-                            {id:3, label:'Ср'},
-                            {id:4, label:'Чт'},
-                            {id:5, label:'Пт'},
-                            {id:6, label:'Суб'},
-                            {id:7, label:'Вск'},
+                            {id: 1, label: 'Пн'},
+                            {id: 2, label: 'Вт'},
+                            {id: 3, label: 'Ср'},
+                            {id: 4, label: 'Чт'},
+                            {id: 5, label: 'Пт'},
+                            {id: 6, label: 'Суб'},
+                            {id: 7, label: 'Вск'},
                         ];
                         html += `<div class="mb-3">`;
-                        html += `<label>Выберите дни для этого ученика:</label>`;
-                        days.forEach((d)=>{
-                            // Если d.id есть в groupWeekdays, обрамим чекбокс рамкой (для наглядности)
-                            // Например, добавим класс .highlight-border
+                        html += `<div  class="label-ind-day"><strong>Новое расписание:</strong></div >`;
+                        days.forEach((d) => {
+                            // Если этот день есть в groupWeekdays, добавляем класс highlight (чтобы бордер был "ярче")
                             let highlight = groupWeekdays.includes(d.id) ? 'highlight-border' : '';
+
+                            // Формируем единый label с классами
                             html += `
-                        <div class="form-check ${highlight}" style="display:inline-block; margin-right: 10px; padding: 5px; border: 1px solid transparent;">
-                            <input class="form-check-input user-day-chk" type="checkbox" value="${d.id}" id="chk_${d.id}">
-                            <label class="form-check-label" for="chk_${d.id}">${d.label}</label>
-                        </div>
-                    `;
+        <label class="day-checkbox ${highlight}" style="margin-right: 0.5rem;">
+            <input class="form-check-input user-day-chk"
+                   type="checkbox"
+                   value="${d.id}"
+                   id="chk_${d.id}"
+                   style="margin-right: 0.3rem;" />
+            ${d.label}
+        </label>
+    `;
                         });
                         html += `</div>`;
 
                         // Поля "От" и "До" (datepickers)
                         html += `
+<div><strong>Период действия нового расписания:</strong></div>
                     <div class="mb-3">
                         <label for="dateFrom" class="form-label">От:</label>
                         <input type="date" id="dateFrom" class="form-control" value="${defaultFrom}">
@@ -999,7 +994,7 @@
                         // Кнопка "Сохранить"
                         html += `
                     <button type="button" class="btn btn-success" id="btnSaveUserSchedule" data-user-id="${user.id}">
-                        Сохранить расписание
+                        Изменить расписание
                     </button>
                 `;
 
@@ -1014,7 +1009,7 @@
                         // Показываем модалку
                         userScheduleModal.show();
                     },
-                    error: function(){
+                    error: function () {
                         $('#userScheduleModalContent').html('Ошибка AJAX-запроса.');
                         userScheduleModal.show();
                     }
@@ -1024,9 +1019,9 @@
 
             // Клик по кнопке "Выбрать группу" (внутри основной модалки)
             let chooseGroupModalEl = document.getElementById('chooseGroupModal');
-            let chooseGroupModal   = new bootstrap.Modal(chooseGroupModalEl);
+            let chooseGroupModal = new bootstrap.Modal(chooseGroupModalEl);
 
-            $(document).on('click', '#btnChooseGroup', function(){
+            $(document).on('click', '#btnChooseGroup', function () {
                 let userId = $(this).data('user-id');
                 $('#chooseGroupModal').data('user-id', userId);
                 $('#selectGroup').val(''); // сбрасываем
@@ -1034,17 +1029,17 @@
             });
 
             // Сохранение группы пользователю
-            $('#btnSaveUserGroup').on('click', function(){
+            $('#btnSaveUserGroup').on('click', function () {
                 let userId = $('#chooseGroupModal').data('user-id');
                 let teamId = $('#selectGroup').val();
 
                 $.ajax({
                     url: '/admin/user/' + userId + '/set-group',
                     method: 'POST',
-                    headers: {'X-CSRF-TOKEN':'{{ csrf_token() }}'},
-                    data: { team_id: teamId },
-                    success: function(resp){
-                        if(resp.success){
+                    headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'},
+                    data: {team_id: teamId},
+                    success: function (resp) {
+                        if (resp.success) {
                             alert('Группа назначена пользователю!');
                             // Закрываем chooseGroupModal
                             chooseGroupModal.hide();
@@ -1052,7 +1047,7 @@
                             // чтобы теперь отобразилось новое название группы.
                             // Самый простой способ — просто заново кликнуть по иконке:
                             userScheduleModal.hide();
-                            $('.edit-user-schedule[data-user-id="'+ userId +'"]').trigger('click');
+                            $('.edit-user-schedule[data-user-id="' + userId + '"]').trigger('click');
                         }
                     }
                 });
@@ -1060,39 +1055,51 @@
 
 
             // Клик по кнопке "Сохранить расписание" (чекбоксы + диапазон дат)
-            $(document).on('click', '#btnSaveUserSchedule', function(){
-                let userId  = $(this).data('user-id');
-                let checked = [];
-                $('.user-day-chk:checked').each(function(){
-                    checked.push($(this).val());
-                });
-                let dateFrom = $('#dateFrom').val();
-                let dateTo   = $('#dateTo').val();
+            $(document).on('click', '#btnSaveUserSchedule', function () {
 
-                $.ajax({
-                    url: '/admin/user/' + userId + '/update-schedule-range',
-                    method: 'POST',
-                    headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-                    data: {
-                        weekdays: checked,
-                        date_from: dateFrom,
-                        date_to: dateTo
-                    },
-                    success: function(resp){
-                        if(resp.success){
-                            alert('Расписание обновлено!');
-                            // Можно закрыть модалку
-                            userScheduleModal.hide();
-                            // И возможно, перезагрузить таблицу или обновить её часть.
-                        } else {
-                            alert('Ошибка при сохранении расписания.');
-                        }
-                    }
-                });
+                let userId = $(this).data('user-id');
+                showConfirmDeleteModal(
+                    "Изменение расписания",
+                    "Вы уверены, что хотите изменить расписание пользователя?",
+                    function () {
+
+                        // let userId = $(this).data('user-id');
+                        let checked = [];
+                        $('.user-day-chk:checked').each(function () {
+                            checked.push($(this).val());
+                        });
+                        let dateFrom = $('#dateFrom').val();
+                        let dateTo = $('#dateTo').val();
+
+                        $.ajax({
+                            url: '/admin/user/' + userId + '/update-schedule-range',
+                            method: 'POST',
+                            headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'},
+                            data: {
+                                weekdays: checked,
+                                date_from: dateFrom,
+                                date_to: dateTo
+                            },
+                            success: function (resp) {
+                                if (resp.success) {
+                                    showSuccessModal("Изменение расписания", "Индивидуальное расписание пользователя изменено.", 1);
+                                } else {
+                                    $('#errorModal').modal('show');
+
+                                }
+                            }
+                        });
+
+                    });
             });
 
         });
     </script>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            showLogModal("{{ route('logs.data.schedule') }}"); // Здесь можно динамически передать route
+        });
+    </script>
 
 @endsection

@@ -34,7 +34,7 @@ $data = [
 [
 'partner_id' => $partner->id,
 'name'       => 'Не был',
-'icon'       => '', // или 'fas fa-user-times' — на ваш вкус
+'icon'       => 'fas fa-minus',
 'color'      => '#ff0000',
 'is_system'  => true,
 ],

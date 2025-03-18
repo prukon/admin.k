@@ -17,5 +17,12 @@ class ScheduleUser extends Model
 //        'date' => 'date',
         'date' => 'datetime:Y-m-d',
     ];
+
+    public function statusRelation()
+    {
+        return $this->belongsTo(Status::class, 'status_id');
+    }
+
+
 }
 

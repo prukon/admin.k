@@ -9,6 +9,7 @@ export default defineConfig({
                 'resources/js/app.js',
                 'resources/css/style.css',
                 'resources/css/schedule.css',
+                'resources/js/schedule.js',
             ],
             refresh: true,
         }),
