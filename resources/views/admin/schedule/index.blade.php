@@ -1039,16 +1039,30 @@
                     headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'},
                     data: {team_id: teamId},
                     success: function (resp) {
+
+
                         if (resp.success) {
-                            alert('Группа назначена пользователю!');
-                            // Закрываем chooseGroupModal
-                            chooseGroupModal.hide();
-                            // И перезагружаем блок в userScheduleModal,
-                            // чтобы теперь отобразилось новое название группы.
-                            // Самый простой способ — просто заново кликнуть по иконке:
-                            userScheduleModal.hide();
                             $('.edit-user-schedule[data-user-id="' + userId + '"]').trigger('click');
+                            chooseGroupModal.hide();
+                            chooseGroupModal.hide();
+                            showSuccessModal("Установка группы", "Группа успешно назначена пользователю.", 0);
+
+                        } else {
+                            // alert(data.error ?? 'Ошибка при создании статуса');
+                            $('#errorModal').modal('show');
                         }
+ 
+
+                        // if (resp.success) {
+                        //     alert('Группа назначена пользователю!');
+                        //     // Закрываем chooseGroupModal
+                        //     chooseGroupModal.hide();
+                        //     // И перезагружаем блок в userScheduleModal,
+                        //     // чтобы теперь отобразилось новое название группы.
+                        //     // Самый простой способ — просто заново кликнуть по иконке:
+                        //     userScheduleModal.hide();
+                        //     $('.edit-user-schedule[data-user-id="' + userId + '"]').trigger('click');
+                        // }
                     }
                 });
             });
