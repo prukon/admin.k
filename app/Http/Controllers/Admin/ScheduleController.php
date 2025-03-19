@@ -25,19 +25,19 @@ class ScheduleController extends Controller
         $partnerId = $request->user()->partner_id ?? null;
 
         $availableStatuses = Status::where('partner_id', $partnerId)
-           // ->where('is_deleted', false)
+            // ->where('is_deleted', false)
             ->orderBy('is_system', 'desc')
             ->get();
 
 
         // Фильтры: год, месяц и группа
-        $year    = $request->get('year', date('Y'));
-        $month   = $request->get('month', date('m'));
+        $year = $request->get('year', date('Y'));
+        $month = $request->get('month', date('m'));
         $team_id = $request->get('team', 'all'); // значения: all, none или id команды
 
         // Начало и конец месяца
         $startOfMonth = Carbon::createFromDate($year, $month, 1);
-        $endOfMonth   = $startOfMonth->copy()->endOfMonth();
+        $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
         // Получаем пользователей, фильтруя по группе если требуется
         $usersQuery = User::query()->where('is_enabled', 1);
@@ -71,7 +71,7 @@ class ScheduleController extends Controller
 
         // Если выбрана конкретная группа, получаем дни недели, в которые у этой группы есть расписание
         $teamWeekdays = [];
-        if($team_id !== 'all' && $team_id !== 'none'){
+        if ($team_id !== 'all' && $team_id !== 'none') {
             $teamWeekdays = \DB::table('team_weekdays')
                 ->where('team_id', $team_id)
                 ->pluck('weekday_id')
@@ -94,61 +94,21 @@ class ScheduleController extends Controller
     }
 
 //    обновление расписания ячейки
-    public function update2(Request $request)
-    {
-        $authorId = auth()->id(); // Авторизованный пользователь
-
-        $data = $request->validate([
-            'user_id'   => 'required|integer|exists:users,id',
-            'date'      => 'required|date_format:Y-m-d',
-            'status_id' => 'required|exists:statuses,id',
-            'description' => 'nullable|string'
-        ]);
-
-
-        DB::transaction(function () use ($authorId, $data) {
-
-            $user = User::find($data['user_id']);
-            $status = Status::find( $data['status_id']);
-
-            $schedule = ScheduleUser::updateOrCreate(
-                [
-                    'user_id' => $data['user_id'],
-                    'date'    => $data['date']
-                ],
-                [
-                    'status_id'   => $data['status_id'],
-                    'description' => $data['description'] ?? null
-                ]
-            );
-            // Логирование
-            MyLog::create([
-                'type' => 9,
-                'action' => 93,
-                'author_id' => $authorId,
-                'description' => ("Дата: " . $data['date'] . ", Имя: " .  $user->name . " Статус: " . $status->name . " Комментарий: " . $data['description']),
-                'created_at' => now(),
-            ]);
-        });
-
-        return response()->json(['success' => true]);
-    }
-
-
     public function update(Request $request)
     {
         $authorId = auth()->id();
 
         $data = $request->validate([
-            'user_id'     => 'required|integer|exists:users,id',
-            'date'        => 'required|date_format:Y-m-d',
-            'status_id'   => 'required|exists:statuses,id',
+            'user_id' => 'required|integer|exists:users,id',
+            'date' => 'required|date_format:Y-m-d',
+            'status_id' => 'required|exists:statuses,id',
             'description' => 'nullable|string'
         ]);
 
         DB::transaction(function () use ($authorId, $data) {
             $user = User::find($data['user_id']);
             $status = Status::find($data['status_id']);
+            $descriptionText = $data['description'];
 
             $existingSchedule = ScheduleUser::where('user_id', $data['user_id'])
                 ->where('date', $data['date'])
@@ -161,10 +121,10 @@ class ScheduleController extends Controller
             $schedule = ScheduleUser::updateOrCreate(
                 [
                     'user_id' => $data['user_id'],
-                    'date'    => $data['date']
+                    'date' => $data['date']
                 ],
                 [
-                    'status_id'   => $data['status_id'],
+                    'status_id' => $data['status_id'],
                     'description' => $data['description'] ?? null
                 ]
             );
@@ -179,16 +139,18 @@ class ScheduleController extends Controller
             $formattedDate = Carbon::parse($data['date'])->format('d.m.Y');
 
             MyLog::create([
-                'type'       => 9,
-                'action'     => 93,
-                'author_id'  => $authorId,
+                'type' => 9,
+                'action' => 93,
+                'author_id' => $authorId,
                 'description' => sprintf(
-                    'Дата: "%s", Имя: "%s",%sСтатус до: "%s", Статус после: "%s"',
+                    'Дата: "%s", Имя: "%s",%sСтатус до: "%s", Статус после: "%s",%sКомментарий: "%s"',
                     $formattedDate,
                     $user->name,
-                    "\n", // перенос строки
+                    "\n",
                     $oldStatusName,
-                    $newStatusName
+                    $newStatusName,
+                    "\n",
+                    $descriptionText
                 ),
                 'created_at' => now(),
             ]);
@@ -197,37 +159,6 @@ class ScheduleController extends Controller
         return response()->json(['success' => true]);
     }
 
-
-    public function getLogsData()
-    {
-        $logs = MyLog::with('author')
-            ->where('type', 9) // Добавляем условие для фильтрации по type
-            ->select('my_logs.*');
-// dump($logs);
-
-        return DataTables::of($logs)
-            ->addColumn('author', function ($log) {
-                return $log->author ? $log->author->name : 'Неизвестно';
-            })
-            ->editColumn('created_at', function ($log) {
-                return $log->created_at->format('d.m.Y / H:i:s');
-            })
-            ->editColumn('action', function ($log) {
-                // Логика для преобразования типа
-                $typeLabels = [
-                    90 => 'Создание статуса расписания',
-                    91 => 'Изменение статуса расписания',
-                    92 => 'Удаление статуса расписания',
-
-                    93 => 'Изменение расписания (дня)',
-
-
-
-                ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип';
-            })
-            ->make(true);
-    }
 
     public function getUserInfo(User $user)
     {
@@ -240,9 +171,9 @@ class ScheduleController extends Controller
 
         // Готовим массив дней [id => name], которые у команды включены
         $teamWeekdays = [];
-        if($user->team) {
+        if ($user->team) {
             // Допустим, у team.weekdays уже есть привязанные дни
-            foreach($user->team->weekdays as $wd) {
+            foreach ($user->team->weekdays as $wd) {
                 $teamWeekdays[] = $wd->id;  // только id или можно и название
             }
         }
@@ -250,25 +181,25 @@ class ScheduleController extends Controller
         return response()->json([
             'success' => true,
             'user' => [
-                'id'          => $user->id,
-                'name'        => $user->name,
-                'team_id'     => $user->team?->id,
-            'team_title'  => $user->team?->title,
+                'id' => $user->id,
+                'name' => $user->name,
+                'team_id' => $user->team ?->id,
+            'team_title'  => $user->team ?->title,
             'weekdays'    => $teamWeekdays,
         ],
     ]);
 }
 
-    public function clearTeamWeekdays(Team $team)
-    {
-        // Удаляем все записи о днях недели для этой команды
-        $team->weekdays()->detach();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Расписание команды очищено.'
-        ]);
-    }
+//    public function clearTeamWeekdays(Team $team)
+//    {
+//        // Удаляем все записи о днях недели для этой команды
+//        $team->weekdays()->detach();
+//
+//        return response()->json([
+//            'success' => true,
+//            'message' => 'Расписание команды очищено.'
+//        ]);
+//    }
 
     public function getUserScheduleInfo(User $user)
     {
@@ -298,10 +229,10 @@ class ScheduleController extends Controller
         return response()->json([
             'success' => true,
             'user' => [
-                'id'         => $user->id,
-                'name'       => $user->name,
-                'team_id'    => $user->team?->id,
-            'team_title' => $user->team?->title,
+                'id' => $user->id,
+                'name' => $user->name,
+                'team_id' => $user->team ?->id,
+            'team_title' => $user->team ?->title,
         ],
         'groupWeekdays' => $groupWeekdays, // для визуального выделения
         'defaultFrom'    => $today,        // дата "От"
@@ -309,12 +240,29 @@ class ScheduleController extends Controller
     ]);
 }
 
+//Установка группы через расписание
     public function setUserGroup(Request $request, User $user)
     {
         $request->validate([
             'team_id' => 'nullable|exists:teams,id'
         ]);
-        $user->update(['team_id' => $request->team_id]);
+        $authorId = auth()->id();
+
+
+        DB::transaction(function () use ($authorId, $request, $user) {
+
+            $team = Team::find($request->team_id);
+            $user->update(['team_id' => $request->team_id]);
+
+            // Логирование
+            MyLog::create([
+                'type' => 9,
+                'action' => 94,
+                'author_id' => $authorId,
+                'description' => ("Имя: " . $user->name . ", Установлена группа: " . $team->title),
+                'created_at' => now(),
+            ]);
+        });
 
         return response()->json([
             'success' => true,
@@ -322,93 +270,42 @@ class ScheduleController extends Controller
         ]);
     }
 
-    public function updateUserScheduleRange2(Request $request, User $user)
-    {
-        $data = $request->validate([
-            'weekdays'  => 'array',
-            'weekdays.*'=> 'in:1,2,3,4,5,6,7', // пн–вс
-            'date_from' => 'required|date',
-            'date_to'   => 'required|date|after_or_equal:date_from',
-        ]);
-//        \Log::error('updateUserScheduleRange' . $data);
-
-
-        $weekdays = $data['weekdays'] ?? [];
-        $dateFrom = \Carbon\Carbon::parse($data['date_from']);
-        $dateTo   = \Carbon\Carbon::parse($data['date_to']);
-
-        // 1) Удаляем все записи для этого пользователя в выбранном диапазоне
-        //    (в реальном коде подумайте, хотите ли вы "полностью" выпиливать
-        //     или делать remove только для выбранных weekday'ев)
-        \DB::table('schedule_users')
-            ->where('user_id', $user->id)
-            ->whereBetween('date', [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')])
-            ->delete();
-
-        // 2) Создаём записи для каждой даты в диапазоне, если день недели входит в $weekdays
-        $period = \Carbon\CarbonPeriod::create($dateFrom, $dateTo);
-        $inserts = [];
-        foreach ($period as $date) {
-            // День недели в Carbon: Пн=1, Вт=2, ..., Вс=7
-            // Учтите, что isoWeekday() даёт Пн=1 ... Вс=7
-            // Если у вас в БД вдруг Пн=1 ... Вс=7, то всё ок.
-            $dw = $date->isoWeekday();
-            if (in_array($dw, $weekdays)) {
-                $inserts[] = [
-                    'user_id' => $user->id,
-                    'date'    => $date->format('Y-m-d'),
-                    'status_id' => 1,
-                    'description' => null,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ];
-            }
-        }
-
-
-        if (!empty($inserts)) {
-            \DB::table('schedule_users')->insert($inserts);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Расписание пользователя обновлено в заданном диапазоне.',
-        ]);
-    }
-
+//Установка индивидуального расписания юзеру
     public function updateUserScheduleRange(Request $request, User $user)
     {
+        $authorId = auth()->id();
+
         // Добавим лог входных данных
         Log::info('===> updateUserScheduleRange: входные данные', [
-            'user_id'    => $user->id,
-            'payload'    => $request->all(),
+            'user_id' => $user->id,
+            'payload' => $request->all(),
         ]);
 
         $data = $request->validate([
-            'weekdays'  => 'array',
-            'weekdays.*'=> 'in:1,2,3,4,5,6,7', // пн(1)–вс(7) по isoWeekday
+            'weekdays' => 'array',
+            'weekdays.*' => 'in:1,2,3,4,5,6,7', // пн(1)–вс(7) по isoWeekday
             'date_from' => 'required|date',
-            'date_to'   => 'required|date|after_or_equal:date_from',
+            'date_to' => 'required|date|after_or_equal:date_from',
         ]);
 
         $weekdays = $data['weekdays'] ?? [];
         $dateFrom = Carbon::parse($data['date_from']);
-        $dateTo   = Carbon::parse($data['date_to']);
+        $dateTo = Carbon::parse($data['date_to']);
 
         // Логируем, что распарсили
         Log::debug('Парсинг дат', [
             'dateFrom' => $dateFrom->format('Y-m-d'),
-            'dateTo'   => $dateTo->format('Y-m-d'),
+            'dateTo' => $dateTo->format('Y-m-d'),
             'weekdays' => $weekdays,
         ]);
 
         // 1) Удаляем все записи для этого пользователя в выбранном диапазоне
         Log::info('Удаляем старые записи', [
             'user_id' => $user->id,
-            'range'   => [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')],
+            'range' => [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')],
         ]);
 
-        \DB::table('schedule_users')
+        DB::table('schedule_users')
             ->where('user_id', $user->id)
             ->whereBetween('date', [$dateFrom->format('Y-m-d'), $dateTo->format('Y-m-d')])
             ->delete();
@@ -416,36 +313,95 @@ class ScheduleController extends Controller
         // 2) Создаём вставки
         $period = CarbonPeriod::create($dateFrom, $dateTo);
         $inserts = [];
+
         foreach ($period as $date) {
             // isoWeekday(): Пн=1 ... Вс=7
             $dw = $date->isoWeekday();
             if (in_array($dw, $weekdays)) {
                 $inserts[] = [
-                    'user_id'    => $user->id,
-                    'date'       => $date->format('Y-m-d'),
-                    // Если нужно принудительно status_id=1:
-                    'status_id'  => 2,
-                    'description'=> null,
+                    'user_id' => $user->id,
+                    'date' => $date->format('Y-m-d'),
+                    'status_id' => 2,
+                    'description' => null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
             }
         }
 
-        Log::debug('Сформирован массив для вставки', ['inserts' => $inserts]);
+        DB::transaction(function () use ($authorId, $user, $dateFrom, $dateTo, $weekdays, $inserts) {
 
-        if (!empty($inserts)) {
-            \DB::table('schedule_users')->insert($inserts);
-            Log::info('Новые записи успешно добавлены', ['count' => count($inserts)]);
-        } else {
-            Log::warning('Массив $inserts пуст, записи не вставлены');
-        }
+            // Массив соответствий для дней недели
+            $daysMap = [
+                1 => 'пн',
+                2 => 'вт',
+                3 => 'ср',
+                4 => 'чт',
+                5 => 'пт',
+                6 => 'суб',
+                7 => 'вск',
+            ];
+
+            if (!empty($inserts)) {
+                DB::table('schedule_users')->insert($inserts);
+            }
+
+            // Готовим строку с названиями дней недели
+            $weekdaysStrings = array_map(function ($dw) use ($daysMap) {
+                return $daysMap[$dw] ?? $dw;
+            }, $weekdays);
+
+            // Логирование: Имя, диапазон дат и дни недели
+            MyLog::create([
+                'type' => 9,
+                'action' => 95,
+                'author_id' => $authorId,
+                'description' =>
+                    'Имя "' . $user->name . "\"\n" .
+                    'Дата "' . $dateFrom->format('d.m.Y') . '" - "' . $dateTo->format('d.m.Y') . "\"\n" .
+                    'Дни недели: "' . implode(', ', $weekdaysStrings) . '"',
+                'created_at' => now(),
+            ]);
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Расписание пользователя обновлено в заданном диапазоне.',
         ]);
     }
+
+    //Настройка логов
+    public function getLogsData()
+    {
+        $logs = MyLog::with('author')
+            ->where('type', 9)// Добавляем условие для фильтрации по type
+            ->select('my_logs.*');
+
+
+        return DataTables::of($logs)
+            ->addColumn('author', function ($log) {
+                return $log->author ? $log->author->name : 'Неизвестно';
+            })
+            ->editColumn('created_at', function ($log) {
+                return $log->created_at->format('d.m.Y / H:i:s');
+            })
+            ->editColumn('action', function ($log) {
+                // Логика для преобразования типа
+                $typeLabels = [
+                    90 => 'Создание статуса расписания',
+                    91 => 'Изменение статуса расписания',
+                    92 => 'Удаление статуса расписания',
+
+                    93 => 'Изменение расписания (дня)',
+                    94 => 'Установка группы через расписание',
+                    95 => 'Установка индивидуального расписания',
+
+                ];
+                return $typeLabels[$log->action] ?? 'Неизвестный тип';
+            })
+            ->make(true);
+    }
+
 }
 
 
