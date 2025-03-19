@@ -45,8 +45,8 @@
         @endif
 
         {{--Журнал расписания--}}
-{{--        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))--}}
-        @if($user && ($user->role == 'superadmin'))
+        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
+{{--        @if($user && ($user->role == 'superadmin'))--}}
             <li class="nav-item">
                 <a href="/schedule" class="nav-link">
 {{--                    <i class="nav-icon fa-solid fa-receipt"></i>--}}
