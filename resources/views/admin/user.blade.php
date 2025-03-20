@@ -31,8 +31,7 @@
 
                     <button id="field-modal" type="button" class="btn btn-primary"
                             data-bs-toggle="modal"
-                            data-bs-target="#fieldModal">Настройки полей
-                    </button>
+                            data-bs-target="#fieldModal">Настройки</button>
 
 
                     <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#historyModal">
