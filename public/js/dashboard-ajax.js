@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#single-select-user').change(function () {
         let userName = $(this).val();
         let teamName = $('#single-select-team').val();
-        let inputDate = document.getElementById("inlineCalendar").value;
+        // let inputDate = document.getElementById("inlineCalendar").value;
 
         $.ajax({
             url: '/get-user-details',
@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
             data: {
                 userName: userName,
                 teamName: teamName,
-                inputDate: inputDate,
+                // inputDate: inputDate,
             },
 
             success: function (response) {
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     let userTeam = response.userTeam;
                     let userPrice = response.userPrice;
                     let scheduleUser = response.scheduleUser;
-                    let inputDate = response.inputDate;
+                    // let inputDate = response.inputDate;
                     let team = response.team;
                     let formattedBirthday = response.formattedBirthday;
 
@@ -280,23 +280,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     //Добавление начала занятий у юзера
-                    function apendUserStartDate() {
-                        const input = document.getElementById("inlineCalendar");
-                        input.value = null;
-                        if (user.start_date) {
-                            // $('#inlineCalendar').html(user.start_date);
-                            const startDate = user.start_date // Дата из базы данных
-
-                            // Преобразование формата даты из yyyy-mm-dd в dd.mm.yyyy
-                            const [year, month, day] = startDate.split('-');
-                            const formattedDate = `${day}.${month}.${year}`;
-
-                            // Установка даты в поле ввода
-                            input.value = formattedDate;
-                        } else $('.personal-data-value .birthday').html("-");
-
-
-                    }
+                    // function apendUserStartDate() {
+                    //     const input = document.getElementById("inlineCalendar");
+                    //     input.value = null;
+                    //     if (user.start_date) {
+                    //         // $('#inlineCalendar').html(user.start_date);
+                    //         const startDate = user.start_date // Дата из базы данных
+                    //
+                    //         // Преобразование формата даты из yyyy-mm-dd в dd.mm.yyyy
+                    //         const [year, month, day] = startDate.split('-');
+                    //         const formattedDate = `${day}.${month}.${year}`;
+                    //
+                    //         // Установка даты в поле ввода
+                    //         input.value = formattedDate;
+                    //     } else $('.personal-data-value .birthday').html("-");
+                    //
+                    //
+                    // }
 
                     // Скрипт открытия верхнего сезона
                     function openFirstSeason() {
@@ -357,8 +357,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     apendEmailToUser();
                     apendImageToUser();
                     apendTrainingCountToUser();
-                    apendUserStartDate();
-                    enableSetupBtn(user, team, inputDate);
+                    // apendUserStartDate();
+                    // enableSetupBtn(user, team, inputDate);
                     updateGlobalScheduleData(scheduleUser);
                     setBackgroundToCalendar(globalScheduleData);
                     createCalendar();
@@ -383,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#single-select-team').change(function () {
         let teamName = $(this).val();
         let userName = $('#single-select-user').val();
-        let inputDate = document.getElementById("inlineCalendar").value;
+        // let inputDate = document.getElementById("inlineCalendar").value;
 
 
         function initializeSelect2() {
@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', function () {
             data: {
                 teamName: teamName,
                 userName: userName,
-                inputDate: inputDate,
+                // inputDate: inputDate,
             },
 
 
@@ -430,33 +430,33 @@ document.addEventListener('DOMContentLoaded', function () {
                     let teamWeekDayId = response.teamWeekDayId;
                     let usersTeam = response.usersTeam;
                     let userWithoutTeam = response.userWithoutTeam;
-                    let inputDate = response.inputDate;
+                    // let inputDate = response.inputDate;
                     let user = response.user;
-                    let weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
+                    // let weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
                     let usersTeamWithUnteamUsers = userWithoutTeam.concat(usersTeam);
 
 
                     // Установка дней недели
-                    function apendWeekdays(weekdays) {
-                        for (let i = 0; i < weekdays.length; i++) {
-                            let weekday = weekdays[i];
-                            let input = weekday.querySelector('input'); // Находим input внутри текущего div
-
-                            if (input) { // Проверяем, существует ли input
-                                // input.checked = false; // Устанавливаем атрибут checked
-                                weekdays[i].classList.remove('weekday-enabled');
-                            }
-
-                            if (teamWeekDayId != null) {
-                                if (teamWeekDayId.includes(i + 1)) {
-                                    if (input) { // Проверяем, существует ли input
-                                        // input.checked = true; // Устанавливаем атрибут checked
-                                        weekdays[i].classList.add('weekday-enabled');
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // function apendWeekdays(weekdays) {
+                    //     for (let i = 0; i < weekdays.length; i++) {
+                    //         let weekday = weekdays[i];
+                    //         let input = weekday.querySelector('input'); // Находим input внутри текущего div
+                    //
+                    //         if (input) { // Проверяем, существует ли input
+                    //             // input.checked = false; // Устанавливаем атрибут checked
+                    //             weekdays[i].classList.remove('weekday-enabled');
+                    //         }
+                    //
+                    //         if (teamWeekDayId != null) {
+                    //             if (teamWeekDayId.includes(i + 1)) {
+                    //                 if (input) { // Проверяем, существует ли input
+                    //                     // input.checked = true; // Устанавливаем атрибут checked
+                    //                     weekdays[i].classList.add('weekday-enabled');
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
+                    // }
 
                     // Новое изменение состава
                     function newUpdateSelectUsers() {
@@ -501,8 +501,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
 
-                    enableSetupBtn(user, team, inputDate);
-                    apendWeekdays(weekdays);
+                    // enableSetupBtn(user, team, inputDate);
+                    // apendWeekdays(weekdays);
                     newUpdateSelectUsers();
 
                 }
@@ -513,91 +513,91 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     //AJAX клик по УСТАНОВИТЬ
-    $('#setup-btn').click(function () {
-        let userName = $('#single-select-user').val();
-        let teamName = $('#single-select-team').val();
-        let inputDate = document.getElementById("inlineCalendar").value;
-
-        // Выключение кнопки Установить
-        function disabledBtn() {
-            $('#setup-btn').attr('disabled', 'disabled');
-        }
-
-        // Функция для получения ID активных дней недели
-        function getActiveWeekdays() {
-            // Создаем объект для сопоставления значения чекбокса с ID дня недели
-            const dayIdMap = {
-                'Monday': 1,
-                'Tuesday': 2,
-                'Wednesday': 3,
-                'Thursday': 4,
-                'Friday': 5,
-                'Saturday': 6,
-                'Sunday': 7
-            };
-
-            // Найти все чекбоксы внутри div с классом "weekday-checkbox"
-            const checkboxes = document.querySelectorAll('.weekday-checkbox input[type="checkbox"]');
-
-            // Собрать ID активных чекбоксов в массив
-            const checkedDaysIds = Array.from(checkboxes)
-                .filter(checkbox => checkbox.checked)
-                .map(checkbox => dayIdMap[checkbox.value]);
-
-            return checkedDaysIds;
-        }
-
-        let activeWeekdays = getActiveWeekdays();
-        disabledBtn();
-
-
-        $.ajax({
-            url: '/setup-btn',
-            type: 'GET',
-            data: {
-                userName: userName,
-                teamName: teamName,
-                inputDate: inputDate,
-                activeWeekdays: activeWeekdays,
-            },
-
-            success: function (response) {
-                if (response.success) {
-                    let userName = response.userName;
-                    let inputDate = response.inputDate;
-                    let teamWeekDays = response.teamWeekDays;
-                    let teamWeekDaysGet = response.teamWeekDaysGet;
-                    let scheduleUser = response.scheduleUser; //upd
-                    let userTeam = response.userTeam;
-
-
-                    // Выключение кнопки Установить
-                    function enabledBtn() {
-                        $('#setup-btn').removeAttr('disabled');
-                    }
-
-                    // Добавление название группы юзеру
-                    function apendTeamNameToUser() {
-                        if (userTeam) {
-                            $('.group-value').html(userTeam.title);
-                        } else
-                            $('.group-value').html('-');
-                    }
-
-                    enabledBtn();
-                    updateGlobalScheduleData(scheduleUser);
-                    setBackgroundToCalendar(globalScheduleData);
-                    apendTeamNameToUser();
-
-                    // Обновление календаря
-                    // updateCalendar(response.scheduleData); // передаем данные для обновления
-
-                    showSuccessModal("Установка расписания", "Расписание успешно обновлено.");
-                }
-                // location.reload();
-
-            },
-        })
-    });
+    // $('#setup-btn').click(function () {
+    //     let userName = $('#single-select-user').val();
+    //     let teamName = $('#single-select-team').val();
+    //     // let inputDate = document.getElementById("inlineCalendar").value;
+    //
+    //     // Выключение кнопки Установить
+    //     function disabledBtn() {
+    //         $('#setup-btn').attr('disabled', 'disabled');
+    //     }
+    //
+    //     // Функция для получения ID активных дней недели
+    //     function getActiveWeekdays() {
+    //         // Создаем объект для сопоставления значения чекбокса с ID дня недели
+    //         const dayIdMap = {
+    //             'Monday': 1,
+    //             'Tuesday': 2,
+    //             'Wednesday': 3,
+    //             'Thursday': 4,
+    //             'Friday': 5,
+    //             'Saturday': 6,
+    //             'Sunday': 7
+    //         };
+    //
+    //         // Найти все чекбоксы внутри div с классом "weekday-checkbox"
+    //         const checkboxes = document.querySelectorAll('.weekday-checkbox input[type="checkbox"]');
+    //
+    //         // Собрать ID активных чекбоксов в массив
+    //         const checkedDaysIds = Array.from(checkboxes)
+    //             .filter(checkbox => checkbox.checked)
+    //             .map(checkbox => dayIdMap[checkbox.value]);
+    //
+    //         return checkedDaysIds;
+    //     }
+    //
+    //     let activeWeekdays = getActiveWeekdays();
+    //     disabledBtn();
+    //
+    //
+    //     $.ajax({
+    //         url: '/setup-btn',
+    //         type: 'GET',
+    //         data: {
+    //             userName: userName,
+    //             teamName: teamName,
+    //             inputDate: inputDate,
+    //             activeWeekdays: activeWeekdays,
+    //         },
+    //
+    //         success: function (response) {
+    //             if (response.success) {
+    //                 let userName = response.userName;
+    //                 let inputDate = response.inputDate;
+    //                 let teamWeekDays = response.teamWeekDays;
+    //                 let teamWeekDaysGet = response.teamWeekDaysGet;
+    //                 let scheduleUser = response.scheduleUser; //upd
+    //                 let userTeam = response.userTeam;
+    //
+    //
+    //                 // Выключение кнопки Установить
+    //                 function enabledBtn() {
+    //                     $('#setup-btn').removeAttr('disabled');
+    //                 }
+    //
+    //                 // Добавление название группы юзеру
+    //                 function apendTeamNameToUser() {
+    //                     if (userTeam) {
+    //                         $('.group-value').html(userTeam.title);
+    //                     } else
+    //                         $('.group-value').html('-');
+    //                 }
+    //
+    //                 enabledBtn();
+    //                 updateGlobalScheduleData(scheduleUser);
+    //                 setBackgroundToCalendar(globalScheduleData);
+    //                 apendTeamNameToUser();
+    //
+    //                 // Обновление календаря
+    //                 // updateCalendar(response.scheduleData); // передаем данные для обновления
+    //
+    //                 showSuccessModal("Установка расписания", "Расписание успешно обновлено.");
+    //             }
+    //             // location.reload();
+    //
+    //         },
+    //     })
+    // });
 
 });

@@ -56,49 +56,50 @@
                         </select>
                     </div>
 
-                    <div class="col-md-3 col-12 mb-3  date-input">
-                        <div class="input-group flex-nowrap">
-                            <input type="text" id="inlineCalendar" class="form-control" placeholder="01.02.2024"
-                                   aria-label="Имя пользователя" aria-describedby="addon-wrapping">
-                            <span class="input-group-text" id="addon-wrapping"><i class="fa-solid fa-calendar-days"></i></span>
-                        </div>
-                    </div>
+{{--                    <div class="col-md-3 col-12 mb-3  date-input">--}}
+{{--                        <div class="input-group flex-nowrap">--}}
+{{--                            <input type="text" id="inlineCalendar" class="form-control" placeholder="01.02.2024"--}}
+{{--                                   aria-label="Имя пользователя" aria-describedby="addon-wrapping">--}}
+{{--                            <span class="input-group-text" id="addon-wrapping"><i class="fa-solid fa-calendar-days"></i></span>--}}
+{{--                        </div>--}}
+{{--                    </div>--}}
 
-                    <div class="col-md-3 col-12 mb-3  btn-choose-user">
-                        <button type="button" disabled id="setup-btn" class="btn btn-primary">Установить</button>
-                    </div>
+{{--                    <div class="col-md-3 col-12 mb-3  btn-choose-user">--}}
+{{--                        <button type="button" disabled id="setup-btn" class="btn btn-primary">Установить</button>--}}
+{{--                    </div>--}}
                 </div>
 
                 {{--            Чекбоксы дней недели--}}
 
-                <div class="form-group text-start">
-                    <label for="weekdays"> Расписание</label>
-                    <div class="row weekday-checkbox">
-                        {{--<div class=" col-12 d-flex justify-content-between flex-wrap ">--}}
-                        <div class=" col-lg-12  d-flex justify-content-between flex-wrap ">
+{{--                <div class="form-group text-start">--}}
+{{--                    <label for="weekdays"> Расписание</label>--}}
+{{--                    <div class="row weekday-checkbox">--}}
+{{--                        --}}{{--<div class=" col-12 d-flex justify-content-between flex-wrap ">--}}
+{{--                        <div class=" col-lg-12  d-flex justify-content-between flex-wrap ">--}}
+{{--                            @foreach($weekdays as $weekday)--}}
+{{--                                <div class="form-check form-check-inline weekday-disabled">--}}
+{{--                                    <input--}}
+{{--                                            @if($curTeam)--}}
+{{--                                            @foreach($curTeam->weekdays as $teamWeekday)--}}
+{{--                                            {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}--}}
+{{--                                            @endforeach--}}
+{{--                                            @endif--}}
+{{--                                            --}}{{--                                            {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}--}}
+{{--                                            class="form-check-input " type="checkbox" id="{{$weekday->titleEn}}"--}}
+{{--                                            value="{{$weekday->titleEn}}">--}}
+{{--                                    <label class="form-check-label label-day"--}}
+{{--                                           for="{{$weekday->titleEn}}">{{$weekday->title}}</label>--}}
+{{--                                </div>--}}
+{{--                            @endforeach--}}
+{{--                        </div>--}}
+{{--                    </div>--}}
+{{--                </div>--}}
 
 
-                            @foreach($weekdays as $weekday)
-                                <div class="form-check form-check-inline weekday-disabled">
-                                    <input
-                                            @if($curTeam)
-                                            @foreach($curTeam->weekdays as $teamWeekday)
-                                            {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}
-                                            @endforeach
-                                            @endif
-                                            {{--                                            {{$weekday->id === $teamWeekday->id ? 'checked' : ''}}--}}
-                                            class="form-check-input " type="checkbox" id="{{$weekday->titleEn}}"
-                                            value="{{$weekday->titleEn}}">
-                                    <label class="form-check-label label-day"
-                                           for="{{$weekday->titleEn}}">{{$weekday->title}}</label>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
-                <div class="row weekday-checkbox">
-                    <div class="col-12" id="weekdayContainer"></div>
-                </div>
+{{--                <div class="row weekday-checkbox">--}}
+{{--                    <div class="col-12" id="weekdayContainer"></div>--}}
+{{--                </div>--}}
+
             @endcan
 
             {{--Аватарка и личные данные--}}

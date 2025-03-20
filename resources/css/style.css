@@ -150,9 +150,9 @@ footer .social-networks {
     margin: 20px 0;
 }
 
-.choose-user {
-    padding-bottom: 10px;
-}
+/*.choose-user {*/
+/*    padding-bottom: 10px;*/
+/*}*/
 
 .weekday-checkbox {
     padding-top: 10px;
@@ -175,8 +175,9 @@ footer .social-networks {
 }
 
 .personal-data {
-    padding-top: 10px;
-    padding-bottom: 10px;
+    /*padding-top: 10px;*/
+    /*padding-bottom: 10px;*/
+    margin-bottom: 1rem;
 }
 
 .change-team {

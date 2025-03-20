@@ -10,11 +10,11 @@ function updateGlobalScheduleData(scheduleUser) {
 }
 
 //разблокировка кнопки УСТАНОВИТЬ
-function enableSetupBtn(user, team, inputDate) {
-    if (user && team && inputDate) {
-        $('#setup-btn').removeAttr('disabled');
-    }
-}
+// function enableSetupBtn(user, team, inputDate) {
+//     if (user && team && inputDate) {
+//         $('#setup-btn').removeAttr('disabled');
+//     }
+// }
 
 // Создание сезонов
 function createSeasons() {
