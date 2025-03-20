@@ -29,7 +29,7 @@
                     </button>
 
 
-                    <button id="field-modal" type="button" class="btn btn-primary logs width-170"
+                    <button id="field-modal" type="button" class="btn btn-primary"
                             data-bs-toggle="modal"
                             data-bs-target="#fieldModal">Настройки полей
                     </button>

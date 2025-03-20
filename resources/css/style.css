@@ -297,8 +297,9 @@ footer .social-networks {
 /*}*/
 
 .display-none {
-    display: none!important;
+    display: none !important;
 }
+
 .visibility-hidden {
     visibility: hidden;
 }
@@ -351,7 +352,8 @@ footer .social-networks {
 }
 
 #wrap-bars .team-price input, #wrap-bars .user-price input {
-    width: 100px;
+    /*width: 100px;*/
+    width: 90%;
     border: 1px solid #ced4da;
     border-radius: 5px;
     font-size: 12px;
@@ -684,10 +686,10 @@ select option[data-has-team="no"] {
 .logout {
     margin-left: 20px;
 }
+
 @keyframes borderAnimation {
     0% {
-        border-color: #79c979;
-    ;
+        border-color: #79c979;;
     }
     50% {
         border-color: #00a400;
@@ -700,14 +702,16 @@ select option[data-has-team="no"] {
 .animated-input {
     animation: borderAnimation 2s ease-in-out;
 }
-.buttons .back  {
+
+.buttons .back {
     width: auto !important;
 }
+
 .buttons .delete {
     width: auto !important;
 }
 
-.buttons .update-pass  {
+.buttons .update-pass {
     width: auto !important;
 }
 
@@ -718,9 +722,10 @@ select option[data-has-team="no"] {
 /*    min-width: 140px;*/
 /*}*/
 
-.update-pass .btn  {
+.update-pass .btn {
     min-width: 140px;
 }
+
 /*.update-btn {*/
 /*    min-width: 135px;*/
 /*}*/
@@ -732,6 +737,7 @@ select option[data-has-team="no"] {
     width: 200px;
     display: inline-block;
 }
+
 .password-description {
     display: none;
 }
@@ -756,12 +762,15 @@ select option[data-has-team="no"] {
     color: #8e1c13;
     opacity: 1;
 }
+
 .credit-notice {
     display: none;
 }
+
 .change-pass-wrap {
     display: none;
 }
+
 .fade-out {
     transition: opacity 1s ease;
     opacity: 0;
@@ -770,7 +779,7 @@ select option[data-has-team="no"] {
 #search-input,
 #search-select,
 #search-button {
-    height: 35px!important;
+    height: 35px !important;
 }
 
 /* Модальное окно на 90% ширины экрана */
@@ -804,35 +813,43 @@ select option[data-has-team="no"] {
 .position-relative {
     position: relative;
 }
+
 .buttons-wrap button {
     min-width: 100px;
 }
+
 .wrap-umoney {
     max-width: 220px;
 }
+
 .wrap-pay .logo {
     width: 60%;
 }
+
 /*.settings-table button {*/
 /*    width: 200px ;*/
 /*} */
 .width-160 {
     width: 160px;
 }
+
 .sum-dept-wrap {
     max-width: 350px;
 }
+
 .width-170 {
-    width: 170px!important;
+    width: 170px !important;
 }
 
 .action-button {
     color: white;
     background-color: #f3a12b;
 }
+
 .change-password-btn {
     width: 170px;
 }
+
 .save-change-modal {
     width: 170px;
 }
@@ -900,9 +917,11 @@ select option[data-has-team="no"] {
     border-radius: 5px; /* Закругление углов, если нужно */
     cursor: pointer; /* Изменение курсора при наведении */
 }
+
 .btn-secondary {
     border: none;
 }
+
 a.disabled {
     pointer-events: none;
     color: #ccc;
@@ -924,15 +943,19 @@ a.disabled {
 .wrapper {
     max-width: 1280px;
 }
+
 .layout-fixed .main-sidebar {
     left: auto;
 }
+
 .sidebar-mini {
     text-align: -webkit-center;
 }
+
 .text-light {
     text-align: left;
 }
+
 .nav-sidebar {
     text-align: left;
 }
@@ -943,9 +966,11 @@ a.disabled {
 
     text-align: center;
 }
+
 .btn-choose-user .btn {
     width: 100%;
 }
+
 .weekday-checkbox .form-check .form-check-input {
     float: none;
 }
@@ -954,21 +979,27 @@ a.disabled {
     .label-day[for="Monday"]::after {
         content: "пн.";
     }
+
     .label-day[for="Tuesday"]::after {
         content: "вт.";
     }
+
     .label-day[for="Wednesday"]::after {
         content: "ср.";
     }
+
     .label-day[for="Thursday"]::after {
         content: "чт.";
     }
+
     .label-day[for="Friday"]::after {
         content: "пт.";
     }
+
     .label-day[for="Saturday"]::after {
         content: "суб.";
     }
+
     .label-day[for="Sunday"]::after {
         content: "вск.";
     }
@@ -990,10 +1021,12 @@ a.disabled {
 .header-wrap {
     text-align: left;
 }
+
 .avatar-wrap {
     text-align: left;
 }
-#left_bar .team-buttons .btn-primary  {
+
+#left_bar .team-buttons .btn-primary {
     font-size: 11px;
 }
 
@@ -1004,6 +1037,7 @@ a.disabled {
 .wrap-users {
     margin-left: 10px;
 }
+
 .modal-backdrop {
     z-index: 1040;
 }
@@ -1018,7 +1052,7 @@ a.disabled {
 }
 
 .sidebar-separator {
-    color:white;
+    color: white;
 }
 
 .info .latestEndDate {
@@ -1039,20 +1073,25 @@ a.disabled {
 #editPhotoModal {
     z-index: 1060;
 }
+
 .selectDate {
     max-width: 500px;
     width: 100%;
     padding: 0;
 }
+
 .set-price-all-teams {
     max-width: 500px;
 }
+
 .set-price-all-users {
     max-width: 500px;
 }
-.select2-selection__rendered{
+
+.select2-selection__rendered {
     text-align: left;
 }
+
 .wrap-icon {
     border: #f3a12b solid 1px;
     padding: 6px;
@@ -1062,6 +1101,7 @@ a.disabled {
     font-size: 13px;
     width: 35px;
 }
+
 .wrap-icon:hover {
     background-color: #f3a12b;
     color: white;
@@ -1071,16 +1111,20 @@ a.disabled {
 .fieldModalLabel {
     z-index: 2000;
 }
+
 .errorFieldModal {
     z-index: 2010;
 
 }
+
 .successFieldModal {
     z-index: 2010;
 }
+
 #successModal {
     z-index: 4010;
 }
+
 #errorModal {
     z-index: 4010;
 }
@@ -1088,6 +1132,7 @@ a.disabled {
 .confirmDeleteModal {
     z-index: 2000;
 }
+
 #confirmDeleteModal {
     z-index: 1900;
 }
@@ -1157,15 +1202,16 @@ a.disabled {
 }
 
 .select2-results__options li {
-    font-size: 14px!important;
+    font-size: 14px !important;
 }
 
 @media (max-width: 991px) {
     #left_bar .wrap-team {
         text-align: left;
-        margin-left: 10px;
+        /*margin-left: 10px;*/
     }
 }
+
 #left_bar .wrap-team {
     text-align: left;
 }
@@ -1173,8 +1219,40 @@ a.disabled {
 #scheduleTable .schedule-cell i {
     font-size: 10px;
 }
-#scheduleTable .schedule-cell  {
+
+#scheduleTable .schedule-cell {
     padding: 0;
     margin: 0;
 }
 
+#right_bar .wrap-users .user-name {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+#right_bar .wrap-users .row {
+    padding-left: 0;
+}
+
+
+
+
+
+
+
+
+
+ .dataTables_wrapper {
+     overflow-x: auto;
+     min-width: 100%;
+ }
+
+#payments-table {
+    width: max-content !important;
+    white-space: nowrap;
+}
+
+#payments-table th,
+#payments-table td {
+    vertical-align: top;
+}
