@@ -1256,3 +1256,8 @@ a.disabled {
 #payments-table td {
     vertical-align: top;
 }
+
+
+#partnerUpdateForm .user-data-wrap {
+    padding-left: 0 ;
+}
