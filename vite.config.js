@@ -10,6 +10,7 @@ export default defineConfig({
                 'resources/css/style.css',
                 'resources/css/schedule.css',
                 'resources/js/schedule.js',
+                'resources/js/dashboard-ajax.js',
             ],
             refresh: true,
         }),

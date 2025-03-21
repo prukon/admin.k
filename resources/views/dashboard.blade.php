@@ -8,7 +8,8 @@
             paymentUrl: '{{ route('payment') }}'
         };
     </script>
-    <script src="{{ asset('js/dashboard-ajax.js') }}"></script>
+{{--    <script src="{{ asset('js/dashboard-ajax.js') }}"></script>--}}
+    @vite(['resources/js/dashboard-ajax.js',])
 
 
     <script>

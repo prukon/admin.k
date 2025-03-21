@@ -119,45 +119,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     //AJAX Кнопка ОК. Установка цен группе и юзерам.
-    // const okButtons = document.querySelectorAll('.ok');
-    // for (let i = 0; i < okButtons.length; i++) {
-    //     let button = okButtons[i];
-    //     button.addEventListener('click', function () {
-    //         const parentDiv = this.closest('.wrap-team');
-    //         const teamPrice = parentDiv.querySelector('.team-price input').value;
-    //         const teamPriceInput = parentDiv.querySelector('.team-price input');
-    //         const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
-    //         teamPriceInput.classList.remove('animated-input');
-    //
-    //         if (parentDiv) {
-    //
-    //             $.ajax({
-    //                 url: '/set-team-price',
-    //                 method: 'POST',
-    //                 contentType: 'application/json', // Указываем тип контента JSON
-    //
-    //                 data: JSON.stringify({
-    //                     teamId: parentDiv.id,
-    //                     teamPrice: teamPrice,
-    //                     selectedDate: selectedDate,
-    //                 }),
-    //
-    //                 success: function (response) {
-    //                     if (response.success) {
-    //
-    //                         teamPriceInput.classList.add('animated-input');
-    //
-    //                         var teamPrice = response.teamPrice;
-    //                         var selectedDate = response.selectedDate;
-    //                         var teamId = response.teamId;
-    //
-    //                     }
-    //                 }
-    //             });
-    //         }
-    //     });
-    // }
-
 
     // Вешаем обработчики на кнопки с классом .ok
     const okButtons = document.querySelectorAll('.ok');
@@ -271,6 +232,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Выбранная дата
         const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
 
+                console.log("до фунцкции");
+                console.log(usersPrice);
         // Функция для обновления цен пользователей
         let updateUsersPrice = function (usersPrice) {
             const userRows = document.querySelectorAll('.wrap-users .mb-2');
@@ -284,6 +247,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
             }
+            console.log("функция");
+            console.log(usersPrice);
             return usersPrice;
         };
 

@@ -1261,3 +1261,95 @@ a.disabled {
 #partnerUpdateForm .user-data-wrap {
     padding-left: 0 ;
 }
+
+
+
+
+
+
+     /* Общий стиль для модального окна, если нужно */
+ .modal-body {
+     overflow-x: auto; /* На всякий случай для всего контента */
+ }
+
+/* Стили конкретно для таблицы полей */
+#fields-table {
+    width: max-content;
+    min-width: 100%;
+    white-space: nowrap;
+}
+
+#fields-table th,
+#fields-table td {
+    vertical-align: middle; /* Лучше выравнивание для чекбоксов */
+}
+
+/* Фикс для чекбоксов */
+.form-check {
+    white-space: nowrap;
+}
+
+
+
+
+ #fields-table {
+     width: max-content;
+     min-width: 100%;
+     table-layout: auto;
+ }
+
+#fields-table th,
+#fields-table td {
+    vertical-align: middle;
+    min-width: 90px;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Первый столбец (№) */
+#fields-table th:nth-child(1),
+#fields-table td:nth-child(1) {
+    min-width: 40px;
+    max-width: 60px;
+    text-align: center;
+}
+
+/* Столбец "Удалить" */
+#fields-table th:nth-child(5),
+#fields-table td:nth-child(5) {
+    min-width: 80px;
+    max-width: 100px;
+}
+
+/* Столбец с чекбоксами */
+#fields-table th:nth-child(4),
+#fields-table td:nth-child(4) {
+    min-width: 130px;
+    max-width: 150px;
+    white-space: normal;
+}
+
+/* Поля ввода и селекты */
+#fields-table .form-control,
+#fields-table .form-select {
+    width: 100%;
+    min-width: 130px;
+    max-width: 150px;
+}
+
+/* Чекбоксы */
+.form-check {
+    min-width: 100px;
+    margin: 4px 0;
+}
+
+#fieldModal .modal-content {
+    width: fit-content;
+}
+@media (max-width: 768px) {
+    #fieldModal .modal-content {
+        width: auto;
+    }
+}
