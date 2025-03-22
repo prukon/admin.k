@@ -287,7 +287,11 @@ class SettingPricesController extends Controller
 
 
             // Обновляем цены для пользователей
-            $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
+//            $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
+
+            $users = User::where('team_id', $teamId)
+                ->where('is_enabled', 1)
+                ->get();
 
 
             foreach ($users as $user) {
@@ -381,7 +385,13 @@ class SettingPricesController extends Controller
                 }
 
                 // Обновляем цены для пользователей
-                $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
+//                $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
+
+                $users = User::where('team_id', $teamId)
+                    ->where('is_enabled', 1)
+                    ->get();
+
+
 
 
                 foreach ($users as $user) {
