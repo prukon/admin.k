@@ -158,12 +158,10 @@ class SettingPricesController extends Controller
     // AJAX ПОДРОБНО. Получение списка пользователей
     public function getTeamPrice(Request $request)
     {
-
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
         $selectedDate = $data['selectedDate'] ?? null;
         $teamId = $data['teamId'] ?? null;
-
 
         $usersTeam = User::where('team_id', $teamId)
             ->where('is_enabled', true)
@@ -173,7 +171,11 @@ class SettingPricesController extends Controller
         $usersPrice = [];
         $selectedDate = $this->formatedDate($selectedDate);
 
+
+        \Log::info('$usersTeam:', $usersTeam->toArray());
+
         foreach ($usersTeam as $user) {
+            \Log::info('$user:', $user->toArray());
             $userPrice = UserPrice::firstOrCreate(
                 [
                     'new_month' => $selectedDate,
@@ -184,9 +186,15 @@ class SettingPricesController extends Controller
                 ]
             );
             $userPrice->name = $user->name;
-
+            $userPrice->refresh();
+            $userPrice->load('user'); // Загружаем отношение для каждой модели
             $usersPrice[] = $userPrice;
         }
+
+        // Преобразуем каждую модель UserPrice в массив
+        \Log::info('$usersPrice:', array_map(function ($item) {
+            return $item->toArray();
+        }, $usersPrice));
 
         if ($usersTeam) {
             return response()->json([
@@ -441,12 +449,16 @@ class SettingPricesController extends Controller
                             'price' => $priceData['price']
                         ]);
 
+                        // Получаем имя через отношение
+                        $userName = $priceData->user->name ?? 'Неизвестный пользователь'; // Защита от null
+
+
                         // Логируем успешное обновление цены для команды
                         MyLog::create([
                             'type' => 1,
                             'action' => 12, // Лог для обновления цены команды
                             'author_id' => $authorId,
-                            'description' => "Обновлена цена: {$priceData['price']} руб. Имя: {$priceData['name']}. ID: {$priceData['user_id']}. Дата: {$selectedDateString}.",
+                            'description' => "Обновлена цена: {$priceData['price']} руб. Имя: {$userName}. ID: {$priceData['user_id']}. Дата: {$selectedDateString}.",
                             'created_at' => now(),
                         ]);
                     }

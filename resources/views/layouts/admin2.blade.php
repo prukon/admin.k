@@ -227,66 +227,67 @@
             {{--            </li>--}}
 
         <!-- Messages Dropdown Menu -->
-            {{--            <li class="nav-item dropdown">--}}
-            {{--                <a class="nav-link" data-toggle="dropdown" href="#">--}}
-            {{--                    <i class="far fa-comments"></i>--}}
-            {{--                    <span class="badge badge-danger navbar-badge">3</span>--}}
-            {{--                </a>--}}
-            {{--                <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
-            {{--                    <a href="#" class="dropdown-item">--}}
-            {{--                        <!-- Message Start -->--}}
-            {{--                        <div class="media">--}}
-            {{--                            <img src="{{ asset('dist/img/user1-128x128.jpg') }}" alt="User Avatar"--}}
-            {{--                                 class="img-size-50 mr-3 img-circle">--}}
-            {{--                            <div class="media-body">--}}
-            {{--                                <h3 class="dropdown-item-title">--}}
-            {{--                                    Brad Diesel--}}
-            {{--                                    <span class="float-right text-sm text-danger"><i class="fas fa-star"></i></span>--}}
-            {{--                                </h3>--}}
-            {{--                                <p class="text-sm">Call me whenever you can...</p>--}}
-            {{--                                <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
-            {{--                            </div>--}}
-            {{--                        </div>--}}
-            {{--                        <!-- Message End -->--}}
-            {{--                    </a>--}}
-            {{--                    <div class="dropdown-divider"></div>--}}
-            {{--                    <a href="#" class="dropdown-item">--}}
-            {{--                        <!-- Message Start -->--}}
-            {{--                        <div class="media">--}}
-            {{--                            <img src="{{ asset('dist/img/user8-128x128.jpg') }}" alt="User Avatar"--}}
-            {{--                                 class="img-size-50 img-circle mr-3">--}}
-            {{--                            <div class="media-body">--}}
-            {{--                                <h3 class="dropdown-item-title">--}}
-            {{--                                    John Pierce--}}
-            {{--                                    <span class="float-right text-sm text-muted"><i class="fas fa-star"></i></span>--}}
-            {{--                                </h3>--}}
-            {{--                                <p class="text-sm">I got your message bro</p>--}}
-            {{--                                <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
-            {{--                            </div>--}}
-            {{--                        </div>--}}
-            {{--                        <!-- Message End -->--}}
-            {{--                    </a>--}}
-            {{--                    <div class="dropdown-divider"></div>--}}
-            {{--                    <a href="#" class="dropdown-item">--}}
-            {{--                        <!-- Message Start -->--}}
-            {{--                        <div class="media">--}}
-            {{--                            <img src="{{ asset('dist/img/user3-128x128.jpg') }}" alt="User Avatar"--}}
-            {{--                                 class="img-size-50 img-circle mr-3">--}}
-            {{--                            <div class="media-body">--}}
-            {{--                                <h3 class="dropdown-item-title">--}}
-            {{--                                    Nora Silvester--}}
-            {{--                                    <span class="float-right text-sm text-warning"><i class="fas fa-star"></i></span>--}}
-            {{--                                </h3>--}}
-            {{--                                <p class="text-sm">The subject goes here</p>--}}
-            {{--                                <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
-            {{--                            </div>--}}
-            {{--                        </div>--}}
-            {{--                        <!-- Message End -->--}}
-            {{--                    </a>--}}
-            {{--                    <div class="dropdown-divider"></div>--}}
-            {{--                    <a href="#" class="dropdown-item dropdown-footer">See All Messages</a>--}}
-            {{--                </div>--}}
-            {{--            </li>--}}
+{{--                        <li class="nav-item dropdown">--}}
+{{--                            <a class="nav-link" data-toggle="dropdown" href="#">--}}
+{{--                                <i class="far fa-comments"></i>--}}
+{{--                                <span class="badge badge-danger navbar-badge">3</span>--}}
+{{--                            </a>--}}
+{{--                            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
+{{--                                <a href="#" class="dropdown-item">--}}
+{{--                                    <!-- Message Start -->--}}
+{{--                                    <div class="media">--}}
+{{--                                        <img src="{{ asset('dist/img/user1-128x128.jpg') }}" alt="User Avatar"--}}
+{{--                                             class="img-size-50 mr-3 img-circle">--}}
+{{--                                        <div class="media-body">--}}
+{{--                                            <h3 class="dropdown-item-title">--}}
+{{--                                                Brad Diesel--}}
+{{--                                                <span class="float-right text-sm text-danger"><i class="fas fa-star"></i></span>--}}
+{{--                                            </h3>--}}
+{{--                                            <p class="text-sm">Call me whenever you can...</p>--}}
+{{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
+{{--                                        </div>--}}
+{{--                                    </div>--}}
+{{--                                    <!-- Message End -->--}}
+{{--                                </a>--}}
+{{--                                <div class="dropdown-divider"></div>--}}
+{{--                                <a href="#" class="dropdown-item">--}}
+{{--                                    <!-- Message Start -->--}}
+{{--                                    <div class="media">--}}
+{{--                                        <img src="{{ asset('dist/img/user8-128x128.jpg') }}" alt="User Avatar"--}}
+{{--                                             class="img-size-50 img-circle mr-3">--}}
+{{--                                        <div class="media-body">--}}
+{{--                                            <h3 class="dropdown-item-title">--}}
+{{--                                                John Pierce--}}
+{{--                                                <span class="float-right text-sm text-muted"><i class="fas fa-star"></i></span>--}}
+{{--                                            </h3>--}}
+{{--                                            <p class="text-sm">I got your message bro</p>--}}
+{{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
+{{--                                        </div>--}}
+{{--                                    </div>--}}
+{{--                                    <!-- Message End -->--}}
+{{--                                </a>--}}
+{{--                                <div class="dropdown-divider"></div>--}}
+{{--                                <a href="#" class="dropdown-item">--}}
+{{--                                    <!-- Message Start -->--}}
+{{--                                    <div class="media">--}}
+{{--                                        <img src="{{ asset('dist/img/user3-128x128.jpg') }}" alt="User Avatar"--}}
+{{--                                             class="img-size-50 img-circle mr-3">--}}
+{{--                                        <div class="media-body">--}}
+{{--                                            <h3 class="dropdown-item-title">--}}
+{{--                                                Nora Silvester--}}
+{{--                                                <span class="float-right text-sm text-warning"><i class="fas fa-star"></i></span>--}}
+{{--                                            </h3>--}}
+{{--                                            <p class="text-sm">The subject goes here</p>--}}
+{{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
+{{--                                        </div>--}}
+{{--                                    </div>--}}
+{{--                                    <!-- Message End -->--}}
+{{--                                </a>--}}
+{{--                                <div class="dropdown-divider"></div>--}}
+{{--                                <a href="#" class="dropdown-item dropdown-footer">See All Messages</a>--}}
+{{--                            </div>--}}
+{{--                        </li>--}}
+
         <!-- Notifications Dropdown Menu -->
             {{--<li class="nav-item dropdown">--}}
             {{--<a class="nav-link" data-toggle="dropdown" href="#">--}}
@@ -333,8 +334,8 @@
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
         <!-- Brand Logo -->
         <a href="/" class="brand-link ml-3">
-            {{--            <img src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="Kidslink Logo"--}}
-            {{--                 class="brand-image img-circle elevation-3" style="opacity: .8">--}}
+{{--                        <img src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="Kidslink Logo"--}}
+{{--                             class="brand-image img-circle elevation-3" style="opacity: .8">--}}
             <span class="brand-text font-weight-light">Kidslink.ru</span>
         </a>
 
@@ -342,10 +343,10 @@
         <div class="sidebar">
             <!-- Sidebar user panel (optional) -->
             <div class="user-panel mt-3 pb-3 mb-3 d-flex">
-                {{--                <div class="image">--}}
-                {{--                    <img src="{{ asset('dist/img/user2-160x160.jpg') }}" class="img-circle elevation-2"--}}
-                {{--                         alt="User Image">--}}
-                {{--                </div>--}}
+{{--                                <div class="image">--}}
+{{--                                    <img src="{{ asset('dist/img/user2-160x160.jpg') }}" class="img-circle elevation-2"--}}
+{{--                                         alt="User Image">--}}
+{{--                                </div>--}}
                 <div class="info text-light">
                     <a href="#" class="d-block"></a>
                     <h6> Имя: {{auth()->user()->name}}</h6>
@@ -382,17 +383,17 @@
 
 
             <!-- SidebarSearch Form -->
-        {{--            <div class="form-inline">--}}
-        {{--                <div class="input-group" data-widget="sidebar-search">--}}
-        {{--                    <input class="form-control form-control-sidebar" type="search" placeholder="Search"--}}
-        {{--                           aria-label="Search">--}}
-        {{--                    <div class="input-group-append">--}}
-        {{--                        <button class="btn btn-sidebar">--}}
-        {{--                            <i class="fas fa-search fa-fw"></i>--}}
-        {{--                        </button>--}}
-        {{--                    </div>--}}
-        {{--                </div>--}}
-        {{--            </div>--}}
+{{--                    <div class="form-inline">--}}
+{{--                        <div class="input-group" data-widget="sidebar-search">--}}
+{{--                            <input class="form-control form-control-sidebar" type="search" placeholder="Search"--}}
+{{--                                   aria-label="Search">--}}
+{{--                            <div class="input-group-append">--}}
+{{--                                <button class="btn btn-sidebar">--}}
+{{--                                    <i class="fas fa-search fa-fw"></i>--}}
+{{--                                </button>--}}
+{{--                            </div>--}}
+{{--                        </div>--}}
+{{--                    </div>--}}
 
         <!-- Sidebar Menu -->
         @include('includes.sidebar')
@@ -461,10 +462,10 @@
 
 
 {{--JQuery--}}
-<script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
+{{--<script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>--}}
 
 {{--JQuery-UI--}}
-<script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>
+{{--<script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>--}}
 
 <script>
     $.widget.bridge('uibutton', $.ui.button)
@@ -484,7 +485,7 @@
 <script src="{{ asset('plugins/moment/moment.min.js') }}"></script>
 <script src="{{ asset('plugins/daterangepicker/daterangepicker.js') }}"></script>
 <!-- Tempusdominus Bootstrap 4 -->
-<script src="{{ asset('plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js') }}"></script>
+{{--<script src="{{ asset('plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js') }}"></script>--}}
 <!-- Summernote -->
 <script src="{{ asset('plugins/summernote/summernote-bs4.min.js') }}"></script>
 <!-- overlayScrollbars -->

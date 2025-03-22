@@ -1,6 +1,3 @@
-
-
-
 document.addEventListener('DOMContentLoaded', function () {
     // Установка CSRF-токена для всех AJAX-запросов
     $.ajaxSetup({
@@ -43,8 +40,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (response.success) {
                             //Обновление списка пользователей справа
                             let updateUserListRightBar = function () {
+
                                 usersPrice = response.usersPrice;
                                 var usersTeam = response.usersTeam;
+
+
 
                                 let rightBar = $('.wrap-users');
                                 rightBar.empty();
@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             </div>
                         </div>
                     `;
+                                    // console.log(userBlock);
                                     rightBar.append(userBlock);
                                 }
 
@@ -280,9 +281,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         let inputClass = usersPrice[i].is_paid == 0 ? 'animated-input' : '';
                         let inputDisabled = usersPrice[i].is_paid == 1 ? 'disabled' : '';
 
+                        // Добавляем порядковый номер
+                        const userNumber = i + 1; // Нумерация с 1
+                        const userName = usersPrice[i].user?.name ?? 'Неизвестный';
+
                         let userBlock = `
                         <div class="row mb-2">
-                            <div id="${usersPrice[i].user_id}" class="user-name col-6">  ${usersPrice[i].name}   </div>
+                            <div id="${usersPrice[i].user_id}" class="user-name col-6">${userNumber}. ${userName}</div>
                             <div class="user-price col-4">
                                 <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
                             </div>
