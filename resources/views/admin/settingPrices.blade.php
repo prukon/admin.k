@@ -4,7 +4,9 @@
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="{{ asset('js/my-croppie.js') }}"></script>
-    <script src="{{ asset('js/settings-prices.js') }}"></script>
+{{--    <script src="{{ asset('js/settings-prices.js') }}"></script>--}}
+    @vite(['resources/js/settings-prices.js',])
+
 
     <!-- Модальное окно логов -->
     @include('includes.logModal')
