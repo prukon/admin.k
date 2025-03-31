@@ -16,10 +16,10 @@ class ReportController extends Controller
 
 
 
-    public function __construct()
-    {
-        $this->middleware('role:admin,superadmin');
-    }
+//    public function __construct()
+//    {
+//        $this->middleware('role:admin,superadmin');
+//    }
 
    public function formatedDate($month)
     {

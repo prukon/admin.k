@@ -352,7 +352,7 @@
                     <h6> Имя: {{auth()->user()->name}}</h6>
                     {{--                    <h6> Id: {{auth()->user()->id}}</h6>--}}
                     <h6> Почта: {{auth()->user()->email}}</h6>
-                    <h6> Роль: {{auth()->user()->role}}</h6>
+                    <h6> Роль: {{auth()->user()->role->label}}</h6>
 
                     @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
 

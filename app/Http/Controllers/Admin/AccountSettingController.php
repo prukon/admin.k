@@ -10,6 +10,8 @@ use App\Http\Requests\Partner\UpdateRequest;
 use App\Models\Partner;
 use App\Models\Team;
 use App\Models\User;
+use App\Models\UserField;
+use App\Models\UserFieldValue;
 use App\Servises\UserService;
 use Carbon\Carbon;
 use function Illuminate\Http\Client\dump;
@@ -26,18 +28,14 @@ use App\Models\MyLog;
 //use Illuminate\Support\Facades\Log;
 
 
-
-
-
-// Модель Event для получения данных из базы
+//Контроллер для админа
 
 class AccountSettingController extends Controller
 {
     public function __construct(UserService $service)
     {
         $this->service = $service;
-        $this->middleware('role:admin,superadmin');
-
+//        $this->middleware('role:admin,superadmin');
     }
 
     public function user()
@@ -45,30 +43,30 @@ class AccountSettingController extends Controller
         $allTeams = Team::All();
         $user = Auth::user();
         $partners = $user->partners;
+        $currentUser = Auth::user();
 
 
+        $fields = UserField::all();
+        $userFieldValues = UserFieldValue::where('user_id', $user->id)->pluck('value', 'field_id');
 
-        return view('admin.editCurUser',  ['activeTab' => 'user'], compact(
+        //Определяем какие поля можно редактировать
+        $editableFields = $fields->mapWithKeys(function ($field) use ($user) {
+            $permissions = $field->permissions ?? []; // Убираем json_decode
+            $isEditable = empty($permissions) || in_array($user->role, $permissions);
+            return [$field->id => $isEditable];
+        });
+
+
+        return view('account.index',  ['activeTab' => 'user'], compact(
             'user',
             'partners',
-            'allTeams'
+            'allTeams',
+            'fields',
+            'userFieldValues',
+            'editableFields',
+            'currentUser' // Передаем информацию о редактируемых полях
         ));
-    }
 
-    public function partner()
-    {
-        $allTeams = Team::All();
-        $user = Auth::user();
-
-        $partners = $user->partners;
-
-
-
-        return view('admin.editCurUser',  ['activeTab' => 'partner'], compact(
-            'user',
-            'partners',
-            'allTeams'
-        ));
     }
 
     public function update(AdminUpdateRequest $request, User $user)
@@ -80,9 +78,14 @@ class AccountSettingController extends Controller
 
         $data = $request->validated();
 
-        DB::transaction(function () use ($user, $authorId, $data, $oldData) {
+        DB::transaction(function () use ($user, $authorId, $data, $oldData, $request) {
+
             $this->service->update($user, $data);
             $authorName = User::where('id', $authorId)->first()->name;
+
+            $newName = $data['name'] ?? $request->input('name') ?? $oldData->name ?? 'N/A';
+            $newEmail = $data['email'] ?? $request->input('email') ?? $oldData->email ?? 'N/A';
+
 
             // Логируем успешное обновление
             MyLog::create([
@@ -91,7 +94,7 @@ class AccountSettingController extends Controller
                 'author_id' => $authorId,
                 'description' => "Имя: $authorName. ID: $authorId. 
                 Старые:\n ( $oldData->name, " . Carbon::parse($oldData->birthday)->format('d.m.Y') . ", $oldData->email). 
-               Новые:\n ({$data['name']}, " . Carbon::parse($data['birthday'])->format('d.m.Y') . ", {$data['email']})",
+               Новые:\n ({$newName}, " . Carbon::parse($data['birthday'])->format('d.m.Y') . ", {$newEmail})",
                 'created_at' => now(),
             ]);
         });
@@ -108,105 +111,7 @@ class AccountSettingController extends Controller
 
     }
 
-    public function updatePartner(UpdateRequest $request, Partner $partner)
-    {
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $authorName = User::where('id', $authorId)->value('name');
-
-        // Сохраняем старые данные до обновления
-        $oldData = $partner->toArray();
-
-
-
-        // Данные, валидированные в Request
-        $data = $request->validated();
-
-        DB::transaction(function () use ($partner, $authorId, $authorName, $oldData, $data ) {
-
-            // Определим, есть ли вообще изменения
-            $changedFields = [];
-            foreach ($data as $key => $newValue) {
-                // Проверяем, было ли поле в старых данных и отличается ли оно
-                $oldValue = $oldData[$key] ?? null;
-                if ($oldValue != $newValue) {
-                    $changedFields[] = $key;
-                }
-            }
-
-        $oldTitle = $oldData['title'] ?? null;
-        $oldId = $oldData['id'] ?? null;
-
-            // Если изменений нет, просто выходим из транзакции без записи лога
-            if (empty($changedFields)) {
-                return;
-            }
-
-            // Обновление партнёра
-            $partner->update($data);
-
-            // Словарь переводов для поля business_type
-            $businessTypeTranslate = [
-                'company'                     => 'ООО',
-                'individual_entrepreneur'     => 'ИП',
-                'physical_person'             => 'Физ. лицо',
-                'non_commercial_organization' => 'НКО',
-            ];
-
-
-            // Формируем строку старых значений (только изменяемых полей,
-            // но по требованию можно выводить абсолютно все поля $data)
-            $oldString = '(' . implode(', ', array_map(function ($key) use ($oldData) {
-                    return $oldData[$key] ?? '';
-                }, array_keys($data))) . ')';
-
-            // Формируем строку новых значений
-//            $newString = '(' . implode(', ', array_map(function ($key) use ($data) {
-//                    return $data[$key] ?? '';
-//                }, array_keys($data))) . ')';
-
-
-            // Формируем строку новых значений
-            $newString = '(' . implode(', ', array_map(function ($key) use ($data, $businessTypeTranslate) {
-                    $value = $data[$key] ?? '';
-                    if ($key === 'business_type' && isset($businessTypeTranslate[$value])) {
-                        $value = $businessTypeTranslate[$value];
-                    }
-                    return $value;
-                }, array_keys($data))) . ')';
-
-            // Собираем строку для описания лога
-            // Пример вывода:
-            // Имя: Админ. ID: 1.
-            // Старые:
-            // (11.06.1989, admin@admin.ru).
-            // Новые:
-            // (11.06.1989, admin@admin.ru1).
-            $description = "Название: {$oldTitle}. ID: {$oldId}.\n"
-                . "Старые:\n{$oldString}.\n"
-                . "Новые:\n{$newString}.";
-
-            // Записываем лог
-            MyLog::create([
-                'type'       => 2,   // или ваш тип для обновления
-                'action'     => 80,  // или ваш action для обновления партнера
-                'author_id'  => $authorId,
-                'description'=> $description,
-                'created_at' => now(),
-            ]);
-        });
-        // Редирект с сообщением об успешном обновлении
-//        return redirect()->route('admin.cur.company.edit', $partner->id)
-//            ->with('success', 'Данные партнёра успешно обновлены.');
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Данные партнёра успешно обновлены.',
-        ]);
-
-    }
-
-
-    public function updatePassword(Request $request, $id)
+    public function updatePassword(Request $request)
     {
 
         $request->validate([
@@ -214,7 +119,8 @@ class AccountSettingController extends Controller
         ]);
 //        $currentUser = Auth::user();
         $authorId = auth()->id(); // Авторизованный пользователь
-        $user = User::findOrFail($id);
+//        $user = User::findOrFail($id);
+        $user = User::findOrFail($authorId);
 
         DB::transaction(function () use ($user, $authorId, $request) {
 

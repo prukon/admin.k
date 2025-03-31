@@ -10,6 +10,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
+//use App\Models\Role;
 
 
 class   User extends Authenticatable
@@ -87,6 +88,67 @@ class   User extends Authenticatable
     public function partner()
     {
         return $this->belongsTo(Partner::class, 'partner_id');
+    }
+
+
+    // Если у пользователя может быть несколько ролей (через pivot user_role):
+//    public function roles(): BelongsToMany
+//    {
+//        return $this->belongsToMany(Role::class, 'user_role');
+//    }
+
+    /**
+     * Проверяем, есть ли у пользователя право $permissionName
+     */
+//    public function hasPermission(string $permissionName): bool
+//    {
+//        // Перебираем все роли, если у роли есть нужное право, возвращаем true
+//        foreach ($this->roles as $role) {
+//            if ($role->permissions->contains('name', $permissionName)) {
+//                return true;
+//            }
+//        }
+//
+//        return false;
+//    }
+
+//    public function role()
+//    {
+//        return $this->belongsTo(Role::class, 'role_id');
+//    }
+
+
+
+//    public function role(): BelongsTo
+//    {
+//        // Если таблица roles имеет PK = id,
+//        // а в таблице users есть FK = role_id
+//        return $this->belongsTo(Role::class, 'role_id');
+//    }
+
+    public function role()
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
+
+
+//    public function hasPermission(string $permissionName): bool
+//    {
+//        return $this->role
+//            && $this->role->permissions->contains('name', $permissionName);
+//    }
+
+    public function hasPermission(string $permissionName): bool
+    {
+        // Если у пользователя нет связанной роли (null), то прав нет
+        if (!$this->role) {
+            return false;
+        }
+
+        // Убеждаемся, что модель Role подгрузила permissions (pivot: permission_role)
+        // и проверяем наличие нужного permission
+        return $this->role->permissions->contains('name', $permissionName);
     }
 
 }

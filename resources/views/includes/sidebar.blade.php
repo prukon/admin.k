@@ -15,38 +15,37 @@
         </li>
 
         {{--Отчеты--}}
-        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
-            <li class="nav-item">
+        @can('reports')
+        <li class="nav-item">
                 <a href="/admin/reports/payments" class="nav-link">
                     <i class="nav-icon fa-solid fa-folder"></i>
                     <p>Отчеты</p>
                 </a>
             </li>
-        @endif
+        @endcan
 
         {{--Платежи юзера--}}
-        @if($user && ($user->role == 'user'))
+        @can('my-payments')
             <li class="nav-item">
                 <a href="/reports/payments" class="nav-link">
                     <i class="nav-icon fa-solid fa-receipt"></i>
                     <p>Платежи</p>
                 </a>
             </li>
-        @endif
+        @endcan
 
         {{--Установка цен--}}
-        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
-            <li class="nav-item">
+        @can('set-prices')
+        <li class="nav-item">
                 <a href="/admin/setting-prices?current-month" class="nav-link">
                     <i class="nav-icon fa-solid fa-receipt"></i>
                     <p>Установка цен</p>
                 </a>
             </li>
-        @endif
+        @endcan
 
         {{--Журнал расписания--}}
-        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
-{{--        @if($user && ($user->role == 'superadmin'))--}}
+        @can('schedule-journal')
             <li class="nav-item">
                 <a href="/schedule" class="nav-link">
 {{--                    <i class="nav-icon fa-solid fa-receipt"></i>--}}
@@ -54,75 +53,61 @@
                     <p>Журнал расписания</p>
                 </a>
             </li>
-        @endif
+        @endcan
 
         {{--Пользователи--}}
-        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
+        @can('manage-users')
             <li class="nav-item">
                 <a href="/admin/users" class="nav-link">
                     <i class="nav-icon fa-solid fa-users"></i>
                     <p>Пользователи<span class="badge badge-info right">{{ $allUsersCount}}</span></p>
                 </a>
             </li>
-        @endif
+        @endcan
 
         {{--Группы--}}
-        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
+        @can('manage-groups')
             <li class="nav-item">
                 <a href="/admin/teams" class="nav-link">
                     <i class="nav-icon fa-solid fa-layer-group"></i>
                     <p>Группы<span class="badge badge-info right">{{ $allTeamsCount}}</span></p>
                 </a>
             </li>
-        @endif
+        @endcan
 
         {{--Настройки--}}
-        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
-            <li class="nav-item">
+        @can('general-settings')
+        <li class="nav-item">
                 <a href="/admin/settings" class="nav-link">
                     <i class="nav-icon fas fa-gear"></i>
                     <p>Настройки<span class="badge badge-info right"></span></p>
                 </a>
             </li>
-        @endif
+        @endcan
 
         {{--Учетная запись--}}
-        @if($user && ($user->role == 'user'))
-
         <li class="nav-item">
             <a href="/account-settings/users/{{ Auth::user()->id }}/edit" class="nav-link">
                 <i class="nav-icon fa-solid fa-user"></i>
                 <p>Учетная запись</p>
             </a>
         </li>
-        @endif
-
-        {{--Учетная запись Админа--}}
-        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
-        <li class="nav-item">
-            <a href="/admin/account-settings/users/{{ Auth::user()->id }}/edit" class="nav-link">
-                <i class="nav-icon fa-solid fa-user"></i>
-                <p>Учетная запись</p>
-            </a>
-        </li>
             </li>
-        @endif
         <hr class="sidebar-separator">
 
 
         {{--Оплата сервиса--}}
-        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
-            <li class="nav-item">
+        @can('service-payment')
+        <li class="nav-item">
                 <a href="/partner-payment/recharge" class="nav-link">
                     <i class="nav-icon fa-solid fa-credit-card"></i>
 
                     <p>Оплата сервиса<span class="badge badge-info right"></span></p>
                 </a>
             </li>
-        @endif
+        @endcan
 
         {{--О сервисе--}}
-        @if($user && ($user->role == 'admin' || $user->role == 'superadmin'))
             <li class="nav-item">
                 <a href="/about" class="nav-link">
                     <i class="nav-icon fas fa-solid fa-briefcase"></i>
@@ -130,7 +115,5 @@
                     <p>О сервисе<span class="badge badge-info right"></span></p>
                 </a>
             </li>
-        @endif
-
     </ul>
 </nav>

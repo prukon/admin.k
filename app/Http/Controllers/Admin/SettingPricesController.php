@@ -30,10 +30,10 @@ class SettingPricesController extends Controller
      *
      * @return void
      */
-    public function __construct()
-    {
-        $this->middleware('role:admin,superadmin');
-    }
+//    public function __construct()
+//    {
+//        $this->middleware('role:admin,superadmin');
+//    }
 
     /**
      * Show the application dashboard.

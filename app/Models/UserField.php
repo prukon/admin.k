@@ -16,10 +16,14 @@ class UserField extends Model
         'slug',
         'field_type',
         'permissions', // Добавьте это
+        'permissions_id' // новый вариант (JSON)
+
     ];
 
     protected $casts = [
         'permissions' => 'array', // Преобразование JSON в массив
+        'permissions_id' => 'array', // Так Laravel будет автоматически
+
     ];
 
     public function userFieldValues()
@@ -30,5 +34,14 @@ class UserField extends Model
     public function values()
     {
         return $this->hasMany(UserFieldValue::class, 'field_id');
+    }
+
+    public function getRolesAttribute()
+    {
+        if (! $this->permissions_id) {
+            return collect();
+        }
+
+        return Role::whereIn('id', $this->permissions_id)->get();
     }
 }

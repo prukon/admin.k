@@ -99,7 +99,8 @@
                         </select>
                     </div>
 
-                    @if($user && ($user->role == 'superadmin'))
+                    @if($user && ($user->role->name == 'superadmin'))
+
                         <div class="mb-3 ">
                             <label for="role" class="form-label">Права</label>
                             <select name="role" class="form-control" id="role">
@@ -414,7 +415,7 @@
                         }
                     },
                     error: function () {
-                        console.error('Ошибка при изменении пароля');
+                        $('#errorModal').modal('show');
                     }
                 });
             });
@@ -511,7 +512,7 @@
             $('.edit-user-link').on('click', function () {
                 let userId = $(this).data('id'); // Получаем ID пользователя
                 let url = `/admin/users/${userId}/edit`; // Маршрут для получения данных пользователя (GET)
-                // console.log('Открываем модалку для редактирования пользователя с ID:', userId);
+                 console.log('Открываем модалку для редактирования пользователя с ID:', userId);
 
 
                 // AJAX-запрос для получения данных пользователя
@@ -527,6 +528,11 @@
                         $('#edit-email').val(response.user.email);
                         $('#edit-activity').val(response.user.is_enabled);
                         $('#role').val(response.user.role);
+
+                       let fields = response.fields;
+                       let currentUser = response.currentUser;
+                        // Берём информацию о текущем юзере и о полях
+
 
                         // Устанавливаем маршрут для обновления пользователя в форме
                         $('#edit-user-form').attr('action', `/admin/users/${userId}`);
@@ -547,27 +553,79 @@
                         let customFieldsContainer = $('#custom-fields-container');
                         customFieldsContainer.empty(); // Очищаем контейнер перед заполнением
 
-                        if (response.fields) {
-                            response.fields.forEach(function (field) {
+        //                 if (response.fields) {
+        //                     response.fields.forEach(function (field) {
+        //
+        //                         // По умолчанию поле будет пустым.
+        //                         let userValue = '';
+        //
+        //                         // Проверяем, существует ли блок полей у пользователя
+        //                         // и ищем нужный slug.
+        //                         if (response.user && response.user.fields) {
+        //                             const userField = response.user.fields.find(function (uf) {
+        //                                 return uf.slug === field.slug;
+        //                             });
+        //
+        //                             // Если поле для данного slug есть у пользователя,
+        //                             // подставляем значение.
+        //                             if (userField) {
+        //                                 userValue = userField.pivot.value || '';
+        //                             }
+        //                         }
+        //
+        //                         // Генерируем HTML с корректной value.
+        //                         const fieldHtml = `
+        //     <div class="mb-3 custom-field" data-slug="${field.slug}">
+        //         <label for="custom-${field.slug}" class="form-label">${field.name}</label>
+        //         <input
+        //             type="text"
+        //             name="custom[${field.slug}]"
+        //             class="form-control"
+        //             id="custom-${field.slug}"
+        //             value="${userValue}"
+        //         />
+        //     </div>
+        // `;
+        //
+        //                         customFieldsContainer.append(fieldHtml);
+        //                     });
+        //                 }
 
-                                // По умолчанию поле будет пустым.
+
+
+
+
+
+
+                        if (response.fields) {
+                            response.fields.forEach(function(field) {
                                 let userValue = '';
 
-                                // Проверяем, существует ли блок полей у пользователя
-                                // и ищем нужный slug.
+                                // Ищем значение поля у пользователя (если есть)
                                 if (response.user && response.user.fields) {
-                                    const userField = response.user.fields.find(function (uf) {
+                                    const userField = response.user.fields.find(function(uf) {
                                         return uf.slug === field.slug;
                                     });
-
-                                    // Если поле для данного slug есть у пользователя,
-                                    // подставляем значение.
                                     if (userField) {
                                         userValue = userField.pivot.value || '';
                                     }
                                 }
 
-                                // Генерируем HTML с корректной value.
+                                // Проверяем, есть ли у текущего пользователя право редактировать
+                                // По условию: "Разрешено только тем ролям, которые указаны в permissions_id"
+                                // => если массив пуст, никто не может редактировать
+                                // => если currentUser.role_id нет в массиве, тоже нельзя
+                                let hasAccess = Array.isArray(field.permissions_id) &&
+                                    field.permissions_id.includes(String(currentUser.role_id));
+
+                                // Формируем атрибут disabled, если нет доступа
+                                let disabledAttr = hasAccess ? '' : 'disabled';
+                                console.log("isabledAttr");
+                                console.log(disabledAttr);
+
+
+
+                                // Генерируем HTML поля
                                 const fieldHtml = `
             <div class="mb-3 custom-field" data-slug="${field.slug}">
                 <label for="custom-${field.slug}" class="form-label">${field.name}</label>
@@ -577,13 +635,33 @@
                     class="form-control"
                     id="custom-${field.slug}"
                     value="${userValue}"
+                    ${disabledAttr}
                 />
             </div>
         `;
 
+                                // Добавляем в контейнер
                                 customFieldsContainer.append(fieldHtml);
                             });
+                        } else {
+                            console.warn('Нет данных об extra-полях');
                         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
                         // Открываем модальное окно
                         $('#editUserModal').modal('show');
@@ -603,16 +681,17 @@
                 let form = $(this);
                 let url = form.attr('action');
 
-                // console.log('Отправляем форму для обновления пользователя с URL:', url);
-                // console.log('form.serialize():' + form.serialize());
+                console.log('Отправляем форму для обновления пользователя с URL:', url);
+                console.log('form.serialize():' + form.serialize());
 
                 // AJAX-запрос для обновления данных пользователя
                 $.ajax({
                     url: url,
                     method: 'PATCH',
                     data: form.serialize(),
-                    success: function () {
+                    success: function (response) {
                         showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлен.", 1);
+                  console.log(response);
                     },
                     error: function () {
                         $('#errorModal').modal('show');

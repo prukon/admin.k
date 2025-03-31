@@ -19,7 +19,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
-
+use App\Models\Role;
+use App\Models\Permission;
 
 class SettingController extends Controller
 {
@@ -29,10 +30,10 @@ class SettingController extends Controller
      *
      * @return void
      */
-    public function __construct()
-    {
-        $this->middleware('role:admin,superadmin');
-    }
+//    public function __construct()
+//    {
+//        $this->middleware('role:admin,superadmin');
+//    }
 
     /**
      * Show the application dashboard.
@@ -40,20 +41,79 @@ class SettingController extends Controller
      * @return \Illuminate\Contracts\Support\Renderable
      */
 
-    public function index()
+//    public function index()
+//    {
+////        $menuItems = MenuItem::all();
+////        $socialItems = SocialItem::all(); // Получаем все записи социальных сетей из базы данных
+//        $setting = Setting::where('name', 'textForUsers')->first();
+//        $textForUsers = $setting ? $setting->text : null;
+//
+//
+//        return view("admin/setting", compact(
+//            "textForUsers"
+////            "menuItems",
+////            "socialItems"
+//        ));
+//    }
+
+//Страница Настройки
+    public function showSettings()
     {
-//        $menuItems = MenuItem::all();
-//        $socialItems = SocialItem::all(); // Получаем все записи социальных сетей из базы данных
         $setting = Setting::where('name', 'textForUsers')->first();
         $textForUsers = $setting ? $setting->text : null;
 
+        return view('admin.setting.setting',
+            ['activeTab' => 'setting'],
+            compact(
+                "textForUsers")
+        );
 
-        return view("admin/setting", compact(
-            "textForUsers"
-//            "menuItems",
-//            "socialItems"
-        ));
+
     }
+
+//Страница права пользователей
+    public function showRules()
+    {
+
+        // Получаем все роли
+        $roles = Role::all();
+
+        // Получаем все права (permissions) с сортировкой по id или как вам удобнее
+        $permissions = Permission::all();
+
+        // Какую вкладку активной отображать (исходя из вашего кода)
+        $activeTab = 'rule';
+
+        return view('admin.setting.rule', compact('roles', 'permissions', 'activeTab'));
+
+    }
+
+    //Изменение прав пользователей
+    public function togglePermission(Request $request)
+    {
+        $roleId = $request->input('role_id');
+        $permissionId = $request->input('permission_id');
+        $value = $request->input('value'); // true/false
+
+        /** @var Role $role */
+        $role = Role::findOrFail($roleId);
+        /** @var Permission $permission */
+        $permission = Permission::findOrFail($permissionId);
+
+        if ($value == 'true') {
+            // Если чекбокс включили, значит нужно добавить право роли
+            $role->permissions()->syncWithoutDetaching([$permission->id]);
+        } else {
+            // Если чекбокс выключили, удаляем право у роли
+            $role->permissions()->detach($permission->id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Обновление прошло успешно',
+        ]);
+    }
+
 
 //    AJAX Активность регистрации
     public function registrationActivity(Request $request)
@@ -184,9 +244,6 @@ class SettingController extends Controller
                     90 => 'Создание статуса расписания',
                     91 => 'Изменение статуса расписания',
                     92 => 'Удаление статуса расписания',
-
-
-
 
 
                 ];

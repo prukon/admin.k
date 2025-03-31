@@ -18,10 +18,10 @@ class ReportController extends Controller
 {
     protected $curUser; // Определяем свойство для хранения текущего пользователя
 
-    public function __construct()
-    {
-        $this->middleware(['auth', 'role:user']); // Применяем middleware auth и role:user
-    }
+//    public function __construct()
+//    {
+//        $this->middleware(['auth', 'role:user']); // Применяем middleware auth и role:user
+//    }
 
     public function formatedDate($month)
     {

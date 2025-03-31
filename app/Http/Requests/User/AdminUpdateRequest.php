@@ -21,27 +21,57 @@ class AdminUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        $userId = $this->route('user')->id;
+            $userId = $this->route('user')->id;
 
-        return [
-            'name' => 'required|string|max:80',
-            'birthday' => [
-                'nullable',
-                'date',
-                'before_or_equal:today', // Или 'before_or_equal:today'
-            ],
-            'team_id' => 'nullable|string',
-            'start_date' => [
-                'nullable',
-                'date',
-                'before_or_equal:2030-12-31', // Или 'before_or_equal:today'
-            ],
-            'email' => 'required|string|email|max:255|unique:users,email,' . $userId,
-            'is_enabled' => 'boolean',
+//        return [
+//            'name' => 'required|string|max:80',
+//            'birthday' => [
+//                'nullable',
+//                'date',
+//                'before_or_equal:today', // Или 'before_or_equal:today'
+//            ],
+//            'team_id' => 'nullable|string',
+//            'start_date' => [
+//                'nullable',
+//                'date',
+//                'before_or_equal:2030-12-31', // Или 'before_or_equal:today'
+//            ],
+//            'email' => 'required|string|email|max:255|unique:users,email,' . $userId,
+//            'is_enabled' => 'boolean',
+//            'custom.*' => 'nullable|string|max:255', // Замените правила в зависимости от типа данных
+//            'role' => 'string|max:12',
+//        ];
+
+        $rules = [
+            // общие поля, которые могут редактировать и пользователь, и админ
+            'birthday'   => ['nullable','date','before_or_equal:today'],
             'custom.*' => 'nullable|string|max:255', // Замените правила в зависимости от типа данных
-            'role' => 'string|max:12',
 
         ];
+
+        if ($this->user()->can('name-editing')) {
+            $rules['name'] = 'required|string|max:80';
+        }
+
+        if ($this->user()->can('changing-your-group')) {
+            $rules['team_id'] = 'nullable|string';
+        }
+
+        if ($this->user()->can('changing-user-activity')) {
+            $rules['is_enabled'] = 'boolean';
+        }
+
+        if ($this->user()->can('changing-user-rules')) {
+            $rules['role'] = 'string|max:12';
+        }
+
+        if ($this->user()->can('changing-user-email')) {
+            $rules['email'] = 'required|string|email|max:255|unique:users,email,' . $this->route('user')->id;
+        }
+
+        return $rules;
+
+
     }
 
     public function attributes()
@@ -88,8 +118,8 @@ class AdminUpdateRequest extends FormRequest
             'is_enabled.boolean' => 'Поле "Активность" должно быть истинным или ложным.',
 
             // Поле "Роль"
-            'role.string'   => 'Роль должна быть строкой.',
-            'role.max'      => 'Роль не может превышать :max символов.',
+            'role.string' => 'Роль должна быть строкой.',
+            'role.max' => 'Роль не может превышать :max символов.',
         ];
     }
 }

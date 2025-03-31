@@ -38,10 +38,10 @@ class AppServiceProvider extends ServiceProvider
 
 
 //        Прокидывание переменной авторизации
-         $setting = Setting::where('name', 'registrationActivity')->first();
-         $isRegistrationActivity = $setting ? $setting->status : null;
-         $allTeamsCount = Team::all()->count();
-         $allUsersCount = User::all()->count();
+//         $setting = Setting::where('name', 'registrationActivity')->first();
+//         $isRegistrationActivity = $setting ? $setting->status : null;
+//         $allTeamsCount = Team::all()->count();
+//         $allUsersCount = User::all()->count();
 
 
 

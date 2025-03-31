@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (parentDiv) {
 
                 $.ajax({
-                    url: '/get-team-price',
+                    url: '/admin/setting-prices/get-team-price',
                     method: 'POST',
                     contentType: 'application/json', // Указываем тип контента JSON
                     data: JSON.stringify({
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
         let selectedMonth = $(this).val();
         $.ajax({
-            url: '/update-date',
+            url: '/admin/setting-prices/update-date',
             method: 'GET',
             data: {
                 month: selectedMonth,
@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     function () {
                         // Весь AJAX-запрос исполняется внутри этого колбэка
                         $.ajax({
-                            url: '/set-team-price',
+                            url: '/admin/setting-prices/set-team-price',
                             method: 'POST',
                             contentType: 'application/json',
                             data: JSON.stringify({
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 $.ajax({
-                    url: '/set-price-all-teams',
+                    url: '/admin/setting-prices/set-price-all-teams',
                     method: 'POST',  // Меняем метод на POST
                     contentType: 'application/json', // Указываем тип контента JSON
                     data: JSON.stringify({ // Передаём данные в теле запроса в формате JSON
@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         showSuccessModal("Установка цен всем группам", "Цены  всем группам успешно обновлены.", 1);
                     },
                     error: function (xhr, status, error) {
-                        console.log('Error:', error);
+                        $('#errorModal').modal('show');
                     }
                 });
 
@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 usersPrice = updateUsersPrice(usersPrice);
 
                 $.ajax({
-                    url: '/set-price-all-users',
+                    url: '/admin/setting-prices/set-price-all-users',
                     method: 'POST',
                     contentType: 'application/json',
                     dataType: 'json',

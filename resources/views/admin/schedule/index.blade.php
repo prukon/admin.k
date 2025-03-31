@@ -686,7 +686,7 @@
                             // loadStatuses();
 
                         } else {
-                            alert(d.error ?? 'Ошибка при обновлении статуса');
+                            $('#errorModal').modal('show');
                         }
                     })
                     .catch(err => console.error(err));

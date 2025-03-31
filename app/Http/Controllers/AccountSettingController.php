@@ -21,8 +21,7 @@ use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
 
 
-// Модель Event для получения данных из базы
-
+//Контроллер для юзера
 class AccountSettingController extends Controller
 {
     public function __construct(UserService $service)
@@ -30,185 +29,162 @@ class AccountSettingController extends Controller
         $this->service = $service;
     }
 
-    public function index()
-    {
-        $allTeams = Team::All();
-        $user = Auth::user();
-        $fields = UserField::all();
-        $userFieldValues = UserFieldValue::where('user_id', $user->id)->pluck('value', 'field_id');
-
-        //Определяем какие поля можно редактировать
-        $editableFields = $fields->mapWithKeys(function ($field) use ($user) {
-            $permissions = $field->permissions ?? []; // Убираем json_decode
-            $isEditable = empty($permissions) || in_array($user->role, $permissions);
-            return [$field->id => $isEditable];
-        });
-
-        return view('user.edit', compact('user',
-            'allTeams',
-            'fields',
-            'userFieldValues',
-            'editableFields' // Передаем информацию о редактируемых полях
-
-        ));
-    }
-
-    public function updateOld(UpdateRequest $request, User $user)
-    {
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $oldData = User::where('id', $authorId)->first();
-        $user = Auth::user();
-
-        $data = $request->validated();
-
-        DB::transaction(function () use ($user, $authorId, $data, $oldData) {
-            $this->service->update($user, $data);
-            $authorName = User::where('id', $authorId)->first()->name;
-
-            // Логируем успешное обновление
-            MyLog::create([
-                'type' => 2, // Лог для обновления юзеров
-                'action' => 23, // Лог для обновления учетной записи
-                'author_id' => $authorId,
-                'description' => "Имя: $authorName. ID: $authorId. \nСтарые:\n (" . Carbon::parse($oldData->birthday)->format('d.m.Y') . ", $oldData->email). \nНовые:\n (" . Carbon::parse($data['birthday'])->format('d.m.Y') . ", {$data['email']})",
-                'created_at' => now(),
-            ]);
-        });
-        return redirect()->route('user.edit', ['user' => $user->id]);
-    }
+//    public function index()
+//    {
+//        $allTeams = Team::All();
+//        $user = Auth::user();
+//        $fields = UserField::all();
+//        $userFieldValues = UserFieldValue::where('user_id', $user->id)->pluck('value', 'field_id');
+//
+//        //Определяем какие поля можно редактировать
+//        $editableFields = $fields->mapWithKeys(function ($field) use ($user) {
+//            $permissions = $field->permissions ?? []; // Убираем json_decode
+//            $isEditable = empty($permissions) || in_array($user->role, $permissions);
+//            return [$field->id => $isEditable];
+//        });
+//
+//        return view('user.edit', compact('user',
+//            'allTeams',
+//            'fields',
+//            'userFieldValues',
+//            'editableFields' // Передаем информацию о редактируемых полях
+//
+//        ));
+//    }
 
 
-    public function update(UpdateRequest $request, User $user)
-    {
-        $authorId = auth()->id();
-        $oldData = User::where('id', $authorId)->first();
-        $user = Auth::user();
 
-        $data = $request->validated();
+//    public function update(UpdateRequest $request, User $user)
+//    {
+//        $authorId = auth()->id();
+//        $oldData = User::where('id', $authorId)->first();
+//        $user = Auth::user();
+//
+//        $data = $request->validated();
+//
+//        DB::transaction(function () use ($user, $authorId, $data, $oldData) {
+//
+//            // 1) Считываем старые значения (до обновления)
+//            $rowsOld = DB::select("SELECT field_id, value FROM user_field_values WHERE user_id = ?", [$user->id]);
+//            $oldCustomValues = [];
+//            foreach ($rowsOld as $row) {
+//                $oldCustomValues[$row->field_id] = $row->value;
+//            }
+//
+//            // 2) Обновляем
+//            $this->service->update($user, $data);
+//
+//            // 3) Считываем новые значения (после обновления)
+//            $rowsNew = DB::select("SELECT field_id, value FROM user_field_values WHERE user_id = ?", [$user->id]);
+//            $newCustomValues = [];
+//            foreach ($rowsNew as $row) {
+//                $newCustomValues[$row->field_id] = $row->value;
+//            }
+//
+//            // 4) Формируем массив изменений
+//            $customChanges = [];
+//            if (!empty($data['custom']) && is_array($data['custom'])) {
+//                foreach ($data['custom'] as $slug => $newValue) {
+//                    $field = UserField::where('slug', $slug)->first();
+//                    if (!$field) {
+//                        continue;
+//                    }
+//
+//                    $fieldId = $field->id;
+//                    // Если у нас нет старого значения - ставим '(не задано)'
+//                    $oldValue = $oldCustomValues[$fieldId] ?? '(не задано)';
+//
+//                    // Если старое и новое совпадают, пропускаем
+//                    if ($oldValue == $newValue) {
+//                        continue;
+//                    }
+//
+//                    // Теперь проверяем, не являются ли оба значения "пустыми" для логики
+//                    // Считаем "пустым" любые вариации: '', '(не задано)' (с пробелами, разным регистром)
+//                    // Сразу нормализуем обе строки
+//                    $normOld = mb_strtolower(trim($oldValue));
+//                    $normNew = mb_strtolower(trim($newValue));
+//                    // Убираем скобки
+//                    $normOld = str_replace(['(', ')'], '', $normOld);
+//                    $normNew = str_replace(['(', ')'], '', $normNew);
+//
+//                    // Если оба пусты, пропускаем
+//                    // (т.е. '' == '' или '' == 'не задано' и т.д.)
+//                    $bothEmpty = (
+//                        ($normOld === '' || $normOld === 'не задано') &&
+//                        ($normNew === '' || $normNew === 'не задано')
+//                    );
+//
+//                    if ($bothEmpty) {
+//                        // Не логируем такие изменения
+//                        continue;
+//                    }
+//
+//                    // Иначе логируем
+//                    $customChanges[] = "{$field->name}: '{$oldValue}' → '{$newValue}'";
+//                }
+//            }
+//
+//            // 5) Формируем описание лога
+//            $authorName = User::where('id', $authorId)->first()->name;
+//
+//            $oldBirthday = $oldData->birthday
+//                ? \Carbon\Carbon::parse($oldData->birthday)->format('d.m.Y')
+//                : 'Не указано';
+//
+//            $newBirthday = !empty($data['birthday'])
+//                ? \Carbon\Carbon::parse($data['birthday'])->format('d.m.Y')
+//                : 'Не изменилось';
+//
+//            $description = "Имя: $authorName. ID: $authorId.\n"
+//                . "Старые данные: ($oldBirthday, {$oldData->email})\n"
+//                . "Новые данные: ($newBirthday, {$data['email']})";
+//
+//            // Дополняем описанием изменений доп. полей
+//            if (!empty($customChanges)) {
+//                $description .= "\nИзмененные доп. поля:\n"
+//                    . implode("\n", $customChanges);
+//            }
+//
+//            // 6) Пишем лог
+//            MyLog::create([
+//                'type' => 2,
+//                'action' => 23,
+//                'author_id' => $authorId,
+//                'description' => $description,
+//                'created_at' => now(),
+//            ]);
+//        });
+//
+//        return redirect()->route('user.edit', ['user' => $user->id]);
+//    }
 
-        DB::transaction(function () use ($user, $authorId, $data, $oldData) {
 
-            // 1) Считываем старые значения (до обновления)
-            $rowsOld = DB::select("SELECT field_id, value FROM user_field_values WHERE user_id = ?", [$user->id]);
-            $oldCustomValues = [];
-            foreach ($rowsOld as $row) {
-                $oldCustomValues[$row->field_id] = $row->value;
-            }
-
-            // 2) Обновляем
-            $this->service->update($user, $data);
-
-            // 3) Считываем новые значения (после обновления)
-            $rowsNew = DB::select("SELECT field_id, value FROM user_field_values WHERE user_id = ?", [$user->id]);
-            $newCustomValues = [];
-            foreach ($rowsNew as $row) {
-                $newCustomValues[$row->field_id] = $row->value;
-            }
-
-            // 4) Формируем массив изменений
-            $customChanges = [];
-            if (!empty($data['custom']) && is_array($data['custom'])) {
-                foreach ($data['custom'] as $slug => $newValue) {
-                    $field = UserField::where('slug', $slug)->first();
-                    if (!$field) {
-                        continue;
-                    }
-
-                    $fieldId = $field->id;
-                    // Если у нас нет старого значения - ставим '(не задано)'
-                    $oldValue = $oldCustomValues[$fieldId] ?? '(не задано)';
-
-                    // Если старое и новое совпадают, пропускаем
-                    if ($oldValue == $newValue) {
-                        continue;
-                    }
-
-                    // Теперь проверяем, не являются ли оба значения "пустыми" для логики
-                    // Считаем "пустым" любые вариации: '', '(не задано)' (с пробелами, разным регистром)
-                    // Сразу нормализуем обе строки
-                    $normOld = mb_strtolower(trim($oldValue));
-                    $normNew = mb_strtolower(trim($newValue));
-                    // Убираем скобки
-                    $normOld = str_replace(['(', ')'], '', $normOld);
-                    $normNew = str_replace(['(', ')'], '', $normNew);
-
-                    // Если оба пусты, пропускаем
-                    // (т.е. '' == '' или '' == 'не задано' и т.д.)
-                    $bothEmpty = (
-                        ($normOld === '' || $normOld === 'не задано') &&
-                        ($normNew === '' || $normNew === 'не задано')
-                    );
-
-                    if ($bothEmpty) {
-                        // Не логируем такие изменения
-                        continue;
-                    }
-
-                    // Иначе логируем
-                    $customChanges[] = "{$field->name}: '{$oldValue}' → '{$newValue}'";
-                }
-            }
-
-            // 5) Формируем описание лога
-            $authorName = User::where('id', $authorId)->first()->name;
-
-            $oldBirthday = $oldData->birthday
-                ? \Carbon\Carbon::parse($oldData->birthday)->format('d.m.Y')
-                : 'Не указано';
-
-            $newBirthday = !empty($data['birthday'])
-                ? \Carbon\Carbon::parse($data['birthday'])->format('d.m.Y')
-                : 'Не изменилось';
-
-            $description = "Имя: $authorName. ID: $authorId.\n"
-                . "Старые данные: ($oldBirthday, {$oldData->email})\n"
-                . "Новые данные: ($newBirthday, {$data['email']})";
-
-            // Дополняем описанием изменений доп. полей
-            if (!empty($customChanges)) {
-                $description .= "\nИзмененные доп. поля:\n"
-                    . implode("\n", $customChanges);
-            }
-
-            // 6) Пишем лог
-            MyLog::create([
-                'type' => 2,
-                'action' => 23,
-                'author_id' => $authorId,
-                'description' => $description,
-                'created_at' => now(),
-            ]);
-        });
-
-        return redirect()->route('user.edit', ['user' => $user->id]);
-    }
- 
-
-    public function updatePassword(Request $request, $id)
-    {
-
-        $request->validate([
-            'password' => 'required|min:8',
-        ]);
-//        $currentUser = Auth::user();
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $user = User::findOrFail($id);
-
-        DB::transaction(function () use ($user, $authorId, $request) {
-
-            $user->password = Hash::make($request->password);
-            $user->save();
-
-            MyLog::create([
-                'type' => 2, // Лог для обновления юзеров
-                'action' => 26, // Лог для обновления учетной записи
-                'author_id' => $authorId,
-                'description' => ($user->name . " изменил пароль."),
-                'created_at' => now(),
-            ]);
-        });
-        return response()->json(['success' => true]);
-    }
+//    public function updatePassword(Request $request, $id)
+//    {
+//
+//        $request->validate([
+//            'password' => 'required|min:8',
+//        ]);
+////        $currentUser = Auth::user();
+//        $authorId = auth()->id(); // Авторизованный пользователь
+//        $user = User::findOrFail($id);
+//
+//        DB::transaction(function () use ($user, $authorId, $request) {
+//
+//            $user->password = Hash::make($request->password);
+//            $user->save();
+//
+//            MyLog::create([
+//                'type' => 2, // Лог для обновления юзеров
+//                'action' => 26, // Лог для обновления учетной записи
+//                'author_id' => $authorId,
+//                'description' => ($user->name . " изменил пароль."),
+//                'created_at' => now(),
+//            ]);
+//        });
+//        return response()->json(['success' => true]);
+//    }
 
     //обновление аватарки юзером
     public function uploadAvatar(Request $request)
