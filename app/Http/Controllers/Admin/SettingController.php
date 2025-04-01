@@ -77,9 +77,11 @@ class SettingController extends Controller
 
         // Получаем все роли
         $roles = Role::all();
+        $roles = Role::with('permissions')->get();
 
         // Получаем все права (permissions) с сортировкой по id или как вам удобнее
-        $permissions = Permission::all();
+        $permissions = Permission::with('roles')->orderBy('sort_order')->get();
+
 
         // Какую вкладку активной отображать (исходя из вашего кода)
         $activeTab = 'rule';

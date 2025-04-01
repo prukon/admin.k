@@ -25,6 +25,10 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
     //Главная
     Route::get('/', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/get-user-details', [\App\Http\Controllers\DashboardController::class, 'getUserDetails'])->name('getUserDetails');
+    Route::get('/get-team-details', [\App\Http\Controllers\DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
+    Route::get('/setup-btn', [\App\Http\Controllers\DashboardController::class, 'setupBtn'])->name('setupBtn');
+    Route::get('/content-menu-calendar', [\App\Http\Controllers\DashboardController::class, 'contentMenuCalendar'])->name('contentMenuCalendar');
 
     //Группы
     Route::get('admin/teams', [\App\Http\Controllers\Admin\TeamController::class, 'index'])->name('admin.team1')->middleware('can:manage-groups');
@@ -58,12 +62,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/reports/payments', [\App\Http\Controllers\User\Report\ReportController::class, 'showUserPayments'])->name('showUserPayments')->middleware('can:my-payments');
     Route::get('/getUserPayments', [\App\Http\Controllers\User\Report\ReportController::class, 'getUserPayments'])->name('payments.getUserPayments')->middleware('can:my-payments');
 
-    //AJAX
-    Route::get('/get-user-details', [\App\Http\Controllers\DashboardController::class, 'getUserDetails'])->name('getUserDetails');
-    Route::get('/get-team-details', [\App\Http\Controllers\DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
-    Route::get('/setup-btn', [\App\Http\Controllers\DashboardController::class, 'setupBtn'])->name('setupBtn');
-    Route::get('/content-menu-calendar', [\App\Http\Controllers\DashboardController::class, 'contentMenuCalendar'])->name('contentMenuCalendar');
-
     //Установка цен
     Route::get('admin/setting-prices', [\App\Http\Controllers\Admin\SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu')->middleware('can:set-prices');
     Route::post('admin/setting-prices/get-team-price', [\App\Http\Controllers\Admin\SettingPricesController::class, 'getTeamPrice'])->name('getTeamPrice')->middleware('can:set-prices');
@@ -72,24 +70,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('admin/setting-prices/set-price-all-users', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers')->middleware('can:set-prices');
     Route::get('admin/setting-prices/logs-data', [\App\Http\Controllers\Admin\SettingPricesController::class, 'getLogsData'])->name('logs.data.settingPrice');
     Route::get('admin/setting-prices/update-date', [\App\Http\Controllers\Admin\SettingPricesController::class, 'updateDate'])->name('updateDate');
-
-
-
-    //Страница выбора оплаты
-    Route::post('/payment', [\App\Http\Controllers\TransactionController::class, 'index'])->name('payment');
-
-    //Страница оплаты робокассы
-    Route::post('/payment/pay', [\App\Http\Controllers\TransactionController::class, 'pay'])->name('payment.pay');
-    //Маршрут для страницы успешной оплаты
-    Route::get('/payment/success', [\App\Http\Controllers\TransactionController::class, 'success'])->name('payment.success');
-    //Маршрут для страницы неудачной оплаты
-    Route::get('/payment/fail', [\App\Http\Controllers\TransactionController::class, 'fail'])->name('payment.fail');
-    Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee'); //Оплата клубного взноса
-
-    //Страница оплаты сервиса адмимон
-    Route::get('/partner-payment/recharge', [\App\Http\Controllers\PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge');
-    Route::get('/partner-payment/history', [\App\Http\Controllers\PartnerPaymentController::class, 'showHistory'])->name('partner.payment.history');
-    Route::get('/partner-payment/data', [\App\Http\Controllers\PartnerPaymentController::class, 'getPaymentsData'])->name('partner.payment.data');
 
     //Страница Настойки
     Route::get('/admin/settings', [\App\Http\Controllers\Admin\SettingController::class, 'showSettings'])->name('admin.setting.setting')->middleware('can:general-settings');
@@ -104,9 +84,23 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/admin/settings/rules', [\App\Http\Controllers\Admin\SettingController::class, 'showRules'])->name('admin.setting.rule')->middleware('can:manage-roles');
     Route::post('/admin/setting/rule/toggle', [\App\Http\Controllers\Admin\SettingController::class, 'togglePermission'])->name('admin.setting.rule.toggle')->middleware('can:manage-roles');
 
+    //Страница оплаты сервиса адмимон
+    Route::get('/partner-payment/recharge', [\App\Http\Controllers\PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge');
+    Route::get('/partner-payment/history', [\App\Http\Controllers\PartnerPaymentController::class, 'showHistory'])->name('partner.payment.history');
+    Route::get('/partner-payment/data', [\App\Http\Controllers\PartnerPaymentController::class, 'getPaymentsData'])->name('partner.payment.data');
 
+    //Страница выбора оплаты
+    Route::post('/payment', [\App\Http\Controllers\TransactionController::class, 'index'])->name('payment');
 
+    //Страница оплаты робокассы
+    Route::post('/payment/pay', [\App\Http\Controllers\TransactionController::class, 'pay'])->name('payment.pay');
 
+    //Маршрут для страницы успешной оплаты
+    Route::get('/payment/success', [\App\Http\Controllers\TransactionController::class, 'success'])->name('payment.success');
+
+    //Маршрут для страницы неудачной оплаты
+    Route::get('/payment/fail', [\App\Http\Controllers\TransactionController::class, 'fail'])->name('payment.fail');
+    Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee'); //Оплата клубного взноса
 
     //Учетная запись - вкладка юзер
     Route::get('/account-settings/users/{user}/edit', [\App\Http\Controllers\Admin\AccountSettingController::class, 'user'])->name('admin.cur.user.edit');
@@ -118,16 +112,12 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\AccountSettingController::class, 'updateAvatar'])->name('admin.user.update-avatar');
     Route::post('/admin/user/{user}/delete-avatar', [\App\Http\Controllers\AccountSettingController::class, 'deleteAvatar'])->name('user.delete-avatar');
 
-
-
-
-
     //Учетная запись - вкладка организация
     Route::get('/account-settings/partner/{user}/edit', [\App\Http\Controllers\Admin\PartnerSettingController::class, 'partner'])->name('admin.cur.company.edit')->middleware('can:partner-company');
     Route::patch('/account-settings/partner/{partner}', [\App\Http\Controllers\Admin\PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update')->middleware('can:partner-company');
 
-    //Организация
-    Route::get('/admin/company', [\App\Http\Controllers\Admin\CompanyController::class, 'index'])->name('company');
+    //Организация (сервис)
+//    Route::get('/admin/company', [\App\Http\Controllers\Admin\CompanyController::class, 'index'])->name('company');
     Route::get('/about', [\App\Http\Controllers\AboutController::class, 'index'])->name('about');
     Route::get('/terms', [\App\Http\Controllers\AboutController::class, 'terms'])->name('terms');
 

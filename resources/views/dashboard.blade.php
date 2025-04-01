@@ -26,7 +26,9 @@
         <div>
 
 
-            @can('view', auth()->user())
+{{--            @can('view', auth()->user())--}}
+                 @can('student-filter-console')
+
                 <h5 class="choose-user-header text-start">Выбор ученика:</h5>
 
                 {{--Выбор ученика, группы, кнопка установить--}}

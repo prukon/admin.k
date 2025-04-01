@@ -125,6 +125,10 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('changing_user_email');
         });
 
+        // Фильтр учеников в консоли
+        Gate::define('student-filter-console', function (User $user) {
+            return $user->hasPermission('student_filter_console');
+        });
 
     }
 }

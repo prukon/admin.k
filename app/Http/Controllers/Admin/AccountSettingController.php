@@ -45,7 +45,6 @@ class AccountSettingController extends Controller
         $partners = $user->partners;
         $currentUser = Auth::user();
 
-
         $fields = UserField::all();
         $userFieldValues = UserFieldValue::where('user_id', $user->id)->pluck('value', 'field_id');
 
@@ -269,4 +268,6 @@ class AccountSettingController extends Controller
         });
         return response()->json(['success' => true]);
     }
+
+
 }

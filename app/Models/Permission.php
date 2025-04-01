@@ -14,6 +14,7 @@ class Permission extends Model
     protected $fillable = [
         'name',
         'description',
+        'sort_order'
     ];
 
     // Связь многие-ко-многим с Role

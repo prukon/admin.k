@@ -20,10 +20,9 @@
                            role="tab"> {{auth()->user()->role->label}}
                         </a>
                     </li>
-
+{{--{{$partners}}--}}
                     <!-- Вкладки для всех партнёров пользователя -->
                     @can('partner-company')
-
                         @foreach ($partners as $partner)
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link {{ $activeTab == 'partner' ? 'active' : '' }}"
