@@ -485,33 +485,51 @@
             document.getElementById('delete-photo').addEventListener('click', function (e) {
                 e.preventDefault();
 
-                // Подтверждение удаления фотографии
-                if (confirm('Вы уверены, что хотите удалить фотографию?')) {
-                    let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
-                    let token = $('input[name="_token"]').val();
 
-                    $.ajax({
-                        url: `/admin/user/${userId}/delete-avatar`, // Указываем маршрут для удаления аватарки
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': token
-                        },
-                        success: function (response) {
-                            if (response.success) {
-                                $('#confirm-img').attr('src', '/img/default.png'); // Устанавливаем аватарку по умолчанию
-                                showSuccessModal("Удаление аватара", "Аватар успешно удален.");
-                                toggleDeleteButton();
-                            } else {
-                                // alert('Ошибка удаления аватарки');
-                                $('#errorModal').modal('show');
-                            }
-                        },
-                        error: function () {
-                            // alert('Ошибка удаления аватарки. Проверьте лог сервера.');
-                            $('#errorModal').modal('show');
-                        }
+
+
+
+                showConfirmDeleteModal(
+                    "Удаление аватарки",
+                    "Вы уверены, что хотите удалить аватарку?",
+                    function() {
+                        // Подтверждение удаления фотографии
+                        // if (confirm('Вы уверены, что хотите удалить фотографию?')) {
+                            let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
+                            let token = $('input[name="_token"]').val();
+
+                            $.ajax({
+                                url: `/admin/user/${userId}/delete-avatar`, // Указываем маршрут для удаления аватарки
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': token
+                                },
+                                success: function (response) {
+                                    if (response.success) {
+                                        $('#confirm-img').attr('src', '/img/default.png'); // Устанавливаем аватарку по умолчанию
+                                        showSuccessModal("Удаление аватара", "Аватар успешно удален.");
+                                        toggleDeleteButton();
+                                    } else {
+                                        // alert('Ошибка удаления аватарки');
+                                        $('#errorModal').modal('show');
+                                    }
+                                },
+                                error: function () {
+                                    // alert('Ошибка удаления аватарки. Проверьте лог сервера.');
+                                    $('#errorModal').modal('show');
+                                }
+                            });
+                        // }
                     });
-                }
+
+
+
+
+
+
+
+
+
             });
         }
 

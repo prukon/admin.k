@@ -105,10 +105,13 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::patch('/account-settings/users/{user}', [\App\Http\Controllers\Admin\AccountSettingController::class, 'update'])->name('account.user.update');
     Route::post('/user/update-password', [\App\Http\Controllers\Admin\AccountSettingController::class, 'updatePassword']);
     //Обновление аватарки юзером
-    Route::post('/profile/upload-user-avatar', [\App\Http\Controllers\AccountSettingController::class, 'uploadAvatar'])->name('profile.user.uploadAvatar');
+//    Route::post('/profile/upload-user-avatar', [\App\Http\Controllers\AccountSettingController::class, 'uploadAvatar'])->name('profile.user.uploadAvatar');
+    Route::post('/profile/upload-user-avatar', [\App\Http\Controllers\Admin\AccountSettingController::class, 'uploadAvatar'])->name('profile.user.uploadAvatar');
     //Обновление аватара админом
-    Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\AccountSettingController::class, 'updateAvatar'])->name('admin.user.update-avatar');
-    Route::post('/admin/user/{user}/delete-avatar', [\App\Http\Controllers\AccountSettingController::class, 'deleteAvatar'])->name('user.delete-avatar');
+//    Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\AccountSettingController::class, 'updateAvatar'])->name('admin.user.update-avatar');
+    Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\Admin\AccountSettingController::class, 'updateAvatar'])->name('admin.user.update-avatar');
+//    Route::post('/admin/user/{user}/delete-avatar', [\App\Http\Controllers\AccountSettingController::class, 'deleteAvatar'])->name('user.delete-avatar');
+    Route::post('/admin/user/{user}/delete-avatar', [\App\Http\Controllers\Admin\AccountSettingController::class, 'deleteAvatar'])->name('user.delete-avatar');
 
     //Учетная запись - вкладка организация
     Route::get('/account-settings/partner/{user}/edit', [\App\Http\Controllers\Admin\PartnerSettingController::class, 'partner'])->name('admin.cur.company.edit')->middleware('can:partner-company');

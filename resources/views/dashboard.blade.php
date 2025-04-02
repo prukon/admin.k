@@ -176,10 +176,14 @@
                     @endcan
 
                 </div>
+
+                @can('paying-classes')
                 <div class="col-12 col-lg-4 mt-3 mb-1 credit-notice  align-items-center justify-content-center text-center">
                     <i class="close fa-solid fa-circle-xmark"></i>
                     У вас образовалась задолженность в размере <span class="summ"></span> руб.
                 </div>
+                @endcan
+
             </div>
             {{--            <div class="notification-wrap">--}}
             {{--                <div class="notification">{{$textForUsers}}</div>--}}
