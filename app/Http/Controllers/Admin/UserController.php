@@ -73,12 +73,15 @@ class UserController extends Controller
 //        $allUsersCount  = User::all()->count();
 
         $allTeams = Team::All();
-        return view("admin.user.create", compact("allTeams", 'allUsersCount', 'allTeamsCount'));     }
+        $allRoles = Role::all();  // <-- Важно! Берём все роли из БД для формы
+
+        return view("admin.user.create", compact("allTeams", 'allRoles'));     }
 
     public function store(StoreRequest $request)
     {
         // Валидация входных данных
         $data = $request->validated();
+        $data['partner_id'] = auth()->user()->partner_id;
 
         // Создание пользователя и логгирование в транзакции
         $user = null; // Создаем переменную, чтобы хранить созданного пользователя
@@ -93,19 +96,25 @@ class UserController extends Controller
             $team = Team::find($data['team_id']);
             $teamName = $team ? $team->title : '-';
 
+            $role = \App\Models\Role::find($data['role_id']);
+            $roleNameOrLabel = $role ? $role->label : '-'; // или $role->name, смотря что вы хотите логировать
+
+
+
             // Логируем создание пользователя
             MyLog::create([
-                'type' => 2, // Лог для юзеров
+                'type' => 2,    // Лог для юзеров
                 'action' => 21, // Лог для создания учетной записи
                 'author_id' => $authorId,
                 'description' => sprintf(
-                    "Имя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s",
+                    "Имя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s",
                     $data['name'],
                     isset($data['birthday']) ? Carbon::parse($data['birthday'])->format('d.m.Y') : '-',
                     isset($data['start_date']) ? Carbon::parse($data['start_date'])->format('d.m.Y') : '-',
                     $teamName,
                     $data['email'],
-                    $data['is_enabled'] ? 'Да' : 'Нет'
+                    $data['is_enabled'] ? 'Да' : 'Нет',
+                    $roleNameOrLabel
                 ),
                 'created_at' => now(),
             ]);
@@ -143,12 +152,15 @@ class UserController extends Controller
         $fields = UserField::all(); // Получаем пользовательские поля (например, теги)
         // Загрузка связи fields
         $user->load('fields');
+        $roles = Role::all();
+
 
         return response()->json([
             'user' => $user,
             'currentUser' => $currentUser,
             'fields' => $fields,
             'teams' => $allTeams, // Отправляем также список команд, если нужно
+            'roles'
         ]);
     }
 
@@ -158,18 +170,29 @@ class UserController extends Controller
         $oldData = User::where('id', $user->id)->first();
         $oldTeam = Team::find($user->team_id);
         $oldTeamName = $oldTeam ? $oldTeam->title : '-';
+        $oldRoleName = $oldData->role ? $oldData->role->label : '-';
+
         $data = $request->validated();
 
         // Получаем старые значения пользовательских полей
         $oldCustomData = UserFieldValue::where('user_id', $user->id)->get()->keyBy('field_id')->toArray();
 
-        DB::transaction(function () use ($user, $authorId, $data, $oldData, $oldTeamName, $oldCustomData) {
+        DB::transaction(function () use ($user, $authorId, $data, $oldData, $oldTeamName, $oldCustomData, $oldRoleName) {
             // Обновление пользователя с помощью сервиса
             $this->service->update($user, $data);
 
             // Обработка команды для новой команды
             $team = Team::find($data['team_id']);
             $teamName = $team ? $team->title : '-';
+
+
+            // Получаем новую роль
+            $newRoleName = '-';
+            if (isset($data['role_id'])) {
+                $role = \App\Models\Role::find($data['role_id']);
+                $newRoleName = $role ? $role->label : '-';
+            }
+
 
             // Логирование изменений в кастомных полях
             $customLogDescription = '';
@@ -192,28 +215,58 @@ class UserController extends Controller
             }
 
             // Создание лога обновления данных пользователя с добавлением изменений в кастомных полях
+//            MyLog::create([
+//                'type' => 2, // Лог для обновления юзеров
+//                'action' => 22, // Лог для обновления учетной записи
+//                'author_id' => $authorId,
+//                'description' => sprintf(
+//                    "Старые:\n Имя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s.\nНовые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s%s",
+//                    $oldData->name,
+//                    isset($oldData->birthday) ? Carbon::parse($oldData->birthday)->format('d.m.Y') : '-',
+//                    isset($oldData->start_date) ? Carbon::parse($oldData->start_date)->format('d.m.Y') : '-',
+//                    $oldTeamName,
+//                    $oldData->email,
+//                    $oldData->is_enabled ? 'Да' : 'Нет',
+//                    $data['name'],
+//                    isset($data['birthday']) ? Carbon::parse($data['birthday'])->format('d.m.Y') : '-',
+//                    isset($data['start_date']) ? Carbon::parse($data['start_date'])->format('d.m.Y') : '-',
+//                    $teamName,
+//                    $data['email'],
+//                    $data['is_enabled'] ? 'Да' : 'Нет',
+//                    $customLogDescription // Добавляем описание изменений кастомных полей
+//                ),
+//                'created_at' => now(),
+//            ]);
+
+            // Создаём лог
             MyLog::create([
-                'type' => 2, // Лог для обновления юзеров
-                'action' => 22, // Лог для обновления учетной записи
+                'type' => 2,     // Лог для обновления юзеров
+                'action' => 22,  // Лог для обновления учетной записи
                 'author_id' => $authorId,
                 'description' => sprintf(
-                    "Старые:\n Имя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s.\nНовые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s%s",
+                    "Старые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s.\n".
+                    "Новые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s%s",
                     $oldData->name,
                     isset($oldData->birthday) ? Carbon::parse($oldData->birthday)->format('d.m.Y') : '-',
                     isset($oldData->start_date) ? Carbon::parse($oldData->start_date)->format('d.m.Y') : '-',
                     $oldTeamName,
                     $oldData->email,
                     $oldData->is_enabled ? 'Да' : 'Нет',
+                    $oldRoleName,   // <-- старая роль
+
                     $data['name'],
                     isset($data['birthday']) ? Carbon::parse($data['birthday'])->format('d.m.Y') : '-',
                     isset($data['start_date']) ? Carbon::parse($data['start_date'])->format('d.m.Y') : '-',
                     $teamName,
                     $data['email'],
                     $data['is_enabled'] ? 'Да' : 'Нет',
-                    $customLogDescription // Добавляем описание изменений кастомных полей
+                    $newRoleName,   // <-- новая роль
+                    $customLogDescription
                 ),
                 'created_at' => now(),
             ]);
+
+
         });
 
         return response()->json([

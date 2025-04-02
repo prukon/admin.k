@@ -15,6 +15,7 @@ class UserService
     //  - Создание учетной записи юзера
     public function store($data)
     {
+
         return User::create($data);
 
     }

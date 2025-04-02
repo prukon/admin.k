@@ -99,20 +99,29 @@
                         </select>
                     </div>
 
-                    @if($user && ($user->role->name == 'superadmin'))
 
-                        <div class="mb-3 ">
-                            <label for="role" class="form-label">Права</label>
-                            <select name="role" class="form-control" id="role">
-                                <option value="user">user</option>
-                                <option value="user">manager</option>
-                                <option value="admin">admin</option>
-                                <option value="superadmin">superadmin</option>
-                            </select>
-                        </div>
-                    @endif
 
-                <!-- Блок изменения пароля -->
+                    <!-- Поле "Роль" -->
+                    <div class="mb-3">
+                        <label for="role_id" class="form-label">Роль</label>
+                        <select name="role_id" class="form-select" id="role_id">
+                            @foreach($roles as $role)
+                                <option value="{{ $role->id }}"
+                                        @if($user->role_id === $role->id) selected @endif
+                                >
+                                    {{ $role->label }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+
+
+
+
+
+
+                    <!-- Блок изменения пароля -->
                     <div class="buttons-wrap change-pass-wrap" id="change-pass-wrap" style="display: none;">
                         <div class="d-flex align-items-center mt-3">
                             <div class="position-relative wrap-change-password">
@@ -343,7 +352,6 @@
                                         showSuccessModal("Обновление аватара", "Аватар успешно обновлен.");
 
 
-
                                         // Закрытие второй модалки и возврат к основной модалке
                                         $('#editPhotoModal').modal('hide');
                                         $('#editUserModal').css('opacity', '1').modal('show');
@@ -512,7 +520,7 @@
             $('.edit-user-link').on('click', function () {
                 let userId = $(this).data('id'); // Получаем ID пользователя
                 let url = `/admin/users/${userId}/edit`; // Маршрут для получения данных пользователя (GET)
-                 console.log('Открываем модалку для редактирования пользователя с ID:', userId);
+                console.log('Открываем модалку для редактирования пользователя с ID:', userId);
 
 
                 // AJAX-запрос для получения данных пользователя
@@ -521,18 +529,26 @@
                     method: 'GET',
                     success: function (response) {
                         // Заполняем поля в модалке
-                        $('#edit-name').val(response.user.name);
-                        $('#edit-birthday').val(response.user.birthday);
-                        $('#edit-team').val(response.user.team_id);
-                        $('#edit-start_date').val(response.user.start_date);
-                        $('#edit-email').val(response.user.email);
-                        $('#edit-activity').val(response.user.is_enabled);
-                        $('#role').val(response.user.role);
+                        $('#edit-user-form #edit-name').val(response.user.name);
+                        $('#edit-user-form #edit-birthday').val(response.user.birthday);
+                        $('#edit-user-form #edit-team').val(response.user.team_id);
+                        $('#edit-user-form #edit-start_date').val(response.user.start_date);
+                        $('#edit-user-form #edit-email').val(response.user.email);
+                        $('#edit-user-form #edit-activity').val(response.user.is_enabled);
+                        $('#edit-user-form #role_id').val(response.user.role_id);
 
-                       let fields = response.fields;
-                       let currentUser = response.currentUser;
+
+
+                        console.log('role_id from response:', response.user.role_id);
+                        console.log('options in #role_id:', $('#role_id').html());
+                        $('#role_id').val(response.user.role_id);
+                        console.log('Selected option:', $('#role_id').val());
+
+
+
+                        let fields = response.fields;
+                        let currentUser = response.currentUser;
                         // Берём информацию о текущем юзере и о полях
-
 
                         // Устанавливаем маршрут для обновления пользователя в форме
                         $('#edit-user-form').attr('action', `/admin/users/${userId}`);
@@ -553,57 +569,52 @@
                         let customFieldsContainer = $('#custom-fields-container');
                         customFieldsContainer.empty(); // Очищаем контейнер перед заполнением
 
-        //                 if (response.fields) {
-        //                     response.fields.forEach(function (field) {
-        //
-        //                         // По умолчанию поле будет пустым.
-        //                         let userValue = '';
-        //
-        //                         // Проверяем, существует ли блок полей у пользователя
-        //                         // и ищем нужный slug.
-        //                         if (response.user && response.user.fields) {
-        //                             const userField = response.user.fields.find(function (uf) {
-        //                                 return uf.slug === field.slug;
-        //                             });
-        //
-        //                             // Если поле для данного slug есть у пользователя,
-        //                             // подставляем значение.
-        //                             if (userField) {
-        //                                 userValue = userField.pivot.value || '';
-        //                             }
-        //                         }
-        //
-        //                         // Генерируем HTML с корректной value.
-        //                         const fieldHtml = `
-        //     <div class="mb-3 custom-field" data-slug="${field.slug}">
-        //         <label for="custom-${field.slug}" class="form-label">${field.name}</label>
-        //         <input
-        //             type="text"
-        //             name="custom[${field.slug}]"
-        //             class="form-control"
-        //             id="custom-${field.slug}"
-        //             value="${userValue}"
-        //         />
-        //     </div>
-        // `;
-        //
-        //                         customFieldsContainer.append(fieldHtml);
-        //                     });
-        //                 }
-
-
-
-
-
+                        //                 if (response.fields) {
+                        //                     response.fields.forEach(function (field) {
+                        //
+                        //                         // По умолчанию поле будет пустым.
+                        //                         let userValue = '';
+                        //
+                        //                         // Проверяем, существует ли блок полей у пользователя
+                        //                         // и ищем нужный slug.
+                        //                         if (response.user && response.user.fields) {
+                        //                             const userField = response.user.fields.find(function (uf) {
+                        //                                 return uf.slug === field.slug;
+                        //                             });
+                        //
+                        //                             // Если поле для данного slug есть у пользователя,
+                        //                             // подставляем значение.
+                        //                             if (userField) {
+                        //                                 userValue = userField.pivot.value || '';
+                        //                             }
+                        //                         }
+                        //
+                        //                         // Генерируем HTML с корректной value.
+                        //                         const fieldHtml = `
+                        //     <div class="mb-3 custom-field" data-slug="${field.slug}">
+                        //         <label for="custom-${field.slug}" class="form-label">${field.name}</label>
+                        //         <input
+                        //             type="text"
+                        //             name="custom[${field.slug}]"
+                        //             class="form-control"
+                        //             id="custom-${field.slug}"
+                        //             value="${userValue}"
+                        //         />
+                        //     </div>
+                        // `;
+                        //
+                        //                         customFieldsContainer.append(fieldHtml);
+                        //                     });
+                        //                 }
 
 
                         if (response.fields) {
-                            response.fields.forEach(function(field) {
+                            response.fields.forEach(function (field) {
                                 let userValue = '';
 
                                 // Ищем значение поля у пользователя (если есть)
                                 if (response.user && response.user.fields) {
-                                    const userField = response.user.fields.find(function(uf) {
+                                    const userField = response.user.fields.find(function (uf) {
                                         return uf.slug === field.slug;
                                     });
                                     if (userField) {
@@ -622,7 +633,6 @@
                                 let disabledAttr = hasAccess ? '' : 'disabled';
                                 console.log("isabledAttr");
                                 console.log(disabledAttr);
-
 
 
                                 // Генерируем HTML поля
@@ -646,21 +656,6 @@
                         } else {
                             console.warn('Нет данных об extra-полях');
                         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
                         // Открываем модальное окно
@@ -691,7 +686,7 @@
                     data: form.serialize(),
                     success: function (response) {
                         showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлен.", 1);
-                  console.log(response);
+                        console.log(response);
                     },
                     error: function () {
                         $('#errorModal').modal('show');
@@ -711,14 +706,14 @@
             showConfirmDeleteModal(
                 "Удаление пользователя",
                 "Вы уверены, что хотите удалить пользователя?",
-                function() {
+                function () {
                     let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
                     let token = $('input[name="_token"]').val();
 
                     $.ajax({
                         url: `/admin/user/${userId}`,
                         method: 'DELETE',
-                        headers: { 'X-CSRF-TOKEN': token },
+                        headers: {'X-CSRF-TOKEN': token},
                         success: function (response) {
                             if (response.success) {
                                 showSuccessModal("Удаление пользователя", "Пользователь успешно удален.", 1);

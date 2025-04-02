@@ -46,6 +46,8 @@ class AdminUpdateRequest extends FormRequest
             // общие поля, которые могут редактировать и пользователь, и админ
             'birthday'   => ['nullable','date','before_or_equal:today'],
             'custom.*' => 'nullable|string|max:255', // Замените правила в зависимости от типа данных
+            'role_id'    => 'required|integer|exists:roles,id',
+
 
         ];
 
@@ -83,7 +85,7 @@ class AdminUpdateRequest extends FormRequest
             'start_date' => 'Дата начала занятий',
             'email' => 'Email',
             'is_enabled' => 'Активность',
-            'role' => 'Роль',
+            'role_id'    => 'Роль',
         ];
     }
 
@@ -117,9 +119,10 @@ class AdminUpdateRequest extends FormRequest
             // Поле "Активность"
             'is_enabled.boolean' => 'Поле "Активность" должно быть истинным или ложным.',
 
-            // Поле "Роль"
-            'role.string' => 'Роль должна быть строкой.',
-            'role.max' => 'Роль не может превышать :max символов.',
+            // Сообщения для role_id
+            'role_id.required' => 'Пожалуйста, выберите роль.',
+            'role_id.integer'  => 'Некорректный формат роли.',
+            'role_id.exists'   => 'Выбранная роль не существует в базе.',
         ];
     }
 }

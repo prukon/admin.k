@@ -78,7 +78,7 @@ class ScheduleController extends Controller
                 ->toArray();
         }
 
-        return view('admin.schedule.index', compact(
+        return view('admin.schedule', compact(
             'year',
             'month',
             'team_id',

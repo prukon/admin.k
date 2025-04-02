@@ -11,9 +11,13 @@ class RolesAndPermissionsSeeder extends Seeder
     public function run()
     {
         // Роли
+        $superAdminRole = Role::create(['name' => 'user', 'label' => 'Суперадмин']);
         $adminRole = Role::create(['name' => 'admin', 'label' => 'Администратор']);
-        $managerRole = Role::create(['name' => 'manager', 'label' => 'Менеджер']);
         $userRole = Role::create(['name' => 'user', 'label' => 'Пользователь']);
+        $managerRole = Role::create(['name' => 'manager', 'label' => 'Тренер']);
+
+
+
 
 
 // Добавляем новые права
