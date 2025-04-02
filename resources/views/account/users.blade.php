@@ -34,7 +34,6 @@
                             @csrf
                             @method('patch')
 
-
                             {{-- Поле "Имя" --}}
                             <div class="mb-3">
                                 <label for="name" class="form-label">Имя ученика*</label>

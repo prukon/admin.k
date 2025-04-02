@@ -13,11 +13,6 @@ use YooKassa\Client;
 
 class PartnerPaymentController extends Controller
 {
-//    public function __construct()
-//    {
-//        $this->middleware('role:admin,superadmin');
-//    }
-
 
 //    Страница Пополнить счет
     public function showRecharge()

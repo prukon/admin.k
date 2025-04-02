@@ -32,7 +32,6 @@ class UserController extends Controller
     public function __construct(UserService $service)
     {
         $this->service = $service;
-//        $this->middleware('role:admin,superadmin');
     }
 
     public function index(FilterRequest $request)
@@ -43,7 +42,8 @@ class UserController extends Controller
         $fields = UserField::all();
         $user = Auth::user();
 
-        $roles = Role::all(); // Все роли
+//        $roles = Role::all(); // Все роли
+        $roles = Role::where('name', '!=', 'superadmin')->get();
 
 
         if (isset($data['id'])) {
@@ -73,7 +73,8 @@ class UserController extends Controller
 //        $allUsersCount  = User::all()->count();
 
         $allTeams = Team::All();
-        $allRoles = Role::all();  // <-- Важно! Берём все роли из БД для формы
+//        $allRoles = Role::all();  // <-- Важно! Берём все роли из БД для формы
+        $allRoles = Role::where('name', '!=', 'superadmin')->get();
 
         return view("admin.user.create", compact("allTeams", 'allRoles'));     }
 
@@ -152,7 +153,8 @@ class UserController extends Controller
         $fields = UserField::all(); // Получаем пользовательские поля (например, теги)
         // Загрузка связи fields
         $user->load('fields');
-        $roles = Role::all();
+//        $roles = Role::all();
+        $roles = Role::where('name', '!=', 'superadmin')->get();
 
 
         return response()->json([

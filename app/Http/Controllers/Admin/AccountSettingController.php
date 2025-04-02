@@ -35,7 +35,6 @@ class AccountSettingController extends Controller
     public function __construct(UserService $service)
     {
         $this->service = $service;
-//        $this->middleware('role:admin,superadmin');
     }
 
     public function user()

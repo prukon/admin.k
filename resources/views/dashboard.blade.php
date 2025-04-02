@@ -164,11 +164,17 @@
                         {{--<div class="display-none count-training">Количество тренировок: <span--}}
                                     {{--class="count-training-value">223</span></div>--}}
                     </div>
+
+
+                    @can('payment-clubfee')
+
                     <div class="mt-3">
                         <a href="/payment/club-fee">
                             <button type="button" id="club-fee" class="btn btn-primary">Клубный взнос</button>
                         </a>
                     </div>
+                    @endcan
+
                 </div>
                 <div class="col-12 col-lg-4 mt-3 mb-1 credit-notice  align-items-center justify-content-center text-center">
                     <i class="close fa-solid fa-circle-xmark"></i>
@@ -391,7 +397,8 @@
 
 
                     function disabledPaymentForm(role) {
-                        if (role == "admin" || role == "superadmin") {
+                        @cannot('paying-classes')
+
                             // Получаем все формы на странице
                             const forms = document.querySelectorAll('.seasons form');
 
@@ -411,7 +418,7 @@
                                 form.style.opacity = '0.5';
                                 form.style.pointerEvents = 'none';
                             });
-                        }
+                        @endcan
                     }
 
 

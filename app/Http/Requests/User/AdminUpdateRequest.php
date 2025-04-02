@@ -46,7 +46,6 @@ class AdminUpdateRequest extends FormRequest
             // общие поля, которые могут редактировать и пользователь, и админ
             'birthday'   => ['nullable','date','before_or_equal:today'],
             'custom.*' => 'nullable|string|max:255', // Замените правила в зависимости от типа данных
-            'role_id'    => 'required|integer|exists:roles,id',
 
 
         ];
@@ -64,7 +63,7 @@ class AdminUpdateRequest extends FormRequest
         }
 
         if ($this->user()->can('changing-user-rules')) {
-            $rules['role'] = 'string|max:12';
+            $rules['role_id'] = 'required|integer|exists:roles,id';
         }
 
         if ($this->user()->can('changing-user-email')) {

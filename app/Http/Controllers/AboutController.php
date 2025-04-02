@@ -8,10 +8,6 @@ use Illuminate\Support\Facades\Auth;
 
 class AboutController extends Controller
 {
-//    public function __construct()
-//    {
-//        $this->middleware('role:user,admin,superadmin');
-//    }
 
     public function index()
     {

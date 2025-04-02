@@ -130,5 +130,14 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('student_filter_console');
         });
 
+        // Оплата занятий
+        Gate::define('paying-classes', function (User $user) {
+            return $user->hasPermission('paying_classes');
+        });
+
+        // Оплата клубного взноса
+        Gate::define('payment-clubfee', function (User $user) {
+            return $user->hasPermission('payment_clubfee');
+        });
     }
 }

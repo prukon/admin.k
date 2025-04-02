@@ -25,21 +25,6 @@ use Yajra\DataTables\DataTables;
 
 class SettingPricesController extends Controller
 {
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
-//    public function __construct()
-//    {
-//        $this->middleware('role:admin,superadmin');
-//    }
-
-    /**
-     * Show the application dashboard.
-     *
-     * @return \Illuminate\Contracts\Support\Renderable
-     */
 
     public function formatedDate($month)
     {

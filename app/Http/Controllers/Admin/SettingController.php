@@ -25,36 +25,6 @@ use App\Models\Permission;
 class SettingController extends Controller
 {
 
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
-//    public function __construct()
-//    {
-//        $this->middleware('role:admin,superadmin');
-//    }
-
-    /**
-     * Show the application dashboard.
-     *
-     * @return \Illuminate\Contracts\Support\Renderable
-     */
-
-//    public function index()
-//    {
-////        $menuItems = MenuItem::all();
-////        $socialItems = SocialItem::all(); // Получаем все записи социальных сетей из базы данных
-//        $setting = Setting::where('name', 'textForUsers')->first();
-//        $textForUsers = $setting ? $setting->text : null;
-//
-//
-//        return view("admin/setting", compact(
-//            "textForUsers"
-////            "menuItems",
-////            "socialItems"
-//        ));
-//    }
 
 //Страница Настройки
     public function showSettings()

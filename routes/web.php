@@ -85,22 +85,20 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('/admin/setting/rule/toggle', [\App\Http\Controllers\Admin\SettingController::class, 'togglePermission'])->name('admin.setting.rule.toggle')->middleware('can:manage-roles');
 
     //Страница оплаты сервиса адмимон
-    Route::get('/partner-payment/recharge', [\App\Http\Controllers\PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge');
-    Route::get('/partner-payment/history', [\App\Http\Controllers\PartnerPaymentController::class, 'showHistory'])->name('partner.payment.history');
-    Route::get('/partner-payment/data', [\App\Http\Controllers\PartnerPaymentController::class, 'getPaymentsData'])->name('partner.payment.data');
+    Route::get('/partner-payment/recharge', [\App\Http\Controllers\PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge')->middleware('can:service-payment');
+    Route::get('/partner-payment/history', [\App\Http\Controllers\PartnerPaymentController::class, 'showHistory'])->name('partner.payment.history')->middleware('can:service-payment');
+    Route::get('/partner-payment/data', [\App\Http\Controllers\PartnerPaymentController::class, 'getPaymentsData'])->name('partner.payment.data')->middleware('can:service-payment');
+    Route::post('//payment/service/yookassa', [\App\Http\Controllers\PartnerPaymentController::class, 'createPaymentYookassa'])->name('createPaymentYookassa')->middleware('can:service-payment');
 
-    //Страница выбора оплаты
-    Route::post('/payment', [\App\Http\Controllers\TransactionController::class, 'index'])->name('payment');
 
     //Страница оплаты робокассы
-    Route::post('/payment/pay', [\App\Http\Controllers\TransactionController::class, 'pay'])->name('payment.pay');
-
-    //Маршрут для страницы успешной оплаты
-    Route::get('/payment/success', [\App\Http\Controllers\TransactionController::class, 'success'])->name('payment.success');
-
-    //Маршрут для страницы неудачной оплаты
+    Route::post('/payment', [\App\Http\Controllers\TransactionController::class, 'index'])->name('payment')->middleware('can:paying-classes');
+    Route::post('/payment/pay', [\App\Http\Controllers\TransactionController::class, 'pay'])->name('payment.pay')->middleware('can:paying-classes');
+    Route::get('/payment/success', [\App\Http\Controllers\TransactionController::class, 'success'])->name('payment.success')->middleware('can:paying-classes');
     Route::get('/payment/fail', [\App\Http\Controllers\TransactionController::class, 'fail'])->name('payment.fail');
-    Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee'); //Оплата клубного взноса
+
+    //Оплата клубного взноса
+    Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee')->middleware('can:payment-clubfee'); //Оплата клубного взноса
 
     //Учетная запись - вкладка юзер
     Route::get('/account-settings/users/{user}/edit', [\App\Http\Controllers\Admin\AccountSettingController::class, 'user'])->name('admin.cur.user.edit');
@@ -117,12 +115,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::patch('/account-settings/partner/{partner}', [\App\Http\Controllers\Admin\PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update')->middleware('can:partner-company');
 
     //Организация (сервис)
-//    Route::get('/admin/company', [\App\Http\Controllers\Admin\CompanyController::class, 'index'])->name('company');
     Route::get('/about', [\App\Http\Controllers\AboutController::class, 'index'])->name('about');
     Route::get('/terms', [\App\Http\Controllers\AboutController::class, 'terms'])->name('terms');
 
-    //Емани
-    Route::post('//payment/service/yookassa', [\App\Http\Controllers\PartnerPaymentController::class, 'createPaymentYookassa'])->name('createPaymentYookassa');
 
     //Журнал расписания
     Route::get('/schedule', [\App\Http\Controllers\Admin\ScheduleController::class, 'index'])->name('schedule.index')->middleware('can:schedule-journal');
