@@ -23,50 +23,146 @@ class RolesAndPermissionsSeeder extends Seeder
 // Добавляем новые права
         $reports = Permission::create([
             'name' => 'reports',
-            'description' => 'Отчеты'
+            'description' => 'Страница "Отчеты"',
+            'sort_order' => 10,
         ]);
 
         $setPrices = Permission::create([
             'name' => 'set_prices',
-            'description' => 'Установка цен'
+            'description' => 'Страница "Установка цен"',
+            'sort_order' => 20,
         ]);
 
         $scheduleJournal = Permission::create([
             'name' => 'schedule_journal',
-            'description' => 'Журнал расписания'
+            'description' => 'Страница "Журнал расписания"',
+            'sort_order' => 30,
         ]);
 
         $manageUsers = Permission::create([
             'name' => 'manage_users',
-            'description' => 'Управление пользователями'
+            'description' => 'Страница "Пользователи"',
+            'sort_order' => 40,
         ]);
 
         $manageGroups = Permission::create([
             'name' => 'manage_groups',
-            'description' => 'Управление группами'
+            'description' => 'Страница "Группы"',
+            'sort_order' => 50,
         ]);
 
         $generalSettings = Permission::create([
             'name' => 'general_settings',
-            'description' => 'Общие настройки'
+            'description' => 'Страница "Настройки"',
+            'sort_order' => 60,
         ]);
 
-        $manageRoles = Permission::create([
-            'name' => 'manage_roles',
-            'description' => 'Управление ролями'
+        $partnerCompany = Permission::create([
+            'name' => 'partner_company',
+            'description' => 'Страница "Учетная запись -> Организация"',
+            'sort_order' => 70,
         ]);
 
         $servicePayment = Permission::create([
             'name' => 'service_payment',
-            'description' => 'Оплата сервиса'
+            'description' => 'Страница "Оплата сервиса"',
+            'sort_order' => 80,
+        ]);
+
+        $myPayments = Permission::create([
+            'name' => 'my_payments',
+            'description' => 'Страница "Мои платежи"',
+            'sort_order' => 90,
+        ]);
+
+        $payingClasses = Permission::create([
+            'name' => 'paying_classes',
+            'description' => 'Оплата учебных занятий',
+            'sort_order' => 100,
+        ]);
+
+        $paymentClubFee = Permission::create([
+            'name' => 'payment_clubfee',
+            'description' => 'Оплата клубного взноса',
+            'sort_order' => 110,
+        ]);
+
+        $nameEditing = Permission::create([
+            'name' => 'name_editing',
+            'description' => 'Изменение имени пользователя',
+            'sort_order' => 120,
+        ]);
+
+        $changingYourGroup = Permission::create([
+            'name' => 'changing_your_group',
+            'description' => 'Изменение группы пользователя',
+            'sort_order' => 130,
+        ]);
+
+        $changingUserActivity = Permission::create([
+            'name' => 'changing_user_activity',
+            'description' => 'Изменение активности пользователя',
+            'sort_order' => 140,
+        ]);
+
+        $changingUserRules = Permission::create([
+            'name' => 'changing_user_rules',
+            'description' => 'Изменение роли пользователя',
+            'sort_order' => 150,
+        ]);
+
+        $changingUserEmail = Permission::create([
+            'name' => 'changing_user_email',
+            'description' => 'Изменение email пользователя',
+            'sort_order' => 160,
+        ]);
+
+        $studentFilterConsole = Permission::create([
+            'name' => 'student_filter_console',
+            'description' => 'Фильтр учеников в консоли',
+            'sort_order' => 170,
         ]);
 
         $changeHistory = Permission::create([
             'name' => 'change_history',
-            'description' => 'История изменений'
+            'description' => 'Просмотр истории изменений',
+            'sort_order' => 180,
         ]);
 
+        $manageRoles = Permission::create([
+            'name' => 'manage_roles',
+            'description' => 'Управление ролями',
+            'sort_order' => 190,
+        ]);
+
+
         // Привязываем права к ролям
+// 1) Супер получает всё
+        $superAdminRole->permissions()->attach([
+            $reports->id,
+            $setPrices->id,
+            $scheduleJournal->id,
+            $manageUsers->id,
+            $manageGroups->id,
+            $generalSettings->id,
+            $partnerCompany->id,
+            $servicePayment->id,
+            $myPayments->id,
+            $payingClasses->id,
+            $paymentClubFee->id,
+            $nameEditing->id,
+            $changingYourGroup->id,
+            $changingUserActivity->id,
+            $changingUserRules->id,
+            $changingUserEmail->id,
+            $studentFilterConsole->id,
+            $changeHistory->id,
+            $manageRoles->id,
+        ]);
+
+
+
+
 // 1) Админ получает всё
         $adminRole->permissions()->attach([
             $reports->id,
@@ -75,16 +171,19 @@ class RolesAndPermissionsSeeder extends Seeder
             $manageUsers->id,
             $manageGroups->id,
             $generalSettings->id,
-            $manageRoles->id,
+            $partnerCompany->id,
             $servicePayment->id,
-            $changeHistory->id
-        ]);
-
-// 2) Менеджеру — только три права
-        $managerRole->permissions()->attach([
-            $scheduleJournal->id,  // Журнал расписания
-            $manageUsers->id,      // Управление пользователями
-            $changeHistory->id     // История изменений
+//            $myPayments->id,
+//            $payingClasses->id,
+//            $paymentClubFee->id,
+            $nameEditing->id,
+            $changingYourGroup->id,
+            $changingUserActivity->id,
+            $changingUserRules->id,
+            $changingUserEmail->id,
+            $studentFilterConsole->id,
+            $changeHistory->id,
+            $manageRoles->id,
         ]);
     }
 }
