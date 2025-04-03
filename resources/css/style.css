@@ -1353,3 +1353,8 @@ a.disabled {
         width: auto;
     }
 }
+
+
+.main-sidebar .my-brand-link {
+    width: auto;
+}

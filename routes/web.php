@@ -7,19 +7,7 @@ use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\PartnerPaymentController;
 use Illuminate\Support\Facades\Mail;
 
-
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
-*/
 Auth::routes();
-
 
 Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
@@ -105,12 +93,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::patch('/account-settings/users/{user}', [\App\Http\Controllers\Admin\AccountSettingController::class, 'update'])->name('account.user.update');
     Route::post('/user/update-password', [\App\Http\Controllers\Admin\AccountSettingController::class, 'updatePassword']);
     //Обновление аватарки юзером
-//    Route::post('/profile/upload-user-avatar', [\App\Http\Controllers\AccountSettingController::class, 'uploadAvatar'])->name('profile.user.uploadAvatar');
     Route::post('/profile/upload-user-avatar', [\App\Http\Controllers\Admin\AccountSettingController::class, 'uploadAvatar'])->name('profile.user.uploadAvatar');
     //Обновление аватара админом
-//    Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\AccountSettingController::class, 'updateAvatar'])->name('admin.user.update-avatar');
     Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\Admin\AccountSettingController::class, 'updateAvatar'])->name('admin.user.update-avatar');
-//    Route::post('/admin/user/{user}/delete-avatar', [\App\Http\Controllers\AccountSettingController::class, 'deleteAvatar'])->name('user.delete-avatar');
     Route::post('/admin/user/{user}/delete-avatar', [\App\Http\Controllers\Admin\AccountSettingController::class, 'deleteAvatar'])->name('user.delete-avatar');
 
     //Учетная запись - вкладка организация
@@ -121,20 +106,31 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/about', [\App\Http\Controllers\AboutController::class, 'index'])->name('about');
     Route::get('/terms', [\App\Http\Controllers\AboutController::class, 'terms'])->name('terms');
 
-
     //Журнал расписания
     Route::get('/schedule', [\App\Http\Controllers\Admin\ScheduleController::class, 'index'])->name('schedule.index')->middleware('can:schedule-journal');
     Route::post('/schedule/update', [\App\Http\Controllers\Admin\ScheduleController::class, 'update'])->name('schedule.update')->middleware('can:schedule-journal');
     Route::get('/schedule/logs-data', [\App\Http\Controllers\Admin\ScheduleController::class, 'getLogsData'])->name('logs.data.schedule')->middleware('can:schedule-journal');
-    Route::get('/admin/user-schedule/{user}', [\App\Http\Controllers\Admin\ScheduleController::class, 'getUserScheduleInfo'])->name('user.schedule.info')->middleware('can:schedule-journal');
-    Route::post('/admin/user/{user}/set-group', [\App\Http\Controllers\Admin\ScheduleController::class, 'setUserGroup'])->name('user.set.group')->middleware('can:schedule-journal');
-    Route::post('/admin/user/{user}/update-schedule-range', [\App\Http\Controllers\Admin\ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule')->middleware('can:schedule-journal');
+//    Route::get('/admin/user-schedule/{user}', [\App\Http\Controllers\Admin\ScheduleController::class, 'getUserScheduleInfo'])->name('user.schedule.info')->middleware('can:schedule-journal');
+    Route::get('/schedule/user-schedule/{user}', [\App\Http\Controllers\Admin\ScheduleController::class, 'getUserScheduleInfo'])->name('user.schedule.info')->middleware('can:schedule-journal');
+//    Route::post('/admin/user/{user}/set-group', [\App\Http\Controllers\Admin\ScheduleController::class, 'setUserGroup'])->name('user.set.group')->middleware('can:schedule-journal');
+    Route::post('/schedule/user/{user}/set-group', [\App\Http\Controllers\Admin\ScheduleController::class, 'setUserGroup'])->name('user.set.group')->middleware('can:schedule-journal');
+//    Route::post('/admin/user/{user}/update-schedule-range', [\App\Http\Controllers\Admin\ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule')->middleware('can:schedule-journal');
+    Route::post('/schedule/user/{user}/update-schedule-range', [\App\Http\Controllers\Admin\ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule')->middleware('can:schedule-journal');
+
+
 
     // Статусы
-    Route::get('statuses', [\App\Http\Controllers\Admin\StatusController::class, 'index'])->name('statuses.index')->middleware('can:schedule-journal');
-    Route::post('statuses', [\App\Http\Controllers\Admin\StatusController::class, 'store'])->name('statuses.store')->middleware('can:schedule-journal');
-    Route::patch('/admin/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'update'])->name('statuses.update')->middleware('can:schedule-journal');
-    Route::delete('/admin/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'destroy'])->name('statuses.destroy')->middleware('can:schedule-journal');
+    Route::get('/schedule/statuses', [\App\Http\Controllers\Admin\StatusController::class, 'index'])->name('statuses.index')->middleware('can:schedule-journal');
+    Route::post('/schedule/statuses', [\App\Http\Controllers\Admin\StatusController::class, 'store'])->name('statuses.store')->middleware('can:schedule-journal');
+    Route::patch('/schedule/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'update'])->name('statuses.update')->middleware('can:schedule-journal');
+    Route::delete('/schedule/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'destroy'])->name('statuses.destroy')->middleware('can:schedule-journal');
+
+
+//    Route::get('statuses', [\App\Http\Controllers\Admin\StatusController::class, 'index'])->name('statuses.index')->middleware('can:schedule-journal');
+//    Route::post('statuses', [\App\Http\Controllers\Admin\StatusController::class, 'store'])->name('statuses.store')->middleware('can:schedule-journal');
+//    Route::patch('/admin/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'update'])->name('statuses.update')->middleware('can:schedule-journal');
+//    Route::delete('/admin/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'destroy'])->name('statuses.destroy')->middleware('can:schedule-journal');
+//
 
     //Роли
 //Route::get('/admin/setting/rule', [\App\Http\Controllers\Admin\RolePermissionController::class, 'index'])->name('admin.setting.rule');
