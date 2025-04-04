@@ -357,30 +357,101 @@ class SettingController extends Controller
     }
 
     //Изменение прав пользователей
-    public function togglePermission(Request $request)
+    public function togglePermission2(Request $request)
     {
         $roleId = $request->input('role_id');
         $permissionId = $request->input('permission_id');
         $value = $request->input('value'); // true/false
-
-        /** @var Role $role */
         $role = Role::findOrFail($roleId);
-        /** @var Permission $permission */
         $permission = Permission::findOrFail($permissionId);
 
-        if ($value == 'true') {
-            // Если чекбокс включили, значит нужно добавить право роли
-            $role->permissions()->syncWithoutDetaching([$permission->id]);
-        } else {
-            // Если чекбокс выключили, удаляем право у роли
-            $role->permissions()->detach($permission->id);
-        }
+
+
+        DB::transaction(function () use ($permission, $value, $role) {
+            // Определим максимальное значение order_by
+
+            $authorId = auth()->id(); // Авторизованный пользователь
+
+            if ($value == 'true') {
+                // Если чекбокс включили, значит нужно добавить право роли
+                $role->permissions()->syncWithoutDetaching([$permission->id]);
+            } else {
+                // Если чекбокс выключили, удаляем право у роли
+                $role->permissions()->detach($permission->id);
+            }
+
+            // Логируем создание пользователя
+            MyLog::create([
+                'type' => 700,    // Лог для ролей
+                'action' => 720, // Лог для изменения прав
+                'author_id' => $authorId,
+                'description' => sprintf(
+                    "Название: %s",
+                    $role->name
+                ),
+                'created_at' => now(),
+            ]);
+
+        });
+        return response()->json([
+            'success' => true,
+            'message' => 'Обновление прошло успешно',
+        ]);
+    }
+
+    public function togglePermission(Request $request)
+    {
+        // Валидация (можно использовать FormRequest или встроенный метод validate)
+        $data = $request->validate([
+            'role_id'       => 'required|integer',
+            'permission_id' => 'required|integer',
+            'value'         => 'required',
+        ]);
+
+        // Преобразуем 'true'/'false' (строки) к настоящему булевому значению.
+        // Например, 'true' -> true, 'false' -> false.
+        // Можно также использовать касты, если хочется изящнее.
+        $value = filter_var($data['value'], FILTER_VALIDATE_BOOLEAN);
+
+        DB::transaction(function () use ($data, $value) {
+            // Находим роль и разрешение
+            $role = Role::findOrFail($data['role_id']);
+            $permission = Permission::findOrFail($data['permission_id']);
+
+            // В зависимости от значения value – даём или убираем право
+            if ($value) {
+                $role->permissions()->syncWithoutDetaching([$permission->id]);
+            } else {
+                $role->permissions()->detach($permission->id);
+            }
+
+            // Логируем действие
+            MyLog::create([
+                'type'       => 700,   // условный тип для ролей
+                'action'     => 720,   // условный код для изменения прав
+                'author_id'  => auth()->id(),
+                // Формат:
+                // Роль: Администратор
+                // Разрешено: "Имя_разрешения"
+                // или
+                // Роль: Пользователь
+                // Запрещено: "Имя_разрешения"
+                'description' => sprintf(
+                    "Роль: %s\n%s: \"%s\"",
+                    $role->label,
+                    $value ? 'Разрешено' : 'Запрещено',
+                    $permission->description // или любое нужное вам поле
+                ),
+                'created_at' => now(),
+            ]);
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Обновление прошло успешно',
         ]);
     }
+
 
     //* Метод для создания новой роли (AJAX).
     public function createRole(Request $request)
@@ -427,24 +498,15 @@ class SettingController extends Controller
 
     }
 
-    /**
-     * Метод для удаления роли (AJAX).
-     * При удалении:
-     *  1) Проверяем, что is_sistem = 0
-     *  2) Удаляем связь permission_role
-     *  3) Пользователям, у которых эта роль, задаём роль "по умолчанию"
-     *  4) Удаляем саму роль
-     */
+    //* Метод для удаления  роли (AJAX).
     public function deleteRole(Request $request)
     {
         $request->validate([
             'role_id' => 'required|integer|exists:roles,id',
         ]);
 
-        // Получаем роль
         $role = Role::findOrFail($request->role_id);
 
-        // Проверяем, что она не системная
         if ($role->is_sistem == 1) {
             return response()->json([
                 'success' => false,
@@ -452,46 +514,45 @@ class SettingController extends Controller
             ], 400);
         }
 
-        // Роль по умолчанию:
-        // Предположим, что у вас есть некая роль 'guest' / 'user' / 'default'
-        // (можно хранить в config или где-то ещё).
-        $defaultRole = Role::where('name', 'user')->first();
-        if (!$defaultRole) {
-            // На крайний случай создадим "guest"
-            $defaultRole = Role::create([
-                'name' => 'user',
+        $defaultRole = Role::firstOrCreate(
+            ['name' => 'user'],
+            [
                 'label' => 'Пользователь',
-                'is_sistem' => 1,       // Чтобы нельзя было удалить
+                'is_sistem' => 1,
                 'order_by' => 0,
-            ]);
-        }
+            ]
+        );
 
-        DB::beginTransaction();
-        try {
-            // 1) Удаляем связи в permission_role
+        DB::transaction(function () use ($role, $defaultRole) {
             DB::table('permission_role')
                 ->where('role_id', $role->id)
                 ->delete();
 
-            // 2) Обновляем пользователей, у которых была эта роль
             User::where('role_id', $role->id)
                 ->update(['role_id' => $defaultRole->id]);
 
-            // 3) Удаляем роль
             $role->delete();
 
-            DB::commit();
-            return response()->json([
-                'success' => true
+            $authorId = auth()->id(); // Авторизованный пользователь
+
+            // Логируем создание пользователя
+            MyLog::create([
+                'type' => 700,    // Лог для ролей
+                'action' => 730, // Лог для удаления роли
+                'author_id' => $authorId,
+                'description' => sprintf(
+                    "Название: %s",
+                    $role->name
+                ),
+                'created_at' => now(),
             ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Ошибка при удалении роли: ' . $e->getMessage(),
-            ], 500);
-        }
+        });
+
+        return response()->json([
+            'success' => true,
+        ]);
     }
+
 
     //Журнал логов на вкладке права
     public function logRules(FilterRequest $request)
