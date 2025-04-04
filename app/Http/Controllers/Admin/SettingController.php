@@ -25,8 +25,8 @@ use App\Models\Permission;
 class SettingController extends Controller
 {
 
-
-//Страница Настройки
+    //ВКЛАДКА НАСТРОЙКИ
+    //Страница Настройки
     public function showSettings()
     {
         $setting = Setting::where('name', 'textForUsers')->first();
@@ -41,53 +41,7 @@ class SettingController extends Controller
 
     }
 
-//Страница права пользователей
-    public function showRules()
-    {
-
-        // Получаем все роли
-        $roles = Role::all();
-        $roles = Role::with('permissions')->get();
-
-        // Получаем все права (permissions) с сортировкой по id или как вам удобнее
-        $permissions = Permission::with('roles')->orderBy('sort_order')->get();
-
-
-        // Какую вкладку активной отображать (исходя из вашего кода)
-        $activeTab = 'rule';
-
-        return view('admin.setting.rule', compact('roles', 'permissions', 'activeTab'));
-
-    }
-
-    //Изменение прав пользователей
-    public function togglePermission(Request $request)
-    {
-        $roleId = $request->input('role_id');
-        $permissionId = $request->input('permission_id');
-        $value = $request->input('value'); // true/false
-
-        /** @var Role $role */
-        $role = Role::findOrFail($roleId);
-        /** @var Permission $permission */
-        $permission = Permission::findOrFail($permissionId);
-
-        if ($value == 'true') {
-            // Если чекбокс включили, значит нужно добавить право роли
-            $role->permissions()->syncWithoutDetaching([$permission->id]);
-        } else {
-            // Если чекбокс выключили, удаляем право у роли
-            $role->permissions()->detach($permission->id);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Обновление прошло успешно',
-        ]);
-    }
-
-
-//    AJAX Активность регистрации
+    //AJAX Активность регистрации
     public function registrationActivity(Request $request)
     {
         $isRegistrationActivity = $request->query('isRegistrationActivity');
@@ -131,7 +85,7 @@ class SettingController extends Controller
         ]);
     }
 
-//    AJAX Текст сообщения для юзеров
+    //AJAX Текст сообщения для юзеров
     public function textForUsers(Request $request)
     {
         // Получаем данные из тела запроса
@@ -164,66 +118,7 @@ class SettingController extends Controller
         ]);
     }
 
-    //Журнал логов
-    public function logsAllData(Request $request)
-    {
-        $logs = MyLog::with('author')
-//            ->where('type', 1) // Добавляем условие для фильтрации по type
-            ->select('my_logs.*');
-
-        return DataTables::of($logs)
-            ->addColumn('author', function ($log) {
-                return $log->author ? $log->author->name : 'Неизвестно';
-            })
-            ->editColumn('created_at', function ($log) {
-                return $log->created_at->format('d.m.Y / H:i:s');
-            })
-            ->editColumn('action', function ($log) {
-                // Логика для преобразования типа
-                $typeLabels = [
-
-                    11 => 'Изм. цен во всех группах (Применить слева)', //Применить слева
-                    12 => 'Инд. изм. цен (Применить справа)', //Применить справа
-                    13 => 'Изм. цен в одной группе  (ок)', //Кнопка "ок"
-
-                    21 => 'Создание пользователя',
-                    22 => 'Обновление учетной записи в пользователях',
-                    23 => 'Обновление учетной записи',
-                    24 => 'Удаление пользователя в пользователях',
-                    25 => 'Изменение пароля (админ)',
-                    26 => 'Изменение пароля',
-                    27 => 'Изменение аватара (админ)',
-                    28 => 'Изменение аватара',
-                    29 => 'Удаление аватара',
-
-                    210 => 'Изменение доп полей пользователя',
-
-
-                    31 => 'Создание группы',
-                    32 => 'Изменение группы',
-                    33 => 'Удаление группы',
-
-                    40 => 'Авторизация',
-
-                    50 => 'Платежи',
-
-                    60 => 'Расписание',
-
-                    70 => 'Изменение настроек',
-
-                    80 => 'Изменение партнера',
-
-                    90 => 'Создание статуса расписания',
-                    91 => 'Изменение статуса расписания',
-                    92 => 'Удаление статуса расписания',
-
-
-                ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип (setting)';
-            })
-            ->make(true);
-    }
-
+    //Сохранение меню в шапке
     public function saveMenuItems(Request $request)
     {
         $errors = [];
@@ -314,7 +209,7 @@ class SettingController extends Controller
         return response()->json(['success' => true]);
     }
 
-//    Сохранение соц. меню в шапке
+    //Сохранение соц. меню в шапке
     public function saveSocialItems(Request $request)
     {
         $errors = [];
@@ -376,4 +271,229 @@ class SettingController extends Controller
         return response()->json(['success' => true]);
     }
 
+    //Журнал логов
+    public function logsAllData(Request $request)
+    {
+        $logs = MyLog::with('author')
+//            ->where('type', 1) // Добавляем условие для фильтрации по type
+            ->select('my_logs.*');
+
+        return DataTables::of($logs)
+            ->addColumn('author', function ($log) {
+                return $log->author ? $log->author->name : 'Неизвестно';
+            })
+            ->editColumn('created_at', function ($log) {
+                return $log->created_at->format('d.m.Y / H:i:s');
+            })
+            ->editColumn('action', function ($log) {
+                // Логика для преобразования типа
+                $typeLabels = [
+
+                    11 => 'Изм. цен во всех группах (Применить слева)', //Применить слева
+                    12 => 'Инд. изм. цен (Применить справа)', //Применить справа
+                    13 => 'Изм. цен в одной группе  (ок)', //Кнопка "ок"
+
+                    21 => 'Создание пользователя',
+                    22 => 'Обновление учетной записи в пользователях',
+                    23 => 'Обновление учетной записи',
+                    24 => 'Удаление пользователя в пользователях',
+                    25 => 'Изменение пароля (админ)',
+                    26 => 'Изменение пароля',
+                    27 => 'Изменение аватара (админ)',
+                    28 => 'Изменение аватара',
+                    29 => 'Удаление аватара',
+
+                    210 => 'Изменение доп полей пользователя',
+
+
+                    31 => 'Создание группы',
+                    32 => 'Изменение группы',
+                    33 => 'Удаление группы',
+
+                    40 => 'Авторизация',
+
+                    50 => 'Платежи',
+
+                    60 => 'Расписание',
+
+                    70 => 'Изменение настроек',
+
+                    710 => 'Создание роли',
+                    720 => 'Изменение роли',
+                    730 => 'Удаление роли',
+
+                    80 => 'Изменение партнера',
+
+                    90 => 'Создание статуса расписания',
+                    91 => 'Изменение статуса расписания',
+                    92 => 'Удаление статуса расписания',
+
+
+                ];
+                return $typeLabels[$log->action] ?? 'Неизвестный тип (setting)';
+            })
+            ->make(true);
+    }
+
+
+    //ВКЛАДКА РОЛИ
+    //Страница права пользователей
+    public function showRules()
+    {
+
+        // Получаем все роли
+        $roles = Role::all();
+        $roles = Role::with('permissions')->get();
+
+        // Получаем все права (permissions) с сортировкой по id или как вам удобнее
+        $permissions = Permission::with('roles')->orderBy('sort_order')->get();
+
+
+        // Какую вкладку активной отображать (исходя из вашего кода)
+        $activeTab = 'rule';
+
+        return view('admin.setting.rule', compact('roles', 'permissions', 'activeTab'));
+
+    }
+
+    //Изменение прав пользователей
+    public function togglePermission(Request $request)
+    {
+        $roleId = $request->input('role_id');
+        $permissionId = $request->input('permission_id');
+        $value = $request->input('value'); // true/false
+
+        /** @var Role $role */
+        $role = Role::findOrFail($roleId);
+        /** @var Permission $permission */
+        $permission = Permission::findOrFail($permissionId);
+
+        if ($value == 'true') {
+            // Если чекбокс включили, значит нужно добавить право роли
+            $role->permissions()->syncWithoutDetaching([$permission->id]);
+        } else {
+            // Если чекбокс выключили, удаляем право у роли
+            $role->permissions()->detach($permission->id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Обновление прошло успешно',
+        ]);
+    }
+
+    //* Метод для создания новой роли (AJAX).
+    public function createRole(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        // Определим максимальное значение order_by
+        $maxOrderBy = Role::max('order_by') ?? 0;
+
+        $role = new Role();
+        $role->name = $request->input('name');
+        $role->label = $request->input('name');  // или другое
+        $role->is_sistem = 0;                    // пользовательские роли
+        $role->order_by = $maxOrderBy + 10;
+        $role->save();
+
+        return response()->json([
+            'success' => true,
+            'role' => $role
+        ]);
+    }
+
+    /**
+     * Метод для удаления роли (AJAX).
+     * При удалении:
+     *  1) Проверяем, что is_sistem = 0
+     *  2) Удаляем связь permission_role
+     *  3) Пользователям, у которых эта роль, задаём роль "по умолчанию"
+     *  4) Удаляем саму роль
+     */
+    public function deleteRole(Request $request)
+    {
+        $request->validate([
+            'role_id' => 'required|integer|exists:roles,id',
+        ]);
+
+        // Получаем роль
+        $role = Role::findOrFail($request->role_id);
+
+        // Проверяем, что она не системная
+        if ($role->is_sistem == 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Нельзя удалять системную роль!',
+            ], 400);
+        }
+
+        // Роль по умолчанию:
+        // Предположим, что у вас есть некая роль 'guest' / 'user' / 'default'
+        // (можно хранить в config или где-то ещё).
+        $defaultRole = Role::where('name', 'user')->first();
+        if (!$defaultRole) {
+            // На крайний случай создадим "guest"
+            $defaultRole = Role::create([
+                'name' => 'user',
+                'label' => 'Пользователь',
+                'is_sistem' => 1,       // Чтобы нельзя было удалить
+                'order_by' => 0,
+            ]);
+        }
+
+        DB::beginTransaction();
+        try {
+            // 1) Удаляем связи в permission_role
+            DB::table('permission_role')
+                ->where('role_id', $role->id)
+                ->delete();
+
+            // 2) Обновляем пользователей, у которых была эта роль
+            User::where('role_id', $role->id)
+                ->update(['role_id' => $defaultRole->id]);
+
+            // 3) Удаляем роль
+            $role->delete();
+
+            DB::commit();
+            return response()->json([
+                'success' => true
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка при удалении роли: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    //Журнал логов на вкладке права
+    public function logRules(FilterRequest $request)
+    {
+        $logs = MyLog::with('author')
+            ->where('type', 700) // Настройки логи
+            ->select('my_logs.*');
+        return DataTables::of($logs)
+            ->addColumn('author', function ($log) {
+                return $log->author ? $log->author->name : 'Неизвестно';
+            })
+            ->editColumn('created_at', function ($log) {
+                return $log->created_at->format('d.m.Y / H:i:s');
+            })
+            ->editColumn('action', function ($log) {
+                // Логика для преобразования типа
+                $typeLabels = [
+                    710 => 'Создание роли',
+                    720 => 'Изменение роли',
+                    730 => 'Удаление роли',
+
+                ];
+                return $typeLabels[$log->action] ?? 'Неизвестный тип(user)';
+            })
+            ->make(true);
+    }
 }

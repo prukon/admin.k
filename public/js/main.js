@@ -9,13 +9,6 @@ function updateGlobalScheduleData(scheduleUser) {
     }
 }
 
-//разблокировка кнопки УСТАНОВИТЬ
-// function enableSetupBtn(user, team, inputDate) {
-//     if (user && team && inputDate) {
-//         $('#setup-btn').removeAttr('disabled');
-//     }
-// }
-
 // Создание сезонов
 function createSeasons() {
 
@@ -519,11 +512,6 @@ function apendCreditTotalSumm() {
 
 
 function clickToSearch() {
-    // document.getElementById('search-button').addEventListener('click', function () {
-    // searchUserName();
-    // searchUserbyTeam();
-    // window.location.reload();
-    // });
 
     function searchUserName() {
         document.getElementById('search-button').addEventListener('click', function () {
@@ -583,7 +571,6 @@ function clickToSearch() {
         searchUserName();
         setInputFromURL();
         setSelectFromURL();
-        // searchUserbyTeam();
     };
 
 }
@@ -637,10 +624,7 @@ document.addEventListener('DOMContentLoaded', function () {
     addSelect2ToUser();
     addSelect2ToTeam();
     addDatapicker();
-    // showCreditNotice();
 
-    // updateGlobalScheduleData({{$scheduleUser}});
-    // setBackgroundToCalendar(@json($scheduleUser));
 
 }, false);
 

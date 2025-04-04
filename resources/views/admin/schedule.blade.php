@@ -479,7 +479,4 @@
     @vite(['resources/css/schedule.css',])
     @vite(['resources/js/schedule.js',])
 
-
-
-
 @endsection

@@ -279,15 +279,12 @@ class UserController extends Controller
 
     public function delete(User $user)
     {
-
-
         // Проверяем, если пользователь не существует
         if (!$user) {
             return response()->json(['error' => 'Пользователь не найден'], 404);
         }
 
         $authorId = auth()->id(); // Авторизованный пользователь
-
 
         DB::transaction(function () use ($user, $authorId) {
             // Удаление пользователя

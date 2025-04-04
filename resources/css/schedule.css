@@ -459,6 +459,8 @@ table.dataTable tbody th, table.dataTable tbody td {
 #settingsModal .modal-dialog {
     width: 50% !important; /* или max-width: 50%; */
     margin: auto !important; /* центрируем */
+    margin-top: 100px!important; /* центрируем */
+
 }
 
 /* Для выбранной иконки */

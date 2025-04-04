@@ -71,6 +71,13 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     //Страница Настойки- Права
     Route::get('/admin/settings/rules', [\App\Http\Controllers\Admin\SettingController::class, 'showRules'])->name('admin.setting.rule')->middleware('can:manage-roles');
     Route::post('/admin/setting/rule/toggle', [\App\Http\Controllers\Admin\SettingController::class, 'togglePermission'])->name('admin.setting.rule.toggle')->middleware('can:manage-roles');
+    Route::get('/admin/setting/rules/logs-data', [\App\Http\Controllers\Admin\SettingController::class, 'logRules'])->name('logs.data.rule')->middleware('can:manage-roles');
+    Route::post('/admin/setting/role/create', [\App\Http\Controllers\Admin\SettingController::class, 'createRole'])->name('admin.setting.role.create')->middleware('can:manage-roles');
+    Route::delete('/admin/setting/role/delete', [\App\Http\Controllers\Admin\SettingController::class, 'deleteRole'])->name('admin.setting.role.delete')->middleware('can:manage-roles');
+
+
+
+
 
     //Страница оплаты сервиса адмимон
     Route::get('/partner-payment/recharge', [\App\Http\Controllers\PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge')->middleware('can:service-payment');

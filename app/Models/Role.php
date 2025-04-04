@@ -14,6 +14,14 @@ class Role extends Model
     protected $fillable = [
         'name',
         'label',
+        'is_sistem',
+        'order_by',
+
+    ];
+
+    protected $casts = [
+        'is_sistem' => 'boolean',
+        'order_by' => 'integer',
     ];
 
     protected static function booted()

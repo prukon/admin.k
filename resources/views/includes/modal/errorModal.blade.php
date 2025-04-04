@@ -1,7 +1,9 @@
 <!--
 Для вызова в шаблоне использовать: $('#errorModal').modal('show');
 Для изменения тескта ошибки: $('#error-message').text(errorMessage);
-
+Пример:
+  $('#errorModal').modal('show');
+  $('#error-message').text(errorMessage);
 
 Пример AJAX ответа:
    error: function (response) {
