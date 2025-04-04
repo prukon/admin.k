@@ -397,12 +397,34 @@ class SettingController extends Controller
         $role->label = $request->input('name');  // или другое
         $role->is_sistem = 0;                    // пользовательские роли
         $role->order_by = $maxOrderBy + 10;
-        $role->save();
+//        $role->save();
+
+        DB::transaction(function () use ($request, $role) {
+            // Определим максимальное значение order_by
+
+            $role->save();
+
+            $authorId = auth()->id(); // Авторизованный пользователь
+
+            // Логируем создание пользователя
+            MyLog::create([
+                'type' => 700,    // Лог для ролей
+                'action' => 710, // Лог для создания роли
+                'author_id' => $authorId,
+                'description' => sprintf(
+                    "Название: %s",
+                    $role->name
+                    ),
+                'created_at' => now(),
+            ]);
+
+        });
 
         return response()->json([
             'success' => true,
             'role' => $role
         ]);
+
     }
 
     /**
