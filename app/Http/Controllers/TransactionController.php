@@ -7,6 +7,7 @@ use App\Models\Partner;
 use App\Models\PartnerPayment;
 
 use App\Models\Payment;
+use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
@@ -103,10 +104,6 @@ class TransactionController extends Controller
             $paymentDate = "Клубный взнос";
         }
 
-
-
-
-
         $invId = "";
         $isTest = 1;
         $receipt = rawurlencode("{\"items\":[{\"name\":\"оплата услуги по занятию футболом\",\"quantity\":1,\"sum\":$outSum,\"tax\":\"none\"}]}");
@@ -123,6 +120,80 @@ class TransactionController extends Controller
 
         return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
     }
+
+
+    public function pay3(Request $request)
+    {
+        $userId = $request->userId;
+        $userName = $request->userName;
+        $outSum = $request->outSum;
+
+        $paymentDate = $request->has('formatedPaymentDate')
+            ? $request->formatedPaymentDate
+            : "Клубный взнос";
+
+        if (!$request->has('formatedPaymentDate')) {
+            \Log::warning('formatedPaymentDate отсутствует в запросе');
+        }
+
+        // Получаем настройки Робокассы из БД
+        $paymentSystem = PaymentSystem::where('name', 'robokassa')->first();
+
+        if (!$paymentSystem || !$paymentSystem->is_connected) {
+            \Log::error('Попытка оплаты, но Робокасса не подключена или не настроена');
+            abort(500, 'Платёжная система не подключена');
+        }
+
+        $settings = $paymentSystem->settings;
+        $mrhLogin = $settings['merchant_login'] ?? null;
+        $mrhPass1 = $settings['password1'] ?? null;
+
+        if (!$mrhLogin || !$mrhPass1) {
+            \Log::error('Отсутствуют обязательные параметры для Робокассы');
+            abort(500, 'Ошибка конфигурации платёжной системы');
+        }
+
+        $invId = "";
+        $isTest = $settings['test_mode'] ?? true; // можно использовать при генерации URL, если нужно
+        $receiptJson = [
+            'items' => [
+                [
+                    'name' => 'оплата услуги по занятию футболом',
+                    'quantity' => 1,
+                    'sum' => $outSum,
+                    'tax' => 'none',
+                ],
+            ],
+        ];
+        $receipt = rawurlencode(json_encode($receiptJson, JSON_UNESCAPED_UNICODE));
+
+        $description = $paymentDate === "Клубный взнос"
+            ? "Оплата клубного взноса"
+            : "Пользователь: $userName. Период оплаты: $paymentDate.";
+
+        // Формируем подпись
+        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
+
+        // Формируем URL оплаты
+        $paymentUrl = "https://auth.robokassa.ru/Merchant/Index.aspx?" . http_build_query([
+                'MerchantLogin'    => $mrhLogin,
+                'OutSum'           => $outSum,
+                'InvId'            => $invId,
+                'Description'      => $description,
+                'Shp_paymentDate'  => $paymentDate,
+                'Shp_userId'       => $userId,
+                'SignatureValue'   => $signature,
+                'Receipt'          => $receipt,
+                // 'IsTest'        => $isTest ? 1 : 0 // если надо явно указывать
+            ]);
+
+        return redirect()->to($paymentUrl);
+    }
+
+
+
+
+
 
 //    Успешная оплата (для юзеров и партнеров)
     public function success(Request $request)

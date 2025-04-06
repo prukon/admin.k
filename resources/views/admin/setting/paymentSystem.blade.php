@@ -9,12 +9,8 @@
                 <div class="card-body text-center d-flex flex-column justify-content-center">
                     <img src="{{ asset('img/partners/robokassa.png') }}" alt="Робокасса" class="mb-3">
                     <h5 class="card-title">Робокасса</h5>
-
-                    @if($robokassa && !empty($robokassa->settings['merchant_login'])
-                                  && !empty($robokassa->settings['password1'])
-                                  && !empty($robokassa->settings['password2']))
-
-                        <button
+                    @if($robokassa && $robokassa->is_connected)
+                    <button
                                 class="btn btn-success mt-3 toggleable-status-btn"
                                 data-original-text="Подключено"
                                 data-hover-text="Отключить"
@@ -32,14 +28,6 @@
                         <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalRobokassa">
                             Подключить
                         </button>
-
-
-
-                        {{--                            {{$robokassa->settings['merchant_login']}}--}}
-
-
-
-
                     @endif
 
                     <div class="mt-3">

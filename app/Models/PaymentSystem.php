@@ -26,8 +26,10 @@ class PaymentSystem extends Model
         'test_mode' => 'boolean',
     ];
 
+    protected $hidden = ['settings'];
 
 
+    // Сохранение settings в зашифрованном виде
     public function setSettingsAttribute($value)
     {
         // $value — это массив
@@ -35,6 +37,7 @@ class PaymentSystem extends Model
         $this->attributes['settings'] = Crypt::encryptString($json);
     }
 
+    // Геттер флага подключения
     public function getSettingsAttribute($value)
     {
         if (!$value) {
@@ -48,4 +51,21 @@ class PaymentSystem extends Model
     {
         return $this->belongsTo(Partner::class, 'partner_id');
     }
+
+    public function getIsConnectedAttribute(): bool
+    {
+        if (!$this->settings || !is_array($this->settings)) {
+            return false;
+        }
+
+        return match ($this->name) {
+        'robokassa' => !empty($this->settings['merchant_login'])
+    && !empty($this->settings['password1'])
+    && !empty($this->settings['password2']),
+        'tbank' => !empty($this->settings['tbank_account_id'])
+    && !empty($this->settings['tbank_key']),
+        default => false,
+    };
+}
+
 }

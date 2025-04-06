@@ -24,6 +24,7 @@
                             Общие
                         </a>
                     </li>
+                    @can('manage-roles')
                     <li class="nav-item">
                         <a class="nav-link {{ $activeTab == 'rule' ? 'active' : '' }}"
                            href="{{ route('admin.setting.rule') }}"
@@ -34,16 +35,19 @@
                             Права пользователей
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ $activeTab == 'paymentSystem' ? 'active' : '' }}"
-                           href="{{ route('admin.setting.paymentSystem') }}"
-                           id="paymentSystem-tab"
-                           role="tab"
-                           aria-controls="paymentSystem"
-                           aria-selected="{{ $activeTab == 'paymentSystem' ? 'true' : 'false' }}">
-                            Платежные системы
-                        </a>
-                    </li>
+                    @endcan
+                    @can('setting-payment-systems')
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeTab == 'paymentSystem' ? 'active' : '' }}"
+                               href="{{ route('admin.setting.paymentSystem') }}"
+                               id="paymentSystem-tab"
+                               role="tab"
+                               aria-controls="paymentSystem"
+                               aria-selected="{{ $activeTab == 'paymentSystem' ? 'true' : 'false' }}">
+                                Платежные системы
+                            </a>
+                        </li>
+                    @endcan
                 </ul>
 
                 <div class="tab-content">
@@ -54,10 +58,10 @@
                     ])
                 @elseif($activeTab === 'rule')
                     <!-- Контент вкладки организаций -->
-                        @include('admin.setting.rule',
-                        ['roles' => $roles,
-                        'permissions' => $permissions,
-                        ])
+                    @include('admin.setting.rule',
+                    ['roles' => $roles,
+                    'permissions' => $permissions,
+                    ])
                 @elseif($activeTab === 'paymentSystem')
                     <!-- Контент вкладки организаций -->
                         @include('admin.setting.paymentSystem',

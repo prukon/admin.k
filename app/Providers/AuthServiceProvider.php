@@ -139,5 +139,10 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('payment-clubfee', function (User $user) {
             return $user->hasPermission('payment_clubfee');
         });
+
+        // Настройка платежных систем
+        Gate::define('setting-payment-systems', function (User $user) {
+            return $user->hasPermission('setting_payment_systems');
+        });
     }
 }

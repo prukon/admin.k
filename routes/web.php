@@ -77,34 +77,10 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::delete('/admin/setting/role/delete', [\App\Http\Controllers\Admin\Setting\RuleController::class, 'deleteRole'])->name('admin.setting.role.delete')->middleware('can:manage-roles');
 
     //Страница Настойки-Платежные системы
-//    Route::get('/payment-systems/create', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'create'])->name('payment-systems.create');
-//    Route::get('/payment-systems/{paymentSystem}/edit', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'edit'])->name('payment-systems.edit');
-//    Route::put('/payment-systems/{paymentSystem}', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'update'])->name('payment-systems.update');
-
-
-    Route::get('/admin/settings/paymentSystem', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'index'])->name('admin.setting.paymentSystem');
-    Route::post('/payment-systems/store', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'store'])->name('payment-systems.store');
-    Route::get('/payment-systems/{name}', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'show'])->name('payment-systems.show');
-    Route::delete('/payment-systems/{payment_system}', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'destroy'])->name('payment-systems.destroy');
-
-
-
-
-
-
-
-//    Route::get('/admin/settings/paymentSystem/robokassa', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'showRobokassa'])->name('admin.setting.robokassa');
-//    Route::get('/admin/settings/paymentSystem/tbank', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'showTbank'])->name('admin.setting.tbank');
-//    Route::get('/admin/settings/paymentSystem/yoomoney', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'showYoomoney'])->name('admin.setting.yoomoney');
-
-
-
-
-
-
-
-
-
+    Route::get('/admin/settings/paymentSystem', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'index'])->name('admin.setting.paymentSystem')->middleware('can:setting-payment-systems');
+    Route::post('/payment-systems/store', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'store'])->name('payment-systems.store')->middleware('can:setting-payment-systems');
+    Route::get('/payment-systems/{name}', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'show'])->name('payment-systems.show')->middleware('can:setting-payment-systems');
+    Route::delete('/payment-systems/{payment_system}', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'destroy'])->name('payment-systems.destroy')->middleware('can:setting-payment-systems');
 
     //Страница оплаты сервиса адмимон
     Route::get('/partner-payment/recharge', [\App\Http\Controllers\PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge')->middleware('can:service-payment');
