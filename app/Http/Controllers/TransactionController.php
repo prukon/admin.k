@@ -85,7 +85,7 @@ class TransactionController extends Controller
     }
 
     //Переход со страницы выбора оплат. Формирование ссылки робокасса (Юзер)
-    public function pay(Request $request)
+    public function pay2(Request $request)
     {
         $userId = $request->userId;
         $userName = $request->userName;
@@ -122,7 +122,7 @@ class TransactionController extends Controller
     }
 
 
-    public function pay3(Request $request)
+    public function pay(Request $request)
     {
         $userId = $request->userId;
         $userName = $request->userName;

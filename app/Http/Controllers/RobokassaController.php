@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 class RobokassaController extends Controller
 {
     //Расшифровка ссылки
-    public function result(Request $request)
+    public function result2(Request $request)
     {
         \Log::info('Request data:', $request->all());
 
@@ -83,7 +83,7 @@ class RobokassaController extends Controller
         });
     }
 
-    public function result3(Request $request)
+    public function result(Request $request)
     {
         \Log::info('Request data:', $request->all());
 
