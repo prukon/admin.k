@@ -1,33 +1,3 @@
-@extends('layouts.admin2')
-
-@section('content')
-    <div class="col-md-12 main-content text-start">
-        <h4 class="pt-3 pb-3">Настройки</h4>
-
-        <!-- Вкладки -->
-        <ul class="nav nav-tabs" id="paymentTabs" role="tablist">
-            <li class="nav-item">
-                <a class="nav-link {{ $activeTab == 'setting' ? 'active' : '' }}"
-                   href="{{ route('admin.setting.setting') }}"
-                   id="setting-tab"
-                   role="tab"
-                   aria-controls="setting"
-                   aria-selected="{{ $activeTab == 'setting' ? 'true' : 'false' }}">
-                    Общие
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ $activeTab == 'rule' ? 'active' : '' }}"
-                   href="{{ route('admin.setting.rule') }}"
-                   id="rule-tab"
-                   role="tab"
-                   aria-controls="rule"
-                   aria-selected="{{ $activeTab == 'rule' ? 'true' : 'false' }}">
-                    Права пользователей
-                </a>
-            </li>
-        </ul>
-
         <div class="tab-content" id="myTabContent">
             <!-- Контент вкладки "Права пользователей" -->
             <div class="tab-pane fade {{ $activeTab == 'rule' ? 'show active' : '' }}" id="profile" role="tabpanel">
@@ -87,18 +57,6 @@
                 </div>
             </div>
         </div>
-
-    </div>
-
-    <!-- Модальное окно логов -->
-    @include('includes.logModal')
-    <!-- Модальное окно подтверждения удаления -->
-    @include('includes.modal.confirmDeleteModal')
-    <!-- Модальное окно успешного обновления данных -->
-    @include('includes.modal.successModal')
-    <!-- Модальное окно ошибки -->
-    @include('includes.modal.errorModal')
-
 
     <!-- Модальное окно создания и управления ролями -->
     <div class="modal fade" id="createRoleModal" tabindex="-1" aria-labelledby="createRoleModalLabel"
@@ -292,4 +250,4 @@
             showLogModal("{{ route('logs.data.rule') }}");
         });
     </script>
-@endsection
+{{--@endsection--}}

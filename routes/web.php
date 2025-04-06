@@ -7,6 +7,7 @@ use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\PartnerPaymentController;
 use Illuminate\Support\Facades\Mail;
 
+
 Auth::routes();
 
 Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
@@ -60,20 +61,46 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('admin/setting-prices/update-date', [\App\Http\Controllers\Admin\SettingPricesController::class, 'updateDate'])->name('updateDate');
 
     //Страница Настойки
-    Route::get('/admin/settings', [\App\Http\Controllers\Admin\SettingController::class, 'showSettings'])->name('admin.setting.setting')->middleware('can:general-settings');
-    Route::get('/admin/settings/registration-activity', [\App\Http\Controllers\Admin\SettingController::class, 'registrationActivity'])->name('registrationActivity')->middleware('can:general-settings');
-    Route::post('/admin/settings/text-for-users', [\App\Http\Controllers\Admin\SettingController::class, 'textForUsers'])->name('textForUsers')->middleware('can:general-settings');
-    Route::post('/settings/save-menu-items', [\App\Http\Controllers\Admin\SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems')->middleware('can:general-settings');
-    Route::post('/settings/save-social-menu-items', [\App\Http\Controllers\Admin\SettingController::class, 'saveSocialItems'])->name('settings.saveSocialItems')->middleware('can:general-settings');
-    Route::get('/edit-menu', [\App\Http\Controllers\Admin\SettingController::class, 'editMenu'])->name('editMenu');
-    Route::get('/admin/settings/logs-all-data', [\App\Http\Controllers\Admin\SettingController::class, 'logsAllData'])->name('logs.all.data');
+    Route::get('/admin/settings', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'showSettings'])->name('admin.setting.setting')->middleware('can:general-settings');
+    Route::get('/admin/settings/registration-activity', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'registrationActivity'])->name('registrationActivity')->middleware('can:general-settings');
+    Route::post('/admin/settings/text-for-users', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'textForUsers'])->name('textForUsers')->middleware('can:general-settings');
+    Route::post('/settings/save-menu-items', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems')->middleware('can:general-settings');
+    Route::post('/settings/save-social-menu-items', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'saveSocialItems'])->name('settings.saveSocialItems')->middleware('can:general-settings');
+    Route::get('/edit-menu', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'editMenu'])->name('editMenu');
+    Route::get('/admin/settings/logs-all-data', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'logsAllData'])->name('logs.all.data');
 
     //Страница Настойки- Права
-    Route::get('/admin/settings/rules', [\App\Http\Controllers\Admin\SettingController::class, 'showRules'])->name('admin.setting.rule')->middleware('can:manage-roles');
-    Route::post('/admin/setting/rule/toggle', [\App\Http\Controllers\Admin\SettingController::class, 'togglePermission'])->name('admin.setting.rule.toggle')->middleware('can:manage-roles');
-    Route::get('/admin/setting/rules/logs-data', [\App\Http\Controllers\Admin\SettingController::class, 'logRules'])->name('logs.data.rule')->middleware('can:manage-roles');
-    Route::post('/admin/setting/role/create', [\App\Http\Controllers\Admin\SettingController::class, 'createRole'])->name('admin.setting.role.create')->middleware('can:manage-roles');
-    Route::delete('/admin/setting/role/delete', [\App\Http\Controllers\Admin\SettingController::class, 'deleteRole'])->name('admin.setting.role.delete')->middleware('can:manage-roles');
+    Route::get('/admin/settings/rules', [\App\Http\Controllers\Admin\Setting\RuleController::class, 'showRules'])->name('admin.setting.rule')->middleware('can:manage-roles');
+    Route::post('/admin/setting/rule/toggle', [\App\Http\Controllers\Admin\Setting\RuleController::class, 'togglePermission'])->name('admin.setting.rule.toggle')->middleware('can:manage-roles');
+    Route::get('/admin/setting/rules/logs-data', [\App\Http\Controllers\Admin\Setting\RuleController::class, 'logRules'])->name('logs.data.rule')->middleware('can:manage-roles');
+    Route::post('/admin/setting/role/create', [\App\Http\Controllers\Admin\Setting\RuleController::class, 'createRole'])->name('admin.setting.role.create')->middleware('can:manage-roles');
+    Route::delete('/admin/setting/role/delete', [\App\Http\Controllers\Admin\Setting\RuleController::class, 'deleteRole'])->name('admin.setting.role.delete')->middleware('can:manage-roles');
+
+    //Страница Настойки-Платежные системы
+//    Route::get('/payment-systems/create', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'create'])->name('payment-systems.create');
+//    Route::get('/payment-systems/{paymentSystem}/edit', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'edit'])->name('payment-systems.edit');
+//    Route::put('/payment-systems/{paymentSystem}', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'update'])->name('payment-systems.update');
+
+
+    Route::get('/admin/settings/paymentSystem', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'index'])->name('admin.setting.paymentSystem');
+    Route::post('/payment-systems/store', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'store'])->name('payment-systems.store');
+    Route::get('/payment-systems/{name}', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'show'])->name('payment-systems.show');
+    Route::delete('/payment-systems/{payment_system}', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'destroy'])->name('payment-systems.destroy');
+
+
+
+
+
+
+
+//    Route::get('/admin/settings/paymentSystem/robokassa', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'showRobokassa'])->name('admin.setting.robokassa');
+//    Route::get('/admin/settings/paymentSystem/tbank', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'showTbank'])->name('admin.setting.tbank');
+//    Route::get('/admin/settings/paymentSystem/yoomoney', [\App\Http\Controllers\Admin\Setting\PaymentSystemController::class, 'showYoomoney'])->name('admin.setting.yoomoney');
+
+
+
+
+
 
 
 
@@ -84,7 +111,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/partner-payment/history', [\App\Http\Controllers\PartnerPaymentController::class, 'showHistory'])->name('partner.payment.history')->middleware('can:service-payment');
     Route::get('/partner-payment/data', [\App\Http\Controllers\PartnerPaymentController::class, 'getPaymentsData'])->name('partner.payment.data')->middleware('can:service-payment');
     Route::post('//payment/service/yookassa', [\App\Http\Controllers\PartnerPaymentController::class, 'createPaymentYookassa'])->name('createPaymentYookassa')->middleware('can:service-payment');
-
 
     //Страница оплаты робокассы
     Route::post('/payment', [\App\Http\Controllers\TransactionController::class, 'index'])->name('payment')->middleware('can:paying-classes');
@@ -124,8 +150,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //    Route::post('/admin/user/{user}/update-schedule-range', [\App\Http\Controllers\Admin\ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule')->middleware('can:schedule-journal');
     Route::post('/schedule/user/{user}/update-schedule-range', [\App\Http\Controllers\Admin\ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule')->middleware('can:schedule-journal');
 
-
-
     // Статусы
     Route::get('/schedule/statuses', [\App\Http\Controllers\Admin\StatusController::class, 'index'])->name('statuses.index')->middleware('can:schedule-journal');
     Route::post('/schedule/statuses', [\App\Http\Controllers\Admin\StatusController::class, 'store'])->name('statuses.store')->middleware('can:schedule-journal');
@@ -133,11 +157,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::delete('/schedule/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'destroy'])->name('statuses.destroy')->middleware('can:schedule-journal');
 
 
-//    Route::get('statuses', [\App\Http\Controllers\Admin\StatusController::class, 'index'])->name('statuses.index')->middleware('can:schedule-journal');
-//    Route::post('statuses', [\App\Http\Controllers\Admin\StatusController::class, 'store'])->name('statuses.store')->middleware('can:schedule-journal');
-//    Route::patch('/admin/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'update'])->name('statuses.update')->middleware('can:schedule-journal');
-//    Route::delete('/admin/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'destroy'])->name('statuses.destroy')->middleware('can:schedule-journal');
-//
+//    Route::resource('payment-systems', [\App\Http\Controllers\Admin\PaymentSystemController::class, 'index'])->middleware(['auth', 'is_admin']);
+
+
 
     //Роли
 //Route::get('/admin/setting/rule', [\App\Http\Controllers\Admin\RolePermissionController::class, 'index'])->name('admin.setting.rule');

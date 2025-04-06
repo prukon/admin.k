@@ -3,7 +3,7 @@
 Для изменения тескта ошибки: $('#error-message').text(errorMessage);
 Пример:
   $('#errorModal').modal('show');
-  $('#error-message').text(errorMessage);
+  $('#error-message').text(response.message || 'Ошибка при создании роли!');
 
 Пример AJAX ответа:
    error: function (response) {

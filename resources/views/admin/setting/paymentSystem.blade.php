@@ -1,0 +1,336 @@
+
+<div class="container text-start">
+    <h4 class="pt-3 pb-3">Платежные системы</h4>
+
+    <div class="row mt-4">
+        {{-- Карточка: Робокасса --}}
+        <div class="col-sm-3 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-body text-center d-flex flex-column justify-content-center">
+                    <img src="{{ asset('img/partners/robokassa.png') }}" alt="Робокасса" class="mb-3">
+                    <h5 class="card-title">Робокасса</h5>
+
+                    @if($robokassa && !empty($robokassa->settings['merchant_login'])
+                                  && !empty($robokassa->settings['password1'])
+                                  && !empty($robokassa->settings['password2']))
+
+                        <button
+                                class="btn btn-success mt-3 toggleable-status-btn"
+                                data-original-text="Подключено"
+                                data-hover-text="Отключить"
+                                data-id="{{ $robokassa->id }}"
+                                data-url="{{ route('payment-systems.destroy', ['payment_system' => $robokassa->id]) }}">
+                            Подключено
+                        </button>
+
+
+                        @if($robokassa->test_mode)
+                            <div class="mt-2 text-muted small">Тестовый режим</div>
+                        @endif
+
+                    @else
+                        <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalRobokassa">
+                            Подключить
+                        </button>
+
+
+
+                        {{--                            {{$robokassa->settings['merchant_login']}}--}}
+
+
+
+
+                    @endif
+
+                    <div class="mt-3">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modalRobokassaInfo">Подробнее</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Карточка: TБанк --}}
+        {{--<div class="col-sm-3 mb-4">--}}
+            {{--<div class="card shadow h-100">--}}
+                {{--<div class="card-body text-center d-flex flex-column justify-content-center">--}}
+                    {{--<img src="{{ asset('img/partners/tbank.png') }}" alt="TБанк" class="mb-3">--}}
+                    {{--<h5 class="card-title">TБанк</h5>--}}
+
+                    {{--@if($tbank && !empty($tbank->settings['tbank_account_id']) && !empty($tbank->settings['tbank_key']))--}}
+                        {{--<button class="btn btn-success mt-3" disabled>Подключено</button>--}}
+                    {{--@else--}}
+                        {{--<button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalTbank">--}}
+                            {{--Подключить--}}
+                        {{--</button>--}}
+                    {{--@endif--}}
+
+                    {{--<div class="mt-3">--}}
+                        {{--<a href="#" data-bs-toggle="modal" data-bs-target="#modalTbankInfo">Подробнее</a>--}}
+                    {{--</div>--}}
+                {{--</div>--}}
+            {{--</div>--}}
+        {{--</div>--}}
+
+        {{-- Карточка: Юкасса (пример, пока пропустим) --}}
+        {{--<div class="col-sm-3 mb-4">--}}
+            {{--<div class="card shadow h-100">--}}
+                {{--<div class="card-body text-center d-flex flex-column justify-content-center">--}}
+                    {{--<img src="{{ asset('img/partners/yoomoney.png') }}" alt="Юкасса" class="mb-3">--}}
+                    {{--<h5 class="card-title">Юкасса</h5>--}}
+
+                    {{--<button class="btn btn-primary mt-3">Подключить</button>--}}
+
+                    {{--<div class="mt-3">--}}
+                        {{--<a href="#">Подробнее</a>--}}
+                    {{--</div>--}}
+                {{--</div>--}}
+            {{--</div>--}}
+        {{--</div>--}}
+    </div>
+</div>
+
+{{--Модалка для ввода настроек Робокассы--}}
+<div class="modal fade" id="modalRobokassa" tabindex="-1" aria-labelledby="modalRobokassaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="robokassaForm">
+                @csrf
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="modalRobokassaLabel">Подключение Робокассы</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="merchant_login" class="form-label">Merchant Login</label>
+                        <input type="text" class="form-control" name="merchant_login" id="merchant_login"
+                               placeholder="Введите Merchant Login">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password1" class="form-label">Пароль #1</label>
+                        <input type="text" class="form-control" name="password1" id="password1"
+                               placeholder="Введите Пароль #1">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password2" class="form-label">Пароль #2</label>
+                        <input type="text" class="form-control" name="password2" id="password2"
+                               placeholder="Введите Пароль #2">
+                    </div>
+
+                    <div class="form-check">
+                        <input type="hidden" name="test_mode" value="0">
+                        <input type="checkbox" class="form-check-input" name="test_mode" id="test_mode" value="1" {{ old('test_mode') ? 'checked' : '' }}>
+                        <label class="form-check-label" for="test_mode">Тестовый режим</label>
+                    </div>
+
+                    {{-- Скрытое поле name="robokassa" --}}
+                    <input type="hidden" name="name" value="robokassa">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{--Модалка "Подробнее" для Робокассы--}}
+<div class="modal fade" id="modalRobokassaInfo" tabindex="-1" aria-labelledby="modalRobokassaInfoLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="modalRobokassaInfoLabel">Подробнее о Робокассе</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p>
+                    Здесь информация о Робокассе, инструкции, и т.д.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+{{--Модалка для Tбанка--}}
+<div class="modal fade" id="modalTbank" tabindex="-1" aria-labelledby="modalTbankLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="tbankForm">
+                @csrf
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="modalTbankLabel">Подключение TБанка</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="tbank_account_id" class="form-label">TBank Account ID</label>
+                        <input type="text" class="form-control" name="tbank_account_id" id="tbank_account_id"
+                               placeholder="Введите Account ID">
+                    </div>
+                    <div class="mb-3">
+                        <label for="tbank_key" class="form-label">Секретный ключ</label>
+                        <input type="text" class="form-control" name="tbank_key" id="tbank_key"
+                               placeholder="Введите Secret Key">
+                    </div>
+
+                    <input type="hidden" name="name" value="tbank">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{--Модалка "Подробнее" для Tбанка--}}
+<div class="modal fade" id="modalTbankInfo" tabindex="-1" aria-labelledby="modalTbankInfoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="modalTbankInfoLabel">Подробнее о TБанке</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p>
+                    Информация о подключении и возможностях TБанка...
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section('scripts')
+
+    <script>
+        // Сохранение данных Робокасса
+        $('#robokassaForm').on('submit', function (e) {
+            e.preventDefault();
+            let formArray = $(this).serializeArray();
+            let formData = {};
+            formArray.forEach(function (item) {
+                formData[item.name] = item.value;
+            });
+            // Приводим test_mode к числу 1 или 0 (Laravel это принимает как boolean)
+            formData['test_mode'] = $('#test_mode').is(':checked') ? 1 : 0;
+            $.ajax({
+                url: '{{ route('payment-systems.store') }}',
+                method: 'POST',
+                data: formData,
+                success: function (response) {
+                    showSuccessModal("Подключение Robokassa", "Данные для использования Robokassa сохранены.", 1);
+                },
+                error: function (xhr) {
+                    $('#errorModal').modal('show');
+                    $('#error-message').text(xhr.responseJSON?.message || 'Ошибка при создании данных.');
+                }
+            });
+        });
+
+        // Сохранение данных Тбанка
+        $('#tbankForm').on('submit', function (e) {
+            e.preventDefault();
+            let formArray = $(this).serializeArray();
+            let formData = {};
+            formArray.forEach(function (item) {
+                formData[item.name] = item.value;
+            });
+            // Приводим test_mode к числу 1 или 0 (Laravel это принимает как boolean)
+            formData['test_mode'] = $('#test_mode').is(':checked') ? 1 : 0;
+            $.ajax({
+                url: '{{ route('payment-systems.store') }}',
+                method: 'POST',
+                data: formData,
+                success: function (response) {
+                    showSuccessModal("Подключение Tbank", "Данные для использования Tbank сохранены.", 1);
+                },
+                error: function (xhr) {
+                    $('#errorModal').modal('show');
+                    $('#error-message').text(xhr.responseJSON?.message || 'Ошибка при создании данных.');
+                }
+            });
+        });
+
+
+        // ховер кноки + Отключение ПС
+        $(document).ready(function () {
+            // Hover-эффект
+            $('.toggleable-status-btn').hover(
+                function () {
+                    const $btn = $(this);
+                    $btn.text($btn.data('hover-text'));
+                    $btn.removeClass('btn-success').addClass('btn-danger');
+                },
+                function () {
+                    const $btn = $(this);
+                    $btn.text($btn.data('original-text'));
+                    $btn.removeClass('btn-danger').addClass('btn-success');
+                }
+            );
+
+            // Клик по кнопке "Отключить"
+            $('.toggleable-status-btn').on('click', function (e) {
+                e.preventDefault();
+
+                const $btn = $(this);
+                const url = $btn.data('url');
+
+                showConfirmDeleteModal(
+                    "Удаление платежной системы",
+                    "Вы действительно хотите отключить платёжную систему?",
+                    function () {
+                        $.ajax({
+                            url: url,
+                            type: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function (response) {
+                                location.reload();
+                            },
+                            error: function (xhr) {
+                                alert('Ошибка при отключении платёжной системы');
+                            }
+                        });
+                    });
+
+
+            });
+        });
+
+
+    </script>
+
+    <!-- Подключение необходимых CDN -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <!-- Datepicker (Bootstrap Datepicker) -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/locales/bootstrap-datepicker.ru.min.js"></script>
+
+    <style>
+        .toggleable-status-btn {
+            font-size: 13px!important;
+        }
+    </style>
+
+@endsection
