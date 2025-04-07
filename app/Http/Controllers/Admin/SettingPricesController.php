@@ -410,7 +410,6 @@ class SettingPricesController extends Controller
     }
 
     //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
-
     public function setPriceAllUsers(Request $request)
     {
         // Получаем JSON-содержимое запроса и декодируем его
@@ -445,7 +444,8 @@ class SettingPricesController extends Controller
                         ]);
 
                         // Получаем имя через отношение
-                        $userName = $priceData->user->name ?? 'Неизвестный пользователь'; // Защита от null
+//                        $userName = $priceData->user->name ?? 'Неизвестный пользователь'; // Защита от null
+                        $userName = $priceData['user']['name'] ?? 'Неизвестный пользователь';
 
 
                         // Логируем успешное обновление цены для команды
