@@ -17,6 +17,10 @@ class Permission extends Model
         'sort_order'
     ];
 
+    protected $casts = [
+        'is_visible' => 'boolean',
+    ];
+
     // Связь многие-ко-многим с Role
     public function roles()
     {

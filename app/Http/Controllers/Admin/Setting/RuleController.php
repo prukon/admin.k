@@ -37,6 +37,13 @@ class RuleController extends Controller
         // Получаем все права (permissions) с сортировкой по id или как вам удобнее
         $permissions = Permission::with('roles')->orderBy('sort_order')->get();
 
+        if (auth()->user()?->role?->name === 'superadmin') {
+        $permissions = Permission::with('roles')->orderBy('sort_order')->get();
+    } else {
+        $permissions = Permission::with('roles')->where('is_visible', true)->orderBy('sort_order')->get();
+    }
+
+
 
         // Какую вкладку активной отображать (исходя из вашего кода)
         $activeTab = 'rule';
@@ -64,8 +71,6 @@ class RuleController extends Controller
         $value = $request->input('value'); // true/false
         $role = Role::findOrFail($roleId);
         $permission = Permission::findOrFail($permissionId);
-
-
 
         DB::transaction(function () use ($permission, $value, $role) {
             // Определим максимальное значение order_by

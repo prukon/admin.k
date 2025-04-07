@@ -31,10 +31,20 @@
                             <tbody>
                             @foreach($permissions as $permission)
                                 <tr>
+                                    {{--<td>--}}
+                                        {{--{{ $permission->description ?? $permission->name }}--}}
+                                    {{--</td>--}}
+
                                     <td>
                                         {{ $permission->description ?? $permission->name }}
+                                        @if(auth()->user()?->role?->name === 'superadmin' && !$permission->is_visible)
+                                            <span class="badge bg-warning text-dark ms-2">Невидимое</span>
+                                        @endif
                                     </td>
-                                    @foreach($roles as $role)
+
+
+
+                                @foreach($roles as $role)
                                         @php
                                             // Проверяем, есть ли у роли данное право
                                             $hasPermission = $role->permissions->contains($permission->id);
