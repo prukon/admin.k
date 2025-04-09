@@ -3,22 +3,21 @@
             <div class="tab-pane fade {{ $activeTab == 'rule' ? 'show active' : '' }}" id="profile" role="tabpanel">
                 <div class="container-fluid">
                     <h4 class="pt-3 text-start">Права пользователей</h4>
+                    <hr>
+                    <div class="col-12 d-flex justify-content-between align-items-center mb-3">
+                        <button id="new-role" type="button" class="btn btn-primary new-role width-170"
+                                data-bs-toggle="modal"
+                                data-bs-target="#createRoleModal">
+                            Настройки
+                        </button>
+
+                        <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#historyModal">
+                            <i class="fa-solid fa-clock-rotate-left logs"></i>
+                        </div>
+                    </div>
+                    <hr class="mb-3">
 
                     <div class="table-responsive">
-                        <hr>
-                        <div class="col-12 d-flex justify-content-between align-items-center mb-3">
-                            <button id="new-role" type="button" class="btn btn-primary new-role width-170"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#createRoleModal">
-                                Настройки
-                            </button>
-
-                            <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#historyModal">
-                                <i class="fa-solid fa-clock-rotate-left logs"></i>
-                            </div>
-                        </div>
-                        <hr class="mb-3">
-
                         <table class="table table-bordered align-middle">
                             <thead>
                             <tr>
@@ -63,7 +62,6 @@
                             </tbody>
                         </table>
                     </div>
-
                 </div>
             </div>
         </div>
