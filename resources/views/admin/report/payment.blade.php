@@ -39,12 +39,13 @@
                         render: function (data, type, row) {
 
                             // Если user_id существует, делаем ссылку
-                            if (row.user_id) {
-                                return '<a href="/admin/users/' + row.user_id + '/edit">' + row.user_name + '</a>';
-                            } else {
-                                // Если user_id нет, просто выводим имя пользователя без ссылки
-                                return row.user_name ? row.user_name : 'Без имени';
-                            }
+                            // if (row.user_id) {
+                            //     return '<a href="/admin/users/' + row.user_id + '/edit">' + row.user_name + '</a>';
+                            // } else {
+                            //     // Если user_id нет, просто выводим имя пользователя без ссылки
+                            //     return row.user_name ? row.user_name : 'Без имени';
+                            // }
+                            return row.user_name ? row.user_name : 'Без имени';
                         }
                     },
 
