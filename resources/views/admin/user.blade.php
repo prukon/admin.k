@@ -10,7 +10,7 @@
             <div class="row gy-2 index-user-wrap">
                 <div id="search-container" class="col-12 col-md-6">
                     <input id="search-input" class="mr-2 search-input ps-3 width-170" type="text" placeholder="Имя">
-                    <select id="search-select" class="mr-2 search-select width-170">
+                    <select id="search-select" class="mr-2 ml-1 search-select width-170">
                         <option value="">Группа</option>
                         <option value="none">Без группы</option>
                         @foreach($allTeams as $team)
@@ -20,7 +20,7 @@
                     <button id="search-button" class="btn btn-primary">Найти</button>
                 </div>
 
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-6 text-start">
 
                     <button id="new-user" type="button" class="btn btn-primary mr-2 new-user width-170"
                             data-bs-toggle="modal"
@@ -29,7 +29,7 @@
                     </button>
 
 
-                    <button id="field-modal" type="button" class="btn btn-primary"
+                    <button id="field-modal" type="button" class="btn btn-primary mr-2"
                             data-bs-toggle="modal"
                             data-bs-target="#fieldModal">Настройки</button>
 

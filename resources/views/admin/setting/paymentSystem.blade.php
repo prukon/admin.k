@@ -38,26 +38,26 @@
         </div>
 
         {{-- Карточка: TБанк --}}
-        {{--<div class="col-sm-3 mb-4">--}}
-            {{--<div class="card shadow h-100">--}}
-                {{--<div class="card-body text-center d-flex flex-column justify-content-center">--}}
-                    {{--<img src="{{ asset('img/partners/tbank.png') }}" alt="TБанк" class="mb-3">--}}
-                    {{--<h5 class="card-title">TБанк</h5>--}}
+        <div class="col-sm-3 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-body text-center d-flex flex-column justify-content-center">
+                    <img src="{{ asset('img/partners/tbank.png') }}" alt="TБанк" class="mb-3">
+                    <h5 class="card-title">TБанк</h5>
 
-                    {{--@if($tbank && !empty($tbank->settings['tbank_account_id']) && !empty($tbank->settings['tbank_key']))--}}
-                        {{--<button class="btn btn-success mt-3" disabled>Подключено</button>--}}
-                    {{--@else--}}
-                        {{--<button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalTbank">--}}
-                            {{--Подключить--}}
-                        {{--</button>--}}
-                    {{--@endif--}}
+                    @if($tbank && !empty($tbank->settings['tbank_account_id']) && !empty($tbank->settings['tbank_key']))
+                        <button class="btn btn-success mt-3" disabled>Подключено</button>
+                    @else
+                        <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalTbank">
+                            Подключить
+                        </button>
+                    @endif
 
-                    {{--<div class="mt-3">--}}
-                        {{--<a href="#" data-bs-toggle="modal" data-bs-target="#modalTbankInfo">Подробнее</a>--}}
-                    {{--</div>--}}
-                {{--</div>--}}
-            {{--</div>--}}
-        {{--</div>--}}
+                    <div class="mt-3">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modalTbankInfo">Подробнее</a>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         {{-- Карточка: Юкасса (пример, пока пропустим) --}}
         {{--<div class="col-sm-3 mb-4">--}}
