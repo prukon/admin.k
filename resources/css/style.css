@@ -1424,3 +1424,10 @@ a.disabled {
     white-space: nowrap;
 }
 
+.dataTables_scrollBody thead tr th{
+visibility: hidden
+}
+.dataTables_scrollBody thead tr {
+height: 0!important;
+}
+
