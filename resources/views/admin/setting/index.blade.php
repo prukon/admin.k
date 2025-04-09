@@ -5,11 +5,11 @@
         let currentUserName = "{{ auth()->user()->name }}";
         let currentUserRole = "{{ auth()->user()->role }}";
     </script>
-    </div>
 
-    <div class="container-fluid main-content" xmlns="http://www.w3.org/1999/html">
+
+    <div class="container-fluid main-content main-content-tabs" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3 pb-3  text-start">Настройки</h4>
-        <div class="container-fluid">
+        <div class="container-fluid container-fluid-tabs">
 
             <div class="row justify-content-md-center">
                 <!-- Вкладки -->

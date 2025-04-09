@@ -1,58 +1,24 @@
-@extends('layouts.admin2')
-@section('content')
-
-    <script src="{{ asset('js/my-croppie.js') }}"></script>
-    {{--    <script src="{{ asset('js/settings-prices-ajax.js') }}"></script>--}}
-
-    <div class="container-fluid main-content" xmlns="http://www.w3.org/1999/html">
-        <h4 class="pt-3 pb-3 text-start">Отчеты</h4>
+<div class="tab-content" id="myTabContent">
+    <div class="tab-pane fade {{ $activeTab == 'ltv' ? 'show active' : '' }}" id="profile"
+         role="tabpanel">
         <div class="container-fluid">
+            <h4 class="pt-3 text-start">LTV</h4>
+            <table class="table table-bordered" id="debts-table">
+                <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Имя пользователя</th>
+                    <th>Дата первого платежа</th>
+                    <th>Дата последнего платежа</th>
+                    <th>Кол-во платежей</th>
+                    <th>Общая сумма</th>
+                </tr>
+                </thead>
+            </table>
 
-            <div class="row justify-content-md-center">
-                <ul class="nav nav-tabs" id="myTab" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link {{ $activeTab == 'payments' ? 'active' : '' }}"
-                           href="/admin/reports/payments" role="tab">Платежи</a>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link {{ $activeTab == 'debts' ? 'active' : '' }}" href="/admin/reports/debts"
-                           role="tab">Задолженности</a>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link {{ $activeTab == 'ltv' ? 'active' : '' }}" href="/admin/reports/ltv"
-                           role="tab">LTV</a>
-                    </li>
-
-                </ul>
-
-                <div class="tab-content" id="myTabContent">
-                    <div class="tab-pane fade {{ $activeTab == 'ltv' ? 'show active' : '' }}" id="profile"
-                         role="tabpanel">
-                        <div class="container-fluid">
-                            <h4 class="pt-3 text-start">LTV</h4>
-
-
-                            <table class="table table-bordered" id="debts-table">
-                                <thead>
-                                <tr>
-                                    <th>№</th>
-                                    <th>Имя пользователя</th>
-                                    <th>Дата первого платежа</th>
-                                    <th>Дата последнего платежа</th>
-                                    <th>Кол-во платежей</th>
-                                    <th>Общая сумма</th>
-                                </tr>
-                                </thead>
-                            </table>
-
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
-
-@endsection
+</div>
 
 @section('scripts')
     <script type="text/javascript">
@@ -131,21 +97,29 @@
 
                 ],
                 order: [[5, 'desc']],
+                scrollX: true,
+
+                fixedColumns: {
+                    leftColumns: 2
+                },
                 language: {
+                    // url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json",
                     "processing": "Обработка...",
-                    "search": "Поиск:",
-                    "lengthMenu": "Показать _MENU_ записей",
-                    "info": "Записи с _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "Записи с 0 до 0 из 0 записей",
+                    "search": "",
+                    "searchPlaceholder": "Поиск...",
+
+                    "lengthMenu": "Показать _MENU_",
+                    "info": "С _START_ до _END_ из _TOTAL_ записей",
+                    "infoEmpty": "С 0 до 0 из 0 записей",
                     "infoFiltered": "(отфильтровано из _MAX_ записей)",
                     "loadingRecords": "Загрузка записей...",
                     "zeroRecords": "Записи отсутствуют.",
                     "emptyTable": "В таблице отсутствуют данные",
                     "paginate": {
-                        "first": "Первая",
-                        "previous": "Предыдущая",
-                        "next": "Следующая",
-                        "last": "Последняя"
+                        "first": "",
+                        "previous": "",
+                        "next": "",
+                        "last": ""
                     },
                     "aria": {
                         "sortAscending": ": активировать для сортировки столбца по возрастанию",

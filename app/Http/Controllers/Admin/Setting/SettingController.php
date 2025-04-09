@@ -31,20 +31,11 @@ class SettingController extends Controller
     {
         $setting = Setting::where('name', 'textForUsers')->first();
         $textForUsers = $setting ? $setting->text : null;
-
-//        return view('admin.setting.setting',
-//            ['activeTab' => 'setting'],
-//            compact(
-//                "textForUsers")
-//        );
-
-
         return view('admin.setting.index',
             ['activeTab' => 'setting'],
             compact(
                 "textForUsers")
         );
-
 
     }
 

@@ -1247,16 +1247,6 @@ a.disabled {
      min-width: 100%;
  }
 
-#payments-table {
-    width: max-content !important;
-    white-space: nowrap;
-}
-
-#payments-table th,
-#payments-table td {
-    vertical-align: top;
-}
-
 
 #partnerUpdateForm .user-data-wrap {
     padding-left: 0 ;
@@ -1358,3 +1348,79 @@ a.disabled {
 .main-sidebar .my-brand-link {
     width: auto;
 }
+@media (max-width: 576px) {
+    .container-fluid-tabs {
+        padding: 0 !important;
+    }
+    .main-content {
+        /*padding: 0 !important;*/
+    }
+
+    .main-content-tabs {
+        padding: 0 !important;
+    }
+
+
+    .tab-content {
+        padding: 0 !important;
+    }
+
+    /* Упаковка их в флекс-контейнер */
+    .dataTables_wrapper .top-controls {
+        display: flex;
+        flex-wrap: wrap; /* на случай, если совсем узкий экран */
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+
+    /* Разместить элементы управления таблицей в одну строку */
+    .dataTables_wrapper .dataTables_length {
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 1rem;
+        width: 40%;
+    }
+
+    .dataTables_wrapper .dataTables_filter {
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 1rem;
+        width: 50%;
+    }
+
+    .dataTables_filter {
+        margin-top: 0!important;
+    }
+
+}
+
+.dataTable {
+    width: 100% !important;
+}
+
+
+/*для таблиц с закреплеными столбцами*/
+@media (max-width: 576px) {
+    .dataTables_scrollHeadInner td,
+    .dataTables_scrollHeadInner th,
+    .dataTables_scrollHeadInner tr,
+    .dataTables_scrollBody .dataTable td,
+    .dataTables_scrollBody .dataTable th,
+    .dataTables_scrollBody .dataTable tr{
+        padding: 0.2rem 0.4rem !important;
+        font-size: 0.775rem;
+    }
+
+}
+
+.dataTables_scrollHeadInner td,
+.dataTables_scrollHeadInner th,
+.dataTables_scrollHeadInner tr,
+.dataTables_scrollBody .dataTable td,
+.dataTables_scrollBody .dataTable th,
+.dataTables_scrollBody .dataTable tr{
+
+    white-space: nowrap;
+}
+

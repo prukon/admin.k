@@ -9,7 +9,7 @@
 
     <div class="container-fluid main-content" xmlns="http://www.w3.org/1999/html">
         <h4 class="pt-3 pb-3  text-start">Учетная запись</h4>
-        <div class="container-fluid">
+        <div class="container-fluid container-fluid-tabs">
 
             <div class="row justify-content-md-center">
                 <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">

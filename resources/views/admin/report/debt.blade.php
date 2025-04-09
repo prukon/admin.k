@@ -1,55 +1,24 @@
-@extends('layouts.admin2')
-@section('content')
-
-    <script src="{{ asset('js/my-croppie.js') }}"></script>
-{{--    <script src="{{ asset('js/settings-prices-ajax.js') }}"></script>--}}
-
-    <div class="container-fluid main-content" xmlns="http://www.w3.org/1999/html">
-        <h4 class="pt-3 pb-3 text-start">Отчеты</h4>
+<div class="tab-content" id="myTabContent">
+    <div class="tab-pane fade {{ $activeTab == 'debt' ? 'show active' : '' }}" id="profile" role="tabpanel">
         <div class="container-fluid">
-
-            <div class="row justify-content-md-center">
-                <ul class="nav nav-tabs" id="myTab" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link {{ $activeTab == 'payments' ? 'active' : '' }}" href="/admin/reports/payments" role="tab">Платежи</a>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link {{ $activeTab == 'debts' ? 'active' : '' }}" href="/admin/reports/debts" role="tab">Задолженности</a>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link {{ $activeTab == 'ltv' ? 'active' : '' }}" href="/admin/reports/ltv" role="tab">LTV</a>
-                    </li>
-                </ul>
-
-                <div class="tab-content" id="myTabContent">
-                    <div class="tab-pane fade {{ $activeTab == 'debts' ? 'show active' : '' }}" id="profile" role="tabpanel">
-                        <div class="container-fluid">
-                            <h4 class="pt-3 text-start">Задолженности</h4>
-
-                            <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
-                                <span class="fw-bold">Общая сумма задолженности:</span>
-                                <span class="fw-bold">{{$totalUnpaidPrice}} руб</span>
-                            </div>
-
-
-                            <table class="table table-bordered" id="debts-table">
-                                <thead>
-                                <tr>
-                                    <th>№</th>
-                                    <th>Имя пользователя</th>
-                                    <th>Месяц</th>
-                                    <th>Сумма</th>
-                                </tr>
-                                </thead>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+            <h4 class="pt-3 text-start">Задолженности</h4>
+            <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
+                <span class="fw-bold">Общая сумма задолженности:</span>
+                <span class="fw-bold">{{$totalUnpaidPrice}} руб</span>
             </div>
+            <table class="table table-bordered" id="debts-table">
+                <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Имя пользователя</th>
+                    <th>Месяц</th>
+                    <th>Сумма</th>
+                </tr>
+                </thead>
+            </table>
         </div>
     </div>
-
-@endsection
+</div>
 
 @section('scripts')
     <script type="text/javascript">
@@ -121,24 +90,30 @@
                     }
 
 
-
                 ],
                 order: [[2, 'asc']],
+                scrollX: true,
+                fixedColumns: {
+                    leftColumns: 2
+                },
                 language: {
+                    // url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json",
                     "processing": "Обработка...",
-                    "search": "Поиск:",
-                    "lengthMenu": "Показать _MENU_ записей",
-                    "info": "Записи с _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "Записи с 0 до 0 из 0 записей",
+                    "search": "",
+                    "searchPlaceholder": "Поиск...",
+
+                    "lengthMenu": "Показать _MENU_",
+                    "info": "С _START_ до _END_ из _TOTAL_ записей",
+                    "infoEmpty": "С 0 до 0 из 0 записей",
                     "infoFiltered": "(отфильтровано из _MAX_ записей)",
                     "loadingRecords": "Загрузка записей...",
                     "zeroRecords": "Записи отсутствуют.",
                     "emptyTable": "В таблице отсутствуют данные",
                     "paginate": {
-                        "first": "Первая",
-                        "previous": "Предыдущая",
-                        "next": "Следующая",
-                        "last": "Последняя"
+                        "first": "",
+                        "previous": "",
+                        "next": "",
+                        "last": ""
                     },
                     "aria": {
                         "sortAscending": ": активировать для сортировки столбца по возрастанию",
