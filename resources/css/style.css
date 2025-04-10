@@ -1431,3 +1431,12 @@ visibility: hidden
 height: 0!important;
 }
 
+.wrap-club-fee-pay {
+    width: 100%;
+}
+
+@media (max-width: 576px) {
+    .wrap-club-fee-pay {
+        display: inline-block;
+    }
+}
