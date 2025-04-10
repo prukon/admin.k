@@ -35,61 +35,73 @@
         // Инициализация DataTables с серверной пагинацией
 
         $('#historyModal').on('shown.bs.modal', function () {
-            $('#logsTable').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: routeName, // URL для получения данных с сервера
-                columns: [
-                    { data: 'id', name: 'id' },
-                    { data: 'action', name: 'action' },
-                    { data: 'author', name: 'author' },
-                    {
-                        data: 'description',
-                        name: 'description',
-                        render: function(data, type, row) {
-                            return data.replace(/\n/g, "<br>"); // Преобразование новых строк в <br>
+
+            if ( ! $.fn.DataTable.isDataTable('#logsTable') ) {
+
+                $('#logsTable').DataTable({
+                    processing: true,
+                    serverSide: true,
+                    ajax: routeName, // URL для получения данных с сервера
+                    columns: [
+                        {data: 'id', name: 'id'},
+                        {data: 'action', name: 'action'},
+                        {data: 'author', name: 'author'},
+                        {
+                            data: 'description',
+                            name: 'description',
+                            render: function (data, type, row) {
+                                return data.replace(/\n/g, "<br>"); // Преобразование новых строк в <br>
+                            }
+                        },
+                        {data: 'created_at', name: 'created_at'}
+                    ],
+                    order: [[4, 'desc']], // Сортировка по дате создания (последние записи первыми)
+                    // columnDefs: [
+                    //     { width: "40px", targets: 0 }, // ID
+                    //     { width: "150px", targets: 4 } // Дата создания
+                    // ],
+                    // autoWidth: false, // Отключаем автоширину, чтобы вручную заданные стили применялись
+
+                    scrollX: true,
+
+                    // fixedColumns: {
+                    //     leftColumns: 2
+                    // },
+
+                    language: {
+                        // url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json",
+                        "processing": "Обработка...",
+                        "search": "",
+                        "searchPlaceholder": "Поиск...",
+
+                        "lengthMenu": "Показать _MENU_",
+                        "info": "С _START_ до _END_ из _TOTAL_ записей",
+                        "infoEmpty": "С 0 до 0 из 0 записей",
+                        "infoFiltered": "(отфильтровано из _MAX_ записей)",
+                        "loadingRecords": "Загрузка записей...",
+                        "zeroRecords": "Записи отсутствуют.",
+                        "emptyTable": "В таблице отсутствуют данные",
+                        "paginate": {
+                            "first": "",
+                            "previous": "",
+                            "next": "",
+                            "last": ""
+                        },
+                        "aria": {
+                            "sortAscending": ": активировать для сортировки столбца по возрастанию",
+                            "sortDescending": ": активировать для сортировки столбца по убыванию"
                         }
-                    },
-                    { data: 'created_at', name: 'created_at' }
-                ],
-                order: [[4, 'desc']], // Сортировка по дате создания (последние записи первыми)
-                // columnDefs: [
-                //     { width: "40px", targets: 0 }, // ID
-                //     { width: "150px", targets: 4 } // Дата создания
-                // ],
-                // autoWidth: false, // Отключаем автоширину, чтобы вручную заданные стили применялись
-
-                scrollX: true,
-
-                // fixedColumns: {
-                //     leftColumns: 2
-                // },
-
-                language: {
-                    // url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json",
-                    "processing": "Обработка...",
-                    "search": "",
-                    "searchPlaceholder": "Поиск...",
-
-                    "lengthMenu": "Показать _MENU_",
-                    "info": "С _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "С 0 до 0 из 0 записей",
-                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                    "loadingRecords": "Загрузка записей...",
-                    "zeroRecords": "Записи отсутствуют.",
-                    "emptyTable": "В таблице отсутствуют данные",
-                    "paginate": {
-                        "first": "",
-                        "previous": "",
-                        "next": "",
-                        "last": ""
-                    },
-                    "aria": {
-                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
-                        "sortDescending": ": активировать для сортировки столбца по убыванию"
                     }
+                }).columns.adjust().draw();
+
+            }
+            else {
+                    // Если таблица уже есть — просто обновляем данные (если нужно)
+                    let dt = $('#logsTable').DataTable();
+                    dt.ajax.url(routeName).load();
+                    dt.columns.adjust().draw();
                 }
-            }).columns.adjust().draw();
+
 
         });
 
