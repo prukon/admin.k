@@ -123,18 +123,25 @@ table.dataTable tbody th, table.dataTable tbody td {
 
 
 .schedule-day-header {
-    min-width: 5px;
+    min-width: 15px;
     min-height: 5px;
     padding: 0;
     font-size: 8px;
 }
 
 .schedule-cell {
-    min-width: 5px;
+    min-width: 25px;
     min-height: 5px;
     padding: 0;
     font-size: 8px;
     vertical-align: middle !important;
+
+    width: 25px;
+    /*height: 5px;*/
+    margin: 0;
+    position: relative;
+    cursor: pointer;"
+
 }
 
 /* Подсветка столбцов расписания выбранной группы */

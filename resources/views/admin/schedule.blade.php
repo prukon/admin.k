@@ -167,14 +167,7 @@
                                 data-user-name="{{ $user->name }}"
 
                                 data-date="{{ $day->format('Y-m-d') }}"
-                                style=
-                                "width: 5px;
-                                        height: 5px;
-                                        padding: 0;
-                                        margin: 0;
-                                        background-color: {{ $cellColor }};
-                                        position: relative;
-                                        cursor: pointer;"
+                                style= "background-color: {{ $cellColor }};"
 
                                 data-status-id="{{ $statusId }}"
                                 data-comment="{{ $entry?->description }}"
@@ -187,7 +180,15 @@
 
                                 @if($entry && !empty($entry->description))
                                     <div class="cell-comment-indicator"
-                                         style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>
+                                         style="position: absolute;
+                                          top: 0;
+                                          right: 0;
+                                          width: 0;
+                                           height: 0;
+                                            border-top: 5px solid red;
+                                             border-left: 5px solid transparent;">
+
+                                    </div>
                                 @endif
                             </td>
 
@@ -211,8 +212,8 @@
 
                     {{-- Добавленный блок: информация о редактируемой ячейке --}}
                     <div class="mb-3">
-                        <div><strong>Пользователь:</strong> <span id="edit-user-name-display"></span></div>
-                        <div><strong>Дата:</strong> <span id="edit-date-display"></span></div>
+                        <div><span id="edit-user-name-display"></span></div>
+                        <div><span id="edit-date-display"></span></div>
                     </div>
 
 

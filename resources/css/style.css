@@ -734,7 +734,8 @@ select option[data-has-team="no"] {
 
 /*}*/
 #new-password {
-    width: 200px;
+    /*width: 200px;*/
+    width: 100%;
     display: inline-block;
 }
 
