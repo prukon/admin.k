@@ -256,6 +256,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 
+    function formatDateHuman(dateStr) {
+        const months = [
+            'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+            'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+        ];
+
+        const dateObj = new Date(dateStr);
+        const day = dateObj.getDate();
+        const month = months[dateObj.getMonth()];
+        const year = dateObj.getFullYear();
+
+        return `${day} ${month} ${year}`;
+    }
 
     //Изменение фильтров
     $('.schedule-filter-year, .schedule-filter-month, .schedule-filter-team').on('change', function () {
@@ -286,9 +299,8 @@ document.addEventListener('DOMContentLoaded', function () {
         let date = $(this).data('date');
         let statusId = $(this).data('status-id') || '';
         // let comment = $(this).data('comment') || '';
-        let comment = $(this).attr('data-comment') || '';;
-
-        console.log(comment);
+        let comment = $(this).attr('data-comment') || '';
+        let userName = $(this).data('user-name'); // НОВОЕ
 
 
         $('#edit-user-id').val(userId);
@@ -296,7 +308,13 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#edit-status-id').val(statusId);
         $('#description').val(comment);
 
+
+        // Вставка отображаемых значений
+        $('#edit-user-name-display').text(userName);
+        $('#edit-date-display').text(formatDateHuman(date));
+
         cellEditModal.show();
+        console.log($(this));
     })
 
     //Сохранить Редактирование ячейки

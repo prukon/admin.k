@@ -164,6 +164,8 @@
                                 @if(isset($teamWeekdays) && count($teamWeekdays) && in_array($day->format('N'), $teamWeekdays)) highlight-column @endif"
 
                                 data-user-id="{{ $user->id }}"
+                                data-user-name="{{ $user->name }}"
+
                                 data-date="{{ $day->format('Y-m-d') }}"
                                 style=
                                 "width: 5px;
@@ -206,6 +208,14 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body">
+
+                    {{-- Добавленный блок: информация о редактируемой ячейке --}}
+                    <div class="mb-3">
+                        <div><strong>Пользователь:</strong> <span id="edit-user-name-display"></span></div>
+                        <div><strong>Дата:</strong> <span id="edit-date-display"></span></div>
+                    </div>
+
+
                     <form id="cellEditForm">
 
                         <input type="hidden" name="user_id" id="edit-user-id">
@@ -299,7 +309,6 @@
             </div>
         </div>
     </div>
-
 
     <!-- Модальное окно "Настройки" -->
     <!-- МОДАЛКА НАСТРОЕК (СПИСОК СТАТУСОВ) -->
