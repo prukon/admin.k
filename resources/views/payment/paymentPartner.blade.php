@@ -1,14 +1,10 @@
 @extends('layouts.admin2')
 @section('content')
 
-    <div class="col-md-12 main-content text-start">
+    <div class="col-md-12 main-content main-content-tabs text-start">
         <h4 class="pt-3 pb-3">Управление платежами</h4>
 
-    {{--<div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">--}}
-    {{--<span class="fw-bold">Баланс:</span>--}}
 
-    {{--<span class="fw-bold"> 123 руб</span>--}}
-    {{--</div>--}}
 
     <!-- Вкладки -->
         <ul class="nav nav-tabs" id="paymentTabs" role="tablist">
@@ -148,7 +144,7 @@
                              aria-labelledby="history-tab">
                             <h4>История платежей</h4>
 
-                            <table id="paymentsTable" class="table table-bordered table-hover mt-3">
+                            <table id="paymentsTable" class="table table-bordered table-hover">
                                 <thead>
                                 <tr>
                                     <th>ID</th>
@@ -168,6 +164,11 @@
                         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
                         <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
                         <script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
+
+                        <!-- FixedColumns -->
+                        <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css">
+                        <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+                        <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
 
 
                         <script>
@@ -219,21 +220,30 @@
                                     ],
                                     order: [[4, 'desc']], // Сортировка по столбцу "Дата" в порядке убывания
 
+                                    scrollX: true,
+
+                                    // fixedColumns: {
+                                    //     leftColumns: 1
+                                    // },
+
                                     language: {
+                                        // url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json",
                                         "processing": "Обработка...",
-                                        "search": "Поиск:",
-                                        "lengthMenu": "Показать _MENU_ записей",
-                                        "info": "Записи с _START_ до _END_ из _TOTAL_ записей",
-                                        "infoEmpty": "Записи с 0 до 0 из 0 записей",
+                                        "search": "",
+                                        "searchPlaceholder": "Поиск...",
+
+                                        "lengthMenu": "Показать _MENU_",
+                                        "info": "С _START_ до _END_ из _TOTAL_ записей",
+                                        "infoEmpty": "С 0 до 0 из 0 записей",
                                         "infoFiltered": "(отфильтровано из _MAX_ записей)",
                                         "loadingRecords": "Загрузка записей...",
                                         "zeroRecords": "Записи отсутствуют.",
                                         "emptyTable": "В таблице отсутствуют данные",
                                         "paginate": {
-                                            "first": "Первая",
-                                            "previous": "Предыдущая",
-                                            "next": "Следующая",
-                                            "last": "Последняя"
+                                            "first": "",
+                                            "previous": "",
+                                            "next": "",
+                                            "last": ""
                                         },
                                         "aria": {
                                             "sortAscending": ": активировать для сортировки столбца по возрастанию",

@@ -6,9 +6,10 @@
                 <h5 class="modal-title fieldModalLabel" id="fieldModalLabel">Настройка пользовательских полей</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <button id="new-field-btn" type="button" class="btn btn-success new-field-btn mt-3 ml-3">Новое поле</button>
+
             <div class="modal-body text-start">
                 <!-- Кнопка для добавления нового поля -->
-                <button id="new-field-btn" type="button" class="btn btn-success mb-3">Новое поле</button>
 
                 <!-- Таблица с существующими полями -->
                 <table class="table table-bordered" id="fields-table">

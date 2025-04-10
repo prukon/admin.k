@@ -16,12 +16,15 @@ class Role extends Model
         'label',
         'is_sistem',
         'order_by',
+        'is_visible',
 
     ];
 
     protected $casts = [
         'is_sistem' => 'boolean',
         'order_by' => 'integer',
+        'is_visible' => 'boolean',
+
     ];
 
     protected static function booted()

@@ -31,16 +31,25 @@ class RuleController extends Controller
     {
 
         // Получаем все роли
-        $roles = Role::all();
-        $roles = Role::with('permissions')->get();
-
-        // Получаем все права (permissions) с сортировкой по id или как вам удобнее
-        $permissions = Permission::with('roles')->orderBy('sort_order')->get();
+//        $roles = Role::with('permissions')->get();
+//
+//        // Получаем все права (permissions) с сортировкой по id или как вам удобнее
+//
+//        if (auth()->user()?->role?->name === 'superadmin') {
+//        $permissions = Permission::with('roles')->orderBy('sort_order')->get();
+//    } else {
+//        $permissions = Permission::with('roles')->where('is_visible', true)->orderBy('sort_order')->get();
+//    }
 
         if (auth()->user()?->role?->name === 'superadmin') {
+        $roles = Role::with('permissions')->get();
         $permissions = Permission::with('roles')->orderBy('sort_order')->get();
     } else {
-        $permissions = Permission::with('roles')->where('is_visible', true)->orderBy('sort_order')->get();
+        $roles = Role::with('permissions')->where('is_visible', true)->get();
+        $permissions = Permission::with('roles')
+            ->where('is_visible', true)
+            ->orderBy('sort_order')
+            ->get();
     }
 
 
@@ -64,45 +73,6 @@ class RuleController extends Controller
     }
 
     //Изменение прав пользователей
-    public function togglePermission2(Request $request)
-    {
-        $roleId = $request->input('role_id');
-        $permissionId = $request->input('permission_id');
-        $value = $request->input('value'); // true/false
-        $role = Role::findOrFail($roleId);
-        $permission = Permission::findOrFail($permissionId);
-
-        DB::transaction(function () use ($permission, $value, $role) {
-            // Определим максимальное значение order_by
-
-            $authorId = auth()->id(); // Авторизованный пользователь
-
-            if ($value == 'true') {
-                // Если чекбокс включили, значит нужно добавить право роли
-                $role->permissions()->syncWithoutDetaching([$permission->id]);
-            } else {
-                // Если чекбокс выключили, удаляем право у роли
-                $role->permissions()->detach($permission->id);
-            }
-
-            // Логируем создание пользователя
-            MyLog::create([
-                'type' => 700,    // Лог для ролей
-                'action' => 720, // Лог для изменения прав
-                'author_id' => $authorId,
-                'description' => sprintf(
-                    "Название: %s",
-                    $role->name
-                ),
-                'created_at' => now(),
-            ]);
-
-        });
-        return response()->json([
-            'success' => true,
-            'message' => 'Обновление прошло успешно',
-        ]);
-    }
 
     public function togglePermission(Request $request)
     {
@@ -157,12 +127,15 @@ class RuleController extends Controller
         ]);
     }
 
-
     //* Метод для создания новой роли (AJAX).
     public function createRole(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'label'      => 'string|max:255',
+            'is_sistem'  => 'sometimes|boolean',
+//            'order_by'   => 'string|integer',
+            'is_visible' => 'sometimes|boolean',
         ]);
 
         // Определим максимальное значение order_by
@@ -173,7 +146,17 @@ class RuleController extends Controller
         $role->label = $request->input('name');  // или другое
         $role->is_sistem = 0;                    // пользовательские роли
         $role->order_by = $maxOrderBy + 10;
-//        $role->save();
+
+        // Можно считать, что is_visible придёт, если хотим явно регулировать видимость,
+        // например:
+        if ($request->has('is_visible')) {
+            $role->is_visible = $request->boolean('is_visible');
+        } else {
+            // по умолчанию пусть будет true
+            $role->is_visible = true;
+        }
+
+
 
         DB::transaction(function () use ($request, $role) {
             // Определим максимальное значение order_by
@@ -257,7 +240,6 @@ class RuleController extends Controller
             'success' => true,
         ]);
     }
-
 
     //Журнал логов на вкладке права
     public function logRules(FilterRequest $request)

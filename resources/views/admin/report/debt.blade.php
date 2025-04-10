@@ -3,7 +3,7 @@
         <div class="container-fluid">
             <h4 class="pt-3 text-start">Задолженности</h4>
             <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
-                <span class="fw-bold">Общая сумма задолженности:</span>
+                <span class="fw-bold">Общая сумма задолженности: </span>
                 <span class="fw-bold">{{$totalUnpaidPrice}} руб</span>
             </div>
             <table class="table table-bordered" id="debts-table">

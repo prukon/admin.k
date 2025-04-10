@@ -6,7 +6,7 @@
                 <h1 class="modal-title fs-5" id="historyModalLabel">История изменений</h1>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body pl-1 pr-1">
                 <!-- Обернем таблицу в div с классом table-responsive для мобильной адаптации -->
                 <div class="table-responsive">
                     <table id="logsTable" class="display table table-striped w-100">
@@ -30,8 +30,11 @@
 </div>
 
 <script>
+
     function showLogModal(routeName) {
-            // Инициализация DataTables с серверной пагинацией
+        // Инициализация DataTables с серверной пагинацией
+
+        $('#historyModal').on('shown.bs.modal', function () {
             $('#logsTable').DataTable({
                 processing: true,
                 serverSide: true,
@@ -50,47 +53,61 @@
                     { data: 'created_at', name: 'created_at' }
                 ],
                 order: [[4, 'desc']], // Сортировка по дате создания (последние записи первыми)
-                columnDefs: [
-                    { width: "40px", targets: 0 }, // ID
-                    { width: "150px", targets: 4 } // Дата создания
-                ],
-                autoWidth: false, // Отключаем автоширину, чтобы вручную заданные стили применялись
+                // columnDefs: [
+                //     { width: "40px", targets: 0 }, // ID
+                //     { width: "150px", targets: 4 } // Дата создания
+                // ],
+                // autoWidth: false, // Отключаем автоширину, чтобы вручную заданные стили применялись
+
+                scrollX: true,
+
+                // fixedColumns: {
+                //     leftColumns: 2
+                // },
+
                 language: {
+                    // url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json",
                     "processing": "Обработка...",
-                    "search": "Поиск:",
-                    "lengthMenu": "Показать _MENU_ записей",
-                    "info": "Записи с _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "Записи с 0 до 0 из 0 записей",
+                    "search": "",
+                    "searchPlaceholder": "Поиск...",
+
+                    "lengthMenu": "Показать _MENU_",
+                    "info": "С _START_ до _END_ из _TOTAL_ записей",
+                    "infoEmpty": "С 0 до 0 из 0 записей",
                     "infoFiltered": "(отфильтровано из _MAX_ записей)",
                     "loadingRecords": "Загрузка записей...",
                     "zeroRecords": "Записи отсутствуют.",
                     "emptyTable": "В таблице отсутствуют данные",
                     "paginate": {
-                        "first": "Первая",
-                        "previous": "Предыдущая",
-                        "next": "Следующая",
-                        "last": "Последняя"
+                        "first": "",
+                        "previous": "",
+                        "next": "",
+                        "last": ""
                     },
                     "aria": {
                         "sortAscending": ": активировать для сортировки столбца по возрастанию",
                         "sortDescending": ": активировать для сортировки столбца по убыванию"
                     }
                 }
-            });
+            }).columns.adjust().draw();
+
+        });
+
     }
+
 </script>
 
 <style>
     @media (max-width: 768px) {
-        .modal-dialog {
-            max-width: 100%;
-            margin: 0;
-        }
-        .modal-content {
-            width: 100%;
-        }
-        .table th, .table td {
-            white-space: nowrap;
-        }
+        /*.modal-dialog {*/
+        /*    max-width: 100%;*/
+        /*    margin: 0;*/
+        /*}*/
+        /*.modal-content {*/
+        /*    width: 100%;*/
+        /*}*/
+        /*.table th, .table td {*/
+        /*    white-space: nowrap;*/
+        /*}*/
     }
 </style>

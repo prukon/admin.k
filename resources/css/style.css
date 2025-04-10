@@ -1440,3 +1440,11 @@ height: 0!important;
         display: inline-block;
     }
 }
+
+.new-field-btn {
+    width: fit-content;
+}
+
+.rule-table thead th {
+vertical-align: middle;
+}
