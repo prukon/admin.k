@@ -535,3 +535,14 @@ table.dataTable tbody th, table.dataTable tbody td {
 #chooseGroupModal {
     z-index: 1060!important;
 }
+
+@media (max-width: 576px) {
+    .wrap-filter-setting {
+        display: none;
+    }
+}
+
+.schedule-controls {
+    margin-left: 0!important;
+    margin-right: 0!important;
+}

@@ -1,80 +1,77 @@
+<h4 class="pt-3 pb-3 text-start">Платежные системы</h4>
 
-<div class="container text-start">
-    <h4 class="pt-3 pb-3">Платежные системы</h4>
-
-    <div class="row mt-4">
-        {{-- Карточка: Робокасса --}}
-        <div class="col-sm-3 mb-4">
-            <div class="card shadow h-100">
-                <div class="card-body text-center d-flex flex-column justify-content-center">
-                    <img src="{{ asset('img/partners/robokassa.png') }}" alt="Робокасса" class="mb-3">
-                    <h5 class="card-title">Робокасса</h5>
-                    @if($robokassa && $robokassa->is_connected)
+<div class="row mt-4">
+    {{-- Карточка: Робокасса --}}
+    <div class="col-sm-3 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-body text-center d-flex flex-column justify-content-center">
+                <img src="{{ asset('img/partners/robokassa.png') }}" alt="Робокасса" class="mb-3">
+                <h5 class="card-title">Робокасса</h5>
+                @if($robokassa && $robokassa->is_connected)
                     <button
-                                class="btn btn-success mt-3 toggleable-status-btn"
-                                data-original-text="Подключено"
-                                data-hover-text="Отключить"
-                                data-id="{{ $robokassa->id }}"
-                                data-url="{{ route('payment-systems.destroy', ['payment_system' => $robokassa->id]) }}">
-                            Подключено
-                        </button>
+                            class="btn btn-success mt-3 toggleable-status-btn"
+                            data-original-text="Подключено"
+                            data-hover-text="Отключить"
+                            data-id="{{ $robokassa->id }}"
+                            data-url="{{ route('payment-systems.destroy', ['payment_system' => $robokassa->id]) }}">
+                        Подключено
+                    </button>
 
 
-                        @if($robokassa->test_mode)
-                            <div class="mt-2 text-muted small">Тестовый режим</div>
-                        @endif
-
-                    @else
-                        <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalRobokassa">
-                            Подключить
-                        </button>
+                    @if($robokassa->test_mode)
+                        <div class="mt-2 text-muted small">Тестовый режим</div>
                     @endif
 
-                    <div class="mt-3">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#modalRobokassaInfo">Подробнее</a>
-                    </div>
+                @else
+                    <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalRobokassa">
+                        Подключить
+                    </button>
+                @endif
+
+                <div class="mt-3">
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#modalRobokassaInfo">Подробнее</a>
                 </div>
             </div>
         </div>
-
-        {{-- Карточка: TБанк --}}
-        <div class="col-sm-3 mb-4">
-            <div class="card shadow h-100">
-                <div class="card-body text-center d-flex flex-column justify-content-center">
-                    <img src="{{ asset('img/partners/tbank.png') }}" alt="TБанк" class="mb-3">
-                    <h5 class="card-title">TБанк</h5>
-
-                    @if($tbank && !empty($tbank->settings['tbank_account_id']) && !empty($tbank->settings['tbank_key']))
-                        <button class="btn btn-success mt-3" disabled>Подключено</button>
-                    @else
-                        <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalTbank">
-                            Подключить
-                        </button>
-                    @endif
-
-                    <div class="mt-3">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#modalTbankInfo">Подробнее</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Карточка: Юкасса (пример, пока пропустим) --}}
-        {{--<div class="col-sm-3 mb-4">--}}
-            {{--<div class="card shadow h-100">--}}
-                {{--<div class="card-body text-center d-flex flex-column justify-content-center">--}}
-                    {{--<img src="{{ asset('img/partners/yoomoney.png') }}" alt="Юкасса" class="mb-3">--}}
-                    {{--<h5 class="card-title">Юкасса</h5>--}}
-
-                    {{--<button class="btn btn-primary mt-3">Подключить</button>--}}
-
-                    {{--<div class="mt-3">--}}
-                        {{--<a href="#">Подробнее</a>--}}
-                    {{--</div>--}}
-                {{--</div>--}}
-            {{--</div>--}}
-        {{--</div>--}}
     </div>
+
+    {{-- Карточка: TБанк --}}
+    <div class="col-sm-3 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-body text-center d-flex flex-column justify-content-center">
+                <img src="{{ asset('img/partners/tbank.png') }}" alt="TБанк" class="mb-3">
+                <h5 class="card-title">TБанк</h5>
+
+                @if($tbank && !empty($tbank->settings['tbank_account_id']) && !empty($tbank->settings['tbank_key']))
+                    <button class="btn btn-success mt-3" disabled>Подключено</button>
+                @else
+                    <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalTbank">
+                        Подключить
+                    </button>
+                @endif
+
+                <div class="mt-3">
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#modalTbankInfo">Подробнее</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Карточка: Юкасса (пример, пока пропустим) --}}
+    {{--<div class="col-sm-3 mb-4">--}}
+    {{--<div class="card shadow h-100">--}}
+    {{--<div class="card-body text-center d-flex flex-column justify-content-center">--}}
+    {{--<img src="{{ asset('img/partners/yoomoney.png') }}" alt="Юкасса" class="mb-3">--}}
+    {{--<h5 class="card-title">Юкасса</h5>--}}
+
+    {{--<button class="btn btn-primary mt-3">Подключить</button>--}}
+
+    {{--<div class="mt-3">--}}
+    {{--<a href="#">Подробнее</a>--}}
+    {{--</div>--}}
+    {{--</div>--}}
+    {{--</div>--}}
+    {{--</div>--}}
 </div>
 
 {{--Модалка для ввода настроек Робокассы--}}
@@ -106,7 +103,8 @@
 
                     <div class="form-check">
                         <input type="hidden" name="test_mode" value="0">
-                        <input type="checkbox" class="form-check-input" name="test_mode" id="test_mode" value="1" {{ old('test_mode') ? 'checked' : '' }}>
+                        <input type="checkbox" class="form-check-input" name="test_mode" id="test_mode"
+                               value="1" {{ old('test_mode') ? 'checked' : '' }}>
                         <label class="form-check-label" for="test_mode">Тестовый режим</label>
                     </div>
 
@@ -142,8 +140,6 @@
         </div>
     </div>
 </div>
-
-
 
 {{--Модалка для Tбанка--}}
 <div class="modal fade" id="modalTbank" tabindex="-1" aria-labelledby="modalTbankLabel" aria-hidden="true">
@@ -299,25 +295,9 @@
 
     </script>
 
-    <!-- Подключение необходимых CDN -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- DataTables -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-    <!-- Datepicker (Bootstrap Datepicker) -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/locales/bootstrap-datepicker.ru.min.js"></script>
-
     <style>
         .toggleable-status-btn {
-            font-size: 13px!important;
+            font-size: 13px !important;
         }
     </style>
 

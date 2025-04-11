@@ -1,24 +1,18 @@
-<div class="tab-content" id="myTabContent">
-    <div class="tab-pane fade {{ $activeTab == 'debt' ? 'show active' : '' }}" id="profile" role="tabpanel">
-        <div class="container-fluid">
-            <h4 class="pt-3 text-start">Задолженности</h4>
-            <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
-                <span class="fw-bold">Общая сумма задолженности: </span>
-                <span class="fw-bold">{{$totalUnpaidPrice}} руб</span>
-            </div>
-            <table class="table table-bordered" id="debts-table">
-                <thead>
-                <tr>
-                    <th>№</th>
-                    <th>Имя пользователя</th>
-                    <th>Месяц</th>
-                    <th>Сумма</th>
-                </tr>
-                </thead>
-            </table>
-        </div>
-    </div>
+<h4 class="pt-3 text-start">Задолженности</h4>
+<div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
+    <span class="fw-bold">Общая сумма задолженности: </span>
+    <span class="fw-bold">{{$totalUnpaidPrice}} руб</span>
 </div>
+<table class="table table-bordered" id="debts-table">
+    <thead>
+    <tr>
+        <th>№</th>
+        <th>Имя пользователя</th>
+        <th>Месяц</th>
+        <th>Сумма</th>
+    </tr>
+    </thead>
+</table>
 
 @section('scripts')
     <script type="text/javascript">

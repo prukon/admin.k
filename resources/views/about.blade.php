@@ -1,13 +1,8 @@
-{{--@extends('layouts.main2')--}}
 @extends('layouts.admin2')
 @section('content')
 
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script src="{{ asset('js/settings-ajax.js') }}"></script>
-
-    <div class="col-md-12 main-content text-start">
+    <div class="main-content text-start">
         <h4 class="pt-3 pb-3">О сервисе</h4>
-        <div class="container">
             <!-- Логотип и описание -->
             <div class="row mb-4 align-items-center">
 
@@ -121,7 +116,6 @@
                     </table>
                 </div>
             </div>
-        </div>
     </div>
 
 @endsection

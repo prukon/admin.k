@@ -1,15 +1,13 @@
 @extends('layouts.admin2')
 @section('content')
+    <div class="main-content text-start">
 
-    <div class=" col-md-12 main-content  text-start " xmlns="http://www.w3.org/1999/html">
-        <h4 class="pt-3 pb-3">Оплата клубного взноса</h4>
-
+    <h4 class="pt-3 pb-3">Оплата клубного взноса</h4>
         <div class="pay-info mb-3">
             <div>Имя пользователя: <span class="bolt-text">{{ auth()->user()->name }}</span></div>
             <div class="mt-3">Сумма оплаты: <span class="bolt-text"><input id="paymentAmount" type="number" min="1"> руб.</span>
             </div>
         </div>
-
             <div class="text-center">
                 <div class="wrap-pay mt-3 wrap-club-fee-pay">
                 <h5 class="pay-name mt-3 mb-3">Робокасса</h5>

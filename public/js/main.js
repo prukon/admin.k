@@ -511,69 +511,6 @@ function apendCreditTotalSumm() {
 // Поиск по группам в Пользователя
 
 
-function clickToSearch() {
-
-    function searchUserName() {
-        document.getElementById('search-button').addEventListener('click', function () {
-            var query = document.getElementById('search-input').value;
-            // Формируем новый URL
-            var newUrl = new URL(window.location.href);
-            if (query) {
-                // Если в инпуте есть текст, устанавливаем GET-параметр
-                newUrl.searchParams.set('name', query);
-            } else {
-                // Если инпут пустой, удаляем GET-параметр
-                newUrl.searchParams.delete('name');
-            }
-            // Обновляем URL без перезагрузки страницы
-            window.history.pushState(null, '', newUrl);
-            // Перезагружаем страницу с новым URL
-
-
-            var selectedOption = document.getElementById('search-select').value;
-            // Формируем новый URL
-            var newUrl = new URL(window.location.href);
-            if (selectedOption) {
-                // Если выбрана опция, устанавливаем GET-параметр
-                newUrl.searchParams.set('team_id', selectedOption);
-            } else {
-                // Если не выбрана опция (значение пустое), удаляем GET-параметр
-                newUrl.searchParams.delete('team_id');
-            }
-            // Обновляем URL без перезагрузки страницы
-            window.history.pushState(null, '', newUrl);
-
-
-            window.location.reload();
-        });
-    }
-
-    // Функция для установки значения инпута при загрузке страницы
-    function setInputFromURL() {
-        var urlParams = new URLSearchParams(window.location.search);
-        var nameQuery = urlParams.get('name');
-        if (nameQuery) {
-            document.getElementById('search-input').value = nameQuery;
-        }
-    }
-
-    // Функция для установки значения селекта при загрузке страницы
-    function setSelectFromURL() {
-        var urlParams = new URLSearchParams(window.location.search);
-        var teamId = urlParams.get('team_id');
-        if (teamId) {
-            document.getElementById('search-select').value = teamId;
-        }
-    }
-
-    // Вызываем функции после загрузки страницы
-    window.onload = function () {
-        searchUserName();
-        setInputFromURL();
-        setSelectFromURL();
-    };
-
-}
 
 document.addEventListener('DOMContentLoaded', function () {
 

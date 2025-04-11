@@ -1,9 +1,9 @@
 @extends('layouts.admin2')
 @section('content')
 
-    <div class=" col-md-12 main-content text-start" xmlns="http://www.w3.org/1999/html">
+    <div class="main-content text-start">
         <h4 class="pt-3 text-start">Страница оплаты</h4>
-        <div class="pay-info mb-3 mt-3 text-start">
+        <div class="pay-info mb-3 mt-3">
             <div>Имя пользователя: <span class="bolt-text">{{ auth()->user()->name }}</span></div>
             <div>Платежный период: <span class="bolt-text">{{ $paymentDate }}</span></div>
 {{--            <div>Платежный период 2: <span class="bolt-text">{{ $formatedPaymentDate }}</span></div>--}}
@@ -23,7 +23,6 @@
             </form>
             <div class="pay-fee  mb-3">Комиссия: 0 руб.</div>
         </div>
-
 
     </div>
 

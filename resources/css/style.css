@@ -1236,32 +1236,29 @@ a.disabled {
 }
 
 
-
-
-
-
-
-
-
- .dataTables_wrapper {
-     overflow-x: auto;
-     min-width: 100%;
- }
-
-
-#partnerUpdateForm .user-data-wrap {
-    padding-left: 0 ;
+.dataTables_wrapper {
+    overflow-x: auto;
+    min-width: 100%;
 }
 
 
+/*#partnerUpdateForm .user-data-wrap {*/
+/*padding-left: 0;*/
+/*}*/
+
+/*#myTabContent .user-data-wrap {*/
+/*padding-left: 0;*/
+/*}*/
+
+/*#partnerUpdateForm .partner-form-wrap {*/
+/*margin-left: 0!important;*/
+/*}*/
 
 
-
-
-     /* Общий стиль для модального окна, если нужно */
- .modal-body {
-     overflow-x: auto; /* На всякий случай для всего контента */
- }
+/* Общий стиль для модального окна, если нужно */
+.modal-body {
+    overflow-x: auto; /* На всякий случай для всего контента */
+}
 
 /* Стили конкретно для таблицы полей */
 #fields-table {
@@ -1281,13 +1278,11 @@ a.disabled {
 }
 
 
-
-
- #fields-table {
-     width: max-content;
-     min-width: 100%;
-     table-layout: auto;
- }
+#fields-table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+}
 
 #fields-table th,
 #fields-table td {
@@ -1339,6 +1334,7 @@ a.disabled {
 #fieldModal .modal-content {
     width: fit-content;
 }
+
 @media (max-width: 768px) {
     #fieldModal .modal-content {
         width: auto;
@@ -1349,23 +1345,21 @@ a.disabled {
 .main-sidebar .my-brand-link {
     width: auto;
 }
+
 @media (max-width: 576px) {
     .container-fluid-tabs {
         padding: 0 !important;
     }
-    .main-content {
-        /*padding: 0 !important;*/
-    }
+
 
     .main-content-tabs {
         padding: 0 !important;
     }
 
 
-    .tab-content {
-        padding: 0 !important;
-    }
-
+    /*.tab-content {*/
+    /*padding: 0 !important;*/
+    /*}*/
     /* Упаковка их в флекс-контейнер */
     .dataTables_wrapper .top-controls {
         display: flex;
@@ -1391,7 +1385,7 @@ a.disabled {
     }
 
     .dataTables_filter {
-        margin-top: 0!important;
+        margin-top: 0 !important;
     }
 
 }
@@ -1408,7 +1402,7 @@ a.disabled {
     .dataTables_scrollHeadInner tr,
     .dataTables_scrollBody .dataTable td,
     .dataTables_scrollBody .dataTable th,
-    .dataTables_scrollBody .dataTable tr{
+    .dataTables_scrollBody .dataTable tr {
         padding: 0.2rem 0.4rem !important;
         font-size: 0.775rem;
     }
@@ -1420,16 +1414,17 @@ a.disabled {
 .dataTables_scrollHeadInner tr,
 .dataTables_scrollBody .dataTable td,
 .dataTables_scrollBody .dataTable th,
-.dataTables_scrollBody .dataTable tr{
+.dataTables_scrollBody .dataTable tr {
 
     white-space: nowrap;
 }
 
-.dataTables_scrollBody thead tr th{
-visibility: hidden
+.dataTables_scrollBody thead tr th {
+    visibility: hidden
 }
+
 .dataTables_scrollBody thead tr {
-height: 0!important;
+    height: 0 !important;
 }
 
 .wrap-club-fee-pay {
@@ -1447,5 +1442,6 @@ height: 0!important;
 }
 
 .rule-table thead th {
-vertical-align: middle;
+    vertical-align: middle;
 }
+

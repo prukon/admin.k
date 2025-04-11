@@ -1,27 +1,21 @@
-<div class="tab-content" id="myTabContent">
-    <div class="tab-pane fade {{ $activeTab == 'payment' ? 'show active' : '' }}" id="home" role="tabpanel">
-        <div class="container-fluid">
-            <h4 class="pt-3 text-start">Платежи</h4>
-            <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
-                <span class="fw-bold">Общая сумма платежей:</span>
+<h4 class="pt-3 text-start">Платежи</h4>
+<div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
+    <span class="fw-bold">Общая сумма платежей:</span>
 
-                <span class="fw-bold"> {{$totalPaidPrice}} руб</span>
-            </div>
-            <table class="table table-bordered" id="payments-table">
-                <thead>
-                <tr>
-                    <th>№</th>
-                    <th>Имя ученика</th>
-                    <th>Группа</th>
-                    <th>Сумма платежа</th>
-                    <th>Оплаченный месяц</th>
-                    <th>Дата и время платежа</th>
-                </tr>
-                </thead>
-            </table>
-        </div>
-    </div>
+    <span class="fw-bold"> {{$totalPaidPrice}} руб</span>
 </div>
+<table class="table table-bordered" id="payments-table">
+    <thead>
+    <tr>
+        <th>№</th>
+        <th>Имя ученика</th>
+        <th>Группа</th>
+        <th>Сумма платежа</th>
+        <th>Оплаченный месяц</th>
+        <th>Дата и время платежа</th>
+    </tr>
+    </thead>
+</table>
 
 @section('scripts')
     <script type="text/javascript">

@@ -167,7 +167,7 @@
                                 data-user-name="{{ $user->name }}"
 
                                 data-date="{{ $day->format('Y-m-d') }}"
-                                style= "background-color: {{ $cellColor }};"
+                                style="background-color: {{ $cellColor }};"
 
                                 data-status-id="{{ $statusId }}"
                                 data-comment="{{ $entry?->description }}"
@@ -471,21 +471,6 @@
 @endsection
 
 @section('scripts')
-    <!-- Подключение необходимых CDN -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- DataTables -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-    <!-- Datepicker (Bootstrap Datepicker) -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/locales/bootstrap-datepicker.ru.min.js"></script>
     @vite(['resources/css/schedule.css',])
     @vite(['resources/js/schedule.js',])
 

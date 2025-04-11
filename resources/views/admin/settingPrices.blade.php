@@ -1,13 +1,5 @@
-{{--@extends('layouts.main2')--}}
 @extends('layouts.admin2')
 @section('content')
-
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script src="{{ asset('js/my-croppie.js') }}"></script>
-{{--    <script src="{{ asset('js/settings-prices.js') }}"></script>--}}
-    @vite(['resources/js/settings-prices.js',])
-
-
     <!-- Модальное окно логов -->
     @include('includes.logModal')
     <!-- Модальное окно подтверждения удаления -->
@@ -17,69 +9,67 @@
     <!-- Модальное окно ошибки -->
     @include('includes.modal.errorModal')
 
-    <div class="  main-content" xmlns="http://www.w3.org/1999/html">
-        <h4 class="pt-3 text-start">Установка цен</h4>
-        <div class="container setting-price-wrap">
+    <h4 class="pt-3 text-start">Установка цен</h4>
+    <div class="container setting-price-wrap">
+        <hr>
+        <div class="buttons text-start">
+            <button type="button" class="btn btn-primary" id="logs" data-bs-toggle="modal"
+                    data-bs-target="#historyModal">История изменений
+            </button>
             <hr>
+        </div>
+        <div class="row justify-content-md-center">
+            <div id='selectDate' class="selectDate">
+                <select class="form-select" id="single-select-date" data-placeholder="Дата">
 
-            <div class="buttons text-start">
-                <button type="button" class="btn btn-primary" id="logs" data-bs-toggle="modal"
-                        data-bs-target="#historyModal">История изменений
+                    @if($currentDateString)
+                        <option>{{ $currentDateString }}</option>
+                    @endif
+
+                </select>
+                <script>
+                    const selectElement = document.getElementById('single-select-date');
+                    const startYear = 2023;
+                    const startMonth = 8; // Июнь (месяцы в JavaScript считаются с 0: 0 = январь, 1 = февраль и т.д.)
+                    let CountMonths = function () { // fix переписать для автоматизации
+                        let currentYear = new Date().getFullYear();
+                        if (currentYear == 2024) {
+                            return 24;
+                        } else if (currentYear == 2025) {
+                            return 36;
+                        }
+                    }
+
+                    function capitalizeFirstLetter(string) {
+                        return string.charAt(0).toUpperCase() + string.slice(1);
+                    }
+
+                    for (let i = 0; i < CountMonths(); i++) {
+                        const optionDate = new Date(startYear, startMonth + i, 1);
+                        let monthYear = optionDate.toLocaleString('ru-RU', {
+                            month: 'long',
+                            year: 'numeric'
+                        }).replace(' г.', '');
+                        monthYear = capitalizeFirstLetter(monthYear);
+                        const option = document.createElement('option');
+                        option.value = monthYear;
+                        option.textContent = monthYear;
+                        selectElement.appendChild(option);
+                    }
+
+                </script>
+
+            </div>
+        </div>
+        <div class="row justify-content-center  mt-3 " id='wrap-bars'>
+            <div id='left_bar' class="col-12 col-lg-5 mb-3 ">
+                <button id="set-price-all-teams"
+                        class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-teams">Применить
                 </button>
-                <hr>
-            </div>
-            <div class="row justify-content-md-center">
-                <div id='selectDate' class="selectDate">
-                    <select class="form-select" id="single-select-date" data-placeholder="Дата">
-
-                        @if($currentDateString)
-                            <option>{{ $currentDateString }}</option>
-                        @endif
-
-                    </select>
-                    <script>
-                        const selectElement = document.getElementById('single-select-date');
-                        const startYear = 2023;
-                        const startMonth = 8; // Июнь (месяцы в JavaScript считаются с 0: 0 = январь, 1 = февраль и т.д.)
-                        let CountMonths = function () { // fix переписать для автоматизации
-                            let currentYear = new Date().getFullYear();
-                            if (currentYear == 2024) {
-                                return 24;
-                            } else if (currentYear == 2025) {
-                                return 36;
-                            }
-                        }
-
-                        function capitalizeFirstLetter(string) {
-                            return string.charAt(0).toUpperCase() + string.slice(1);
-                        }
-
-                        for (let i = 0; i < CountMonths(); i++) {
-                            const optionDate = new Date(startYear, startMonth + i, 1);
-                            let monthYear = optionDate.toLocaleString('ru-RU', {
-                                month: 'long',
-                                year: 'numeric'
-                            }).replace(' г.', '');
-                            monthYear = capitalizeFirstLetter(monthYear);
-                            const option = document.createElement('option');
-                            option.value = monthYear;
-                            option.textContent = monthYear;
-                            selectElement.appendChild(option);
-                        }
-
-                    </script>
-
-                </div>
-            </div>
-            <div class="row justify-content-center  mt-3 " id='wrap-bars'>
-                <div id='left_bar' class="col-12 col-lg-5 mb-3 ">
-                    <button id="set-price-all-teams"
-                            class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-teams">Применить
-                    </button>
-
-                    @if(isset($teamPrices) && count($teamPrices) > 0)
-                        @for($i = 0; $i < count($teamPrices); $i++)
-                            @if(isset($allTeams[$i])) <!-- Добавляем проверку на существование индекса $i -->
+                @if(isset($teamPrices) && count($teamPrices) > 0)
+                    @for($i = 0; $i < count($teamPrices); $i++)
+                        @if(isset($allTeams[$i]))
+                            <!-- Добавляем проверку на существование индекса $i -->
                             <div id="{{ $teamPrices[$i]->team_id }}" class="row mb-2 wrap-team">
                                 <div class="team-name col-4">
                                     {{ ($i + 1) . '. ' . $allTeams[$i]->title }}
@@ -92,27 +82,27 @@
                                     <input class="detail btn btn-primary" type="button" value="Подробно">
                                 </div>
                             </div>
-                            @endif
-                        @endfor
-                    @endif 
-
-
-                </div>
-                <div class="col-md-auto"></div>
-                <div id='right_bar' class="col-12 col-lg-5">
-                    <button disabled id="set-price-all-users"
-                            class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-users">
-                        Применить
-                    </button>
-                    <div class="row mb-2 wrap-users text-start "></div>
-                </div>
+                        @endif
+                    @endfor
+                @endif
+            </div>
+            <div class="col-md-auto"></div>
+            <div id='right_bar' class="col-12 col-lg-5">
+                <button disabled id="set-price-all-users"
+                        class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-users">
+                    Применить
+                </button>
+                <div class="row mb-2 wrap-users text-start "></div>
             </div>
         </div>
     </div>
+@endsection
 
-
+@section('scripts')
+    @vite(['resources/js/settings-prices.js',])
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-             showLogModal("{{ route('logs.data.settingPrice') }}"); // Здесь можно динамически передать route
-        });    </script>
+            showLogModal("{{ route('logs.data.settingPrice') }}"); // Здесь можно динамически передать route
+        });
+    </script>
 @endsection

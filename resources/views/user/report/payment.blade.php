@@ -1,48 +1,31 @@
 @extends('layouts.admin2')
 @section('content')
-
-    <script src="{{ asset('js/my-croppie.js') }}"></script>
-
-    <!-- FixedColumns -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css">
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
-
-    <div class="container-fluid main-content " xmlns="http://www.w3.org/1999/html">
+    <div class="main-content">
         <h4 class="pt-3 pb-3  text-start">Платежи</h4>
-        <div class="container-fluid p-0">
-            <div class="row justify-content-md-center">
+        <div class="tab-pane fade {{ $activeTab == 'payments' ? 'show active' : '' }}" id="home" role="tabpanel">
+            <div class="container-fluid p-0">
+                {{--<h4 class="pt-3 text-start">Платежи</h4>--}}
+                <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mb-3 rounded">
+                    <span class="fw-bold">Общая сумма платежей:</span>
 
-
-                <div class="tab-content" id="myTabContent">
-                    <div class="tab-pane fade {{ $activeTab == 'payments' ? 'show active' : '' }}" id="home" role="tabpanel">
-                        <div class="container-fluid p-0">
-                            {{--<h4 class="pt-3 text-start">Платежи</h4>--}}
-                            <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mb-3 rounded">
-                                <span class="fw-bold">Общая сумма платежей:</span>
-
-                                <span class="fw-bold"> {{$totalPaidPrice}} руб</span>
-                            </div>
-
-                            <table class="table table-bordered" id="payments-table">
-                                <thead>
-                                <tr>
-                                    <th>№</th>
-                                    <th>Имя ученика</th>
-                                    <th>Группа</th>
-                                    <th>Сумма платежа</th>
-                                    <th>Оплаченный месяц</th>
-                                    <th>Дата и время платежа</th>
-                                </tr>
-                                </thead>
-                            </table>
-                        </div>
-                    </div>
+                    <span class="fw-bold"> {{$totalPaidPrice}} руб</span>
                 </div>
+
+                <table class="table table-bordered" id="payments-table">
+                    <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Имя ученика</th>
+                        <th>Группа</th>
+                        <th>Сумма платежа</th>
+                        <th>Оплаченный месяц</th>
+                        <th>Дата и время платежа</th>
+                    </tr>
+                    </thead>
+                </table>
             </div>
         </div>
     </div>
-
 @endsection
 
 @section('scripts')
@@ -149,6 +132,5 @@
             });
         });
     </script>
-
 @endsection
 

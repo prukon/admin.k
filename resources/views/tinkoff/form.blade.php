@@ -2,7 +2,7 @@
 @extends('layouts.admin2')
 
 @section('content')
-    <div class="container mt-5">
+    <div class="main-content">
         <h2 class="mb-4">Оплата заказа</h2>
 
         @if(session('error'))

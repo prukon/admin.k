@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
 
+
     <title>Kidslink.ru - сервис учета для детских садов, тематических школ и секций</title>
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
     {{--JQuery--}}
@@ -522,6 +523,9 @@
 <!-- Включение DataTables JS -->
 <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
 
+
+{{--<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">--}}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 {{--снежинки--}}
 {{--<script src="https://daruse.ru/assets/js/snowfall.js"></script>--}}

@@ -1,17 +1,9 @@
 @extends('layouts.admin2')
 @section('content')
-    <script>
-        // Передача данных текущего пользователя из Blade в JavaScript
-        let currentUserName = "{{ auth()->user()->name }}";
-        let currentUserRole = "{{ auth()->user()->role }}";
-    </script>
-
-
-    <div class="container-fluid main-content main-content-tabs" xmlns="http://www.w3.org/1999/html">
+    <div class=" main-content">
         <h4 class="pt-3 pb-3  text-start">Настройки</h4>
-        <div class="container-fluid container-fluid-tabs">
-
-            <div class="row justify-content-md-center">
+            {{--<div class="justify-content-md-center">--}}
+            <div class="">
                 <!-- Вкладки -->
                 <ul class="nav nav-tabs" id="paymentTabs" role="tablist">
                     <li class="nav-item">
@@ -32,7 +24,7 @@
                            role="tab"
                            aria-controls="rule"
                            aria-selected="{{ $activeTab == 'rule' ? 'true' : 'false' }}">
-                            Права пользователей
+                            Права и роли
                         </a>
                     </li>
                     @endcan
@@ -49,7 +41,6 @@
                         </li>
                     @endcan
                 </ul>
-
                 <div class="tab-content">
                 @if($activeTab === 'setting')
                     <!-- Контент вкладки пользователей -->
@@ -74,8 +65,6 @@
                     @endif
                 </div>
             </div>
-
-        </div>
     </div>
     <!-- Модальное окно логов -->
     @include('includes.logModal')
@@ -85,6 +74,4 @@
     @include('includes.modal.successModal')
     <!-- Модальное окно ошибки -->
     @include('includes.modal.errorModal')
-
-
 @endsection

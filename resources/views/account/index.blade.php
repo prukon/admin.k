@@ -5,22 +5,20 @@
         let currentUserName = "{{ auth()->user()->name }}";
         let currentUserRole = "{{ auth()->user()->role }}";
     </script>
-    </div>
 
-    <div class="container-fluid main-content" xmlns="http://www.w3.org/1999/html">
-        <h4 class="pt-3 pb-3  text-start">Учетная запись</h4>
-        <div class="container-fluid container-fluid-tabs">
 
-            <div class="row justify-content-md-center">
+    <div class="main-content text-start">
+        <h4 class="pt-3 pb-3">Учетная запись</h4>
+        {{--<div class="container-fluid">--}}
+
+            <div class="">
                 <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
                     <li class="nav-item" role="presentation">
-
                         <a class="nav-link {{ $activeTab == 'user' ? 'active' : '' }}"
                            href="/account-settings/users/{{ $user->id }}/edit"
                            role="tab"> {{auth()->user()->role->label}}
                         </a>
                     </li>
-{{--{{$partners}}--}}
                     <!-- Вкладки для всех партнёров пользователя -->
                     @can('partner-company')
                         @foreach ($partners as $partner)
@@ -55,7 +53,7 @@
                         ])
                     @endif
                 </div>
-            </div>
+            {{--</div>--}}
 
         </div>
     </div>

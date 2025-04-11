@@ -1,25 +1,16 @@
-<div class="tab-content" id="myTabContent">
-    <div class="tab-pane fade {{ $activeTab == 'ltv' ? 'show active' : '' }}" id="profile"
-         role="tabpanel">
-        <div class="container-fluid">
-            <h4 class="pt-3 text-start">LTV</h4>
-            <table class="table table-bordered" id="debts-table">
-                <thead>
-                <tr>
-                    <th>№</th>
-                    <th>Имя пользователя</th>
-                    <th>Дата первого платежа</th>
-                    <th>Дата последнего платежа</th>
-                    <th>Кол-во платежей</th>
-                    <th>Общая сумма</th>
-                </tr>
-                </thead>
-            </table>
-
-        </div>
-    </div>
-</div>
-
+<h4 class="pt-3 text-start">LTV</h4>
+<table class="table table-bordered" id="debts-table">
+    <thead>
+    <tr>
+        <th>№</th>
+        <th>Имя пользователя</th>
+        <th>Дата первого платежа</th>
+        <th>Дата последнего платежа</th>
+        <th>Кол-во платежей</th>
+        <th>Общая сумма</th>
+    </tr>
+    </thead>
+</table>
 @section('scripts')
     <script type="text/javascript">
         // Функция для форматирования даты

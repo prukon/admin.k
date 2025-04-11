@@ -1,16 +1,9 @@
 @extends('layouts.admin2')
 @section('content')
-    <script>
-        // Передача данных текущего пользователя из Blade в JavaScript
-        let currentUserName = "{{ auth()->user()->name }}";
-        let currentUserRole = "{{ auth()->user()->role }}";
-    </script>
-    <script src="{{ asset('js/my-croppie.js') }}"></script>
-    <div class="container-fluid main-content main-content-tabs" xmlns="http://www.w3.org/1999/html">
-        <h4 class="pt-3 pb-3  text-start">Отчеты</h4>
-        <div class="container-fluid container-fluid-tabs">
 
-            <div class="row justify-content-md-center">
+    <div class="main-content">
+        <h4 class="pt-3 pb-3  text-start">Отчеты</h4>
+            <div class="">
                 <ul class="nav nav-tabs" id="myTab" role="tablist">
                     <li class="nav-item" role="presentation">
                         <a class="nav-link {{ $activeTab == 'payment' ? 'active' : '' }}" href="/admin/reports/payments"
@@ -47,8 +40,6 @@
                     @endif
                 </div>
             </div>
-
-        </div>
     </div>
     <!-- Модальное окно логов -->
     @include('includes.logModal')
@@ -59,7 +50,6 @@
     <!-- Модальное окно ошибки -->
     @include('includes.modal.errorModal')
 
-    <!-- FixedColumns -->
     <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>

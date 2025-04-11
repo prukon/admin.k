@@ -1,12 +1,10 @@
 @extends('layouts.admin2')
 @section('content')
 
-    <div class="col-md-12 main-content main-content-tabs text-start">
+    <div class="main-content text-start">
         <h4 class="pt-3 pb-3">Управление платежами</h4>
 
-
-
-    <!-- Вкладки -->
+        <!-- Вкладки -->
         <ul class="nav nav-tabs" id="paymentTabs" role="tablist">
             <li class="nav-item">
                 <a class="nav-link {{ $activeTab == 'recharge' ? 'active' : '' }}"
@@ -32,13 +30,9 @@
 
         <div class="tab-content mt-3" id="paymentTabsContent">
         @if($activeTab == 'recharge')
-            {{------------------------------------}}
             <!-- Вкладка "Пополнить счет" -->
-
                 <div class="tab-pane fade show active" id="recharge" role="tabpanel" aria-labelledby="recharge-tab">
                     <h4>Оплата сервиса</h4>
-                    <!-- Ваш код для отображения тарифов -->
-                    <!-- Блок с тарифами -->
                     <div class="row">
                         <!-- Блок с тарифом -->
                         <div class="row justify-content-center mt-3">
@@ -59,7 +53,7 @@
                                             <!-- Фиксированная сумма -->
                                             @csrf
                                             {{--                            <input type="hidden" name="client_id" value="{{ $client->id }}"> <!-- client_id передаётся скрыто -->--}}
-{{--                                            <input type="hidden" name="partner_id" value="{{ $partner->id }}">--}}
+                                            {{--                                            <input type="hidden" name="partner_id" value="{{ $partner->id }}">--}}
                                             <input type="hidden" name="partner_id" value="1">
                                             <input type="hidden" name="amount" value="2500.00">
                                             <input type="hidden" name="days" value="29">
@@ -132,132 +126,115 @@
                         {{--</div>--}}
 
                     </div>
-
-
-                {{------------------------------------}}
-                @elseif($activeTab == 'history')
-                    {{------------------------------------}}
-                    <!-- Вкладка "История платежей" -->
-
-
-                        <div class="tab-pane fade show active" id="history" role="tabpanel"
-                             aria-labelledby="history-tab">
-                            <h4>История платежей</h4>
-
-                            <table id="paymentsTable" class="table table-bordered table-hover">
-                                <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Партнер</th>
-                                    <th>Пользователь</th>
-                                    <th>Сумма</th>
-                                    <th>Дата платежа</th>
-                                    <th>Период оплаты</th>
-                                    <th>Метод оплаты</th>
-                                    <th>Статус</th>
-                                </tr>
-                                </thead>
-                            </table>
-                        </div>
-                        <!-- Подключение DataTables -->
-                        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
-                        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-                        <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
-                        <script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
-
-                        <!-- FixedColumns -->
-                        <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css">
-                        <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-                        <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
-
-
-                        <script>
-                            $(document).ready(function () {
-                                $('#paymentsTable').DataTable({
-                                    processing: true,
-                                    serverSide: true,
-                                    ajax: '{{ route('partner.payment.data') }}',
-                                    columns: [
-                                        {data: 'id', name: 'id'},
-                                        {data: 'partner_name', name: 'partner_name'},
-                                        {data: 'user_name', name: 'user_name'},
-                                        // {data: 'amount', name: 'amount'},
-
-                                        {
-                                            data: 'amount',
-                                            name: 'amount',
-                                            render: function (data, type, row) {
-                                                if (type === 'display') {
-                                                    // Функция для форматирования числа с запятыми
-                                                    function formatNumber(number) {
-                                                        return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                                                    }
-
-                                                    const formattedPrice = formatNumber(row.amount);
-                                                    return `${formattedPrice} руб`; // Отображение значения с символом рубля
-                                                }
-                                                return parseFloat(row.amount); // Для сортировки возвращаем число
-                                            }
-                                        },
-
-
-
-                                        {data: 'payment_date', name: 'payment_date'},
-
-                                        // {data: 'payment_date', name: 'payment_date'},
-
-                                        {data: 'payment_period', name: 'payment_period'},
-
-
-
-                                        {data: 'payment_method', name: 'payment_method'},
-                                        {
-                                            data: 'payment_status',
-                                            name: 'payment_status',
-                                            orderable: false,
-                                            searchable: false
-                                        },
-                                    ],
-                                    order: [[4, 'desc']], // Сортировка по столбцу "Дата" в порядке убывания
-
-                                    scrollX: true,
-
-                                    // fixedColumns: {
-                                    //     leftColumns: 1
-                                    // },
-
-                                    language: {
-                                        // url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json",
-                                        "processing": "Обработка...",
-                                        "search": "",
-                                        "searchPlaceholder": "Поиск...",
-
-                                        "lengthMenu": "Показать _MENU_",
-                                        "info": "С _START_ до _END_ из _TOTAL_ записей",
-                                        "infoEmpty": "С 0 до 0 из 0 записей",
-                                        "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                                        "loadingRecords": "Загрузка записей...",
-                                        "zeroRecords": "Записи отсутствуют.",
-                                        "emptyTable": "В таблице отсутствуют данные",
-                                        "paginate": {
-                                            "first": "",
-                                            "previous": "",
-                                            "next": "",
-                                            "last": ""
-                                        },
-                                        "aria": {
-                                            "sortAscending": ": активировать для сортировки столбца по возрастанию",
-                                            "sortDescending": ": активировать для сортировки столбца по убыванию"
-                                        }
-                                    }
-                                });
-                            });
-                        </script>
-
-                        {{------------------------------------}}
-
-                    @endif
                 </div>
+        @elseif($activeTab == 'history')
+
+            <!-- Вкладка "История платежей" -->
+                <div class="tab-pane fade show active" id="history" role="tabpanel"
+                     aria-labelledby="history-tab">
+                    <h4>История платежей</h4>
+
+                    <table id="paymentsTable" class="table table-bordered table-hover">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Партнер</th>
+                            <th>Пользователь</th>
+                            <th>Сумма</th>
+                            <th>Дата платежа</th>
+                            <th>Период оплаты</th>
+                            <th>Метод оплаты</th>
+                            <th>Статус</th>
+                        </tr>
+                        </thead>
+                    </table>
+                </div>
+            @endif
         </div>
+    </div>
 
 @endsection
+
+@section('scripts')
+    <script>
+        $(document).ready(function () {
+            $('#paymentsTable').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: '{{ route('partner.payment.data') }}',
+                columns: [
+                    {data: 'id', name: 'id'},
+                    {data: 'partner_name', name: 'partner_name'},
+                    {data: 'user_name', name: 'user_name'},
+                    // {data: 'amount', name: 'amount'},
+
+                    {
+                        data: 'amount',
+                        name: 'amount',
+                        render: function (data, type, row) {
+                            if (type === 'display') {
+                                // Функция для форматирования числа с запятыми
+                                function formatNumber(number) {
+                                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                                }
+
+                                const formattedPrice = formatNumber(row.amount);
+                                return `${formattedPrice} руб`; // Отображение значения с символом рубля
+                            }
+                            return parseFloat(row.amount); // Для сортировки возвращаем число
+                        }
+                    },
+
+
+                    {data: 'payment_date', name: 'payment_date'},
+
+                    // {data: 'payment_date', name: 'payment_date'},
+
+                    {data: 'payment_period', name: 'payment_period'},
+
+
+                    {data: 'payment_method', name: 'payment_method'},
+                    {
+                        data: 'payment_status',
+                        name: 'payment_status',
+                        orderable: false,
+                        searchable: false
+                    },
+                ],
+                order: [[4, 'desc']], // Сортировка по столбцу "Дата" в порядке убывания
+
+                scrollX: true,
+
+                // fixedColumns: {
+                //     leftColumns: 1
+                // },
+
+                language: {
+                    // url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json",
+                    "processing": "Обработка...",
+                    "search": "",
+                    "searchPlaceholder": "Поиск...",
+
+                    "lengthMenu": "Показать _MENU_",
+                    "info": "С _START_ до _END_ из _TOTAL_ записей",
+                    "infoEmpty": "С 0 до 0 из 0 записей",
+                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
+                    "loadingRecords": "Загрузка записей...",
+                    "zeroRecords": "Записи отсутствуют.",
+                    "emptyTable": "В таблице отсутствуют данные",
+                    "paginate": {
+                        "first": "",
+                        "previous": "",
+                        "next": "",
+                        "last": ""
+                    },
+                    "aria": {
+                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
+                        "sortDescending": ": активировать для сортировки столбца по убыванию"
+                    }
+                }
+            });
+        });
+    </script>
+@endsection
+
