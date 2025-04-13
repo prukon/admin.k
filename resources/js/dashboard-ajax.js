@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
             data: {
                 userName: userName,
                 teamName: teamName,
-                // inputDate: inputDate,
+                 // inputDate: inputDate,
             },
 
             success: function (response) {

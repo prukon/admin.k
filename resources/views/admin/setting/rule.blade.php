@@ -135,6 +135,7 @@
 </div>
 <!-- Конец модального окна -->
 
+
 @section('scripts')
     <script>
         $(document).ready(function () {

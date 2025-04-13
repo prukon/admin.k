@@ -40,6 +40,7 @@
             </tbody>
         </table>
     </div>
+
     <div class="table-responsive mt-3">
         <table class="table ">
             <tbody>
@@ -254,6 +255,7 @@
             </div>
         </div>
     </div>
+
 
 @section('scripts')
     <script>
