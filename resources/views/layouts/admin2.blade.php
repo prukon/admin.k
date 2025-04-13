@@ -21,7 +21,6 @@
     <link rel="stylesheet" href="{{ asset('css/datapicker/themes-jquery-ui.css') }}">
     <script src="{{ asset('js/datapicker/datepicker.js') }}"></script>
     {{--scripts--}}
-    <script src="{{ asset('js/main.js') }}"></script>
     <!-- Google Font: Source Sans Pro -->
     <link rel="stylesheet"
           href="{{ asset('https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback') }}">
