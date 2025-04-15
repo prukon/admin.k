@@ -51,7 +51,7 @@ class AdminUpdateRequest extends FormRequest
         ];
 
         if ($this->user()->can('name-editing')) {
-            $rules['name'] = 'required|string|max:80';
+            $rules['name'] = 'required|string|max:30';
         }
 
         if ($this->user()->can('changing-your-group')) {

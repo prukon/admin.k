@@ -1584,9 +1584,9 @@
 
 
             addDatapicker(); // можно удалить
-            createSeasons()     //Создание сезонов
-            clickSeason()       //Измерение иконок при клике
-            hideAllSeason()     //Скрытие всех сезонов при загрузке страницы
+            createSeasons() ;    //Создание сезонов
+            clickSeason();       //Измерение иконок при клике
+            hideAllSeason();     //Скрытие всех сезонов при загрузке страницы
             createCalendar();
             apendPrice(userPrice);
             showSessons();

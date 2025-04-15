@@ -36,29 +36,30 @@ class UserController extends Controller
 
     public function index(FilterRequest $request)
     {
+        $partnerId = app('current_partner')->id;
         $data = $request->validated();
-//        dd($data);
         $query = User::query();
-        $fields = UserField::all();
         $user = Auth::user();
-
-//        $roles = Role::all(); // Все роли
-        $roles = Role::where('name', '!=', 'superadmin')->get();
-
+        $roles = Role::where('name', '!=', 'superadmin')
+            ->where('partner_id', $partnerId)
+            ->get();
+        $fields = UserField::where('partner_id', $partnerId)->get();
 
         if (isset($data['id'])) {
-    $query->where('id', $data['id']);
-}
+            $query->where('id', $data['id']);
+        }
 
-        $filter = app()->make(UserFilter::class, ['queryParams'=> array_filter($data)]);
+        $filter = app()->make(UserFilter::class, ['queryParams' => array_filter($data)]);
 
-        $allUsers = User::filter($filter)
-            ->orderBy('name', 'asc') // сортировка по полю name по возрастанию
+          $allUsers = User::where('partner_id', $partnerId)
+            ->filter($filter)
+            ->orderBy('name', 'asc')// сортировка по полю name по возрастанию
             ->paginate(20);
-        $allTeams = Team::all();
+
+        $allTeams = Team::where('partner_id', $partnerId)->get();
 
         return view("admin.user", compact(
-            "allUsers" ,
+            "allUsers",
             "allTeams",
             'fields',
             'user',
@@ -67,22 +68,13 @@ class UserController extends Controller
         ));
     }
 
-    public function create()
-    {
-//        $allTeamsCount = Team::all()->count();
-//        $allUsersCount  = User::all()->count();
-
-        $allTeams = Team::All();
-//        $allRoles = Role::all();  // <-- Важно! Берём все роли из БД для формы
-        $allRoles = Role::where('name', '!=', 'superadmin')->get();
-
-        return view("admin.user.create", compact("allTeams", 'allRoles'));     }
 
     public function store(StoreRequest $request)
     {
         // Валидация входных данных
         $data = $request->validated();
-        $data['partner_id'] = auth()->user()->partner_id;
+        $partnerId = app('current_partner')->id;
+        $data['partner_id'] = $partnerId;
 
         // Создание пользователя и логгирование в транзакции
         $user = null; // Создаем переменную, чтобы хранить созданного пользователя
@@ -99,7 +91,6 @@ class UserController extends Controller
 
             $role = \App\Models\Role::find($data['role_id']);
             $roleNameOrLabel = $role ? $role->label : '-'; // или $role->name, смотря что вы хотите логировать
-
 
 
             // Логируем создание пользователя
@@ -121,48 +112,57 @@ class UserController extends Controller
             ]);
         });
 
-        // Если запрос AJAX, возвращаем JSON-ответ
-        if ($request->ajax()) {
-            // Находим группу по ID, если она существует (повторно, чтобы передать в ответе)
-            $team = Team::find($data['team_id']);
-            $teamName = $team ? $team->title : '-';
 
-            return response()->json([
-                'message' => 'Пользователь создан успешно',
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $data['name'],
-                    'birthday' => isset($data['birthday']) ? Carbon::parse($data['birthday'])->format('d.m.Y') : '-',
-                    'start_date' => isset($data['start_date']) ? Carbon::parse($data['start_date'])->format('d.m.Y') : '-',
-                    'team' => $teamName,
-                    'email' => $data['email'],
-                    'is_enabled' => $data['is_enabled'] ? 'Да' : 'Нет',
-                ]
-            ], 200);
+
+        if ($request->ajax()) {
+            try {
+                // Основная логика создания пользователя
+                // Например, создание записи в базе данных:
+                // $user = User::create($data);
+
+                // Находим группу по ID, если она существует (повторно, чтобы передать в ответе)
+                $team = Team::find($data['team_id']);
+                $teamName = $team ? $team->title : '-';
+
+                // Если всё прошло успешно, возвращаем ответ с данными пользователя
+                return response()->json([
+                    'message' => 'Пользователь создан успешно',
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $data['name'],
+                        'birthday' => isset($data['birthday']) ? Carbon::parse($data['birthday'])->format('d.m.Y') : '-',
+                        'start_date' => isset($data['start_date']) ? Carbon::parse($data['start_date'])->format('d.m.Y') : '-',
+                        'team' => $teamName,
+                        'email' => $data['email'],
+                        'is_enabled' => $data['is_enabled'] ? 'Да' : 'Нет',
+                    ]
+                ], 200);
+            } catch (\Exception $e) {
+                // При возникновении ошибки возвращаем сообщение об ошибке
+                return response()->json([
+                    'message' => 'Ошибка: ' . $e->getMessage()
+                ], 500);
+            }
         }
 
-        // Обычный редирект при не-AJAX запросе
-        return redirect()->route('admin.user.index');
     }
 
     public function edit(User $user)
     {
-        $currentUser = auth()->user(); // или $request->user()
+//        $currentUser = auth()->user(); // или $request->user()
+        $partnerId = app('current_partner')->id;
+//        $fields = UserField::where('partner_id', $partnerId)->get();
 
-        $allTeams = Team::All();
-        $fields = UserField::all(); // Получаем пользовательские поля (например, теги)
         // Загрузка связи fields
-        $user->load('fields');
-//        $roles = Role::all();
-        $roles = Role::where('name', '!=', 'superadmin')->get();
+//        $user->load('fields');
+//        $roles = Role::where('name', '!=', 'superadmin')->get();
 
 
         return response()->json([
             'user' => $user,
-            'currentUser' => $currentUser,
-            'fields' => $fields,
-            'teams' => $allTeams, // Отправляем также список команд, если нужно
-            'roles'
+//            'currentUser' => $currentUser,
+//            'fields' => $fields,
+//            'roles'
         ]);
     }
 
@@ -246,7 +246,7 @@ class UserController extends Controller
                 'action' => 22,  // Лог для обновления учетной записи
                 'author_id' => $authorId,
                 'description' => sprintf(
-                    "Старые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s.\n".
+                    "Старые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s.\n" .
                     "Новые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s%s",
                     $oldData->name,
                     isset($oldData->birthday) ? Carbon::parse($oldData->birthday)->format('d.m.Y') : '-',
@@ -271,10 +271,25 @@ class UserController extends Controller
 
         });
 
-        return response()->json([
-            'message' => 'Пользователь успешно обновлен',
-            'data' => $data,
-        ]);
+//        return response()->json([
+//            'message' => 'Пользователь успешно обновлен',
+//            'data' => $data,
+//        ]);
+
+        try {
+            // Логика обновления пользователя
+            // Например, получение и сохранение данных:
+            // $data = User::find($id)->update($request->all());
+
+            return response()->json([
+                'message' => 'Пользователь успешно обновлен',
+                'data' => $data,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Ошибка при обновлении: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function delete(User $user)
@@ -305,15 +320,20 @@ class UserController extends Controller
 
     }
 
+
     public function storeFields(Request $request)
     {
         // Получаем все поля, которые были отправлены
         $fields = $request->input('fields', []);
         $authorId = auth()->id(); // Получаем ID текущего пользователя
+        $partnerId = app('current_partner')->id; // Получаем ID текущего партнёра (новое добавление)
 
-        DB::transaction(function () use ($fields, $request, $authorId) {
-            // Сначала найдём все существующие ID полей в БД
-            $existingFieldIds = UserField::pluck('id')->toArray();
+        DB::transaction(function () use ($fields, $request, $authorId, $partnerId) {
+            // Было: получение всех ID полей без фильтрации
+            // $existingFieldIds = UserField::pluck('id')->toArray();
+            // Изменено: получаем только ID полей, принадлежащих текущему партнёру
+            $existingFieldIds = UserField::where('partner_id', $partnerId)->pluck('id')->toArray();
+
             // Из входящих данных достанем ID, которые есть (если поле 'id' не пустое)
             $submittedFieldIds = array_filter(array_column((array)$fields, 'id'));
 
@@ -347,8 +367,7 @@ class UserController extends Controller
                 // где хранится массив ID (например [1, 3])
                 $permissionsId = $field['permissions_id'] ?? [];
 
-                // Для валидации проверим существование таких ролей
-                // Пример: каждая роль должна существовать в таблице roles
+                // Валидация входящих данных для каждого поля
                 $request->validate([
                     "fields.$key.name" => 'required|string|max:255',
                     "fields.$key.field_type" => 'required|string|in:string,text,select',
@@ -356,12 +375,14 @@ class UserController extends Controller
                     "fields.$key.permissions_id.*" => 'exists:roles,id'
                 ]);
 
-                // Генерируем slug
+                // Генерируем slug для поля
                 $slug = Str::slug($fieldName);
 
-                // Если есть $fieldId, то это редактирование
+                // Если присутствует ID - это редактирование существующего поля
                 if ($fieldId) {
-                    $userField = UserField::findOrFail($fieldId);
+                    // Изменено: получаем поле только если оно принадлежит текущему партнёру
+                    // Было: $userField = UserField::findOrFail($fieldId);
+                    $userField = UserField::where('partner_id', $partnerId)->findOrFail($fieldId); // Добавлен фильтр по partner_id
 
                     // Смотрим, какие изменения были
                     $changes = [];
@@ -384,35 +405,36 @@ class UserController extends Controller
                             . "'";
                     }
 
-                    // Если что-то изменилось, обновляем
+                    // Если изменения обнаружены, обновляем поле
                     if (!empty($changes)) {
                         $userField->update([
                             'name' => $fieldName,
                             'slug' => $slug,
                             'field_type' => $fieldType,
                             'permissions_id' => $permissionsId,
+                            // partner_id не обновляем, т.к. принадлежность остаётся прежней
                         ]);
 
-                        // Логируем
+                        // Логирование обновления
                         MyLog::create([
                             'type' => 2,
                             'action' => 210,
                             'author_id' => $authorId,
-                            'description' => "Обновлено поле: {$userField->name}. ID: {$fieldId}. Изменения: "
-                                . implode(', ', $changes),
+                            'description' => "Обновлено поле: {$userField->name}. ID: {$fieldId}. Изменения: " . implode(', ', $changes),
                             'created_at' => now(),
                         ]);
                     }
                 } else {
-                    // Создание нового поля
+                    // Создание нового поля с явным указанием partner_id
                     $newField = UserField::create([
                         'name' => $fieldName,
                         'slug' => $slug,
                         'field_type' => $fieldType,
-                        'permissions_id' => $permissionsId
+                        'permissions_id' => $permissionsId,
+                        'partner_id' => $partnerId // Добавлено для привязки поля к текущему партнёру
                     ]);
 
-                    // Логируем
+                    // Логирование создания нового поля
                     MyLog::create([
                         'type' => 2,
                         'action' => 210,
@@ -426,6 +448,7 @@ class UserController extends Controller
 
         return response()->json(['message' => 'Поля успешно сохранены']);
     }
+
 
     public function updatePassword(Request $request, $id)
     {
@@ -456,7 +479,7 @@ class UserController extends Controller
     public function log(FilterRequest $request)
     {
         $logs = MyLog::with('author')
-            ->where('type', 2) // User логи
+            ->where('type', 2)// User логи
             ->select('my_logs.*');
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {

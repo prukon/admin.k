@@ -15,7 +15,7 @@ class StoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:20',
+            'name' => 'required|string|max:25',
             'birthday' => 'nullable|date',
             'team_id' => 'nullable|string',
             'start_date' => 'nullable|date',

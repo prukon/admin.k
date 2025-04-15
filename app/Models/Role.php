@@ -17,6 +17,8 @@ class Role extends Model
         'is_sistem',
         'order_by',
         'is_visible',
+        'partner_id', // Добавлено: теперь можно массово заполнять поле partner_id
+
 
     ];
 

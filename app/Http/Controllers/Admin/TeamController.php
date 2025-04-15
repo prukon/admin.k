@@ -32,14 +32,18 @@ class TeamController extends Controller
 
         $data = $request->validated();
         $filter = app()->make(TeamFilter::class, ['queryParams'=> array_filter($data)]);
-        $allTeams = Team::filter($filter)
-            ->orderBy('order_by', 'asc') // 'asc' для сортировки по возрастанию, 'desc' для сортировки по убыванию
+        $partnerId = app('current_partner')->id;
+
+// Выбираем группы, у которых partner_id совпадает с выбранным партнёром,
+// применяем дополнительные условия фильтрации, сортировку и пагинацию
+        $allTeams = Team::where('partner_id', $partnerId)
+            ->filter($filter)
+            ->orderBy('order_by', 'asc') // сортировка по полю order_by по возрастанию
             ->paginate(10);
-        $allUsers = User::filter($filter)->paginate(20);
+
         $weekdays = Weekday::all();
 
         return view("admin/team", compact("allTeams",
-            'allUsers',
             'weekdays'));
     }
 

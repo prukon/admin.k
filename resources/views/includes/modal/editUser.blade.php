@@ -706,9 +706,8 @@
                         showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлен.", 1);
                         console.log(response);
                     },
-                    error: function () {
-                        $('#errorModal').modal('show');
-                        // console.error('Ошибка при обновлении данных пользователя');
+                    error: function(response) {
+                        eroorRespone(response);
                     }
                 });
             });

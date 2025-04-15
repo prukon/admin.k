@@ -46,44 +46,7 @@
                                     </option>
                                 </select>
                             </td>
-                            {{--<td>--}}
-                                {{--<!-- Чекбоксы для разрешений -->--}}
-                                {{--<div class="form-check">--}}
-                                    {{--<input--}}
-                                            {{--class="form-check-input permission-admin"--}}
-                                            {{--type="checkbox"--}}
-                                            {{--value="admin"--}}
-                                            {{--id="permission-admin-{{ $field->id }}"--}}
-                                            {{--{{ in_array('admin', $field->permissions) ? 'checked' : '' }}--}}
-                                    {{-->--}}
-                                    {{--<label class="form-check-label" for="permission-admin-{{ $field->id }}">Админ</label>--}}
-                                {{--</div>--}}
-
-                                {{--<div class="form-check">--}}
-                                    {{--<input--}}
-                                            {{--class="form-check-input permission-manager"--}}
-                                            {{--type="checkbox"--}}
-                                            {{--value="manager"--}}
-                                            {{--id="permission-manager-{{ $field->id }}"--}}
-                                            {{--{{ in_array('manager', $field->permissions) ? 'checked' : '' }}--}}
-                                    {{-->--}}
-                                    {{--<label class="form-check-label" for="permission-manager-{{ $field->id }}">Менеджер</label>--}}
-                                {{--</div>--}}
-
-                                {{--<div class="form-check">--}}
-                                    {{--<input--}}
-                                            {{--class="form-check-input permission-user"--}}
-                                            {{--type="checkbox"--}}
-                                            {{--value="user"--}}
-                                            {{--id="permission-user-{{ $field->id }}"--}}
-                                            {{--{{ in_array('user', $field->permissions) ? 'checked' : '' }}--}}
-                                    {{-->--}}
-                                    {{--<label class="form-check-label" for="permission-user-{{ $field->id }}">Пользователь</label>--}}
-                                {{--</div>--}}
-                            {{--</td>--}}
-
                             <td>
-                                <!-- Генерируем чекбоксы на основе списка всех ролей -->
                                 @foreach($roles as $role)
                                     <div class="form-check">
                                         <input
@@ -93,7 +56,8 @@
                                                 id="permission-{{ $role->id }}-field-{{ $field->id }}"
                                                 @if(is_array($field->permissions_id) && in_array($role->id, $field->permissions_id)) checked @endif
                                         >
-                                        <label class="form-check-label" for="permission-{{ $role->id }}-field-{{ $field->id }}">
+                                        <label class="form-check-label"
+                                               for="permission-{{ $role->id }}-field-{{ $field->id }}">
                                             {{ $role->label ?? $role->name }}
                                         </label>
                                     </div>
@@ -200,29 +164,13 @@
         }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // Сохранение данных
-            $('#save-fields-btn').on('click', function () {
+        $('#save-fields-btn').on('click', function () {
             let rows = document.querySelectorAll('#fields-table tbody tr');
             let fieldsData = [];
 
             rows.forEach((row) => {
-                let fieldId   = row.getAttribute('data-id');
+                let fieldId = row.getAttribute('data-id');
                 let fieldName = row.querySelector('.field-name').value;
                 let fieldType = row.querySelector('.field-type').value;
 
@@ -248,23 +196,23 @@
             $.ajax({
                 url: "{{ route('admin.field.store') }}",
                 type: "POST",
-                data: JSON.stringify({ fields: fieldsData }),
+                data: JSON.stringify({fields: fieldsData}),
                 contentType: "application/json",
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                success: function(data) {
-                    showSuccessModal("Обновление полей", "Пользовательские поля успешно обновлены.", 1);
+                success: function (data) {
+                    showSuccessModal("Обновление полей", "Пользовательские поля успешно обновлены.", 0);
 
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     $('#error-message').text('Произошла ошибка при сохранении данных.'); // Устанавливаем сообщение ошибки
                     $('#errorModal').modal('show');    // Показываем модалку ошибки
                     $('#fieldModal').modal('hide');       // Закрываем текущую модалку
                 }
             });
 
-            });
+        });
 
         // Отображение модалки удаления
         $(document).on('click', '.confirm-delete-field-modal', function () {

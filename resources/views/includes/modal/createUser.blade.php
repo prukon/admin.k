@@ -104,19 +104,12 @@
                 url: $(this).attr('action'),
                 method: $(this).attr('method'),
                 data: $(this).serialize(),
+
                 success: function (response) {
                     showSuccessModal("Создание пользователя", "Пользователь успешно создан.", 1);
                 },
-                error: function (response) {
-                    let errors = response.responseJSON.errors;
-                    if (errors) {
-                        $('#errorModal').modal('show');
-
-                        // for (let field in errors) {
-                        //     $(`#${field}`).addClass('is-invalid');
-                        //     $(`#${field}`).after(`<div class="invalid-feedback">${errors[field][0]}</div>`);
-                        // }
-                    }
+                error: function(response) {
+                    eroorRespone(response);
                 }
             });
         });

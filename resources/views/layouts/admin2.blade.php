@@ -68,6 +68,7 @@
             </li>
 
 
+
             @foreach($menuItems as $item)
                 <li class="nav-item d-none d-sm-inline-block">
                     <a target="{{ $item->target_blank ? '_blank' : '_self' }}" href="{{ $item->link }}"
@@ -75,6 +76,23 @@
                 </li>
             @endforeach
         </ul>
+
+    @can('changing-partner')
+            <!-- Форма переключения партнёров -->
+            <div class="collapse navbar-collapse mr-3">
+                <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
+                    @csrf
+                    <select name="partner_id" class="form-select" onchange="this.form.submit()">
+                        @foreach(App\Models\Partner::all() as $partner)
+                            <option value="{{ $partner->id }}" {{ session('current_partner') == $partner->id ? 'selected' : '' }}>
+                                {{ $partner->title }}
+                            </option>
+                        @endforeach
+                    </select>
+                </form>
+            </div>
+@endcan
+
 
         <!-- Right navbar links -->
         <ul class="navbar-nav ml-auto social-menu mr-3">

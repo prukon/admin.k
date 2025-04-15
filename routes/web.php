@@ -144,6 +144,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::delete('/schedule/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'destroy'])->name('statuses.destroy')->middleware('can:schedule-journal');
 
 
+//переключение между партнерами
+    Route::post('/switch-partner', [\App\Http\Controllers\PartnerSwitchController::class, 'switch'])->name('partner.switch')->middleware('can:changing-partner');
+
 //    Route::resource('payment-systems', [\App\Http\Controllers\Admin\PaymentSystemController::class, 'index'])->middleware(['auth', 'is_admin']);
 
 

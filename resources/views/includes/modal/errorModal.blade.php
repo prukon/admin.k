@@ -5,6 +5,13 @@
   $('#errorModal').modal('show');
   $('#error-message').text(response.message || 'Ошибка при создании роли!');
 
+
+  новый пример:
+    error: function(response) {
+           eroorRespone(response);
+      }
+
+
 Пример AJAX ответа:
    error: function (response) {
        let errorMessage = 'Произошла ошибка при сохранении данных.';
@@ -45,4 +52,28 @@
             location.reload();
         });
     });
+
+    function eroorRespone(response) {
+console.log('eroorRespone');
+        let message = '';
+
+        if (response.responseJSON && response.responseJSON.errors) {
+            let errorMessages = [];
+            $.each(response.responseJSON.errors, function(field, messages) {
+                errorMessages = errorMessages.concat(messages);
+            });
+            // Объединяем сообщения, используя символ переноса строки
+            message = errorMessages.join('\n');
+        } else {
+            message = response.responseJSON && response.responseJSON.message
+                ? response.responseJSON.message
+                : 'Ошибка при создании пользователя!';
+        }
+
+        $('#errorModal').modal('show');
+        // Заменяем \n на тег <br> и выводим через .html()
+        $('#error-message').html(message.replace(/\n/g, '<br>'));
+
+    }
+
 </script>

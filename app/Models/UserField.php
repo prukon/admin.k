@@ -16,7 +16,9 @@ class UserField extends Model
         'slug',
         'field_type',
         'permissions', // Добавьте это
-        'permissions_id' // новый вариант (JSON)
+        'permissions_id', // новый вариант (JSON)
+        'partner_id', // добавляем новое поле
+
 
     ];
 
