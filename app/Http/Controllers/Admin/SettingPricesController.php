@@ -67,10 +67,13 @@ class SettingPricesController extends Controller
 
     public function index(FilterRequest $request)
     {
+        $partnerId = app('current_partner')->id;
+
         $allTeams = Team::all();
-//        dump($allTeams);
         $teamPrices = collect(); // Пустая коллекция по умолчанию
-        $logs = MyLog::with('author')->orderBy('created_at', 'desc')->get();
+        $logs = MyLog::with('author')
+            ->where('users.partner_id', $partnerId)
+            ->orderBy('created_at', 'desc')->get();
 
         if (isset($_GET['current-month'])) {
 

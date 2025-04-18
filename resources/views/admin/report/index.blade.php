@@ -34,9 +34,9 @@
                 @elseif($activeTab === 'ltv')
                     <!-- Контент вкладки ltv -->
                         @include('admin.report.ltv',
-                        ['ltvPrice' => $ltvPrice,
-
-                        ])
+                        [
+                      ]
+                        )
                     @endif
                 </div>
             </div>

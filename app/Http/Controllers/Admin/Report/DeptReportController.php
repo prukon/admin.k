@@ -16,16 +16,20 @@ class DeptReportController extends Controller
     //Отчет Задолженности
     public function debts()
     {
+        $partnerId = app('current_partner')->id;
+
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
 
+
         $totalUnpaidPrice = DB::table('users_prices')
-            ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
-            ->where('users_prices.is_paid', 0)
-            ->where('users.is_enabled', 1)
-            ->where('users_prices.price', '>', 0)
-            ->where('users_prices.new_month', '<', $currentMonth)
-            ->sum('users_prices.price');
+            ->join('users', 'users.id', '=', 'users_prices.user_id')   // INNER JOIN с users
+            ->where('users_prices.is_paid', 0)                         // счет не оплачен
+            ->where('users.is_enabled', 1)                             // пользователь активен
+            ->where('users_prices.price', '>', 0)                      // цена положительна
+            ->where('users_prices.new_month', '<', $currentMonth)      // месяц в прошлом
+            ->where('users.partner_id', $partnerId)                             // партнёр = 1
+            ->sum('users_prices.price');                               // суммируем
 
         $totalUnpaidPrice = number_format($totalUnpaidPrice, 0, '', ' ');
 
@@ -36,12 +40,32 @@ class DeptReportController extends Controller
     //Данные для отчета Задолженности
     public function getDebts(Request $request)
     {
+        $partnerId = app('current_partner')->id;
 
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
 
 //         dd($currentMonth);
         if ($request->ajax()) {
+
+            $usersWithUnpaidPrices = DB::table('users_prices')
+                ->join('users', 'users.id', '=', 'users_prices.user_id')          // INNER JOIN: берём только записи с найденным user
+                ->select(
+                    'users.name  as user_name',
+                    'users.id    as user_id',
+                    'users_prices.new_month',
+                    'users_prices.price'
+                )
+                ->where('users_prices.is_paid', 0)                                // счёт не оплачен
+                ->where('users.is_enabled', 1)                                    // пользователь активен
+                ->where('users_prices.price', '>', 0)                             // цена положительна
+                ->where('users_prices.new_month', '<', $currentMonth)             // месяц в прошлом
+                ->where('users.partner_id', $partnerId)                           // у пользователя партнёр = $partnerId
+                ->get();
+
+
+            //            старая реазиация
+
             $usersWithUnpaidPrices = DB::table('users_prices')
                 ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
                 ->select('users.name as user_name', 'users.id as user_id', 'users_prices.new_month', 'users_prices.price')
@@ -50,6 +74,13 @@ class DeptReportController extends Controller
                 ->where('users_prices.price', '>', 0)
                 ->where('users_prices.new_month', '<', $currentMonth)
                 ->get();
+
+
+
+
+
+
+
 
             // Добавляем проверку на наличие данных
             if ($usersWithUnpaidPrices->isEmpty()) {

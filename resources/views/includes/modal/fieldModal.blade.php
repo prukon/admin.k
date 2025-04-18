@@ -202,7 +202,7 @@
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
                 success: function (data) {
-                    showSuccessModal("Обновление полей", "Пользовательские поля успешно обновлены.", 0);
+                    showSuccessModal("Обновление полей", "Пользовательские поля успешно обновлены.", 1);
 
                 },
                 error: function (xhr, status, error) {

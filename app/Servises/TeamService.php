@@ -16,7 +16,10 @@ class TeamService
 {
     public function store($data)
     {
+        $partnerId = app('current_partner')->id;
+
         $data['order_by'] = $data['order_by'] ?? 10;
+        $data['partner_id'] = $partnerId ?? 1; // Устанавливаем partner_id = 1, если не передан в данных
         $weekdays = $data['weekdays'] ?? [];
         unset($data['weekdays']);
 

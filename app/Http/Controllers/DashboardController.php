@@ -26,49 +26,43 @@ use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
-    /**
-     * Show the application dashboard.
-     *
-     * @return \Illuminate\Contracts\Support\Renderable
-     */
 
     public function index(FilterRequest $request)
     {
-
-
+        $partnerId = app('current_partner')->id;
         $data = $request->validated();
         $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
-        $allUsersSelect = User::where('is_enabled', true)->orderBy('name', 'asc')->get();
-        $allTeams = Team::where('is_enabled', true)->orderBy('order_by', 'asc')->filter($filter)->paginate(10);
-        $allUsers = User::filter($filter)->paginate(20);
+        $allUsersSelect = User::where('is_enabled', true)
+            ->where('partner_id', $partnerId)
+            ->orderBy('name', 'asc')->get();
+
+        $allTeams = Team::where('is_enabled', true)
+            ->where('partner_id', $partnerId)
+            ->orderBy('order_by', 'asc')->filter($filter)->get();
+
+
         $weekdays = Weekday::all();
         $curUser = auth()->user();
         $curTeam = Team::where('id', auth()->user()->team_id)->first();
+
         $scheduleUser = ScheduleUser::where('user_id', $curUser->id)->get();
         $scheduleUserArray = ScheduleUser::where('user_id', $curUser->id)->get()->toArray();
         $userPriceArray = UserPrice::where('user_id', $curUser->id)->get()->toArray();
 
+        $textForUsers = Setting::where('name', 'textForUsers')
+            ->where('partner_id', $partnerId)
+            ->first();
 
-        $textForUsers = Setting::where('name', 'textForUsers')->first();
         $textForUsers = $textForUsers ? $textForUsers->text : null;
 
-        $allFields = UserField::all();
+        $allFields = UserField::where('partner_id', $partnerId)->get();
+
+
         $userFields = User::with('fields')->findOrFail($curUser->id);
         $userFieldValues = $curUser->fields->pluck('pivot.value', 'id');
 
         return view("dashboard", compact(
             "allTeams",
-            "allUsers",
             "allUsersSelect",
             "weekdays",
             "curTeam",
@@ -86,17 +80,16 @@ class DashboardController extends Controller
     //AJAX Изменение юзера
     public function getUserDetails(Request $request)
     {
-        $userName = $request->query('userName');
-        $teamName = $request->query('teamName');
-        $inputDate = $request->query('inputDate');
-
-        $user = User::where('name', $userName)->first();
-        $team = Team::where('title', $teamName)->first();
+        $partnerId = app('current_partner')->id;
+        $userId = $request->query('userId');
+        $user = User::where('id', $userId)->first();
         $userTeam = Team::where('id', $user->team_id)->first();
-        $userPrice = UserPrice::where('user_id', $user->id)->get();
-        $scheduleUser = ScheduleUser::where('user_id', $user->id)->get();
+        $userPrice = UserPrice::where('user_id', $userId)->get();
+        $scheduleUser = ScheduleUser::where('user_id', $userId)->get();
 
-        $allFields = UserField::all();
+        $allFields = UserField::where('partner_id', $partnerId)
+            ->get();
+
         $userFields = User::with('fields')->findOrFail($user->id);
         $userFieldValues = $user->fields->pluck('pivot.value', 'id');
 
@@ -111,11 +104,9 @@ class DashboardController extends Controller
                 'userTeam' => $userTeam,
                 'userPrice' => $userPrice,
                 'scheduleUser' => $scheduleUser,
-                'team' => $team,
-                'inputDate' => $inputDate,
                 'formattedBirthday' => $formattedBirthday, // Отправляем форматированную дату рождения
-                "userFields"  => $userFields,
-                "userFieldValues"  => $userFieldValues,
+                "userFields" => $userFields,
+                "userFieldValues" => $userFieldValues,
                 "allFields" => $allFields,
 
             ]);
@@ -128,24 +119,30 @@ class DashboardController extends Controller
     //AJAX Изменение команды
     public function getTeamDetails(Request $request)
     {
+        $partnerId = app('current_partner')->id;
         $teamName = $request->query('teamName');
-        $userName = $request->query('userName');
-        $inputDate = $request->query('inputDate');
-        $team = Team::where('title', $teamName)->first();
+        $teamId = $request->query('teamId');
+//        $userName = $request->query('userName');
+//        $inputDate = $request->query('inputDate');
+        $team = Team::where('id', $teamId)->first();
         $teamWeekDayId = [];
 
-        $user = User::where('name', $userName)->first();
+//        $user = User::where('name', $userName)->first();
         if ($teamName == 'all') {
             $usersTeam = User::where('is_enabled', 1)
+                ->where('partner_id', $partnerId)
                 ->orderBy('name', 'asc')
                 ->get();
         } elseif ($teamName == 'withoutTeam') {
             $usersTeam = User::where('is_enabled', 1)
                 ->where('team_id', null)
+                ->where('partner_id', $partnerId)
                 ->orderBy('name', 'asc')
                 ->get();
         } else {
-            $usersTeam = User::where('team_id', $team->id)->where('is_enabled', 1)
+            $usersTeam = User::where('team_id', $team->id)
+                ->where('is_enabled', 1)
+                ->where('partner_id', $partnerId)
                 ->orderBy('name', 'asc')
                 ->get();
             foreach ($team->weekdays as $teamWeekDay) {
@@ -153,7 +150,8 @@ class DashboardController extends Controller
             }
 //            dump('team');
         }
-        $userWithoutTeam = User::where('team_id', null)->get();
+        $userWithoutTeam = User::where('team_id', null)
+            ->where('partner_id', $partnerId)->get();
 
         if ($teamWeekDayId) {
 
@@ -169,8 +167,8 @@ class DashboardController extends Controller
                 'teamWeekDayId' => $teamWeekDayId,  //fix сделать проверку на существование
                 'usersTeam' => $usersTeam,          //fix сделать проверку на существование
                 'userWithoutTeam' => $userWithoutTeam,
-                'user' => $user,
-                'inputDate' => $inputDate,
+//                'user' => $user,
+//                'inputDate' => $inputDate,
 
             ]);
         } else {

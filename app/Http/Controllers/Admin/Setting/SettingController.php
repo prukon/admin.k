@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 use App\Models\Role;
 use App\Models\Permission;
+use App\Models\Log;
 
 class SettingController extends Controller
 {
@@ -36,30 +37,29 @@ class SettingController extends Controller
             compact(
                 "textForUsers")
         );
-
     }
 
     //AJAX Активность регистрации
     public function registrationActivity(Request $request)
     {
+        $partnerId = app('current_partner')->id;
         $isRegistrationActivity = $request->query('isRegistrationActivity');
         $authorId = auth()->id(); // Авторизованный пользователь
 
-        DB::transaction(function () use ($isRegistrationActivity, $authorId) {
+        DB::transaction(function () use ($isRegistrationActivity, $authorId, $partnerId) {
 
-
-//        if ($isRegistrationActivity) {
             $isRegistrationActivity = filter_var($isRegistrationActivity, FILTER_VALIDATE_BOOLEAN);
             // Обновляем или создаем запись в таблице team_prices
             Setting::updateOrCreate(
                 [
                     'name' => "registrationActivity",
+                    'partner_id' => "$partnerId",
                 ],
                 [
                     'status' => $isRegistrationActivity
                 ]
             );
-//        }
+
             if ($isRegistrationActivity == 1) {
                 $isRegistrationActivityValue = "Вкл.";
             } else {
@@ -86,16 +86,18 @@ class SettingController extends Controller
     //AJAX Текст сообщения для юзеров
     public function textForUsers(Request $request)
     {
+        $partnerId = app('current_partner')->id;
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
         $textForUsers = $data['textForUsers'] ?? null;
         $authorId = auth()->id(); // Авторизованный пользователь
 
-        DB::transaction(function () use ($textForUsers, $authorId) {
+        DB::transaction(function () use ($textForUsers, $authorId, $partnerId) {
 
             Setting::updateOrCreate(
                 [
                     'name' => "textForUsers",
+                    'partner_id' => "$partnerId",
                 ],
                 [
                     'text' => $textForUsers
@@ -119,90 +121,152 @@ class SettingController extends Controller
     //Сохранение меню в шапке
     public function saveMenuItems(Request $request)
     {
-        $errors = [];
+        $partnerId = app('current_partner')->id;
+          $errors = [];
         $validatedData = [];
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $oldItems = []; // Старые данные пунктов меню
-        $newItems = []; // Новые данные пунктов меню
+        $authorId = auth()->id();
 
+        // Валидация входящих пунктов
         foreach ($request->input('menu_items', []) as $key => $data) {
-            // Создаем валидатор для каждого элемента меню
             $validator = \Validator::make($data, [
-                'name' => ['required', 'max:20', 'regex:/^[\pL\pN\s]+$/u'], // Буквы, цифры и пробелы
+                'name' => ['required', 'max:20', 'regex:/^[\pL\pN\s]+$/u'],
                 'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
             ], [
                 'name.required' => 'Заполните название.',
-                'name.max' => 'Название не может быть длиннее 20 символов.',
-                'name.regex' => 'Название не может содержать спецсимволы.',
-                'link.regex' => 'Введите корректный URL.',
+                'name.max'      => 'Название не может быть длиннее 20 символов.',
+                'name.regex'    => 'Название не может содержать спецсимволы.',
+                'link.regex'    => 'Введите корректный URL.',
             ]);
 
             if ($validator->fails()) {
                 foreach ($validator->errors()->messages() as $field => $messages) {
                     $errors["menu_items[$key][$field]"] = $messages;
                 }
+
             } else {
-                // Приведение target_blank к числовому значению
                 $data['target_blank'] = !empty($data['target_blank']) ? 1 : 0;
-                $validatedData[$key] = $data;
+                $validatedData[$key]  = $data;
+                \Log::info("Validated menu_items[$key]", ['data' => $data]);
             }
         }
 
         if (!empty($errors)) {
+            \Log::error('saveMenuItems validation errors', ['errors' => $errors]);
             return response()->json(['success' => false, 'errors' => $errors], 422);
         }
 
-        DB::transaction(function () use ($validatedData, $authorId, $request, &$oldItems, &$newItems) {
+        // ИНИЦИАЛИЗАЦИЯ массивов для логирования изменений
+        $oldItems = [];
+        $newItems = [];
+
+        DB::transaction(function () use (
+            $validatedData,
+            $authorId,
+            $request,
+            $partnerId,
+            &$oldItems,
+            &$newItems
+        ) {
+            \Log::info('saveMenuItems transaction started', ['count' => count($validatedData)]);
 
             foreach ($validatedData as $key => $data) {
                 if (is_numeric($key)) {
-                    $menuItem = MenuItem::find($key);
-                    if ($menuItem) {
-                        // Формируем старое значение с учетом target_blank
-                        $oldTargetBlank = $menuItem->target_blank ? ", Открывать в новой вкладке" : "";
-                        $oldItems[] = "\"{$menuItem->name}, {$menuItem->link}{$oldTargetBlank}\"";
+                    // ИЗМЕНЕНО: ищем только свои записи
+                    $menuItem = MenuItem::where('partner_id', $partnerId)->find($key);
 
-                        // Обновляем элемент и формируем новое значение
-                        $menuItem->update([
-                            'name' => $data['name'],
-                            'link' => $data['link'] ?: '',
-                            'target_blank' => $data['target_blank'],
+                    if ($menuItem) {
+                        \Log::info('Updating own MenuItem', [
+                            'id'   => $key,
+                            'old'  => $menuItem->toArray(),
+                            'new'  => $data,
                         ]);
 
-                        $newTargetBlank = $data['target_blank'] ? ", Открывать в новой вкладке" : "";
-                        $newItems[] = "\"{$data['name']}, {$data['link']}{$newTargetBlank}\"";
+                        $oldItems[] = "\"{$menuItem->name}, {$menuItem->link}"
+                            . ($menuItem->target_blank ? ", открывать в новой вкладке" : "")
+                            . "\"";
+
+                        $menuItem->update([
+                            'name'         => $data['name'],
+                            'link'         => $data['link'] ?: '',
+                            'target_blank' => $data['target_blank'],
+                            // partner_id оставляем прежним
+                        ]);
+
+                        $newItems[] = "\"{$data['name']}, {$data['link']}"
+                            . ($data['target_blank'] ? ", открывать в новой вкладке" : "")
+                            . "\"";
+                    } else {
+                        // ИЗМЕНЕНО: при попытке обновить чужую или несуществующую — создаём новую
+                        \Log::warning("MenuItem id {$key} not found for partner {$partnerId}, creating new instead");
+
+                        $new = MenuItem::create([
+                            'name'         => $data['name'],
+                            'link'         => $data['link'] ?: '',
+                            'target_blank' => $data['target_blank'],
+                            'partner_id'   => $partnerId,
+                        ]);
+
+                        $newItems[] = "\"{$data['name']}, {$data['link']}"
+                            . ($data['target_blank'] ? ", открывать в новой вкладке" : "")
+                            . "\"";
                     }
                 } else {
-                    $newItem = MenuItem::create([
-                        'name' => $data['name'],
-                        'link' => $data['link'] ?: '',
+                    // ИЗМЕНЕНО: обычное создание для новых ключей
+                    \Log::info('Creating new MenuItem', ['data' => $data, 'partnerId' => $partnerId]);
+
+                    $created = MenuItem::create([
+                        'name'         => $data['name'],
+                        'link'         => $data['link'] ?: '',
                         'target_blank' => $data['target_blank'],
+                        'partner_id'   => $partnerId,
                     ]);
 
-                    // Для новых элементов добавляем только новое значение
-                    $newTargetBlank = $data['target_blank'] ? ", Открывать в новой вкладке" : "";
-                    $newItems[] = "\"{$data['name']}, {$data['link']}{$newTargetBlank}\"";
+                    $newItems[] = "\"{$data['name']}, {$data['link']}"
+                        . ($data['target_blank'] ? ", открывать в новой вкладке" : "")
+                        . "\"";
                 }
             }
 
             if ($request->has('deleted_items')) {
-                MenuItem::whereIn('id', $request->input('deleted_items'))->delete();
-                foreach ($request->input('deleted_items') as $deletedId) {
-                    $oldItems[] = "Удалён пункт меню с ID: $deletedId";
+                $toDelete = $request->input('deleted_items');
+                // ИЗМЕНЕНО: удаляем только свои
+                MenuItem::where('partner_id', $partnerId)
+                    ->whereIn('id', $toDelete)
+                    ->delete();
+
+                \Log::info('Deleted own MenuItems', ['ids' => $toDelete, 'partnerId' => $partnerId]);
+
+                foreach ($toDelete as $id) {
+                    $oldItems[] = "Удалён пункт меню с ID: {$id}";
                 }
             }
 
-            // Формируем читаемый лог
-            $description = "Изменены пункты меню:\n" . implode("\n", $oldItems) . "\nна:\n" . implode("\n", $newItems);
+            // Безопасное приведение к массивам
+            $oldArr = is_array($oldItems) ? $oldItems : [];
+            $newArr = is_array($newItems) ? $newItems : [];
+
+            $description = "Изменены пункты меню:\n"
+                . implode("\n", $oldArr)
+                . "\nна:\n"
+                . implode("\n", $newArr);
+
+            \Log::info('Creating MyLog entry', [
+                'description' => $description,
+                'authorId'    => $authorId,
+                'partnerId'   => $partnerId,
+            ]);
 
             MyLog::create([
-                'type' => 1,
-                'action' => 70,
-                'author_id' => $authorId,
+                'type'        => 1,
+                'action'      => 70,
+                'author_id'   => $authorId,
                 'description' => $description,
-                'created_at' => now(),
+                'created_at'  => now(),
+                'partner_id'  => $partnerId,
             ]);
         });
+
+        \Log::info('saveMenuItems completed successfully', ['partnerId' => $partnerId]);
 
         return response()->json(['success' => true]);
     }
@@ -210,16 +274,16 @@ class SettingController extends Controller
     //Сохранение соц. меню в шапке
     public function saveSocialItems(Request $request)
     {
-        $errors = [];
+        $partnerId     = app('current_partner')->id;
+        $authorId      = auth()->id();
+        $errors        = [];
         $validatedData = [];
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $oldItems = []; // Массив для хранения старых значений
-        $newItems = []; // Массив для хранения новых значений
 
+        // Валидация каждого social_item
         foreach ($request->input('social_items', []) as $key => $data) {
-            // Валидация поля `link` как URL
             $validator = \Validator::make($data, [
                 'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
+                'name' => ['required', 'string'],
             ], [
                 'link.regex' => 'Введите корректный URL.',
             ]);
@@ -229,7 +293,7 @@ class SettingController extends Controller
                     $errors["social_items[$key][$field]"] = $messages;
                 }
             } else {
-                $validatedData[$key] = $data;
+                $validatedData[] = $data;
             }
         }
 
@@ -237,31 +301,49 @@ class SettingController extends Controller
             return response()->json(['success' => false, 'errors' => $errors], 422);
         }
 
-        DB::transaction(function () use ($authorId, $validatedData, &$oldItems, &$newItems) {
-            foreach ($validatedData as $key => $data) {
-                $socialItem = SocialItem::find($key);
-                if ($socialItem) {
-                    // Формируем старое значение
-                    $oldItems[] = "\"{$socialItem->name}, {$socialItem->link}\"";
+        DB::transaction(function () use ($partnerId, $authorId, $validatedData) {
+            $oldItems = [];
+            $newItems = [];
 
-                    // Обновляем элемент и формируем новое значение
-                    $socialItem->update([
-                        'name' => $data['name'], // Поле `name` сохраняется без валидации
+            foreach ($validatedData as $data) {
+                // пытаемся найти существующую запись партнёра по названию соцсети
+                $item = SocialItem::where('partner_id', $partnerId)
+                    ->where('name', $data['name'])
+                    ->first();
+
+                // старое значение (если есть)
+                $oldLink = $item ? $item->link : '';
+
+                if ($item) {
+                    // обновляем ссылку
+                    $item->update([
                         'link' => $data['link'] ?: '',
                     ]);
-
-                    $newItems[] = "\"{$data['name']}, {$data['link']}\"";
+                } else {
+                    // создаём новую запись для этого партнёра
+                    $item = SocialItem::create([
+                        'partner_id' => $partnerId,
+                        'name'       => $data['name'],
+                        'link'       => $data['link'] ?: '',
+                    ]);
                 }
+
+                // логируем старое и новое
+                $oldItems[] = "\"{$item->name}\", \"{$oldLink}\"";
+                $newItems[] = "\"{$item->name}\", \"{$item->link}\"";
             }
 
-            // Формируем читаемый лог
-            $description = "Изменены социальные элементы:\n" . implode("\n", $oldItems) . "\nна:\n" . implode("\n", $newItems);
+            // формируем читаемое описание изменений
+            $description = "Изменены социальные элементы для партнёра #{$partnerId}:\n"
+                . implode("\n", $oldItems)
+                . "\nна:\n"
+                . implode("\n", $newItems);
 
             MyLog::create([
-                'type' => 1,
-                'action' => 70,
-                'author_id' => $authorId,
-                'description' => $description,
+                'type'       => 1,
+                'action'     => 70,
+                'author_id'  => $authorId,
+                'description'=> $description,
                 'created_at' => now(),
             ]);
         });
@@ -272,6 +354,7 @@ class SettingController extends Controller
     //Журнал логов
     public function logsAllData(Request $request)
     {
+        $partnerId = app('current_partner')->id;
         $logs = MyLog::with('author')
 //            ->where('type', 1) // Добавляем условие для фильтрации по type
             ->select('my_logs.*');
@@ -332,5 +415,4 @@ class SettingController extends Controller
             })
             ->make(true);
     }
-
 }

@@ -9,5 +9,10 @@ class MenuItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'link', 'target_blank'];
+    protected $fillable = [
+        'name',
+        'link',
+        'target_blank',
+        'partner_id', // добавлено
+    ];
 }

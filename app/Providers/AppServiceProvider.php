@@ -31,46 +31,12 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrap();
 
-        $setting = 1;
-        $isRegistrationActivity = 1;
-        $allTeamsCount = 2;
-        $allUsersCount =3;
-
-
-//        Прокидывание переменной авторизации
-         $setting = Setting::where('name', 'registrationActivity')->first();
-         $isRegistrationActivity = $setting ? $setting->status : null;
-         $allTeamsCount = Team::all()->count();
-         $allUsersCount = User::all()->count();
-
-
-
 
         // Убедитесь, что запрос инициализирован
 //        if (Auth::check()) {
 //            $currentUserId = Auth::id(); // Получение ID текущего пользователя
 //            $currentUserName = Auth::user()->name; // Получение имени текущего пользователя
 //        }
-
-        View::share('isRegistrationActivity', $isRegistrationActivity);
-        View::share('allTeamsCount', $allTeamsCount);
-        View::share('allUsersCount', $allUsersCount);
-
-//        View::share('currentUserId', $currentUserId);
-//        View::share('currentUserName', $currentUserName);
-
-        // Загружаем пункты меню из базы данных и передаем их на все представления
-        View::composer('*', function ($view) {
-            $menuItems = MenuItem::all();
-            $view->with('menuItems', $menuItems);
-        });
-
-        // Загружаем пункты меню из базы данных и передаем их на все представления
-        View::composer('*', function ($view) {
-            $socialItems = SocialItem::all();
-            $view->with('socialItems', $socialItems);
-        });
-
 
         //Получаем срок оплаты сервиса
         View::composer('*', function ($view) {

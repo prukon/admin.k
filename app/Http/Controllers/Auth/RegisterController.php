@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Partner;
+use App\Models\Role;
 use App\Models\Team;
 use App\Providers\RouteServiceProvider;
 use App\Models\User;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use App\Models\Setting;
 
 class RegisterController extends Controller
 {
@@ -67,6 +70,8 @@ class RegisterController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'team_id' => ['string'],
+            'partner_id'=> ['required', 'integer', 'exists:partners,id'],
+
         ]);
     }
 
@@ -78,11 +83,18 @@ class RegisterController extends Controller
      */
     protected function create(array $data)
     {
+
+        $defaultRoleId = Role::where('name', 'user')->value('id') ?? 2;
+
+
+
         return User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
 //            'team_id' => $data['team_id'],
+            'partner_id' => $data['partner_id'],
+            'role_id'    => $defaultRoleId,
 
         ]);
     }
@@ -91,6 +103,16 @@ class RegisterController extends Controller
     public function showRegistrationForm()
     {
         $allTeams = Team::all();
-        return view('auth.register', ['allTeams' => $allTeams]);
+
+        $partners = Partner::all()->map(function($p) {
+            $p->isRegistrationActive = Setting::where('name', 'registrationActivity')
+                    ->where('partner_id', $p->id)
+                    ->value('status') ?? false;
+            return $p;
+        });
+
+//        return view('auth.register', ['allTeams' => $allTeams]);
+        return view('auth.register', compact('partners'));
+
     }
 }

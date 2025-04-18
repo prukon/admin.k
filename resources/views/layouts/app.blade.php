@@ -14,11 +14,24 @@
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
 
+
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+    {{--JQuery--}}
+    <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
+    {{--JQuery-UI--}}
+    <script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <!-- Включение DataTables CSS -->
-    <link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel="stylesheet">
+    {{--<link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel="stylesheet">--}}
 
     <!-- Включение DataTables JS -->
-    <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+    {{--<script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>--}}
+
+
+
 
 
     <!-- Scripts -->
@@ -59,15 +72,14 @@
 
 
                         @if (Route::has('register'))
-                                @if($isRegistrationActivity)
+{{--                                @if($isRegistrationActivity)--}}
 
                                 <li class="nav-item">
                                 <a class="nav-link" href="{{ route('register') }}">
-                                    {{--                                        {{ __('Register') }}--}}
                                         Регистрация
                                 </a>
                             </li>
-                                @endif
+                                {{--@endif--}}
 
                             @endif
                     @else

@@ -8,27 +8,51 @@
             {{--Выбор ученика, группы, кнопка установить--}}
             <div class="row choose-user">
                 <div class="col-md-3 col-12 mb-3 team-select text-start">
+                    {{--<select class="form-select text-start" id="single-select-team" data-placeholder="Группа">--}}
+                    {{--<option value="all">Все группы</option>--}}
+                    {{--<option value="withoutTeam">Без группы</option>--}}
+
+                    {{--<option></option>--}}
+                    {{--@foreach($allTeams as $index => $team)--}}
+                    {{--<option value="{{ $team->title }}" label="{{ $team->label }}">{{ $index + 1 }}--}}
+                    {{--. {{ $team->title }}</option>--}}
+                    {{--@endforeach--}}
+                    {{--</select>--}}
+
                     <select class="form-select text-start" id="single-select-team" data-placeholder="Группа">
                         <option value="all">Все группы</option>
                         <option value="withoutTeam">Без группы</option>
-
                         <option></option>
                         @foreach($allTeams as $index => $team)
-                            <option value="{{ $team->title }}" label="{{ $team->label }}">{{ $index + 1 }}
-                                . {{ $team->title }}</option>
+                            <option value="{{ $team->title }}" label="{{ $team->label }}"
+                                    data-team-id="{{ $team->id }}">
+                                {{ $index + 1 }}. {{ $team->title }}
+                            </option>
                         @endforeach
                     </select>
+
+
                     <i class="fa-thin fa-calendar-lines"></i>
                 </div>
 
                 <div class="col-md-3 col-12 mb-3 user-select">
+                    {{--<select class="form-select" id="single-select-user" data-placeholder="ФИО">--}}
+                    {{--<option value="">Выберите пользователя</option>--}}
+                    {{--@foreach($allUsersSelect as $index => $user)--}}
+                    {{--<option value="{{ $user->name }}" label="{{ $user->label }}">{{ $index + 1 }}--}}
+                    {{--. {{ $user->name }}</option>--}}
+                    {{--@endforeach--}}
+                    {{--</select>--}}
+
                     <select class="form-select" id="single-select-user" data-placeholder="ФИО">
                         <option value="">Выберите пользователя</option>
                         @foreach($allUsersSelect as $index => $user)
-                            <option value="{{ $user->name }}" label="{{ $user->label }}">{{ $index + 1 }}
-                                . {{ $user->name }}</option>
+                            <option value="{{ $user->name }}" label="{{ $user->label }}" data-user-id="{{ $user->id }}">
+                                {{ $index + 1 }}. {{ $user->name }}
+                            </option>
                         @endforeach
                     </select>
+
                 </div>
             </div>
         @endcan
@@ -233,12 +257,8 @@
 
             let currentUserName = "{{$curUser->name}}";
             let currentUserRole = "{{$curUser->role}}";
-
-
             // Глобальная переменная для хранения данных расписания юзера из AJAX
             var globalScheduleData = [];
-
-
             // передача расписания юзера для календаря
             var scheduleUser = {!! json_encode($scheduleUserArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
             updateGlobalScheduleData(scheduleUser);
@@ -246,26 +266,26 @@
 
             // закрытие плашки с задолженностью у юзера
             function closeNotice() {
-                document.querySelector('.credit-notice .close').addEventListener('click', function () {
-                    document.querySelector('.credit-notice').style.display = 'none';
-                });
-
-                function showCreditNotice() {
-                    let creditNotice = document.querySelector(".credit-notice");
-                    const creditNoticeSum = document.querySelector(".credit-notice .summ").textContent;
-                    if (creditNoticeSum > 0) {
-                        creditNotice.style.display = 'block';
-                    }
+                var $closeButton = $('.credit-notice .close');
+                if ($closeButton.length > 0) { // Проверяем, что элемент существует
+                    $closeButton.on('click', function () {
+                        $('.credit-notice').hide();
+                    });
                 }
-
             }
 
             // Показывать плашку с задолженностью юзеру
             function showCreditNotice() {
                 let creditNotice = document.querySelector(".credit-notice");
-                const creditNoticeSum = document.querySelector(".credit-notice .summ").textContent;
-                if (creditNoticeSum > 0) {
-                    creditNotice.style.display = 'block';
+                let creditNoticeSumElement = document.querySelector(".credit-notice .summ");
+
+                // Проверяем, что элемент уведомления и элемент суммы существуют
+                if (creditNotice && creditNoticeSumElement) {
+                    const creditNoticeSum = creditNoticeSumElement.textContent;
+                    // При необходимости можно привести к числовому типу
+                    if (parseFloat(creditNoticeSum) > 0) {
+                        creditNotice.style.display = 'block';
+                    }
                 }
             }
 
@@ -365,7 +385,11 @@
 
                 // Обновляем notice с суммой долга
                 const creditNoticeSumm = document.querySelector('.credit-notice .summ');
-                creditNoticeSumm.textContent = totalSumAllSeasons;
+                if (totalSumAllSeasons) {
+                    creditNoticeSumm.textContent = totalSumAllSeasons;
+                }
+
+
             }
 
             function disabledPaymentForm(role) {
@@ -396,15 +420,22 @@
             // AJAX User
             $('#single-select-user').change(function () {
                 let userName = $(this).val();
-                let teamName = $('#single-select-team').val();
-                // let inputDate = document.getElementById("inlineCalendar").value;
+
+
+                const selectedOption = this.options[this.selectedIndex];
+                const userId = selectedOption.getAttribute('data-user-id');
+
+                if (!userId) {
+                    console.log('Ошибка: идентификатор пользователя не найден.');
+                    // return;
+                }
 
                 $.ajax({
                     url: '/get-user-details',
                     type: 'GET',
                     data: {
-                        userName: userName,
-                        teamName: teamName,
+                        // userName: userName,
+                        userId: userId,
                         // inputDate: inputDate,
                     },
 
@@ -894,9 +925,9 @@
             $('#single-select-team').change(function () {
                 let teamName = $(this).val();
                 let userName = $('#single-select-user').val();
-
-                // let inputDate = document.getElementById("inlineCalendar").value;
-
+                // Получаем выбранный option и извлекаем teamId из data-атрибута
+                const selectedOption = this.options[this.selectedIndex];
+                const teamId = selectedOption.getAttribute('data-team-id');
 
                 function initializeSelect2() {
                     $('#single-select-user').select2({
@@ -912,6 +943,7 @@
                     if (!user.id) {
                         return user.text; // Возвращаем текст для пустой опции (например, placeholder)
                     }
+
 
                     // Проверяем наличие команды у пользователя
                     let hasTeam = $(user.element).data('team');
@@ -932,7 +964,7 @@
                     data: {
                         teamName: teamName,
                         userName: userName,
-                        // inputDate: inputDate,
+                        teamId: teamId,
                     },
 
 
@@ -946,29 +978,6 @@
                             let user = response.user;
                             // let weekdays = document.querySelectorAll('.weekday-checkbox .form-check');
                             let usersTeamWithUnteamUsers = userWithoutTeam.concat(usersTeam);
-
-
-                            // Установка дней недели
-                            // function apendWeekdays(weekdays) {
-                            //     for (let i = 0; i < weekdays.length; i++) {
-                            //         let weekday = weekdays[i];
-                            //         let input = weekday.querySelector('input'); // Находим input внутри текущего div
-                            //
-                            //         if (input) { // Проверяем, существует ли input
-                            //             // input.checked = false; // Устанавливаем атрибут checked
-                            //             weekdays[i].classList.remove('weekday-enabled');
-                            //         }
-                            //
-                            //         if (teamWeekDayId != null) {
-                            //             if (teamWeekDayId.includes(i + 1)) {
-                            //                 if (input) { // Проверяем, существует ли input
-                            //                     // input.checked = true; // Устанавливаем атрибут checked
-                            //                     weekdays[i].classList.add('weekday-enabled');
-                            //                 }
-                            //             }
-                            //         }
-                            //     }
-                            // }
 
                             // Новое изменение состава
                             function newUpdateSelectUsers() {
@@ -999,6 +1008,7 @@
                                         .attr('value', user.name)
                                         .attr('label', user.label)
                                         .attr('data-team', user.team_id ? 'true' : 'false') // Проверяем наличие команды и добавляем data-атрибут
+                                        .attr('data-user-id', user.id) // Добавляем id пользователя в DOM
                                         .text(counter + '. ' + user.name); // Добавляем нумерацию перед именем
 
                                     // Добавляем опцию в select
@@ -1156,7 +1166,6 @@
                     width: $(this).data('width') ? $(this).data('width') : $(this).hasClass('w-100') ? '100%' : 'style',
                     placeholder: $(this).data('placeholder'),
                 });
-
             }
 
             // Добавление datapicker к календарю
@@ -1221,31 +1230,18 @@
                     var borderPrices = seasons[i].querySelectorAll('.border_price');
                     var priceValues = seasons[i].querySelectorAll('.price-value');
 
-
                     for (var j = 0; j < borderPrices.length; j++) {
                         // Store the border price (if needed)
                         borderPrice[seasonId].push(borderPrices[j]);
-
-
-// console.log('priceValues[j]:');
-// console.log(priceValues[j]);
-
-                        // Accumulate the total sum of price values
                         totalSumm[seasonId] += Number(priceValues[j].textContent);
-                        // console.log('totalSumm[seasonId]:');
-                        // console.log(totalSumm[seasonId]);
-
                     }
 
-
-                    // Check if totalSumm is 0 and add class 'display-none' if true
                     seasons[i].classList.remove('display-none');
                     if (totalSumm[seasonId] === 0) {
                         seasons[i].classList.add('display-none');
                     }
                     // отобразить последний сезон
                     seasons[0].classList.remove('display-none')
-
                 }
             }
 
@@ -1355,7 +1351,6 @@
                 let currentYear = new Date().getFullYear();
                 let currentMonth = new Date().getMonth();
 
-
                 // Создаем календарь для текущего месяца
                 function createCalendar(year, month) {
                     const firstDayOfMonth = new Date(year, month, 1).getDay();
@@ -1366,7 +1361,6 @@
                         'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
                         'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
                     ];
-
 
                     // Заполняем заголовок календаря
                     calendarTitle.textContent = `${monthNames[month]} ${year}`;
@@ -1393,7 +1387,6 @@
                     // Закрашивание сегодняшней даты
                     highlightToday();
                     // Закрашиваем ячейки на текущем месяце в соответствии с данными расписания
-
 
                     {{--// updateGlobalScheduleData(@json($scheduleUserJson));--}}
                     //
@@ -1425,7 +1418,6 @@
                         }
                         createCalendar(currentYear, currentMonth);
                     });
-
                 }
 
                 // Вызов контекстного меню. Обработчик правого клика на дате.
@@ -1475,13 +1467,11 @@
                         const date = this.dataset.date;
                         let userName = $('#single-select-user').val();
 
-
                         if (action && date && userName) {
                             sendActionRequest(date, action, userName);
                         }
                         this.style.display = 'none';
                     });
-
                 }
 
                 // Функция отправки AJAX-запроса
@@ -1527,12 +1517,9 @@
                 getContextMenu();
                 hideContextMenuMissClick();
                 clickContextmenu();
-
-
             }
 
             //Расчет сумм долга за сезон и добавление долга в шапку сезона
-
             function apendCreditTotalSumm() {
                 // Ищем все контейнеры с классом season
                 const seasons = document.querySelectorAll('.season');
@@ -1549,7 +1536,6 @@
                         // Находим кнопку внутри контейнера
                         const button = container.querySelector('button.new-main-button');
 
-
                         // Проверяем, если кнопка называется "Оплатить" и не отключена
                         if (button && button.textContent.trim() === 'Оплатить' && !button.disabled) {
                             // Получаем значение из price-value
@@ -1564,7 +1550,6 @@
                     const creditValueField = season.querySelector('.is_credit_value');
                     const creditValueWrap = season.querySelector('.is_credit')
 
-
                     creditValueField.textContent = totalSum;
                     // if (totalSum == 0) {
                     //     creditValueWrap.classList.add('display-none');
@@ -1577,14 +1562,11 @@
                     } else {
                         creditValueWrap.classList.remove('visibility-hidden');
                     }
-
-
                 });
             }
 
-
             addDatapicker(); // можно удалить
-            createSeasons() ;    //Создание сезонов
+            createSeasons();    //Создание сезонов
             clickSeason();       //Измерение иконок при клике
             hideAllSeason();     //Скрытие всех сезонов при загрузке страницы
             createCalendar();

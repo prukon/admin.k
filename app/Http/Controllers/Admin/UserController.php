@@ -78,7 +78,7 @@ class UserController extends Controller
 
         // Создание пользователя и логгирование в транзакции
         $user = null; // Создаем переменную, чтобы хранить созданного пользователя
-        DB::transaction(function () use (&$user, $data) {
+        DB::transaction(function () use (&$user, $data, $partnerId) {
             // Сохраняем пользователя через сервис и получаем объект созданного пользователя
             $user = $this->service->store($data);
 
@@ -109,6 +109,7 @@ class UserController extends Controller
                     $roleNameOrLabel
                 ),
                 'created_at' => now(),
+                'partner_id' => $partnerId
             ]);
         });
 
@@ -168,6 +169,7 @@ class UserController extends Controller
 
     public function update(AdminUpdateRequest $request, User $user)
     {
+        $partnerId = app('current_partner')->id;
         $authorId = auth()->id(); // Авторизованный пользователь
         $oldData = User::where('id', $user->id)->first();
         $oldTeam = Team::find($user->team_id);
@@ -179,7 +181,7 @@ class UserController extends Controller
         // Получаем старые значения пользовательских полей
         $oldCustomData = UserFieldValue::where('user_id', $user->id)->get()->keyBy('field_id')->toArray();
 
-        DB::transaction(function () use ($user, $authorId, $data, $oldData, $oldTeamName, $oldCustomData, $oldRoleName) {
+        DB::transaction(function () use ($user, $authorId, $data, $oldData, $oldTeamName, $oldCustomData, $oldRoleName, $partnerId) {
             // Обновление пользователя с помощью сервиса
             $this->service->update($user, $data);
 
@@ -187,14 +189,12 @@ class UserController extends Controller
             $team = Team::find($data['team_id']);
             $teamName = $team ? $team->title : '-';
 
-
             // Получаем новую роль
             $newRoleName = '-';
             if (isset($data['role_id'])) {
                 $role = \App\Models\Role::find($data['role_id']);
                 $newRoleName = $role ? $role->label : '-';
             }
-
 
             // Логирование изменений в кастомных полях
             $customLogDescription = '';
@@ -215,30 +215,6 @@ class UserController extends Controller
                     }
                 }
             }
-
-            // Создание лога обновления данных пользователя с добавлением изменений в кастомных полях
-//            MyLog::create([
-//                'type' => 2, // Лог для обновления юзеров
-//                'action' => 22, // Лог для обновления учетной записи
-//                'author_id' => $authorId,
-//                'description' => sprintf(
-//                    "Старые:\n Имя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s.\nНовые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s%s",
-//                    $oldData->name,
-//                    isset($oldData->birthday) ? Carbon::parse($oldData->birthday)->format('d.m.Y') : '-',
-//                    isset($oldData->start_date) ? Carbon::parse($oldData->start_date)->format('d.m.Y') : '-',
-//                    $oldTeamName,
-//                    $oldData->email,
-//                    $oldData->is_enabled ? 'Да' : 'Нет',
-//                    $data['name'],
-//                    isset($data['birthday']) ? Carbon::parse($data['birthday'])->format('d.m.Y') : '-',
-//                    isset($data['start_date']) ? Carbon::parse($data['start_date'])->format('d.m.Y') : '-',
-//                    $teamName,
-//                    $data['email'],
-//                    $data['is_enabled'] ? 'Да' : 'Нет',
-//                    $customLogDescription // Добавляем описание изменений кастомных полей
-//                ),
-//                'created_at' => now(),
-//            ]);
 
             // Создаём лог
             MyLog::create([
@@ -266,9 +242,8 @@ class UserController extends Controller
                     $customLogDescription
                 ),
                 'created_at' => now(),
+                'partner_id' => $partnerId
             ]);
-
-
         });
 
 //        return response()->json([
@@ -294,14 +269,16 @@ class UserController extends Controller
 
     public function delete(User $user)
     {
+
         // Проверяем, если пользователь не существует
         if (!$user) {
             return response()->json(['error' => 'Пользователь не найден'], 404);
         }
+        $partnerId = app('current_partner')->id;
 
         $authorId = auth()->id(); // Авторизованный пользователь
 
-        DB::transaction(function () use ($user, $authorId) {
+        DB::transaction(function () use ($user, $authorId, $partnerId) {
             // Удаление пользователя
             $user->delete();
 
@@ -312,6 +289,8 @@ class UserController extends Controller
                 'author_id' => $authorId,
                 'description' => "Удален пользователь: {$user->name}  ID: {$user->id}.",
                 'created_at' => now(),
+                'partner_id' => $partnerId
+
             ]);
         });
         return response()->json(['success' => 'Пользователь успешно удалён']);
@@ -352,6 +331,8 @@ class UserController extends Controller
                         'author_id' => $authorId,
                         'description' => "Удалено поле: {$deletedField->name}. ID: {$deletedField->id}",
                         'created_at' => now(),
+                        'partner_id' => $partnerId
+
                     ]);
                 }
             }
@@ -422,6 +403,8 @@ class UserController extends Controller
                             'author_id' => $authorId,
                             'description' => "Обновлено поле: {$userField->name}. ID: {$fieldId}. Изменения: " . implode(', ', $changes),
                             'created_at' => now(),
+                            'partner_id' => $partnerId
+
                         ]);
                     }
                 } else {
@@ -441,6 +424,7 @@ class UserController extends Controller
                         'author_id' => $authorId,
                         'description' => "Создано новое поле {$fieldName}. ID: {$newField->id}",
                         'created_at' => now(),
+                        'partner_id' => $partnerId
                     ]);
                 }
             }
@@ -452,7 +436,7 @@ class UserController extends Controller
 
     public function updatePassword(Request $request, $id)
     {
-
+        $partnerId = app('current_partner')->id;
         $request->validate([
             'password' => 'required|min:8',
         ]);
@@ -460,7 +444,7 @@ class UserController extends Controller
         $authorId = auth()->id(); // Авторизованный пользователь
         $user = User::findOrFail($id);
 
-        DB::transaction(function () use ($user, $authorId, $request) {
+        DB::transaction(function () use ($user, $authorId, $request, $partnerId) {
 
             $user->password = Hash::make($request->password);
             $user->save();
@@ -471,6 +455,7 @@ class UserController extends Controller
                 'author_id' => $authorId,
                 'description' => ($user->name . " изменил пароль."),
                 'created_at' => now(),
+                'partner_id' => $partnerId
             ]);
         });
         return response()->json(['success' => true]);
@@ -478,8 +463,10 @@ class UserController extends Controller
 
     public function log(FilterRequest $request)
     {
+        $partnerId = app('current_partner')->id;
         $logs = MyLog::with('author')
             ->where('type', 2)// User логи
+            ->where('partner_id', $partnerId)
             ->select('my_logs.*');
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {

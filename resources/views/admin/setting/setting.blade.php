@@ -1,260 +1,228 @@
 <h4 class="pt-3 text-start">Общие</h4>
 
-    <div class="table-responsive">
-        <table class="table ">
-            <thead class="">
-            <tr>
-                <th scope="col">Название</th>
-                <th scope="col">Состояние</th>
-                <th scope="col">Действие</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-                <td>Регистрация на сайте</td>
-                <td>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="registrationActivity"
-                                {{ $isRegistrationActivity ? 'checked' : '' }}>
-                        <label class="form-check-label"
-                               for="registrationActivity">Включена/Выключена</label>
-                    </div>
-                </td>
-                <td>
-                    <button id="btnRegistrationActivity" class="btn btn-primary">Применить</button>
-                </td>
-            </tr>
-            <tr>
-                <td class="col-4">Текст уведомления у пользователей</td>
-                <td colspan="col-6">
+<div class="table-responsive">
+    <table class="table ">
+        <thead class="">
+        <tr>
+            <th scope="col">Название</th>
+            <th scope="col">Состояние</th>
+            <th scope="col">Действие</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>Регистрация на сайте</td>
+            <td>
+                {{--<div class="form-check">--}}
+{{--                   {{dd($isRegistrationActivity)}}--}}
+                    {{--<input class="form-check-input" type="checkbox" id="registrationActivity"--}}
+                            {{--{{ $isRegistrationActivity ? 'checked' : '' }}>--}}
+                    {{--<label class="form-check-label"--}}
+                           {{--for="registrationActivity">Включена/Выключена</label>--}}
+                {{--</div>--}}
+            </td>
+            <td>
+                <button id="btnRegistrationActivity" class="btn btn-primary">Применить</button>
+            </td>
+        </tr>
+        <tr>
+            <td class="col-4">Текст уведомления у пользователей</td>
+            <td colspan="col-6">
                                 <textarea class="form-control text-start textForUsers" id="textForUsers"
                                           rows="3">{{ trim($textForUsers) }}</textarea>
-                </td>
-                <td class="col-2">
-                    <button id="btnTextForUsers" class="btn btn-primary mb-3 mt-3">Применить
-                    </button>
-                </td>
-            </tr>
+            </td>
+            <td class="col-2">
+                <button id="btnTextForUsers" class="btn btn-primary mb-3 mt-3">Применить
+                </button>
+            </td>
+        </tr>
 
 
-            </tbody>
-        </table>
-    </div>
+        </tbody>
+    </table>
+</div>
 
-    <div class="table-responsive mt-3">
-        <table class="table ">
-            <tbody>
-            <tr>
-                <td>Журнал событий</td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-primary width-160" id="logs"
-                            data-bs-toggle="modal" data-bs-target="#historyModal">История изменений
-                    </button>
-                </td>
-            </tr>
-            <tr>
-                <td>Меню в шапке</td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-primary width-160" data-bs-toggle="modal"
-                            data-bs-target="#menuModal">Настроить
-                    </button>
-                </td>
-            </tr>
-            <tr>
-                <td>Социальные сети</td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-primary width-160" data-bs-toggle="modal"
-                            data-bs-target="#socialMenuModal">Настроить
-                    </button>
-                </td>
-            </tr>
+<div class="table-responsive mt-3">
+    <table class="table ">
+        <tbody>
+        <tr>
+            <td>Журнал событий</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-primary width-160" id="logs"
+                        data-bs-toggle="modal" data-bs-target="#historyModal">История изменений
+                </button>
+            </td>
+        </tr>
+        <tr>
+            <td>Меню в шапке</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-primary width-160" data-bs-toggle="modal"
+                        data-bs-target="#menuModal">Настроить
+                </button>
+            </td>
+        </tr>
+        <tr>
+            <td>Социальные сети</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-primary width-160" data-bs-toggle="modal"
+                        data-bs-target="#socialMenuModal">Настроить
+                </button>
+            </td>
+        </tr>
 
-            </tbody>
-        </table>
-    </div>
+        </tbody>
+    </table>
+</div>
 
-    {{--Модальное окно изменения пунтов меню в шапке--}}
-    <div class="modal fade mt-3" id="menuModal" tabindex="-1" aria-labelledby="menuModalLabel">
-        {{--    <div class="modal-dialog modal-lg" style="margin: 0 auto;"> <!-- Установлено горизонтальное центрирование -->--}}
-        <div class="modal-dialog d-flex justify-content-center">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="menuModalLabel">Настройка меню в шапке</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                            aria-label="Закрыть"></button>
-                </div>
-                <div class="modal-body text-start">
-                    <button type="button" class="btn btn-secondary mb-3" id="addMenuItem">Новый пункт
-                        меню
-                    </button>
-                    <div class="table-responsive"> <!-- Добавлен контейнер для адаптивности таблицы -->
-                        <table class="table" id="menuTable">
-                            <thead>
-                            <tr>
-                                <th>Пункт меню</th>
-                                <th>Название</th>
-                                <th>Ссылка</th>
-                                <th>В новой вкладке</th>
-                                <th>Действия</th>
+{{--Модальное окно изменения пунтов меню в шапке--}}
+<div class="modal fade mt-3" id="menuModal" tabindex="-1" aria-labelledby="menuModalLabel">
+    {{--    <div class="modal-dialog modal-lg" style="margin: 0 auto;"> <!-- Установлено горизонтальное центрирование -->--}}
+    <div class="modal-dialog d-flex justify-content-center">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="menuModalLabel">Настройка меню в шапке</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body text-start">
+                <button type="button" class="btn btn-secondary mb-3" id="addMenuItem">Новый пункт
+                    меню
+                </button>
+                <div class="table-responsive"> <!-- Добавлен контейнер для адаптивности таблицы -->
+                    {{--{{dd($menuItems)}}--}}
+                    <table class="table" id="menuTable">
+                        <thead>
+                        <tr>
+                            <th>Пункт меню</th>
+                            <th>Название</th>
+                            <th>Ссылка</th>
+                            <th>В новой вкладке</th>
+                            <th>Действия</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach ($menuItems as $item)
+                            <tr data-id="{{ $item->id }}">
+                                <td>{{ $loop->index + 1 }}</td>
+                                <td>
+                                    <input type="text" name="menu_items[{{ $item->id }}][name]"
+                                           class="form-control" value="{{ $item->name }}"
+                                           data-key="menu_items[{{ $item->id }}][name]">
+                                    <div class="text-danger error-message"></div>
+                                    <!-- Контейнер для ошибки названия -->
+                                </td>
+                                <td>
+                                    <input type="text" name="menu_items[{{ $item->id }}][link]"
+                                           class="form-control" value="{{ $item->link }}">
+                                    <div class="text-danger error-message"></div>
+                                    <!-- Контейнер для ошибки ссылки -->
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox"
+                                           name="menu_items[{{ $item->id }}][target_blank]"
+                                           value="1" {{ $item->target_blank ? 'checked' : '' }}>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-danger btn-sm deleteRow">
+                                        Удалить
+                                    </button>
+                                </td>
                             </tr>
-                            </thead>
-                            <tbody>
-                            @foreach ($menuItems as $item)
-                                <tr data-id="{{ $item->id }}">
-                                    <td>{{ $loop->index + 1 }}</td>
-                                    <td>
-                                        <input type="text" name="menu_items[{{ $item->id }}][name]"
-                                               class="form-control" value="{{ $item->name }}"
-                                               data-key="menu_items[{{ $item->id }}][name]">
-                                        <div class="text-danger error-message"></div>
-                                        <!-- Контейнер для ошибки названия -->
-                                    </td>
-                                    <td>
-                                        <input type="text" name="menu_items[{{ $item->id }}][link]"
-                                               class="form-control" value="{{ $item->link }}">
-                                        <div class="text-danger error-message"></div>
-                                        <!-- Контейнер для ошибки ссылки -->
-                                    </td>
-                                    <td class="text-center">
-                                        <input type="checkbox"
-                                               name="menu_items[{{ $item->id }}][target_blank]"
-                                               value="1" {{ $item->target_blank ? 'checked' : '' }}>
-                                    </td>
-                                    <td>
-                                        <button type="button" class="btn btn-danger btn-sm deleteRow">
-                                            Удалить
-                                        </button>
-                                    </td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                        @endforeach
+                        </tbody>
+                    </table>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена
-                    </button>
-                    <button type="button" class="btn btn-primary" id="saveMenu">Сохранить</button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена
+                </button>
+                <button type="button" class="btn btn-primary" id="saveMenu">Сохранить</button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Модальное окно настройки соц. сетей -->
-    <div class="modal fade mt-3 socialMenuModal" id="socialMenuModal" tabindex="-1"
-         aria-labelledby="socialMenuModalLabel">
-        <div class="modal-dialog d-flex justify-content-center">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="socialMenuModalLabel">Настройка социальных сетей</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                            aria-label="Закрыть"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="table-responsive">
-                        <table class="table" id="socialTable">
-                            <thead>
-                            <tr>
-                                <th>Иконка</th>
-                                <th>Название</th>
-                                <th>Ссылка</th>
+<!-- Модальное окно настройки соц. сетей -->
+<div class="modal fade mt-3 socialMenuModal" id="socialMenuModal" tabindex="-1"
+     aria-labelledby="socialMenuModalLabel">
+    <div class="modal-dialog d-flex justify-content-center">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="socialMenuModalLabel">Настройка социальных сетей</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table" id="socialTable">
+                        <thead>
+                        <tr>
+                            <th>Иконка</th>
+                            <th>Название</th>
+                            <th>Ссылка</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach ($socialItems as $item)
+                            <tr data-id="{{ $item->id }}">
+                                <td>
+                                    @switch($item->name)
+                                        @case('vk.com')
+                                        <i class="fa-brands fa-vk"></i>
+                                        @break
+                                        @case('YouTube.com')
+                                        <i class="fa-brands fa-youtube"></i>
+                                        @break
+                                        @case('facebook.com')
+                                        <i class="fa-brands fa-facebook"></i>
+                                        @break
+                                        @case('Instagram.com')
+                                        <i class="fa-brands fa-instagram"></i>
+                                        @break
+                                        @case('Telegram.org')
+                                        <i class="fa-brands fa-telegram"></i>
+                                        @break
+                                        @case('TikTok.com')
+                                        <i class="fa-brands fa-tiktok"></i>
+                                        @break
+                                        @case('WhatsApp.com')
+                                        <i class="fa-brands fa-whatsapp"></i>
+                                        @break
+                                        @case('Vimeo.com')
+                                        <i class="fa-brands fa-vimeo"></i>
+                                        @break
+
+                                        @break
+                                        @default
+                                        <i class="fa fa-globe"></i>
+                                    @endswitch
+                                </td>
+                                <td>
+                                    <input type="text" name="social_items[{{ $item->id }}][name]"
+                                           class="form-control"
+                                           value="{{ $item->name }}" readonly>
+                                    <div class="text-danger error-message"></div>
+                                </td>
+                                <td>
+                                    <input type="text" name="social_items[{{ $item->id }}][link]"
+                                           class="form-control"
+                                           value="{{ $item->link }}">
+                                    <div class="text-danger error-message"></div>
+                                </td>
                             </tr>
-                            </thead>
-                            <tbody>
-                            @foreach ($socialItems as $item)
-                                <tr data-id="{{ $item->id }}">
-                                    <td>
-                                        @switch($item->name)
-                                            @case('vk.com')
-                                                <i class="fa-brands fa-vk"></i>
-                                                @break
-                                            @case('YouTube.com')
-                                                <i class="fa-brands fa-youtube"></i>
-                                                @break
-                                            @case('RuTube.ru')
-                                                <i class="fa-brands fa-rutube"></i>
-                                                @break
-                                            @case('facebook.com')
-                                                <i class="fa-brands fa-facebook"></i>
-                                                @break
-                                            @case('Instagram.com')
-                                                <i class="fa-brands fa-instagram"></i>
-                                                @break
-                                            @case('Twitter.com')
-                                                <i class="fa-brands fa-twitter"></i>
-                                                @break
-                                            @case('LinkedIn.com')
-                                                <i class="fa-brands fa-linkedin"></i>
-                                                @break
-                                            @case('Telegram.org')
-                                                <i class="fa-brands fa-telegram"></i>
-                                                @break
-                                            @case('Pinterest.com')
-                                                <i class="fa-brands fa-pinterest"></i>
-                                                @break
-                                            @case('TikTok.com')
-                                                <i class="fa-brands fa-tiktok"></i>
-                                                @break
-                                            @case('Reddit.com')
-                                                <i class="fa-brands fa-reddit"></i>
-                                                @break
-                                            @case('Snapchat.com')
-                                                <i class="fa-brands fa-snapchat"></i>
-                                                @break
-                                            @case('WhatsApp.com')
-                                                <i class="fa-brands fa-whatsapp"></i>
-                                                @break
-                                            @case('Discord.com')
-                                                <i class="fa-brands fa-discord"></i>
-                                                @break
-                                            @case('Tumblr.com')
-                                                <i class="fa-brands fa-tumblr"></i>
-                                                @break
-                                            @case('Dribbble.com')
-                                                <i class="fa-brands fa-dribbble"></i>
-                                                @break
-                                            @case('GitHub.com')
-                                                <i class="fa-brands fa-github"></i>
-                                                @break
-                                            @case('Vimeo.com')
-                                                <i class="fa-brands fa-vimeo"></i>
-                                                @break
-                                            @case('Slack.com')
-                                                <i class="fa-brands fa-slack"></i>
-                                                @break
-                                            @case('Dropbox.com')
-                                                <i class="fa-brands fa-dropbox"></i>
-                                                @break
-                                            @default
-                                                <i class="fa fa-globe"></i>
-                                        @endswitch
-                                    </td>
-                                    <td>
-                                        <input type="text" name="social_items[{{ $item->id }}][name]"
-                                               class="form-control"
-                                               value="{{ $item->name }}" readonly>
-                                        <div class="text-danger error-message"></div>
-                                    </td>
-                                    <td>
-                                        <input type="text" name="social_items[{{ $item->id }}][link]"
-                                               class="form-control"
-                                               value="{{ $item->link }}">
-                                        <div class="text-danger error-message"></div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                        @endforeach
+                        </tbody>
+                    </table>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена
-                    </button>
-                    <button type="button" class="btn btn-primary" id="saveSocialMenu">Сохранить</button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена
+                </button>
+                <button type="button" class="btn btn-primary" id="saveSocialMenu">Сохранить</button>
             </div>
         </div>
     </div>
+</div>
 
 
 @section('scripts')
@@ -265,12 +233,6 @@
 
             // Вызов модалки Активность регистрации
             $(document).on('click', '#btnRegistrationActivity', function () {
-                registrationActivity();
-            });
-
-            //Активность регистрации
-            function registrationActivity() {
-                // Показываем модалку с текстом и передаём колбэк, который удалит пользователя
                 showConfirmDeleteModal(
                     "Активность регистрации",
                     "Вы уверены, что хотите изменить правила возможности регистрации?",
@@ -296,16 +258,10 @@
                         // ----
                     }
                 );
-            }
-
-            // Вызов модалки Текст уведомления
-            $(document).on('click', '#btnTextForUsers', function () {
-                textForUsers();
             });
 
-            //Текст уведомления
-            function textForUsers() {
-                // Показываем модалку с текстом и передаём колбэк, который удалит пользователя
+            // Вызов  Текст уведомления
+            $(document).on('click', '#btnTextForUsers', function () {
                 showConfirmDeleteModal(
                     "Текс для пользователей",
                     "Вы уверены, что хотите изменить текст для пользователей?",
@@ -339,11 +295,11 @@
                         // ----
                     }
                 );
-            }
+            });
 
             // //Меню в шапке
             const menuTable = document.getElementById('menuTable').querySelector('tbody');
-            let newItemIndex = {{ $menuItems->count() }} + 1;
+            let newItemIndex = {{ $menuItems->count() }} +1;
             const deletedItems = []; // Массив для хранения ID удаленных элементов
 
             // Кнопка для добавления нового пункта меню
@@ -371,10 +327,7 @@
                     menuTable.appendChild(newRow);
                     newItemIndex++;
                 });
-
             }
-
-            addMenuItem();
 
             // Обработчик для удаления строки
             function deleteMenuItem() {
@@ -389,8 +342,6 @@
                     }
                 });
             }
-
-            deleteMenuItem();
 
             // Кнопка для сохранения данных
             function saveMenu() {
@@ -454,8 +405,6 @@
 
             }
 
-            saveMenu();
-
             //Изменение меню соц сетей
             function saveSocialMenu() {
                 document.getElementById('saveSocialMenu').addEventListener('click', function () {
@@ -508,9 +457,25 @@
                 });
             }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            addMenuItem();
+            deleteMenuItem();
+            saveMenu();
             saveSocialMenu()
 
         });
     </script>
 @endsection
-

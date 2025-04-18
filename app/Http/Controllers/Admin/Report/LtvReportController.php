@@ -16,28 +16,13 @@ class LtvReportController extends Controller
     //Отчет LTV
     public function ltv()
     {
-        $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
-        $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
-
-        $ltvPrice = DB::table('users_prices')
-            ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
-            ->where('users_prices.is_paid', 0)
-            ->where('users.is_enabled', 1)
-            ->where('users_prices.price', '>', 0)
-            ->where('users_prices.new_month', '<', $currentMonth)
-            ->sum('users_prices.price');
-
-        $ltvPrice = number_format($ltvPrice, 0, '', ' ');
-
-        return view('admin.report.index', ['activeTab' => 'ltv'],
-            compact('ltvPrice'));
-
-
+         return view('admin.report.index', ['activeTab' => 'ltv']);
     }
 
     //Данные для отчета LTV
     public function getLtv(Request $request)
     {
+        $partnerId = app('current_partner')->id;
 
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
@@ -45,7 +30,23 @@ class LtvReportController extends Controller
 //         dd($currentMonth);
         if ($request->ajax()) {
 
+            $usersWithTotalUnpaidPrices = DB::table('users_prices')
+                ->join('users', 'users.id', '=', 'users_prices.user_id')          // INNER JOIN
+                ->select(
+                    'users.name  as user_name',
+                    'users.id    as user_id',
+                    DB::raw('SUM(users_prices.price)  as total_price'),
+                    'users.is_enabled',
+                    DB::raw('MIN(users_prices.created_at) as first_payment_date'),
+                    DB::raw('MAX(users_prices.created_at) as last_payment_date'),
+                    DB::raw('COUNT(users_prices.id)        as payment_count')
+                )
+                ->where('users_prices.price', '>', 0)
+                ->where('users.partner_id', $partnerId)                           // фильтр по партнёру пользователя
+                ->groupBy('users.id', 'users.name', 'users.is_enabled')
+                ->get();
 
+            //            старая реазиация
             $usersWithTotalUnpaidPrices = DB::table('users_prices')
                 ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
                 ->select(
@@ -60,6 +61,9 @@ class LtvReportController extends Controller
                 ->where('users_prices.price', '>', 0)
                 ->groupBy('users.id', 'users.name', 'users.is_enabled')
                 ->get();
+
+
+
 
 
             // Добавляем проверку на наличие данных
@@ -129,5 +133,5 @@ class LtvReportController extends Controller
             \Log::error('Ошибка преобразования даты: ' . $e->getMessage());
             return null;
         }
-    }
+    } 
 }

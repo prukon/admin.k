@@ -46,19 +46,7 @@ use Illuminate\Foundation\Auth\AuthenticatesUsers;
 
     public function showLoginForm()
     {
-        // Ваши данные, которые нужно передать в представление
-
-        $setting = Setting::where('name', 'registrationActivity')->first();
-        $isRegistrationActivity = $setting ? $setting->status : null;
-
-
-        // Возвращаем view с данными
-//        return view('auth.login',
-//            ['customData' => $customData]);
-
-        return view("auth.login", compact(
-            "isRegistrationActivity",
-        ));
+        return view("auth.login");
     }
 
 

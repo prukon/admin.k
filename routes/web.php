@@ -40,12 +40,12 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('/admin/user/{id}/update-password', [\App\Http\Controllers\Admin\UserController::class, 'updatePassword'])->middleware('can:manage-users');
 
     //Отчеты
-    Route::get('/admin/reports/payments', [\App\Http\Controllers\Admin\Report\PaymentReportController::class, 'payments'])->name('payments')->middleware('can:reports');
-    Route::get('/admin/reports/getPayments', [\App\Http\Controllers\Admin\Report\PaymentReportController::class, 'getPayments'])->name('payments.getPayments')->middleware('can:reports');
-    Route::get('/admin/reports/debts', [\App\Http\Controllers\Admin\Report\DeptReportController::class, 'debts'])->name('debts')->middleware('can:reports');
-    Route::get('/admin/reports/getDebts', [\App\Http\Controllers\Admin\Report\DeptReportController::class, 'getDebts'])->name('debts.getDebts')->middleware('can:reports');
-    Route::get('/admin/reports/ltv', [\App\Http\Controllers\Admin\Report\LtvReportController::class, 'ltv'])->name('ltv')->middleware('can:reports');
-    Route::get('/admin/reports/getLtv', [\App\Http\Controllers\Admin\Report\LtvReportController::class, 'getLtv'])->name('ltv.getLtv')->middleware('can:reports');
+    Route::get('/admin/reports/payments',       [\App\Http\Controllers\Admin\Report\PaymentReportController::class, 'payments'])->name('payments')->middleware('can:reports');
+    Route::get('/admin/reports/getPayments',    [\App\Http\Controllers\Admin\Report\PaymentReportController::class, 'getPayments'])->name('payments.getPayments')->middleware('can:reports');
+    Route::get('/admin/reports/debts',          [\App\Http\Controllers\Admin\Report\DeptReportController::class, 'debts'])->name('debts')->middleware('can:reports');
+    Route::get('/admin/reports/getDebts',       [\App\Http\Controllers\Admin\Report\DeptReportController::class, 'getDebts'])->name('debts.getDebts')->middleware('can:reports');
+    Route::get('/admin/reports/ltv',            [\App\Http\Controllers\Admin\Report\LtvReportController::class, 'ltv'])->name('ltv')->middleware('can:reports');
+    Route::get('/admin/reports/getLtv',         [\App\Http\Controllers\Admin\Report\LtvReportController::class, 'getLtv'])->name('ltv.getLtv')->middleware('can:reports');
 
     //Отчеты юзера
     Route::get('/reports/payments', [\App\Http\Controllers\User\Report\ReportController::class, 'showUserPayments'])->name('showUserPayments')->middleware('can:my-payments');
