@@ -102,8 +102,10 @@ class RegisterController extends Controller
 
     public function showRegistrationForm()
     {
+        // 1) Все команды (если вы их ещё используете в форме)
         $allTeams = Team::all();
 
+        // 2) Список партнёров с флагом активности регистрации
         $partners = Partner::all()->map(function($p) {
             $p->isRegistrationActive = Setting::where('name', 'registrationActivity')
                     ->where('partner_id', $p->id)
@@ -111,8 +113,28 @@ class RegisterController extends Controller
             return $p;
         });
 
-//        return view('auth.register', ['allTeams' => $allTeams]);
-        return view('auth.register', compact('partners'));
+        // 3) Какой партнёр был выбран при предыдущей попытке (old) или пусто
+        $selectedPartnerId = old('partner_id', '');
 
+        // 4) Флаг активности для выбранного партнёра (null, если не выбран)
+        $isRegistrationActivity = null;
+        if ($selectedPartnerId) {
+            $isRegistrationActivity = Setting::where('name', 'registrationActivity')
+                    ->where('partner_id', $selectedPartnerId)
+                    ->value('status') ?? false;
+        }
+
+        // 5) Собираем конфиг для передачи в форму
+        $registrationConfig = [
+            'partner_id'             => $selectedPartnerId,
+            'isRegistrationActivity' => $isRegistrationActivity,
+        ];
+
+        // 6) Отдаём всё в шаблон
+        return view('auth.register', compact(
+            'allTeams',
+            'partners',
+            'registrationConfig'
+        ));
     }
 }

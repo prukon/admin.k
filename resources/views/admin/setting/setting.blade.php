@@ -13,14 +13,22 @@
         <tr>
             <td>Регистрация на сайте</td>
             <td>
-                {{--<div class="form-check">--}}
-{{--                   {{dd($isRegistrationActivity)}}--}}
-                    {{--<input class="form-check-input" type="checkbox" id="registrationActivity"--}}
-                            {{--{{ $isRegistrationActivity ? 'checked' : '' }}>--}}
-                    {{--<label class="form-check-label"--}}
-                           {{--for="registrationActivity">Включена/Выключена</label>--}}
-                {{--</div>--}}
+                <div class="form-check">
+                    <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="registrationActivity"
+                            name="registrationActivity"
+                            value="1"
+                            {{ $isRegistrationActive ? 'checked' : '' }}
+                    >
+                    <label class="form-check-label" for="registrationActivity">
+                        Регистрация {{ $isRegistrationActive ? 'включена' : 'выключена' }}
+                    </label>
+                </div>
             </td>
+
+
             <td>
                 <button id="btnRegistrationActivity" class="btn btn-primary">Применить</button>
             </td>

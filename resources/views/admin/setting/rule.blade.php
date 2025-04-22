@@ -14,6 +14,7 @@
 <hr>
 
 <div class="table-responsive mt-3">
+{{--    {{dd($roles)}}--}}
     <table class="table table-bordered align-middle rule-table">
         <thead>
         <tr>
@@ -217,16 +218,39 @@
                                 }
                                 location.reload();
                             },
-                            error: (xhr) => {
-                                if (xhr.responseJSON && xhr.responseJSON.errors) {
-                                    // Валидационные ошибки
-                                    let errors = xhr.responseJSON.errors;
-                                    alert(Object.values(errors).join("\n"));
-                                } else {
-                                    $('#errorModal').modal('show');
-                                    $('#error-message').text(response.message || 'Ошибка при соединении!');
+                            // error: (xhr) => {
+                            //     if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            //         // Валидационные ошибки
+                            //         let errors = xhr.responseJSON.errors;
+                            //         alert(Object.values(errors).join("\n"));
+                            //     } else {
+                            //         $('#errorModal').modal('show');
+                            //         $('#error-message').text(response.message || 'Ошибка при соединении!');
+                            //     }
+                            // }
+
+                            error: function(xhr, status, error) {
+                                // Попробуем достать JSON из ответа
+                                let json = xhr.responseJSON;
+                                let message = 'Ошибка при соединении!';
+
+                                if (json) {
+                                    // если есть поле message
+                                    if (json.message) {
+                                        message = json.message;
+                                    }
+                                    // если есть ошибки валидации — объединим их
+                                    else if (json.errors) {
+                                        message = Object.values(json.errors).flat().join('\n');
+                                    }
                                 }
+
+                                // Показать модалку с ошибкой
+                                $('#error-message').text(message);
+                                $('#errorModal').modal('show');
                             }
+
+
                         });
                     }
                 );

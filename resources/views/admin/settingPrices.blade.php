@@ -22,8 +22,8 @@
             <div id='selectDate' class="selectDate">
                 <select class="form-select" id="single-select-date" data-placeholder="Дата">
 
-                    @if($currentDateString)
-                        <option>{{ $currentDateString }}</option>
+                    @if($monthString)
+                        <option>{{ $monthString  }}</option>
                     @endif
 
                 </select>
@@ -101,8 +101,37 @@
 @section('scripts')
     @vite(['resources/js/settings-prices.js',])
     <script>
+        $('#single-select-date').on('change', function () {
+            const selectedMonth = $(this).val();
+
+            $.ajax({
+                url: '/admin/setting-prices/update-date',
+                method: 'POST',
+                data: {
+                    month: selectedMonth,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function () {
+                    // после смены месяца перезагружаем страницу,
+                    // и в index() уже подхватится month из сессии
+                    window.location.reload();
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error setting month:', error);
+                }
+            });
+        });
+
+    </script>
+
+    <script>
         document.addEventListener('DOMContentLoaded', function () {
             showLogModal("{{ route('logs.data.settingPrice') }}"); // Здесь можно динамически передать route
         });
     </script>
+
+
+
+
+
 @endsection

@@ -30,19 +30,39 @@ class SettingController extends Controller
     //Страница Настройки
     public function showSettings()
     {
-        $setting = Setting::where('name', 'textForUsers')->first();
+        $partnerId = app('current_partner')->id;
+
+        $setting = Setting::where('name', 'textForUsers')
+            ->where('partner_id', $partnerId)
+            ->first();
         $textForUsers = $setting ? $setting->text : null;
-        return view('admin.setting.index',
-            ['activeTab' => 'setting'],
-            compact(
-                "textForUsers")
-        );
+
+
+        // 2) Берём из базы запись для этого партнёра
+        $setting = Setting::where('name', 'registrationActivity')
+            ->where('partner_id', $partnerId)
+            ->first();
+
+        // 3) Флаг: если записи нет — считаем, что выключено
+        $isRegistrationActive = $setting
+            ? (bool) $setting->status
+            : false;
+
+                return view('admin.setting.index',
+                    ['activeTab' => 'setting'],
+                    compact(
+                        "textForUsers",
+                        'partnerId',
+                        'isRegistrationActive'
+                    )
+                );
     }
 
     //AJAX Активность регистрации
     public function registrationActivity(Request $request)
     {
         $partnerId = app('current_partner')->id;
+
         $isRegistrationActivity = $request->query('isRegistrationActivity');
         $authorId = auth()->id(); // Авторизованный пользователь
 

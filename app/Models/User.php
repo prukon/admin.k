@@ -90,6 +90,22 @@ class   User extends Authenticatable
         return $this->belongsTo(Partner::class, 'partner_id');
     }
 
+    public function roles()
+    {
+        return $this->belongsToMany(
+            Role::class,
+            'role_user',   // имя pivot‑таблицы
+            'user_id',     // FK User
+            'role_id'      // FK Role
+        )->withTimestamps();
+    }
+
+    public function hasRole(string $roleName)
+    {
+        return $this->roles()
+            ->where('name', $roleName)
+            ->exists();
+    }
 
     // Если у пользователя может быть несколько ролей (через pivot user_role):
 //    public function roles(): BelongsToMany
@@ -139,7 +155,7 @@ class   User extends Authenticatable
 //            && $this->role->permissions->contains('name', $permissionName);
 //    }
 
-    public function hasPermission(string $permissionName): bool
+    public function hasPermission( $permissionName)
     {
         // Если у пользователя нет связанной роли (null), то прав нет
         if (!$this->role) {

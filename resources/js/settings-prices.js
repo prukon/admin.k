@@ -93,29 +93,29 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // AJAX SELECT DATE. Обработчик изменения даты
-    $('#single-select-date').on('change', function () {
-        document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
-        let selectedMonth = $(this).val();
-        $.ajax({
-            url: '/admin/setting-prices/update-date',
-            method: 'GET',
-            data: {
-                month: selectedMonth,
-                // _token: "{{ csrf_token() }}"
-                // _token: $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function (response) {
-
-                document.querySelector('#set-price-all-teams').removeAttribute('disabled');
-                // location.reload();
-                let cleanUrl = window.location.href.split('?')[0];
-                window.location.href = cleanUrl;
-            },
-            error: function (xhr, status, error) {
-                console.log('Error:', error);
-            }
-        });
-    });
+    // $('#single-select-date').on('change', function () {
+    //     document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
+    //     let selectedMonth = $(this).val();
+    //     $.ajax({
+    //         url: '/admin/setting-prices/update-date',
+    //         method: 'GET',
+    //         data: {
+    //             month: selectedMonth,
+    //             // _token: "{{ csrf_token() }}"
+    //             // _token: $('meta[name="csrf-token"]').attr('content')
+    //         },
+    //         success: function (response) {
+    //
+    //             document.querySelector('#set-price-all-teams').removeAttribute('disabled');
+    //             // location.reload();
+    //             let cleanUrl = window.location.href.split('?')[0];
+    //             window.location.href = cleanUrl;
+    //         },
+    //         error: function (xhr, status, error) {
+    //             console.log('Error:', error);
+    //         }
+    //     });
+    // });
 
 
 

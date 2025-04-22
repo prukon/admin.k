@@ -58,7 +58,7 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('admin/setting-prices/set-price-all-teams', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllTeams'])->name('setPriceAllTeams')->middleware('can:set-prices');
     Route::post('admin/setting-prices/set-price-all-users', [\App\Http\Controllers\Admin\SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers')->middleware('can:set-prices');
     Route::get('admin/setting-prices/logs-data', [\App\Http\Controllers\Admin\SettingPricesController::class, 'getLogsData'])->name('logs.data.settingPrice');
-    Route::get('admin/setting-prices/update-date', [\App\Http\Controllers\Admin\SettingPricesController::class, 'updateDate'])->name('updateDate');
+    Route::post('admin/setting-prices/update-date', [\App\Http\Controllers\Admin\SettingPricesController::class, 'updateDate'])->name('updateDate');
 
     //Страница Настойки
     Route::get('/admin/settings', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'showSettings'])->name('admin.setting.setting')->middleware('can:general-settings');

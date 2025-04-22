@@ -80,6 +80,7 @@
                         {{--<h5>Пользовательские поля</h5>--}}
                         <div id="custom-fields-container"> <!-- Контейнер для пользовательских полей -->
 
+
                         </div>
                     </div>
                 @endif
@@ -100,7 +101,6 @@
                     </div>
 
 
-
                     <!-- Поле "Роль" -->
                     <div class="mb-3">
                         <label for="role_id" class="form-label">Роль</label>
@@ -114,11 +114,6 @@
                             @endforeach
                         </select>
                     </div>
-
-
-
-
-
 
 
                     <!-- Блок изменения пароля -->
@@ -184,7 +179,6 @@
         </div>
     </div>
 </div>
-
 
 <!-- Модальное окно подтверждения удаления -->
 @include('includes.modal.confirmDeleteModal')
@@ -486,175 +480,123 @@
                 e.preventDefault();
 
 
-
-
-
                 showConfirmDeleteModal(
                     "Удаление аватарки",
                     "Вы уверены, что хотите удалить аватарку?",
-                    function() {
+                    function () {
                         // Подтверждение удаления фотографии
                         // if (confirm('Вы уверены, что хотите удалить фотографию?')) {
-                            let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
-                            let token = $('input[name="_token"]').val();
+                        let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
+                        let token = $('input[name="_token"]').val();
 
-                            $.ajax({
-                                url: `/admin/user/${userId}/delete-avatar`, // Указываем маршрут для удаления аватарки
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': token
-                                },
-                                success: function (response) {
-                                    if (response.success) {
-                                        $('#confirm-img').attr('src', '/img/default.png'); // Устанавливаем аватарку по умолчанию
-                                        showSuccessModal("Удаление аватара", "Аватар успешно удален.");
-                                        toggleDeleteButton();
-                                    } else {
-                                        // alert('Ошибка удаления аватарки');
-                                        $('#errorModal').modal('show');
-                                    }
-                                },
-                                error: function () {
-                                    // alert('Ошибка удаления аватарки. Проверьте лог сервера.');
+                        $.ajax({
+                            url: `/admin/user/${userId}/delete-avatar`, // Указываем маршрут для удаления аватарки
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': token
+                            },
+                            success: function (response) {
+                                if (response.success) {
+                                    $('#confirm-img').attr('src', '/img/default.png'); // Устанавливаем аватарку по умолчанию
+                                    showSuccessModal("Удаление аватара", "Аватар успешно удален.");
+                                    toggleDeleteButton();
+                                } else {
+                                    // alert('Ошибка удаления аватарки');
                                     $('#errorModal').modal('show');
                                 }
-                            });
+                            },
+                            error: function () {
+                                // alert('Ошибка удаления аватарки. Проверьте лог сервера.');
+                                $('#errorModal').modal('show');
+                            }
+                        });
                         // }
                     });
-
-
-
-
-
-
-
 
 
             });
         }
 
-        // Открываем модалку и загружаем данные пользователя для редактирования
+        // ОКРЫТЫТЬ МОДАЛКУ ЮЗЕРА и загружаем его данные для редактирования UserController edit
         function editUserLink() {
             $('.edit-user-link').on('click', function () {
                 let userId = $(this).data('id'); // Получаем ID пользователя
-                let url = `/admin/users/${userId}/edit`; // Маршрут для получения данных пользователя (GET)
                 console.log('Открываем модалку для редактирования пользователя с ID:', userId);
-
 
                 // AJAX-запрос для получения данных пользователя
                 $.ajax({
-                    url: url,
+                    url: `/admin/users/${userId}/edit`,
                     method: 'GET',
+
                     success: function (response) {
-                        // Заполняем поля в модалке
+                        const current = response.currentUser;
+                        const isSuperadmin = current.isSuperadmin;
+                        console.log('\\Log full response =', response);
+
+                        // 1) Заполняем стандартные поля
                         $('#edit-user-form #edit-name').val(response.user.name);
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-team').val(response.user.team_id);
                         $('#edit-user-form #edit-start_date').val(response.user.start_date);
                         $('#edit-user-form #edit-email').val(response.user.email);
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
-                        $('#edit-user-form #role_id').val(response.user.role_id);
 
+                        // 2) Рисуем <option> для ролей из response.roles
+                        const roleSelect = $('#edit-user-form #role_id');
+                        roleSelect.empty();
+                        response.roles.forEach(function (role) {
+                            roleSelect.append(
+                                $('<option>', { value: role.id, text: role.label })
+                            );
+                        });
+                        roleSelect.val(response.user.role_id);
 
+                        // 3) Устанавливаем action формы
+                        $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);
 
-                        console.log('role_id from response:', response.user.role_id);
-                        console.log('options in #role_id:', $('#role_id').html());
-                        $('#role_id').val(response.user.role_id);
-                        console.log('Selected option:', $('#role_id').val());
-
-
-
-                        let fields = response.fields;
-                        let currentUser = response.currentUser;
-                        // Берём информацию о текущем юзере и о полях
-
-                        // Устанавливаем маршрут для обновления пользователя в форме
-                        $('#edit-user-form').attr('action', `/admin/users/${userId}`);
-
-                        // Проверяем, есть ли аватарка, и устанавливаем её в модалку
+                        // 4) Отображаем аватарку
                         if (response.user.image_crop) {
-                            $('#confirm-img').attr('src', `/storage/avatars/${response.user.image_crop}`); // Загружаем текущую аватарку
-                            console.log('Текущая аватарка пользователя:', response.user.image_crop);
+                            $('#confirm-img').attr('src', `/storage/avatars/${response.user.image_crop}`);
                         } else {
-                            $('#confirm-img').attr('src', '/img/default.png'); // Загружаем изображение по умолчанию, если аватарки нет
-                            console.log('Загружено изображение по умолчанию');
+                            $('#confirm-img').attr('src', '/img/default.png');
                         }
-                        // Проверяем и переключаем кнопку удаления аватарки
                         toggleDeleteButton();
 
+                        // 5) Заполняем кастомные поля
+                        const container = $('#custom-fields-container');
+                        container.empty();
 
-                        // Заполняем пользовательские поля
-                        let customFieldsContainer = $('#custom-fields-container');
-                        customFieldsContainer.empty(); // Очищаем контейнер перед заполнением
+                        const currentRoleId = response.currentUser.role_id;
+                        console.log('\\Log currentRoleId =', currentRoleId);
 
-                        //                 if (response.fields) {
-                        //                     response.fields.forEach(function (field) {
-                        //
-                        //                         // По умолчанию поле будет пустым.
-                        //                         let userValue = '';
-                        //
-                        //                         // Проверяем, существует ли блок полей у пользователя
-                        //                         // и ищем нужный slug.
-                        //                         if (response.user && response.user.fields) {
-                        //                             const userField = response.user.fields.find(function (uf) {
-                        //                                 return uf.slug === field.slug;
-                        //                             });
-                        //
-                        //                             // Если поле для данного slug есть у пользователя,
-                        //                             // подставляем значение.
-                        //                             if (userField) {
-                        //                                 userValue = userField.pivot.value || '';
-                        //                             }
-                        //                         }
-                        //
-                        //                         // Генерируем HTML с корректной value.
-                        //                         const fieldHtml = `
-                        //     <div class="mb-3 custom-field" data-slug="${field.slug}">
-                        //         <label for="custom-${field.slug}" class="form-label">${field.name}</label>
-                        //         <input
-                        //             type="text"
-                        //             name="custom[${field.slug}]"
-                        //             class="form-control"
-                        //             id="custom-${field.slug}"
-                        //             value="${userValue}"
-                        //         />
-                        //     </div>
-                        // `;
-                        //
-                        //                         customFieldsContainer.append(fieldHtml);
-                        //                     });
-                        //                 }
+                        response.fields.forEach(function (field, idx) {
+                            // 1) Значение поля для текущего пользователя
+                            let userValue = '';
+                            if (response.user.fields) {
+                                const uf = response.user.fields.find(uf => uf.slug === field.slug);
+                                if (uf) userValue = uf.pivot.value || '';
+                            }
 
 
-                        if (response.fields) {
-                            response.fields.forEach(function (field) {
-                                let userValue = '';
 
-                                // Ищем значение поля у пользователя (если есть)
-                                if (response.user && response.user.fields) {
-                                    const userField = response.user.fields.find(function (uf) {
-                                        return uf.slug === field.slug;
-                                    });
-                                    if (userField) {
-                                        userValue = userField.pivot.value || '';
-                                    }
-                                }
-
-                                // Проверяем, есть ли у текущего пользователя право редактировать
-                                // По условию: "Разрешено только тем ролям, которые указаны в permissions_id"
-                                // => если массив пуст, никто не может редактировать
-                                // => если currentUser.role_id нет в массиве, тоже нельзя
-                                let hasAccess = Array.isArray(field.permissions_id) &&
-                                    field.permissions_id.includes(String(currentUser.role_id));
-
-                                // Формируем атрибут disabled, если нет доступа
-                                let disabledAttr = hasAccess ? '' : 'disabled';
-                                console.log("isabledAttr");
-                                console.log(disabledAttr);
+                            // 2) Проверяем доступ по pivot‑таблице user_field_role
+                            //    (field.roles — массив ID ролей)
+                            console.log(`\\Log [Field ${field.slug}] roles =`, field.roles);
 
 
-                                // Генерируем HTML поля
-                                const fieldHtml = `
+                            const roles = Array.isArray(field.roles) ? field.roles : [];
+                            const hasAccess = isSuperadmin || roles.includes(current.role_id);
+
+
+                            // let hasAccess = Array.isArray(field.roles) && field.roles.includes(currentRoleId);
+                            console.log(`\\Log [Field ${field.slug}] hasAccess =`, hasAccess);
+
+
+
+                            let disabledAttr = hasAccess ? '' : 'disabled';
+
+                            // 3) Генерируем HTML
+                            const html = `
             <div class="mb-3 custom-field" data-slug="${field.slug}">
                 <label for="custom-${field.slug}" class="form-label">${field.name}</label>
                 <input
@@ -667,18 +609,13 @@
                 />
             </div>
         `;
+                            container.append(html);
+                        });
 
-                                // Добавляем в контейнер
-                                customFieldsContainer.append(fieldHtml);
-                            });
-                        } else {
-                            console.warn('Нет данных об extra-полях');
-                        }
-
-
-                        // Открываем модальное окно
+                        // 6) Открываем модалку
                         $('#editUserModal').modal('show');
                     },
+
                     error: function () {
                         console.error('Ошибка при загрузке данных пользователя');
                     }
@@ -706,7 +643,7 @@
                         showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлен.", 1);
                         console.log(response);
                     },
-                    error: function(response) {
+                    error: function (response) {
                         eroorRespone(response);
                     }
                 });
@@ -747,7 +684,6 @@
                 }
             );
         }
-
 
         clickToUpdatePhoto();
         editMidalUser();

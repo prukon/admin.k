@@ -46,6 +46,8 @@
                     <!-- Контент вкладки пользователей -->
                     @include('admin.setting.setting',
                     ['textForUsers' => $textForUsers,
+                    'partnerId' => $partnerId,
+                    'isRegistrationActive' => $isRegistrationActive,
                     ])
                 @elseif($activeTab === 'rule')
                     <!-- Контент вкладки организаций -->

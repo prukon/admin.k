@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany; // <- вот это
+
+
 
 class UserField extends Model
 {
@@ -38,12 +41,24 @@ class UserField extends Model
         return $this->hasMany(UserFieldValue::class, 'field_id');
     }
 
-    public function getRolesAttribute()
-    {
-        if (! $this->permissions_id) {
-            return collect();
-        }
+//    public function getRolesAttribute()
+//    {
+//        if (! $this->permissions_id) {
+//            return collect();
+//        }
+//
+//        return Role::whereIn('id', $this->permissions_id)->get();
+//    }
 
-        return Role::whereIn('id', $this->permissions_id)->get();
+
+
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Role::class,
+            'user_field_role',  // имя pivot‑таблицы
+            'user_field_id',    // FK этой модели
+            'role_id'           // FK связанной модели
+        );
     }
 }

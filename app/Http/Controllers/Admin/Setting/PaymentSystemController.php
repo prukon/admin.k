@@ -2,135 +2,134 @@
 
 namespace App\Http\Controllers\Admin\Setting;
 
-
 use App\Http\Controllers\Controller;
-use App\Models\PaymentSystem;
 use App\Models\Partner;
+use App\Models\PaymentSystem;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Auth;  // ← вот эта строка
 
 
 class PaymentSystemController extends Controller
 {
-
+    /**
+     * Список всех платёжных систем текущего партнёра
+     */
     public function index()
     {
-        $paymentSystems = PaymentSystem::with('partner')->get();
-        $partners = Partner::all();
-        $curUser = Auth::user();
-        $partnerId = $curUser->partner_id;
+        $partnerId = app('current_partner')->id;
+
+        // Все платёжные системы текущего партнёра
         $paymentSystems = PaymentSystem::where('partner_id', $partnerId)->get();
+
+        // Для выпадающего списка партнёров (если он вам нужен в интерфейсе)
+        $partners = Partner::all();
+
+        // Текущий пользователь (если в шаблоне используется)
+        $curUser = Auth::user();
+
+        // Выборки по имени для удобства
         $robokassa = $paymentSystems->firstWhere('name', 'robokassa');
-        $tbank = $paymentSystems->firstWhere('name', 'tbank');
+        $tbank     = $paymentSystems->firstWhere('name', 'tbank');
 
-        return view('admin.setting.index',
-            ['activeTab' => 'paymentSystem'],
-            compact(
-                "paymentSystems",
-                'partners',
-                'curUser',
-                'robokassa',
-                'tbank'
-            )
-        );
+        return view('admin.setting.index', [
+            'activeTab'      => 'paymentSystem',
+            'paymentSystems' => $paymentSystems,
+            'partners'       => $partners,      // ← передаём
+            'curUser'        => $curUser,       // ← передаём, если нужно
+            'robokassa'      => $robokassa,
+            'tbank'          => $tbank,
+        ]);
     }
-
+    /**
+     * Сохраняет (создаёт или обновляет) настройки платёжной системы
+     */
     public function store(Request $request)
     {
-        $user = Auth::user();
-
-        // Валидация
+        // 1) Валидация входных данных
         $validated = $request->validate([
-            'name' => 'required|string', // Например: "robokassa", "tbank", "yookassa"
-
-            // Всё, что относится к настройкам, валидируем «опционально»
-            // потому что у каждой системы может быть свой набор полей
-            'merchant_login' => 'nullable|string',
-            'password1' => 'nullable|string',
-            'password2' => 'nullable|string',
-            'test_mode' => 'nullable|boolean',
-
-
-            // TBank, например
-            'tbank_account_id' => 'nullable|string',
-            'tbank_key' => 'nullable|string',
+            'name'               => 'required|string',
+            'merchant_login'     => 'nullable|string',
+            'password1'          => 'nullable|string',
+            'password2'          => 'nullable|string',
+            'test_mode'          => 'nullable|boolean',
+            'tbank_account_id'   => 'nullable|string',
+            'tbank_key'          => 'nullable|string',
         ]);
 
-        // Ищем запись payment_systems: partner_id + name
+        $partnerId = app('current_partner')->id;
+
+        // 2) Ищем или создаём запись для этого партнёра + системы по имени
         $paymentSystem = PaymentSystem::firstOrNew([
-            'partner_id' => $user->partner_id,
-            'name' => $validated['name'],
+            'partner_id' => $partnerId,
+            'name'       => $validated['name'],
         ]);
 
-        // Берём старое значение settings (массив), если есть
+        // 3) Берём старые настройки (если есть)
         $settings = $paymentSystem->settings ?: [];
 
-        // Наполняем/перезаписываем поля внутри settings — всё, что нужно этой ПС
-        // Например, если name = "robokassa", сохраняем все поля, относящиеся к Робокассе:
-        if ($validated['name'] === 'robokassa') {
-            $settings['merchant_login'] = $validated['merchant_login'] ?? null;
-            $settings['password1'] = $validated['password1'] ?? null;
-            $settings['password2'] = $validated['password2'] ?? null;
-            $settings['test_mode'] = !empty($validated['test_mode']); // bool
+        // 4) Заполняем нужные поля в зависимости от name
+        switch ($validated['name']) {
+            case 'robokassa':
+                $settings['merchant_login'] = $validated['merchant_login'] ?? null;
+                $settings['password1']      = $validated['password1'] ?? null;
+                $settings['password2']      = $validated['password2'] ?? null;
+                $settings['test_mode']      = !empty($validated['test_mode']);
+                break;
+
+            case 'tbank':
+                $settings['tbank_account_id'] = $validated['tbank_account_id'] ?? null;
+                $settings['tbank_key']        = $validated['tbank_key'] ?? null;
+                break;
+
+            // при необходимости добавьте другие системы
         }
 
-        // Аналогично для TBank:
-        if ($validated['name'] === 'tbank') {
-            $settings['tbank_account_id'] = $validated['tbank_account_id'] ?? null;
-            $settings['tbank_key'] = $validated['tbank_key'] ?? null;
-        }
-
-        // Можно просто в любом случае писать что пришло:
-        // $settings = array_merge($settings, $request->only([...]));
-        // но пример выше чуть нагляднее.
-
-        // Записываем settings в модель (оно тут же будет зашифровано mutator-ом)
-        $paymentSystem->settings = $settings;
-
-
-        // Отдельно сохраняем test_mode
+        // 5) Сохраняем массив настроек (mutator его зашифрует) и флаг test_mode
+        $paymentSystem->settings  = $settings;
         $paymentSystem->test_mode = !empty($validated['test_mode']);
 
-
-        // Сохраняем
+        // 6) Сохраняем модель
         $paymentSystem->save();
 
-        // Возвращаем ответ (например, JSON)
         return response()->json([
-            'status' => 'success',
-            'message' => "Настройки для [{$validated['name']}] сохранены",
+            'status'  => 'success',
+            'message' => "Настройки [{$validated['name']}] успешно сохранены для партнёра #{$partnerId}",
         ]);
     }
 
-    public function show(Request $request, $name)
+    /**
+     * Возвращает текущие настройки платёжной системы по имени
+     */
+    public function show(Request $request, string $name)
     {
-        $user = Auth::user();
+        $partnerId = app('current_partner')->id;
 
-        $request->merge([
-            'test_mode' => filter_var($request->input('test_mode'), FILTER_VALIDATE_BOOLEAN),
-        ]);
-
-        $paymentSystem = PaymentSystem::where('partner_id', $user->id)
-            ->where('name', $name)
-            ->first();
+        $paymentSystem = PaymentSystem::where([
+            ['partner_id', '=', $partnerId],
+            ['name', '=', $name],
+        ])->first();
 
         if (!$paymentSystem) {
             return response()->json(['status' => 'not_found'], 404);
         }
 
         return response()->json([
-            'status' => 'success',
-            // settings уже будет расшифрован, т.к. срабатывает getSettingsAttribute
-            'data' => $paymentSystem->settings,
-            'test_mode' => $paymentSystem->test_mode,    // отдельный флаг
-
+            'status'    => 'success',
+            'data'      => $paymentSystem->settings,    // автоматически расшифруется через accessor
+            'test_mode' => $paymentSystem->test_mode,
         ]);
     }
 
-    public function destroy(PaymentSystem $paymentSystem)
+    /**
+     * Удаляет платёжную систему (только если она принадлежит текущему партнёру)
+     */
+    public function destroy(int $id)
     {
-        // Безопасность: только владелец может удалить
-        if ($paymentSystem->partner_id !== auth()->user()->partner_id) {
+        $partnerId = app('current_partner')->id;
+
+        $paymentSystem = PaymentSystem::findOrFail($id);
+
+        if ($paymentSystem->partner_id !== $partnerId) {
             return response()->json(['message' => 'Доступ запрещён'], 403);
         }
 
@@ -138,7 +137,4 @@ class PaymentSystemController extends Controller
 
         return response()->json(['success' => true]);
     }
-
-
-
 }
