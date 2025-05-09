@@ -47,10 +47,10 @@ class TeamController extends Controller
             'weekdays'));
     }
 
-    public function create(Team $team)
-    {
-        return view("admin.team.create");
-    }
+//    public function create(Team $team)
+//    {
+//        return view("admin.team.create");
+//    }
 
 
     public function store(StoreRequest $request)
@@ -90,6 +90,8 @@ class TeamController extends Controller
 
     public function update(UpdateRequest $request, $id)
     {
+        $partnerId = app('current_partner')->id;
+
         $authorId = auth()->id();
         $data = $request->validated();
 
@@ -101,7 +103,7 @@ class TeamController extends Controller
             return response()->json(['error' => 'Команда не найдена или не имеет ID'], 404);
         }
 
-        DB::transaction(function () use ($data, $authorId, $team) {
+        DB::transaction(function () use ($data, $authorId, $team, $partnerId) {
             // Создаём копию данных с подгруженными днями недели
             $oldData = $team->replicate();
             $oldData->setRelation('weekdays', $team->weekdays); // Подгружаем связанные данные в копию
@@ -131,6 +133,7 @@ class TeamController extends Controller
                 'type' => 3,
                 'action' => 32,
                 'author_id' => $authorId,
+                'partner_id'  => $partnerId,
                 'description' => sprintf(
                     "Старые данные:
                     Название: %s, дни недели: %s, сортировка: %s, активность: %s.
@@ -157,9 +160,11 @@ class TeamController extends Controller
 
     public function delete(Team $team)
     {
+        $partnerId = app('current_partner')->id;
+
         $authorId = auth()->id(); // Авторизованный пользователь
 
-        DB::transaction(function () use ($team, $authorId) {
+        DB::transaction(function () use ($team, $authorId, $partnerId) {
             // Обновляем пользователей, устанавливая team_id в null
             \App\Models\User::where('team_id', $team->id)->update(['team_id' => null]);
 
@@ -171,6 +176,8 @@ class TeamController extends Controller
                 'type' => 3, // Лог для обновления групп
                 'action' => 33,
                 'author_id' => $authorId,
+                'partner_id'  => $partnerId,
+
                 'description' => "Группа удалена: {$team->title}. ID: {$team->id}.",
                 'created_at' => now(),
             ]);
@@ -181,8 +188,12 @@ class TeamController extends Controller
 
     public function log(FilterRequest $request)
     {
+        $partnerId = app('current_partner')->id;
+
         $logs = MyLog::with('author')
             ->where('type', 3) // Team логи
+            ->where('partner_id', $partnerId)        // ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
+
             ->select('my_logs.*');
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {

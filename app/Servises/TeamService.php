@@ -101,10 +101,13 @@ class TeamService
 
     private function logCreation(int $authorId, string $description): void
     {
+        $partnerId = app('current_partner')->id;
+
         MyLog::create([
             'type' => 3,
             'action' => 31,
             'author_id' => $authorId,
+            'partner_id'  => $partnerId,
             'description' => $description,
             'created_at' => Carbon::now(),
         ]);
