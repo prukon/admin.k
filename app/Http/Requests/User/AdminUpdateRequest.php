@@ -63,7 +63,8 @@ class AdminUpdateRequest extends FormRequest
         }
 
         if ($this->user()->can('changing-user-rules')) {
-            $rules['role_id'] = 'required|integer|exists:roles,id';
+//            $rules['role_id'] = 'required|integer|exists:roles,id';
+            $rules['role_id'] = 'integer|exists:roles,id';
         }
 
         if ($this->user()->can('changing-user-email')) {
@@ -119,7 +120,7 @@ class AdminUpdateRequest extends FormRequest
             'is_enabled.boolean' => 'Поле "Активность" должно быть истинным или ложным.',
 
             // Сообщения для role_id
-            'role_id.required' => 'Пожалуйста, выберите роль.',
+//            'role_id.required' => 'Пожалуйста, выберите роль.',
             'role_id.integer'  => 'Некорректный формат роли.',
             'role_id.exists'   => 'Выбранная роль не существует в базе.',
         ];

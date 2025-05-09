@@ -69,14 +69,14 @@ class AccountSettingController extends Controller
 
     public function update(AdminUpdateRequest $request, User $user)
     {
-
+        $partnerId = app('current_partner')->id;
         $authorId = auth()->id(); // Авторизованный пользователь
         $oldData = User::where('id', $authorId)->first();
         $user = Auth::user();
 
         $data = $request->validated();
 
-        DB::transaction(function () use ($user, $authorId, $data, $oldData, $request) {
+        DB::transaction(function () use ($user, $authorId, $data, $oldData, $request, $partnerId) {
 
             $this->service->update($user, $data);
             $authorName = User::where('id', $authorId)->first()->name;
@@ -89,6 +89,7 @@ class AccountSettingController extends Controller
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 23, // Лог для обновления учетной записи
+                'partner_id'  => $partnerId,
                 'author_id' => $authorId,
                 'description' => "Имя: $authorName. ID: $authorId. 
                 Старые:\n ( $oldData->name, " . Carbon::parse($oldData->birthday)->format('d.m.Y') . ", $oldData->email). 
@@ -111,7 +112,7 @@ class AccountSettingController extends Controller
 
     public function updatePassword(Request $request)
     {
-
+        $partnerId = app('current_partner')->id;
         $request->validate([
             'password' => 'required|min:8',
         ]);
@@ -120,7 +121,7 @@ class AccountSettingController extends Controller
 //        $user = User::findOrFail($id);
         $user = User::findOrFail($authorId);
 
-        DB::transaction(function () use ($user, $authorId, $request) {
+        DB::transaction(function () use ($user, $authorId, $request, $partnerId) {
 
             $user->password = Hash::make($request->password);
             $user->save();
@@ -129,6 +130,7 @@ class AccountSettingController extends Controller
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 26, // Лог для обновления учетной записи
                 'author_id' => $authorId,
+                'partner_id'  => $partnerId,
                 'description' => ($user->name . " изменил пароль."),
                 'created_at' => now(),
             ]);
@@ -139,10 +141,10 @@ class AccountSettingController extends Controller
     //обновление аватарки юзером
     public function uploadAvatar(Request $request)
     {
+        $partnerId = app('current_partner')->id;
         $request->validate([
             'croppedImage' => 'required|string',
         ]);
-
         $userName = $request->input('userName');
         $user = User::where('name', $userName)->first();
 
@@ -160,7 +162,7 @@ class AccountSettingController extends Controller
             $fileName = Str::random(10) . '.png';
             $path = public_path('storage/avatars/' . $fileName);
 
-            DB::transaction(function () use ($path, $imageData, $user, $fileName, $authorId, $userName) {
+            DB::transaction(function () use ($path, $imageData, $user, $fileName, $authorId, $userName, $partnerId) {
 
                 // Сохраняем файл
                 file_put_contents($path, $imageData);
@@ -173,6 +175,7 @@ class AccountSettingController extends Controller
                     'type' => 2, // Лог для обновления юзеров
                     'action' => 28, // Лог для обновления учетной записи
                     'author_id' => $authorId,
+                    'partner_id'  => $partnerId,
                     'description' => ($userName . " изменил аватар."),
                     'created_at' => now(),
                 ]);
@@ -187,8 +190,8 @@ class AccountSettingController extends Controller
     //обновление аватарки админином
     public function updateAvatar(Request $request, User $user)
     {
+        $partnerId = app('current_partner')->id;
         $authorId = auth()->id(); // Авторизованный пользователь
-
         // Проверка наличия аватарки в запросе
         if ($request->has('avatar')) {
             $avatar = $request->input('avatar'); // Получаем данные base64 из запроса
@@ -212,7 +215,7 @@ class AccountSettingController extends Controller
                 $imageName = Str::random(10) . '.' . $type;
                 $path = public_path('/storage/avatars/' . $imageName);
 
-                DB::transaction(function () use ($path,  $user,  $authorId, $avatar, $imageName) {
+                DB::transaction(function () use ($path,  $user,  $authorId, $avatar, $imageName, $partnerId) {
 
                     // Сохранение изображения на сервере
                     if (file_put_contents($path, $avatar) === false) {
@@ -227,6 +230,7 @@ class AccountSettingController extends Controller
                         'type' => 2, // Лог для обновления юзеров
                         'action' => 27, // Лог для обновления учетной записи
                         'author_id' => $authorId,
+                        'partner_id'  => $partnerId,
                         'description' => ("Пользователю " . $user->name . " изменен аватар."),
                         'created_at' => now(),
                     ]);
@@ -246,6 +250,7 @@ class AccountSettingController extends Controller
 
     public function deleteAvatar(User $user)
     {
+
         // Проверяем, существует ли файл аватарки
         if ($user->image_crop && file_exists(public_path('storage/avatars/' . $user->image_crop))) {
             // Удаляем файл аватарки
@@ -255,12 +260,14 @@ class AccountSettingController extends Controller
 
             // Обновляем запись пользователя, устанавливая аватарку по умолчанию
             $user->update(['image_crop' => null]);
+            $partnerId = app('current_partner')->id;
 
             // Логируем удаление аватарки
             MyLog::create([
                 'type' => 2,
                 'action' => 29,
                 'author_id' => auth()->id(),
+                'partner_id'  => $partnerId,
                 'description' => $user->name . " удалил аватар.",
                 'created_at' => now(),
             ]);

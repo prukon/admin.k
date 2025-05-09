@@ -15,9 +15,7 @@ class UserService
     //  - Создание учетной записи юзера
     public function store($data)
     {
-
         return User::create($data);
-
     }
 
 
@@ -93,7 +91,6 @@ class UserService
         }
     }
 
-    //  - Редактировние юзера на старанице Юзеры
     public function delete($user)
     {
         $user->delete();
