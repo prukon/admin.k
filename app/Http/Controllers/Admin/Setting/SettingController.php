@@ -91,6 +91,7 @@ class SettingController extends Controller
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
+                'partner_id'  => $partnerId,
                 'description' => ("Включение регистрации в сервисе: " . $isRegistrationActivityValue),
                 'created_at' => now(),
             ]);
@@ -128,6 +129,7 @@ class SettingController extends Controller
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
+                'partner_id'  => $partnerId,
                 'description' => ("Изменение текста уведомления: " . $textForUsers),
                 'created_at' => now(),
             ]);
@@ -321,7 +323,7 @@ class SettingController extends Controller
             return response()->json(['success' => false, 'errors' => $errors], 422);
         }
 
-        DB::transaction(function () use ($partnerId, $authorId, $validatedData) {
+        DB::transaction(function () use ($authorId, $validatedData, $partnerId) {
             $oldItems = [];
             $newItems = [];
 
@@ -363,6 +365,7 @@ class SettingController extends Controller
                 'type'       => 1,
                 'action'     => 70,
                 'author_id'  => $authorId,
+                'partner_id'  => $partnerId,
                 'description'=> $description,
                 'created_at' => now(),
             ]);
@@ -377,6 +380,7 @@ class SettingController extends Controller
         $partnerId = app('current_partner')->id;
         $logs = MyLog::with('author')
 //            ->where('type', 1) // Добавляем условие для фильтрации по type
+            ->where('partner_id', $partnerId)        // ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
             ->select('my_logs.*');
 
         return DataTables::of($logs)

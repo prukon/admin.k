@@ -26,10 +26,8 @@ use Illuminate\Support\Str;               // ← вот это
 
 class RuleController extends Controller
 {
-
     //ВКЛАДКА РОЛИ
     //Страница права пользователей
-
     public function showRules()
     {
         // 1) Контекст
@@ -92,167 +90,7 @@ class RuleController extends Controller
         return response()->json(['success' => true]);
     }
 
-
     //* Метод для создания новой роли (AJAX).
-    public function createRole2(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'label'      => 'string|max:255',
-            'is_sistem'  => 'sometimes|boolean',
-//            'order_by'   => 'string|integer',
-            'is_visible' => 'sometimes|boolean',
-        ]);
-
-        // Определим максимальное значение order_by
-        $maxOrderBy = Role::max('order_by') ?? 0;
-
-        $role = new Role();
-        $role->name = $request->input('name');
-        $role->label = $request->input('name');  // или другое
-        $role->is_sistem = 0;                    // пользовательские роли
-        $role->order_by = $maxOrderBy + 10;
-
-        // Можно считать, что is_visible придёт, если хотим явно регулировать видимость,
-        // например:
-        if ($request->has('is_visible')) {
-            $role->is_visible = $request->boolean('is_visible');
-        } else {
-            // по умолчанию пусть будет true
-            $role->is_visible = true;
-        }
-
-
-
-        DB::transaction(function () use ($request, $role) {
-            // Определим максимальное значение order_by
-
-            $role->save();
-
-            $authorId = auth()->id(); // Авторизованный пользователь
-
-            // Логируем создание пользователя
-            MyLog::create([
-                'type' => 700,    // Лог для ролей
-                'action' => 710, // Лог для создания роли
-                'author_id' => $authorId,
-                'description' => sprintf(
-                    "Название: %s",
-                    $role->name
-                    ),
-                'created_at' => now(),
-            ]);
-
-        });
-
-        return response()->json([
-            'success' => true,
-            'role' => $role
-        ]);
-
-    }
-
-    public function createRole3(Request $request)
-    {
-        // 1. Валидация входных данных
-        $data = $request->validate([
-            'name'       => 'required|string|max:255|unique:roles,name',
-            'label'      => 'nullable|string|max:255',
-            'is_sistem'  => 'sometimes|boolean',
-            'is_visible' => 'sometimes|boolean',
-        ]);
-
-        // 2. Контекст: текущий партнёр
-        $partnerId = app('current_partner')->id;
-
-        // 3. Вычисляем порядок (order_by)
-        $maxOrderBy = Role::max('order_by') ?? 0;
-
-        // 4. Создаём новую роль, но пока не сохраняем
-        $role = new Role([
-            'name'       => $data['name'],
-            'label'      => $data['label'] ?? $data['name'],
-            'is_sistem'  => $data['is_sistem'] ?? 0,    // всегда 0 для пользовательских
-            'is_visible' => $data['is_visible'] ?? true,
-            'order_by'   => $maxOrderBy + 10,
-        ]);
-
-        // 5. Сохраняем роль и сразу привязываем её к партнёру в одной транзакции
-        DB::transaction(function () use ($role, $partnerId) {
-            $role->save();
-
-            // Pivot partner_role: привязываем роль к текущему партнёру
-            $role->partners()->attach($partnerId);
-
-            // Логируем создание
-            MyLog::create([
-                'type'        => 700,
-                'action'      => 710,
-                'author_id'   => auth()->id(),
-                'description' => sprintf("Создана роль: %s", $role->name),
-                'created_at'  => now(),
-            ]);
-        });
-
-        // 6. Возвращаем результат
-        return response()->json([
-            'success' => true,
-            'role'    => $role,
-        ]);
-    }
-
-    public function createRole4(Request $request)
-    {
-        // 1. Валидация
-        $data = $request->validate([
-            'name'       => 'required|string|max:255|unique:roles,name',
-            'is_sistem'  => 'sometimes|boolean',
-            'is_visible' => 'sometimes|boolean',
-        ]);
-
-        // 2. Текущий партнёр
-        $partnerId = app('current_partner')->id;
-
-        // 3. Транслитерация для label
-        //    Используем Str::slug, разделитель — нижнее подчёркивание
-        $translitLabel = Str::slug($data['name'], '_');
-
-        // 4. Вычисляем новый порядок
-        $maxOrderBy = Role::max('order_by') ?? 0;
-
-        // 5. Создаём объект Role
-        $role = new Role([
-            'name'       => $data['name'],
-            'label'      => $translitLabel,
-            'description'=> null,
-            'is_sistem'  => $data['is_sistem'] ?? 0,
-            'is_visible' => $data['is_visible'] ?? true,
-            'sort_order' => $maxOrderBy + 10,  // если колонка называется sort_order
-        ]);
-
-        // 6. Сохраняем и привязываем к партнёру в транзакции
-        DB::transaction(function () use ($role, $partnerId) {
-            $role->save();
-
-            // pivot partner_role
-            $role->partners()->attach($partnerId);
-
-            // Логируем событие
-            MyLog::create([
-                'type'        => 700,
-                'action'      => 710,
-                'author_id'   => auth()->id(),
-                'description' => "Создана роль: {$role->name}, label: {$role->label}",
-                'created_at'  => now(),
-            ]);
-        });
-
-        return response()->json([
-            'success' => true,
-            'role'    => $role,
-        ]);
-    }
-
     public function createRole(Request $request)
     {
         // 1) Валидация: у нас в форме <input name="name">
@@ -299,6 +137,7 @@ class RuleController extends Controller
                 'type'        => 700,
                 'action'      => 710,
                 'author_id'   => auth()->id(),
+                'partner_id'  => $partnerId,
                 'description' => "Создана роль: {$role->label} (name={$role->name})",
                 'created_at'  => now(),
             ]);
@@ -310,10 +149,11 @@ class RuleController extends Controller
         ]);
     }
 
-
     //* Метод для удаления  роли (AJAX).
     public function deleteRole(Request $request)
     {
+        $partnerId = app('current_partner')->id;
+
         $request->validate([
             'role_id' => 'required|integer|exists:roles,id',
         ]);
@@ -336,7 +176,7 @@ class RuleController extends Controller
             ]
         );
 
-        DB::transaction(function () use ($role, $defaultRole) {
+        DB::transaction(function () use ($role, $defaultRole, $partnerId) {
             DB::table('permission_role')
                 ->where('role_id', $role->id)
                 ->delete();
@@ -353,6 +193,7 @@ class RuleController extends Controller
                 'type' => 700,    // Лог для ролей
                 'action' => 730, // Лог для удаления роли
                 'author_id' => $authorId,
+                'partner_id'  => $partnerId,
                 'description' => sprintf(
                     "Название: %s",
                     $role->name
@@ -369,8 +210,12 @@ class RuleController extends Controller
     //Журнал логов на вкладке права
     public function logRules(FilterRequest $request)
     {
+        $partnerId = app('current_partner')->id;
+
         $logs = MyLog::with('author')
             ->where('type', 700) // Настройки логи
+            ->where('partner_id', $partnerId)        // ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
+
             ->select('my_logs.*');
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {
