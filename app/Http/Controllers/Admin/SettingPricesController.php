@@ -310,8 +310,8 @@ class SettingPricesController extends Controller
         return view('admin.settingPrices', compact(
             'allTeams',
             'monthString',
-            'teamPrices',
-            'logs'
+            'teamPrices'
+//            'logs'
         ));
     }
 
@@ -508,7 +508,7 @@ class SettingPricesController extends Controller
 
     /**
      * Помогает преобразовать строку "Сентябрь 2024" в YYYY-MM-01
-     */ 
+     */
     protected function formatedDate(string $monthString): string
     {
         // Ваши реализации: разбить на месяц и год, собрать дату первого числа
