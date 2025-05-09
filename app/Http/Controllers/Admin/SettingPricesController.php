@@ -65,207 +65,6 @@ class SettingPricesController extends Controller
         }
     }
 
-    public function indexOld(FilterRequest $request)
-    {
-        $partnerId = app('current_partner')->id;
-
-        $allTeams = Team::all();
-        $teamPrices = collect(); // Пустая коллекция по умолчанию
-        $logs = MyLog::with('author')
-            ->where('partner_id', $partnerId)
-            ->orderBy('created_at', 'desc')->get();
-
-        if (isset($_GET['current-month'])) {
-
-            function mb_ucfirst($string, $encoding = 'UTF-8')
-            {
-                return mb_strtoupper(mb_substr($string, 0, 1, $encoding), $encoding) .
-                    mb_substr($string, 1, null, $encoding);
-            }
-
-            Carbon::setLocale('ru');
-            $currentDate = mb_ucfirst(Carbon::now()->translatedFormat('F Y'));
-            $currentDateString = $currentDate;
-//            dump($currentDate);
-
-            $setting = Setting::firstOrCreate([], ['date' => $currentDate]);
-
-            if ($setting) {
-                // Изменяем поле date на новое значение
-                $setting->date = $currentDate; // Здесь можно использовать $month или любую другую логику для определения нового значения
-                // Сохраняем изменения в базе данных
-                $setting->save();
-            }
-
-            //преобразование даты "Сентябрь 2024" из строки в date формат
-            $currentDate = $this->formatedDate($currentDate);
-
-
-            //нужно заполнить $teamPrices при первичном открытии месяца из меню (не из селекта)
-            foreach ($allTeams as $team) {
-                TeamPrice::firstOrCreate(
-                    [
-                        'team_id' => $team->id,
-                        'new_month' => $currentDate
-                    ],
-                    [
-                        'price' => 0 // можно задать дефолтное значение для price, если нужно
-                    ]
-                );
-            }
-
-//         Устанавливаем локаль на русском
-            if ($currentDate) {
-                $teamPrices = TeamPrice::where('new_month', $currentDate)
-                    ->whereHas('team', function($query) {
-                        $query->whereNull('deleted_at');
-                    })
-                    ->get();
-            }
-
-        } else {
-            $currentDate = Setting::where('id', 1)->first();
-            $currentDate = $currentDate->date;
-            $currentDateString = $currentDate;
-            $currentDate = $this->formatedDate($currentDate);
-            if ($currentDate) {
-                $teamPrices = TeamPrice::where('new_month', $currentDate)->get();
-            }
-
-        }
-
-        return view("admin/settingPrices", compact(
-            "allTeams",
-            'currentDate',
-            'currentDateString',
-            'teamPrices',
-            'logs'
-        ));
-    }
-
-    public function index2(FilterRequest $request)
-    {
-        // Текущий партнёр
-        $partnerId = app('current_partner')->id;
-
-        // 1) Все команды этого партнёра
-        $allTeams = Team::where('partner_id', $partnerId)
-            ->whereNull('deleted_at')
-            ->get();
-
-        // 2) Логи этого партнёра
-        $logs = MyLog::with('author')
-            ->where('partner_id', $partnerId)
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // 3) Определяем, нажали ли на «текущий месяц» в меню
-        $isMenuRequest = $request->filled('current-month');
-
-        // 4) Формируем строку месяца, например «Апрель 2025»
-        if ($isMenuRequest) {
-            Carbon::setLocale('ru');
-            $monthString = Str::ucfirst(Carbon::now()->translatedFormat('F Y'));
-        } else {
-            // Берём или создаём Setting для партнёра
-            $setting = Setting::firstOrCreate(
-                ['partner_id' => $partnerId],
-                ['date'       => Str::ucfirst(
-                    Carbon::now()->locale('ru')
-                        ->translatedFormat('F Y')
-                )]
-            );
-            $monthString = $setting->date;
-        }
-
-        // 5) Обновляем Setting на новый месяц (если нужно)
-        Setting::updateOrCreate(
-            ['partner_id' => $partnerId],
-            ['date'       => $monthString]
-        );
-
-        // 6) Преобразуем текст «Май 2025» в date для фильтрации
-        $monthDate = $this->formatedDate($monthString);
-
-        // 7) При первичном заходе по меню создаём записи TeamPrice
-        if ($isMenuRequest) {
-            foreach ($allTeams as $team) {
-                TeamPrice::firstOrCreate(
-                    [
-                        'team_id'   => $team->id,
-                        'new_month' => $monthDate,
-                    ],
-                    [
-                        'price' => 0,
-                    ]
-                );
-            }
-        }
-
-        // 8) Забираем все TeamPrice за этот месяц у команд партнёра
-        $teamPrices = TeamPrice::with('team')
-            ->where('new_month', $monthDate)
-            ->whereHas('team', function($q) use ($partnerId) {
-                $q->where('partner_id', $partnerId)
-                    ->whereNull('deleted_at');
-            })
-            ->get();
-
-        // 9) Отдаём данные в шаблон
-        return view('admin.settingPrices', compact(
-            'allTeams',
-            'monthDate',
-            'monthString',
-            'teamPrices',
-            'logs'
-        ));
-    }
-
-    public function index3(FilterRequest $request)
-    {
-        // 1) Получаем команды партнёра
-        $partnerId = app('current_partner')->id;
-        $allTeams  = Team::where('partner_id', $partnerId)
-            ->whereNull('deleted_at')
-            ->get();
-
-        // 2) Вычисляем текущий месяц
-        Carbon::setLocale('ru');
-        $monthString = Str::ucfirst( Carbon::now()->translatedFormat('F Y') );
-        $monthDate   = $this->formatedDate($monthString);
-
-        // 3) Убеждаемся, что для всех команд есть записи TeamPrice
-        foreach ($allTeams as $team) {
-            TeamPrice::firstOrCreate([
-                'team_id'   => $team->id,
-                'new_month' => $monthDate,
-            ], [
-                'price' => 0,
-            ]);
-        }
-
-        // 4) Загружаем логи и цены
-        $logs = MyLog::with('author')
-            ->where('partner_id', $partnerId)
-            ->orderBy('created_at','desc')
-            ->get();
-
-        $teamPrices = TeamPrice::with('team')
-            ->where('new_month', $monthDate)
-            ->whereHas('team', fn($q) =>
-            $q->where('partner_id', $partnerId)
-        )
-        ->get();
-
-    // 5) Возвращаем в шаблон
-    return view('admin.settingPrices', [
-        'allTeams'     => $allTeams,
-        'monthString'  => $monthString,
-        'teamPrices'   => $teamPrices,
-        'logs'         => $logs,
-    ]);
-}
-
     public function index(FilterRequest $request)
     {
         $partnerId = app('current_partner')->id;
@@ -314,7 +113,6 @@ class SettingPricesController extends Controller
 //            'logs'
         ));
     }
-
 
     // AJAX ПОДРОБНО. Получение списка пользователей
     public function getTeamPrice(Request $request)
@@ -369,103 +167,6 @@ class SettingPricesController extends Controller
     }
 
     // AJAX SELECT DATE. Обработчик изменения даты
-    public function updateDateOld(Request $request)
-    {
-        $allTeams = Team::all();
-
-        $month = ucfirst($request->query('month')); // Преобразуем первую букву месяца в заглавную
-
-        $formatedMonth = $this->formatedDate($month);
-//        dd($formatedMonth);
-        if ($month) {
-            $setting = Setting::firstOrCreate([], ['date' => $month]);
-            if ($setting) {
-                // Изменяем поле date на новое значение
-                $setting->date = $month; // Здесь можно использовать $month или любую другую логику для определения нового значения
-                // Сохраняем изменения в базе данных
-                $setting->save();
-
-                foreach ($allTeams as $team) {
-                    TeamPrice::firstOrCreate(
-                        [
-                            'team_id' => $team->id,
-                            'new_month' => $formatedMonth
-                        ],
-                        [
-                            'price' => 0 // можно задать дефолтное значение для price, если нужно
-                        ]
-                    );
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'month' => $month,
-                ]);
-            } else {
-                return response()->json([
-                    'success' => false]);
-            }
-        }
-    }
-
-    public function updateDate2(Request $request)
-    {
-        // 1) Валидация входных данных
-        $request->validate([
-            'month' => 'required|string|max:255',
-        ]);
-
-
-
-        // 2) Сохраняем выбор месяца в сессии
-        $month = ucfirst($request->input('month'));
-        session(['prices_month' => $month]);
-
-
-
-        // 3) Преобразуем строку вида "Сентябрь 2024" в date для new_month
-        $formatedMonth = $this->formatedDate($month);
-
-        // 4) Берём команды только текущего партнёра
-        $partnerId = app('current_partner')->id;
-        $teams = Team::where('partner_id', $partnerId)
-            ->whereNull('deleted_at')
-            ->get();
-
-        // 5) Для каждой команды создаём запись TeamPrice если её нет
-        foreach ($teams as $team) {
-            TeamPrice::firstOrCreate(
-                [
-                    'team_id'   => $team->id,
-                    'new_month' => $formatedMonth,
-                ],
-                [
-                    'price' => 0,
-                ]
-            );
-        }
-
-        // 6) Возвращаем успех и строку месяца
-        return response()->json([
-            'success' => true,
-            'month'   => $month,
-        ]);
-    }
-
-
-    public function updateDate3(Request $request)
-    {
-        $request->validate([
-            'month' => 'required|string|max:255',
-        ]);
-
-        // сохраняем в сессии
-        session(['prices_month' => ucfirst($request->input('month'))]);
-
-        return response()->json(['success' => true]);
-    }
-
-
     public function updateDate(Request $request)
     {
         // 1) Валидация входного параметра
@@ -526,11 +227,10 @@ class SettingPricesController extends Controller
         return sprintf('%04d-%02d-01', (int)$year, $mNum);
     }
 
-
     //AJAX Кнопка ОК. Установка цен группе и юзерам.
     public function setTeamPrice(Request $request)
     {
-
+        $partnerId = app('current_partner')->id;
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
         $teamPrice = $data['teamPrice'] ?? null;
@@ -545,7 +245,7 @@ class SettingPricesController extends Controller
         $selectedDate = $this->formatedDate($selectedDate);
 
 
-        DB::transaction(function () use ($teamId, $selectedDate, $teamPrice, $authorId, $teamTitle, $selectedDateString) {
+        DB::transaction(function () use ($teamId, $selectedDate, $teamPrice, $authorId, $teamTitle, $selectedDateString, $partnerId) {
 
             TeamPrice::updateOrCreate(
                 [
@@ -561,6 +261,7 @@ class SettingPricesController extends Controller
                 'type' => 1,
                 'action' => 13, // Изменение цен в одной группе
                 'author_id' => $authorId,
+                'partner_id'  => $partnerId,
                 'description' => "Обновлена цена : {$teamPrice} руб. Группа: {$teamTitle}. ID: {$teamId}. Дата: {$selectedDateString}.",
                 'created_at' => now(),
             ]);
@@ -609,6 +310,7 @@ class SettingPricesController extends Controller
     //AJAX ПРИМЕНИТЬ слева.Установка цен всем группам
     public function setPriceAllTeams(Request $request)
     {
+        $partnerId = app('current_partner')->id;
 
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
@@ -621,9 +323,7 @@ class SettingPricesController extends Controller
         }
 
 
-//        $teamsData = json_decode($request->query('teamsData'), true);
-//        $selectedDate = json_decode($request->query('selectedDate'), true);
-//        $selectedDate = $request->query('selectedDate');
+
         $selectedDateString = $selectedDate;
         $selectedDate = $this->formatedDate($selectedDate);
 
@@ -635,7 +335,7 @@ class SettingPricesController extends Controller
         $authorId = auth()->id(); // Авторизованный пользователь
 
 
-        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $teamsData) {
+        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $teamsData, $partnerId) {
 
             // Перебираем массив и обновляем цены команд
             foreach ($teamsData as $teamData) {
@@ -659,6 +359,7 @@ class SettingPricesController extends Controller
                         'type' => 1,
                         'action' => 11, // Изменение цен во всех группах
                         'author_id' => $authorId,
+                        'partner_id'  => $partnerId,
                         'description' => "Обновлена цена: {$teamData['price']} руб. Команда: {$teamId}. ID: {$teamId}. Дата: {$selectedDateString}.",
                         'created_at' => now(),
                     ]);
@@ -707,6 +408,8 @@ class SettingPricesController extends Controller
     //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
     public function setPriceAllUsers(Request $request)
     {
+        $partnerId = app('current_partner')->id;
+
         // Получаем JSON-содержимое запроса и декодируем его
         $data = json_decode($request->getContent(), true);
 
@@ -724,7 +427,7 @@ class SettingPricesController extends Controller
         $selectedDateString = $selectedDate;
         $selectedDate = $this->formatedDate($selectedDate); // Предполагаем, что эта функция существует для форматирования даты
 
-        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice) {
+        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice, $partnerId) {
             foreach ($usersPrice as $priceData) {
                 $userPriceRecord = UserPrice::where('user_id', $priceData['user_id'])
                     ->where('new_month', $selectedDate)
@@ -748,6 +451,7 @@ class SettingPricesController extends Controller
                             'type' => 1,
                             'action' => 12, // Лог для обновления цены команды
                             'author_id' => $authorId,
+                            'partner_id'  => $partnerId,
                             'description' => "Обновлена цена: {$priceData['price']} руб. Имя: {$userName}. ID: {$priceData['user_id']}. Дата: {$selectedDateString}.",
                             'created_at' => now(),
                         ]);
@@ -770,8 +474,11 @@ class SettingPricesController extends Controller
     // Метод для обработки DataTables запросов
     public function getLogsData()
     {
+        $partnerId = app('current_partner')->id;
+
         $logs = MyLog::with('author')
             ->where('type', 1) // Добавляем условие для фильтрации по type
+            ->where('partner_id', $partnerId)        // ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
             ->select('my_logs.*');
 
         return DataTables::of($logs)
