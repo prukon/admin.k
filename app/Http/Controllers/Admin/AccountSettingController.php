@@ -39,20 +39,44 @@ class AccountSettingController extends Controller
 
     public function user()
     {
+        $partnerId = app('current_partner')->id;
         $allTeams = Team::All();
         $user = Auth::user();
         $partners = $user->partners;
         $currentUser = Auth::user();
 
-        $fields = UserField::all();
+        // Изменено: загружаем вместе с отношением roles
+        $fields = UserField::where('partner_id', $partnerId)
+            ->with('roles')
+            ->get();
+
+
+
+
+
         $userFieldValues = UserFieldValue::where('user_id', $user->id)->pluck('value', 'field_id');
 
-        //Определяем какие поля можно редактировать
-        $editableFields = $fields->mapWithKeys(function ($field) use ($user) {
-            $permissions = $field->permissions ?? []; // Убираем json_decode
-            $isEditable = empty($permissions) || in_array($user->role, $permissions);
+
+        // Определяем какие поля можно редактировать
+        $editableFields = $fields->mapWithKeys(function ($field) use ($currentUser) {
+            // Изменено: получаем допустимые роли из pivot
+            $allowedRoleIds = $field->roles->pluck('id')->toArray();
+            // Изменено: проверяем по role_id вместо JSON
+            $isEditable = empty($allowedRoleIds) || in_array($currentUser->role_id, $allowedRoleIds);
             return [$field->id => $isEditable];
         });
+
+        // контроллер, метод user()
+        $editableFields = $fields->mapWithKeys(function ($field) use ($currentUser) {
+            $allowedRoleIds = $field->roles->pluck('id')->toArray();
+            $isEditable = in_array($currentUser->role_id, $allowedRoleIds);
+            return [$field->id => $isEditable];
+        });
+
+
+
+
+
 
 
         return view('account.index',  ['activeTab' => 'user'], compact(
@@ -67,7 +91,7 @@ class AccountSettingController extends Controller
 
     }
 
-    public function update(AdminUpdateRequest $request, User $user)
+    public function update2(AdminUpdateRequest $request, User $user)
     {
         $partnerId = app('current_partner')->id;
         $authorId = auth()->id(); // Авторизованный пользователь
@@ -109,6 +133,91 @@ class AccountSettingController extends Controller
 
 
     }
+
+
+    public function update(AdminUpdateRequest $request, User $user)
+    {
+        $partnerId = app('current_partner')->id;
+        $authorId  = Auth::id();
+        $oldData   = $user->replicate();
+        $validated = $request->validated();
+
+        // Начало обновления
+        \Log::info('Начало обновления пользователя', [
+            'author_id'  => $authorId,
+            'user_id'    => $user->id,
+            'partner_id' => $partnerId,
+            'input'      => $request->all(),
+            'validated'  => $validated,
+        ]);
+
+        try {
+            DB::transaction(function () use ($user, $authorId, $partnerId, $validated, $oldData) {
+                // Старые данные перед обновлением
+                \Log::debug('Старые данные пользователя', [
+                    'name'     => $oldData->name,
+                    'birthday' => $oldData->birthday?->format('Y-m-d'),
+                    'email'    => $oldData->email,
+                ]);
+
+                // Обновляем через сервис
+                $this->service->update($user, $validated);
+                $user->refresh();
+
+                // Новые данные после обновления
+                \Log::debug('Новые данные пользователя', [
+                    'name'     => $user->name,
+                    'birthday' => $user->birthday?->format('Y-m-d'),
+                    'email'    => $user->email,
+                ]);
+
+                // Логируем в таблицу MyLog
+                $authorName = Auth::user()->name;
+                MyLog::create([
+                    'type'        => 2,
+                    'action'      => 23,
+                    'partner_id'  => $partnerId,
+                    'author_id'   => $authorId,
+                    'description' => "Автор: {$authorName} (ID {$authorId}).\n"
+                        . "Старые: {$oldData->name}, "
+                        . ($oldData->birthday
+                            ? Carbon::parse($oldData->birthday)->format('d.m.Y')
+                            : 'null'
+                        )
+                        . ", {$oldData->email}.\n"
+                        . "Новые: {$user->name}, "
+                        . ($user->birthday
+                            ? Carbon::parse($user->birthday)->format('d.m.Y')
+                            : 'null'
+                        )
+                        . ", {$user->email}.",
+                    'created_at'  => now(),
+                ]);
+
+                \Log::info('MyLog-запись успешно создана');
+            });
+
+            \Log::info('Успешная транзакция обновления пользователя', [
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Пользователь успешно обновлен',
+            ]);
+        } catch (Exception $e) {
+            \Log::error('Ошибка при обновлении пользователя', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось обновить пользователя. Подробности в логах.',
+            ], 500);
+        }
+    }
+
 
     public function updatePassword(Request $request)
     {

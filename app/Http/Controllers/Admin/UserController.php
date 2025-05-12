@@ -49,24 +49,12 @@ class UserController extends Controller
 
 
 
-//    $rolesQuery = Role::query()
-//        ->where('is_sistem', 1)// системные
-//        ->orWhereHas('partners', function ($q) use ($partnerId) {
-//            $q->where('partner_role.partner_id', $partnerId);
-//        });
-//    if (!$isSuperadmin) {
-//        $rolesQuery->where('is_visible', 1);
-//    }
-//    $roles = $rolesQuery
-//        ->orderBy('order_by')
-//        ->get();
-
 
 
 
     $rolesQuery = Role::query();
 // если не супер-админ — сразу фильтруем по видимости
-if (! $isSuperadmin) {
+if (!$isSuperadmin) {
     $rolesQuery->where('is_visible', 1);
 }
 // группируем логику системных ролей / ролей партнёра
@@ -195,12 +183,12 @@ $roles = $rolesQuery
 
     }
 
-    public function edit(User $user)
+    public function edit2(User $user)
     {
         // 1) Контекст
-        $partnerId    = app('current_partner')->id;
-        $currentUser  = auth()->user();
-        $userRoleName = $currentUser->role?->name;
+        $partnerId = app('current_partner')->id;
+        $currentUser = auth()->user();
+        $userRoleName = $currentUser->role ?->name;
     $isSuperadmin = $userRoleName === 'superadmin';
 
     // 2) Загружаем UserField вместе их ролями
@@ -208,26 +196,31 @@ $roles = $rolesQuery
         ->where('partner_id', $partnerId)
         ->get();
 
+
+
+
+
+
     // 3) Собираем payload для полей
     $fieldsPayload = $fields->map(function (UserField $f) {
         return [
-            'id'         => $f->id,
-            'name'       => $f->name,
-            'slug'       => $f->slug,
+            'id' => $f->id,
+            'name' => $f->name,
+            'slug' => $f->slug,
             'field_type' => $f->field_type,
-            'roles'      => $f->roles->pluck('id')->map(fn($i)=>(int)$i)->all(),
+            'roles' => $f->roles->pluck('id')->map(fn($i)=>(int)$i)->all(),
         ];
     })->all();
 
     // 4) Системные + партнёрские роли
     $systemRoles = Role::where('is_sistem', 1)
-        ->when(! $isSuperadmin, fn($q)=> $q->where('is_visible',1))
+        ->when(!$isSuperadmin, fn($q)=> $q->where('is_visible', 1))
         ->get();
 
     $partnerRoles = Role::whereHas('partners', fn($q)=>
             $q->where('partner_role.partner_id', $partnerId)
         )
-        ->when(! $isSuperadmin, fn($q)=> $q->where('is_visible',1))
+        ->when(!$isSuperadmin, fn($q)=> $q->where('is_visible', 1))
         ->get();
 
     $allRoles = $systemRoles
@@ -237,35 +230,125 @@ $roles = $rolesQuery
         ->values();
 
     $rolesPayload = $allRoles->map(fn(Role $r)=> [
-        'id'     => $r->id,
-        'name'   => $r->name,
-        'label'  => $r->label,
+        'id' => $r->id,
+        'name' => $r->name,
+        'label' => $r->label,
         'system' => (bool)$r->is_sistem,
     ])->all();
 
     // 5) Загружаем связи user->fields (pivot value)
     $user->load('fields');
 
-    // 6) Возвращаем JSON, добавив флаг isSuperadmin
-    return response()->json([
-        'user'         => $user,
-        'currentUser'  => [
-            'role_id'       => $currentUser->role_id,
-            'isSuperadmin'  => $isSuperadmin,
-        ],
-        'fields'       => $fieldsPayload,
-        'roles'        => $rolesPayload,
-    ]);
+
+      if (request()->ajax()) {
+          // 1) Преобразуем модель в массив
+          $userArray = $user->toArray();
+
+          // 2) Переопределяем только birthday
+          $userArray['birthday'] = $user->birthday
+              ? $user->birthday->format('Y-m-d')
+              : null;
+
+          return response()->json([
+              'user'        => $userArray,
+              'currentUser' => [
+                  'role_id'      => auth()->user()->role_id,
+                  'isSuperadmin' => auth()->user()->isSuperadmin,
+              ],
+              'fields' => $fieldsPayload,
+              'roles'  => $rolesPayload,
+          ]);
+      }
 }
+
+    public function edit(User $user)
+    {
+        // 1) Контекст
+        $partnerId    = app('current_partner')->id;
+        $currentUser  = auth()->user();
+        $userRoleName = $currentUser->role?->name;
+    $isSuperadmin = $userRoleName === 'superadmin';
+
+    // 2) Загружаем UserField вместе их ролями
+    $fieldsQuery = UserField::with('roles')
+        ->where('partner_id', $partnerId);
+    // Изменение: если не супер-админ, то подгружаем только те поля,
+    // права на которые есть у роли текущего пользователя
+    if (! $isSuperadmin) {
+        $fieldsQuery->whereHas('roles', fn($q) =>
+            $q->where('role_id', $currentUser->role_id)
+        );
+    }
+    $fields = $fieldsQuery->get();
+
+    // 3) Собираем payload для полей
+    $fieldsPayload = $fields->map(function (UserField $f) use ($currentUser, $isSuperadmin) {
+        $allowedRoles = $f->roles->pluck('id')->map(fn($i) => (int)$i);
+        return [
+            'id'         => $f->id,
+            'name'       => $f->name,
+            'slug'       => $f->slug,
+            'field_type' => $f->field_type,
+            'roles'      => $allowedRoles->all(),
+            // Изменение: добавляем флаг 'editable', который фронтэнд сможет использовать
+            // для включения/выключения возможности редактировать конкретное поле
+            'editable'   => $isSuperadmin || $allowedRoles->contains($currentUser->role_id),
+        ];
+    })->all();
+
+    // 4) Системные + партнёрские роли (без изменений)
+    $systemRoles = Role::where('is_sistem', 1)
+        ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
+        ->get();
+    $partnerRoles = Role::whereHas('partners', fn($q) =>
+            $q->where('partner_role.partner_id', $partnerId)
+        )
+        ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
+        ->get();
+    $allRoles = $systemRoles
+        ->merge($partnerRoles)
+        ->unique('id')
+        ->sortBy('order_by')
+        ->values();
+    $rolesPayload = $allRoles->map(fn(Role $r) => [
+        'id'     => $r->id,
+        'name'   => $r->name,
+        'label'  => $r->label,
+        'system' => (bool)$r->is_sistem,
+    ])->all();
+
+    // 5) Загружаем связи user->fields (pivot value) (без изменений)
+    $user->load('fields');
+
+    if (request()->ajax()) {
+        // 1) Преобразуем модель в массив
+        $userArray = $user->toArray();
+        // 2) Переопределяем только birthday
+        $userArray['birthday'] = $user->birthday
+            ? $user->birthday->format('Y-m-d')
+            : null;
+
+        return response()->json([
+            'user'        => $userArray,
+            'currentUser' => [
+                'role_id'      => $currentUser->role_id,
+                'isSuperadmin' => $isSuperadmin,
+            ],
+            'fields'      => $fieldsPayload,
+            'roles'       => $rolesPayload,
+        ]);
+    }
+}
+
 
     public function update(AdminUpdateRequest $request, User $user)
     {
-        $partnerId   = app('current_partner')->id;
-        $authorId    = auth()->id();
-        $oldUser     = User::find($user->id);
-        $oldTeam     = Team::find($oldUser->team_id);
-        $oldTeamName = $oldTeam?->title ?: '-';
-        $oldRoleName = $oldUser->role?->label ?: '-';
+        $partnerId = app('current_partner')->id;
+        $authorId = auth()->id();
+        $oldUser = User::find($user->id);
+        $oldTeam = Team::find($oldUser->team_id);
+        $oldTeamName = $oldTeam ?->title ?: '-';
+        $oldRoleName = $oldUser->role ?->label ?: '-';
 
         // Забираем входные данные без поля start_date
         $data = $request->validated();
@@ -286,11 +369,11 @@ $roles = $rolesQuery
             $this->service->update($user, $data);
 
             // 2. Подготовка для логирования
-            $newTeam     = Team::find($data['team_id']);
-            $newTeamName = $newTeam?->title ?: '-';
+            $newTeam = Team::find($data['team_id']);
+            $newTeamName = $newTeam ?->title ?: '-';
 
-            $newRole     = Role::find($data['role_id'] ?? 0);
-            $newRoleName = $newRole?->label ?: '-';
+            $newRole = Role::find($data['role_id'] ?? 0);
+            $newRoleName = $newRole ?->label ?: '-';
 
             // 3. Логируем изменения профиля
             $customLog = '';
@@ -309,15 +392,15 @@ $roles = $rolesQuery
             }
 
             MyLog::create([
-                    'type'        => 2,
-                    'action'      => 22,
-                    'author_id'   => $authorId,
-                    'partner_id'  => $partnerId,
+                    'type' => 2,
+                    'action' => 22,
+                    'author_id' => $authorId,
+                    'partner_id' => $partnerId,
                     'description' => sprintf(
                         "Старые:\nИмя: %s, Д.р: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s.\n" .
                         "Новые:\nИмя: %s, Д.р: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s%s",
                         $oldUser->name,
-                        $oldUser->birthday?->format('d.m.Y') ?: '-',
+                        $oldUser->birthday ?->format('d.m.Y') ?: '-',
                     $oldTeamName,
                     $oldUser->email,
                     $oldUser->is_enabled ? 'Да' : 'Нет',
@@ -346,7 +429,7 @@ $roles = $rolesQuery
                     }
                     UserFieldValue::updateOrCreate(
                         [
-                            'user_id'  => $user->id,
+                            'user_id' => $user->id,
                             'field_id' => $field->id,
                         ],
                         ['value' => $val]
@@ -361,7 +444,7 @@ $roles = $rolesQuery
 
         return response()->json([
             'message' => 'Пользователь успешно обновлен',
-            'data'    => $data,
+            'data' => $data,
         ], 200);
     }
 

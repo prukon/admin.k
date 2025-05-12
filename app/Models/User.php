@@ -10,6 +10,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
+
 //use App\Models\Role;
 
 
@@ -26,7 +27,6 @@ class   User extends Authenticatable
     protected $dates = ['deleted_at'];
 
 
-
     protected $hidden = [
         'password',
         'remember_token',
@@ -39,6 +39,11 @@ class   User extends Authenticatable
         'birthday' => 'date',  // преобразует в Carbon\Carbon
 
     ];
+
+    public function getBirthdayForFormAttribute(): ?string
+    {
+        return $this->birthday ?->format('Y-m-d');
+    }
 
 
     public function team()
@@ -87,6 +92,7 @@ class   User extends Authenticatable
     {
         return $this->partners()->sync($partnerIds);
     }
+
     public function partner()
     {
         return $this->belongsTo(Partner::class, 'partner_id');
@@ -136,7 +142,6 @@ class   User extends Authenticatable
 //    }
 
 
-
 //    public function role(): BelongsTo
 //    {
 //        // Если таблица roles имеет PK = id,
@@ -157,7 +162,7 @@ class   User extends Authenticatable
 //            && $this->role->permissions->contains('name', $permissionName);
 //    }
 
-    public function hasPermission( $permissionName)
+    public function hasPermission($permissionName)
     {
         // Если у пользователя нет связанной роли (null), то прав нет
         if (!$this->role) {

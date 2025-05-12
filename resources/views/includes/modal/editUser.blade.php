@@ -581,19 +581,23 @@
 
                             // 2) Проверяем доступ по pivot‑таблице user_field_role
                             //    (field.roles — массив ID ролей)
-                            console.log(`\\Log [Field ${field.slug}] roles =`, field.roles);
+                            // console.log(`\\Log [Field ${field.slug}] roles =`, field.roles);
+                            console.log(`\Log [Field ${field.slug}] editable =`, field.editable); // Изменено: логируем для отладки
 
 
                             const roles = Array.isArray(field.roles) ? field.roles : [];
-                            const hasAccess = isSuperadmin || roles.includes(current.role_id);
+                            // const hasAccess = isSuperadmin || roles.includes(current.role_id);
 
 
                             // let hasAccess = Array.isArray(field.roles) && field.roles.includes(currentRoleId);
-                            console.log(`\\Log [Field ${field.slug}] hasAccess =`, hasAccess);
+                            // console.log(`\\Log [Field ${field.slug}] hasAccess =`, hasAccess);
 
 
 
-                            let disabledAttr = hasAccess ? '' : 'disabled';
+                            // let disabledAttr = hasAccess ? '' : 'disabled';
+
+                            const disabledAttr = field.editable ? '' : 'disabled'; // Изменено: вместо расчёта по role_id
+
 
                             // 3) Генерируем HTML
                             const html = `
