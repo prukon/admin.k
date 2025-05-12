@@ -385,7 +385,9 @@
 
                 // Обновляем notice с суммой долга
                 const creditNoticeSumm = document.querySelector('.credit-notice .summ');
-                if (totalSumAllSeasons) {
+                // if (totalSumAllSeasons) {
+                if (creditNoticeSumm && totalSumAllSeasons) {
+
                     creditNoticeSumm.textContent = totalSumAllSeasons;
                 }
 
