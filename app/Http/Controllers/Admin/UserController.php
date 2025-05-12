@@ -34,7 +34,6 @@ class UserController extends Controller
         $this->service = $service;
     }
 
-
     public function index(FilterRequest $request)
     {
         // 1) Контекст
@@ -47,21 +46,44 @@ class UserController extends Controller
     // 2) Валидация фильтров
     $data = $request->validated();
 
-    // 3) Список ролей: все системные + все роли текущего партнёра
-    //    скрытые (is_visible = 0) видит только суперадмин
-    $rolesQuery = Role::query()
-        ->where('is_sistem', 1)// системные
-        ->orWhereHas('partners', function ($q) use ($partnerId) {
-            $q->where('partner_role.partner_id', $partnerId);
+
+
+
+//    $rolesQuery = Role::query()
+//        ->where('is_sistem', 1)// системные
+//        ->orWhereHas('partners', function ($q) use ($partnerId) {
+//            $q->where('partner_role.partner_id', $partnerId);
+//        });
+//    if (!$isSuperadmin) {
+//        $rolesQuery->where('is_visible', 1);
+//    }
+//    $roles = $rolesQuery
+//        ->orderBy('order_by')
+//        ->get();
+
+
+
+
+    $rolesQuery = Role::query();
+// если не супер-админ — сразу фильтруем по видимости
+if (! $isSuperadmin) {
+    $rolesQuery->where('is_visible', 1);
+}
+// группируем логику системных ролей / ролей партнёра
+$rolesQuery->where(function ($q) use ($partnerId) {
+    $q->where('is_sistem', 1)
+        ->orWhereHas('partners', function ($q2) use ($partnerId) {
+            $q2->where('partner_role.partner_id', $partnerId);
         });
+});
+$roles = $rolesQuery
+    ->orderBy('order_by')
+    ->get();
 
-    if (!$isSuperadmin) {
-        $rolesQuery->where('is_visible', 1);
-    }
 
-    $roles = $rolesQuery
-        ->orderBy('order_by')
-        ->get();
+
+
+
 
     // 4) Произвольные поля партнёра
     $fields = UserField::where('partner_id', $partnerId)->get();
@@ -80,6 +102,9 @@ class UserController extends Controller
 
     // 7) Все команды партнёра
     $allTeams = Team::where('partner_id', $partnerId)->get();
+
+
+//    dd($roles);
 
     // 8) Отдаём на view
     return view('admin.user', compact(
@@ -170,168 +195,6 @@ class UserController extends Controller
 
     }
 
-    public function edit2(User $user)
-    {
-        // 1) Контекст
-        $partnerId = app('current_partner')->id;
-        $currentUser = auth()->user();
-        $userRoleName = $currentUser->role ?->name;
-        $isSuperadmin = $userRoleName === 'superadmin';
-
-        // 2) Загружаем поля партнёра
-        $fields = UserField::with('roles')
-            ->where('partner_id', $partnerId)
-            ->get()
-            ->map(function (UserField $f) {
-                return [
-                    'id'         => $f->id,
-                    'name'       => $f->name,
-                    'slug'       => $f->slug,
-                    'field_type' => $f->field_type,
-                    // Передаём **числовые** ID ролей
-                    'roles'      => $f->roles->pluck('id')->map(function($id){ return (int)$id; })->all(),
-                ];
-            });
-
-
-        \Log::info("edit()\\fields_count={$fields->count()}");
-
-        // 3) Системные роли
-        $systemRolesQuery = Role::where('is_sistem', 1);
-        if (!$isSuperadmin) {
-            $systemRolesQuery->where('is_visible', 1);
-        }
-        $systemRoles = $systemRolesQuery->get();
-
-        \Log::info(
-            "edit()\\systemRoles_ids=" . $systemRoles->pluck('id')->join(',')
-        );
-
-        // 4) Роли партнёра
-        $partnerRolesQuery = Role::whereHas('partners', fn($q) =>
-            // здесь мы смотрим на связующую таблицу,
-            // но лучше фильтровать по самой таблице partners:
-            $q->where('partners.id', $partnerId)
-        );
-        if (!$isSuperadmin) {
-            $partnerRolesQuery->where('is_visible', 1);
-        }
-        $partnerRoles = $partnerRolesQuery->get();
-
-        \Log::info(
-            "edit()\\partnerRoles_ids=" . $partnerRoles->pluck('id')->join(',')
-        );
-
-        // 5) Объединяем и сортируем
-        $allRoles = $systemRoles
-            ->merge($partnerRoles)
-            ->unique('id')
-            ->sortBy('order_by')
-            ->values();
-
-        \Log::info(
-            "edit()\\allRoles_ids=" . $allRoles->pluck('id')->join(',')
-        );
-
-        // 6) Готовим payload
-        $rolesPayload = $allRoles->map(fn(Role $r) => [
-        'id' => $r->id,
-        'name' => $r->name,
-        'label' => $r->label,
-        'system' => $r->is_sistem == 1,
-    ])->all();
-
-        // Логируем финальный payload
-        \Log::info("edit()\\roles_payload=" . json_encode($rolesPayload));
-
-        // 7) Загружаем связи у пользователя, если нужны
-        $user->load('fields');
-
-        return response()->json([
-            'user' => $user,
-            'currentUser' => $currentUser,
-            'fields' => $fields->map(fn($f) => [
-        'id' => $f->id,
-        'name' => $f->name,
-        'slug' => $f->slug,
-        'field_type' => $f->field_type,
-        'roles' => $f->roles->pluck('id')->all(),
-    ]),
-            'roles'        => $rolesPayload,
-        ]);
-    }
-
-    public function edit3(User $user)
-    {
-        // 1) Контекст
-        $partnerId    = app('current_partner')->id;
-        $currentUser  = auth()->user();
-        $userRoleName = $currentUser->role?->name;
-    $isSuperadmin = $userRoleName === 'superadmin';
-
-    // 2) Загружаем все UserField вместе их ролями из pivot
-    $fields = UserField::with('roles')
-        ->where('partner_id', $partnerId)
-        ->get();
-
-    \Log::info("edit()\\loaded UserField count=".$fields->count());
-
-    // 3) Собираем payload для полей
-    $fieldsPayload = $fields->map(function (UserField $f) {
-        $roleIds = $f->roles->pluck('id')->map(fn($id) => (int)$id)->all();
-        \Log::info("edit()\\field {$f->slug} role_ids=".implode(',', $roleIds));
-
-        return [
-            'id'         => $f->id,
-            'name'       => $f->name,
-            'slug'       => $f->slug,
-            'field_type' => $f->field_type,
-            'roles'      => $roleIds,
-        ];
-    })->all(); // to array
-
-    // 4) Системные и партнёрские роли
-    $systemRolesQuery = Role::where('is_sistem', 1);
-    if (! $isSuperadmin) {
-        $systemRolesQuery->where('is_visible', 1);
-    }
-    $systemRoles = $systemRolesQuery->get();
-
-    $partnerRolesQuery = Role::whereHas('partners', fn($q) =>
-        $q->where('partner_role.partner_id', $partnerId)
-    );
-    if (! $isSuperadmin) {
-        $partnerRolesQuery->where('is_visible', 1);
-    }
-    $partnerRoles = $partnerRolesQuery->get();
-
-    $allRoles = $systemRoles
-        ->merge($partnerRoles)
-        ->unique('id')
-        ->sortBy('order_by')
-        ->values();
-
-    $rolesPayload = $allRoles->map(fn(Role $r) => [
-        'id'     => $r->id,
-        'name'   => $r->name,
-        'label'  => $r->label,
-        'system' => (bool)$r->is_sistem,
-    ])->all();
-
-    \Log::info("edit()\\roles_payload=".json_encode($rolesPayload));
-
-    // 5) Загружаем поля пользователя (pivot value)
-    $user->load('fields'); // если нужна связь user->fields pivot
-
-    // 6) Возвращаем JSON
-    return response()->json([
-        'user'         => $user,
-        'currentUser'  => ['role_id' => $currentUser->role_id],
-        'fields'       => $fieldsPayload,
-        'roles'        => $rolesPayload,
-    ]);
-}
-
     public function edit(User $user)
     {
         // 1) Контекст
@@ -394,107 +257,6 @@ class UserController extends Controller
         'roles'        => $rolesPayload,
     ]);
 }
-
-
-    public function update2(AdminUpdateRequest $request, User $user)
-    {
-        $partnerId = app('current_partner')->id;
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $oldData = User::where('id', $user->id)->first();
-        $oldTeam = Team::find($user->team_id);
-        $oldTeamName = $oldTeam ? $oldTeam->title : '-';
-        $oldRoleName = $oldData->role ? $oldData->role->label : '-';
-
-        $data = $request->validated();
-
-        // Получаем старые значения пользовательских полей
-        $oldCustomData = UserFieldValue::where('user_id', $user->id)->get()->keyBy('field_id')->toArray();
-
-        DB::transaction(function () use ($user, $authorId, $data, $oldData, $oldTeamName, $oldCustomData, $oldRoleName, $partnerId) {
-            // Обновление пользователя с помощью сервиса
-            $this->service->update($user, $data);
-
-            // Обработка команды для новой команды
-            $team = Team::find($data['team_id']);
-            $teamName = $team ? $team->title : '-';
-
-            // Получаем новую роль
-            $newRoleName = '-';
-            if (isset($data['role_id'])) {
-                $role = \App\Models\Role::find($data['role_id']);
-                $newRoleName = $role ? $role->label : '-';
-            }
-
-            // Логирование изменений в кастомных полях
-            $customLogDescription = '';
-            if (array_key_exists('custom', $data) && is_array($data['custom'])) {
-                foreach ($data['custom'] as $slug => $value) {
-                    $userField = UserField::where('slug', $slug)->first();
-
-                    if ($userField) {
-                        $oldValue = $oldCustomData[$userField->id]['value'] ?? null;
-                        if ($oldValue !== $value) {
-                            $customLogDescription .= sprintf(
-                                "\n%s: %s -> %s",
-                                $userField->name, // Используем название поля
-                                $oldValue ?? '-',
-                                $value !== null ? $value : '-' // Новое значение или "-"
-                            );
-                        }
-                    }
-                }
-            }
-
-            // Создаём лог
-            MyLog::create([
-                'type' => 2,     // Лог для обновления юзеров
-                'action' => 22,  // Лог для обновления учетной записи
-                'author_id' => $authorId,
-                'description' => sprintf(
-                    "Старые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s.\n" .
-                    "Новые:\nИмя: %s, Д.р: %s, Начало: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s%s",
-                    $oldData->name,
-                    isset($oldData->birthday) ? Carbon::parse($oldData->birthday)->format('d.m.Y') : '-',
-                    isset($oldData->start_date) ? Carbon::parse($oldData->start_date)->format('d.m.Y') : '-',
-                    $oldTeamName,
-                    $oldData->email,
-                    $oldData->is_enabled ? 'Да' : 'Нет',
-                    $oldRoleName,   // <-- старая роль
-
-                    $data['name'],
-                    isset($data['birthday']) ? Carbon::parse($data['birthday'])->format('d.m.Y') : '-',
-                    isset($data['start_date']) ? Carbon::parse($data['start_date'])->format('d.m.Y') : '-',
-                    $teamName,
-                    $data['email'],
-                    $data['is_enabled'] ? 'Да' : 'Нет',
-                    $newRoleName,   // <-- новая роль
-                    $customLogDescription
-                ),
-                'created_at' => now(),
-                'partner_id' => $partnerId
-            ]);
-        });
-
-//        return response()->json([
-//            'message' => 'Пользователь успешно обновлен',
-//            'data' => $data,
-//        ]);
-
-        try {
-            // Логика обновления пользователя
-            // Например, получение и сохранение данных:
-            // $data = User::find($id)->update($request->all());
-
-            return response()->json([
-                'message' => 'Пользователь успешно обновлен',
-                'data' => $data,
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Ошибка при обновлении: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
 
     public function update(AdminUpdateRequest $request, User $user)
     {
@@ -635,139 +397,6 @@ class UserController extends Controller
 
     }
 
-    public function storeFields2(Request $request)
-    {
-        // Получаем все поля, которые были отправлены
-        $fields = $request->input('fields', []);
-        $authorId = auth()->id(); // Получаем ID текущего пользователя
-        $partnerId = app('current_partner')->id; // Получаем ID текущего партнёра (новое добавление)
-
-        DB::transaction(function () use ($fields, $request, $authorId, $partnerId) {
-            // Было: получение всех ID полей без фильтрации
-            // $existingFieldIds = UserField::pluck('id')->toArray();
-            // Изменено: получаем только ID полей, принадлежащих текущему партнёру
-            $existingFieldIds = UserField::where('partner_id', $partnerId)->pluck('id')->toArray();
-
-            // Из входящих данных достанем ID, которые есть (если поле 'id' не пустое)
-            $submittedFieldIds = array_filter(array_column((array)$fields, 'id'));
-
-            // Находим все ID, которых нет в запросе (значит, их удалили)
-            $fieldsToDelete = array_diff($existingFieldIds, $submittedFieldIds);
-
-            $fieldsToDeleteRecords = UserField::whereIn('id', $fieldsToDelete)->get();
-            if (!empty($fieldsToDelete)) {
-                UserField::whereIn('id', $fieldsToDelete)->delete();
-
-                // Логируем удаление
-                foreach ($fieldsToDeleteRecords as $deletedField) {
-                    MyLog::create([
-                        'type' => 2,
-                        'action' => 210,
-                        'author_id' => $authorId,
-                        'description' => "Удалено поле: {$deletedField->name}. ID: {$deletedField->id}",
-                        'created_at' => now(),
-                        'partner_id' => $partnerId
-
-                    ]);
-                }
-            }
-
-            // Теперь обрабатываем те поля, которые пришли
-            foreach ($fields as $key => $field) {
-                $fieldId = $field['id'] ?? null;
-                $fieldName = $field['name'] ?? null;
-                $fieldType = $field['field_type'] ?? null;
-
-                // Собираем роли
-                // Ожидаем, что во входных данных это будет fields[$key]['permissions_id'],
-                // где хранится массив ID (например [1, 3])
-                $permissionsId = $field['permissions_id'] ?? [];
-
-                // Валидация входящих данных для каждого поля
-                $request->validate([
-                    "fields.$key.name" => 'required|string|max:255',
-                    "fields.$key.field_type" => 'required|string|in:string,text,select',
-                    "fields.$key.permissions_id" => 'array',
-                    "fields.$key.permissions_id.*" => 'exists:roles,id'
-                ]);
-
-                // Генерируем slug для поля
-                $slug = Str::slug($fieldName);
-
-                // Если присутствует ID - это редактирование существующего поля
-                if ($fieldId) {
-                    // Изменено: получаем поле только если оно принадлежит текущему партнёру
-                    // Было: $userField = UserField::findOrFail($fieldId);
-                    $userField = UserField::where('partner_id', $partnerId)->findOrFail($fieldId); // Добавлен фильтр по partner_id
-
-                    // Смотрим, какие изменения были
-                    $changes = [];
-
-                    if ($userField->name !== $fieldName) {
-                        $changes[] = "имя с '{$userField->name}' на '{$fieldName}'";
-                    }
-                    if ($userField->field_type !== $fieldType) {
-                        $changes[] = "тип с '{$userField->field_type}' на '{$fieldType}'";
-                    }
-                    // Сравниваем старые и новые permissions_id
-                    $oldPermissionsId = $userField->permissions_id ?? [];
-                    $newPermissionsId = $permissionsId;
-
-                    if ($oldPermissionsId != $newPermissionsId) {
-                        $changes[] = "разрешения с '"
-                            . implode(',', $oldPermissionsId)
-                            . "' на '"
-                            . implode(',', $newPermissionsId)
-                            . "'";
-                    }
-
-                    // Если изменения обнаружены, обновляем поле
-                    if (!empty($changes)) {
-                        $userField->update([
-                            'name' => $fieldName,
-                            'slug' => $slug,
-                            'field_type' => $fieldType,
-                            'permissions_id' => $permissionsId,
-                            // partner_id не обновляем, т.к. принадлежность остаётся прежней
-                        ]);
-
-                        // Логирование обновления
-                        MyLog::create([
-                            'type' => 2,
-                            'action' => 210,
-                            'author_id' => $authorId,
-                            'description' => "Обновлено поле: {$userField->name}. ID: {$fieldId}. Изменения: " . implode(', ', $changes),
-                            'created_at' => now(),
-                            'partner_id' => $partnerId
-
-                        ]);
-                    }
-                } else {
-                    // Создание нового поля с явным указанием partner_id
-                    $newField = UserField::create([
-                        'name' => $fieldName,
-                        'slug' => $slug,
-                        'field_type' => $fieldType,
-                        'permissions_id' => $permissionsId,
-                        'partner_id' => $partnerId // Добавлено для привязки поля к текущему партнёру
-                    ]);
-
-                    // Логирование создания нового поля
-                    MyLog::create([
-                        'type' => 2,
-                        'action' => 210,
-                        'author_id' => $authorId,
-                        'description' => "Создано новое поле {$fieldName}. ID: {$newField->id}",
-                        'created_at' => now(),
-                        'partner_id' => $partnerId
-                    ]);
-                }
-            }
-        });
-
-        return response()->json(['message' => 'Поля успешно сохранены']);
-    }
-
     public function storeFields(Request $request)
     {
         $data = $request->validate([
@@ -815,7 +444,7 @@ class UserController extends Controller
                 $roles = $item['roles'] ?? [];
 
                 // Генерируем slug
-                $slug = Str::slug($name);
+                $slug = Str::slug($name . $partnerId);
 
                 if ($fieldId) {
                     // Обновление

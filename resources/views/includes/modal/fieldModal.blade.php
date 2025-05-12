@@ -23,7 +23,6 @@
                     </tr>
                     </thead>
 
-
                     <tbody>
                     @foreach($fields as $index => $field)
                         <tr data-id="{{ $field->id }}" id="{{ $field->id }}">
@@ -34,34 +33,17 @@
                             </td>
                             <td>
                                 <select disabled class="form-select field-type">
-                                    <option value="string" {{ $field->field_type == 'string' ? 'selected' : '' }}>Текст</option>
-                                    <option value="text"   {{ $field->field_type == 'text'   ? 'selected' : '' }}>Многострочный текст</option>
-                                    <option value="select" {{ $field->field_type == 'select' ? 'selected' : '' }}>Список</option>
+                                    <option value="string" {{ $field->field_type == 'string' ? 'selected' : '' }}>
+                                        Текст
+                                    </option>
+                                    <option value="text" {{ $field->field_type == 'text'   ? 'selected' : '' }}>
+                                        Многострочный текст
+                                    </option>
+                                    <option value="select" {{ $field->field_type == 'select' ? 'selected' : '' }}>
+                                        Список
+                                    </option>
                                 </select>
                             </td>
-                            {{--<td>--}}
-                                {{--@php--}}
-                                    {{--// теперь у модели UserField есть relation roles()--}}
-                                    {{--$allowed = $field->roles->pluck('id')->all();--}}
-                                {{--@endphp--}}
-                                {{--@foreach($roles as $role)--}}
-                                    {{--@if($role->name !== 'superadmin')--}}
-                                        {{--<div class="form-check">--}}
-                                            {{--<input--}}
-                                                    {{--class="form-check-input permission-checkbox"--}}
-                                                    {{--type="checkbox"--}}
-                                                    {{--value="{{ $role->id }}"--}}
-                                                    {{--id="permission-{{ $role->id }}-field-{{ $field->id }}"--}}
-                                                    {{--@if(is_array($field->permissions_id) && in_array($role->id, $field->permissions_id)) checked @endif--}}
-                                            {{-->--}}
-                                            {{--<label class="form-check-label"--}}
-                                                   {{--for="permission-{{ $role->id }}-field-{{ $field->id }}">--}}
-                                                {{--{{ $role->label ?? $role->name }}--}}
-                                            {{--</label>--}}
-                                        {{--</div>--}}
-                                    {{--@endif--}}
-                                {{--@endforeach                            </td>--}}
-
                             <td>
                                 @php
                                     // Берём ID ролей прямо из pivot user_field_role
@@ -85,12 +67,9 @@
                                     </div>
                                 @endforeach
                             </td>
-
-
-
-
                             <td>
-                                <button type="button" class="btn btn-danger btn-sm confirm-delete-field-modal">Удалить</button>
+                                <button type="button" class="btn btn-danger btn-sm confirm-delete-field-modal">Удалить
+                                </button>
                             </td>
                         </tr>
                     @endforeach
@@ -139,7 +118,7 @@
                         value="${role.id}"
                         id="permission-${role.id}-${randomId}">
                     <label class="form-check-label" for="permission-${role.id}-${randomId}">
-                        ${role.display_name ?? role.name}
+                        ${role.label ?? role.name}
                     </label>
                 </div>
             `;
@@ -191,57 +170,6 @@
 
 
 // Сохранение данных
-
-        {{--$('#save-fields-btn').on('click', function () {--}}
-            {{--let rows = document.querySelectorAll('#fields-table tbody tr');--}}
-            {{--let fieldsData = [];--}}
-
-            {{--rows.forEach((row) => {--}}
-                {{--let fieldId = row.getAttribute('data-id');--}}
-                {{--let fieldName = row.querySelector('.field-name').value;--}}
-                {{--let fieldType = row.querySelector('.field-type').value;--}}
-
-                {{--// Собираем все чекбоксы--}}
-                {{--let permissionCheckboxes = row.querySelectorAll('.permission-checkbox');--}}
-                {{--let permissionsId = [];--}}
-                {{--permissionCheckboxes.forEach((checkbox) => {--}}
-                    {{--if (checkbox.checked) {--}}
-                        {{--permissionsId.push(checkbox.value); // это ID роли--}}
-                    {{--}--}}
-                {{--});--}}
-
-                {{--fieldsData.push({--}}
-                    {{--id: fieldId,--}}
-                    {{--name: fieldName,--}}
-                    {{--field_type: fieldType,--}}
-                    {{--permissions_id: permissionsId,--}}
-                {{--});--}}
-            {{--});--}}
-
-            {{--// Теперь отправляем на сервер AJAX-запрос--}}
-
-            {{--$.ajax({--}}
-                {{--url: "{{ route('admin.field.store') }}",--}}
-                {{--type: "POST",--}}
-                {{--data: JSON.stringify({fields: fieldsData}),--}}
-                {{--contentType: "application/json",--}}
-                {{--headers: {--}}
-                    {{--'X-CSRF-TOKEN': '{{ csrf_token() }}'--}}
-                {{--},--}}
-                {{--success: function (data) {--}}
-                    {{--showSuccessModal("Обновление полей", "Пользовательские поля успешно обновлены.", 1);--}}
-
-                {{--},--}}
-                {{--error: function (xhr, status, error) {--}}
-                    {{--$('#error-message').text('Произошла ошибка при сохранении данных.'); // Устанавливаем сообщение ошибки--}}
-                    {{--$('#errorModal').modal('show');    // Показываем модалку ошибки--}}
-                    {{--$('#fieldModal').modal('hide');       // Закрываем текущую модалку--}}
-                {{--}--}}
-            {{--});--}}
-
-        {{--});--}}
-
-
         $('#save-fields-btn').on('click', function () {
             const rows = document.querySelectorAll('#fields-table tbody tr');
             const fieldsData = [];
@@ -256,10 +184,10 @@
                     .map(cb => parseInt(cb.value, 10));
 
                 fieldsData.push({
-                    id:         fieldId || null,
-                    name:       fieldName,
+                    id: fieldId || null,
+                    name: fieldName,
                     field_type: fieldType,
-                    roles:      checked,      // теперь ключ называется roles
+                    roles: checked,      // теперь ключ называется roles
                 });
             });
 
@@ -267,8 +195,8 @@
                 url: "{{ route('admin.field.store') }}",
                 type: "POST",
                 contentType: "application/json",
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                data: JSON.stringify({ fields: fieldsData }),
+                headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'},
+                data: JSON.stringify({fields: fieldsData}),
                 success() {
                     showSuccessModal("Обновление полей", "Пользовательские поля успешно обновлены.", 1);
                 },
@@ -279,8 +207,6 @@
                 }
             });
         });
-
-
 
         // Отображение модалки удаления
         $(document).on('click', '.confirm-delete-field-modal', function () {
