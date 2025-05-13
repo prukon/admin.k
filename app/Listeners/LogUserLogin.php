@@ -26,6 +26,7 @@ class LogUserLogin
             return;
         }
 
+//        $partnerId = app('current_partner')->id;
 
         $ipAddress = Request::ip();
         $agent = new Agent();
@@ -50,6 +51,7 @@ class LogUserLogin
             'type' => 4,
             'action' => 40,
             'author_id' => $user->id,
+//            'partner_id'  => $partnerId,
             'description' => $description,
         ];
 
