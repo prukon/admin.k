@@ -44,6 +44,11 @@ class PaymentReportController extends Controller
             ->sum('payments.summ');
 
 
+        $totalPaidPrice = DB::table('payments')
+            ->join('users', 'users.id', '=', 'payments.user_id')
+            ->where('users.partner_id', $partnerId)
+            ->sum('payments.summ');
+
         \Log::debug('[payments] Raw total', ['totalPaidPriceRaw' => $totalPaidPrice]);
 
         // 4) SQL‑лог
@@ -72,14 +77,17 @@ class PaymentReportController extends Controller
 //                ->where('partner_id', $partnerId)
 //                ->get();
 
+            //            старая реазиация
+            $payments = Payment::with(['user.team'])->get();
+
+
             //через User
             $payments = Payment::with(['user.team'])
                 ->join('users', 'users.id', '=', 'payments.user_id')// связываем payments с users
                 ->where('users.partner_id', $partnerId)// берём только партнёра user
                 ->get();
 
-//            старая реазиация
-            $payments = Payment::with(['user.team'])->get();
+
 
             return DataTables::of($payments)
                 ->addIndexColumn()

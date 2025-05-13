@@ -30,21 +30,6 @@ class LtvReportController extends Controller
 //         dd($currentMonth);
         if ($request->ajax()) {
 
-            $usersWithTotalUnpaidPrices = DB::table('users_prices')
-                ->join('users', 'users.id', '=', 'users_prices.user_id')          // INNER JOIN
-                ->select(
-                    'users.name  as user_name',
-                    'users.id    as user_id',
-                    DB::raw('SUM(users_prices.price)  as total_price'),
-                    'users.is_enabled',
-                    DB::raw('MIN(users_prices.created_at) as first_payment_date'),
-                    DB::raw('MAX(users_prices.created_at) as last_payment_date'),
-                    DB::raw('COUNT(users_prices.id)        as payment_count')
-                )
-                ->where('users_prices.price', '>', 0)
-                ->where('users.partner_id', $partnerId)                           // фильтр по партнёру пользователя
-                ->groupBy('users.id', 'users.name', 'users.is_enabled')
-                ->get();
 
             //            старая реазиация
             $usersWithTotalUnpaidPrices = DB::table('users_prices')
@@ -61,6 +46,24 @@ class LtvReportController extends Controller
                 ->where('users_prices.price', '>', 0)
                 ->groupBy('users.id', 'users.name', 'users.is_enabled')
                 ->get();
+
+            $usersWithTotalUnpaidPrices = DB::table('users_prices')
+                ->join('users', 'users.id', '=', 'users_prices.user_id')          // INNER JOIN
+                ->select(
+                    'users.name  as user_name',
+                    'users.id    as user_id',
+                    DB::raw('SUM(users_prices.price)  as total_price'),
+                    'users.is_enabled',
+                    DB::raw('MIN(users_prices.created_at) as first_payment_date'),
+                    DB::raw('MAX(users_prices.created_at) as last_payment_date'),
+                    DB::raw('COUNT(users_prices.id)        as payment_count')
+                )
+                ->where('users_prices.price', '>', 0)
+                ->where('users.partner_id', $partnerId)                           // фильтр по партнёру пользователя
+                ->groupBy('users.id', 'users.name', 'users.is_enabled')
+                ->get();
+
+
 
 
 

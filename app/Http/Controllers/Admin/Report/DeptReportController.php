@@ -48,6 +48,17 @@ class DeptReportController extends Controller
 //         dd($currentMonth);
         if ($request->ajax()) {
 
+            //            старая реазиация
+            $usersWithUnpaidPrices = DB::table('users_prices')
+                ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
+                ->select('users.name as user_name', 'users.id as user_id', 'users_prices.new_month', 'users_prices.price')
+                ->where('users_prices.is_paid', 0)
+                ->where('users.is_enabled', 1)
+                ->where('users_prices.price', '>', 0)
+                ->where('users_prices.new_month', '<', $currentMonth)
+                ->get();
+
+
             $usersWithUnpaidPrices = DB::table('users_prices')
                 ->join('users', 'users.id', '=', 'users_prices.user_id')          // INNER JOIN: берём только записи с найденным user
                 ->select(
@@ -64,16 +75,7 @@ class DeptReportController extends Controller
                 ->get();
 
 
-            //            старая реазиация
 
-            $usersWithUnpaidPrices = DB::table('users_prices')
-                ->leftJoin('users', 'users.id', '=', 'users_prices.user_id')
-                ->select('users.name as user_name', 'users.id as user_id', 'users_prices.new_month', 'users_prices.price')
-                ->where('users_prices.is_paid', 0)
-                ->where('users.is_enabled', 1)
-                ->where('users_prices.price', '>', 0)
-                ->where('users_prices.new_month', '<', $currentMonth)
-                ->get();
 
 
 

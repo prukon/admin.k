@@ -85,7 +85,8 @@ class RobokassaController extends Controller
 
     public function result(Request $request)
     {
-        $partnerId = app('current_partner')->id;
+//        $partnerId = app('current_partner')->id;
+        $partnerId =1;
 
         \Log::info('Request data:', $request->all());
 
