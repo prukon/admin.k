@@ -27,8 +27,9 @@ use Illuminate\Support\Str;               // ← вот это
 class RuleController extends Controller
 {
     //ВКЛАДКА РОЛИ
+
     //Страница права пользователей
-    public function showRules()
+    public function showRules2()
     {
         // 1) Контекст
         $partnerId    = app('current_partner')->id;
@@ -65,8 +66,53 @@ class RuleController extends Controller
     ]);
 }
 
+
+    public function showRules()
+    {
+        // 1) Контекст партнёра
+        $partnerId    = app('current_partner')->id;
+
+        // 2) Кто мы по роли?
+        $userRoleName = auth()->user()?->role?->name;
+        $isSuperadmin = $userRoleName === 'superadmin';
+
+        // 3) Роли:
+        //    – все системные (is_sistem = 1)
+        //    – + все роли, назначенные партнёру через partner_role
+        //    – скрытые (is_visible = 0) — только для superadmin
+        //    плюс: eager-load прав уже _только_ для текущего партнёра
+        $roles = Role::with([
+            'permissions' => function ($q) use ($partnerId) {
+                $q->wherePivot('partner_id', $partnerId);          // <<< CHANGED: фильтруем права по partner_id
+            }
+        ])
+            ->where(function ($q) use ($partnerId) {
+                $q->where('is_sistem', 1)
+                    ->orWhereHas('partners', fn($q2) =>
+                      $q2->where('partner_role.partner_id', $partnerId)
+                  );
+            })
+            ->when(! $isSuperadmin, fn($q) => $q->where('is_visible', 1))
+            ->orderBy('order_by')
+        ->get();
+
+        // 4) Права:
+        //    – ВСЕ права берём из таблицы
+        //    – скрытые (is_visible = 0) — только для superadmin
+        $permissions = Permission::orderBy('sort_order')
+            ->when(! $isSuperadmin, fn($q) => $q->where('is_visible', 1))
+            ->get();
+
+        return view('admin.setting.index', [
+            'activeTab'   => 'rule',
+            'roles'       => $roles,
+            'permissions' => $permissions,
+        ]);
+    }
+
+
     //Изменение прав пользователей
-    public function togglePermission(Request $request)
+    public function togglePermission2(Request $request)
     {
         $data = $request->validate([
             'role_id'       => 'required|integer|exists:roles,id',
@@ -89,6 +135,78 @@ class RuleController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    // Изменение прав пользователей (вкл/выкл конкретного права)
+    public function togglePermission3(Request $request)
+    {
+        $data = $request->validate([
+            'role_id'       => 'required|integer|exists:roles,id',
+            'permission_id' => 'required|integer|exists:permissions,id',
+            'value'         => 'required|in:true,false',
+        ]);
+
+        $attach    = $data['value'] === 'true';
+        $partnerId = app('current_partner')->id;                         // <<< CHANGED: контекст партнёра
+
+        // Обновляем в транзакции
+        DB::transaction(function () use ($data, $attach, $partnerId) {
+            $role = Role::findOrFail($data['role_id']);
+
+            if ($attach) {
+                // <<< CHANGED: связываем право с конкретным партнёром
+                $role->permissions()->syncWithoutDetaching([
+                    $data['permission_id'] => ['partner_id' => $partnerId],
+                ]);
+            } else {
+                // <<< CHANGED: удаляем только запись с нужным partner_id
+                DB::table('permission_role')
+                    ->where('role_id',       $role->id)
+                    ->where('permission_id', $data['permission_id'])
+                    ->where('partner_id',    $partnerId)
+                    ->delete();
+            }
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+    public function togglePermission(Request $request)
+    {
+        $data = $request->validate([
+            'role_id'       => 'required|integer|exists:roles,id',
+            'permission_id' => 'required|integer|exists:permissions,id',
+            'value'         => 'required|in:true,false',
+        ]);
+
+        $attach    = $data['value'] === 'true';
+        $roleId    = $data['role_id'];
+        $permId    = $data['permission_id'];
+        $partnerId = app('current_partner')->id;                              // <<< CHANGED: контекст партнёра
+
+        DB::transaction(function () use ($roleId, $permId, $partnerId, $attach) {
+            if ($attach) {
+                // <<< CHANGED: вместо syncWithoutDetaching делаем insertOrIgnore
+                DB::table('permission_role')->insertOrIgnore([
+                    'role_id'       => $roleId,
+                    'permission_id' => $permId,
+                    'partner_id'    => $partnerId,
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            } else {
+                // <<< CHANGED: удаляем только нужную строку по всем трём ключам
+                DB::table('permission_role')
+                    ->where('role_id',       $roleId)
+                    ->where('permission_id', $permId)
+                    ->where('partner_id',    $partnerId)
+                    ->delete();
+            }
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+
 
     //* Метод для создания новой роли (AJAX).
     public function createRole(Request $request)

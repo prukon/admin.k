@@ -127,4 +127,35 @@ class Role extends Model
 
 
 
+    public function permissionsForPartner(int $partnerId)
+    {
+        return $this->belongsToMany(Permission::class, 'permission_role')
+            ->withPivot('partner_id')
+            ->withTimestamps()
+            ->wherePivot('partner_id', $partnerId);
+    }
+
+    /**
+     * Привязать право к роли в контексте партнёра.
+     */
+    public function givePermissionToForPartner($permissionId, int $partnerId)
+    {
+        $this->permissionsForPartner($partnerId)
+            ->attach($permissionId, ['partner_id' => $partnerId]);
+    }
+
+    /**
+     * Отвязать все права в контексте партнёра.
+     */
+    public function revokeAllPermissionsForPartner(int $partnerId)
+    {
+        \DB::table('permission_role')
+            ->where('role_id', $this->id)
+            ->where('partner_id', $partnerId)
+            ->delete();
+    }
+
+
+
+
 }

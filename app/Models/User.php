@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -10,8 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
-
-//use App\Models\Role;
+use Illuminate\Support\Facades\DB;
 
 
 class   User extends Authenticatable
@@ -21,17 +19,14 @@ class   User extends Authenticatable
     use Filterable;
     use SoftDeletes;
 
-
     protected $table = 'users'; //явное указание к какой таблице в БД привязана модель
     protected $guarded = []; //разрешение на изменение данных в таблице
     protected $dates = ['deleted_at'];
-
 
     protected $hidden = [
         'password',
         'remember_token',
     ];
-
 
     protected $casts = [
         'email_verified_at' => 'datetime',
@@ -44,7 +39,6 @@ class   User extends Authenticatable
     {
         return $this->birthday ?->format('Y-m-d');
     }
-
 
     public function team()
     {
@@ -115,64 +109,28 @@ class   User extends Authenticatable
             ->exists();
     }
 
-    // Если у пользователя может быть несколько ролей (через pivot user_role):
-//    public function roles(): BelongsToMany
-//    {
-//        return $this->belongsToMany(Role::class, 'user_role');
-//    }
-
-    /**
-     * Проверяем, есть ли у пользователя право $permissionName
-     */
-//    public function hasPermission(string $permissionName): bool
-//    {
-//        // Перебираем все роли, если у роли есть нужное право, возвращаем true
-//        foreach ($this->roles as $role) {
-//            if ($role->permissions->contains('name', $permissionName)) {
-//                return true;
-//            }
-//        }
-//
-//        return false;
-//    }
-
-//    public function role()
-//    {
-//        return $this->belongsTo(Role::class, 'role_id');
-//    }
-
-
-//    public function role(): BelongsTo
-//    {
-//        // Если таблица roles имеет PK = id,
-//        // а в таблице users есть FK = role_id
-//        return $this->belongsTo(Role::class, 'role_id');
-//    }
 
     public function role()
     {
         return $this->belongsTo(Role::class, 'role_id');
     }
 
-
-
-//    public function hasPermission(string $permissionName): bool
-//    {
-//        return $this->role
-//            && $this->role->permissions->contains('name', $permissionName);
-//    }
-
-    public function hasPermission($permissionName)
+    public function hasPermission(string $permissionName): bool
     {
-        // Если у пользователя нет связанной роли (null), то прав нет
-        if (!$this->role) {
-            return false;
+        // 1) получаем текущего партнёра
+        $partnerId = app('current_partner')->id;       // <<< CHANGED
+
+        // 2) если у юзера нет роли — сразу false
+        if (! $this->role) {
+            return false;                             // <<< CHANGED
         }
 
-        // Убеждаемся, что модель Role подгрузила permissions (pivot: permission_role)
-        // и проверяем наличие нужного permission
-        return $this->role->permissions->contains('name', $permissionName);
+        // 3) смотрим, есть ли у этой роли permission с нужным именем
+        //    именно для данного партнёра
+        return $this->role
+            ->permissionsForPartner($partnerId) // <<< CHANGED
+            ->where('name', $permissionName)
+            ->exists();                        // <<< CHANGED
     }
-
 }
 
