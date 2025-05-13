@@ -85,9 +85,11 @@ class RobokassaController extends Controller
 
     public function result(Request $request)
     {
+        $partnerId = app('current_partner')->id;
+
         \Log::info('Request data:', $request->all());
 
-        DB::transaction(function () use ($request) {
+        DB::transaction(function () use ($request, $partnerId) {
             // Получаем настройки Робокассы из БД
             $paymentSystem = PaymentSystem::where('name', 'robokassa')->first();
 
@@ -146,6 +148,7 @@ class RobokassaController extends Controller
         // Запись платежа
         Payment::create([
             'user_id' => $Shp_userId,
+            'partner_id'  => $partnerId,
             'user_name' => $user?->name ?? 'Неизвестно',
             'team_title' => $teamName,
             'operation_date' => $currentDateTime,
@@ -159,6 +162,7 @@ class RobokassaController extends Controller
             'type' => 5,
             'action' => 50,
             'author_id' => $Shp_userId,
+            'partner_id'  => $partnerId,
             'description' => "Платеж на сумму: " . intval($outSum) . " руб от {$user?->name}. ID: {$Shp_userId}. Группа: {$teamName}. Период: {$Shp_paymentDate}.",
             'created_at' => now(),
         ]);

@@ -193,8 +193,6 @@ class TransactionController extends Controller
 
 
 
-
-
 //    Успешная оплата (для юзеров и партнеров)
     public function success(Request $request)
     {
