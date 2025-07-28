@@ -35,7 +35,7 @@
 
             <h2>5. Оплата услуг</h2>
             <p>5.1. Стоимость услуг указана на сайте сервиса <a target="_blank"
-                                                                href="https://kidslink.ru/">kidslink.ru</a>.</p>
+                                                                href="https://кружок.online/">Кружок.online</a>.</p>
             <p>5.2. Оплата производится путем перечисления денежных средств на расчетный счет Администрации
                 через доступные платежные системы.</p>
 
@@ -58,7 +58,7 @@
             <ul class="list-unstyled">
                 <li><strong>ИНН:</strong> 110211351590</li>
                 <li><strong>ОГРНИП:</strong> 324784700017432</li>
-                <li><strong>Email:</strong> kidslinkru@yandex.ru</li>
+                <li><strong>Email:</strong> kruzhok.online@yandex.ru</li>
                 <li><strong>Адрес:</strong> г.Сочи, ул. Урожайная 110/1</li>
             </ul>
         </div>

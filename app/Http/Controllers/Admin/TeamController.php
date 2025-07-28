@@ -17,9 +17,6 @@ use App\Http\Requests\Team\StoreRequest;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
 
-
-
-
 class TeamController extends Controller
 {
     public function __construct(TeamService $service)
@@ -47,12 +44,6 @@ class TeamController extends Controller
             'weekdays'));
     }
 
-//    public function create(Team $team)
-//    {
-//        return view("admin.team.create");
-//    }
-
-
     public function store(StoreRequest $request)
     {
         $authorId = auth()->id();
@@ -72,7 +63,6 @@ class TeamController extends Controller
 
         return redirect()->route('admin.team.index');
     }
-
 
     public function edit($id)
     {

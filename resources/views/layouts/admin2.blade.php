@@ -7,7 +7,7 @@
 
 
 
-    <title>Kidslink.ru - сервис учета для детских садов, тематических школ и секций</title>
+    <title>кружок.onlline - сервис учета для детских садов, тематических школ и секций</title>
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
     {{--JQuery--}}
     <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
@@ -50,12 +50,12 @@
 <div class="wrapper">
 
     <!-- Preloader -->
-{{--<div class="preloader flex-column justify-content-center align-items-center">--}}
-{{--<img class="animation__shake" src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="AdminLTELogo" height="60"--}}
-{{--width="60">--}}
-{{--</div>--}}
+    {{--<div class="preloader flex-column justify-content-center align-items-center">--}}
+    {{--<img class="animation__shake" src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="AdminLTELogo" height="60"--}}
+    {{--width="60">--}}
+    {{--</div>--}}
 
-<!-- Navbar -->
+    <!-- Navbar -->
     @php
         $user = auth()->user();
     @endphp
@@ -77,7 +77,7 @@
             @endforeach
         </ul>
 
-    @can('changing-partner')
+        @can('changing-partner')
             <!-- Форма переключения партнёров -->
             <div class="collapse navbar-collapse mr-3">
                 <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
@@ -91,7 +91,7 @@
                     </select>
                 </form>
             </div>
-@endcan
+        @endcan
 
 
         <!-- Right navbar links -->
@@ -180,7 +180,7 @@
             <!-- Модальное окно настройки меню -->
             {{--@include('includes.confirmLogout')--}}
 
-        <!-- Модальное окно подтверждения удаления -->
+            <!-- Модальное окно подтверждения удаления -->
             @include('includes.modal.confirmDeleteModal')
 
 
@@ -243,7 +243,7 @@
             {{--                </div>--}}
             {{--            </li>--}}
 
-        <!-- Messages Dropdown Menu -->
+            <!-- Messages Dropdown Menu -->
             {{--                        <li class="nav-item dropdown">--}}
             {{--                            <a class="nav-link" data-toggle="dropdown" href="#">--}}
             {{--                                <i class="far fa-comments"></i>--}}
@@ -305,7 +305,7 @@
             {{--                            </div>--}}
             {{--                        </li>--}}
 
-        <!-- Notifications Dropdown Menu -->
+            <!-- Notifications Dropdown Menu -->
             {{--<li class="nav-item dropdown">--}}
             {{--<a class="nav-link" data-toggle="dropdown" href="#">--}}
             {{--<i class="far fa-bell"></i>--}}
@@ -351,10 +351,10 @@
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
         <!-- Brand Logo -->
         <a href="/" class="brand-link my-brand-link  ml-3">
-        {{--<a href="/" class="ml-3">--}}
+            {{--<a href="/" class="ml-3">--}}
             {{--                        <img src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="Kidslink Logo"--}}
             {{--                             class="brand-image img-circle elevation-3" style="opacity: .8">--}}
-            <span class="brand-text font-weight-light">Kidslink.ru</span>
+            <span class="brand-text font-weight-light">кружок.onlline</span>
         </a>
 
         <!-- Sidebar -->
@@ -399,21 +399,21 @@
 
 
             <!-- SidebarSearch Form -->
-        {{--                    <div class="form-inline">--}}
-        {{--                        <div class="input-group" data-widget="sidebar-search">--}}
-        {{--                            <input class="form-control form-control-sidebar" type="search" placeholder="Search"--}}
-        {{--                                   aria-label="Search">--}}
-        {{--                            <div class="input-group-append">--}}
-        {{--                                <button class="btn btn-sidebar">--}}
-        {{--                                    <i class="fas fa-search fa-fw"></i>--}}
-        {{--                                </button>--}}
-        {{--                            </div>--}}
-        {{--                        </div>--}}
-        {{--                    </div>--}}
+            {{--                    <div class="form-inline">--}}
+            {{--                        <div class="input-group" data-widget="sidebar-search">--}}
+            {{--                            <input class="form-control form-control-sidebar" type="search" placeholder="Search"--}}
+            {{--                                   aria-label="Search">--}}
+            {{--                            <div class="input-group-append">--}}
+            {{--                                <button class="btn btn-sidebar">--}}
+            {{--                                    <i class="fas fa-search fa-fw"></i>--}}
+            {{--                                </button>--}}
+            {{--                            </div>--}}
+            {{--                        </div>--}}
+            {{--                    </div>--}}
 
-        <!-- Sidebar Menu -->
-        @include('includes.sidebar')
-        <!-- /.sidebar-menu -->
+            <!-- Sidebar Menu -->
+            @include('includes.sidebar')
+            <!-- /.sidebar-menu -->
         </div>
         <!-- /.sidebar -->
     </aside>
@@ -421,25 +421,25 @@
     <!-- Content Wrapper. Contains page content -->
     <div class="content-wrapper">
         <!-- Content Header (Page header) -->
-    {{--        <div class="content-header">--}}
-    {{--            <div class="container-fluid">--}}
-    {{--                <div class="row mb-2">--}}
-    {{--                    <div class="col-sm-6">--}}
-    {{--                        <h1 class="m-0">Dashboard</h1>--}}
-    {{--                    </div>--}}
-    {{--                    <!-- /.col -->--}}
+        {{--        <div class="content-header">--}}
+        {{--            <div class="container-fluid">--}}
+        {{--                <div class="row mb-2">--}}
+        {{--                    <div class="col-sm-6">--}}
+        {{--                        <h1 class="m-0">Dashboard</h1>--}}
+        {{--                    </div>--}}
+        {{--                    <!-- /.col -->--}}
 
-    {{--                    <div class="col-sm-6">--}}
-    {{--                        <ol class="breadcrumb float-sm-right">--}}
-    {{--                            <li class="breadcrumb-item"><a href="#">Home</a></li>--}}
-    {{--                            <li class="breadcrumb-item active">Dashboard v1</li>--}}
-    {{--                        </ol>--}}
-    {{--                    </div><!-- /.col -->--}}
+        {{--                    <div class="col-sm-6">--}}
+        {{--                        <ol class="breadcrumb float-sm-right">--}}
+        {{--                            <li class="breadcrumb-item"><a href="#">Home</a></li>--}}
+        {{--                            <li class="breadcrumb-item active">Dashboard v1</li>--}}
+        {{--                        </ol>--}}
+        {{--                    </div><!-- /.col -->--}}
 
-    {{--                </div><!-- /.row -->--}}
-    {{--            </div><!-- /.container-fluid -->--}}
-    {{--        </div>--}}
-    <!-- /.content-header -->
+        {{--                </div><!-- /.row -->--}}
+        {{--            </div><!-- /.container-fluid -->--}}
+        {{--        </div>--}}
+        <!-- /.content-header -->
 
         <!-- Main content -->
         <section class="content">
@@ -454,7 +454,7 @@
     <!-- /.content-wrapper -->
     <footer class="main-footer">
 
-        <div> Copyright &copy; 2023-2025 <a target="_blank" href="https://kidslink.ru/">Kidslink.ru</a>.
+        <div> Copyright &copy; 2023-2025 <a target="_blank" href="https://кружок.onlline/">кружок.onlline</a>.
             Все права защищены.
         </div>
         <div class="float-right d-none d-sm-inline-block">

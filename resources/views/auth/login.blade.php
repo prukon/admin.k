@@ -1,5 +1,5 @@
 @extends('layouts.app')
-{{--@extends('layouts/main2')--}}
+{{--@extends('layouts.landingPage')--}}
 
 @section('content')
     <div class="container">

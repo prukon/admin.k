@@ -39,30 +39,62 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="btn-modal-error" data-bs-dismiss="modal">Закрыть</button>
+                <button type="button" class="btn btn-secondary" id="btn-modal-error" data-bs-dismiss="modal">Закрыть
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    $(document).ready(function () {
-        // Перезагрузка страницы при нажатии "закрыть"
-        $('#btn-modal-error').on('click', function () {
-            location.reload();
-        });
+
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const btn = document.getElementById('btn-modal-error');
+
+        if (btn) {
+            btn.addEventListener('click', function () {
+                location.reload();
+            });
+        }
     });
 
+
+    // function eroorRespone(response) {
+    //     console.log('eroorRespone');
+    //     let message = '';
+    //
+    //     if (response.responseJSON && response.responseJSON.errors) {
+    //         let errorMessages = [];
+    //         $.each(response.responseJSON.errors, function (field, messages) {
+    //             errorMessages = errorMessages.concat(messages);
+    //         });
+    //         // Объединяем сообщения, используя символ переноса строки
+    //         message = errorMessages.join('\n');
+    //     } else {
+    //         message = response.responseJSON && response.responseJSON.message
+    //             ? response.responseJSON.message
+    //             : 'Ошибка при создании пользователя!';
+    //     }
+    //
+    //     $('#errorModal').modal('show');
+    //     // Заменяем \n на тег <br> и выводим через .html()
+    //     $('#error-message').html(message.replace(/\n/g, '<br>'));
+    //
+    // }
+
+
     function eroorRespone(response) {
-console.log('eroorRespone');
+        console.log('eroorRespone');
         let message = '';
 
         if (response.responseJSON && response.responseJSON.errors) {
             let errorMessages = [];
-            $.each(response.responseJSON.errors, function(field, messages) {
-                errorMessages = errorMessages.concat(messages);
-            });
-            // Объединяем сообщения, используя символ переноса строки
+            for (const field in response.responseJSON.errors) {
+                if (Array.isArray(response.responseJSON.errors[field])) {
+                    errorMessages = errorMessages.concat(response.responseJSON.errors[field]);
+                }
+            }
             message = errorMessages.join('\n');
         } else {
             message = response.responseJSON && response.responseJSON.message
@@ -70,10 +102,19 @@ console.log('eroorRespone');
                 : 'Ошибка при создании пользователя!';
         }
 
-        $('#errorModal').modal('show');
-        // Заменяем \n на тег <br> и выводим через .html()
-        $('#error-message').html(message.replace(/\n/g, '<br>'));
+        // Показ модального окна Bootstrap 5
+        const modalElement = document.getElementById('errorModal');
+        if (modalElement) {
+            const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+            modalInstance.show();
+        }
 
+        // Вставка текста ошибки с <br> вместо \n
+        const messageContainer = document.getElementById('error-message');
+        if (messageContainer) {
+            messageContainer.innerHTML = message.replace(/\n/g, '<br>');
+        }
     }
+
 
 </script>

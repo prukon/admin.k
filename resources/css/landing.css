@@ -1,0 +1,76 @@
+.alert-color {
+    color: #ff8879;
+}
+
+.bg-call-to-action {
+    background-color: rgb(255 199 113 / 43%) !important
+}
+
+.mob-hide {
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .mob-hide {
+        display: none !important;
+    }
+}
+
+/* Offcanvas‑меню */
+.offcanvas-nav .nav-link {
+    padding-left: 1.5rem; /* отступ слева у пунктов */
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.offcanvas-nav .nav-link:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 0.25rem;
+}
+
+/* Отступ у кнопки‑гамбургера справа */
+.navbar-toggler.me-3 {
+    margin-right: 1rem !important;
+}
+
+/* Плавность затемнения фона offcanvas */
+.offcanvas-backdrop.show {
+    opacity: 0.5;
+}
+
+
+.hover-underline:hover {
+    text-decoration: underline;
+}
+
+
+/* Ховеры и переходы */
+.navbar-nav .nav-link,
+.navbar-nav .btn {
+    transition: background 0.2s;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 0.25rem;
+}
+
+.navbar-nav .btn:hover {
+    background-color: rgba(13, 110, 253, 0.85);
+}
+
+/* Мобильные отступы */
+@media (max-width: 767.98px) {
+    #mainNav .nav-link {
+        padding-left: 1.5rem;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        font-weight: 500;
+    }
+
+    #mainNav .btn {
+        margin: 0.5rem 0 0 1.5rem;
+    }
+}

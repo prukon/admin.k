@@ -68,24 +68,55 @@
 </div>
 
 <script>
+    // function showConfirmDeleteModal(headerText, messageText, confirmCallback) {
+    //     // Подменяем текст
+    //     $('#confirmDeleteModalLabel').text(headerText);
+    //     $('#confirmDeleteModal .modal-body').text(messageText);
+    //
+    //     // Перед тем, как навесить новый обработчик, уберём старые
+    //     $('#confirmDeleteBtn').off('click');
+    //
+    //     // Навешиваем обработчик под текущее действие
+    //     $('#confirmDeleteBtn').on('click', function () {
+    //         if (typeof confirmCallback === 'function') {
+    //             confirmCallback();
+    //         }
+    //         // Закроем модалку при успехе (или оставим открытой, если надо)
+    //         $('#confirmDeleteModal').modal('hide');
+    //     });
+    //
+    //     // Показываем модалку
+    //     $('#confirmDeleteModal').modal('show');
+    // }
+
     function showConfirmDeleteModal(headerText, messageText, confirmCallback) {
-        // Подменяем текст
-        $('#confirmDeleteModalLabel').text(headerText);
-        $('#confirmDeleteModal .modal-body').text(messageText);
+        const modalElement = document.getElementById('confirmDeleteModal');
+        const modalTitle = document.getElementById('confirmDeleteModalLabel');
+        const modalBody = modalElement.querySelector('.modal-body');
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
 
-        // Перед тем, как навесить новый обработчик, уберём старые
-        $('#confirmDeleteBtn').off('click');
+        // Подменяем текст заголовка и тела
+        if (modalTitle) modalTitle.textContent = headerText;
+        if (modalBody) modalBody.textContent = messageText;
 
-        // Навешиваем обработчик под текущее действие
-        $('#confirmDeleteBtn').on('click', function () {
+        // Удаляем предыдущие обработчики, если были
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+        // Назначаем новый обработчик
+        newConfirmBtn.addEventListener('click', function () {
             if (typeof confirmCallback === 'function') {
                 confirmCallback();
             }
-            // Закроем модалку при успехе (или оставим открытой, если надо)
-            $('#confirmDeleteModal').modal('hide');
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
         });
 
         // Показываем модалку
-        $('#confirmDeleteModal').modal('show');
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+        modalInstance.show();
     }
+
 </script>

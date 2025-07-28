@@ -10,7 +10,7 @@
                 <div class="card">
                     <div class="card-header">
                         {{--                    {{ __('Register') }}--}}
-                        Регистрация
+                        Регистрация учеников
                     </div>
 
                     <div class="card-body">
@@ -20,7 +20,7 @@
 
                             <div class="row mb-3">
                                 <label for="partner" class="col-md-4 col-form-label text-md-end">
-                                    Партнёр
+                                    Название кружка (секции/школы):
                                 </label>
                                 <div class="col-md-6">
                                     <select id="partnerSelect"

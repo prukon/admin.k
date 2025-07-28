@@ -30,9 +30,8 @@ use Illuminate\Foundation\Auth\AuthenticatesUsers;
 //    protected $redirectTo = RouteServiceProvider::HOME;
     protected function redirectTo()
     {
-        return '/'; // Перенаправление на главную страницу
+        return '/cabinet'; // Перенаправление на главную страницу
     }
-
 
     /**
      * Create a new controller instance.
@@ -46,10 +45,20 @@ use Illuminate\Foundation\Auth\AuthenticatesUsers;
 
     public function showLoginForm()
     {
-        return view("auth.login");
+        // Ваши данные, которые нужно передать в представление
+
+        $setting = Setting::where('name', 'registrationActivity')->first();
+        $isRegistrationActivity = $setting ? $setting->status : null;
+
+
+        // Возвращаем view с данными
+//        return view('auth.login',
+//            ['customData' => $customData]);
+
+        return view("auth.login", compact(
+            "isRegistrationActivity",
+        ));
     }
-
-
 
     protected function sendFailedLoginResponse(\Illuminate\Http\Request $request)
     {
@@ -69,5 +78,14 @@ use Illuminate\Foundation\Auth\AuthenticatesUsers;
     }
 
 
+//    public function logout(Request $request)
+//    {
+//        Auth::logout();
+//
+//        $request->session()->invalidate();
+//        $request->session()->regenerateToken();
+//
+//        return redirect('/');
+//    }
 
 }

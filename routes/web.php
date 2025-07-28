@@ -10,10 +10,28 @@ use Illuminate\Support\Facades\Mail;
 
 Auth::routes();
 
+//landing Page
+Route::get('/', [\App\Http\Controllers\LandingPageController::class, 'index'])->name('landing.home');
+//Route::get('/submissions', [\App\Http\Controllers\Admin\SubmissionController::class, 'index'])->name('admin.submissions.index');
+
+Route::post('/contact', [\App\Http\Controllers\LandingPageController::class, 'contactSend'])->name('contact.send');
+
+Route::get('/oferta', [\App\Http\Controllers\LandingPageController::class, 'oferta'])->name('oferta');
+
+
+
 Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
+//    Заявки
+    Route::get('/submissions', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
+
+
     //Главная
-    Route::get('/', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+//    Route::get('/cabinet', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+//    Route::post('/cabinet', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+    Route::match(['get','post'], '/cabinet', [\App\Http\Controllers\DashboardController::class, 'index'])
+        ->name('dashboard');
+   
     Route::get('/get-user-details', [\App\Http\Controllers\DashboardController::class, 'getUserDetails'])->name('getUserDetails');
     Route::get('/get-team-details', [\App\Http\Controllers\DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
     Route::get('/setup-btn', [\App\Http\Controllers\DashboardController::class, 'setupBtn'])->name('setupBtn');

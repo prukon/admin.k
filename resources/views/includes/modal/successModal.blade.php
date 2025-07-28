@@ -23,9 +23,7 @@
 
 
 <script>
-    $(document).ready(function () {
 
-    });
 
     function showSuccessModal(headerText, messageText, confirmCallback) {
         // Подменяем заголовок и текст сообщения

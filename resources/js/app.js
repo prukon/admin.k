@@ -1,4 +1,5 @@
 import './bootstrap';
+import 'bootstrap/dist/js/bootstrap.bundle';
 
 import { Calendar } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';

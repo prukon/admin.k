@@ -7,12 +7,20 @@
 
         {{--Консоль--}}
         <li class="nav-item">
-            <a href="/" class="nav-link">
+            <a href="/cabinet" class="nav-link">
                 {{--<i class="nav-icon far fa-calendar-alt"></i>--}}
                 <i class="nav-icon  fa-solid fa-house"></i>
                 <p>Консоль</p>
             </a>
+
         </li>
+
+
+        {{--<li>--}}
+            {{--<form method="POST" action="{{ route('dashboard') }}">@csrf--}}
+                {{--<button type="submit" class="dropdown-item">В личный кабинет</button>--}}
+            {{--</form>--}}
+        {{--</li>--}}
 
         {{--Отчеты--}}
         @can('reports')

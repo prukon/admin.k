@@ -8,8 +8,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
 {{--    <title>{{ config('app.name', 'Laravel') }}</title>--}}
-    <title>Kidslink.ru - сервис учета для детских садов, тематических школ и секций</title>
- 
+    <title>Кружок.online - сервис учета для детских садов, тематических школ и секций</title>
+    @vite(['resources/js/general-scripts.js'])
+
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
@@ -41,10 +42,16 @@
 <div id="app">
     <nav class="navbar navbar-expand-md navbar-light bg-white shadow-sm">
         <div class="container">
-            <a class="navbar-brand" href="{{ url('/') }}">
-                {{ config('app.name1', 'Kidslink.ru') }}
+            {{--<a class="navbar-brand" href="{{ url('/') }}">--}}
+                {{--{{ config('app.name1', 'кружок.online') }}--}}
 
+            {{--</a>--}}
+
+
+            <a class="navbar-brand" href="{{ url('/') }}">
+                <img src="{{ asset('img/logo3.png') }}" alt="кружок.online" height="80">
             </a>
+
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
                     data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
                     aria-expanded="false" aria-label="{{ __('Toggle navigation') }}">
