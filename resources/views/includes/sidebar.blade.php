@@ -105,6 +105,16 @@
             </li>
         <hr class="sidebar-separator">
 
+        {{--заявки с сайта--}}
+        @can('viewing-leads')
+            <li class="nav-item">
+                <a href="/submissions" class="nav-link">
+                    <i class="nav-icon fa-solid fa-credit-card"></i>
+
+                    <p>Заявки<span class="badge badge-info right"></span></p>
+                </a>
+            </li> 
+        @endcan
 
         {{--Оплата сервиса--}}
         @can('service-payment')

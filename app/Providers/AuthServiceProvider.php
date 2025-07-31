@@ -149,5 +149,11 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('changing-partner', function (User $user) {
             return $user->hasPermission('changing_partner');
         });
+
+        // Изменение партнера
+        Gate::define('viewing-leads', function (User $user) {
+            return $user->hasPermission('viewing_leads');
+        });
+
     }
 }

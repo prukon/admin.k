@@ -20,7 +20,7 @@
                             – Дополнительные: 62.01, 62.02, 62.09, 63.11, 63.12, 68.10, 68.32, 73.11, 77.21
                         </p>
                         <p><strong>Юридический адрес:</strong> г. Санкт-Петербург, Плесецкая ул., д. 16, стр. 1, кв. 354, 197373</p>
-                        <p><strong>Email:</strong> <a href="mailto:kidslinkru@yandex.ru">kidslinkru@yandex.ru</a></p>
+                        <p><strong>Email:</strong> <a href="mailto:kruzhok.online@yandex.ru">kruzhok.online@yandex.ru</a></p>
                     </div>
 
                     <div class="text-justify">
@@ -71,7 +71,7 @@
 
                         <h5 class="fw-bold mt-4">10. Заключительные положения</h5>
                         <p>10.1. Все споры решаются путём переговоров или в суде согласно законодательству РФ.<br>
-                            10.2. Контактный email: <a href="mailto:kidslinkru@yandex.ru">kidslinkru@yandex.ru</a></p>
+                            10.2. Контактный email: <a href="mailto:kruzhok.online@yandex.ru">kruzhok.online@yandex.ru</a></p>
                     </div>
                 </div>
             </div>
@@ -82,40 +82,10 @@
     <footer class="bg-dark text-white text-center py-4">
         <div class="container">
             <p class="mb-1">&copy; 2024 – 2025 кружок.online</p>
-            <div>
-                <a href="#" class="text-white text-decoration-none mx-2">Политика конфиденциальности</a>
-                <a href="#" class="text-white text-decoration-none mx-2">Условия использования</a>
-            </div>
+{{--            <div>--}}
+{{--                <a href="#" class="text-white text-decoration-none mx-2">Политика конфиденциальности</a>--}}
+{{--                <a href="#" class="text-white text-decoration-none mx-2">Условия использования</a>--}}
+{{--            </div>--}}
         </div>
     </footer>
-
-    <!-- Modal Demo -->
-    <div class="modal fade" id="demoModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Запись на демо</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form action="{{ route('demo.request') }}" method="POST">
-                        @csrf
-                        <div class="mb-3">
-                            <label class="form-label">Ваше имя</label>
-                            <input type="text" name="name" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Телефон</label>
-                            <input type="tel" name="phone" class="form-control" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Записаться</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
 @endsection
