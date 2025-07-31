@@ -186,18 +186,7 @@ Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController
 
 
 
-//Route::get('/test-mail', function () {
-//    $details = [
-//        'title' => 'Тестовое письмо',
-//        'body' => 'Это тестовое письмо для проверки отправки почты через SMTP.'
-//    ];
-//
-//    Mail::raw($details['body'], function ($message) {
-//        $message->to('prukon@gmail.com') // Замените на реальный адрес получателя
-//        ->subject('Тестовое письмо из Laravel');
-//    });
-//
-//    return 'Письмо отправлено!';
-//});
-
-//Auth::routes(['verify' => true]);
+Route::get('/log-test', function () {
+    \Log::info('Тестовая запись в лог');
+    return 'Записано';
+});
