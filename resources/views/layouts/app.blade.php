@@ -37,8 +37,14 @@
 
     <!-- Scripts -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
+    <script src="https://smartcaptcha.yandexcloud.net/captcha.js" defer></script>
+
 </head>
 <body>
+
+
+
+
 <div id="app">
     <nav class="navbar navbar-expand-md navbar-light bg-white shadow-sm">
         <div class="container">
@@ -46,6 +52,8 @@
                 {{--{{ config('app.name1', 'кружок.online') }}--}}
 
             {{--</a>--}}
+
+
 
 
             <a class="navbar-brand" href="{{ url('/') }}">

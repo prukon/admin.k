@@ -143,6 +143,17 @@
                                 </div>
                             </div>
 
+
+                            <div class="row mb-3">
+                                <div
+                                        id="captcha-container"
+                                        class="smart-captcha col-md-6 offset-md-4"
+                                        data-sitekey="ysc1_VtOwdMHcRgOwOlUv99Kv0vp1kHV4JZ4NHPe8rOUO1c1edd6d"
+                                        data-hl="ru"
+                                        data-callback="callback">
+                                </div>
+                            </div>
+
                             <div class="row mb-0">
                                 <div class="col-md-6 offset-md-4">
                                     <button id="registerButton" type="submit" class="btn btn-primary btn-istok">

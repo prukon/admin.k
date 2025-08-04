@@ -14,7 +14,7 @@ Auth::routes();
 Route::get('/', [\App\Http\Controllers\LandingPageController::class, 'index'])->name('landing.home');
 Route::post('/contact', [\App\Http\Controllers\LandingPageController::class, 'contactSend'])->name('contact.send');
 Route::view('/oferta', 'landing.oferta')->name('oferta');
-Route::view('/partner-oferta', 'admin.partnerOferta')->name('partnerOferta');
+Route::view('/partner/oferta', 'admin.partnerOferta')->name('partnerOferta');
 Route::view('/privacy-policy', 'landing.policy')->name('privacy.policy');
 
 
