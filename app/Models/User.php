@@ -102,11 +102,16 @@ class   User extends Authenticatable
         )->withTimestamps();
     }
 
-    public function hasRole(string $roleName)
+//    public function hasRole(string $roleName)
+//    {
+//        return $this->roles()
+//            ->where('name', $roleName)
+//            ->exists();
+//    }
+
+    public function hasRole(string $roleName): bool
     {
-        return $this->roles()
-            ->where('name', $roleName)
-            ->exists();
+        return $this->role && $this->role->name === $roleName;
     }
 
 
@@ -114,6 +119,7 @@ class   User extends Authenticatable
     {
         return $this->belongsTo(Role::class, 'role_id');
     }
+
 
     public function hasPermission(string $permissionName): bool
     {

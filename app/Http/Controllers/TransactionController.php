@@ -80,8 +80,17 @@ class TransactionController extends Controller
             $outSum = $_POST['outSum'];
         }
 
+        $partnerId =123;
+
+
         // Дополнительная логика, если необходимо
-        return view('payment.paymentUser', compact('paymentDate', 'outSum', 'formatedPaymentDate'));
+        return view('payment.paymentUser', compact(
+            'paymentDate',
+            'outSum',
+            'formatedPaymentDate',
+            'partnerId'
+
+        ));
     }
 
     //Переход со страницы выбора оплат. Формирование ссылки робокасса (Юзер)

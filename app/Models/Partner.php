@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Notifications\Notifiable;
 
 class Partner extends Model
 {
     use SoftDeletes;
+    use Notifiable;
+
 
     protected $table = 'partners';
 

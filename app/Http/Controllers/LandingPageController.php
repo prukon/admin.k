@@ -55,12 +55,6 @@ class LandingPageController extends Controller
         return back()->with('success', 'Сообщение отправлено!');
     }
 
-    public function oferta()
-    {
-        return view('landing.oferta');
-
-    }
-
 
 
 }

@@ -12,26 +12,24 @@ Auth::routes();
 
 //landing Page
 Route::get('/', [\App\Http\Controllers\LandingPageController::class, 'index'])->name('landing.home');
-//Route::get('/submissions', [\App\Http\Controllers\Admin\SubmissionController::class, 'index'])->name('admin.submissions.index');
-
 Route::post('/contact', [\App\Http\Controllers\LandingPageController::class, 'contactSend'])->name('contact.send');
-
-Route::get('/oferta', [\App\Http\Controllers\LandingPageController::class, 'oferta'])->name('oferta');
-
+Route::view('/oferta', 'landing.oferta')->name('oferta');
+Route::view('/partner-oferta', 'admin.partnerOferta')->name('partnerOferta');
+Route::view('/privacy-policy', 'landing.policy')->name('privacy.policy');
 
 
 Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
-//    Заявки
+    // Route: web.php
+
+
+    Route::post('/partner/accept-offer', [\App\Http\Controllers\PartnerOfferController::class, 'acceptOffer'])->name('partner.accept-offer');
+
+    //    Заявки
     Route::get('/submissions', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
 
-
     //Главная
-//    Route::get('/cabinet', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
-//    Route::post('/cabinet', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
-    Route::match(['get','post'], '/cabinet', [\App\Http\Controllers\DashboardController::class, 'index'])
-        ->name('dashboard');
-   
+    Route::match(['get', 'post'], '/cabinet', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/get-user-details', [\App\Http\Controllers\DashboardController::class, 'getUserDetails'])->name('getUserDetails');
     Route::get('/get-team-details', [\App\Http\Controllers\DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
     Route::get('/setup-btn', [\App\Http\Controllers\DashboardController::class, 'setupBtn'])->name('setupBtn');
@@ -58,12 +56,12 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::post('/admin/user/{id}/update-password', [\App\Http\Controllers\Admin\UserController::class, 'updatePassword'])->middleware('can:manage-users');
 
     //Отчеты
-    Route::get('/admin/reports/payments',       [\App\Http\Controllers\Admin\Report\PaymentReportController::class, 'payments'])->name('payments')->middleware('can:reports');
-    Route::get('/admin/reports/getPayments',    [\App\Http\Controllers\Admin\Report\PaymentReportController::class, 'getPayments'])->name('payments.getPayments')->middleware('can:reports');
-    Route::get('/admin/reports/debts',          [\App\Http\Controllers\Admin\Report\DeptReportController::class, 'debts'])->name('debts')->middleware('can:reports');
-    Route::get('/admin/reports/getDebts',       [\App\Http\Controllers\Admin\Report\DeptReportController::class, 'getDebts'])->name('debts.getDebts')->middleware('can:reports');
-    Route::get('/admin/reports/ltv',            [\App\Http\Controllers\Admin\Report\LtvReportController::class, 'ltv'])->name('ltv')->middleware('can:reports');
-    Route::get('/admin/reports/getLtv',         [\App\Http\Controllers\Admin\Report\LtvReportController::class, 'getLtv'])->name('ltv.getLtv')->middleware('can:reports');
+    Route::get('/admin/reports/payments', [\App\Http\Controllers\Admin\Report\PaymentReportController::class, 'payments'])->name('payments')->middleware('can:reports');
+    Route::get('/admin/reports/getPayments', [\App\Http\Controllers\Admin\Report\PaymentReportController::class, 'getPayments'])->name('payments.getPayments')->middleware('can:reports');
+    Route::get('/admin/reports/debts', [\App\Http\Controllers\Admin\Report\DeptReportController::class, 'debts'])->name('debts')->middleware('can:reports');
+    Route::get('/admin/reports/getDebts', [\App\Http\Controllers\Admin\Report\DeptReportController::class, 'getDebts'])->name('debts.getDebts')->middleware('can:reports');
+    Route::get('/admin/reports/ltv', [\App\Http\Controllers\Admin\Report\LtvReportController::class, 'ltv'])->name('ltv')->middleware('can:reports');
+    Route::get('/admin/reports/getLtv', [\App\Http\Controllers\Admin\Report\LtvReportController::class, 'getLtv'])->name('ltv.getLtv')->middleware('can:reports');
 
     //Отчеты юзера
     Route::get('/reports/payments', [\App\Http\Controllers\User\Report\ReportController::class, 'showUserPayments'])->name('showUserPayments')->middleware('can:my-payments');
@@ -115,15 +113,12 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     //Оплата клубного взноса (робокасса)
     Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee')->middleware('can:payment-clubfee'); //Оплата клубного взноса
 
-//    Оплата ТБанк
+    //    Оплата ТБанк
     Route::get('/tinkoff/form', [\App\Http\Controllers\TinkoffPaymentController::class, 'index'])->name('tinkoff.form');
     Route::post('/tinkoff/init', [\App\Http\Controllers\TinkoffPaymentController::class, 'init'])->name('tinkoff.init');
     Route::post('/tinkoff/callback', [\App\Http\Controllers\TinkoffPaymentController::class, 'callback'])->name('tinkoff.callback');
-//    Route::get('/tinkoff/success', [\App\Http\Controllers\TinkoffPaymentController::class, 'success'])->name('tinkoff.success');
-//    Route::get('/tinkoff/fail', [\App\Http\Controllers\TinkoffPaymentController::class, 'fail'])->name('tinkoff.fail');
-
-
-
+    //    Route::get('/tinkoff/success', [\App\Http\Controllers\TinkoffPaymentController::class, 'success'])->name('tinkoff.success');
+    //    Route::get('/tinkoff/fail', [\App\Http\Controllers\TinkoffPaymentController::class, 'fail'])->name('tinkoff.fail');
 
 
     //Учетная запись - вкладка юзер
@@ -148,11 +143,11 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::get('/schedule', [\App\Http\Controllers\Admin\ScheduleController::class, 'index'])->name('schedule.index')->middleware('can:schedule-journal');
     Route::post('/schedule/update', [\App\Http\Controllers\Admin\ScheduleController::class, 'update'])->name('schedule.update')->middleware('can:schedule-journal');
     Route::get('/schedule/logs-data', [\App\Http\Controllers\Admin\ScheduleController::class, 'getLogsData'])->name('logs.data.schedule')->middleware('can:schedule-journal');
-//    Route::get('/admin/user-schedule/{user}', [\App\Http\Controllers\Admin\ScheduleController::class, 'getUserScheduleInfo'])->name('user.schedule.info')->middleware('can:schedule-journal');
+    //    Route::get('/admin/user-schedule/{user}', [\App\Http\Controllers\Admin\ScheduleController::class, 'getUserScheduleInfo'])->name('user.schedule.info')->middleware('can:schedule-journal');
     Route::get('/schedule/user-schedule/{user}', [\App\Http\Controllers\Admin\ScheduleController::class, 'getUserScheduleInfo'])->name('user.schedule.info')->middleware('can:schedule-journal');
-//    Route::post('/admin/user/{user}/set-group', [\App\Http\Controllers\Admin\ScheduleController::class, 'setUserGroup'])->name('user.set.group')->middleware('can:schedule-journal');
+    //    Route::post('/admin/user/{user}/set-group', [\App\Http\Controllers\Admin\ScheduleController::class, 'setUserGroup'])->name('user.set.group')->middleware('can:schedule-journal');
     Route::post('/schedule/user/{user}/set-group', [\App\Http\Controllers\Admin\ScheduleController::class, 'setUserGroup'])->name('user.set.group')->middleware('can:schedule-journal');
-//    Route::post('/admin/user/{user}/update-schedule-range', [\App\Http\Controllers\Admin\ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule')->middleware('can:schedule-journal');
+    //    Route::post('/admin/user/{user}/update-schedule-range', [\App\Http\Controllers\Admin\ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule')->middleware('can:schedule-journal');
     Route::post('/schedule/user/{user}/update-schedule-range', [\App\Http\Controllers\Admin\ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule')->middleware('can:schedule-journal');
 
     // Статусы
@@ -161,18 +156,8 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
     Route::patch('/schedule/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'update'])->name('statuses.update')->middleware('can:schedule-journal');
     Route::delete('/schedule/statuses/{id}', [\App\Http\Controllers\Admin\StatusController::class, 'destroy'])->name('statuses.destroy')->middleware('can:schedule-journal');
 
-
-//переключение между партнерами
+    //переключение между партнерами
     Route::post('/switch-partner', [\App\Http\Controllers\PartnerSwitchController::class, 'switch'])->name('partner.switch')->middleware('can:changing-partner');
-
-//    Route::resource('payment-systems', [\App\Http\Controllers\Admin\PaymentSystemController::class, 'index'])->middleware(['auth', 'is_admin']);
-
-
-
-    //Роли
-//Route::get('/admin/setting/rule', [\App\Http\Controllers\Admin\RolePermissionController::class, 'index'])->name('admin.setting.rule');
-//Route::post('/admin/setting/rule/toggle', [\App\Http\Controllers\Admin\RolePermissionController::class, 'togglePermission'])->name('admin.setting.rule.toggle');
-
 
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
@@ -183,6 +168,12 @@ Route::post('/webhook/yookassa', [\App\Http\Controllers\WebhookController::class
 
 
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');
+
+
+//Маршрут для оплпты тиньков мультирасчеты
+//Route::get('/tinkoff/payout/{paymentId}', [\App\Http\Controllers\TinkoffPayoutController::class, 'payout']);
+Route::post('/tinkoff/pay', [\App\Http\Controllers\TinkoffPaymentController::class, 'init'])->name('tinkoff.pay');
+Route::post('/tinkoff/callback', [\App\Http\Controllers\TinkoffPaymentController::class, 'callback'])->name('tinkoff.callback'); // пока заглушка
 
 
 

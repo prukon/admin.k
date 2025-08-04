@@ -6,7 +6,6 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
 
-
     <title>кружок.onlline - сервис учета для детских садов, тематических школ и секций</title>
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
     {{--JQuery--}}
@@ -66,7 +65,6 @@
             <li class="nav-item">
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
-
 
 
             @foreach($menuItems as $item)
@@ -547,6 +545,43 @@
 {{--снежинки--}}
 {{--<script src="https://daruse.ru/assets/js/snowfall.js"></script>--}}
 {{--<script type="text/javascript">$(document).snowfall();</script>--}}
+
+{{--Принятие оферты--}}
+{{--@if (!auth('partner')->user()->offer_accepted)--}}
+
+{{--@php--}}
+{{--    dump(auth()->user());--}}
+{{--    dump(auth('partner')->user());--}}
+{{--@endphp--}}
+
+
+{{--@php--}}
+{{--    logger('offer_accepted = ' . optional(auth('partner')->user())->offer_accepted);--}}
+{{--@endphp--}}
+
+
+{{--@if (auth('partner')->check() && !auth('partner')->user()->offer_accepted)--}}
+{{--    <script>--}}
+{{--        document.addEventListener("DOMContentLoaded", function () {--}}
+{{--            var modal = new bootstrap.Modal(document.getElementById('partnerOfferModal'));--}}
+{{--            modal.show();--}}
+{{--        });--}}
+{{--    </script>--}}
+{{--    @include('partner.offer_modal')--}}
+{{--    @include('includes.modal.offerModal')--}}
+{{--@endif--}}
+
+
+
+@if (auth()->check() && optional(auth()->user()->role)->name === 'admin' && !auth()->user()->offer_accepted)
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var modal = new bootstrap.Modal(document.getElementById('partnerOfferModal'));
+            modal.show();
+        });
+    </script>
+    @include('includes.modal.offerModal')
+@endif
 
 
 </body>
