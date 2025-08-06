@@ -5,11 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
+use App\Models\Traits\Filterable;
+
 
 class Partner extends Model
 {
     use SoftDeletes;
     use Notifiable;
+    use Filterable;
 
 
     protected $table = 'partners';
@@ -33,6 +36,8 @@ class Partner extends Model
         'bank_bik',
         'bank_account',
         'kpp',
+        'order_by',
+        'is_enabled',
 
     ];
 

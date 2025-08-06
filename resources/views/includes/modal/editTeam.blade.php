@@ -69,12 +69,15 @@
 <script>
 
     $(document).ready(function() {
+        console.log('Debug: edit-partner script (jQuery) initialized');
+
+
         $('.edit-team-link').on('click', function() {
             const teamId = $(this).data('id');
 
             // AJAX запрос для получения данных группы
             $.ajax({
-                url: `/admin/team/${teamId}/edit`,
+                    url: `/admin/team/${teamId}/edit`,
                 type: 'GET',
                 success: function(response) {
                     $('#edit-team-id').val(response.id);

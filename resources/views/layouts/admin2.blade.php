@@ -583,6 +583,8 @@
     @include('includes.modal.offerModal')
 @endif
 
+@stack('scripts')
+
 <script src="//code.jivo.ru/widget/3lc75ICTPG" async></script>
 
 </body>

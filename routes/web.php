@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\PartnerPaymentController;
 use Illuminate\Support\Facades\Mail;
+use App\Http\Controllers\Admin\PartnerController;
 
 
 Auth::routes();
@@ -37,12 +38,69 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
     //Группы
     Route::get('admin/teams', [\App\Http\Controllers\Admin\TeamController::class, 'index'])->name('admin.team1')->middleware('can:manage-groups');
-    Route::get('admin/teams/create', [\App\Http\Controllers\Admin\TeamController::class, 'create'])->name('admin.team.create')->middleware('can:manage-groups');
     Route::post('admin/teams', [\App\Http\Controllers\Admin\TeamController::class, 'store'])->name('admin.team.store')->middleware('can:manage-groups');
     Route::get('/admin/team/{id}/edit', [\App\Http\Controllers\Admin\TeamController::class, 'edit'])->name('admin.team.edit')->middleware('can:manage-groups');
     Route::patch('/admin/team/{id}', [\App\Http\Controllers\Admin\TeamController::class, 'update'])->name('admin.team.update')->middleware('can:manage-groups');
     Route::delete('admin/team/{team}', [\App\Http\Controllers\Admin\TeamController::class, 'delete'])->name('admin.team.delete')->middleware('can:manage-groups');
     Route::get('/admin/teams/logs-data', [\App\Http\Controllers\Admin\TeamController::class, 'log'])->name('logs.data.team')->middleware('can:manage-groups');
+
+    //Партнеры
+//    Route::get('admin/partners', [\App\Http\Controllers\Admin\PartnerController::class, 'index'])->name('admin.partner')->middleware('can:manage-partners');
+//    Route::post('admin/partners', [\App\Http\Controllers\Admin\PartnerController::class, 'store'])->name('admin.partner.store')->middleware('can:manage-partners');
+//    Route::get('/admin/partners/{partner}/edit', [\App\Http\Controllers\Admin\PartnerController::class, 'edit'])->name('admin.partner.edit')->middleware('can:manage-partners');
+//    Route::patch('/admin/partners/{partner}', [\App\Http\Controllers\Admin\PartnerController::class, 'update'])->name('admin.partner.update')->middleware('can:manage-partners');
+//    Route::delete('admin/partners/{partner}', [\App\Http\Controllers\Admin\PartnerController::class, 'delete'])->name('admin.partner.delete')->middleware('can:manage-partners');
+//    Route::get('/admin/partners/logs-data', [\App\Http\Controllers\Admin\PartnerController::class, 'log'])->name('logs.data.partner')->middleware('can:manage-partners');
+
+
+
+    // Права: can:manage-partners
+//    Route::middleware(['can:manage-partners'])->group(function () {
+        // Список партнёров и страница с модалками
+        Route::get('admin/partners', [PartnerController::class, 'index'])->name('admin.partner.index');
+        // Создание партнёра
+        Route::post('admin/partners', [PartnerController::class, 'store'])->name('admin.partner.store');
+        // Редактирование партнёра (возвращает данные JSON для AJAX)
+        Route::get('admin/partner/{partner}/edit', [PartnerController::class, 'edit'])->name('admin.partner.edit');
+        // Обновление партнёра
+        Route::patch('admin/partner/{partner}', [PartnerController::class, 'update'])->name('admin.partner.update');
+        // Удаление партнёра
+        Route::delete('admin/partner/{partner}', [PartnerController::class, 'destroy'])->name('admin.partner.delete');
+//    });
+
+
+
+
+
+
+
+
+
+
+
+
+//    Route::prefix('admin')->middleware(['auth','can:manage-partners'])->group(function () {
+//        // Отображение страницы редактирования (возвращает view с модалкой)
+//        Route::get('partner/{partner}/edit', [PartnerController::class, 'edit'])
+//            ->name('admin.partner.edit');
+//
+//        // Получение данных партнёра в формате JSON (для AJAX)
+//        Route::get('partner/{partner}', [PartnerController::class, 'show'])
+//            ->name('admin.partner.show');
+//
+//        // Обновление партнёра
+//        Route::patch('partner/{partner}', [PartnerController::class, 'update'])
+//            ->name('admin.partner.update');
+//
+//        // Создание партнёра (JSON)
+//        Route::post('partner', [PartnerController::class, 'store'])
+//            ->name('admin.partner.store');
+//    });
+
+//    Route::get('admin/partner/{id}/edit', [\App\Http\Controllers\Admin\PartnerController::class, 'edit'])
+//        ->name('admin.partner.edit')
+//        ->middleware(['can:manage-partners']);
+
 
     //Пользователи
     Route::get('admin/users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('admin.user1')->middleware('can:manage-users');
@@ -174,7 +232,6 @@ Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController
 //Route::get('/tinkoff/payout/{paymentId}', [\App\Http\Controllers\TinkoffPayoutController::class, 'payout']);
 Route::post('/tinkoff/pay', [\App\Http\Controllers\TinkoffPaymentController::class, 'init'])->name('tinkoff.pay');
 Route::post('/tinkoff/callback', [\App\Http\Controllers\TinkoffPaymentController::class, 'callback'])->name('tinkoff.callback'); // пока заглушка
-
 
 
 Route::get('/log-test', function () {

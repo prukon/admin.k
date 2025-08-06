@@ -145,14 +145,19 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('setting_payment_systems');
         });
 
-        // Изменение партнера
+        // Изменение своего партнера
         Gate::define('changing-partner', function (User $user) {
             return $user->hasPermission('changing_partner');
         });
 
-        // Изменение партнера
+        // Изменение своего партнера
         Gate::define('viewing-leads', function (User $user) {
             return $user->hasPermission('viewing_leads');
+        });
+
+        // Управление партнерами
+        Gate::define('manage-partners', function (User $user) {
+            return $user->hasPermission('manage_partners');
         });
 
     }

@@ -83,6 +83,21 @@
             </li>
         @endcan
 
+        {{--Партнеры--}}
+        @can('manage-partners')
+            <li class="nav-item">
+                <a href="/admin/partners" class="nav-link">
+                    <i class="nav-icon fa-solid fa-layer-group"></i>
+                    <p>Партнеры
+{{--                        <span class="badge badge-info right">{{ $allPartnersCount}}</span>--}}
+                    </p>
+                </a>
+            </li>
+        @endcan
+
+
+
+
         {{--Настройки--}}
         @can('general-settings')
         <li class="nav-item">
