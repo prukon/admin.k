@@ -140,7 +140,7 @@
 @include('includes.modal.successModal')
 @include('includes.modal.errorModal')
 
-@section('scripts')
+{{--@section('scripts')--}}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('partnerForm');
@@ -200,7 +200,6 @@
             form.business_type.addEventListener('change', toggleFields);
             toggleFields();
         });
-    console.log('create partner')
     </script>
 
-@endsection
+{{--@endsection--}}

@@ -87,7 +87,7 @@
         @can('manage-partners')
             <li class="nav-item">
                 <a href="/admin/partners" class="nav-link">
-                    <i class="nav-icon fa-solid fa-layer-group"></i>
+                    <i class="nav-icon fa-solid fa-user-tie"></i>
                     <p>Партнеры
 {{--                        <span class="badge badge-info right">{{ $allPartnersCount}}</span>--}}
                     </p>

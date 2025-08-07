@@ -55,18 +55,15 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
 
     // Права: can:manage-partners
-//    Route::middleware(['can:manage-partners'])->group(function () {
-        // Список партнёров и страница с модалками
+    Route::middleware(['can:manage-partners'])->group(function () {
         Route::get('admin/partners', [PartnerController::class, 'index'])->name('admin.partner.index');
-        // Создание партнёра
         Route::post('admin/partners', [PartnerController::class, 'store'])->name('admin.partner.store');
-        // Редактирование партнёра (возвращает данные JSON для AJAX)
         Route::get('admin/partner/{partner}/edit', [PartnerController::class, 'edit'])->name('admin.partner.edit');
-        // Обновление партнёра
         Route::patch('admin/partner/{partner}', [PartnerController::class, 'update'])->name('admin.partner.update');
-        // Удаление партнёра
         Route::delete('admin/partner/{partner}', [PartnerController::class, 'destroy'])->name('admin.partner.delete');
-//    });
+        Route::get('/admin/partner/logs-data', [PartnerController::class, 'log'])->name('logs.data.partner');
+
+    });
 
 
 
