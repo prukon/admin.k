@@ -92,63 +92,6 @@
 
                 <div class="mb-3">
                     <div id="custom-fields-container">
-                        {{--@foreach($fields as $field)--}}
-                            {{--@php--}}
-                                {{--$userFieldValue = $userFieldValues[$field->id] ?? '';--}}
-                                {{--$permissions = is_array($field->permissions_id) ? $field->permissions_id : json_decode($field->permissions_id, true);--}}
-                                {{--$hasAccess = is_array($permissions) && in_array((string) $currentUser->role_id, array_map('strval', $permissions));--}}
-
-                                 {{--$hasAccess = $field->roles->isEmpty() || $field->roles->contains('id', $currentUser->role_id);--}}
-
-                            {{--@endphp--}}
-
-                            {{--<div class="mb-3 custom-field" data-slug="{{ $field->slug }}">--}}
-                                {{--<label for="custom-{{ $field->slug }}" class="form-label">--}}
-                                    {{--{{ $field->name }}--}} 
-                                {{--</label>--}}
-                                {{--<input--}}
-                                        {{--type="text"--}}
-                                        {{--name="custom[{{ $field->slug }}]"--}}
-                                        {{--class="form-control"--}}
-                                        {{--id="custom-{{ $field->slug }}"--}}
-                                        {{--value="{{ old("custom.{$field->slug}", $userFieldValue) }}"--}}
-                                        {{--{{ $hasAccess ? '' : 'disabled' }}--}}
-                                {{--/>--}}
-
-                            {{--@unless($hasAccess)--}}
-                                {{--<!-- Добавляем скрытое поле, чтобы данные передавались -->--}}
-                                    {{--<input type="hidden" name="custom[{{ $field->slug }}]"--}}
-                                           {{--value="{{ $userFieldValue }}">--}}
-                                {{--@endunless--}}
-                            {{--</div>--}}
-                        {{--@endforeach--}}
-
-
-                        {{--@foreach($fields as $field)--}}
-                            {{--@php--}}
-                                {{--// берем из контроллера--}}
-                                {{--$isEditable = $editableFields[$field->id] ?? false;--}}
-                                {{--$userFieldValue = $userFieldValues[$field->id] ?? '';--}}
-                            {{--@endphp--}}
-
-                            {{--<div class="mb-3 custom-field" data-slug="{{ $field->slug }}">--}}
-                                {{--<label for="custom-{{ $field->slug }}" class="form-label">--}}
-                                    {{--{{ $field->name }}--}}
-                                {{--</label>--}}
-                                {{--<input--}}
-                                        {{--type="text"--}}
-                                        {{--name="custom[{{ $field->slug }}]"--}}
-                                        {{--class="form-control"--}}
-                                        {{--id="custom-{{ $field->slug }}"--}}
-                                        {{--value="{{ old("custom.{$field->slug}", $userFieldValue) }}"--}}
-                                        {{--{{ $isEditable ? '' : 'disabled' }}--}}
-                                {{--/>--}}
-                                {{--@unless($isEditable)--}}
-                                    {{-- чтобы данные не потерялись --}}
-                                    {{--<input type="hidden" name="custom[{{ $field->slug }}]" value="{{ $userFieldValue }}">--}}
-                                {{--@endunless--}}
-                            {{--</div>--}}
-                        {{--@endforeach--}}
 
                         @foreach($fields as $field)
                             @php
@@ -207,6 +150,35 @@
                 <p class="text-danger">{{ $message }}</p>
                 @enderror
             </div>
+
+
+
+            {{-- 2FA: Чекбокс --}}
+            <div class="mb-3 form-check">
+                @if((int)$user->role_id === 10)
+                    {{-- Админ: обязательно включено --}}
+                    <input type="hidden" name="two_factor_enabled" value="1">
+                    <input class="form-check-input" type="checkbox" id="two_factor_enabled"
+                           checked disabled>
+                    <label class="form-check-label" for="two_factor_enabled">
+                        Двухфакторная аутентификация (обязательно для администраторов)
+                    </label>
+                @else
+                    {{-- Обычный пользователь: может включать/выключать --}}
+                    <input type="hidden" name="two_factor_enabled" value="0">
+                    <input class="form-check-input" type="checkbox" id="two_factor_enabled"
+                           name="two_factor_enabled" value="1"
+                            {{ old('two_factor_enabled', $user->two_factor_enabled) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="two_factor_enabled">
+                        Включить двухфакторную аутентификацию (код по SMS при входе)
+                    </label>
+                @endif
+            </div>
+
+
+
+
+
 
             {{-- Блок изменения пароля --}}
             <div class="buttons-wrap change-pass-wrap " id="change-pass-wrap" style="display: none;">
@@ -287,6 +259,23 @@
         document.addEventListener('DOMContentLoaded', function () {
 
             const uploadUrl = "{{ route('profile.user.uploadAvatar') }}";
+
+
+
+
+            // 2fa
+            // При включении чекбокса 2FA — простая клиентская проверка телефона
+            $('#userUpdateForm').on('submit', function(){
+                const isAdmin = {{ (int)$user->role_id === 10 ? 'true' : 'false' }};
+                const twofaChecked = isAdmin ? true : $('#two_factor_enabled').is(':checked');
+                const phone = ($('#phone').val() || '').replace(/\D+/g,'');
+                if (twofaChecked && phone.length < 11) {
+                    alert('Для включения 2FA укажите корректный телефон (формат 79XXXXXXXXX).');
+                    return false;
+                }
+                return true;
+            });
+
 
 
             //Добавление имени пользователя в скрытое поле формы для формы отправки аватарки
@@ -519,5 +508,4 @@
 
         });
     </script>
-    {{--    <script src="{{ asset('js/dashboard-ajax.js') }}"></script>--}}
 @endsection

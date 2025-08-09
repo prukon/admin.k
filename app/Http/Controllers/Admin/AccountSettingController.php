@@ -23,12 +23,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
 
+use Illuminate\Validation\Rule;
+
+
 //use App\Models\Log;
 use App\Models\MyLog;
 //use Illuminate\Support\Facades\Log;
 
 
-//Контроллер для админа
 
 class AccountSettingController extends Controller
 {
@@ -36,6 +38,8 @@ class AccountSettingController extends Controller
     {
         $this->service = $service;
     }
+
+
 
     public function user()
     {
@@ -49,9 +53,6 @@ class AccountSettingController extends Controller
         $fields = UserField::where('partner_id', $partnerId)
             ->with('roles')
             ->get();
-
-
-
 
 
         $userFieldValues = UserFieldValue::where('user_id', $user->id)->pluck('value', 'field_id');
@@ -91,51 +92,8 @@ class AccountSettingController extends Controller
 
     }
 
+
     public function update2(AdminUpdateRequest $request, User $user)
-    {
-        $partnerId = app('current_partner')->id;
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $oldData = User::where('id', $authorId)->first();
-        $user = Auth::user();
-
-        $data = $request->validated();
-
-        DB::transaction(function () use ($user, $authorId, $data, $oldData, $request, $partnerId) {
-
-            $this->service->update($user, $data);
-            $authorName = User::where('id', $authorId)->first()->name;
-
-            $newName = $data['name'] ?? $request->input('name') ?? $oldData->name ?? 'N/A';
-            $newEmail = $data['email'] ?? $request->input('email') ?? $oldData->email ?? 'N/A';
-
-
-            // Логируем успешное обновление
-            MyLog::create([
-                'type' => 2, // Лог для обновления юзеров
-                'action' => 23, // Лог для обновления учетной записи
-                'partner_id'  => $partnerId,
-                'author_id' => $authorId,
-                'description' => "Имя: $authorName. ID: $authorId. 
-                Старые:\n ( $oldData->name, " . Carbon::parse($oldData->birthday)->format('d.m.Y') . ", $oldData->email). 
-               Новые:\n ({$newName}, " . Carbon::parse($data['birthday'])->format('d.m.Y') . ", {$newEmail})",
-                'created_at' => now(),
-            ]);
-        });
-//        return redirect()->route('admin.cur.user.edit', ['user' => $user->id]);
-
-        // Если запрос пришёл по AJAX, вернём JSON
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Пользователь успешно обновлен',
-                // Можно вернуть и актуальные данные пользователя, если нужно
-            ]);
-
-
-    }
-
-
-    public function update(AdminUpdateRequest $request, User $user)
     {
         $partnerId = app('current_partner')->id;
         $authorId  = Auth::id();
@@ -196,6 +154,296 @@ class AccountSettingController extends Controller
 
                 \Log::info('MyLog-запись успешно создана');
             });
+
+            \Log::info('Успешная транзакция обновления пользователя', [
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Пользователь успешно обновлен',
+            ]);
+        } catch (Exception $e) {
+            \Log::error('Ошибка при обновлении пользователя', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось обновить пользователя. Подробности в логах.',
+            ], 500);
+        }
+    }
+
+    public function update3(AdminUpdateRequest $request, User $user)
+    {
+        $partnerId = app('current_partner')->id;
+        $authorId  = Auth::id();
+        $oldData   = $user->replicate();
+        $validated = $request->validated();
+
+        /** ---------------- 2FA: подготовка и валидация ---------------- */
+
+        // Целевой role_id (могут менять роль в этом апдейте)
+        $targetRoleId = (int)($validated['role_id'] ?? $user->role_id);
+        $isAdminRole  = $targetRoleId === 10;
+
+        // two_factor_enabled берём из запроса (для админа всё равно форсируем 1)
+        $requestedTwoFa = (int)$request->boolean('two_factor_enabled');
+        $twoFaEnabled   = $isAdminRole ? 1 : $requestedTwoFa;
+
+        // Нормализация телефона под sms.ru (79XXXXXXXXX)
+        $normalize = function (?string $phone): ?string {
+            if (!$phone) return null;
+            $digits = preg_replace('/\D+/', '', $phone);
+            if (strlen($digits) === 11 && str_starts_with($digits, '8')) {
+                $digits = '7' . substr($digits, 1);
+            }
+            if (strlen($digits) === 10) {
+                $digits = '7' . $digits;
+            }
+            return $digits ?: null;
+        };
+
+        // Берём телефон из запроса ИЛИ из текущего пользователя (и нормализуем)
+        $incomingPhone = $normalize($validated['phone'] ?? null);
+        $currentPhone  = $normalize($user->phone);
+
+        // Если включаем 2FA — телефон обязателен (из формы или уже сохранённый)
+        if ($twoFaEnabled === 1) {
+            $phoneFor2fa = $incomingPhone ?: $currentPhone;
+            if (!$phoneFor2fa || !preg_match('/^7\d{10}$/', $phoneFor2fa)) {
+                return response()->json([
+                    'message' => 'Укажите корректный номер телефона для SMS (формат 79XXXXXXXXX).',
+                    'errors'  => ['phone' => ['Телефон обязателен для включения 2FA и должен быть формата 79XXXXXXXXX']],
+                ], 422);
+            }
+            // Сохраним нормализованный телефон в апдейт
+            $validated['phone'] = $phoneFor2fa;
+        } else {
+            // Если телефон прислали — положим нормализованный (не обязательно)
+            if ($incomingPhone) {
+                $validated['phone'] = $incomingPhone;
+            }
+        }
+
+        // Форсируем флаг 2FA в апдейте с учётом роли
+        $validated['two_factor_enabled'] = $twoFaEnabled;
+
+        // Если не-админ выключает 2FA — сразу очистим код/срок
+        if (!$isAdminRole && $user->two_factor_enabled && $twoFaEnabled === 0) {
+            $validated['two_factor_code'] = null;
+            $validated['two_factor_expires_at'] = null;
+        }
+
+        /** ---------------- логирование входа с уже дополненным $validated ---------------- */
+
+        \Log::info('Начало обновления пользователя', [
+            'author_id'  => $authorId,
+            'user_id'    => $user->id,
+            'partner_id' => $partnerId,
+            'input'      => $request->all(),
+            'validated'  => $validated,
+        ]);
+
+        try {
+            DB::transaction(function () use ($user, $authorId, $partnerId, $validated, $oldData) {
+                // Старые данные перед обновлением
+                \Log::debug('Старые данные пользователя', [
+                    'name'     => $oldData->name,
+                    'birthday' => $oldData->birthday?->format('Y-m-d'),
+                'email'    => $oldData->email,
+                // при желании можно добавить: 'phone' => $oldData->phone, 'two_factor_enabled' => $oldData->two_factor_enabled,
+            ]);
+
+            // Обновляем через сервис (важно: чтобы сервис разрешал эти поля)
+            $this->service->update($user, $validated);
+            $user->refresh();
+
+            // Новые данные после обновления
+            \Log::debug('Новые данные пользователя', [
+                'name'     => $user->name,
+                'birthday' => $user->birthday?->format('Y-m-d'),
+                'email'    => $user->email,
+                // при желании можно добавить: 'phone' => $user->phone, 'two_factor_enabled' => $user->two_factor_enabled,
+            ]);
+
+            // Логируем в таблицу MyLog (оставил как у тебя)
+            $authorName = Auth::user()->name;
+            MyLog::create([
+                'type'        => 2,
+                'action'      => 23,
+                'partner_id'  => $partnerId,
+                'author_id'   => $authorId,
+                'description' => "Автор: {$authorName} (ID {$authorId}).\n"
+                    . "Старые: {$oldData->name}, "
+                    . ($oldData->birthday ? Carbon::parse($oldData->birthday)->format('d.m.Y') : 'null')
+                    . ", {$oldData->email}.\n"
+                    . "Новые: {$user->name}, "
+                    . ($user->birthday ? Carbon::parse($user->birthday)->format('d.m.Y') : 'null')
+                    . ", {$user->email}.",
+                'created_at'  => now(),
+            ]);
+
+            \Log::info('MyLog-запись успешно создана');
+        });
+
+            \Log::info('Успешная транзакция обновления пользователя', [
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Пользователь успешно обновлен',
+            ]);
+        } catch (Exception $e) {
+            \Log::error('Ошибка при обновлении пользователя', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось обновить пользователя. Подробности в логах.',
+            ], 500);
+        }
+    }
+
+    public function update(AdminUpdateRequest $request, User $user)
+    {
+        $partnerId = app('current_partner')->id;
+        $authorId  = Auth::id();
+        $oldData   = $user->replicate();
+        $validated = $request->validated();
+
+        /** ---------------- 2FA: подготовка и валидация ---------------- */
+        $targetRoleId = (int)($validated['role_id'] ?? $user->role_id);
+        $isAdminRole  = $targetRoleId === 10;
+
+        $requestedTwoFa = (int)$request->boolean('two_factor_enabled');
+        $twoFaEnabled   = $isAdminRole ? 1 : $requestedTwoFa;
+
+        $normalize = function (?string $phone): ?string {
+            if (!$phone) return null;
+            $digits = preg_replace('/\D+/', '', $phone);
+            if (strlen($digits) === 11 && str_starts_with($digits, '8')) {
+                $digits = '7' . substr($digits, 1);
+            }
+            if (strlen($digits) === 10) {
+                $digits = '7' . $digits;
+            }
+            return $digits ?: null;
+        };
+
+        $incomingPhone = $normalize($validated['phone'] ?? null);
+        $currentPhone  = $normalize($user->phone);
+
+        if ($twoFaEnabled === 1) {
+            $phoneFor2fa = $incomingPhone ?: $currentPhone;
+            if (!$phoneFor2fa || !preg_match('/^7\d{10}$/', $phoneFor2fa)) {
+                return response()->json([
+                    'message' => 'Укажите корректный номер телефона для SMS (формат 79XXXXXXXXX).',
+                    'errors'  => ['phone' => ['Телефон обязателен для включения 2FA и должен быть формата 79XXXXXXXXX']],
+                ], 422);
+            }
+            $validated['phone'] = $phoneFor2fa;
+        } else {
+            if ($incomingPhone) {
+                $validated['phone'] = $incomingPhone;
+            }
+        }
+
+        $validated['two_factor_enabled'] = $twoFaEnabled;
+
+        if (!$isAdminRole && $user->two_factor_enabled && $twoFaEnabled === 0) {
+            $validated['two_factor_code'] = null;
+            $validated['two_factor_expires_at'] = null;
+        }
+
+        /** ---------------- логирование входа с уже дополненным $validated ---------------- */
+
+        \Log::info('Начало обновления пользователя', [
+            'author_id'  => $authorId,
+            'user_id'    => $user->id,
+            'partner_id' => $partnerId,
+            'input'      => $request->all(),
+            'validated'  => $validated,
+        ]);
+
+        try {
+            DB::transaction(function () use ($user, $authorId, $partnerId, $validated, $oldData) {
+                \Log::debug('Старые данные пользователя', [
+                    'name'     => $oldData->name,
+                    'birthday' => $oldData->birthday?->format('Y-m-d'),
+                'email'    => $oldData->email,
+            ]);
+
+            $this->service->update($user, $validated);
+            $user->refresh();
+
+            \Log::debug('Новые данные пользователя', [
+                'name'     => $user->name,
+                'birthday' => $user->birthday?->format('Y-m-d'),
+                'email'    => $user->email,
+            ]);
+
+            /** --------- DIFF-LOG только по изменённым полям 2FA/phone --------- */
+            $maskPhone = function (?string $phone): string {
+                if (!$phone) return 'null';
+                $digits = preg_replace('/\D+/', '', $phone);
+                $last4  = strlen($digits) >= 4 ? substr($digits, -4) : $digits;
+                return '***' . $last4; // маскировка
+            };
+            $label2fa = function ($val): string {
+                return (int)$val === 1 ? 'включена' : 'выключена';
+            };
+
+            $diff = [];
+
+            // Телефон
+            $oldPhone = $oldData->phone;
+            $newPhone = $user->phone;
+            if ($oldPhone !== $newPhone) {
+                $diff[] = "Телефон: {$maskPhone($oldPhone)} → {$maskPhone($newPhone)}";
+            }
+
+            // Флаг 2FA
+            $old2fa = (int)$oldData->two_factor_enabled;
+            $new2fa = (int)$user->two_factor_enabled;
+            if ($old2fa !== $new2fa) {
+                $diff[] = "2FA: {$label2fa($old2fa)} → {$label2fa($new2fa)}";
+            }
+
+            // Если 2FA была включена и стала выключена — сообщим об очистке служебных полей
+            if ($old2fa === 1 && $new2fa === 0) {
+                $diff[] = "Очищены служебные поля 2FA (код/срок).";
+            }
+
+            $diffText = $diff
+                ? "Изменения (2FA/телефон):\n— " . implode("\n— ", $diff)
+                : "Изменения (2FA/телефон): отсутствуют.";
+
+            // Логируем в MyLog
+            $authorName = Auth::user()->name;
+            MyLog::create([
+                'type'        => 2,
+                'action'      => 23,
+                'partner_id'  => $partnerId,
+                'author_id'   => $authorId,
+                'description' => "Автор: {$authorName} (ID {$authorId}).\n"
+                    . "Старые: {$oldData->name}, "
+                    . ($oldData->birthday ? \Carbon\Carbon::parse($oldData->birthday)->format('d.m.Y') : 'null')
+                    . ", {$oldData->email}.\n"
+                    . "Новые: {$user->name}, "
+                    . ($user->birthday ? \Carbon\Carbon::parse($user->birthday)->format('d.m.Y') : 'null')
+                    . ", {$user->email}.\n"
+                    . $diffText,
+                'created_at'  => now(),
+            ]);
+
+            \Log::info('MyLog-запись успешно создана');
+        });
 
             \Log::info('Успешная транзакция обновления пользователя', [
                 'user_id' => $user->id,

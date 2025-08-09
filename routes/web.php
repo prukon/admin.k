@@ -7,6 +7,8 @@ use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\PartnerPaymentController;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\Admin\PartnerController;
+use App\Http\Controllers\Auth\TwoFactorController;
+use App\Http\Controllers\Security\PhoneChangeController;
 
 
 Auth::routes();
@@ -19,7 +21,62 @@ Route::view('/partner/oferta', 'admin.partnerOferta')->name('partnerOferta');
 Route::view('/privacy-policy', 'landing.policy')->name('privacy.policy');
 
 
-Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
+// routes/web.php
+
+
+//Route::middleware('auth')->group(function () {
+//    Route::get('/two-factor', [TwoFactorController::class, 'showChallenge'])->name('two-factor.challenge');
+//    Route::post('/two-factor/verify', [TwoFactorController::class, 'verify'])->name('two-factor.verify');
+//    Route::post('/two-factor/resend', [TwoFactorController::class, 'resend'])->name('two-factor.resend');
+//
+//    // НОВОЕ: страница ввода телефона для 2FA
+//    Route::get('/two-factor/phone', [TwoFactorController::class, 'phoneForm'])->name('two-factor.phone');
+//    Route::post('/two-factor/phone', [TwoFactorController::class, 'phoneSave'])->name('two-factor.phone.save');
+//
+//
+//    // форма смены телефона
+//    Route::get('/security/phone', [PhoneChangeController::class, 'showForm'])->name('security.phone.form');
+//    // шаг 1: запрос смены (пароль + новый номер)
+//    Route::post('/security/phone/request', [PhoneChangeController::class, 'requestChange'])->name('security.phone.request');
+//    // шаг 2: подтверждение кода (на новый номер)
+//    Route::post('/security/phone/verify', [PhoneChangeController::class, 'verify'])->name('security.phone.verify');
+//    // повторная отправка кода (для смены номера)
+//    Route::post('/security/phone/resend', [PhoneChangeController::class, 'resend'])->name('security.phone.resend');
+//
+//
+//    Route::post('/security/phone/start', [PhoneChangeController::class, 'start'])->name('security.phone.start');
+//    Route::post('/security/phone/verify-old', [PhoneChangeController::class, 'verifyOld'])->name('security.phone.verify_old');
+//    Route::post('/security/phone/verify-new', [PhoneChangeController::class, 'verifyNew'])->name('security.phone.verify_new');
+//
+//    Route::post('/security/phone/resend-old', [PhoneChangeController::class, 'resendOld'])->name('security.phone.resend_old');
+//    Route::post('/security/phone/resend-new', [PhoneChangeController::class, 'resendNew'])->name('security.phone.resend_new');
+
+//});
+
+
+
+    Route::middleware('auth')->group(function () {
+        // 2FA challenge
+        Route::get('/two-factor',        [TwoFactorController::class, 'showChallenge'])->name('two-factor.challenge');
+        Route::post('/two-factor/verify',[TwoFactorController::class, 'verify'])->name('two-factor.verify');
+        Route::post('/two-factor/resend',[TwoFactorController::class, 'resend'])->name('two-factor.resend');
+
+        // 👇 СТАРОЕ ВЫКИНУТЬ!
+        // Route::get('/two-factor/phone',  ... )->name('two-factor.phone');
+        // Route::post('/two-factor/phone', ... )->name('two-factor.phone.save');
+
+        // Безопасная смена телефона (двухэтапная)
+        Route::get('/security/phone',            [PhoneChangeController::class, 'showForm'])->name('security.phone.form');
+        Route::post('/security/phone/start',     [PhoneChangeController::class, 'start'])->name('security.phone.start');
+        Route::post('/security/phone/verify-old',[PhoneChangeController::class, 'verifyOld'])->name('security.phone.verify_old');
+        Route::post('/security/phone/verify-new',[PhoneChangeController::class, 'verifyNew'])->name('security.phone.verify_new');
+        Route::post('/security/phone/resend-old',[PhoneChangeController::class, 'resendOld'])->name('security.phone.resend_old');
+        Route::post('/security/phone/resend-new',[PhoneChangeController::class, 'resendNew'])->name('security.phone.resend_new');
+    });
+
+Route::middleware(['auth', '2fa'])->group(function () {
+
+//Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
     // Route: web.php
 
@@ -53,7 +110,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 //    Route::get('/admin/partners/logs-data', [\App\Http\Controllers\Admin\PartnerController::class, 'log'])->name('logs.data.partner')->middleware('can:manage-partners');
 
 
-
     // Права: can:manage-partners
     Route::middleware(['can:manage-partners'])->group(function () {
         Route::get('admin/partners', [PartnerController::class, 'index'])->name('admin.partner.index');
@@ -64,16 +120,6 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
         Route::get('/admin/partner/logs-data', [PartnerController::class, 'log'])->name('logs.data.partner');
 
     });
-
-
-
-
-
-
-
-
-
-
 
 
 //    Route::prefix('admin')->middleware(['auth','can:manage-partners'])->group(function () {
@@ -213,6 +259,15 @@ Route::group(['namespace' => 'Auth', 'middleware' => 'auth'], function () {
 
     //переключение между партнерами
     Route::post('/switch-partner', [\App\Http\Controllers\PartnerSwitchController::class, 'switch'])->name('partner.switch')->middleware('can:changing-partner');
+
+
+    Route::middleware(['can:admin'])->prefix('admin')->group(function () {
+        Route::get('2fa', [TwoFactorController::class, 'show'])->name('admin.2fa.show');
+        Route::post('2fa/enable', [TwoFactorController::class, 'enable'])->name('admin.2fa.enable');
+        Route::post('2fa/verify', [TwoFactorController::class, 'verify'])->name('admin.2fa.verify');
+        Route::post('2fa/disable', [TwoFactorController::class, 'disable'])->name('admin.2fa.disable');
+    });
+
 
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)

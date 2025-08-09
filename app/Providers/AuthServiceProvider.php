@@ -30,6 +30,12 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
+        // Всё подряд разрешаем суперадмину (role_id = 1)
+        Gate::before(function (User $user, string $ability) {
+            return $user->role_id === 1 ? true : null;
+        });
+
+
         // Пример: Gate для доступа в админку
         Gate::define('access-admin-panel', function (User $user) {
             return $user->hasPermission('access_admin_panel');

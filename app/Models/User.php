@@ -33,7 +33,24 @@ class   User extends Authenticatable
         'password' => 'hashed',
         'birthday' => 'date',  // преобразует в Carbon\Carbon
 
+        //2FA
+        'two_factor_enabled'    => 'boolean',
+        'two_factor_expires_at' => 'datetime',
     ];
+
+    public $timestamps = true;
+
+
+
+
+
+    public function users()
+    {
+        // pivot: role_user (user_id, role_id)
+        return $this->belongsToMany(User::class, 'role_user', 'role_id', 'user_id');
+    }
+
+
 
     public function getBirthdayForFormAttribute(): ?string
     {
@@ -138,5 +155,22 @@ class   User extends Authenticatable
             ->where('name', $permissionName)
             ->exists();                        // <<< CHANGED
     }
+
+//2FA
+    public function generateTwoFactorCode()
+    {
+        $this->two_factor_code = random_int(100000, 999999);
+        $this->two_factor_expires_at = now()->addMinutes(10);
+        $this->save();
+    }
+
+    public function resetTwoFactorCode()
+    {
+        $this->two_factor_code = null;
+        $this->two_factor_expires_at = null;
+        $this->save();
+    }
+
+
 }
 

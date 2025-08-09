@@ -84,6 +84,7 @@ class Kernel extends HttpKernel
     protected $routeMiddleware = [
 //        'superuser' => \App\Http\Middleware\CheckSuperadmin::class,
         'role' => \App\Http\Middleware\RoleMiddleware::class,
+        '2fa' => \App\Http\Middleware\EnsureTwoFactorIsVerified::class,
 
     ];
 

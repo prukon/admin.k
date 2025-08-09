@@ -31,4 +31,8 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'sms_ru' => [
+        'api_id' => env('SMSRU_API_KEY'),
+        'from'    => env('SMSRU_FROM'),
+    ],
 ];

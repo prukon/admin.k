@@ -190,6 +190,8 @@ return [
         // 'Example' => App\Facades\Example::class,
 
 //        'Image' => Intervention\Image\Facades\Image::class,
+        'SmsService' => App\Services\SmsService::class,
+
 
     ])->toArray(),
 
