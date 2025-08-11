@@ -61,10 +61,6 @@ Route::view('/privacy-policy', 'landing.policy')->name('privacy.policy');
         Route::post('/two-factor/verify',[TwoFactorController::class, 'verify'])->name('two-factor.verify');
         Route::post('/two-factor/resend',[TwoFactorController::class, 'resend'])->name('two-factor.resend');
 
-        // 👇 СТАРОЕ ВЫКИНУТЬ!
-        // Route::get('/two-factor/phone',  ... )->name('two-factor.phone');
-        // Route::post('/two-factor/phone', ... )->name('two-factor.phone.save');
-
         // Безопасная смена телефона (двухэтапная)
         Route::get('/security/phone',            [PhoneChangeController::class, 'showForm'])->name('security.phone.form');
         Route::post('/security/phone/start',     [PhoneChangeController::class, 'start'])->name('security.phone.start');
@@ -185,6 +181,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::post('/settings/save-social-menu-items', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'saveSocialItems'])->name('settings.saveSocialItems')->middleware('can:general-settings');
     Route::get('/edit-menu', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'editMenu'])->name('editMenu');
     Route::get('/admin/settings/logs-all-data', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'logsAllData'])->name('logs.all.data');
+    Route::post('/admin/settings/force-2fa-admins', [\App\Http\Controllers\Admin\Setting\SettingController::class, 'toggleForce2faAdmins'])->name('settings.force2fa.admins');
+
+
+
+
 
     //Страница Настойки- Права
     Route::get('/admin/settings/rules', [\App\Http\Controllers\Admin\Setting\RuleController::class, 'showRules'])->name('admin.setting.rule')->middleware('can:manage-roles');

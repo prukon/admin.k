@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Security;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Servises\SmsRuService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -26,15 +27,18 @@ class PhoneChangeController extends Controller
         // кулдауны
         $cooldownOld = 0;
         if ($ts = session('phone_change:old_last_sent_at')) {
-            try {$cooldownOld = max(0, 60 - now()->diffInSeconds(\Illuminate\Support\Carbon::parse($ts)));} catch (\Throwable) {}
+            try { $cooldownOld = max(0, 60 - now()->diffInSeconds(\Illuminate\Support\Carbon::parse($ts))); } catch (\Throwable) {}
         }
         $cooldownNew = 0;
         if ($ts = session('phone_change:new_last_sent_at')) {
-            try {$cooldownNew = max(0, 60 - now()->diffInSeconds(\Illuminate\Support\Carbon::parse($ts)));} catch (\Throwable) {}
+            try { $cooldownNew = max(0, 60 - now()->diffInSeconds(\Illuminate\Support\Carbon::parse($ts))); } catch (\Throwable) {}
         }
 
-        // Жёстко: если 2FA включена или админ (10) и есть текущий phone — сначала подтверждаем СТАРЫЙ
-        $mustVerifyOld = ( ((int)$u->role_id === 10) || (bool)$u->two_factor_enabled ) && !empty($u->phone);
+        // Обязательна ли 2FA для админов (роль 10) по глобальной настройке
+        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false);
+
+        // Если 2FA включена у юзера или (он админ 10 и флаг включён) и есть текущий phone — сначала подтверждаем СТАРЫЙ
+        $mustVerifyOld = ((((int)$u->role_id === 10) && $forceAdmin2fa) || (bool)$u->two_factor_enabled) && !empty($u->phone);
 
         // Стейдж из сессии (основной источник правды), иначе вычисляем по БД
         $stage = session('phone_change:stage');
@@ -97,7 +101,9 @@ class PhoneChangeController extends Controller
             return back()->withErrors(['resend' => 'Превышен лимит отправок. Попробуйте позже.']);
         }
 
-        $mustVerifyOld = ( ((int)$u->role_id === 10) || (bool)$u->two_factor_enabled ) && !empty($u->phone);
+        // учитывать глобальную настройку
+        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false);
+        $mustVerifyOld = ((((int)$u->role_id === 10) && $forceAdmin2fa) || (bool)$u->two_factor_enabled) && !empty($u->phone);
 
         if ($mustVerifyOld) {
             $last = session('phone_change:old_last_sent_at');
@@ -131,7 +137,7 @@ class PhoneChangeController extends Controller
             return back()->with('status', 'Код отправлен на старый номер. Подтвердите его, затем подтвердим новый.');
         }
 
-        // 2FA не включена — сразу код на НОВЫЙ
+        // 2FA не обязательна — сразу код на НОВЫЙ
         $last = session('phone_change:new_last_sent_at');
         if ($last && now()->diffInSeconds($last) < 60) {
             return back()->withErrors(['resend_new' => 'Повторная отправка на новый номер доступна через минуту.'])->withInput();
@@ -167,7 +173,9 @@ class PhoneChangeController extends Controller
     {
         $u = $request->user();
 
-        $mustVerifyOld = ( ((int)$u->role_id === 10) || (bool)$u->two_factor_enabled ) && !empty($u->phone);
+        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false);
+        $mustVerifyOld = ((((int)$u->role_id === 10) && $forceAdmin2fa) || (bool)$u->two_factor_enabled) && !empty($u->phone);
+
         if (!$mustVerifyOld) {
             return back()->withErrors(['code_old' => 'Старый номер не требует подтверждения.']);
         }
@@ -276,15 +284,18 @@ class PhoneChangeController extends Controller
         ]);
         session(['2fa:passed' => true]);
 
-        // 👉 по твоему требованию уводим в кабинет
+        // 👉 уводим в кабинет
         return redirect('/cabinet')->with('status', 'Номер телефона успешно изменён.');
     }
 
-    // resend старого (остаёмся на шаге 2)
+    // RESEND старого (остаёмся на шаге 2)
     public function resendOld(Request $request, SmsRuService $sms)
     {
         $u = $request->user();
-        $mustVerifyOld = ( ((int)$u->role_id === 10) || (bool)$u->two_factor_enabled ) && !empty($u->phone);
+
+        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false);
+        $mustVerifyOld = ((((int)$u->role_id === 10) && $forceAdmin2fa) || (bool)$u->two_factor_enabled) && !empty($u->phone);
+
         if (!$mustVerifyOld) {
             return back()->withErrors(['resend_old' => 'Старый номер не требует подтверждения.']);
         }
@@ -327,7 +338,7 @@ class PhoneChangeController extends Controller
         return back()->with('status', 'Код отправлен на старый номер.');
     }
 
-    // resend нового (остаёмся на шаге 3)
+    // RESEND нового (остаёмся на шаге 3)
     public function resendNew(Request $request, SmsRuService $sms)
     {
         $u = $request->user();
@@ -370,7 +381,6 @@ class PhoneChangeController extends Controller
 
         return back()->with('status', 'Код отправлен на новый номер.');
     }
-
 
     private function formatRuPhonePretty(?string $phone): string
     {

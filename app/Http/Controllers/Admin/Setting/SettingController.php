@@ -45,17 +45,22 @@ class SettingController extends Controller
 
         // 3) Флаг: если записи нет — считаем, что выключено
         $isRegistrationActive = $setting
-            ? (bool) $setting->status
+            ? (bool)$setting->status
             : false;
 
-                return view('admin.setting.index',
-                    ['activeTab' => 'setting'],
-                    compact(
-                        "textForUsers",
-                        'partnerId',
-                        'isRegistrationActive'
-                    )
-                );
+//статус 2Fa для админов
+        $force2faAdmins = Setting::getBool('force_2fa_admins', false, null);
+
+
+        return view('admin.setting.index',
+            ['activeTab' => 'setting'],
+            compact(
+                "textForUsers",
+                'partnerId',
+                'isRegistrationActive',
+                'force2faAdmins'
+            )
+        );
     }
 
     //AJAX Активность регистрации
@@ -91,7 +96,7 @@ class SettingController extends Controller
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
-                'partner_id'  => $partnerId,
+                'partner_id' => $partnerId,
                 'description' => ("Включение регистрации в сервисе: " . $isRegistrationActivityValue),
                 'created_at' => now(),
             ]);
@@ -129,7 +134,7 @@ class SettingController extends Controller
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
-                'partner_id'  => $partnerId,
+                'partner_id' => $partnerId,
                 'description' => ("Изменение текста уведомления: " . $textForUsers),
                 'created_at' => now(),
             ]);
@@ -144,7 +149,7 @@ class SettingController extends Controller
     public function saveMenuItems(Request $request)
     {
         $partnerId = app('current_partner')->id;
-          $errors = [];
+        $errors = [];
         $validatedData = [];
         $authorId = auth()->id();
 
@@ -155,9 +160,9 @@ class SettingController extends Controller
                 'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
             ], [
                 'name.required' => 'Заполните название.',
-                'name.max'      => 'Название не может быть длиннее 20 символов.',
-                'name.regex'    => 'Название не может содержать спецсимволы.',
-                'link.regex'    => 'Введите корректный URL.',
+                'name.max' => 'Название не может быть длиннее 20 символов.',
+                'name.regex' => 'Название не может содержать спецсимволы.',
+                'link.regex' => 'Введите корректный URL.',
             ]);
 
             if ($validator->fails()) {
@@ -167,7 +172,7 @@ class SettingController extends Controller
 
             } else {
                 $data['target_blank'] = !empty($data['target_blank']) ? 1 : 0;
-                $validatedData[$key]  = $data;
+                $validatedData[$key] = $data;
                 \Log::info("Validated menu_items[$key]", ['data' => $data]);
             }
         }
@@ -198,9 +203,9 @@ class SettingController extends Controller
 
                     if ($menuItem) {
                         \Log::info('Updating own MenuItem', [
-                            'id'   => $key,
-                            'old'  => $menuItem->toArray(),
-                            'new'  => $data,
+                            'id' => $key,
+                            'old' => $menuItem->toArray(),
+                            'new' => $data,
                         ]);
 
                         $oldItems[] = "\"{$menuItem->name}, {$menuItem->link}"
@@ -208,8 +213,8 @@ class SettingController extends Controller
                             . "\"";
 
                         $menuItem->update([
-                            'name'         => $data['name'],
-                            'link'         => $data['link'] ?: '',
+                            'name' => $data['name'],
+                            'link' => $data['link'] ?: '',
                             'target_blank' => $data['target_blank'],
                             // partner_id оставляем прежним
                         ]);
@@ -222,10 +227,10 @@ class SettingController extends Controller
                         \Log::warning("MenuItem id {$key} not found for partner {$partnerId}, creating new instead");
 
                         $new = MenuItem::create([
-                            'name'         => $data['name'],
-                            'link'         => $data['link'] ?: '',
+                            'name' => $data['name'],
+                            'link' => $data['link'] ?: '',
                             'target_blank' => $data['target_blank'],
-                            'partner_id'   => $partnerId,
+                            'partner_id' => $partnerId,
                         ]);
 
                         $newItems[] = "\"{$data['name']}, {$data['link']}"
@@ -237,10 +242,10 @@ class SettingController extends Controller
                     \Log::info('Creating new MenuItem', ['data' => $data, 'partnerId' => $partnerId]);
 
                     $created = MenuItem::create([
-                        'name'         => $data['name'],
-                        'link'         => $data['link'] ?: '',
+                        'name' => $data['name'],
+                        'link' => $data['link'] ?: '',
                         'target_blank' => $data['target_blank'],
-                        'partner_id'   => $partnerId,
+                        'partner_id' => $partnerId,
                     ]);
 
                     $newItems[] = "\"{$data['name']}, {$data['link']}"
@@ -274,17 +279,17 @@ class SettingController extends Controller
 
             \Log::info('Creating MyLog entry', [
                 'description' => $description,
-                'authorId'    => $authorId,
-                'partnerId'   => $partnerId,
+                'authorId' => $authorId,
+                'partnerId' => $partnerId,
             ]);
 
             MyLog::create([
-                'type'        => 1,
-                'action'      => 70,
-                'author_id'   => $authorId,
+                'type' => 1,
+                'action' => 70,
+                'author_id' => $authorId,
                 'description' => $description,
-                'created_at'  => now(),
-                'partner_id'  => $partnerId,
+                'created_at' => now(),
+                'partner_id' => $partnerId,
             ]);
         });
 
@@ -296,9 +301,9 @@ class SettingController extends Controller
     //Сохранение соц. меню в шапке
     public function saveSocialItems(Request $request)
     {
-        $partnerId     = app('current_partner')->id;
-        $authorId      = auth()->id();
-        $errors        = [];
+        $partnerId = app('current_partner')->id;
+        $authorId = auth()->id();
+        $errors = [];
         $validatedData = [];
 
         // Валидация каждого social_item
@@ -345,8 +350,8 @@ class SettingController extends Controller
                     // создаём новую запись для этого партнёра
                     $item = SocialItem::create([
                         'partner_id' => $partnerId,
-                        'name'       => $data['name'],
-                        'link'       => $data['link'] ?: '',
+                        'name' => $data['name'],
+                        'link' => $data['link'] ?: '',
                     ]);
                 }
 
@@ -362,11 +367,11 @@ class SettingController extends Controller
                 . implode("\n", $newItems);
 
             MyLog::create([
-                'type'       => 1,
-                'action'     => 70,
-                'author_id'  => $authorId,
-                'partner_id'  => $partnerId,
-                'description'=> $description,
+                'type' => 1,
+                'action' => 70,
+                'author_id' => $authorId,
+                'partner_id' => $partnerId,
+                'description' => $description,
                 'created_at' => now(),
             ]);
         });
@@ -380,7 +385,7 @@ class SettingController extends Controller
         $partnerId = app('current_partner')->id;
         $logs = MyLog::with('author')
 //            ->where('type', 1) // Добавляем условие для фильтрации по type
-            ->where('partner_id', $partnerId)        // ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
+            ->where('partner_id', $partnerId)// ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
             ->select('my_logs.*');
 
         return DataTables::of($logs)
@@ -443,4 +448,79 @@ class SettingController extends Controller
             })
             ->make(true);
     }
+
+//    Смена 2 Fa для админов
+    public function toggleForce2faAdmins2(Request $request)
+    {
+        $user = $request->user();
+        if ((int)$user->role_id !== 1) {
+            abort(403, 'Доступ только для суперадмина');
+        }
+
+        $active = filter_var($request->input('force2faAdmins'), FILTER_VALIDATE_BOOLEAN);
+        Setting::setBool('force_2fa_admins', $active, null);
+
+        return response()->json(['success' => true, 'value' => $active]);
+    }
+
+    public function toggleForce2faAdmins(Request $request)
+    {
+        $user = $request->user();
+
+        Log::info('toggleForce2faAdmins: request IN', [
+            'user_id' => $user?->id,
+            'role_id' => $user?->role_id,
+            'payload' => $request->all(),
+            'headers' => [
+        'X-Requested-With' => $request->header('X-Requested-With'),
+        'Content-Type'     => $request->header('Content-Type'),
+    ],
+        ]);
+
+        if ((int)$user->role_id !== 1) {
+            Log::warning('toggleForce2faAdmins: forbidden (not superadmin)', [
+                'user_id' => $user?->id,
+                'role_id' => $user?->role_id,
+            ]);
+            return response()->json(['success' => false, 'message' => 'Доступ только для суперадмина'], 403);
+        }
+
+        // принимаем 0/1, true/false, "on" и т.д.
+        $active = filter_var($request->input('force2faAdmins'), FILTER_VALIDATE_BOOLEAN);
+        Log::info('toggleForce2faAdmins: parsed value', ['active' => $active, 'raw' => $request->input('force2faAdmins')]);
+
+        try {
+            // Пишем НАПРЯМУЮ в таблицу settings (без модели), глобальная запись partner_id = NULL
+            $ok = DB::table('settings')->updateOrInsert(
+                ['name' => 'force_2fa_admins', 'partner_id' => null],
+                [
+                    'status'     => $active ? 1 : 0,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                    'text'       => DB::raw('COALESCE(text, "Обязательная 2FA для роли 10 (админ). 0/1.")'),
+                ]
+            );
+
+            Log::info('toggleForce2faAdmins: DB updateOrInsert result', ['ok' => $ok]);
+
+            // перечитаем для контроля
+            $row = DB::table('settings')->whereNull('partner_id')->where('name', 'force_2fa_admins')->first();
+            Log::info('toggleForce2faAdmins: row after save', [
+                'exists' => (bool)$row,
+                'status' => $row->status ?? null,
+                'id'     => $row->id ?? null,
+            ]);
+
+            return response()->json(['success' => true, 'value' => (bool)($row->status ?? 0)]);
+        } catch (\Throwable $e) {
+            Log::error('toggleForce2faAdmins: FAILED', [
+                'error' => $e->getMessage(),
+                'class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['success' => false, 'message' => 'DB error: '.$e->getMessage()], 500);
+        }
+    }
 }
+
+ 

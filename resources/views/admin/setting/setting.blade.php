@@ -1,3 +1,26 @@
+<style>
+    /* короткая цветная анимация подтверждения */
+    .applied-flash {
+        animation: appliedFlash 1000ms ease-in-out;
+    }
+
+    @keyframes appliedFlash {
+        0% {
+            background-color: #fff;
+        }
+        20% {
+            background-color: #d1fae5;
+        }
+        /* зелёный мягкий */
+        50% {
+            background-color: #a7f3d0;
+        }
+        100% {
+            background-color: transparent;
+        }
+    }
+</style>
+
 <h4 class="pt-3 text-start">Общие</h4>
 
 <div class="table-responsive">
@@ -33,6 +56,30 @@
                 <button id="btnRegistrationActivity" class="btn btn-primary">Применить</button>
             </td>
         </tr>
+
+        {{-- НОВОЕ: Обязательная 2FA для администраторов --}}
+        @if(auth()->user()->role_id == 1)
+            <tr id="rowForce2faAdmins">
+                <td>Обязательная 2FA для администраторов</td>
+                <td>
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="force2faAdmins"
+                               name="force2faAdmins"
+                               value="1"
+                                {{ !empty($force2faAdmins) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="force2faAdmins" id="force2faAdminsLabel">
+                            {{ !empty($force2faAdmins) ? 'включена' : 'выключена' }}
+                        </label>
+                    </div>
+                </td>
+                <td>
+                    <button id="btnForce2faAdmins" class="btn btn-primary">Применить</button>
+                </td>
+            </tr>
+        @endif
+
         <tr>
             <td class="col-4">Текст уведомления у пользователей</td>
             <td colspan="col-6">
@@ -237,6 +284,106 @@
     <script>
         $(document).ready(function () {
             var token = '{{ csrf_token() }}';
+
+
+            // === НОВОЕ: сохрание чекбокса "Обязательная 2FA для админов" ===
+            $(document).on('click', '#btnForce2faAdmins2', function () {
+                var $row = $('#rowForce2faAdmins');
+                var $cb = $('#force2faAdmins');
+                var $label = $('#force2faAdminsLabel');
+                var active = $cb.is(':checked');
+
+                $.ajax({
+                    url: '{{ route('settings.force2fa.admins') }}',
+                    method: 'POST',
+                    headers: {'X-CSRF-TOKEN': token},
+                    data: {force2faAdmins: active ? 1 : 0},
+                    success: function (resp) {
+                        if (resp && resp.success) {
+                            // обновим подпись
+                            $label.text(active ? 'включена' : 'выключена');
+                            // цветная анимация строки таблицы
+                            $row.addClass('applied-flash');
+                            setTimeout(function () {
+                                $row.removeClass('applied-flash');
+                            }, 1100);
+
+                            // можно показать и модалку "успех"
+                            if (typeof showSuccessModal === 'function') {
+                                showSuccessModal('Настройки безопасности', 'Обязательная 2FA для администраторов ' + (active ? 'включена' : 'выключена') + '.', 1);
+                            }
+                        }
+                    },
+                    error: function () {
+                        // в случае ошибки — вернём чекбокс в старое положение (видимый откат)
+                        $cb.prop('checked', !active);
+                        if (typeof showErrorModal === 'function') {
+                            showErrorModal('Ошибка', 'Не удалось сохранить настройку. Повторите попытку.');
+                        } else {
+                            alert('Ошибка сохранения настройки.');
+                        }
+                    }
+                });
+            });
+
+            // === НОВОЕ: сохранение чекбокса "Обязательная 2FA для админов" с логами ===
+            $(document).on('click', '#btnForce2faAdmins', function () {
+                var $row   = $('#rowForce2faAdmins');
+                var $cb    = $('#force2faAdmins');
+                var $label = $('#force2faAdminsLabel');
+                var active = $cb.is(':checked');
+                var token  = '{{ csrf_token() }}';
+
+                console.log('[force2fa] sending', { active });
+
+                $.ajax({
+                    url: '{{ route('settings.force2fa.admins') }}',
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },
+                    data: { force2faAdmins: active ? 1 : 0 },
+
+                    success: function (resp, status, xhr) {
+                        console.log('[force2fa] success', { status: xhr.status, resp });
+                        if (resp && resp.success) {
+                            $label.text(active ? 'включена' : 'выключена');
+                            $row.addClass('applied-flash');
+                            setTimeout(function(){ $row.removeClass('applied-flash'); }, 1100);
+                            if (typeof showSuccessModal === 'function') {
+                                showSuccessModal('Настройки безопасности', 'Обязательная 2FA для администраторов ' + (active ? 'включена' : 'выключена') + '.', 1);
+                            }
+                        } else {
+                            console.warn('[force2fa] backend returned success=false', resp);
+                            if (typeof showErrorModal === 'function') {
+                                showErrorModal('Ошибка', 'Не удалось сохранить настройку (success=false).');
+                            } else {
+                                alert('Не удалось сохранить настройку.');
+                            }
+                        }
+                    },
+
+                    error: function (xhr, status, err) {
+                        console.error('[force2fa] error', { status: xhr.status, err, responseText: xhr.responseText });
+                        // визуальный откат чекбокса
+                        $cb.prop('checked', !active);
+
+                        var msg = 'Ошибка сохранения настройки.';
+                        if (xhr.status === 419) msg = 'CSRF-токен устарел. Обновите страницу.';
+                        if (xhr.status === 403) msg = 'Нет прав (требуется суперадмин).';
+                        if (xhr.responseText) {
+                            try {
+                                var j = JSON.parse(xhr.responseText);
+                                if (j && j.message) msg = j.message;
+                            } catch (e) { /* оставим базовое сообщение */ }
+                        }
+
+                        if (typeof showErrorModal === 'function') showErrorModal('Ошибка', msg);
+                        else alert(msg);
+                    }
+                });
+            });
+
+
+
             showLogModal("{{ route('logs.all.data') }}");
 
             // Вызов модалки Активность регистрации
@@ -464,19 +611,6 @@
                         });
                 });
             }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
             addMenuItem();

@@ -7,6 +7,7 @@ use App\Servises\SmsRuService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Models\Setting;
 
 class TwoFactorController extends Controller
 {
@@ -49,8 +50,15 @@ class TwoFactorController extends Controller
 
         $user = $request->user();
 
+
+
         // кому нужна 2FA
-        $needs2fa = ((int)$user->role_id === 10) || (bool)$user->two_factor_enabled;
+//        $needs2fa = ((int)$user->role_id === 10) || (bool)$user->two_factor_enabled;
+
+        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false);
+        $needs2fa = (((int)$user->role_id === 10) && $forceAdmin2fa) || (bool)$user->two_factor_enabled;
+
+
         if (!$needs2fa) {
             session(['2fa:passed' => true]);
             return redirect()->intended('/');

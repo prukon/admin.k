@@ -3,6 +3,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Setting;
 use App\Models\User;
 use App\Servises\SmsRuService;
 use Closure;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Hash;
 
 class EnsureTwoFactorIsVerified
 {
-    public function handle(Request $request, Closure $next)
+    public function handle2(Request $request, Closure $next)
     {
         if (!Auth::check()) {
             return $next($request);
@@ -97,4 +98,41 @@ class EnsureTwoFactorIsVerified
 
         return redirect()->route('two-factor.challenge');
     }
+
+    public function handle($request, Closure $next)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false, null);
+
+        $isAdminRole10     = ((int)$user->role_id === 10);
+        $userTfaEnabled    = (bool)$user->two_factor_enabled;
+        $needs2fa          = ($isAdminRole10 && $forceAdmin2fa) || $userTfaEnabled;
+        $sessionPassed     = (bool)session('2fa:passed');
+
+        \Log::info('2FA MW: decision point', [
+            'user_id'          => $user->id,
+            'role_id'          => $user->role_id,
+            'forceAdmin2fa'    => $forceAdmin2fa,
+            'user_tfa_enabled' => $userTfaEnabled,
+            'needs2fa'         => $needs2fa,
+            'session_passed'   => $sessionPassed,
+            'phone'            => $user->phone ? '***'.substr($user->phone, -4) : null,
+        ]);
+
+        if ($needs2fa && !$sessionPassed) {
+            \Log::info('2FA MW: redirect to challenge', ['route' => 'two-factor.challenge']);
+            return redirect()->route('two-factor.challenge');
+        }
+
+        \Log::info('2FA MW: passed, continue');
+        return $next($request);
+    }
+
+
 }
+
+

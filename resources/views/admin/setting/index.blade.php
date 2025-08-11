@@ -48,6 +48,8 @@
                     ['textForUsers' => $textForUsers,
                     'partnerId' => $partnerId,
                     'isRegistrationActive' => $isRegistrationActive,
+                    'force2faAdmins' => $force2faAdmins,
+
                     ])
                 @elseif($activeTab === 'rule')
                     <!-- Контент вкладки организаций -->
