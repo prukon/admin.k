@@ -44,9 +44,8 @@
             <div class="mb-3">
                 <label for="birthday" class="form-label">Дата рождения</label>
                 <input type="date" name="birthday" class="form-control" id="birthday"
-{{--                       value="{{ old('birthday', $user->birthday) }}" max="{{ date('Y-m-d') }}"--}}
+                       {{--                       value="{{ old('birthday', $user->birthday) }}" max="{{ date('Y-m-d') }}"--}}
                        value="{{ old('birthday', $user->birthday_for_form) }}"
-
 
 
                 >
@@ -113,7 +112,8 @@
                                 />
                                 @unless($isEditable)
                                     {{-- чтобы значение всё равно пришло на бек --}}
-                                    <input type="hidden" name="custom[{{ $field->slug }}]" value="{{ $userFieldValue }}">
+                                    <input type="hidden" name="custom[{{ $field->slug }}]"
+                                           value="{{ $userFieldValue }}">
                                 @endunless
                             </div>
                         @endforeach
@@ -134,6 +134,47 @@
                 @enderror
             </div>
 
+            {{-- Поле "Телефон" --}}
+            <div class="mb-3">
+                <label for="phone" class="form-label">Телефон</label>
+                <div class="input-group">
+                    <input
+                            type="tel"
+                            class="form-control"
+                            id="phone"
+                            name="phone"
+                            value="{{ old('phone', $user->phone) }}"
+                            placeholder="+7 (___) ___ __-__"
+                            data-original="{{ $user->phone ?? '' }}"
+                            data-verified="{{ $user->phone_verified_at ? 1 : 0 }}"
+                    >
+                    <button type="button" id="verify-phone-btn" class="btn btn-success" disabled>Подтвердить</button>
+                </div>
+                @error('phone')
+                <p class="text-danger">{{ $message }}</p>
+                @enderror
+
+                @php
+                    $verifiedAt = $user->phone_verified_at ? \Carbon\Carbon::parse($user->phone_verified_at) : null;
+                @endphp
+
+                <small
+                        id="phone-verify-status"
+                        class="small {{ $verifiedAt ? 'text-success' : ($user->phone ? 'text-danger' : 'd-none') }}"
+                        data-verified="{{ $verifiedAt ? 1 : 0 }}"
+                        data-verified-at="{{ $verifiedAt ? $verifiedAt->format('Y-m-d H:i:s') : '' }}"
+                >
+                    @if($user->phone)
+                        @if($verifiedAt)
+                            Подтверждён {{ $verifiedAt->format('d.m.Y H:i') }}
+                        @else
+                            Подтвердите номер
+                        @endif
+                    @endif
+                </small>
+
+            </div>
+
             {{-- Поле "Активность" --}}
             <div class="mb-3">
                 <label for="activity" class="form-label">Активность</label>
@@ -150,7 +191,6 @@
                 <p class="text-danger">{{ $message }}</p>
                 @enderror
             </div>
-
 
 
             {{-- 2FA: Чекбокс --}}
@@ -174,10 +214,6 @@
                     </label>
                 @endif
             </div>
-
-
-
-
 
 
             {{-- Блок изменения пароля --}}
@@ -253,30 +289,325 @@
     </div>
 </div>
 
+{{-- Модалка ввода SMS-кода для нового телефона --}}
+<div class="modal fade" id="phoneCodeModal" tabindex="-1" aria-labelledby="phoneCodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="phoneCodeModalLabel">Подтверждение телефона</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">На номер <strong id="code-target-phone"></strong> отправлен код.</p>
+                <input type="text" class="form-control" id="phone-code-input" placeholder="Введите код из SMS"
+                       autocomplete="one-time-code" inputmode="numeric">
+                <div class="text-danger small mt-2 d-none" id="phone-code-error"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="resend-code-btn" class="btn btn-link">Отправить код ещё раз</button>
+                <button type="button" id="confirm-code-btn" class="btn btn-primary">Подтвердить код</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 @section('scripts')
+
     <script>
+        // ==================== PhoneFlow module (with UI warning & submit lock) ====================
+        window.PhoneFlow = (function ($) {
+            'use strict';
+
+            const state = {
+                $phone: null,
+                $verifyBtn: null,
+                $updateBtn: null,         // кнопка "Обновить"
+                $status: null,            // ЕДИНСТВЕННАЯ строка статуса
+                $form: null,
+                $codeModal: null,
+                $codeTarget: null,
+                $codeInput: null,
+                $codeErr: null,
+                $codeResend: null,
+                $codeConfirm: null,
+
+                originalDigits: '',
+                originalVerified: false,
+                phoneChangeVerified: false,
+
+                sendCodeUrl: '',
+                confirmCodeUrl: '',
+                csrf: ''
+            };
+
+            // ---------- utils ----------
+            function onlyDigits(s){ return String(s ?? '').replace(/\D+/g,''); }
+            function normalizeRu(raw){
+                let d = onlyDigits(raw);
+                if (!d) return '';
+                if (d.length === 11 && d[0] === '8') d = '7' + d.slice(1);
+                if (d[0] !== '7') d = '7' + d.replace(/^7?/, '');
+                return d.slice(0,11);
+            }
+            function fmt(d){
+                if (!d) return '';
+                let s = '+7';
+                if (d.length > 1) s += ' (' + d.slice(1,4);
+                if (d.length >= 4) s += ') ' + d.slice(4,7);
+                if (d.length >= 7) s += ' ' + d.slice(7,9);
+                if (d.length >= 9) s += '-' + d.slice(9,11);
+                return s;
+            }
+            function pad2(n){ return String(n).padStart(2,'0'); }
+            function formatRuDateTime(iso){ // ожидаем "YYYY-MM-DD HH:MM:SS"
+                if (!iso) return '';
+                const d = new Date(iso.replace(' ', 'T'));
+                const dd = pad2(d.getDate()), mm = pad2(d.getMonth()+1), yyyy = d.getFullYear();
+                const hh = pad2(d.getHours()), mi = pad2(d.getMinutes());
+                return `${dd}.${mm}.${yyyy} ${hh}:${mi}`;
+            }
+            function digitsLeft(val, caret){ let c=0; for(let i=0;i<Math.min(caret,val.length);i++) if(/\d/.test(val[i])) c++; return c; }
+            function caretFromDigits(formatted, n){ if(n<=0) return 0; let c=0; for(let i=0;i<formatted.length;i++){ if(/\d/.test(formatted[i])){ c++; if(c===n) return i+1; } } return formatted.length; }
+
+            // ---------- ЕДИНЫЙ статус + блокировка "Обновить" ----------
+            function setStatusConfirmNeeded() {
+                if (!state.$status || !state.$status.length) return;
+                state.$status.removeClass('d-none text-success').addClass('text-danger').text('Подтвердите номер');
+                if (state.$updateBtn && state.$updateBtn.length) state.$updateBtn.prop('disabled', true);
+            }
+            function setStatusConfirmed(verifiedAtIso) {
+                if (!state.$status || !state.$status.length) return;
+                const when = formatRuDateTime(verifiedAtIso || state.$status.attr('data-verified-at'));
+                state.$status.removeClass('d-none text-danger').addClass('text-success').text(when ? `Подтверждён ${when}` : 'Подтверждён');
+                if (verifiedAtIso) state.$status.attr('data-verified-at', verifiedAtIso).attr('data-verified', '1');
+                if (state.$updateBtn && state.$updateBtn.length) state.$updateBtn.prop('disabled', false);
+            }
+            function hideStatus() {
+                if (!state.$status || !state.$status.length) return;
+                state.$status.addClass('d-none').removeClass('text-success text-danger').text('');
+                if (state.$updateBtn && state.$updateBtn.length) state.$updateBtn.prop('disabled', false);
+            }
+            function updateUiState() {
+                const d = normalizeRu(state.$phone.val());
+                // Пусто — прячем статус и включаем "Обновить"
+                if (!d) { hideStatus(); return; }
+                // Нужно подтверждение, если номер изменён/неподтверждён и ещё не прошёл успешный confirm
+                const needsConfirm = ((d !== state.originalDigits) || !state.originalVerified) && !state.phoneChangeVerified;
+                if (needsConfirm) setStatusConfirmNeeded();
+                else setStatusConfirmed(); // подтянет data-verified-at
+            }
+
+            // ---------- Маска ----------
+            function applyMask($input, $btn){
+                const el = $input.get(0); if (!el) return;
+                const prevVal = el.value;
+                const prevCaret = (el.selectionStart ?? String(prevVal).length);
+                const prevDigits = digitsLeft(String(prevVal), prevCaret);
+                const dig = normalizeRu(prevVal);
+                const formatted = fmt(dig);
+                el.value = formatted;
+                try {
+                    const newCaret = caretFromDigits(formatted, Math.min(prevDigits, dig.length));
+                    el.setSelectionRange(newCaret, newCaret);
+                } catch(e){}
+                if ($btn && $btn.length) $btn.prop('disabled', dig.length !== 11);
+                updateUiState();
+            }
+            function wireMask(){
+                const $p = state.$phone, $btn = state.$verifyBtn;
+                if (!$p || !$p.length) return;
+                const d0 = normalizeRu($p.val());
+                $p.val(fmt(d0));
+                if ($btn && $btn.length) $btn.prop('disabled', d0.length !== 11);
+                updateUiState();
+                $p.on('input paste change keyup', function(){ applyMask($p,$btn); });
+                $p.on('keydown', function(e){
+                    const el=this, val=el.value; const start=el.selectionStart, end=el.selectionEnd;
+                    if(start!==end) return;
+                    if(e.key==='Backspace' && start>0 && /\D/.test(val[start-1])){
+                        e.preventDefault(); let pos=start-1; while(pos>0 && /\D/.test(val[pos-1])) pos--; el.setSelectionRange(pos,pos);
+                        const dig=normalizeRu(val), n=digitsLeft(val,pos); const ndig=dig.slice(0,Math.max(0,n-1))+dig.slice(n);
+                        el.value=fmt(ndig); try{const c=caretFromDigits(el.value,Math.max(0,n-1)); el.setSelectionRange(c,c);}catch(e2){}
+                        if(state.$verifyBtn&&state.$verifyBtn.length) state.$verifyBtn.prop('disabled', ndig.length!==11);
+                        updateUiState(); return;
+                    }
+                    if(e.key==='Delete' && start<val.length && /\D/.test(val[start])){
+                        e.preventDefault(); let pos=start+1; while(pos<val.length && /\D/.test(val[pos])) pos++; el.setSelectionRange(pos,pos);
+                        const dig=normalizeRu(val), n=digitsLeft(val,pos);
+                        if(n<dig.length){ const ndig=dig.slice(0,n)+dig.slice(n+1); el.value=fmt(ndig);
+                            try{const c=caretFromDigits(el.value,n); el.setSelectionRange(c,c);}catch(e2){}
+                            if(state.$verifyBtn&&state.$verifyBtn.length) state.$verifyBtn.prop('disabled', ndig.length!==11);
+                            updateUiState();
+                        } return;
+                    }
+                });
+            }
+
+            // ---------- Verify flow ----------
+            function wireVerifyFlow(){
+                const {$phone,$verifyBtn} = state;
+                if(!$phone||!$phone.length||!$verifyBtn||!$verifyBtn.length) return;
+
+                // исходные значения берём из DOM-атрибутов статуса, если есть
+                state.originalDigits   = normalizeRu($phone.attr('data-original') ?? $phone.val());
+                const $st = state.$status;
+                state.originalVerified = ($st && $st.attr('data-verified') === '1');
+
+                updateUiState();
+
+                $verifyBtn.on('click', function(){
+                    const d = normalizeRu($phone.val());
+                    if (!d) { alert('Поле телефона пустое. Чтобы удалить номер — просто нажмите «Обновить».'); return; }
+                    if (state.originalVerified && d === state.originalDigits) {
+                        if (typeof showSuccessModal === 'function') showSuccessModal("Телефон", "Этот номер уже подтверждён.", 1);
+                        else alert('Этот номер уже подтверждён.');
+                        updateUiState();
+                        return;
+                    }
+                    $.ajax({
+                        url: state.sendCodeUrl,
+                        method: 'POST',
+                        data: { _token: state.csrf, phone: d },
+                        success: function(res){
+                            if (res.alreadyVerified){
+                                if (typeof showSuccessModal === 'function') showSuccessModal("Телефон", "Этот номер уже подтверждён.", 1);
+                                else alert('Этот номер уже подтверждён.');
+                                updateUiState();
+                                return;
+                            }
+                            if (state.$codeModal && state.$codeModal.length){
+                                state.$codeTarget.text(fmt(d));
+                                state.$codeInput.val('');
+                                state.$codeErr.addClass('d-none').text('');
+                                state.$codeModal.modal('show');
+                                state.$codeInput.trigger('focus');
+                            } else {
+                                alert('Код отправлен на ' + fmt(d));
+                            }
+                        },
+                        error: function(xhr){
+                            const msg = xhr?.responseJSON?.message || 'Не удалось отправить код.';
+                            alert(msg);
+                        }
+                    });
+                });
+
+                if (state.$codeResend && state.$codeResend.length) {
+                    state.$codeResend.on('click', function(){
+                        const d = normalizeRu($phone.val());
+                        if (!d) return;
+                        $.post(state.sendCodeUrl, { _token: state.csrf, phone: d });
+                    });
+                }
+
+                if (state.$codeConfirm && state.$codeConfirm.length) {
+                    state.$codeConfirm.on('click', function(){
+                        const d = normalizeRu($phone.val());
+                        const code = String(state.$codeInput.val() || '').trim();
+                        if (!/^\d{4,8}$/.test(code)){
+                            state.$codeErr.removeClass('d-none').text('Введите корректный код.');
+                            return;
+                        }
+                        $.ajax({
+                            url: state.confirmCodeUrl,
+                            method: 'POST',
+                            data: { _token: state.csrf, phone: d, code: code },
+                            success: function(res){
+                                state.phoneChangeVerified = true;
+                                state.originalDigits = d;
+                                state.originalVerified = true;
+                                $phone.attr('data-original', d).attr('data-verified', '1');
+                                if (state.$codeModal && state.$codeModal.length) state.$codeModal.modal('hide');
+
+                                // обновляем статус одной строкой: зелёный + «Подтверждён ДД.ММ.ГГГГ ЧЧ:ММ»
+                                setStatusConfirmed(res?.verified_at || '');
+
+                                if (typeof showSuccessModal === 'function') showSuccessModal("Телефон", "Номер подтверждён и сохранён.", 1);
+                                else alert('Номер подтверждён и сохранён.');
+                            },
+                            error: function(xhr){
+                                const msg = xhr?.responseJSON?.message || 'Неверный код.';
+                                if (state.$codeErr && state.$codeErr.length) state.$codeErr.removeClass('d-none').text(msg);
+                                else alert(msg);
+                            }
+                        });
+                    });
+                }
+            }
+
+            // ---------- сабмит формы ----------
+            function wireFormPatch(){
+                if (!state.$form || !state.$form.length || !state.$phone || !state.$phone.length) return;
+                state.$form.on('submit.phoneflow-patch', function(){
+                    const d = normalizeRu(state.$phone.val());
+                    if (!d) return true; // удалить номер — можно
+                    const needsConfirm = ((d !== state.originalDigits) || !state.originalVerified) && !state.phoneChangeVerified;
+                    if (needsConfirm){ alert('Подтвердите новый номер через SMS перед сохранением.'); return false; }
+                    const formatted = state.$phone.val();
+                    state.$phone.data('prev', formatted);
+                    state.$phone.val(d);
+                    setTimeout(()=>{ state.$phone.val(state.$phone.data('prev')); }, 0);
+                    return true;
+                });
+            }
+
+            function init(opts){
+                state.sendCodeUrl    = opts.sendCodeUrl;
+                state.confirmCodeUrl = opts.confirmCodeUrl;
+                state.csrf           = opts.csrf;
+
+                state.$phone     = $('#phone');
+                state.$verifyBtn = $('#verify-phone-btn');
+                state.$updateBtn = $('.update-btn');
+                state.$status    = $('#phone-verify-status');
+                state.$form      = $('#userUpdateForm');
+
+                state.$codeModal   = $('#phoneCodeModal');
+                state.$codeTarget  = $('#code-target-phone');
+                state.$codeInput   = $('#phone-code-input');
+                state.$codeErr     = $('#phone-code-error');
+                state.$codeResend  = $('#resend-code-btn');
+                state.$codeConfirm = $('#confirm-code-btn');
+
+                wireMask();
+                wireVerifyFlow();
+                updateUiState();
+                wireFormPatch();
+            }
+
+            return { init, normalize: normalizeRu, format: fmt };
+        })(jQuery);
+
+        document.addEventListener('DOMContentLoaded', function(){
+            window.PhoneFlow.init({
+                sendCodeUrl: "{{ route('account.user.phoneSendCode', $user->id) }}",
+                confirmCodeUrl: "{{ route('account.user.phoneConfirmCode', $user->id) }}",
+                csrf: "{{ csrf_token() }}"
+            });
+        });
+    </script>
+
+
+    <script>
+
+
         document.addEventListener('DOMContentLoaded', function () {
 
             const uploadUrl = "{{ route('profile.user.uploadAvatar') }}";
 
-
-
-
             // 2fa
             // При включении чекбокса 2FA — простая клиентская проверка телефона
-            $('#userUpdateForm').on('submit', function(){
+            $('#userUpdateForm').on('submit', function () {
                 const isAdmin = {{ (int)$user->role_id === 10 ? 'true' : 'false' }};
                 const twofaChecked = isAdmin ? true : $('#two_factor_enabled').is(':checked');
-                const phone = ($('#phone').val() || '').replace(/\D+/g,'');
+                const phone = ($('#phone').val() || '').replace(/\D+/g, '');
                 if (twofaChecked && phone.length < 11) {
                     alert('Для включения 2FA укажите корректный телефон (формат 79XXXXXXXXX).');
                     return false;
                 }
                 return true;
             });
-
-
 
             //Добавление имени пользователя в скрытое поле формы для формы отправки аватарки
             function appendUserNametoForm(name) {
@@ -367,6 +698,7 @@
                 $('#userUpdateForm').on('submit', function (e) {
                     e.preventDefault(); // Отключаем стандартную отправку формы
 
+
                     // Собираем данные формы
                     let formData = $(this).serialize();
                     console.log(formData);
@@ -428,7 +760,7 @@
                     $uploadCrop.croppie('bind', {
                         url: currentAvatarUrl
                     }).then(function () {
-                        console.log('Текущая аватарка успешно загружена в Croppie.');
+                        // console.log('Текущая аватарка успешно загружена в Croppie.');
                     }).catch(function (error) {
                         console.error('Ошибка загрузки текущей аватарки в Croppie:', error);
                     });

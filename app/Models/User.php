@@ -34,14 +34,14 @@ class   User extends Authenticatable
         'birthday' => 'date',  // преобразует в Carbon\Carbon
 
         //2FA
-        'two_factor_enabled'    => 'boolean',
+        'two_factor_enabled' => 'boolean',
         'two_factor_expires_at' => 'datetime',
+        'phone_verified_at' => 'datetime',
     ];
 
+
+
     public $timestamps = true;
-
-
-
 
 
     public function users()
@@ -49,7 +49,6 @@ class   User extends Authenticatable
         // pivot: role_user (user_id, role_id)
         return $this->belongsToMany(User::class, 'role_user', 'role_id', 'user_id');
     }
-
 
 
     public function getBirthdayForFormAttribute(): ?string
@@ -144,14 +143,14 @@ class   User extends Authenticatable
         $partnerId = app('current_partner')->id;       // <<< CHANGED
 
         // 2) если у юзера нет роли — сразу false
-        if (! $this->role) {
+        if (!$this->role) {
             return false;                             // <<< CHANGED
         }
 
         // 3) смотрим, есть ли у этой роли permission с нужным именем
         //    именно для данного партнёра
         return $this->role
-            ->permissionsForPartner($partnerId) // <<< CHANGED
+            ->permissionsForPartner($partnerId)// <<< CHANGED
             ->where('name', $permissionName)
             ->exists();                        // <<< CHANGED
     }

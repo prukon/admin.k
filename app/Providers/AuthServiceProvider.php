@@ -30,6 +30,11 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
+
+        Gate::define('verify-phone', function (User $actor, User $target) {
+            return $actor->id === $target->id || in_array((int)$actor->role_id, [1,10], true);
+        });
+
         // Всё подряд разрешаем суперадмину (role_id = 1)
         Gate::before(function (User $user, string $ability) {
             return $user->role_id === 1 ? true : null;

@@ -227,8 +227,20 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('/account-settings/users/{user}/edit', [\App\Http\Controllers\Admin\AccountSettingController::class, 'user'])->name('admin.cur.user.edit');
     Route::patch('/account-settings/users/{user}', [\App\Http\Controllers\Admin\AccountSettingController::class, 'update'])->name('account.user.update');
     Route::post('/user/update-password', [\App\Http\Controllers\Admin\AccountSettingController::class, 'updatePassword']);
+
+    Route::post('/account/user/{user}/verify-phone', [\App\Http\Controllers\Admin\AccountSettingController::class, 'verifyPhone'])->name('account.user.verifyPhone');
+    Route::post('/account/user/{user}/phone/send-code', [\App\Http\Controllers\Admin\AccountSettingController::class, 'phoneSendCode'])->name('account.user.phoneSendCode');
+    Route::post('/account/user/{user}/phone/confirm-code', [\App\Http\Controllers\Admin\AccountSettingController::class, 'phoneConfirmCode'])->name('account.user.phoneConfirmCode');
+
+
+
+
+
+
+
     //Обновление аватарки юзером
     Route::post('/profile/upload-user-avatar', [\App\Http\Controllers\Admin\AccountSettingController::class, 'uploadAvatar'])->name('profile.user.uploadAvatar');
+
     //Обновление аватара админом
     Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\Admin\AccountSettingController::class, 'updateAvatar'])->name('admin.user.update-avatar');
     Route::post('/admin/user/{user}/delete-avatar', [\App\Http\Controllers\Admin\AccountSettingController::class, 'deleteAvatar'])->name('user.delete-avatar');

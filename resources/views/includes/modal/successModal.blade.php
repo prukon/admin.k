@@ -25,22 +25,47 @@
 <script>
 
 
-    function showSuccessModal(headerText, messageText, confirmCallback) {
-        // Подменяем заголовок и текст сообщения
-        $('#successModal #dataUpdatedModalLabel').text(headerText);
-        $('#successModal #success-message').text(messageText);
+    // function showSuccessModal(headerText, messageText, confirmCallback) {
+    //     // Подменяем заголовок и текст сообщения
+    //     $('#successModal #dataUpdatedModalLabel').text(headerText);
+    //     $('#successModal #success-message').text(messageText);
+    //
+    //     // Сначала убираем все старые обработчики, чтобы при повторных вызовах не накапливались
+    //     $('#btn-success').off('click');
+    //
+    //     // Если confirmCallback == 1, то при нажатии "ОК" делаем перезагрузку страницы
+    //     if (confirmCallback === 1) {
+    //         $('#btn-success').on('click', function () {
+    //             location.reload();
+    //         });
+    //     }
+    //
+    //     // Показываем модалку
+    //     $('#successModal').modal('show');
+    // }
 
-        // Сначала убираем все старые обработчики, чтобы при повторных вызовах не накапливались
-        $('#btn-success').off('click');
+    function showSuccessModal(headerText, messageText, confirmCallback = 0) {
+        const $success = $('#successModal');
+        $('#dataUpdatedModalLabel').text(headerText);
+        $('#success-message').text(messageText);
 
-        // Если confirmCallback == 1, то при нажатии "ОК" делаем перезагрузку страницы
-        if (confirmCallback === 1) {
-            $('#btn-success').on('click', function () {
-                location.reload();
-            });
+        // чтобы не накапливать клики
+        $('#btn-success').off('click').one('click', function () {
+            if (confirmCallback === 1) location.reload();
+        });
+
+        // на всякий случай гарантируем, что модалка не вложена
+        $success.appendTo('body');
+
+        // если уже есть открытая модалка — закрываем её и ждём
+        const $opened = $('.modal.show').not($success);
+        const showSuccess = () =>
+            bootstrap.Modal.getOrCreateInstance($success[0], { backdrop: 'static', keyboard: false }).show();
+
+        if ($opened.length) {
+            $opened.one('hidden.bs.modal', showSuccess).modal('hide');
+        } else {
+            showSuccess();
         }
-
-        // Показываем модалку
-        $('#successModal').modal('show');
     }
 </script>
