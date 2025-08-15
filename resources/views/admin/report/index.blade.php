@@ -44,11 +44,11 @@
     <!-- Модальное окно логов -->
     @include('includes.logModal')
     <!-- Модальное окно подтверждения удаления -->
-    @include('includes.modal.confirmDeleteModal')
+{{--    @include('includes.modal.confirmDeleteModal')--}}
     <!-- Модальное окно успешного обновления данных -->
-    @include('includes.modal.successModal')
+{{--    @include('includes.modal.successModal')--}}
     <!-- Модальное окно ошибки -->
-    @include('includes.modal.errorModal')
+    {{--@include('includes.modal.errorModal')--}}
 
     <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>

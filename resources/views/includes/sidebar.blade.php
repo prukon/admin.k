@@ -6,6 +6,7 @@
     <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
 
         {{--Консоль--}}
+        @can('dashboard-view')
         <li class="nav-item">
             <a href="/cabinet" class="nav-link">
                 {{--<i class="nav-icon far fa-calendar-alt"></i>--}}
@@ -14,6 +15,9 @@
             </a>
 
         </li>
+        @endcan
+
+
 
 
         {{--<li>--}}
@@ -84,7 +88,7 @@
         @endcan
 
         {{--Партнеры--}}
-        @can('manage-partners')
+        @can('partner-view')
             <li class="nav-item">
                 <a href="/admin/partners" class="nav-link">
                     <i class="nav-icon fa-solid fa-user-tie"></i>
@@ -109,24 +113,25 @@
         @endcan
 
         {{--Учетная запись--}}
+        @can('account-user-view')
         <li class="nav-item">
             <a href="/account-settings/users/{{ Auth::user()->id }}/edit" class="nav-link">
                 <i class="nav-icon fa-solid fa-user"></i>
                 <p>Учетная запись</p>
             </a>
-
+            @endcan
 
         </li>
             </li>
         <hr class="sidebar-separator">
 
         {{--заявки с сайта--}}
-        @can('viewing-leads')
+        @can('leads-view')
             <li class="nav-item">
-                <a href="/submissions" class="nav-link">
+                <a href="/leads" class="nav-link">
                     <i class="nav-icon fa-solid fa-credit-card"></i>
 
-                    <p>Заявки<span class="badge badge-info right"></span></p>
+                    <p>Лиды<span class="badge badge-info right"></span></p>
                 </a>
             </li> 
         @endcan

@@ -1,9 +1,9 @@
 <!--
 Для вызова в шаблоне использовать: $('#errorModal').modal('show');
-Для изменения тескта ошибки: $('#error-message').text(errorMessage);
+Для изменения тескта ошибки: $('#error-modal-message').text(errorMessage);
 Пример:
   $('#errorModal').modal('show');
-  $('#error-message').text(response.message || 'Ошибка при создании роли!');
+  $('#error-modal-message').text(response.message || 'Ошибка при создании роли!');
 
 
   новый пример:
@@ -18,7 +18,7 @@
        if (response.responseJSON && response.responseJSON.message) {
        errorMessage = response.responseJSON.message; // Используем сообщение с сервера, если оно есть
    }
-       $('#error-message').text(errorMessage); // Устанавливаем сообщение ошибки
+       $('#error-modal-message').text(errorMessage); // Устанавливаем сообщение ошибки
        $('#errorModal').modal('show');    // Показываем модалку ошибки
    }
 -->
@@ -34,7 +34,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-danger" id="error-message">
+                <div class="alert alert-danger" id="error-modal-message">
                     Произошла ошибка при сохранении данных.
                 </div>
             </div>
@@ -48,7 +48,6 @@
 
 <script>
 
-
     document.addEventListener('DOMContentLoaded', function () {
         const btn = document.getElementById('btn-modal-error');
 
@@ -60,61 +59,35 @@
     });
 
 
-    // function eroorRespone(response) {
-    //     console.log('eroorRespone');
-    //     let message = '';
-    //
-    //     if (response.responseJSON && response.responseJSON.errors) {
-    //         let errorMessages = [];
-    //         $.each(response.responseJSON.errors, function (field, messages) {
-    //             errorMessages = errorMessages.concat(messages);
-    //         });
-    //         // Объединяем сообщения, используя символ переноса строки
-    //         message = errorMessages.join('\n');
-    //     } else {
-    //         message = response.responseJSON && response.responseJSON.message
-    //             ? response.responseJSON.message
-    //             : 'Ошибка при создании пользователя!';
-    //     }
-    //
-    //     $('#errorModal').modal('show');
-    //     // Заменяем \n на тег <br> и выводим через .html()
-    //     $('#error-message').html(message.replace(/\n/g, '<br>'));
-    //
-    // }
-
 
     function eroorRespone(response) {
-        console.log('eroorRespone');
-        let message = '';
-
-        if (response.responseJSON && response.responseJSON.errors) {
-            let errorMessages = [];
-            for (const field in response.responseJSON.errors) {
-                if (Array.isArray(response.responseJSON.errors[field])) {
-                    errorMessages = errorMessages.concat(response.responseJSON.errors[field]);
-                }
-            }
-            message = errorMessages.join('\n');
-        } else {
-            message = response.responseJSON && response.responseJSON.message
-                ? response.responseJSON.message
-                : 'Ошибка при создании пользователя!';
+        // 1) Собираем сообщение
+        let message = 'Ошибка при создании пользователя!';
+        if (response?.responseJSON?.errors) {
+            message = Object.values(response.responseJSON.errors).flat().join('\n');
+        } else if (response?.responseJSON?.message) {
+            message = response.responseJSON.message;
         }
 
-        // Показ модального окна Bootstrap 5
-        const modalElement = document.getElementById('errorModal');
-        if (modalElement) {
-            const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
-            modalInstance.show();
+        // 2) Берём ИМЕННО ту модалку, что будем показывать (из <body>)
+        const modalEl = document.querySelector('body > #errorModal') || document.getElementById('errorModal');
+        if (!modalEl) return;
+
+        // 3) Обновляем текст ВНУТРИ этой модалки
+        const msgEl = modalEl.querySelector('#error-modal-message');
+        if (msgEl) {
+            // безопасно экранируем + переводим \n в <br>
+            const esc = (s) => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+            msgEl.innerHTML = esc(message).replace(/\n/g, '<br>');
         }
 
-        // Вставка текста ошибки с <br> вместо \n
-        const messageContainer = document.getElementById('error-message');
-        if (messageContainer) {
-            messageContainer.innerHTML = message.replace(/\n/g, '<br>');
-        }
+        // 4) Гарантируем, что модалка — прямой ребёнок body (если вдруг включили внутрь другой)
+        document.body.appendChild(modalEl);
+
+        // 5) Показываем ТОЛЬКО через очередь, без прямого .show()
+        showModalQueued('errorModal', { backdrop: 'static', keyboard: false });
     }
+
 
 
 </script>

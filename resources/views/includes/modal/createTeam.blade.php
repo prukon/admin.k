@@ -64,13 +64,13 @@
     </div>
 </div>
 <!-- Модальное окно подтверждения удаления -->
-@include('includes.modal.confirmDeleteModal')
+{{--@include('includes.modal.confirmDeleteModal')--}}
 
 <!-- Модальное окно успешного обновления данных -->
-@include('includes.modal.successModal')
+{{--@include('includes.modal.successModal')--}}
 
 <!-- Модальное окно ошибки -->
-@include('includes.modal.errorModal')
+{{--@include('includes.modal.errorModal')--}}
 
 
 <script>

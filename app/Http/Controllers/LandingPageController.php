@@ -30,7 +30,7 @@ class LandingPageController extends Controller
     public function submission()
     {
         $submissions = ContactSubmission::latest()->paginate(20);
-        return view('admin.submissions.index', compact('submissions'));
+        return view('admin.leads', compact('submissions'));
 
     }
 

@@ -1,5 +1,13 @@
+{{-- resources/views/admin/setting/rule.blade.php --}}
+@php
+    /** @var \Illuminate\Database\Eloquent\Collection|\App\Models\Role[] $roles */
+    /** @var \Illuminate\Database\Eloquent\Collection|\App\Models\Permission[] $permissions */
+    /** @var \Illuminate\Database\Eloquent\Collection|\App\Models\PermissionGroup[] $groups */
+@endphp
+
 <h4 class="pt-3 text-start">Права и роли</h4>
 <hr>
+
 <div class="col-12 d-flex justify-content-between align-items-center mb-3">
     <button id="new-role" type="button" class="btn btn-primary new-role width-170"
             data-bs-toggle="modal"
@@ -11,63 +19,119 @@
         <i class="fa-solid fa-clock-rotate-left logs"></i>
     </div>
 </div>
+
 <hr>
 
-<div class="table-responsive mt-3">
-{{--    {{dd($roles)}}--}}
-    <table class="table table-bordered align-middle rule-table">
-        <thead>
-        <tr>
-            <th>Описание функционала</th>
-            @foreach($roles as $role)
-                <th class="text-center">{{ $role->label ?? $role->name }}
+<style>
+    :root { --perm-desc-w: 420px; } /* единая ширина колонки описания для всех групп */
 
-                    @if(auth()->user()?->role?->name === 'superadmin' && !$role->is_visible)
-                        <br>    <span class="badge bg-warning text-dark ms-2">Невидимое</span>
+    /* лёгкий стиль без теней */
+    .perm-group { padding: .25rem 0 1rem; border-bottom: 1px solid rgba(0,0,0,.06); }
+    .perm-group:last-child { border-bottom: 0; }
+
+    .perm-badge { font-size: .75rem; padding: .15rem .45rem; border: 1px solid rgba(0,0,0,.08); border-radius: 999px; }
+
+    .btn-disclosure { border: 1px solid rgba(0,0,0,.12); background: transparent; padding: .15rem .45rem; }
+    .btn-disclosure .chev { display:inline-block; transition: transform .2s ease; }
+    .btn-disclosure[aria-expanded="true"] .chev { transform: rotate(180deg); }
+
+    .perm-table { font-size: .92rem; }
+    .perm-table.table { --bs-table-bg: transparent; }
+    .perm-table thead th {
+        position: sticky; top: 0; background: #fff; z-index: 2; font-weight: 400; /* без bold */
+    }
+    .perm-table td, .perm-table th { padding: .55rem .6rem; vertical-align: middle !important; }
+    .perm-table tbody tr { border-color: rgba(0,0,0,.06); }
+
+    /* липкая первая колонка с фиксированной шириной */
+    .perm-col-sticky {
+        position: sticky; left: 0; background: #fff; z-index: 1;
+        width: var(--perm-desc-w); min-width: var(--perm-desc-w); max-width: var(--perm-desc-w);
+    }
+
+    .table-success { background-color: rgba(25,135,84,.08) !important; transition: background-color .5s; }
+
+    @media (max-width: 768px) { :root { --perm-desc-w: 300px; } }
+    @media (max-width: 576px) { :root { --perm-desc-w: 260px; } }
+</style>
+
+<div id="permission-accordion">
+    @foreach($groups->sortBy('sort_order') as $g)
+        @php
+            $groupId = $g->id;
+            $permsInGroup = $g->permissions ?? collect();
+        @endphp
+
+        <section class="perm-group">
+            <div class="table-responsive">
+                <table class="table perm-table align-middle table-sm">
+                    <thead>
+                    <tr>
+                        <th class="perm-col-sticky">
+                            <button class="btn btn-disclosure btn-sm"
+                                    type="button"
+                                    aria-expanded="true">
+                                <span class="chev"><i class="fa-solid fa-chevron-down"></i></span>
+                            </button>
+                            <span class="ms-2">{{ $g->name }}</span>
+                            <span class="perm-badge ms-2">{{ $permsInGroup->count() }}</span>
+                        </th>
+                        @foreach($roles as $role)
+                            <th class="text-center">
+                                {{ $role->label ?? $role->name }}
+                                @if(auth()->user()?->role?->name === 'superadmin' && !$role->is_visible)
+                                    <br><span class="badge bg-warning text-dark ms-2">Невидимое</span>
+                                @endif
+                            </th>
+                        @endforeach
+                    </tr>
+                    </thead>
+
+                    <tbody>
+                    @foreach($permsInGroup as $permission)
+                        <tr>
+                            <td class="perm-col-sticky">
+                                <div class="d-flex flex-column">
+                                    <span>{{ $permission->description ?? $permission->name }}</span>
+                                    <small class="text-muted">
+                                        <code>{{ $permission->name }}</code>
+                                        @if(auth()->user()?->role?->name === 'superadmin' && !$permission->is_visible)
+                                            <span class="badge bg-warning text-dark ms-2">Невидимое</span>
+                                        @endif
+                                    </small>
+                                </div>
+                            </td>
+
+                            @foreach($roles as $role)
+                                @php $hasPermission = $role->permissions->contains($permission->id); @endphp
+                                <td class="text-center">
+                                    <input type="checkbox"
+                                           class="permission-checkbox"
+                                           data-role-id="{{ $role->id }}"
+                                           data-permission-id="{{ $permission->id }}"
+                                           data-group-id="{{ $groupId }}"
+                                           @checked($hasPermission) />
+                                </td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+
+                    @if($permsInGroup->isEmpty())
+                        <tr>
+                            <td colspan="{{ 1 + $roles->count() }}" class="text-center text-muted py-4">
+                                В этой группе пока нет прав.
+                            </td>
+                        </tr>
                     @endif
-                </th>
-            @endforeach
-        </tr>
-        </thead>
-        <tbody>
-        @foreach($permissions as $permission)
-            <tr>
-                {{--<td>--}}
-                {{--{{ $permission->description ?? $permission->name }}--}}
-                {{--</td>--}}
-
-                <td>
-                    {{ $permission->description ?? $permission->name }}
-                    @if(auth()->user()?->role?->name === 'superadmin' && !$permission->is_visible)
-                        <span class="badge bg-warning text-dark ms-2">Невидимое</span>
-                    @endif
-                </td>
-
-
-                @foreach($roles as $role)
-                    @php
-                        // Проверяем, есть ли у роли данное право
-                        $hasPermission = $role->permissions->contains($permission->id);
-                    @endphp
-                    <td class="text-center">
-                        <input type="checkbox"
-                               class="permission-checkbox"
-                               data-role-id="{{ $role->id }}"
-                               data-permission-id="{{ $permission->id }}"
-                                @checked($hasPermission)
-                        />
-                    </td>
-                @endforeach
-            </tr>
-        @endforeach
-        </tbody>
-    </table>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    @endforeach
 </div>
 
-<!-- Модальное окно создания и управления ролями -->
-<div class="modal fade" id="createRoleModal" tabindex="-1" aria-labelledby="createRoleModalLabel"
-     aria-hidden="true">
-    <!-- Уменьшили ширину, убрав modal-lg -->
+{{-- Модал: создание / управление ролями --}}
+<div class="modal fade" id="createRoleModal" tabindex="-1" aria-labelledby="createRoleModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
 
@@ -78,40 +142,32 @@
 
             <div class="modal-body">
 
-                <!-- Форма создания новой роли (в 1 строку) -->
                 <form id="createRoleForm" class="d-flex align-items-center mb-3 gap-2">
                     @csrf
-                    {{--                        <label for="roleName" class="form-label mb-0">Название роли</label>--}}
-                    <input placeholder="Название роли" type="text" class="form-control" id="roleName" name="name"
-                           required style="width:auto;">
+                    <input placeholder="Название роли" type="text" class="form-control" id="roleName" name="name" required style="width:auto;">
                     <button type="submit" class="btn btn-success">Создать роль</button>
                 </form>
 
                 <hr/>
 
-                <!-- Список ролей -->
                 <div class="table-responsive">
                     <table class="table table-hover align-middle" id="rolesTable">
                         <thead>
                         <tr>
-                            <!-- Меняем "ID" на "№" -->
                             <th>№</th>
                             <th>Название</th>
-                            <!-- Удалили "Системная?" столбец -->
                             <th>Удаление</th>
                         </tr>
                         </thead>
                         <tbody>
                         @foreach($roles as $index => $role)
                             <tr data-role-id="{{ $role->id }}">
-                                <!-- Выводим порядковый номер, начиная с 1 -->
                                 <td>{{ $index + 1 }}</td>
-                                <td>{{ $role->label ?? $role->name }}
-
+                                <td>
+                                    {{ $role->label ?? $role->name }}
                                     @if(auth()->user()?->role?->name === 'superadmin' && !$role->is_visible)
                                         <span class="badge bg-warning text-dark ms-2">Невидимое</span>
                                     @endif
-
                                 </td>
                                 <td>
                                     @if(!$role->is_sistem)
@@ -134,17 +190,16 @@
         </div>
     </div>
 </div>
-<!-- Конец модального окна -->
-
 
 @section('scripts')
     <script>
-        $(document).ready(function () {
-            // Изменение прав
-            $('.permission-checkbox').on('change', function () {
-                let roleId = $(this).data('role-id');
-                let permissionId = $(this).data('permission-id');
-                let isChecked = $(this).is(':checked');
+        $(function () {
+            // чекбокс: единичное изменение права
+            $(document).on('change', '.permission-checkbox', function () {
+                const $cb = $(this);
+                const roleId = $cb.data('role-id');
+                const permissionId = $cb.data('permission-id');
+                const isChecked = $cb.is(':checked');
 
                 $.ajax({
                     url: "{{ route('admin.setting.rule.toggle') }}",
@@ -157,25 +212,41 @@
                     },
                     success: (response) => {
                         if (response.success) {
-                            $(this).closest('td').addClass('table-success');
-                            setTimeout(() => {
-                                $(this).closest('td').removeClass('table-success');
-                            }, 2000);
+                            const $td = $cb.closest('td');
+                            $td.addClass('table-success');
+                            setTimeout(() => $td.removeClass('table-success'), 800);
                         } else {
                             alert('Ошибка при обновлении прав!');
+                            $cb.prop('checked', !isChecked);
                         }
                     },
                     error: () => {
                         alert('Ошибка при соединении!');
+                        $cb.prop('checked', !isChecked);
                     }
                 });
             });
 
-            // Форма создания новой роли
+            // аккордион: кнопка в первом th сворачивает/разворачивает tbody её таблицы
+            $(document).on('click', '.btn-disclosure', function () {
+                const $btn = $(this);
+                const $table = $btn.closest('table');
+                const $tbody = $table.find('tbody').first();
+                const expanded = $btn.attr('aria-expanded') === 'true';
+
+                if (expanded) {
+                    $tbody.addClass('d-none');
+                    $btn.attr('aria-expanded', 'false');
+                } else {
+                    $tbody.removeClass('d-none');
+                    $btn.attr('aria-expanded', 'true');
+                }
+            });
+
+            // создание роли
             $('#createRoleForm').on('submit', function (e) {
                 e.preventDefault();
                 let formData = $(this).serialize();
-
 
                 showConfirmDeleteModal(
                     "Создание роли",
@@ -188,75 +259,28 @@
                             success: (response) => {
                                 if (response.success) {
                                     showSuccessModal("Создание роли", "Роль успешно создана.", 0);
-
-                                    // Добавим новую роль в таблицу
-                                    let role = response.role;
-                                    // Найдём текущий размер таблицы
-                                    let rowCount = $('#rolesTable tbody tr').length;
-                                    // Прибавим 1 (чтобы новые шли в конец)
-                                    let newIndex = rowCount + 1;
-
-                                    let row = `
-                                <tr data-role-id="${role.id}">
-                                    <td>${newIndex}</td>
-                                    <td>${role.label ?? role.name}</td>
-                                    <td>
-                                        ${
-                                        role.is_sistem == 1
-                                            ? '<small class="text-muted">Системная</small>'
-                                            : '<button class="btn btn-danger btn-sm delete-role" data-role-id="' + role.id + '">Удалить</button>'
-                                    }
-                                    </td>
-                                </tr>
-                            `;
-                                    $('#rolesTable tbody').append(row);
-                                    // Очистим поле ввода
-                                    $('#roleName').val('');
+                                    location.reload();
                                 } else {
                                     $('#errorModal').modal('show');
-                                    $('#error-message').text(response.message || 'Ошибка при создании роли!');
+                                    $('#error-modal-message').text(response.message || 'Ошибка при создании роли!');
                                 }
-                                location.reload();
                             },
-                            // error: (xhr) => {
-                            //     if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            //         // Валидационные ошибки
-                            //         let errors = xhr.responseJSON.errors;
-                            //         alert(Object.values(errors).join("\n"));
-                            //     } else {
-                            //         $('#errorModal').modal('show');
-                            //         $('#error-message').text(response.message || 'Ошибка при соединении!');
-                            //     }
-                            // }
-
-                            error: function(xhr, status, error) {
-                                // Попробуем достать JSON из ответа
+                            error: function(xhr) {
                                 let json = xhr.responseJSON;
                                 let message = 'Ошибка при соединении!';
-
                                 if (json) {
-                                    // если есть поле message
-                                    if (json.message) {
-                                        message = json.message;
-                                    }
-                                    // если есть ошибки валидации — объединим их
-                                    else if (json.errors) {
-                                        message = Object.values(json.errors).flat().join('\n');
-                                    }
+                                    if (json.message) message = json.message;
+                                    else if (json.errors) message = Object.values(json.errors).flat().join('\n');
                                 }
-
-                                // Показать модалку с ошибкой
-                                $('#error-message').text(message);
+                                $('#error-modal-message').text(message);
                                 $('#errorModal').modal('show');
                             }
-
-
                         });
                     }
                 );
             });
 
-            // Удаление роли
+            // удаление роли
             $(document).on('click', '.delete-role', function () {
                 let roleId = $(this).data('role-id');
 
@@ -264,7 +288,6 @@
                     "Удаление роли",
                     "Вы уверены, что хотите удалить роль?",
                     function () {
-
                         $.ajax({
                             url: "{{ route('admin.setting.role.delete') }}",
                             type: "DELETE",
@@ -275,26 +298,22 @@
                             success: (response) => {
                                 if (response.success) {
                                     showSuccessModal("Удаление роли", "Роль успешно удалена.", 0);
-
-                                    // Удаляем строку из таблицы
-                                    $('#rolesTable tr[data-role-id="' + roleId + '"]').remove();
+                                    location.reload();
                                 } else {
                                     $('#errorModal').modal('show');
-                                    $('#error-message').text(response.message || 'Ошибка при удалении роли!');
+                                    $('#error-modal-message').text(response.message || 'Ошибка при удалении роли!');
                                 }
-                                location.reload();
-
                             },
                             error: () => {
                                 $('#errorModal').modal('show');
-                                $('#error-message').text(response.message || 'Ошибка при соединении!');
+                                $('#error-modal-message').text('Ошибка при соединении!');
                             }
                         });
                     }
                 );
             });
 
-            // Логи (ваша функция)
+            // логи
             showLogModal("{{ route('logs.data.rule') }}");
         });
     </script>

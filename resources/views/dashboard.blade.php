@@ -240,10 +240,10 @@
     </div>
 
     <!-- Модальное окно успешного обновления данных -->
-    @include('includes.modal.successModal')
+{{--    @include('includes.modal.successModal')--}}
 
     <!-- Модальное окно ошибки -->
-    @include('includes.modal.errorModal')
+    {{--@include('includes.modal.errorModal')--}}
 @endsection
 
 @section('scripts')

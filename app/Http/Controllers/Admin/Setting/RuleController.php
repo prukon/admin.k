@@ -22,6 +22,7 @@ use Yajra\DataTables\DataTables;
 use App\Models\Role;
 use App\Models\Permission;
 use Illuminate\Support\Str;               // ← вот это
+use App\Models\PermissionGroup;
 
 
 class RuleController extends Controller
@@ -29,45 +30,9 @@ class RuleController extends Controller
     //ВКЛАДКА РОЛИ
 
     //Страница права пользователей
+
+
     public function showRules2()
-    {
-        // 1) Контекст
-        $partnerId    = app('current_partner')->id;
-        $userRoleName = auth()->user()?->role?->name;
-
-    $isSuperadmin = $userRoleName === 'superadmin';
-
-    // 2) Роли:
-    //    – все системные (is_sistem = 1)
-    //    – + все роли, назначенные партнёру через partner_role
-    //    – скрытые (is_visible = 0) — только для superadmin
-    $roles = Role::with('permissions')
-        ->where(function ($q) use ($partnerId) {
-            $q->where('is_sistem', 1)
-                ->orWhereHas('partners', fn($q2) =>
-                  $q2->where('partner_role.partner_id', $partnerId)
-              );
-        })
-        ->when(! $isSuperadmin, fn($q) => $q->where('is_visible', 1))
-        ->orderBy('order_by')
-        ->get();
-
-    // 3) Права:
-    //    – ВСЕ права берём из таблицы
-    //    – скрытые (is_visible = 0) — только для superadmin
-    $permissions = Permission::orderBy('sort_order')
-        ->when(! $isSuperadmin, fn($q) => $q->where('is_visible', 1))
-        ->get();
-
-    return view('admin.setting.index', [
-        'activeTab'   => 'rule',
-        'roles'       => $roles,
-        'permissions' => $permissions,
-    ]);
-}
-
-
-    public function showRules()
     {
         // 1) Контекст партнёра
         $partnerId    = app('current_partner')->id;
@@ -110,66 +75,69 @@ class RuleController extends Controller
         ]);
     }
 
+    public function showRules()
+    {
+        // 1) Контекст партнёра и текущая роль
+        $partnerId    = app('current_partner')->id;
+        $userRoleName = auth()->user()?->role?->name;
+    $isSuperadmin = $userRoleName === 'superadmin';
+
+    // 2) Роли с правами для текущего партнёра
+    $roles = Role::with([
+        'permissions' => function ($q) use ($partnerId) {
+            $q->wherePivot('partner_id', $partnerId);
+        }
+    ])
+        ->where(function ($q) use ($partnerId) {
+            $q->where('is_sistem', 1)
+                ->orWhereHas('partners', fn($q2) => $q2->where('partner_role.partner_id', $partnerId));
+        })
+        ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
+        ->orderBy('order_by')
+        ->get();
+
+    // 3) Все права (для подсчётов/поиска) + их группы
+    $permissions = Permission::with('group')
+        ->orderBy('sort_order')
+        ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
+        ->get();
+
+    // 4) Явные группы с подгруженными правами
+    $groups = PermissionGroup::with([
+        'permissions' => function ($q) use ($isSuperadmin) {
+            $q->orderBy('sort_order')
+                ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1));
+            }
+    ])
+        ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
+        ->orderBy('sort_order')
+        ->get();
+
+    // 5) «Прочее» — права без группы
+    $ungrouped = $permissions->whereNull('permission_group_id');
+    if ($ungrouped->isNotEmpty()) {
+        $misc = new PermissionGroup([
+            'id'          => 0,
+            'slug'        => 'misc',
+            'name'        => 'Прочее',
+            'description' => null,
+            'is_visible'  => true,
+            'sort_order'  => 999,
+        ]);
+        $misc->setRelation('permissions', $ungrouped->values());
+        $groups->push($misc);
+    }
+
+    return view('admin.setting.index', [
+        'activeTab'   => 'rule',
+        'roles'       => $roles,
+        'permissions' => $permissions,
+        'groups'      => $groups, // ← добавили группы
+    ]);
+}
+
 
     //Изменение прав пользователей
-    public function togglePermission2(Request $request)
-    {
-        $data = $request->validate([
-            'role_id'       => 'required|integer|exists:roles,id',
-            'permission_id' => 'required|integer|exists:permissions,id',
-            'value'         => 'required|in:true,false',
-        ]);
-
-        $attach = $data['value'] === 'true';
-
-        // Обновляем в транзакции
-        DB::transaction(function () use ($data, $attach) {
-            $role = Role::findOrFail($data['role_id']);
-
-            if ($attach) {
-                $role->permissions()->syncWithoutDetaching([$data['permission_id']]);
-            } else {
-                $role->permissions()->detach($data['permission_id']);
-            }
-        });
-
-        return response()->json(['success' => true]);
-    }
-
-    // Изменение прав пользователей (вкл/выкл конкретного права)
-    public function togglePermission3(Request $request)
-    {
-        $data = $request->validate([
-            'role_id'       => 'required|integer|exists:roles,id',
-            'permission_id' => 'required|integer|exists:permissions,id',
-            'value'         => 'required|in:true,false',
-        ]);
-
-        $attach    = $data['value'] === 'true';
-        $partnerId = app('current_partner')->id;                         // <<< CHANGED: контекст партнёра
-
-        // Обновляем в транзакции
-        DB::transaction(function () use ($data, $attach, $partnerId) {
-            $role = Role::findOrFail($data['role_id']);
-
-            if ($attach) {
-                // <<< CHANGED: связываем право с конкретным партнёром
-                $role->permissions()->syncWithoutDetaching([
-                    $data['permission_id'] => ['partner_id' => $partnerId],
-                ]);
-            } else {
-                // <<< CHANGED: удаляем только запись с нужным partner_id
-                DB::table('permission_role')
-                    ->where('role_id',       $role->id)
-                    ->where('permission_id', $data['permission_id'])
-                    ->where('partner_id',    $partnerId)
-                    ->delete();
-            }
-        });
-
-        return response()->json(['success' => true]);
-    }
-
     public function togglePermission(Request $request)
     {
         $data = $request->validate([
@@ -205,8 +173,6 @@ class RuleController extends Controller
 
         return response()->json(['success' => true]);
     }
-
-
 
     //* Метод для создания новой роли (AJAX).
     public function createRole(Request $request)

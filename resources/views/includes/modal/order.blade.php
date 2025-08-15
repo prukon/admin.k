@@ -61,5 +61,5 @@
 @include('includes.modal.successOrderModal')
 
 <!-- Модальное окно ошибки -->
-@include('includes.modal.errorModal')
+{{--@include('includes.modal.errorModal')--}}
 

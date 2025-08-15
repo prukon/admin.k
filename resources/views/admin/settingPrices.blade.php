@@ -3,11 +3,11 @@
     <!-- Модальное окно логов -->
     @include('includes.logModal')
     <!-- Модальное окно подтверждения удаления -->
-    @include('includes.modal.confirmDeleteModal')
+    {{--@include('includes.modal.confirmDeleteModal')--}}
     <!-- Модальное окно успешного обновления данных -->
-    @include('includes.modal.successModal')
+    {{--@include('includes.modal.successModal')--}}
     <!-- Модальное окно ошибки -->
-    @include('includes.modal.errorModal')
+{{--    @include('includes.modal.errorModal')--}}
 
     <h4 class="pt-3 text-start">Установка цен</h4>
     <div class="container setting-price-wrap">

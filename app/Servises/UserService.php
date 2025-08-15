@@ -37,6 +37,32 @@ class UserService
             // Исключаем 'custom' из основного массива
             $userData = array_diff_key($data, ['custom' => '']);
 
+            // --- ДОБАВЛЕНО: жёсткая политика для админа при включённой глобалке ---
+            try {
+                $forceAdmin2fa = method_exists(Setting::class, 'getBool')
+                    ? Setting::getBool('force_2fa_admins', false, null)
+                    : (bool) \DB::table('settings')
+                        ->where('name','force_2fa_admins')
+                        ->whereNull('partner_id')
+                        ->value('status');
+
+                if ((int)$user->role_id === 10 && $forceAdmin2fa) {
+                    // Нельзя выключить 2FA у админа, если глобалка включена
+                    $userData['two_factor_enabled'] = 1;
+                    \Log::info('UserService: force two_factor_enabled=1 for admin due to global setting', [
+                        'user_id' => $user->id
+                    ]);
+                } else {
+                    // Нормализуем инпут чекбокса, чтобы 0/1 корректно приехали
+                    if (array_key_exists('two_factor_enabled', $userData)) {
+                        $userData['two_factor_enabled'] = (int)!!$userData['two_factor_enabled'];
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::error('UserService: failed to enforce admin 2FA policy', ['error' => $e->getMessage()]);
+            }
+
+
             // Обновляем основные поля пользователя
             $user->update($userData);
 

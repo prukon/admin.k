@@ -33,6 +33,7 @@ class Permission extends Model
             'role_id'
         )->withTimestamps();
     }
+
     // app/Models/Permission.php
 
     public function scopeVisibleForRoles($query, $roleIds)
@@ -44,6 +45,29 @@ class Permission extends Model
             ->with(['roles' => function ($q) use ($roleIds) {
                 $q->whereIn('roles.id', $roleIds);
             }]);
+    }
+
+    public function group()
+    {
+        return $this->belongsTo(PermissionGroup::class, 'permission_group_id');
+    }
+
+    // Удобные аксессоры для UI/фильтров
+    public function getResourceAttribute()
+    {
+        return Str::before($this->name, '.');
+    }
+
+    public function getActionAttribute()
+    {
+        $tail = Str::after($this->name, '.');
+        return Str::before($tail, '.') ?: $tail;
+    }
+
+    public function getScopeAttribute()
+    {
+        $tail = Str::after($this->name, '.');
+        return Str::contains($tail, '.') ? Str::after($tail, '.') : null;
     }
 
 }

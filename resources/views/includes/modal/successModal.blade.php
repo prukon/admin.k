@@ -44,7 +44,7 @@
     //     $('#successModal').modal('show');
     // }
 
-    function showSuccessModal(headerText, messageText, confirmCallback = 0) {
+    function showSuccessModal2(headerText, messageText, confirmCallback = 0) {
         const $success = $('#successModal');
         $('#dataUpdatedModalLabel').text(headerText);
         $('#success-message').text(messageText);
@@ -67,5 +67,25 @@
         } else {
             showSuccess();
         }
+        showModalQueued('successModal', { backdrop: 'static', keyboard: false });
+
     }
+
+    function showSuccessModal(headerText, messageText, confirmCallback = 0) {
+        const $success = $('#successModal');
+
+        $('#dataUpdatedModalLabel').text(headerText);
+        $('#success-message').text(messageText);
+
+        $('#btn-success').off('click').one('click', function () {
+            if (confirmCallback === 1) location.reload();
+        });
+
+        // гарантируем, что модалка в <body>
+        $success.appendTo('body');
+
+        // НЕ вызываем .modal('hide') / .show() сами!
+        showModalQueued('successModal', { backdrop: 'static', keyboard: false });
+    }
+
 </script>

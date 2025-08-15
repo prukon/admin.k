@@ -52,10 +52,11 @@
 
                     ])
                 @elseif($activeTab === 'rule')
-                    <!-- Контент вкладки организаций -->
+                    <!-- Контент вкладки прав -->
                     @include('admin.setting.rule',
                     ['roles' => $roles,
                     'permissions' => $permissions,
+                    'groups'      => $groups,   // ← добавили
                     ])
                 @elseif($activeTab === 'paymentSystem')
                     <!-- Контент вкладки организаций -->
@@ -72,10 +73,4 @@
     </div>
     <!-- Модальное окно логов -->
     @include('includes.logModal')
-    <!-- Модальное окно подтверждения удаления -->
-    @include('includes.modal.confirmDeleteModal')
-    <!-- Модальное окно успешного обновления данных -->
-    @include('includes.modal.successModal')
-    <!-- Модальное окно ошибки -->
-    @include('includes.modal.errorModal')
 @endsection

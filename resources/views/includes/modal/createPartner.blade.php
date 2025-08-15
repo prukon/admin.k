@@ -136,9 +136,9 @@
     </div>
 </div>
 
-@include('includes.modal.confirmDeleteModal')
-@include('includes.modal.successModal')
-@include('includes.modal.errorModal')
+{{--@include('includes.modal.confirmDeleteModal')--}}
+{{--@include('includes.modal.successModal')--}}
+{{--@include('includes.modal.errorModal')--}}
 
 {{--@section('scripts')--}}
     <script>

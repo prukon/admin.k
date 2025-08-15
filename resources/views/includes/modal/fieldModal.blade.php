@@ -86,13 +86,13 @@
 </div>
 
 <!-- Модальное окно ошибки -->
-@include('includes.modal.errorModal')
+{{--@include('includes.modal.errorModal')--}}
 
 <!-- Модальное окно подтверждения удаления -->
-@include('includes.modal.confirmDeleteModal')
+{{--@include('includes.modal.confirmDeleteModal')--}}
 
 <!-- Модальное окно успешного обновления данных -->
-@include('includes.modal.successModal')
+{{--@include('includes.modal.successModal')--}}
 
 <script>
     $(document).ready(function () {
@@ -201,7 +201,7 @@
                     showSuccessModal("Обновление полей", "Пользовательские поля успешно обновлены.", 1);
                 },
                 error() {
-                    $('#error-message').text('Произошла ошибка при сохранении данных.');
+                    $('#error-modal-message').text('Произошла ошибка при сохранении данных.');
                     $('#errorModal').modal('show');
                     $('#fieldModal').modal('hide');
                 }

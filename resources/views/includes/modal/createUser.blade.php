@@ -67,15 +67,6 @@
     </div>
 </div>
 
-
-@include('includes.modal.confirmDeleteModal')
-
-<!-- Модальное окно успешного обновления данных -->
-@include('includes.modal.successModal')
-
-<!-- Модальное окно ошибки -->
-@include('includes.modal.errorModal')
-
 <script>
     $(document).ready(function () {
         // Функция показа/скрытия пароля
@@ -110,13 +101,10 @@
                 },
                 error: function(response) {
                     eroorRespone(response);
+
                 }
             });
         });
 
-        // Перезагрузка страницы после закрытия модального окна успеха
-        // $('#successUserModal').on('hidden.bs.modal', function () {
-        //     location.reload();
-        // });
     });
 </script>

@@ -8,13 +8,11 @@ use App\Servises\SmsRuService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class TwoFactorController extends Controller
 {
-    /**
-     * Страница ввода кода 2FA.
-     * Если кода нет/истёк и кулдаун не активен — автоматически сгенерим и отправим SMS.
-     */
+    // Страница ввода кода
     public function showChallenge(Request $request, SmsRuService $sms)
     {
         if (!Auth::check()) {
@@ -26,31 +24,32 @@ class TwoFactorController extends Controller
 
         $user = $request->user();
 
-        // Определяем, нужна ли 2FA (включена у юзера ИЛИ включена принудительно для админов)
-        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false);
+        // Нужна ли 2FA: (обяз. для роли 10 по настройке) или включена у юзера
+        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false, null);
         $needs2fa = (((int)$user->role_id === 10) && $forceAdmin2fa) || (bool)$user->two_factor_enabled;
 
-        \Log::info('2FA showChallenge: entry', [
+        Log::info('2FA showChallenge: entry', [
             'user_id'          => $user->id,
             'role_id'          => $user->role_id,
             'forceAdmin2fa'    => $forceAdmin2fa,
             'user_tfa_enabled' => (bool)$user->two_factor_enabled,
             'needs2fa'         => $needs2fa,
             'session_passed'   => (bool)session('2fa:passed'),
+            'has_phone'        => (bool)$user->phone,
         ]);
 
         if (!$needs2fa) {
             session(['2fa:passed' => true]);
-            \Log::info('2FA showChallenge: no 2fa needed -> pass', ['user_id' => $user->id]);
+            Log::info('2FA showChallenge: no 2FA needed -> pass', ['user_id' => $user->id]);
             return redirect()->intended('/');
         }
 
         if (!$user->phone) {
-            \Log::warning('2FA showChallenge: no phone set', ['user_id' => $user->id]);
-            return redirect()->route('two-factor.phone')->with('error', 'В профиле не указан телефон. Укажите телефон для получения кода.');
+            Log::warning('2FA showChallenge: phone is empty -> redirect to phone form', ['user_id' => $user->id]);
+            return redirect()->route('two-factor.phone')->with('error', 'Укажите номер телефона для получения кода.');
         }
 
-        // Кулдаун до повторной отправки
+        // Кулдаун
         $cooldownSec = 0;
         if ($last = session('2fa:last_sent_at')) {
             try {
@@ -59,14 +58,16 @@ class TwoFactorController extends Controller
             } catch (\Throwable) {}
         }
 
-        // Если активного кода нет или он истёк — отправим автоматически (если кулдаун не висит)
-        $hasActiveCode = !empty($user->two_factor_code) && !empty($user->two_factor_expires_at) && now()->lessThan($user->two_factor_expires_at);
+        // Авто-отправка, если нет активного кода и нет кулдауна
+        $hasActiveCode = !empty($user->two_factor_code)
+            && !empty($user->two_factor_expires_at)
+            && now()->lessThan($user->two_factor_expires_at);
 
-        \Log::info('2FA showChallenge: code status', [
-            'user_id'        => $user->id,
-            'hasActiveCode'  => $hasActiveCode,
-            'expires_at'     => $user->two_factor_expires_at,
-            'cooldownSec'    => $cooldownSec,
+        Log::info('2FA showChallenge: code status', [
+            'user_id'       => $user->id,
+            'hasActiveCode' => $hasActiveCode,
+            'expires_at'    => $user->two_factor_expires_at,
+            'cooldownSec'   => $cooldownSec,
         ]);
 
         if (!$hasActiveCode && $cooldownSec === 0) {
@@ -78,35 +79,22 @@ class TwoFactorController extends Controller
 
             $result = $sms->send($user->phone, "Код для входа: {$code}. Действителен 10 минут.");
 
-            \Log::info('2FA showChallenge: auto-send result', [
+            Log::info('2FA showChallenge: auto-send result', [
                 'user_id' => $user->id,
                 'phone'   => '***' . substr($user->phone, -4),
                 'result'  => $result === true ? 'OK' : $result,
             ]);
 
             session(['2fa:last_sent_at' => now()]);
-            // обновим кулдаун для фронта
             $cooldownSec = 60;
-
-            if ($result !== true) {
-                // Не блокируем отображение страницы — пусть пользователь сможет нажать «Отправить повторно»
-                // Ошибку видно в логах; при желании можно добавить flash с ошибкой
-                // session()->flash('status', is_string($result) ? $result : 'Не удалось отправить SMS.');
-            } else {
-                // Можем показать подсказку
-                // session()->flash('status', 'Код отправлен автоматически.');
-            }
         }
 
-        // Красивый номер
         $formattedPhone = $this->formatRuPhoneForDisplay($user->phone);
 
         return view('auth.two-factor', compact('cooldownSec', 'formattedPhone'));
     }
 
-    /**
-     * Проверка введённого кода
-     */
+    // Проверка введённого кода
     public function verify(Request $request)
     {
         if (!Auth::check()) {
@@ -122,10 +110,10 @@ class TwoFactorController extends Controller
 
         $user = $request->user();
 
-        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false);
+        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false, null);
         $needs2fa = (((int)$user->role_id === 10) && $forceAdmin2fa) || (bool)$user->two_factor_enabled;
 
-        \Log::info('2FA verify: before check', [
+        Log::info('2FA verify: before check', [
             'user_id'          => $user->id,
             'role_id'          => $user->role_id,
             'forceAdmin2fa'    => $forceAdmin2fa,
@@ -137,7 +125,7 @@ class TwoFactorController extends Controller
 
         if (!$needs2fa) {
             session(['2fa:passed' => true]);
-            \Log::info('2FA verify: needs2fa=false -> pass', ['user_id' => $user->id]);
+            Log::info('2FA verify: needs2fa=false -> pass', ['user_id' => $user->id]);
             return redirect()->intended('/');
         }
 
@@ -148,18 +136,17 @@ class TwoFactorController extends Controller
             return back()->withErrors(['code' => 'Срок действия кода истёк. Нажмите «Отправить повторно».']);
         }
         if (!Hash::check($request->input('code'), $user->two_factor_code)) {
-            \Log::warning('2FA verify: wrong code', ['user_id' => $user->id]);
+            Log::warning('2FA verify: wrong code', ['user_id' => $user->id]);
             return back()->withErrors(['code' => 'Неверный код.']);
         }
 
-        // успех
         $user->forceFill([
             'two_factor_code'       => null,
             'two_factor_expires_at' => null,
             'phone_verified_at'     => $user->phone_verified_at ?: now(),
         ])->save();
 
-        \Log::info('2FA: verify success', [
+        Log::info('2FA: verify success', [
             'user_id' => $user->id,
             'phone'   => $user->phone ? '***'.substr($user->phone, -4) : null,
         ]);
@@ -170,44 +157,64 @@ class TwoFactorController extends Controller
         return redirect()->intended('/');
     }
 
-    /**
-     * Ручная повторная отправка кода
-     */
-    public function resend(Request $request, SmsRuService $sms)
+    // Страница ввода телефона
+    public function phoneForm()
     {
         if (!Auth::check()) return redirect()->route('login');
 
+        $user = Auth::user();
+        return view('auth.two-factor-phone', [
+            'currentPhone' => $user->phone,
+        ]);
+    }
+
+    // Сохранение телефона + отправка кода
+    public function phoneSave(Request $request, SmsRuService $sms)
+    {
+        if (!Auth::check()) return redirect()->route('login');
+
+        $request->validate([
+            'phone' => ['required', 'string', 'regex:/^(\+?7|8)?\D?\d{3}\D?\d{3}\D?\d{2}\D?\d{2}$/'],
+        ], [
+            'phone.required' => 'Укажите номер телефона',
+            'phone.regex'    => 'Неверный формат телефона',
+        ]);
+
         $user = $request->user();
-        if (!$user->phone) {
-            return back()->withErrors(['resend' => 'В профиле не указан телефон.']);
+
+        // Нормализация в формат 79XXXXXXXXX
+        $digits = preg_replace('/\D+/', '', (string)$request->input('phone'));
+        if (strlen($digits) === 11 && $digits[0] === '8') {
+            $digits = '7' . substr($digits, 1);
+        }
+        if (strlen($digits) === 10) {
+            $digits = '7' . $digits;
+        }
+        if (!$digits || !preg_match('/^7\d{10}$/', $digits)) {
+            return back()->withErrors(['phone' => 'Телефон должен быть формата 79XXXXXXXXX'])->withInput();
         }
 
-        $last = session('2fa:last_sent_at');
-        if ($last && now()->diffInSeconds($last) < 60) {
-            return back()->withErrors(['resend' => 'Повторная отправка доступна через минуту.']);
-        }
+        // Сохраняем
+        $user->forceFill(['phone' => $digits])->save();
 
+        // Генерим и отправляем код
         $code = (string) random_int(100000, 999999);
         $user->forceFill([
             'two_factor_code'       => \Hash::make($code),
             'two_factor_expires_at' => now()->addMinutes(10),
         ])->save();
 
-        $result = $sms->send($user->phone, "Код для входа: {$code}. Действителен 10 минут.");
-
-        \Log::info('2FA: resend result', [
+        $result = $sms->send($digits, "Код для входа: {$code}. Действителен 10 минут.");
+        Log::info('2FA phoneSave: send result', [
             'user_id' => $user->id,
-            'phone'   => '***'.substr($user->phone, -4),
+            'phone'   => '***'.substr($digits, -4),
             'result'  => $result === true ? 'OK' : $result,
         ]);
 
         session(['2fa:last_sent_at' => now()]);
 
-        if ($result !== true) {
-            return back()->withErrors(['resend' => is_string($result) ? $result : 'Не удалось отправить SMS.']);
-        }
-
-        return back()->with('status', 'Код отправлен повторно.');
+        return redirect()->route('two-factor.challenge')
+            ->with('status', $result === true ? 'Телефон сохранён. Код отправлен.' : 'Телефон сохранён. Не удалось отправить код, попробуйте ещё раз.');
     }
 
     private function formatRuPhoneForDisplay(?string $phone): string

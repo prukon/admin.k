@@ -216,7 +216,7 @@
                 },
                 error: function (xhr) {
                     $('#errorModal').modal('show');
-                    $('#error-message').text(xhr.responseJSON?.message || 'Ошибка при создании данных.');
+                    $('#error-modal-message').text(xhr.responseJSON?.message || 'Ошибка при создании данных.');
                 }
             });
         });
@@ -240,7 +240,7 @@
                 },
                 error: function (xhr) {
                     $('#errorModal').modal('show');
-                    $('#error-message').text(xhr.responseJSON?.message || 'Ошибка при создании данных.');
+                    $('#error-modal-message').text(xhr.responseJSON?.message || 'Ошибка при создании данных.');
                 }
             });
         });
