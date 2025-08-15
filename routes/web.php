@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\PartnerSettingController;
+use App\Http\Controllers\Admin\Report\DeptReportController;
+use App\Http\Controllers\Admin\Report\LtvReportController;
 use App\Http\Controllers\Admin\Report\PaymentReportController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\Setting\PaymentSystemController;
@@ -76,10 +78,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware(['can:reports'])->group(function () {
         Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
         Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
-        Route::get('/admin/reports/debts', [PaymentReportController::class, 'debts'])->name('debts');
-        Route::get('/admin/reports/getDebts', [PaymentReportController::class, 'getDebts'])->name('debts.getDebts');
-        Route::get('/admin/reports/ltv', [PaymentReportController::class, 'ltv'])->name('ltv');
-        Route::get('/admin/reports/getLtv', [PaymentReportController::class, 'getLtv'])->name('ltv.getLtv');
+        Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
+        Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
+        Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
+        Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
     });
 
     //Мои платежи

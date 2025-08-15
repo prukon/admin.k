@@ -181,17 +181,21 @@
                             console.log('1');
                             showSuccessModal("Редактирование организации", "Данные организации успешно обновлены.", 1);
                         },
-                        error: function (xhr) {
-                            // Обработка ошибок
-                            if (xhr.status === 422) {
-                                // Ошибки валидации (Unprocessable Entity)
-                                let errors = xhr.responseJSON.errors;
-                                console.log(errors);
-                                // Здесь можно пробежаться по errors и вывести их на страницу
-                                // или показать alert
-                            } else {
-                                $('#errorModal').modal('show');
+                        // error: function (xhr) {
+                        //     if (xhr.status === 422) {
+                        //         let errors = xhr.responseJSON.errors;
+                        //         console.log(errors);
+                        //     } else {
+                        //         $('#errorModal').modal('show');
+                        //     }
+                        // }
+                        error: function (response) {
+                            let errorMessage = 'Произошла ошибка при сохранении данных.';
+                            if (response.responseJSON && response.responseJSON.message) {
+                                errorMessage = response.responseJSON.message; // Используем сообщение с сервера, если оно есть
                             }
+                            $('#error-modal-message').text(errorMessage); // Устанавливаем сообщение ошибки
+                            $('#errorModal').modal('show');    // Показываем модалку ошибки
                         }
                     });
                 });

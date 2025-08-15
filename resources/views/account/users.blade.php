@@ -33,8 +33,9 @@
             <div class="mb-3">
                 <label for="name" class="form-label">Имя ученика*</label>
 
-                <input type="text" id="name" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $user->name) }}"
-                        @unless($canEditName) disabled aria-disabled="true" @endunless >
+                <input type="text" id="name" name="name" class="form-control @error('name') is-invalid @enderror"
+                       value="{{ old('name', $user->name) }}"
+                       @unless($canEditName) disabled aria-disabled="true" @endunless >
 
                 @error('name')
                 <div class="invalid-feedback">{{ $message }}</div>
@@ -50,9 +51,17 @@
             {{-- Поле "Дата рождения" --}}
             <div class="mb-3">
                 <label for="birthday" class="form-label">Дата рождения</label>
-                <input type="date" id="birthday" name="birthday" class="form-control @error('birthday') is-invalid @enderror" value="{{ old('birthday', $user->birthday_for_form) }}" @cannot('account-user-birthdate-update') disabled aria-disabled="true" @endcannot>
-                @error('birthday') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                @cannot('account-user-birthdate-update') <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение даты рождения</div> @endcannot
+                <input type="date" id="birthday" name="birthday"
+                       class="form-control @error('birthday') is-invalid @enderror"
+                       value="{{ old('birthday', $user->birthday_for_form) }}"
+                       @cannot('account-user-birthdate-update') disabled aria-disabled="true" @endcannot>
+                @error('birthday')
+                <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+                @cannot('account-user-birthdate-update')
+                    <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
+                        даты рождения
+                    </div> @endcannot
             </div>
 
             {{-- Поле "Email" --}}
@@ -67,8 +76,13 @@
                         value="{{ old('email', $user->email) }}"
                         @cannot('changing-user-email') disabled aria-disabled="true" @endcannot
                 >
-                @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                @cannot('changing-user-email') <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение email</div> @endcannot
+                @error('email')
+                <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+                @cannot('changing-user-email')
+                    <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
+                        email
+                    </div> @endcannot
             </div>
 
             {{-- Поле "Телефон" --}}
@@ -79,14 +93,16 @@
                 <div class="input-group">
                     <input type="tel" id="phone" name="phone" class="form-control"
                            value="{{ old('phone', $user->phone) }}" placeholder="+7 (___) ___ __-__"
-                           data-original="{{ $user->phone ?? '' }}" data-verified="{{ $user->phone_verified_at ? 1 : 0 }}"
+                           data-original="{{ $user->phone ?? '' }}"
+                           data-verified="{{ $user->phone_verified_at ? 1 : 0 }}"
                            @unless($canPhone) disabled aria-disabled="true" @endunless>
 
                     @if($canPhone)
                         <button type="button" id="verify-phone-btn" class="btn btn-success">Подтвердить</button>
                     @else
                         <button type="button" id="verify-phone-btn" class="btn btn-success disabled pe-none"
-                                aria-disabled="true" tabindex="-1" data-bs-toggle="tooltip" title="Нет прав на изменение телефона">
+                                aria-disabled="true" tabindex="-1" data-bs-toggle="tooltip"
+                                title="Нет прав на изменение телефона">
                             Подтвердить
                         </button>
                     @endif
@@ -102,17 +118,23 @@
                        data-verified="{{ $verifiedAt ? 1 : 0 }}"
                        data-verified-at="{{ $verifiedAt ? $verifiedAt->format('Y-m-d H:i:s') : '' }}">
                     @if($user->phone)
-                        @if($verifiedAt) Подтверждён {{ $verifiedAt->format('d.m.Y H:i') }} @else Подтвердите номер @endif
+                        @if($verifiedAt) Подтверждён {{ $verifiedAt->format('d.m.Y H:i') }} @else Подтвердите
+                        номер @endif
                     @endif
                 </small>
 
                 @unless($canPhone)
-                    <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение телефона</div>
+                    <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
+                        телефона
+                    </div>
                 @endunless
             </div>
 
             @unless($canPhone)
-                <script>document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('verify-phone-btn');if(b)new bootstrap.Tooltip(b);});</script>
+                <script>document.addEventListener('DOMContentLoaded', () => {
+                        const b = document.getElementById('verify-phone-btn');
+                        if (b) new bootstrap.Tooltip(b);
+                    });</script>
             @endunless
 
             {{--<h5>Пользовательские поля</h5>--}}
@@ -156,14 +178,20 @@
             {{-- Поле "Группа" --}}
             <div class="mb-3">
                 <label for="team" class="form-label">Группа</label>
-                <select id="team" name="team_id" class="form-select @error('team_id') is-invalid @enderror" @cannot('changing-your-group') disabled aria-disabled="true" @endcannot>
+                <select id="team" name="team_id" class="form-select @error('team_id') is-invalid @enderror"
+                        @cannot('changing-your-group') disabled aria-disabled="true" @endcannot>
                     <option value="" {{ old('team_id', $user->team_id) == null ? 'selected' : '' }}>Без группы</option>
                     @foreach($allTeams as $team)
                         <option value="{{ $team->id }}" {{ old('team_id', $user->team_id) == $team->id ? 'selected' : '' }}>{{ $team->title }}</option>
                     @endforeach
                 </select>
-                @error('team_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                @cannot('changing-your-group') <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение группы</div> @endcannot
+                @error('team_id')
+                <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+                @cannot('changing-your-group')
+                    <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
+                        группы
+                    </div> @endcannot
             </div>
 
             {{-- Поле "Дата начала занятий" --}}
@@ -178,8 +206,13 @@
                         max="{{ date('2030-01-01') }}"
                         @cannot('account-user-startDate-update') disabled aria-disabled="true" @endcannot
                 >
-                @error('start_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                @cannot('account-user-startDate-update') <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение даты начала занятий</div> @endcannot
+                @error('start_date')
+                <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+                @cannot('account-user-startDate-update')
+                    <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
+                        даты начала занятий
+                    </div> @endcannot
             </div>
 
             {{-- 2FA (SMS) --}}
@@ -251,7 +284,7 @@
             {{-- Кнопки "Обновить" и "Изменить пароль" --}}
             <div class="button-group buttons-wrap mt-3">
                 <button type="submit" class="btn btn-primary update-btn ">Обновить</button>
-                <button type="button" id="change-password-btn" class="btn btn-danger ml-2">Изменить пароль
+                <button type="button" id="change-password-btn" class="btn btn-danger ml-2"><i class="fa-solid fa-key me-1"></i>Изменить пароль
                 </button>
             </div>
 
@@ -824,17 +857,26 @@
                             showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлен.", 1);
                             console.log(response);
                         },
-                        error: function (xhr, status, error) {
+                        error: function (response) {
                             // Действия при ошибке
                             // Например, можно обработать валидационные ошибки (422) или другие
-                            if (xhr.status === 422) {
-                                // Ошибки валидации
-                                let errors = xhr.responseJSON.errors;
-                                console.log(errors);
-                                // Сделайте подсветку полей или вывод сообщений об ошибках по своему вкусу
-                            } else {
-                                $('#errorModal').modal('show');
+                            // if (xhr.status === 422) {
+                            //     // Ошибки валидации
+                            //     let errors = xhr.responseJSON.errors;
+                            //     console.log(errors);
+                            //     // Сделайте подсветку полей или вывод сообщений об ошибках по своему вкусу
+                            // } else {
+                            //     $('#errorModal').modal('show');
+                            // }
+
+                            let errorMessage = 'Произошла ошибка при сохранении данных.';
+                            if (response.responseJSON && response.responseJSON.message) {
+                                errorMessage = response.responseJSON.message; // Используем сообщение с сервера, если оно есть
                             }
+                            $('#error-modal-message').text(errorMessage); // Устанавливаем сообщение ошибки
+                            $('#errorModal').modal('show');    // Показываем модалку ошибки
+
+
                         }
                     });
                 });
