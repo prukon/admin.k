@@ -2,57 +2,37 @@
 
 namespace Database\Seeders;
 
-use App\Models\Permission;
-use App\Models\PermissionGroup;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 
 class PermissionGroupsSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1) Твои модули: добавь/переименуй под проект
-        $map = [
-            'mainMenu'     => 'Главное меню',
-            'account'  => 'Учетная запись',
-//            'teams'     => 'Команды',
-//            'roles'     => 'Роли',
-//            'permissions'=> 'Права',
-//            'reports'   => 'Отчеты',
-//            'settings'  => 'Настройки',
-            // добавляй по мере появления модулей
+        $now = Carbon::now();
+
+        // Из permission_groups.sql: id 1..4 с уникальным slug. :contentReference[oaicite:2]{index=2}
+        $groups = [
+            ['slug' => 'mainMenu', 'name' => 'Главное меню',           'description' => null, 'is_visible' => 1, 'sort_order' => 10],
+            ['slug' => 'account',  'name' => 'Учетная запись',         'description' => null, 'is_visible' => 1, 'sort_order' => 20],
+            ['slug' => 'users',    'name' => 'Управление пользователями','description' => null,'is_visible' => 1, 'sort_order' => 30],
+            ['slug' => 'misc',     'name' => 'Разное',                  'description' => null, 'is_visible' => 1, 'sort_order' => 999],
         ];
 
-        DB::transaction(function () use ($map) {
-            // 2) Создаём/обновляем группы
-            $groups = collect($map)->mapWithKeys(function ($name, $slug) {
-                $g = PermissionGroup::query()->updateOrCreate(
-                    ['slug' => $slug],
-                    ['name' => $name, 'is_visible' => true]
-                );
-                return [$slug => $g->id];
-            });
-
-            // Группа по умолчанию для «непоименованных» ресурсов
-            $misc = PermissionGroup::query()->updateOrCreate(
-                ['slug' => 'misc'],
-                ['name' => 'Разное', 'is_visible' => true, 'sort_order' => 999]
+        foreach ($groups as $g) {
+            DB::table('permission_groups')->updateOrInsert(
+                ['slug' => $g['slug']],
+                [
+                    'name'        => $g['name'],
+                    'description' => $g['description'],
+                    'is_visible'  => $g['is_visible'],
+                    'sort_order'  => $g['sort_order'],
+                    'updated_at'  => $now,
+                    // created_at не трогаем, если запись уже существует
+                    'created_at'  => DB::raw("COALESCE(created_at, '{$now->toDateTimeString()}')")
+                ]
             );
-
-            // 3) Пробегаем все permissions и назначаем группу по префиксу
-            Permission::query()->orderBy('id')->chunkById(500, function ($perms) use ($groups, $misc) {
-                foreach ($perms as $perm) {
-                    // ожидаем формат resource.action[.scope]
-                    $resource = Str::before($perm->name, '.');
-                    $groupId  = $groups[$resource] ?? $misc->id;
-
-                    if ($perm->permission_group_id !== $groupId) {
-                        $perm->permission_group_id = $groupId;
-                        $perm->save();
-                    }
-                }
-            });
-        });
+        }
     }
 }
