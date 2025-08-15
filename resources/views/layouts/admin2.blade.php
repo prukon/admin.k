@@ -626,7 +626,7 @@
 
 @stack('scripts')
 
-{{--<script src="//code.jivo.ru/widget/3lc75ICTPG" async></script>--}}
+<script src="//code.jivo.ru/widget/3lc75ICTPG" async></script>
 
 
 {{-- в layout.blade.php, перед </body> --}}

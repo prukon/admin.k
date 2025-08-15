@@ -87,18 +87,6 @@
             </li>
         @endcan
 
-        {{--Партнеры--}}
-        @can('partner-view')
-            <li class="nav-item">
-                <a href="/admin/partners" class="nav-link">
-                    <i class="nav-icon fa-solid fa-user-tie"></i>
-                    <p>Партнеры
-{{--                        <span class="badge badge-info right">{{ $allPartnersCount}}</span>--}}
-                    </p>
-                </a>
-            </li>
-        @endcan
-
 
 
 
@@ -125,16 +113,7 @@
             </li>
         <hr class="sidebar-separator">
 
-        {{--заявки с сайта--}}
-        @can('leads-view')
-            <li class="nav-item">
-                <a href="/leads" class="nav-link">
-                    <i class="nav-icon fa-solid fa-credit-card"></i>
 
-                    <p>Лиды<span class="badge badge-info right"></span></p>
-                </a>
-            </li> 
-        @endcan
 
         {{--Оплата сервиса--}}
         @can('service-payment')
@@ -155,5 +134,30 @@
                     <p>О сервисе<span class="badge badge-info right"></span></p>
                 </a>
             </li>
+
+            {{--заявки с сайта--}}
+            @can('leads-view')
+                <hr class="sidebar-separator">
+                <li class="nav-item">
+                    <a href="/leads" class="nav-link">
+                        <i class="nav-icon fa-solid fa-credit-card"></i>
+
+                        <p>Лиды<span class="badge badge-info right"></span></p>
+                    </a>
+                </li>
+            @endcan
+
+            {{--Партнеры--}}
+            @can('partner-view')
+                <li class="nav-item">
+                    <a href="/admin/partners" class="nav-link">
+                        <i class="nav-icon fa-solid fa-user-tie"></i>
+                        <p>Партнеры
+                        </p>
+                    </a>
+                </li>
+            @endcan
+
+
     </ul>
 </nav>
