@@ -44,34 +44,8 @@
     //     $('#successModal').modal('show');
     // }
 
+
     function showSuccessModal2(headerText, messageText, confirmCallback = 0) {
-        const $success = $('#successModal');
-        $('#dataUpdatedModalLabel').text(headerText);
-        $('#success-message').text(messageText);
-
-        // чтобы не накапливать клики
-        $('#btn-success').off('click').one('click', function () {
-            if (confirmCallback === 1) location.reload();
-        });
-
-        // на всякий случай гарантируем, что модалка не вложена
-        $success.appendTo('body');
-
-        // если уже есть открытая модалка — закрываем её и ждём
-        const $opened = $('.modal.show').not($success);
-        const showSuccess = () =>
-            bootstrap.Modal.getOrCreateInstance($success[0], { backdrop: 'static', keyboard: false }).show();
-
-        if ($opened.length) {
-            $opened.one('hidden.bs.modal', showSuccess).modal('hide');
-        } else {
-            showSuccess();
-        }
-        showModalQueued('successModal', { backdrop: 'static', keyboard: false });
-
-    }
-
-    function showSuccessModal(headerText, messageText, confirmCallback = 0) {
         const $success = $('#successModal');
 
         $('#dataUpdatedModalLabel').text(headerText);
@@ -88,4 +62,56 @@
         showModalQueued('successModal', { backdrop: 'static', keyboard: false });
     }
 
+
+
+
+</script>
+
+<script>
+    // не показывать successModal повторно, если он уже открыт
+    function showSuccessModal(headerText, messageText, confirmCallback = 0) {
+        const el = document.getElementById('successModal');
+        if (!el) return;
+
+        // если уже открыт — выходим
+        if (el.classList.contains('show')) return;
+
+        // тексты
+        document.getElementById('dataUpdatedModalLabel').textContent = headerText;
+        document.getElementById('success-message').textContent = messageText;
+
+        // кнопка "ОК"
+        const btn = document.getElementById('btn-success');
+        btn.onclick = null;
+        btn.addEventListener('click', () => { if (confirmCallback === 1) location.reload(); }, { once:true });
+
+        // перенос в body
+        document.body.appendChild(el);
+
+        // Показать — ТОЛЬКО после того как все прочие модалки спрячутся
+        closeAnyOpenModal().then(() => {
+            const inst = bootstrap.Modal.getOrCreateInstance(el, { backdrop:'static', keyboard:false, focus:false });
+            // отключаем фокус-трап у success (главный «антифриз»)
+            el.addEventListener('shown.bs.modal', function handler(e){
+                el.removeEventListener('shown.bs.modal', handler);
+                const i = bootstrap.Modal.getInstance(el);
+                if (i && i._focustrap) i._focustrap.deactivate();
+            });
+            inst.show();
+        });
+    }
+
+    // утилита: если что-то открыто — спрятать и дождаться hidden, иначе сразу resolve
+    function closeAnyOpenModal() {
+        return new Promise(resolve => {
+            const opened = document.querySelector('.modal.show');
+            if (!opened) return resolve();
+            const inst = bootstrap.Modal.getInstance(opened) || bootstrap.Modal.getOrCreateInstance(opened);
+            opened.addEventListener('hidden.bs.modal', function handler(){
+                opened.removeEventListener('hidden.bs.modal', handler);
+                resolve();
+            }, { once:true });
+            inst.hide();
+        });
+    }
 </script>

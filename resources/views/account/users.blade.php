@@ -284,7 +284,8 @@
             {{-- Кнопки "Обновить" и "Изменить пароль" --}}
             <div class="button-group buttons-wrap mt-3">
                 <button type="submit" class="btn btn-primary update-btn ">Обновить</button>
-                <button type="button" id="change-password-btn" class="btn btn-danger ml-2"><i class="fa-solid fa-key me-1"></i>Изменить пароль
+                <button type="button" id="change-password-btn" class="btn btn-danger ml-2"><i
+                            class="fa-solid fa-key me-1"></i>Изменить пароль
                 </button>
             </div>
 
@@ -851,32 +852,10 @@
                         type: 'PATCH',                 // Метод PATCH (Laravel примет, т.к. есть _method=patch)
                         data: formData,
                         success: function (response) {
-                            // Действия при успешном ответе
-                            // Вы можете, например, вывести сообщение об успехе или сделать редирект:
-                            // alert('Данные пользователя успешно обновлены!');
                             showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлен.", 1);
-                            console.log(response);
                         },
                         error: function (response) {
-                            // Действия при ошибке
-                            // Например, можно обработать валидационные ошибки (422) или другие
-                            // if (xhr.status === 422) {
-                            //     // Ошибки валидации
-                            //     let errors = xhr.responseJSON.errors;
-                            //     console.log(errors);
-                            //     // Сделайте подсветку полей или вывод сообщений об ошибках по своему вкусу
-                            // } else {
-                            //     $('#errorModal').modal('show');
-                            // }
-
-                            let errorMessage = 'Произошла ошибка при сохранении данных.';
-                            if (response.responseJSON && response.responseJSON.message) {
-                                errorMessage = response.responseJSON.message; // Используем сообщение с сервера, если оно есть
-                            }
-                            $('#error-modal-message').text(errorMessage); // Устанавливаем сообщение ошибки
-                            $('#errorModal').modal('show');    // Показываем модалку ошибки
-
-
+                            eroorRespone(response);
                         }
                     });
                 });

@@ -29,52 +29,6 @@ class RuleController extends Controller
 {
     //ВКЛАДКА РОЛИ
 
-    //Страница права пользователей
-
-
-    public function showRules2()
-    {
-        // 1) Контекст партнёра
-        $partnerId    = app('current_partner')->id;
-
-        // 2) Кто мы по роли?
-        $userRoleName = auth()->user()?->role?->name;
-        $isSuperadmin = $userRoleName === 'superadmin';
-
-        // 3) Роли:
-        //    – все системные (is_sistem = 1)
-        //    – + все роли, назначенные партнёру через partner_role
-        //    – скрытые (is_visible = 0) — только для superadmin
-        //    плюс: eager-load прав уже _только_ для текущего партнёра
-        $roles = Role::with([
-            'permissions' => function ($q) use ($partnerId) {
-                $q->wherePivot('partner_id', $partnerId);          // <<< CHANGED: фильтруем права по partner_id
-            }
-        ])
-            ->where(function ($q) use ($partnerId) {
-                $q->where('is_sistem', 1)
-                    ->orWhereHas('partners', fn($q2) =>
-                      $q2->where('partner_role.partner_id', $partnerId)
-                  );
-            })
-            ->when(! $isSuperadmin, fn($q) => $q->where('is_visible', 1))
-            ->orderBy('order_by')
-        ->get();
-
-        // 4) Права:
-        //    – ВСЕ права берём из таблицы
-        //    – скрытые (is_visible = 0) — только для superadmin
-        $permissions = Permission::orderBy('sort_order')
-            ->when(! $isSuperadmin, fn($q) => $q->where('is_visible', 1))
-            ->get();
-
-        return view('admin.setting.index', [
-            'activeTab'   => 'rule',
-            'roles'       => $roles,
-            'permissions' => $permissions,
-        ]);
-    }
-
     public function showRules()
     {
         // 1) Контекст партнёра и текущая роль
@@ -136,9 +90,8 @@ class RuleController extends Controller
     ]);
 }
 
-
     //Изменение прав пользователей
-    public function togglePermission(Request $request)
+    public function togglePermission2(Request $request)
     {
         $data = $request->validate([
             'role_id'       => 'required|integer|exists:roles,id',
@@ -173,6 +126,93 @@ class RuleController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function togglePermission(Request $request)
+    {
+        $data = $request->validate([
+            'role_id'       => 'required|integer|exists:roles,id',
+            'permission_id' => 'required|integer|exists:permissions,id',
+            'value'         => 'required|in:true,false',
+        ]);
+
+        $attach    = $data['value'] === 'true';
+        $roleId    = (int) $data['role_id'];
+        $permId    = (int) $data['permission_id'];
+        $partnerId = app('current_partner')->id;
+        $authorId  = auth()->id();
+
+        DB::transaction(function () use ($roleId, $permId, $partnerId, $attach, $authorId) {
+            // Заберём сущности для лога
+            /** @var \App\Models\Role $role */
+            $role = Role::select('id','name','label')->findOrFail($roleId);
+            /** @var \App\Models\Permission $perm */
+            $perm = Permission::select('id','name','description')->findOrFail($permId);
+
+            // Текущее состояние (чтобы не логировать «ничего не поменялось»)
+            $exists = DB::table('permission_role')
+                ->where('role_id', $role->id)
+                ->where('permission_id', $perm->id)
+                ->where('partner_id', $partnerId)
+                ->exists();
+
+            if ($attach) {
+                if (!$exists) {
+                    DB::table('permission_role')->insert([
+                        'role_id'       => $role->id,
+                        'permission_id' => $perm->id,
+                        'partner_id'    => $partnerId,
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ]);
+
+                    // ЛОГ: назначено право
+                    MyLog::create([
+                        'type'        => 700,
+                        'action'      => 741, // «Назначение права роли»
+                        'author_id'   => $authorId,
+                        'partner_id'  => $partnerId,
+                        'description' => sprintf(
+                            'Назначено право "%s" (%s) роли "%s" (name=%s)',
+                            $perm->description ?? $perm->name,
+                            $perm->name,
+                            $role->label ?? $role->name,
+                            $role->name
+                        ),
+                        'created_at'  => now(),
+                    ]);
+                }
+                // если уже было — просто молча выходим без лишнего лога
+            } else {
+                if ($exists) {
+                    DB::table('permission_role')
+                        ->where('role_id',       $role->id)
+                        ->where('permission_id', $perm->id)
+                        ->where('partner_id',    $partnerId)
+                        ->delete();
+
+                    // ЛОГ: снято право
+                    MyLog::create([
+                        'type'        => 700,
+                        'action'      => 742, // «Снятие права у роли»
+                        'author_id'   => $authorId,
+                        'partner_id'  => $partnerId,
+                        'description' => sprintf(
+                            'Снято право "%s" (%s) с роли "%s" (name=%s)',
+                            $perm->description ?? $perm->name,
+                            $perm->name,
+                            $role->label ?? $role->name,
+                            $role->name
+                        ),
+                        'created_at'  => now(),
+                    ]);
+                }
+                // если и так не было — тоже без лога
+            }
+        });
+
+        return response()->json(['success' => true]);
+    }
+
 
     //* Метод для создания новой роли (AJAX).
     public function createRole(Request $request)

@@ -23,36 +23,96 @@
 <hr>
 
 <style>
-    :root { --perm-desc-w: 420px; } /* единая ширина колонки описания для всех групп */
+    :root {
+        --perm-desc-w: 420px;
+    }
+
+    /* единая ширина колонки описания для всех групп */
 
     /* лёгкий стиль без теней */
-    .perm-group { padding: .25rem 0 1rem; border-bottom: 1px solid rgba(0,0,0,.06); }
-    .perm-group:last-child { border-bottom: 0; }
-
-    .perm-badge { font-size: .75rem; padding: .15rem .45rem; border: 1px solid rgba(0,0,0,.08); border-radius: 999px; }
-
-    .btn-disclosure { border: 1px solid rgba(0,0,0,.12); background: transparent; padding: .15rem .45rem; }
-    .btn-disclosure .chev { display:inline-block; transition: transform .2s ease; }
-    .btn-disclosure[aria-expanded="true"] .chev { transform: rotate(180deg); }
-
-    .perm-table { font-size: .92rem; }
-    .perm-table.table { --bs-table-bg: transparent; }
-    .perm-table thead th {
-        position: sticky; top: 0; background: #fff; z-index: 2; font-weight: 400; /* без bold */
+    .perm-group {
+        padding: .25rem 0 1rem;
+        border-bottom: 1px solid rgba(0, 0, 0, .06);
     }
-    .perm-table td, .perm-table th { padding: .55rem .6rem; vertical-align: middle !important; }
-    .perm-table tbody tr { border-color: rgba(0,0,0,.06); }
+
+    .perm-group:last-child {
+        border-bottom: 0;
+    }
+
+    .perm-badge {
+        font-size: .75rem;
+        padding: .15rem .45rem;
+        border: 1px solid rgba(0, 0, 0, .08);
+        border-radius: 999px;
+    }
+
+    .btn-disclosure {
+        border: 1px solid rgba(0, 0, 0, .12);
+        background: transparent;
+        padding: .15rem .45rem;
+    }
+
+    .btn-disclosure .chev {
+        display: inline-block;
+        transition: transform .2s ease;
+    }
+
+    .btn-disclosure[aria-expanded="true"] .chev {
+        transform: rotate(180deg);
+    }
+
+    .perm-table {
+        font-size: .92rem;
+    }
+
+    .perm-table.table {
+        --bs-table-bg: transparent;
+    }
+
+    .perm-table thead th {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 2;
+        font-weight: 400; /* без bold */
+    }
+
+    .perm-table td, .perm-table th {
+        padding: .55rem .6rem;
+        vertical-align: middle !important;
+    }
+
+    .perm-table tbody tr {
+        border-color: rgba(0, 0, 0, .06);
+    }
 
     /* липкая первая колонка с фиксированной шириной */
     .perm-col-sticky {
-        position: sticky; left: 0; background: #fff; z-index: 1;
-        width: var(--perm-desc-w); min-width: var(--perm-desc-w); max-width: var(--perm-desc-w);
+        position: sticky;
+        left: 0;
+        background: #fff;
+        z-index: 1;
+        width: var(--perm-desc-w);
+        min-width: var(--perm-desc-w);
+        max-width: var(--perm-desc-w);
     }
 
-    .table-success { background-color: rgba(25,135,84,.08) !important; transition: background-color .5s; }
+    .table-success {
+        background-color: rgba(25, 135, 84, .08) !important;
+        transition: background-color .5s;
+    }
 
-    @media (max-width: 768px) { :root { --perm-desc-w: 300px; } }
-    @media (max-width: 576px) { :root { --perm-desc-w: 260px; } }
+    @media (max-width: 768px) {
+        :root {
+            --perm-desc-w: 300px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        :root {
+            --perm-desc-w: 260px;
+        }
+    }
 </style>
 
 <div id="permission-accordion">
@@ -110,7 +170,7 @@
                                            data-role-id="{{ $role->id }}"
                                            data-permission-id="{{ $permission->id }}"
                                            data-group-id="{{ $groupId }}"
-                                           @checked($hasPermission) />
+                                           @checked($hasPermission)/>
                                 </td>
                             @endforeach
                         </tr>
@@ -144,7 +204,8 @@
 
                 <form id="createRoleForm" class="d-flex align-items-center mb-3 gap-2">
                     @csrf
-                    <input placeholder="Название роли" type="text" class="form-control" id="roleName" name="name" required style="width:auto;">
+                    <input placeholder="Название роли" type="text" class="form-control" id="roleName" name="name"
+                           required style="width:auto;">
                     <button type="submit" class="btn btn-success">Создать роль</button>
                 </form>
 
@@ -185,7 +246,7 @@
                     </table>
                 </div>
 
-            </div><!-- modal-body -->
+            </div>
 
         </div>
     </div>
@@ -216,12 +277,15 @@
                             $td.addClass('table-success');
                             setTimeout(() => $td.removeClass('table-success'), 800);
                         } else {
-                            alert('Ошибка при обновлении прав!');
+                            $('#error-modal-message').text(response.message || 'Ошибка при изменени прав.');
+                            eroorRespone(response);
                             $cb.prop('checked', !isChecked);
                         }
                     },
-                    error: () => {
-                        alert('Ошибка при соединении!');
+                    error: (response) => {
+                        $('#error-modal-message').text(response.message || 'Ошибка при изменени прав.');
+                        eroorRespone(response);
+
                         $cb.prop('checked', !isChecked);
                     }
                 });
@@ -258,22 +322,16 @@
                             data: formData,
                             success: (response) => {
                                 if (response.success) {
-                                    showSuccessModal("Создание роли", "Роль успешно создана.", 0);
-                                    location.reload();
+                                    showSuccessModal("Создание роли", "Роль успешно создана.", 1);
                                 } else {
-                                    $('#errorModal').modal('show');
                                     $('#error-modal-message').text(response.message || 'Ошибка при создании роли!');
+                                    eroorRespone(response);
                                 }
                             },
-                            error: function(xhr) {
-                                let json = xhr.responseJSON;
-                                let message = 'Ошибка при соединении!';
-                                if (json) {
-                                    if (json.message) message = json.message;
-                                    else if (json.errors) message = Object.values(json.errors).flat().join('\n');
-                                }
-                                $('#error-modal-message').text(message);
-                                $('#errorModal').modal('show');
+
+                            error: function (response) {
+                                $('#error-modal-message').text(response.message || 'Ошибка при создании роли!');
+                                eroorRespone(response);
                             }
                         });
                     }
@@ -300,14 +358,16 @@
                                     showSuccessModal("Удаление роли", "Роль успешно удалена.", 0);
                                     location.reload();
                                 } else {
-                                    $('#errorModal').modal('show');
                                     $('#error-modal-message').text(response.message || 'Ошибка при удалении роли!');
+                                    eroorRespone(response);
                                 }
                             },
-                            error: () => {
-                                $('#errorModal').modal('show');
-                                $('#error-modal-message').text('Ошибка при соединении!');
+
+                            error: function (response) {
+                                $('#error-modal-message').text(response.message || 'Ошибка при удалении роли!');
+                                eroorRespone(response);
                             }
+
                         });
                     }
                 );

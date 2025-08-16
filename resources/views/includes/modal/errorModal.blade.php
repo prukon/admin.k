@@ -8,8 +8,11 @@
 
   новый пример:
     error: function(response) {
+           $('#error-modal-message').text(response.message || 'Ошибка при удалении роли!');
            eroorRespone(response);
       }
+
+
 
 
 Пример AJAX ответа:
@@ -59,7 +62,6 @@
     });
 
 
-
     function eroorRespone(response) {
         // 1) Собираем сообщение
         let message = 'Ошибка при создании пользователя!';
@@ -77,7 +79,13 @@
         const msgEl = modalEl.querySelector('#error-modal-message');
         if (msgEl) {
             // безопасно экранируем + переводим \n в <br>
-            const esc = (s) => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+            const esc = (s) => String(s).replace(/[&<>"']/g, m => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[m]));
             msgEl.innerHTML = esc(message).replace(/\n/g, '<br>');
         }
 
@@ -85,9 +93,8 @@
         document.body.appendChild(modalEl);
 
         // 5) Показываем ТОЛЬКО через очередь, без прямого .show()
-        showModalQueued('errorModal', { backdrop: 'static', keyboard: false });
+        showModalQueued('errorModal', {backdrop: 'static', keyboard: false});
     }
-
 
 
 </script>
