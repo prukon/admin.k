@@ -8,16 +8,6 @@
             {{--Выбор ученика, группы, кнопка установить--}}
             <div class="row choose-user">
                 <div class="col-md-3 col-12 mb-3 team-select text-start">
-                    {{--<select class="form-select text-start" id="single-select-team" data-placeholder="Группа">--}}
-                    {{--<option value="all">Все группы</option>--}}
-                    {{--<option value="withoutTeam">Без группы</option>--}}
-
-                    {{--<option></option>--}}
-                    {{--@foreach($allTeams as $index => $team)--}}
-                    {{--<option value="{{ $team->title }}" label="{{ $team->label }}">{{ $index + 1 }}--}}
-                    {{--. {{ $team->title }}</option>--}}
-                    {{--@endforeach--}}
-                    {{--</select>--}}
 
                     <select class="form-select text-start" id="single-select-team" data-placeholder="Группа">
                         <option value="all">Все группы</option>
@@ -34,15 +24,9 @@
 
                     <i class="fa-thin fa-calendar-lines"></i>
                 </div>
-
+ 
                 <div class="col-md-3 col-12 mb-3 user-select">
-                    {{--<select class="form-select" id="single-select-user" data-placeholder="ФИО">--}}
-                    {{--<option value="">Выберите пользователя</option>--}}
-                    {{--@foreach($allUsersSelect as $index => $user)--}}
-                    {{--<option value="{{ $user->name }}" label="{{ $user->label }}">{{ $index + 1 }}--}}
-                    {{--. {{ $user->name }}</option>--}}
-                    {{--@endforeach--}}
-                    {{--</select>--}}
+
 
                     <select class="form-select" id="single-select-user" data-placeholder="ФИО">
                         <option value="">Выберите пользователя</option>
@@ -166,6 +150,16 @@
         {{--Сезоны--}}
         <div class="row seasons">
             <div class="col-12">
+
+                <div class="season season-2026" id="season-2026">
+                    <div class="header-season">Сезон 2025 - 2026 <i class="fa fa-chevron-up"></i><span
+                                class="display-none from">2025</span><span class="display-none to">2026</span></div>
+                    <span class="is_credit">Имеется просроченная задолженность в размере <span
+                                class="is_credit_value">0</span> руб.</span>
+                    <span class="display-none1 total-summ"></span>
+                    <div class="row justify-content-center align-items-center container" data-season="2026"></div>
+                </div>
+
                 <div class="season season-2025" id="season-2025">
                     <div class="header-season">Сезон 2024 - 2025 <i class="fa fa-chevron-up"></i><span
                                 class="display-none from">2024</span><span class="display-none to">2025</span></div>
@@ -1423,44 +1417,44 @@
                 }
 
                 // Вызов контекстного меню. Обработчик правого клика на дате.
-                function getContextMenu() {
-                    document.getElementById('days').addEventListener('contextmenu', function (event) {
-                        event.preventDefault();
-                        const target = event.target;
-                        let userName = $('#single-select-user').val();
-
-                        if (target.dataset.date && userName) {
-                            // showContextMenu(event.clientX, event.clientY, target.dataset.date);
-                            showContextMenu(target);
-
-                        }
-                    });
-                }
+                // function getContextMenu() {
+                //     document.getElementById('days').addEventListener('contextmenu', function (event) {
+                //         event.preventDefault();
+                //         const target = event.target;
+                //         let userName = $('#single-select-user').val();
+                //
+                //         if (target.dataset.date && userName) {
+                //             // showContextMenu(event.clientX, event.clientY, target.dataset.date);
+                //             showContextMenu(target);
+                //
+                //         }
+                //     });
+                // }
 
                 //Позиционирование контекстного меню
-                function showContextMenu(target) {
-                    const contextMenu = document.getElementById('context-menu');
-
-                    // Получаем отступы от верхнего левого угла календаря
-                    const x = target.offsetLeft + target.offsetWidth;
-                    const y = target.offsetTop + target.offsetHeight;
-
-                    // Устанавливаем позицию контекстного меню
-                    contextMenu.style.left = `${x}px`;
-                    contextMenu.style.top = `${y}px`;
-                    contextMenu.style.display = 'block';
-                    contextMenu.dataset.date = target.dataset.date;
-                }
+                // function showContextMenu(target) {
+                //     const contextMenu = document.getElementById('context-menu');
+                //
+                //     // Получаем отступы от верхнего левого угла календаря
+                //     const x = target.offsetLeft + target.offsetWidth;
+                //     const y = target.offsetTop + target.offsetHeight;
+                //
+                //     // Устанавливаем позицию контекстного меню
+                //     contextMenu.style.left = `${x}px`;
+                //     contextMenu.style.top = `${y}px`;
+                //     contextMenu.style.display = 'block';
+                //     contextMenu.dataset.date = target.dataset.date;
+                // }
 
                 // Скрытие контекстного меню при клике вне его
-                function hideContextMenuMissClick() {
-                    document.addEventListener('click', function (event) {
-                        const contextMenu = document.getElementById('context-menu');
-                        if (!contextMenu.contains(event.target)) {
-                            contextMenu.style.display = 'none';
-                        }
-                    });
-                }
+                // function hideContextMenuMissClick() {
+                //     document.addEventListener('click', function (event) {
+                //         const contextMenu = document.getElementById('context-menu');
+                //         if (!contextMenu.contains(event.target)) {
+                //             contextMenu.style.display = 'none';
+                //         }
+                //     });
+                // }
 
                 // Обработчик кликов по пунктам контекстного меню
                 function clickContextmenu() {
@@ -1477,26 +1471,26 @@
                 }
 
                 // Функция отправки AJAX-запроса
-                function sendActionRequest(date, action, userName) {
-
-                    $.ajax({
-                        url: '/content-menu-calendar',
-                        method: 'GET',
-                        data: {
-                            date: date,
-                            action: action,
-                            userName: userName,
-                        },
-                        success: function (response) {
-                            let scheduleUser = response.scheduleUser;
-                            updateGlobalScheduleData(scheduleUser);
-                            createCalendar(currentYear, currentMonth);
-                        },
-                        error: function () {
-                            alert('An error occurred while processing your request.');
-                        }
-                    });
-                }
+                // function sendActionRequest(date, action, userName) {
+                //
+                //     $.ajax({
+                //         url: '/content-menu-calendar',
+                //         method: 'GET',
+                //         data: {
+                //             date: date,
+                //             action: action,
+                //             userName: userName,
+                //         },
+                //         success: function (response) {
+                //             let scheduleUser = response.scheduleUser;
+                //             updateGlobalScheduleData(scheduleUser);
+                //             createCalendar(currentYear, currentMonth);
+                //         },
+                //         error: function () {
+                //             alert('An error occurred while processing your request.');
+                //         }
+                //     });
+                // }
 
                 // Вызов функции для закрашивания сегодняшней даты
                 function highlightToday() {
@@ -1516,9 +1510,9 @@
                 preMonth();
                 nextMonth();
                 createCalendar(currentYear, currentMonth);
-                getContextMenu();
-                hideContextMenuMissClick();
-                clickContextmenu();
+                // getContextMenu();
+                // hideContextMenuMissClick();
+                // clickContextmenu();
             }
 
             //Расчет сумм долга за сезон и добавление долга в шапку сезона

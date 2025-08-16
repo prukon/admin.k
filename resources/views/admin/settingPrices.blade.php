@@ -2,12 +2,7 @@
 @section('content')
     <!-- Модальное окно логов -->
     @include('includes.logModal')
-    <!-- Модальное окно подтверждения удаления -->
-    {{--@include('includes.modal.confirmDeleteModal')--}}
-    <!-- Модальное окно успешного обновления данных -->
-    {{--@include('includes.modal.successModal')--}}
-    <!-- Модальное окно ошибки -->
-{{--    @include('includes.modal.errorModal')--}}
+
 
     <h4 class="pt-3 text-start">Установка цен</h4>
     <div class="container setting-price-wrap">
@@ -29,14 +24,14 @@
                 </select>
                 <script>
                     const selectElement = document.getElementById('single-select-date');
-                    const startYear = 2023;
+                    const startYear = 2024;
                     const startMonth = 8; // Июнь (месяцы в JavaScript считаются с 0: 0 = январь, 1 = февраль и т.д.)
                     let CountMonths = function () { // fix переписать для автоматизации
                         let currentYear = new Date().getFullYear();
                         if (currentYear == 2024) {
                             return 24;
                         } else if (currentYear == 2025) {
-                            return 36;
+                            return 24;
                         }
                     }
 

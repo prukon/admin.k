@@ -71,7 +71,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/get-user-details', [DashboardController::class, 'getUserDetails'])->name('getUserDetails');
         Route::get('/get-team-details', [DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
         Route::get('/setup-btn', [DashboardController::class, 'setupBtn'])->name('setupBtn');
-        Route::get('/content-menu-calendar', [DashboardController::class, 'contentMenuCalendar'])->name('contentMenuCalendar');
+//        Route::get('/content-menu-calendar', [DashboardController::class, 'contentMenuCalendar'])->name('contentMenuCalendar');
     });
 
     //Отчеты
