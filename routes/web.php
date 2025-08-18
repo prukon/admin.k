@@ -169,7 +169,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('admin/settings/logs-all-data', [SettingController::class, 'logsAllData'])->name('logs.all.data');
 
     //Страница Настойки- Права
-    Route::middleware('can:manage-roles')->group(function () {
+
+
+
+//    Route::middleware('can:manage-roles')->group(function () {
+    Route::middleware('can:settings-roles-view')->group(function () {
         Route::get('admin/settings/rules', [RuleController::class, 'showRules'])->name('admin.setting.rule');
         Route::post('admin/setting/rule/toggle', [RuleController::class, 'togglePermission'])->name('admin.setting.rule.toggle');
         Route::get('admin/setting/rules/logs-data', [RuleController::class, 'logRules'])->name('logs.data.rule');
@@ -178,7 +182,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Страница Настойки - Платежные системы
-    Route::middleware('can:setting-payment-systems')->group(function () {
+    Route::middleware('can:settings-paymentSystems-view')->group(function () {
         Route::get('admin/settings/paymentSystem', [PaymentSystemController::class, 'index'])->name('admin.setting.paymentSystem');
         Route::post('payment-systems/store', [PaymentSystemController::class, 'store'])->name('payment-systems.store');
         Route::get('payment-systems/{name}', [PaymentSystemController::class, 'show'])->name('payment-systems.show');

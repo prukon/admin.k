@@ -29,13 +29,19 @@ class PermissionSeeder extends Seeder
             ['name'=>'users.view','description'=>'Страница "Пользователи"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>40],
             ['name'=>'groups.view','description'=>'Страница "Группы"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>50],
             ['name'=>'settings.view','description'=>'Страница "Настройки"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>60],
+
+            ['name'=>'settings.roles.view','description'=>'Страница "Настройки  -> Права и роли"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>61],
+            ['name'=>'settings.paymentSystems.view','description'=>'Страница "Настройки  -> Платежные системы"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>62],
+
+
+
             ['name'=>'account.user.view','description'=>'Страница "Учетная запись -> Личные данные"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>65], // в дампе как id=35 (mainMenu) — оставляю как в дампе
             ['name'=>'account.partner.view','description'=>'Страница "Учетная запись -> Организация"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>70],
 
             ['name'=>'servicePayments.view','description'=>'Страница "Оплата сервиса"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>80],
             ['name'=>'leads.view','description'=>'Страница "Лиды"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>75],
             ['name'=>'partner.view','description'=>'Страница "Партнеры"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>55],
- 
+
 
 //            ['name'=>'reports','description'=>'Страница "Отчеты"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>15],
 //            ['name'=>'set_prices','description'=>'Страница "Установка цен"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>20],

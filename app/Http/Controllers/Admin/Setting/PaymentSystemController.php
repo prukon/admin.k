@@ -45,18 +45,53 @@ class PaymentSystemController extends Controller
      */
     public function store(Request $request)
     {
-        // 1) Валидация входных данных
-        $validated = $request->validate([
-            'name'               => 'required|string',
-            'merchant_login'     => 'nullable|string',
-            'password1'          => 'nullable|string',
-            'password2'          => 'nullable|string',
-            'test_mode'          => 'nullable|boolean',
-            'tbank_account_id'   => 'nullable|string',
-            'tbank_key'          => 'nullable|string',
+        \Log::debug('*** REAL PaymentSystemController::store REACHED ***', [
+            'file'  => __FILE__,
+            'class' => __CLASS__,
         ]);
 
+
+        \Log::debug('HIT store BEFORE validate', [
+            'route'   => \Route::currentRouteName(),
+            'user_id' => optional(\Auth::user())->id,
+            'all'     => $request->all(),
+            'ctype'   => $request->headers->get('content-type'),
+            'method'  => $request->method(),
+            'csrf_ok' => $request->has('_token'),
+        ]);
+
+
+
+        // ВРЕМЕННО вместо $request->validate(...)
+        $validator = \Validator::make($request->all(), [
+            'name'             => 'required|string',
+            'merchant_login'   => 'nullable|string',
+            'password1'        => 'nullable|string',
+            'password2'        => 'nullable|string',
+            // чекбокс может прислать on/1/0 — валидируем мягко
+            'test_mode'        => 'nullable',
+            'tbank_account_id' => 'nullable|string',
+            'tbank_key'        => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            \Log::warning('payment-systems.store VALIDATION FAILED', $validator->errors()->toArray());
+            return back()->withErrors($validator)->withInput();
+        }
+
+        \Log::debug('HIT store AFTER validate');
+
+        
+
+        $validated = $validator->validated();
+
+
         $partnerId = app('current_partner')->id;
+
+        \Log::debug('store payment settings', [
+            'partnerId' => $partnerId,
+            'payload'   => $validated,
+        ]);
 
         // 2) Ищем или создаём запись для этого партнёра + системы по имени
         $paymentSystem = PaymentSystem::firstOrNew([
@@ -65,7 +100,20 @@ class PaymentSystemController extends Controller
         ]);
 
         // 3) Берём старые настройки (если есть)
-        $settings = $paymentSystem->settings ?: [];
+
+
+        try {
+            $settings = $paymentSystem->settings ?: [];
+        } catch (\Throwable $e) {
+            \Log::warning('PAYMENT store(): settings read failed, fallback to []', [
+                'partner_id' => $partnerId,
+                'name'       => $validated['name'],
+                'err'        => $e->getMessage(),
+            ]);
+            $settings = [];
+        }
+
+
 
         // 4) Заполняем нужные поля в зависимости от name
         switch ($validated['name']) {

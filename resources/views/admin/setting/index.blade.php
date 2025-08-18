@@ -6,6 +6,7 @@
             <div class="">
                 <!-- Вкладки -->
                 <ul class="nav nav-tabs" id="paymentTabs" role="tablist">
+
                     <li class="nav-item">
                         <a class="nav-link {{ $activeTab == 'setting' ? 'active' : '' }}"
                            href="{{ route('admin.setting.setting') }}"
@@ -16,7 +17,9 @@
                             Общие
                         </a>
                     </li>
-                    @can('manage-roles')
+
+
+                    @can('settings-roles-view')
                     <li class="nav-item">
                         <a class="nav-link {{ $activeTab == 'rule' ? 'active' : '' }}"
                            href="{{ route('admin.setting.rule') }}"
@@ -28,7 +31,7 @@
                         </a>
                     </li>
                     @endcan
-                    @can('setting-payment-systems')
+                    @can('settings-paymentSystems-view')
                         <li class="nav-item">
                             <a class="nav-link {{ $activeTab == 'paymentSystem' ? 'active' : '' }}"
                                href="{{ route('admin.setting.paymentSystem') }}"

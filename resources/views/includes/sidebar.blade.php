@@ -92,6 +92,11 @@
             </li>
         @endcan
 
+
+
+
+
+
         {{--Учетная запись--}}
         @can('account-user-view')
         <li class="nav-item">
@@ -102,7 +107,8 @@
             @endcan
 
         </li>
-            </li>
+
+
         <hr class="sidebar-separator">
 
 

@@ -132,10 +132,23 @@ class AuthServiceProvider extends ServiceProvider
 //            return $user->hasPermission('general_settings');
 //        });
 
-        // Общие настройки
+        // Страница "Настройки
         Gate::define('settings-view', function (User $user) {
             return $user->hasPermission('settings.view');
         });
+
+        // Страница "Настройки -> Права и роли"
+        Gate::define('settings-roles-view', function (User $user) {
+            return $user->hasPermission('settings.roles.view');
+        });
+
+        // Страница "Настройки  -> Платежные системы"
+        Gate::define('settings-paymentSystems-view', function (User $user) {
+            return $user->hasPermission('settings.paymentSystems.view');
+        });
+
+
+
 
         //        // Страница "Учетная запись -> Личные данные"
 //        Gate::define('account-user-view', function (User $user) {
@@ -284,9 +297,9 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         // Управление ролями
-        Gate::define('manage-roles', function (User $user) {
-            return $user->hasPermission('manage_roles');
-        });
+//        Gate::define('manage-roles', function (User $user) {
+//            return $user->hasPermission('manage_roles');
+//        });
 
         // История изменений
         Gate::define('change-history', function (User $user) {

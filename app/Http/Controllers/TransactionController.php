@@ -94,43 +94,6 @@ class TransactionController extends Controller
     }
 
     //Переход со страницы выбора оплат. Формирование ссылки робокасса (Юзер)
-    public function pay2(Request $request)
-    {
-        $userId = $request->userId;
-        $userName = $request->userName;
-        $outSum = $request->outSum;
-
-//        if ($request->formatedPaymentDate) {
-//            $paymentDate = $request->formatedPaymentDate;
-//        } else {
-//            $paymentDate = "Клубный взнос";
-//        }
-
-        if ($request->has('formatedPaymentDate')) {
-            $paymentDate = $request->formatedPaymentDate;
-        } else {
-            \Log::warning('formatedPaymentDate отсутствует в запросе');
-            $paymentDate = "Клубный взнос";
-        }
-
-        $invId = "";
-        $isTest = 1;
-        $receipt = rawurlencode("{\"items\":[{\"name\":\"оплата услуги по занятию футболом\",\"quantity\":1,\"sum\":$outSum,\"tax\":\"none\"}]}");
-        if ($paymentDate == "Клубный взнос") {
-            $description = "Оплата клубного взноса";
-        } else {
-            $description = "Пользователь: $userName. Период оплаты: $paymentDate.";
-        }
-        $mrhLogin = config('robokassa.merchant_login');
-        $mrhPass1 = config('robokassa.password1');
-        $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
-        $receipt = rawurlencode($receipt);
-        $paymentUrl = "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin={$mrhLogin}&OutSum={$outSum}&InvId={$invId}&Description={$description}&Shp_paymentDate={$paymentDate}&Shp_userId={$userId}&SignatureValue={$signature}&Receipt=$receipt";
-
-        return redirect()->to($paymentUrl); // Перенаправление пользователя на Robokassa
-    }
-
-
     public function pay(Request $request)
     {
         $userId = $request->userId;

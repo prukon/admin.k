@@ -57,21 +57,7 @@
         </div>
     </div>
 
-    {{-- Карточка: Юкасса (пример, пока пропустим) --}}
-    {{--<div class="col-sm-3 mb-4">--}}
-    {{--<div class="card shadow h-100">--}}
-    {{--<div class="card-body text-center d-flex flex-column justify-content-center">--}}
-    {{--<img src="{{ asset('img/partners/yoomoney.png') }}" alt="Юкасса" class="mb-3">--}}
-    {{--<h5 class="card-title">Юкасса</h5>--}}
 
-    {{--<button class="btn btn-primary mt-3">Подключить</button>--}}
-
-    {{--<div class="mt-3">--}}
-    {{--<a href="#">Подробнее</a>--}}
-    {{--</div>--}}
-    {{--</div>--}}
-    {{--</div>--}}
-    {{--</div>--}}
 </div>
 
 {{--Модалка для ввода настроек Робокассы--}}
