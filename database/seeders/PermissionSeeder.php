@@ -21,21 +21,36 @@ class PermissionSeeder extends Seeder
         // Полный список прав из permissions.sql, но с привязкой к group_slug. :contentReference[oaicite:3]{index=3}
         $permissions = [
             // group_slug mainMenu (id=1 в дампе)
-            ['name'=>'reports','description'=>'Страница "Отчеты"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>15],
-            ['name'=>'set_prices','description'=>'Страница "Установка цен"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>20],
-            ['name'=>'schedule_journal','description'=>'Страница "Журнал расписания"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>30],
-            ['name'=>'manage_users','description'=>'Страница "Пользователи"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>40],
-            ['name'=>'manage_groups','description'=>'Страница "Группы"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>50],
-            ['name'=>'general_settings','description'=>'Страница "Настройки"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>60],
-            ['name'=>'service_payment','description'=>'Страница "Оплата сервиса"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>80],
-            ['name'=>'partner_company','description'=>'Страница "Учетная запись -> Организация"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>70],
-            ['name'=>'my_payments','description'=>'Страница "Мои платежи"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>17],
+            ['name'=>'dashboard.view','description'=>'Страница "Консоль"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>10],
+            ['name'=>'reports.view','description'=>'Страница "Отчеты"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>15],
+            ['name'=>'myPayments.view','description'=>'Страница "Мои платежи"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>17],
+            ['name'=>'setPrices.view','description'=>'Страница "Установка цен"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>20],
+            ['name'=>'schedule.view','description'=>'Страница "Журнал расписания"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>30],
+            ['name'=>'users.view','description'=>'Страница "Пользователи"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>40],
+            ['name'=>'groups.view','description'=>'Страница "Группы"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>50],
+            ['name'=>'settings.view','description'=>'Страница "Настройки"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>60],
+            ['name'=>'account.user.view','description'=>'Страница "Учетная запись -> Личные данные"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>65], // в дампе как id=35 (mainMenu) — оставляю как в дампе
+            ['name'=>'account.partner.view','description'=>'Страница "Учетная запись -> Организация"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>70],
+
+            ['name'=>'servicePayments.view','description'=>'Страница "Оплата сервиса"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>80],
+            ['name'=>'leads.view','description'=>'Страница "Лиды"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>75],
+            ['name'=>'partner.view','description'=>'Страница "Партнеры"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>55],
+ 
+
+//            ['name'=>'reports','description'=>'Страница "Отчеты"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>15],
+//            ['name'=>'set_prices','description'=>'Страница "Установка цен"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>20],
+//            ['name'=>'schedule_journal','description'=>'Страница "Журнал расписания"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>30],
+//            ['name'=>'manage_users','description'=>'Страница "Пользователи"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>40],
+//            ['name'=>'manage_groups','description'=>'Страница "Группы"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>50],
+//            ['name'=>'general_settings','description'=>'Страница "Настройки"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>60],
+//            ['name'=>'service_payment','description'=>'Страница "Оплата сервиса"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>80],
+//            ['name'=>'partner_company','description'=>'Страница "Учетная запись -> Организация"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>70],
+//            ['name'=>'my_payments','description'=>'Страница "Мои платежи"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>17],
 
             // account (id=2)
             ['name'=>'name_editing','description'=>'Изменение своего имени','group_slug'=>'account','is_visible'=>1,'sort_order'=>10],
             ['name'=>'changing_your_group','description'=>'Изменение своей группы','group_slug'=>'account','is_visible'=>0,'sort_order'=>30],
             ['name'=>'changing_user_email','description'=>'Изменение своего email','group_slug'=>'account','is_visible'=>1,'sort_order'=>50],
-            ['name'=>'account.user.view','description'=>'Страница "Учетная запись -> Личные данные"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>65], // в дампе как id=35 (mainMenu) — оставляю как в дампе
             ['name'=>'account.user.phone.update','description'=>'Изменение своего телефона','group_slug'=>'account','is_visible'=>1,'sort_order'=>60],
             ['name'=>'account.user.birthdate.update','description'=>'Изменение своей даты рождения','group_slug'=>'account','is_visible'=>1,'sort_order'=>20],
             ['name'=>'account.user.startDate.update','description'=>'Изменение даты своего начала занятий','group_slug'=>'account','is_visible'=>1,'sort_order'=>40],
@@ -61,9 +76,7 @@ class PermissionSeeder extends Seeder
             ['name'=>'changing_partner','description'=>'Изменение партнера','group_slug'=>'misc','is_visible'=>0,'sort_order'=>190],
 
             // Доп. пункты из дампа (main menu)
-            ['name'=>'dashboard.view','description'=>'Страница "Консоль"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>10],
-            ['name'=>'partner.view','description'=>'Страница "Партнеры"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>55],
-            ['name'=>'leads.view','description'=>'Страница "Лиды"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>75],
+
         ];
 
         foreach ($permissions as $p) {

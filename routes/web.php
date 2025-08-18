@@ -75,7 +75,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Отчеты
-    Route::middleware(['can:reports'])->group(function () {
+    Route::middleware(['can:reports-view'])->group(function () {
         Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
         Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
         Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
@@ -85,13 +85,13 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Мои платежи
-    Route::middleware(['can:my-payments'])->group(function () {
+    Route::middleware(['can:myPayments-view'])->group(function () {
         Route::get('/reports/payments', [ReportController::class, 'showUserPayments'])->name('showUserPayments');
         Route::get('/getUserPayments', [ReportController::class, 'getUserPayments'])->name('payments.getUserPayments');
     });
 
     //Установка цен
-    Route::middleware('can:set-prices')->group(function () {
+    Route::middleware('can:setPrices-view')->group(function () {
         Route::get('admin/setting-prices', [SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
         Route::post('admin/setting-prices/get-team-price', [SettingPricesController::class, 'getTeamPrice'])->name('getTeamPrice');
         Route::post('admin/setting-prices/set-team-price', [SettingPricesController::class, 'setTeamPrice'])->name('setTeamPrice');
@@ -102,7 +102,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Журнал расписания
-    Route::middleware('can:schedule-journal')->group(function () {
+    Route::middleware('can:schedule-view')->group(function () {
         Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
         Route::post('/schedule/update', [ScheduleController::class, 'update'])->name('schedule.update');
         Route::get('/schedule/logs-data', [ScheduleController::class, 'getLogsData'])->name('logs.data.schedule');
@@ -112,7 +112,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Статусы
-    Route::middleware('can:schedule-journal')->group(function () {
+    Route::middleware('can:schedule-view')->group(function () {
         Route::get('/schedule/statuses', [StatusController::class, 'index'])->name('statuses.index');
         Route::post('/schedule/statuses', [StatusController::class, 'store'])->name('statuses.store');
         Route::patch('/schedule/statuses/{id}', [StatusController::class, 'update'])->name('statuses.update');
@@ -120,7 +120,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Пользователи
-    Route::middleware('can:manage-users')->group(function () {
+    Route::middleware('can:users-view')->group(function () {
         Route::get('admin/users', [UserController::class, 'index'])->name('admin.user1');
         Route::get('admin/users/create', [UserController::class, 'create'])->name('admin.user.create');
         Route::post('admin/users', [UserController::class, 'store'])->name('admin.user.store');
@@ -135,7 +135,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Группы
-    Route::middleware('can:manage-groups')->group(function () {
+    Route::middleware('can:groups-view')->group(function () {
         Route::get('admin/teams', [TeamController::class, 'index'])->name('admin.team1');
         Route::post('admin/teams', [TeamController::class, 'store'])->name('admin.team.store');
         Route::get('admin/team/{id}/edit', [TeamController::class, 'edit'])->name('admin.team.edit');
@@ -155,7 +155,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Страница Настойки - Общие
-    Route::middleware('can:general-settings')->group(function () {
+    Route::middleware('can:settings-view')->group(function () {
         Route::get('admin/settings', [SettingController::class, 'showSettings'])->name('admin.setting.setting');
         Route::get('admin/settings/registration-activity', [SettingController::class, 'registrationActivity'])->name('registrationActivity');
         Route::post('admin/settings/text-for-users', [SettingController::class, 'textForUsers'])->name('textForUsers');
@@ -193,7 +193,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Учетная запись - вкладка организация
-    Route::middleware('can:partner-company')->group(function () {
+    Route::middleware('can:account-partner-view')->group(function () {
         Route::get('account-settings/partner/{user}/edit', [PartnerSettingController::class, 'partner'])->name('admin.cur.company.edit');
         Route::patch('account-settings/partner/{partner}', [PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
     });
@@ -202,7 +202,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions')->middleware('can:leads-view');
 
     //Страница оплаты сервиса
-    Route::middleware('can:service-payment')->group(function () {
+    Route::middleware('can:servicePayments-view')->group(function () {
         Route::get('partner-payment/recharge', [PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge');
         Route::get('partner-payment/history', [PartnerPaymentController::class, 'showHistory'])->name('partner.payment.history');
         Route::get('partner-payment/data', [PartnerPaymentController::class, 'getPaymentsData'])->name('partner.payment.data');

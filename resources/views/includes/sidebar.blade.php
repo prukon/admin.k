@@ -17,17 +17,9 @@
         </li>
         @endcan
 
-
-
-
-        {{--<li>--}}
-            {{--<form method="POST" action="{{ route('dashboard') }}">@csrf--}}
-                {{--<button type="submit" class="dropdown-item">В личный кабинет</button>--}}
-            {{--</form>--}}
-        {{--</li>--}}
-
         {{--Отчеты--}}
-        @can('reports')
+{{--        @can('reports')--}}
+        @can('reports-view')
         <li class="nav-item">
                 <a href="/admin/reports/payments" class="nav-link">
                     <i class="nav-icon fa-solid fa-folder"></i>
@@ -37,7 +29,7 @@
         @endcan
 
         {{--Платежи юзера--}}
-        @can('my-payments')
+        @can('myPayments-view ')
             <li class="nav-item">
                 <a href="/reports/payments" class="nav-link">
                     <i class="nav-icon fa-solid fa-receipt"></i>
@@ -47,7 +39,7 @@
         @endcan
 
         {{--Установка цен--}}
-        @can('set-prices')
+        @can('setPrices-view')
         <li class="nav-item">
                 <a href="/admin/setting-prices?current-month" class="nav-link">
                     <i class="nav-icon fa-solid fa-receipt"></i>
@@ -57,7 +49,7 @@
         @endcan
 
         {{--Журнал расписания--}}
-        @can('schedule-journal')
+        @can('schedule-view')
             <li class="nav-item">
                 <a href="/schedule" class="nav-link">
 {{--                    <i class="nav-icon fa-solid fa-receipt"></i>--}}
@@ -68,7 +60,7 @@
         @endcan
 
         {{--Пользователи--}}
-        @can('manage-users')
+        @can('users-view')
             <li class="nav-item">
                 <a href="/admin/users" class="nav-link">
                     <i class="nav-icon fa-solid fa-users"></i>
@@ -78,7 +70,7 @@
         @endcan
 
         {{--Группы--}}
-        @can('manage-groups')
+        @can('groups-view')
             <li class="nav-item">
                 <a href="/admin/teams" class="nav-link">
                     <i class="nav-icon fa-solid fa-layer-group"></i>
@@ -91,7 +83,7 @@
 
 
         {{--Настройки--}}
-        @can('general-settings')
+        @can('settings-view')
         <li class="nav-item">
                 <a href="/admin/settings" class="nav-link">
                     <i class="nav-icon fas fa-gear"></i>
@@ -116,7 +108,7 @@
 
 
         {{--Оплата сервиса--}}
-        @can('service-payment')
+        @can('servicePayments-view')
         <li class="nav-item">
                 <a href="/partner-payment/recharge" class="nav-link">
                     <i class="nav-icon fa-solid fa-credit-card"></i>

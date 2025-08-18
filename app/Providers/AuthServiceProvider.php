@@ -8,7 +8,6 @@ use App\Policies\AdminPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 
-
 use Illuminate\Support\Facades\Gate;
 
 
@@ -32,7 +31,7 @@ class AuthServiceProvider extends ServiceProvider
 
 
         Gate::define('verify-phone', function (User $actor, User $target) {
-            return $actor->id === $target->id || in_array((int)$actor->role_id, [1,10], true);
+            return $actor->id === $target->id || in_array((int)$actor->role_id, [1, 10], true);
         });
 
         // Всё подряд разрешаем суперадмину (role_id = 1)
@@ -41,72 +40,149 @@ class AuthServiceProvider extends ServiceProvider
         });
 
 
-
 ////////////////////////ГЛАВНОЕ МЕНЮ//////////////////////
+///
+///
+        //        // Страница "Консоль"
+//        Gate::define('dashboard-view', function (User $user) {
+//            return $user->hasPermission('dashboard.view');
+//        });
+
         // Страница "Консоль"
         Gate::define('dashboard-view', function (User $user) {
             return $user->hasPermission('dashboard.view');
         });
 
+        //        // Отчёты
+//        Gate::define('reports', function (User $user) {
+//            return $user->hasPermission('reports');
+//        });
+
         // Отчёты
-        Gate::define('reports', function (User $user) {
-            return $user->hasPermission('reports');
+        Gate::define('reports-view', function (User $user) {
+            return $user->hasPermission('reports.view');
         });
+
+        //        // Мои платежи
+//        Gate::define('my-payments', function (User $user) {
+//            return $user->hasPermission('my_payments');
+//        });
 
         // Мои платежи
-        Gate::define('my-payments', function (User $user) {
-            return $user->hasPermission('my_payments');
+        Gate::define('myPayments-view', function (User $user) {
+            return $user->hasPermission('myPayments.view ');
         });
+
+        //        // Установка цен
+//        Gate::define('set-prices', function (User $user) {
+//            return $user->hasPermission('set_prices');
+//        });
+
 
         // Установка цен
-        Gate::define('set-prices', function (User $user) {
-            return $user->hasPermission('set_prices');
+        Gate::define('setPrices-view', function (User $user) {
+            return $user->hasPermission('setPrices.view');
         });
+
+        //        // Журнал расписания
+//        Gate::define('schedule-journal', function (User $user) {
+//            return $user->hasPermission('schedule_journal');
+//        });
+//
 
         // Журнал расписания
-        Gate::define('schedule-journal', function (User $user) {
-            return $user->hasPermission('schedule_journal');
+        Gate::define('schedule-view', function (User $user) {
+            return $user->hasPermission('schedule.view');
         });
+
+        //        // Управление пользователями
+//        Gate::define('manage-users', function (User $user) {
+//            return $user->hasPermission('manage_users');
+//        });
+
 
         // Управление пользователями
-        Gate::define('manage-users', function (User $user) {
-            return $user->hasPermission('manage_users');
+        Gate::define('users-view', function (User $user) {
+            return $user->hasPermission('users.view');
         });
 
+        //        // Управление группами
+//        Gate::define('manage-groups', function (User $user) {
+//            return $user->hasPermission('manage_groups');
+//        });
+//
         // Управление группами
-        Gate::define('manage-groups', function (User $user) {
-            return $user->hasPermission('manage_groups');
+        Gate::define('groups-view', function (User $user) {
+            return $user->hasPermission('groups.view');
         });
+
+        //        // Страница "Партнеры"
+//        Gate::define('partner-view', function (User $user) {
+//            return $user->hasPermission('partner.view');
+//        });
+//
 
         // Страница "Партнеры"
         Gate::define('partner-view', function (User $user) {
             return $user->hasPermission('partner.view');
         });
 
+        //        // Общие настройки
+//        Gate::define('general-settings', function (User $user) {
+//            return $user->hasPermission('general_settings');
+//        });
+
         // Общие настройки
-        Gate::define('general-settings', function (User $user) {
-            return $user->hasPermission('general_settings');
+        Gate::define('settings-view', function (User $user) {
+            return $user->hasPermission('settings.view');
         });
+
+        //        // Страница "Учетная запись -> Личные данные"
+//        Gate::define('account-user-view', function (User $user) {
+//            return $user->hasPermission('account.user.view');
+//        });
 
         // Страница "Учетная запись -> Личные данные"
         Gate::define('account-user-view', function (User $user) {
             return $user->hasPermission('account.user.view');
         });
 
+        //        // Страница "Учетная запись -> организация"
+//        Gate::define('partner-company', function (User $user) {
+//            return $user->hasPermission('partner_company');
+//        });
+
         // Страница "Учетная запись -> организация"
-        Gate::define('partner-company', function (User $user) {
-            return $user->hasPermission('partner_company');
+        Gate::define('account-partner-view', function (User $user) {
+            return $user->hasPermission('account.partner.view');
         });
+
+        //        // Страница "Лиды"
+//        Gate::define('leads-view', function (User $user) {
+//            return $user->hasPermission('leads.view');
+//        });
 
         // Страница "Лиды"
         Gate::define('leads-view', function (User $user) {
             return $user->hasPermission('leads.view');
         });
 
+        //        // Оплата сервиса
+//        Gate::define('service-payment', function (User $user) {
+//            return $user->hasPermission('service_payment');
+//        });
+
+
         // Оплата сервиса
-        Gate::define('service-payment', function (User $user) {
-            return $user->hasPermission('service_payment');
+        Gate::define('servicePayments-view', function (User $user) {
+            return $user->hasPermission('servicePayments.view');
         });
+
+///
+
+////
+
+//
 
 
         ////////////////////////Учетная запись //////////////////////
@@ -140,7 +216,6 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('account-user-phone-update', function (User $user) {
             return $user->hasPermission('account.user.phone.update');
         });
-
 
 
 //////////////////////// Управление пользователями //////////////////////
@@ -217,7 +292,6 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('change-history', function (User $user) {
             return $user->hasPermission('change_history');
         });
-
 
 
         // Изменение активности пользователя

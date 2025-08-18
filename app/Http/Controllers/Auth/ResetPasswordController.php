@@ -15,7 +15,8 @@ class ResetPasswordController extends Controller
      *
      * @var string
      */
-    protected $redirectTo = '/login';
+//    protected $redirectTo = '/login';
+    protected $redirectTo = '/cabinet';
 
     protected function sendResetResponse(Request $request, $response)
     {
