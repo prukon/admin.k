@@ -25,7 +25,7 @@ class PaymentSystem extends Model
         'settings' => 'array',
         'test_mode' => 'boolean',
     ];
- 
+
     protected $hidden = ['settings'];
 
 
@@ -39,7 +39,7 @@ class PaymentSystem extends Model
 
     public function setSettingsAttribute($value)
     {
-        $json = is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string) $value;
+        $json = is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value;
         $this->attributes['settings'] = Crypt::encryptString($json);
     }
 
@@ -59,7 +59,7 @@ class PaymentSystem extends Model
         if (empty($value)) return [];
         try {
             $json = Crypt::decryptString($value);
-            $arr  = json_decode($json, true);
+            $arr = json_decode($json, true);
             if (is_array($arr)) return $arr;
         } catch (DecryptException $e) {
             $arr = json_decode($value, true); // вдруг лежит чистый JSON
@@ -75,20 +75,20 @@ class PaymentSystem extends Model
         return $this->belongsTo(Partner::class, 'partner_id');
     }
 
-    public function getIsConnectedAttribute2(): bool
+    public function getIsConnectedAttribute2()
     {
         if (!$this->settings || !is_array($this->settings)) {
             return false;
         }
 
-        return match ($this->name) {
+        return match($this->name){
         'robokassa' => !empty($this->settings['merchant_login'])
     && !empty($this->settings['password1'])
     && !empty($this->settings['password2']),
         'tbank' => !empty($this->settings['tbank_account_id'])
     && !empty($this->settings['tbank_key']),
         default => false,
-    }
+    };
 }
 
     public function getIsConnectedAttribute()
@@ -96,5 +96,4 @@ class PaymentSystem extends Model
         $s = $this->settings;
         return !empty($s['merchant_login']) && !empty($s['password1']);
     }
-
 }
