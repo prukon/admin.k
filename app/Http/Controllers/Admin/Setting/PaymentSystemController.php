@@ -139,6 +139,16 @@ class PaymentSystemController extends Controller
         // 6) Сохраняем модель
         $paymentSystem->save();
 
+
+        \Log::debug('DB write check', [
+            'db'  => \DB::connection()->getDatabaseName(),
+            'id'  => $paymentSystem->id,
+            'row' => \DB::table('payment_systems')
+                ->where('id', $paymentSystem->id)
+                ->first(),
+        ]);
+
+
         return response()->json([
             'status'  => 'success',
             'message' => "Настройки [{$validated['name']}] успешно сохранены для партнёра #{$partnerId}",
