@@ -28,6 +28,32 @@ class PaymentSystem extends Model
 
     protected $hidden = ['settings'];
 
+    protected static function booted()
+    {
+        static::saving(function ($m) {
+            \Log::debug('PaymentSystem@saving', [
+                'id'      => $m->id,
+                'dirty'   => $m->getDirty(),   // какие поля реально помечены как изменённые
+                'exists'  => $m->exists,
+            ]);
+        });
+
+        static::saved(function ($m) {
+            \Log::debug('PaymentSystem@saved', [
+                'id'      => $m->id,
+                'dirty'   => $m->getDirty(),   // после save обычно пусто
+            ]);
+        });
+
+        static::updating(function ($m) {
+            \Log::debug('PaymentSystem@updating', ['id'=>$m->id, 'dirty'=>$m->getDirty()]);
+        });
+
+        static::updated(function ($m) {
+            \Log::debug('PaymentSystem@updated', ['id'=>$m->id]);
+        });
+    }
+
 
     // Сохранение settings в зашифрованном виде
     public function setSettingsAttribute2($value)
@@ -37,12 +63,25 @@ class PaymentSystem extends Model
         $this->attributes['settings'] = Crypt::encryptString($json);
     }
 
-    public function setSettingsAttribute($value)
+    public function setSettingsAttribute3($value)
     {
         $json = is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value;
         $this->attributes['settings'] = Crypt::encryptString($json);
     }
 
+    public function setSettingsAttribute($value)
+    {
+        $json = is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string) $value;
+        $enc  = \Illuminate\Support\Facades\Crypt::encryptString($json);
+
+        \Log::debug('PaymentSystem@setSettingsAttribute', [
+            'len_json' => strlen($json),
+            'len_enc'  => strlen($enc),
+            'sample'   => substr($enc, 0, 32), // хвост не логируем
+        ]);
+
+        $this->attributes['settings'] = $enc;
+    }
 
     // Геттер флага подключения
     public function getSettingsAttribute2($value)
