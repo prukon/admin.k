@@ -1,3 +1,39 @@
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+/.fleet
+
+# Зависимости (ставим через composer/npm/PNPM/Yarn)
+vendor/
+node_modules/
+
+# Логи менеджеров пакетов
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Секреты/окружение
+.env
+.env.*
+!.env.example
+
+# Laravel / сборка фронта
+public/hot
 public/storage
-storage/
-public/build/
+public/build
+storage/*.key
+bootstrap/cache/*.php
+
+# Тесты/отчёты
+.phpunit.result.cache
+/.phpunit.cache
+/coverage
+
+# Разное
+*.log
+composer.phar
+.eslintcache
+.stylelintcache
