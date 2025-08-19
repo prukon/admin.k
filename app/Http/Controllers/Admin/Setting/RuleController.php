@@ -91,41 +91,6 @@ class RuleController extends Controller
 }
 
     //Изменение прав пользователей
-    public function togglePermission2(Request $request)
-    {
-        $data = $request->validate([
-            'role_id'       => 'required|integer|exists:roles,id',
-            'permission_id' => 'required|integer|exists:permissions,id',
-            'value'         => 'required|in:true,false',
-        ]);
-
-        $attach    = $data['value'] === 'true';
-        $roleId    = $data['role_id'];
-        $permId    = $data['permission_id'];
-        $partnerId = app('current_partner')->id;                              // <<< CHANGED: контекст партнёра
-
-        DB::transaction(function () use ($roleId, $permId, $partnerId, $attach) {
-            if ($attach) {
-                // <<< CHANGED: вместо syncWithoutDetaching делаем insertOrIgnore
-                DB::table('permission_role')->insertOrIgnore([
-                    'role_id'       => $roleId,
-                    'permission_id' => $permId,
-                    'partner_id'    => $partnerId,
-                    'created_at'    => now(),
-                    'updated_at'    => now(),
-                ]);
-            } else {
-                // <<< CHANGED: удаляем только нужную строку по всем трём ключам
-                DB::table('permission_role')
-                    ->where('role_id',       $roleId)
-                    ->where('permission_id', $permId)
-                    ->where('partner_id',    $partnerId)
-                    ->delete();
-            }
-        });
-
-        return response()->json(['success' => true]);
-    }
 
     public function togglePermission(Request $request)
     {
@@ -212,7 +177,6 @@ class RuleController extends Controller
 
         return response()->json(['success' => true]);
     }
-
 
     //* Метод для создания новой роли (AJAX).
     public function createRole(Request $request)
