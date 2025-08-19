@@ -2,7 +2,7 @@
 @section('content')
 
     <div class="main-content text-start">
-        <h4 class="pt-3 pb-3">О сервисе</h4>
+        <h4 class="pt-3 pb-3">О сервисе1</h4>
             <!-- Логотип и описание -->
             <div class="row mb-4 align-items-center">
 
