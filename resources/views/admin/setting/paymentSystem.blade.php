@@ -73,8 +73,17 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="merchant_login" class="form-label">Merchant Login</label>
-                        <input type="text" class="form-control" name="merchant_login" id="merchant_login"
-                               placeholder="Введите Merchant Login">
+
+                        {{--<input type="text" class="form-control" name="merchant_login" id="merchant_login"--}}
+                               {{--placeholder="Введите Merchant Login">--}}
+                        {{----}}
+                        @php($rob = $robokassa)
+                        {{-- безопасно читаем --}}
+                        @php($s = is_array($rob?->settings ?? null) ? $rob->settings : [])
+                        {{-- дальше через data_get --}}
+                        <input name="merchant_login" value="{{ data_get($s, 'merchant_login') }}">
+
+
                     </div>
                     <div class="mb-3">
                         <label for="password1" class="form-label">Пароль #1</label>

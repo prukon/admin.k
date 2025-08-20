@@ -298,4 +298,10 @@ class PaymentSystemController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function getIsConnectedAttribute()
+    {
+        $s = $this->settings; // уже безопасный массив
+        return !empty($s['merchant_login']) && !empty($s['password1']);
+    }
 }
