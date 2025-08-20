@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Contracts\Encryption\DecryptException;
 
 class PaymentSystem extends Model
 {
@@ -17,87 +18,74 @@ class PaymentSystem extends Model
         'name',
         'settings',
         'test_mode',
-
     ];
 
     protected $casts = [
-        'settings' => 'array',
         'test_mode' => 'boolean',
     ];
 
-    protected $hidden = ['settings'];
-
-    protected static function booted()
-    {
-        static::saving(function ($m) {
-            \Log::debug('PaymentSystem@saving', [
-                'id'      => $m->id,
-                'dirty'   => $m->getDirty(),   // какие поля реально помечены как изменённые
-                'exists'  => $m->exists,
-            ]);
-        });
-
-        static::saved(function ($m) {
-            \Log::debug('PaymentSystem@saved', [
-                'id'      => $m->id,
-                'dirty'   => $m->getDirty(),   // после save обычно пусто
-            ]);
-        });
-
-        static::updating(function ($m) {
-            \Log::debug('PaymentSystem@updating', ['id'=>$m->id, 'dirty'=>$m->getDirty()]);
-        });
-
-        static::updated(function ($m) {
-            \Log::debug('PaymentSystem@updated', ['id'=>$m->id]);
-        });
-    }
-
-    // Сохранение settings в зашифрованном виде
+    /**
+     * Мутатор: шифруем массив настроек
+     */
     public function setSettingsAttribute($value)
     {
-        $json = is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string) $value;
-        $enc  = \Illuminate\Support\Facades\Crypt::encryptString($json);
+        if (empty($value)) {
+            $this->attributes['settings'] = null;
+            return;
+        }
 
-        \Log::debug('PaymentSystem@setSettingsAttribute', [
-            'len_json' => strlen($json),
-            'len_enc'  => strlen($enc),
-            'sample'   => substr($enc, 0, 32), // хвост не логируем
-        ]);
+        $json = is_array($value)
+            ? json_encode($value, JSON_UNESCAPED_UNICODE)
+            : (string)$value;
 
-        $this->attributes['settings'] = $enc;
+        $this->attributes['settings'] = Crypt::encryptString($json);
     }
 
-    // Геттер флага подключения
-
+    /**
+     * Аксессор: всегда возвращаем массив
+     */
     public function getSettingsAttribute($value)
     {
-        if (empty($value)) return [];
+        if (empty($value)) {
+            return [];
+        }
 
+        // пробуем расшифровать
         try {
             $json = Crypt::decryptString($value);
-            $arr  = json_decode($json, true);
-            if (is_array($arr)) return $arr;
+            $arr = json_decode($json, true);
+            if (is_array($arr)) {
+                return $arr;
+            }
         } catch (DecryptException $e) {
-            // fallback: вдруг лежит чистый JSON
+            // возможно, там хранится чистый JSON (исторические данные)
             $arr = json_decode($value, true);
-            if (is_array($arr)) return $arr;
+            if (is_array($arr)) {
+                return $arr;
+            }
 
             \Log::warning('PaymentSystem settings decrypt failed', [
-                'id' => $this->id,
-                'name' => $this->name,
+                'id'         => $this->id,
+                'name'       => $this->name,
                 'partner_id' => $this->partner_id,
+                'msg'        => $e->getMessage(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('PaymentSystem settings decrypt throwable', [
+                'id'         => $this->id,
+                'name'       => $this->name,
+                'partner_id' => $this->partner_id,
+                'msg'        => $e->getMessage(),
             ]);
         }
+
+        // fallback
         return [];
     }
 
-    public function partner()
-    {
-        return $this->belongsTo(Partner::class, 'partner_id');
-    }
-
-
+    /**
+     * Признак, что система подключена (например для UI).
+     */
     public function getIsConnectedAttribute()
     {
         $s = $this->settings;
