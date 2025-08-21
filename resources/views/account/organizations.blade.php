@@ -1,5 +1,5 @@
 {{--ВКЛАДКА ОРГАНИЗАЦИЯ--}}
-@can('partner-company')
+@can('account-partner-view')
     <form id="partnerUpdateForm"
           action="{{ route('admin.cur.partner.update', $partner->id) }}"
           method="POST">

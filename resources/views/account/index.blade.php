@@ -20,7 +20,7 @@
                         </a>
                     </li>
                     <!-- Вкладки для всех партнёров пользователя -->
-                    @can('partner-company')
+                    @can('account-partner-view')
                         @foreach ($partners as $partner)
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link {{ $activeTab == 'partner' ? 'active' : '' }}"

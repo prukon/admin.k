@@ -125,6 +125,28 @@
         <section class="perm-group">
             <div class="table-responsive">
                 <table class="table perm-table align-middle table-sm">
+                    {{--<thead>--}}
+                    {{--<tr>--}}
+                        {{--<th class="perm-col-sticky">--}}
+                            {{--<button class="btn btn-disclosure btn-sm"--}}
+                                    {{--type="button"--}}
+                                    {{--aria-expanded="true">--}}
+                                {{--<span class="chev"><i class="fa-solid fa-chevron-down"></i></span>--}}
+                            {{--</button>--}}
+                            {{--<span class="ms-2">{{ $g->name }}</span>--}}
+                            {{--<span class="perm-badge ms-2">{{ $permsInGroup->count() }}</span>--}}
+                        {{--</th>--}}
+                        {{--@foreach($roles as $role)--}}
+                            {{--<th class="text-center">--}}
+                                {{--{{ $role->label ?? $role->name }}--}}
+                                {{--@if(auth()->user()?->role?->name === 'superadmin' && !$role->is_visible)--}}
+                                    {{--<br><span class="badge bg-warning text-dark ms-2">Невидимое</span>--}}
+                                {{--@endif--}}
+                            {{--</th>--}}
+                        {{--@endforeach--}}
+                    {{--</tr>--}}
+                    {{--</thead>--}}
+
                     <thead>
                     <tr>
                         <th class="perm-col-sticky">
@@ -136,7 +158,7 @@
                             <span class="ms-2">{{ $g->name }}</span>
                             <span class="perm-badge ms-2">{{ $permsInGroup->count() }}</span>
                         </th>
-                        @foreach($roles as $role)
+                        @foreach($roles->where('name', '!=', 'superadmin') as $role)
                             <th class="text-center">
                                 {{ $role->label ?? $role->name }}
                                 @if(auth()->user()?->role?->name === 'superadmin' && !$role->is_visible)
@@ -147,7 +169,36 @@
                     </tr>
                     </thead>
 
+
                     <tbody>
+                    {{--@foreach($permsInGroup as $permission)--}}
+                        {{--<tr>--}}
+                            {{--<td class="perm-col-sticky">--}}
+                                {{--<div class="d-flex flex-column">--}}
+                                    {{--<span>{{ $permission->description ?? $permission->name }}</span>--}}
+                                    {{--<small class="text-muted">--}}
+                                        {{--<code>{{ $permission->name }}</code>--}}
+                                        {{--@if(auth()->user()?->role?->name === 'superadmin' && !$permission->is_visible)--}}
+                                            {{--<span class="badge bg-warning text-dark ms-2">Невидимое</span>--}}
+                                        {{--@endif--}}
+                                    {{--</small>--}}
+                                {{--</div>--}}
+                            {{--</td>--}}
+
+                            {{--@foreach($roles as $role)--}}
+                                {{--@php $hasPermission = $role->permissions->contains($permission->id); @endphp--}}
+                                {{--<td class="text-center">--}}
+                                    {{--<input type="checkbox"--}}
+                                           {{--class="permission-checkbox"--}}
+                                           {{--data-role-id="{{ $role->id }}"--}}
+                                           {{--data-permission-id="{{ $permission->id }}"--}}
+                                           {{--data-group-id="{{ $groupId }}"--}}
+                                           {{--@checked($hasPermission)/>--}}
+                                {{--</td>--}}
+                            {{--@endforeach--}}
+                        {{--</tr>--}}
+                    {{--@endforeach--}}
+
                     @foreach($permsInGroup as $permission)
                         <tr>
                             <td class="perm-col-sticky">
@@ -162,7 +213,7 @@
                                 </div>
                             </td>
 
-                            @foreach($roles as $role)
+                            @foreach($roles->where('name', '!=', 'superadmin') as $role)
                                 @php $hasPermission = $role->permissions->contains($permission->id); @endphp
                                 <td class="text-center">
                                     <input type="checkbox"
@@ -175,6 +226,7 @@
                             @endforeach
                         </tr>
                     @endforeach
+
 
                     @if($permsInGroup->isEmpty())
                         <tr>
@@ -221,7 +273,29 @@
                         </tr>
                         </thead>
                         <tbody>
-                        @foreach($roles as $index => $role)
+                        {{--@foreach($roles as $index => $role)--}}
+                            {{--<tr data-role-id="{{ $role->id }}">--}}
+                                {{--<td>{{ $index + 1 }}</td>--}}
+                                {{--<td>--}}
+                                    {{--{{ $role->label ?? $role->name }}--}}
+                                    {{--@if(auth()->user()?->role?->name === 'superadmin' && !$role->is_visible)--}}
+                                        {{--<span class="badge bg-warning text-dark ms-2">Невидимое</span>--}}
+                                    {{--@endif--}}
+                                {{--</td>--}}
+                                {{--<td>--}}
+                                    {{--@if(!$role->is_sistem)--}}
+                                        {{--<button class="btn btn-danger btn-sm delete-role"--}}
+                                                {{--data-role-id="{{ $role->id }}">--}}
+                                            {{--Удалить--}}
+                                        {{--</button>--}}
+                                    {{--@else--}}
+                                        {{--<small class="text-muted">Системная роль</small>--}}
+                                    {{--@endif--}}
+                                {{--</td>--}}
+                            {{--</tr>--}}
+                        {{--@endforeach--}}
+
+                        @foreach($roles->where('name', '!=', 'superadmin') as $index => $role)
                             <tr data-role-id="{{ $role->id }}">
                                 <td>{{ $index + 1 }}</td>
                                 <td>
@@ -242,6 +316,8 @@
                                 </td>
                             </tr>
                         @endforeach
+                        
+
                         </tbody>
                     </table>
                 </div>
