@@ -19,7 +19,7 @@ class SetMenuItems
         }
 
         // Для дебага: пишем в лог
-        \Log::debug('SetMenuItems: partner_id=', ['partnerId' => $partnerId]);
+//        \Log::debug('SetMenuItems: partner_id=', ['partnerId' => $partnerId]);
 
         // Загружаем пункты меню только для этого партнёра (или пустую коллекцию)
         $menuItems = $partnerId

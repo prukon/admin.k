@@ -52,16 +52,16 @@ class EnsureTwoFactorIsVerified
 
         $sessionPassed = (bool)session('2fa:passed');
 
-        Log::info('2FA MW decision', [
-            'user_id'          => $user->id,
-            'role_id'          => $user->role_id,
-            'user_tfa_enabled' => (bool)$user->two_factor_enabled,
-            'forceAdmin2fa'    => $forceAdmin2fa,
-            'needs2fa'         => $needs2fa,
-            'session_passed'   => $sessionPassed,
-            'route'            => $routeName,
-            'has_phone'        => (bool)$user->phone,
-        ]);
+//        Log::info('2FA MW decision', [
+//            'user_id'          => $user->id,
+//            'role_id'          => $user->role_id,
+//            'user_tfa_enabled' => (bool)$user->two_factor_enabled,
+//            'forceAdmin2fa'    => $forceAdmin2fa,
+//            'needs2fa'         => $needs2fa,
+//            'session_passed'   => $sessionPassed,
+//            'route'            => $routeName,
+//            'has_phone'        => (bool)$user->phone,
+//        ]);
 
         if ($needs2fa && !$sessionPassed) {
             if (empty($user->phone)) {

@@ -4,14 +4,24 @@
     <div class="col-12 col-lg-3 d-flex flex-column align-items-center">
 
         <div class="avatar_wrapper d-flex align-items-center justify-content-center">
-            <img id='confirm-img'
-                 @if ($user->image_crop)
-                 src="{{ asset('storage/avatars/' . $user->image_crop) }}"
-                 alt="{{ $user->image_crop }}"
-                 @else
-                 src="/img/default.png" alt="Аватар по умолчанию"
-                    @endif
-            >
+            {{--<img id='confirm-img'--}}
+                 {{--@if ($user->image_crop)--}}
+{{--                 src="{{ asset('storage/avatars/' . $user->image_crop) }}"--}}
+                 {{--src="{{asset('img/avatars/'.$user->image_crop) }}"--}}
+                 {{--alt="{{ $user->image_crop }}"--}}
+                 {{--@else--}}
+                 {{--src="/img/default.png" alt="Аватар по умолчанию"--}}
+                    {{--@endif--}}
+            {{-->--}}
+
+
+            <img
+                    src="{{ auth()->user()->image_crop ? asset('img/avatars/'.auth()->user()->image_crop) : asset('/img/default-avatar.png') }}"
+                    class="js-current-avatar rounded-circle avatar-clickable"
+                    width="96" height="96" alt="Avatar"
+                    data-bs-toggle="modal" data-bs-target="#avatarZoomModal">
+
+
         </div>
         <div class='container-form'>
             <input id='selectedFile' class="disp-none" type='file'
@@ -311,24 +321,26 @@
             <div class="modal-body">
 
                 <form id="uploadImageForm" enctype="multipart/form-data">
-                @csrf
-                <!-- Выбор файла -->
-                    <input class="mb-3" type="file" id="upload" accept="image/*">
+                    @csrf
 
-                    <!-- Контейнер для Croppie -->
+                    {{-- Выбор файла --}}
+                    <input class="mb-3 form-control" type="file" id="upload" accept="image/*">
+
+                    {{-- Контейнер для Croppie (задай ширину/высоту под твой UI) --}}
                     <div id="upload-demo" style="width:300px;"></div>
 
-                    <!-- Скрытое поле для сохранения имени пользователя -->
-                    <input type="hidden" id="selectedUserName" name="userName" value="">
-
-                    <!-- Скрытое поле для обрезанного изображения -->
+                    {{-- Скрытое поле для обрезанного результата --}}
                     <input type="hidden" id="croppedImage" name="croppedImage">
 
-                    <!-- Кнопка для сохранения изображения -->
-                    <button type="button" id="saveImageBtn" class="btn btn-primary">
+                    <button type="button" id="saveImageBtn" class="btn btn-primary mt-3">
                         Загрузить
                     </button>
                 </form>
+                {{-- Немного стиля для курсора --}}
+                <style>
+                    .avatar-clickable { cursor: zoom-in; }
+                </style>
+
 
             </div>
         </div>
@@ -356,6 +368,19 @@
         </div>
     </div>
 </div>
+
+
+{{-- Модалка зума (Bootstrap 5) --}}
+<div class="modal fade" id="avatarZoomModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-body p-0">
+                <img src="" class="w-100" id="avatarZoomImg" alt="Avatar zoom">
+            </div>
+        </div>
+    </div>
+</div>
+
 
 
 @section('scripts')
@@ -734,7 +759,7 @@
 
         document.addEventListener('DOMContentLoaded', function () {
 
-            const uploadUrl = "{{ route('profile.user.uploadAvatar') }}";
+            {{--const uploadUrl = "{{ route('profile.user.uploadAvatar') }}";--}}
 
             // 2fa
             // При включении чекбокса 2FA — простая клиентская проверка телефона
@@ -869,7 +894,7 @@
 
                 // Инициализация Croppie для аватарки
                 $uploadCrop = $('#upload-demo').croppie({
-                    viewport: {width: 200, height: 250, type: 'square'},
+                    // viewport: {width: 200, height: 250, type: 'square'},
                     boundary: {width: 300, height: 300},
                     showZoomer: true
                 });
@@ -908,40 +933,87 @@
                 });
 
                 // Сохранение обрезанного изображения и отправка через AJAX
+                {{--$('#saveImageBtn').on('click', function () {--}}
+                    {{--$uploadCrop.croppie('result', {--}}
+                        {{--type: 'base64',--}}
+                        {{--size: 'viewport'--}}
+                    {{--}).then(function (resp) {--}}
+                        {{--// Заполняем скрытое поле base64 изображением--}}
+                        {{--$('#croppedImage').val(resp);--}}
+
+                        {{--let userName = $('#selectedUserName').val();--}}
+
+                        {{--// Создаем FormData для отправки--}}
+                        {{--var formData = new FormData();--}}
+                        {{--formData.append('_token', $('input[name="_token"]').val()); // Добавляем CSRF-токен--}}
+                        {{--formData.append('croppedImage', $('#croppedImage').val()); // Добавляем обрезанное изображение--}}
+                        {{--formData.append('userName', userName); // Добавляем имя пользователя--}}
+
+                        {{--// Отправка данных через AJAX--}}
+                        {{--$.ajax({--}}
+                            {{--url: "{{ route('profile.user.uploadAvatar') }}", // URL маршрута--}}
+                            {{--type: 'POST', // Метод POST--}}
+                            {{--data: formData, // Данные формы--}}
+                            {{--contentType: false,--}}
+                            {{--processData: false,--}}
+                            {{--success: function (response) {--}}
+                                {{--if (response.success) {--}}
+                                    {{--$('#confirm-img').attr('src', response.image_url);--}}
+                                    {{--showSuccessModal("Обновление аватара", "Аватар успешно обновлен.", 1);--}}
+                                {{--} else {--}}
+                                    {{--alert('Ошибка загрузки изображения');--}}
+                                {{--}--}}
+                            {{--},--}}
+                            {{--error: function (xhr, status, error) {--}}
+                                {{--console.error('Ошибка:', error);--}}
+                                {{--$('#errorModal').modal('show');--}}
+                            {{--}--}}
+                        {{--});--}}
+                    {{--});--}}
+                {{--});--}}
+
+                // Сохранение результата
                 $('#saveImageBtn').on('click', function () {
                     $uploadCrop.croppie('result', {
                         type: 'base64',
-                        size: 'viewport'
+                        size: 'viewport' // сохраняем размер видимой области
                     }).then(function (resp) {
-                        // Заполняем скрытое поле base64 изображением
-                        $('#croppedImage').val(resp);
 
-                        let userName = $('#selectedUserName').val();
-
-                        // Создаем FormData для отправки
+                        // Пакуем форму
                         var formData = new FormData();
-                        formData.append('_token', $('input[name="_token"]').val()); // Добавляем CSRF-токен
-                        formData.append('croppedImage', $('#croppedImage').val()); // Добавляем обрезанное изображение
-                        formData.append('userName', userName); // Добавляем имя пользователя
+                        formData.append('_token', $('input[name="_token"]').val());
+                        formData.append('croppedImage', resp);
 
-                        // Отправка данных через AJAX
                         $.ajax({
-                            url: uploadUrl, // URL маршрута
-                            type: 'POST', // Метод POST
-                            data: formData, // Данные формы
+                            url: "{{ route('profile.user.uploadAvatar') }}",
+                            type: 'POST',
+                            data: formData,
                             contentType: false,
-                            processData: false,
-                            success: function (response) {
-                                if (response.success) {
-                                    $('#confirm-img').attr('src', response.image_url);
-                                    showSuccessModal("Обновление аватара", "Аватар успешно обновлен.", 1);
-                                } else {
-                                    alert('Ошибка загрузки изображения');
+                            processData: false
+                        }).done(function (response) {
+                            if (response.success) {
+                                // Обновляем мини-аватар и картинку в модалке
+                                const newSrc = response.image_url + '?t=' + Date.now();
+                                $('.js-current-avatar').attr('src', newSrc);
+                                $('#avatarZoomImg').attr('src', newSrc);
+
+                                // Твой модал успеха, если есть
+                                if (typeof showSuccessModal === 'function') {
+                                    showSuccessModal("Обновление аватара", "Аватар успешно обновлён.", 1);
                                 }
-                            },
-                            error: function (xhr, status, error) {
-                                console.error('Ошибка:', error);
-                                $('#errorModal').modal('show');
+                            } else {
+                                if (typeof showErrorModal === 'function') {
+                                    showErrorModal("Ошибка загрузки", response.message || 'Не удалось загрузить аватар');
+                                } else {
+                                    alert(response.message || 'Не удалось загрузить аватар');
+                                }
+                            }
+                        }).fail(function (xhr) {
+                            console.error(xhr.responseText || xhr.statusText);
+                            if (typeof showErrorModal === 'function') {
+                                showErrorModal("Ошибка сервера", "Попробуйте другой файл или повторите позже.");
+                            } else {
+                                alert('Ошибка сервера');
                             }
                         });
                     });
@@ -966,5 +1038,16 @@
             hideModal();
 
         });
+
+        // Подмена src при открытии модалки зума, чтобы точно был актуальный
+        document.addEventListener('show.bs.modal', function (event) {
+            if (event.target.id === 'avatarZoomModal') {
+                const src = $('.js-current-avatar').attr('src');
+                $('#avatarZoomImg').attr('src', src.includes('?t=') ? src : (src + '?t=' + Date.now()));
+            }
+        });
+
     </script>
+
+
 @endsection

@@ -1,3 +1,5 @@
+//general-script.js
+
 // —— Сначала: стили (порядок не критичен) ——
 import 'select2/dist/css/select2.min.css';
 import 'datatables.net-dt/css/dataTables.dataTables.min.css';

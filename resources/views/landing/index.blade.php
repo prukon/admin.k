@@ -232,7 +232,7 @@
 
                 {{-- Центральное изображение --}}
                 <div class="col-md-4 text-center mb-4 mb-md-0">
-                    <img src="{{ asset('img/landing/dashboard.PNG') }}"
+                    <img src="{{ asset('img/landing/dashboard.png') }}"
                          alt="Функции"
                          class="img-fluid rounded mx-auto d-block">
                 </div>

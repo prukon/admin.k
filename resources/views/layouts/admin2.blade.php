@@ -116,273 +116,273 @@
             @endforeach
         </ul>
 
-            @can('partner-view')
-            <!-- Форма переключения партнёров -->
-                <div class="collapse navbar-collapse mr-3">
-                    <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
-                        @csrf
-                        <select name="partner_id" class="form-select" onchange="this.form.submit()">
-                            @foreach(App\Models\Partner::all() as $partner)
-                                <option value="{{ $partner->id }}" {{ session('current_partner') == $partner->id ? 'selected' : '' }}>
-                                    {{ $partner->title }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </form>
-                </div>
-        @endcan
+    @can('partner-view')
+        <!-- Форма переключения партнёров -->
+            <div class="collapse navbar-collapse mr-3">
+                <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
+                    @csrf
+                    <select name="partner_id" class="form-select" onchange="this.form.submit()">
+                        @foreach(App\Models\Partner::all() as $partner)
+                            <option value="{{ $partner->id }}" {{ session('current_partner') == $partner->id ? 'selected' : '' }}>
+                                {{ $partner->title }}
+                            </option>
+                        @endforeach
+                    </select>
+                </form>
+            </div>
+    @endcan
 
 
-        <!-- Right navbar links -->
-            <ul class="navbar-nav ml-auto social-menu mr-3">
-                <!-- Navbar Search -->
+    <!-- Right navbar links -->
+        <ul class="navbar-nav ml-auto social-menu mr-3">
+            <!-- Navbar Search -->
 
-                {{--            <li class="nav-item">--}}
-                {{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
-                {{--                   href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk" aria-hidden="true"></i></a>--}}
-                {{--            </li>--}}
-                {{--            <li class="nav-item ml-2">--}}
-                {{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
-                {{--                   href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i class="fa-brands fa-youtube"--}}
-                {{--                                                                                      aria-hidden="true"></i></a>--}}
-                {{--            </li>--}}
+            {{--            <li class="nav-item">--}}
+            {{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
+            {{--                   href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk" aria-hidden="true"></i></a>--}}
+            {{--            </li>--}}
+            {{--            <li class="nav-item ml-2">--}}
+            {{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
+            {{--                   href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i class="fa-brands fa-youtube"--}}
+            {{--                                                                                      aria-hidden="true"></i></a>--}}
+            {{--            </li>--}}
 
-                @foreach($socialItems as $social)
-                    <li class="nav-item {{ $loop->first ? '' : 'ml-2' }}">
-                        <a target="_blank" class="d-flex justify-content-center align-items-center"
-                           href="{{ $social->link }}">
-                            @if($social->name === 'vk.com' && $social->link != '')
-                                <i class="fa-brands fa-vk" aria-hidden="true"></i>
-                            @elseif($social->name === 'YouTube.com' && $social->link != '')
-                                <i class="fa-brands fa-youtube" aria-hidden="true"></i>
-                            @elseif($social->name === 'RuTube.ru' && $social->link != '')
-                                <i class="fa-brands fa-rutube" aria-hidden="true"></i>
-                            @elseif($social->name === 'facebook.com' && $social->link != '')
-                                <i class="fa-brands fa-facebook" aria-hidden="true"></i>
-                            @elseif($social->name === 'Instagram.com' && $social->link != '')
-                                <i class="fa-brands fa-instagram" aria-hidden="true"></i>
-                            @elseif($social->name === 'Twitter.com' && $social->link != '')
-                                <i class="fa-brands fa-twitter" aria-hidden="true"></i>
-                            @elseif($social->name === 'LinkedIn.com' && $social->link != '')
-                                <i class="fa-brands fa-linkedin" aria-hidden="true"></i>
-                            @elseif($social->name === 'Telegram.org' && $social->link != '')
-                                <i class="fa-brands fa-telegram" aria-hidden="true"></i>
-                            @elseif($social->name === 'Pinterest.com' && $social->link != '')
-                                <i class="fa-brands fa-pinterest" aria-hidden="true"></i>
-                            @elseif($social->name === 'TikTok.com' && $social->link != '')
-                                <i class="fa-brands fa-tiktok" aria-hidden="true"></i>
-                            @elseif($social->name === 'Reddit.com' && $social->link != '')
-                                <i class="fa-brands fa-reddit" aria-hidden="true"></i>
-                            @elseif($social->name === 'Snapchat.com' && $social->link != '')
-                                <i class="fa-brands fa-snapchat" aria-hidden="true"></i>
-                            @elseif($social->name === 'WhatsApp.com' && $social->link != '')
-                                <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
-                            @elseif($social->name === 'Discord.com' && $social->link != '')
-                                <i class="fa-brands fa-discord" aria-hidden="true"></i>
-                            @elseif($social->name === 'Tumblr.com' && $social->link != '')
-                                <i class="fa-brands fa-tumblr" aria-hidden="true"></i>
-                            @elseif($social->name === 'Dribbble.com' && $social->link != '')
-                                <i class="fa-brands fa-dribbble" aria-hidden="true"></i>
-                            @elseif($social->name === 'GitHub.com' && $social->link != '')
-                                <i class="fa-brands fa-github" aria-hidden="true"></i>
-                            @elseif($social->name === 'Vimeo.com' && $social->link != '')
-                                <i class="fa-brands fa-vimeo" aria-hidden="true"></i>
-                            @elseif($social->name === 'Slack.com' && $social->link != '')
-                                <i class="fa-brands fa-slack" aria-hidden="true"></i>
-                            @elseif($social->name === 'Dropbox.com' && $social->link != '')
-                                <i class="fa-brands fa-dropbox" aria-hidden="true"></i>
-                            @endif
-                        </a>
+            @foreach($socialItems as $social)
+                <li class="nav-item {{ $loop->first ? '' : 'ml-2' }}">
+                    <a target="_blank" class="d-flex justify-content-center align-items-center"
+                       href="{{ $social->link }}">
+                        @if($social->name === 'vk.com' && $social->link != '')
+                            <i class="fa-brands fa-vk" aria-hidden="true"></i>
+                        @elseif($social->name === 'YouTube.com' && $social->link != '')
+                            <i class="fa-brands fa-youtube" aria-hidden="true"></i>
+                        @elseif($social->name === 'RuTube.ru' && $social->link != '')
+                            <i class="fa-brands fa-rutube" aria-hidden="true"></i>
+                        @elseif($social->name === 'facebook.com' && $social->link != '')
+                            <i class="fa-brands fa-facebook" aria-hidden="true"></i>
+                        @elseif($social->name === 'Instagram.com' && $social->link != '')
+                            <i class="fa-brands fa-instagram" aria-hidden="true"></i>
+                        @elseif($social->name === 'Twitter.com' && $social->link != '')
+                            <i class="fa-brands fa-twitter" aria-hidden="true"></i>
+                        @elseif($social->name === 'LinkedIn.com' && $social->link != '')
+                            <i class="fa-brands fa-linkedin" aria-hidden="true"></i>
+                        @elseif($social->name === 'Telegram.org' && $social->link != '')
+                            <i class="fa-brands fa-telegram" aria-hidden="true"></i>
+                        @elseif($social->name === 'Pinterest.com' && $social->link != '')
+                            <i class="fa-brands fa-pinterest" aria-hidden="true"></i>
+                        @elseif($social->name === 'TikTok.com' && $social->link != '')
+                            <i class="fa-brands fa-tiktok" aria-hidden="true"></i>
+                        @elseif($social->name === 'Reddit.com' && $social->link != '')
+                            <i class="fa-brands fa-reddit" aria-hidden="true"></i>
+                        @elseif($social->name === 'Snapchat.com' && $social->link != '')
+                            <i class="fa-brands fa-snapchat" aria-hidden="true"></i>
+                        @elseif($social->name === 'WhatsApp.com' && $social->link != '')
+                            <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+                        @elseif($social->name === 'Discord.com' && $social->link != '')
+                            <i class="fa-brands fa-discord" aria-hidden="true"></i>
+                        @elseif($social->name === 'Tumblr.com' && $social->link != '')
+                            <i class="fa-brands fa-tumblr" aria-hidden="true"></i>
+                        @elseif($social->name === 'Dribbble.com' && $social->link != '')
+                            <i class="fa-brands fa-dribbble" aria-hidden="true"></i>
+                        @elseif($social->name === 'GitHub.com' && $social->link != '')
+                            <i class="fa-brands fa-github" aria-hidden="true"></i>
+                        @elseif($social->name === 'Vimeo.com' && $social->link != '')
+                            <i class="fa-brands fa-vimeo" aria-hidden="true"></i>
+                        @elseif($social->name === 'Slack.com' && $social->link != '')
+                            <i class="fa-brands fa-slack" aria-hidden="true"></i>
+                        @elseif($social->name === 'Dropbox.com' && $social->link != '')
+                            <i class="fa-brands fa-dropbox" aria-hidden="true"></i>
+                        @endif
+                    </a>
 
-                    </li>
-                @endforeach
-
-
-                <li class="nav-item d-flex align-items-center">
-                    <button type="button" class="btn btn-primary logout confirm-logout-modal" data-bs-toggle="modal"
-                            data-bs-target="#logoutModal">Выйти
-                    </button>
                 </li>
-
-                <script>
-                    document.addEventListener('show.bs.modal', function (event) {
-                        const modal = event.target; // Получаем текущее модальное окно
-                        const wrapper = document.querySelector('.wrapper'); // Находим элемент wrapper
-
-                        if (wrapper && modal) {
-                            wrapper.prepend(modal); // Перемещаем модальное окно в начало wrapper
-                        }
-                    });
-                </script>
+            @endforeach
 
 
-                <!-- Модальное окно настройки меню -->
-                {{--@include('includes.confirmLogout')--}}
+            <li class="nav-item d-flex align-items-center">
+                <button type="button" class="btn btn-primary logout confirm-logout-modal" data-bs-toggle="modal"
+                        data-bs-target="#logoutModal">Выйти
+                </button>
+            </li>
 
-            <!-- Модальное окно подтверждения удаления -->
-{{--                @include('includes.modal.confirmDeleteModal')--}}
+            <script>
+                document.addEventListener('show.bs.modal', function (event) {
+                    const modal = event.target; // Получаем текущее модальное окно
+                    const wrapper = document.querySelector('.wrapper'); // Находим элемент wrapper
 
-
-                <script>
-                    // Вызов модалки логаута
-                    $(document).on('click', '.confirm-logout-modal', function () {
-                        logoutUser();
-                    });
-
-                    //Выполнение логаута
-                    function logoutUser() {
-                        // Показываем модалку с текстом и передаём колбэк, который выполнит выход
-                        showConfirmDeleteModal(
-                            "Подтверждение выхода",
-                            "Вы уверены, что хотите выйти?",
-                            function () {
-                                $.ajax({
-                                    url: "{{ route('logout') }}",   // маршрут выхода
-                                    type: "POST",                  // метод запроса
-                                    data: {
-                                        _token: "{{ csrf_token() }}" // обязательно передаём CSRF-токен
-                                    },
-                                    success: function (response) {
-                                        // Закрываем модальное окно
-                                        // $('#deleteConfirmationModal').modal('hide');
-                                        // Перезагружаем страницу или перенаправляем, если нужно
-                                        location.reload();
-                                    },
-                                    error: function (xhr) {
-                                        // alert('Ошибка при попытке выйти.');
-                                        location.reload();
-                                    }
-                                });
-                            }
-                        );
+                    if (wrapper && modal) {
+                        wrapper.prepend(modal); // Перемещаем модальное окно в начало wrapper
                     }
+                });
+            </script>
 
-                </script>
+
+            <!-- Модальное окно настройки меню -->
+            {{--@include('includes.confirmLogout')--}}
+
+        <!-- Модальное окно подтверждения удаления -->
+            {{--                @include('includes.modal.confirmDeleteModal')--}}
 
 
-                {{--            <li class="nav-item">--}}
-                {{--                <a class="nav-link" data-widget="navbar-search" href="#" role="button">--}}
-                {{--                    <i class="fas fa-search"></i>--}}
-                {{--                </a>--}}
-                {{--                <div class="navbar-search-block">--}}
-                {{--                    <form class="form-inline">--}}
-                {{--                        <div class="input-group input-group-sm">--}}
-                {{--                            <input class="form-control form-control-navbar" type="search" placeholder="Search"--}}
-                {{--                                   aria-label="Search">--}}
-                {{--                            <div class="input-group-append">--}}
-                {{--                                <button class="btn btn-navbar" type="submit">--}}
-                {{--                                    <i class="fas fa-search"></i>--}}
-                {{--                                </button>--}}
-                {{--                                <button class="btn btn-navbar" type="button" data-widget="navbar-search">--}}
-                {{--                                    <i class="fas fa-times"></i>--}}
-                {{--                                </button>--}}
-                {{--                            </div>--}}
-                {{--                        </div>--}}
-                {{--                    </form>--}}
-                {{--                </div>--}}
-                {{--            </li>--}}
+            <script>
+                // Вызов модалки логаута
+                $(document).on('click', '.confirm-logout-modal', function () {
+                    logoutUser();
+                });
 
-            <!-- Messages Dropdown Menu -->
-                {{--                        <li class="nav-item dropdown">--}}
-                {{--                            <a class="nav-link" data-toggle="dropdown" href="#">--}}
-                {{--                                <i class="far fa-comments"></i>--}}
-                {{--                                <span class="badge badge-danger navbar-badge">3</span>--}}
-                {{--                            </a>--}}
-                {{--                            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
-                {{--                                <a href="#" class="dropdown-item">--}}
-                {{--                                    <!-- Message Start -->--}}
-                {{--                                    <div class="media">--}}
-                {{--                                        <img src="{{ asset('dist/img/user1-128x128.jpg') }}" alt="User Avatar"--}}
-                {{--                                             class="img-size-50 mr-3 img-circle">--}}
-                {{--                                        <div class="media-body">--}}
-                {{--                                            <h3 class="dropdown-item-title">--}}
-                {{--                                                Brad Diesel--}}
-                {{--                                                <span class="float-right text-sm text-danger"><i class="fas fa-star"></i></span>--}}
-                {{--                                            </h3>--}}
-                {{--                                            <p class="text-sm">Call me whenever you can...</p>--}}
-                {{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
-                {{--                                        </div>--}}
-                {{--                                    </div>--}}
-                {{--                                    <!-- Message End -->--}}
-                {{--                                </a>--}}
-                {{--                                <div class="dropdown-divider"></div>--}}
-                {{--                                <a href="#" class="dropdown-item">--}}
-                {{--                                    <!-- Message Start -->--}}
-                {{--                                    <div class="media">--}}
-                {{--                                        <img src="{{ asset('dist/img/user8-128x128.jpg') }}" alt="User Avatar"--}}
-                {{--                                             class="img-size-50 img-circle mr-3">--}}
-                {{--                                        <div class="media-body">--}}
-                {{--                                            <h3 class="dropdown-item-title">--}}
-                {{--                                                John Pierce--}}
-                {{--                                                <span class="float-right text-sm text-muted"><i class="fas fa-star"></i></span>--}}
-                {{--                                            </h3>--}}
-                {{--                                            <p class="text-sm">I got your message bro</p>--}}
-                {{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
-                {{--                                        </div>--}}
-                {{--                                    </div>--}}
-                {{--                                    <!-- Message End -->--}}
-                {{--                                </a>--}}
-                {{--                                <div class="dropdown-divider"></div>--}}
-                {{--                                <a href="#" class="dropdown-item">--}}
-                {{--                                    <!-- Message Start -->--}}
-                {{--                                    <div class="media">--}}
-                {{--                                        <img src="{{ asset('dist/img/user3-128x128.jpg') }}" alt="User Avatar"--}}
-                {{--                                             class="img-size-50 img-circle mr-3">--}}
-                {{--                                        <div class="media-body">--}}
-                {{--                                            <h3 class="dropdown-item-title">--}}
-                {{--                                                Nora Silvester--}}
-                {{--                                                <span class="float-right text-sm text-warning"><i class="fas fa-star"></i></span>--}}
-                {{--                                            </h3>--}}
-                {{--                                            <p class="text-sm">The subject goes here</p>--}}
-                {{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
-                {{--                                        </div>--}}
-                {{--                                    </div>--}}
-                {{--                                    <!-- Message End -->--}}
-                {{--                                </a>--}}
-                {{--                                <div class="dropdown-divider"></div>--}}
-                {{--                                <a href="#" class="dropdown-item dropdown-footer">See All Messages</a>--}}
-                {{--                            </div>--}}
-                {{--                        </li>--}}
+                //Выполнение логаута
+                function logoutUser() {
+                    // Показываем модалку с текстом и передаём колбэк, который выполнит выход
+                    showConfirmDeleteModal(
+                        "Подтверждение выхода",
+                        "Вы уверены, что хотите выйти?",
+                        function () {
+                            $.ajax({
+                                url: "{{ route('logout') }}",   // маршрут выхода
+                                type: "POST",                  // метод запроса
+                                data: {
+                                    _token: "{{ csrf_token() }}" // обязательно передаём CSRF-токен
+                                },
+                                success: function (response) {
+                                    // Закрываем модальное окно
+                                    // $('#deleteConfirmationModal').modal('hide');
+                                    // Перезагружаем страницу или перенаправляем, если нужно
+                                    location.reload();
+                                },
+                                error: function (xhr) {
+                                    // alert('Ошибка при попытке выйти.');
+                                    location.reload();
+                                }
+                            });
+                        }
+                    );
+                }
 
-            <!-- Notifications Dropdown Menu -->
-                {{--<li class="nav-item dropdown">--}}
-                {{--<a class="nav-link" data-toggle="dropdown" href="#">--}}
-                {{--<i class="far fa-bell"></i>--}}
-                {{--<span class="badge badge-warning navbar-badge">15</span>--}}
-                {{--</a>--}}
-                {{--<div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
-                {{--<span class="dropdown-item dropdown-header">15 Notifications</span>--}}
-                {{--<div class="dropdown-divider"></div>--}}
-                {{--<a href="#" class="dropdown-item">--}}
-                {{--<i class="fas fa-envelope mr-2"></i> 4 new messages--}}
-                {{--<span class="float-right text-muted text-sm">3 mins</span>--}}
-                {{--</a>--}}
-                {{--<div class="dropdown-divider"></div>--}}
-                {{--<a href="#" class="dropdown-item">--}}
-                {{--<i class="fas fa-users mr-2"></i> 8 friend requests--}}
-                {{--<span class="float-right text-muted text-sm">12 hours</span>--}}
-                {{--</a>--}}
-                {{--<div class="dropdown-divider"></div>--}}
-                {{--<a href="#" class="dropdown-item">--}}
-                {{--<i class="fas fa-file mr-2"></i> 3 new reports--}}
-                {{--<span class="float-right text-muted text-sm">2 days</span>--}}
-                {{--</a>--}}
-                {{--<div class="dropdown-divider"></div>--}}
-                {{--<a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>--}}
-                {{--</div>--}}
-                {{--</li>--}}
-                {{--<li class="nav-item">--}}
-                {{--<a class="nav-link" data-widget="fullscreen" href="#" role="button">--}}
-                {{--<i class="fas fa-expand-arrows-alt"></i>--}}
-                {{--</a>--}}
-                {{--</li>--}}
-                {{--<li class="nav-item">--}}
-                {{--<a class="nav-link" data-widget="control-sidebar" data-controlsidebar-slide="true" href="#"--}}
-                {{--role="button">--}}
-                {{--<i class="fas fa-th-large"></i>--}}
-                {{--</a>--}}
-                {{--</li>--}}
-            </ul>
+            </script>
+
+
+            {{--            <li class="nav-item">--}}
+            {{--                <a class="nav-link" data-widget="navbar-search" href="#" role="button">--}}
+            {{--                    <i class="fas fa-search"></i>--}}
+            {{--                </a>--}}
+            {{--                <div class="navbar-search-block">--}}
+            {{--                    <form class="form-inline">--}}
+            {{--                        <div class="input-group input-group-sm">--}}
+            {{--                            <input class="form-control form-control-navbar" type="search" placeholder="Search"--}}
+            {{--                                   aria-label="Search">--}}
+            {{--                            <div class="input-group-append">--}}
+            {{--                                <button class="btn btn-navbar" type="submit">--}}
+            {{--                                    <i class="fas fa-search"></i>--}}
+            {{--                                </button>--}}
+            {{--                                <button class="btn btn-navbar" type="button" data-widget="navbar-search">--}}
+            {{--                                    <i class="fas fa-times"></i>--}}
+            {{--                                </button>--}}
+            {{--                            </div>--}}
+            {{--                        </div>--}}
+            {{--                    </form>--}}
+            {{--                </div>--}}
+            {{--            </li>--}}
+
+        <!-- Messages Dropdown Menu -->
+            {{--                        <li class="nav-item dropdown">--}}
+            {{--                            <a class="nav-link" data-toggle="dropdown" href="#">--}}
+            {{--                                <i class="far fa-comments"></i>--}}
+            {{--                                <span class="badge badge-danger navbar-badge">3</span>--}}
+            {{--                            </a>--}}
+            {{--                            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
+            {{--                                <a href="#" class="dropdown-item">--}}
+            {{--                                    <!-- Message Start -->--}}
+            {{--                                    <div class="media">--}}
+            {{--                                        <img src="{{ asset('dist/img/user1-128x128.jpg') }}" alt="User Avatar"--}}
+            {{--                                             class="img-size-50 mr-3 img-circle">--}}
+            {{--                                        <div class="media-body">--}}
+            {{--                                            <h3 class="dropdown-item-title">--}}
+            {{--                                                Brad Diesel--}}
+            {{--                                                <span class="float-right text-sm text-danger"><i class="fas fa-star"></i></span>--}}
+            {{--                                            </h3>--}}
+            {{--                                            <p class="text-sm">Call me whenever you can...</p>--}}
+            {{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
+            {{--                                        </div>--}}
+            {{--                                    </div>--}}
+            {{--                                    <!-- Message End -->--}}
+            {{--                                </a>--}}
+            {{--                                <div class="dropdown-divider"></div>--}}
+            {{--                                <a href="#" class="dropdown-item">--}}
+            {{--                                    <!-- Message Start -->--}}
+            {{--                                    <div class="media">--}}
+            {{--                                        <img src="{{ asset('dist/img/user8-128x128.jpg') }}" alt="User Avatar"--}}
+            {{--                                             class="img-size-50 img-circle mr-3">--}}
+            {{--                                        <div class="media-body">--}}
+            {{--                                            <h3 class="dropdown-item-title">--}}
+            {{--                                                John Pierce--}}
+            {{--                                                <span class="float-right text-sm text-muted"><i class="fas fa-star"></i></span>--}}
+            {{--                                            </h3>--}}
+            {{--                                            <p class="text-sm">I got your message bro</p>--}}
+            {{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
+            {{--                                        </div>--}}
+            {{--                                    </div>--}}
+            {{--                                    <!-- Message End -->--}}
+            {{--                                </a>--}}
+            {{--                                <div class="dropdown-divider"></div>--}}
+            {{--                                <a href="#" class="dropdown-item">--}}
+            {{--                                    <!-- Message Start -->--}}
+            {{--                                    <div class="media">--}}
+            {{--                                        <img src="{{ asset('dist/img/user3-128x128.jpg') }}" alt="User Avatar"--}}
+            {{--                                             class="img-size-50 img-circle mr-3">--}}
+            {{--                                        <div class="media-body">--}}
+            {{--                                            <h3 class="dropdown-item-title">--}}
+            {{--                                                Nora Silvester--}}
+            {{--                                                <span class="float-right text-sm text-warning"><i class="fas fa-star"></i></span>--}}
+            {{--                                            </h3>--}}
+            {{--                                            <p class="text-sm">The subject goes here</p>--}}
+            {{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
+            {{--                                        </div>--}}
+            {{--                                    </div>--}}
+            {{--                                    <!-- Message End -->--}}
+            {{--                                </a>--}}
+            {{--                                <div class="dropdown-divider"></div>--}}
+            {{--                                <a href="#" class="dropdown-item dropdown-footer">See All Messages</a>--}}
+            {{--                            </div>--}}
+            {{--                        </li>--}}
+
+        <!-- Notifications Dropdown Menu -->
+            {{--<li class="nav-item dropdown">--}}
+            {{--<a class="nav-link" data-toggle="dropdown" href="#">--}}
+            {{--<i class="far fa-bell"></i>--}}
+            {{--<span class="badge badge-warning navbar-badge">15</span>--}}
+            {{--</a>--}}
+            {{--<div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
+            {{--<span class="dropdown-item dropdown-header">15 Notifications</span>--}}
+            {{--<div class="dropdown-divider"></div>--}}
+            {{--<a href="#" class="dropdown-item">--}}
+            {{--<i class="fas fa-envelope mr-2"></i> 4 new messages--}}
+            {{--<span class="float-right text-muted text-sm">3 mins</span>--}}
+            {{--</a>--}}
+            {{--<div class="dropdown-divider"></div>--}}
+            {{--<a href="#" class="dropdown-item">--}}
+            {{--<i class="fas fa-users mr-2"></i> 8 friend requests--}}
+            {{--<span class="float-right text-muted text-sm">12 hours</span>--}}
+            {{--</a>--}}
+            {{--<div class="dropdown-divider"></div>--}}
+            {{--<a href="#" class="dropdown-item">--}}
+            {{--<i class="fas fa-file mr-2"></i> 3 new reports--}}
+            {{--<span class="float-right text-muted text-sm">2 days</span>--}}
+            {{--</a>--}}
+            {{--<div class="dropdown-divider"></div>--}}
+            {{--<a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>--}}
+            {{--</div>--}}
+            {{--</li>--}}
+            {{--<li class="nav-item">--}}
+            {{--<a class="nav-link" data-widget="fullscreen" href="#" role="button">--}}
+            {{--<i class="fas fa-expand-arrows-alt"></i>--}}
+            {{--</a>--}}
+            {{--</li>--}}
+            {{--<li class="nav-item">--}}
+            {{--<a class="nav-link" data-widget="control-sidebar" data-controlsidebar-slide="true" href="#"--}}
+            {{--role="button">--}}
+            {{--<i class="fas fa-th-large"></i>--}}
+            {{--</a>--}}
+            {{--</li>--}}
+        </ul>
     </nav>
     <!-- /.navbar -->
 
@@ -554,9 +554,20 @@
 @yield('scripts')
 
 {{--Cropie--}}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css">
+{{--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css">--}}
+    <link rel="stylesheet" href="{{ asset('css/croppie.min.css') }}">
+
+
 <link rel="stylesheet" href="{{ asset('css/croppie.css') }}">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js"></script>
+
+
+
+{{--<script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js"></script>--}}
+<script src="{{ asset('js/croppie.min.js') }}"></script>
+
+
+
+
 
 {{--Select2--}}
 <link rel="stylesheet" href="{{ asset('css/select2/select2.min.css') }}">
@@ -574,14 +585,39 @@
 <link rel="stylesheet" href="{{ asset('css/calendar.css') }}">
 
 <!-- Включение DataTables CSS -->
-<link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel="stylesheet">
+{{--<link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel="stylesheet">--}}
+<link rel="stylesheet" href="{{ asset('css/jquery.dataTables.min.css') }}">
+
+<style>
+    /* Переопределяем пути к стрелкам сортировки */
+    table.dataTable thead .sorting {
+        background-image:url("/img/datatables/sort_both.png") !important;
+    }
+    table.dataTable thead .sorting_asc {
+        background-image:url("/img/datatables/sort_asc.png") !important;
+    }
+    table.dataTable thead .sorting_desc {
+        background-image:url("/img/datatables/sort_desc.png") !important;
+    }
+    table.dataTable thead .sorting_asc_disabled {
+        background-image:url("/img/datatables/sort_asc_disabled.png") !important;
+    }
+    table.dataTable thead .sorting_desc_disabled {
+        background-image:url("/img/datatables/sort_desc_disabled.png") !important;
+    }
+</style>
+
+
 
 <!-- Включение DataTables JS -->
-<script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+{{--<script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>--}}
+<script src="{{ asset('js/datatables/jquery.dataTables.min.js') }}"></script>
 
 
 {{--<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">--}}
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{{--<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>--}}
+{{--<script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>--}}
+
 
 {{--снежинки--}}
 {{--<script src="https://daruse.ru/assets/js/snowfall.js"></script>--}}

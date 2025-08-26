@@ -471,7 +471,8 @@
     $.widget.bridge('uibutton', $.ui.button)
 </script>
 <!-- Bootstrap 4 -->
-{{--<script src="{{ asset('plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>--}}
+<!--{{--<script src="{{ asset('plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>--}}-->
+
 <!-- ChartJS -->
 {{--<script src="{{ asset('plugins/chart.js/Chart.min.js') }}"></script>--}}
 <!-- Sparkline -->
@@ -522,7 +523,8 @@
 <link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel="stylesheet">
 
 <!-- Включение DataTables JS -->
-<script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+<!--<script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>-->
+<script src="{{ asset('js/datatables/jquery.dataTables.min.js') }}"></script>
 
 
 

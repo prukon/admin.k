@@ -51,15 +51,3 @@
         </div>
     </div>
 </div>
-
-<!-- Модалки -->
-
-
-@include('includes.modal.confirmDeleteModal')
-
-<!-- Модальное окно успешного обновления данных -->
-@include('includes.modal.successOrderModal')
-
-<!-- Модальное окно ошибки -->
-{{--@include('includes.modal.errorModal')--}}
-

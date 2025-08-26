@@ -17,9 +17,20 @@
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
 
+    <link rel="stylesheet" href="{{ asset('css/select2/select2-bootstrap-5-theme.min.css') }}">
+
+    <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
+{{--    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>--}}
+    {{--<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>--}}
+
+
+
     @vite([
-    'resources/js/common-scripts.js',
-    'resources/js/landing.js',
+    'resources/js/vendor.js',
+
+    {{--'resources/js/common-scripts.js',--}}
+    {{--'resources/js/landing.js',--}}
+
     'resources/css/landing.css',
     'resources/sass/app.scss'
     ])

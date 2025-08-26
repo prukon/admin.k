@@ -1,3 +1,5 @@
+//app.js
+
 import './bootstrap';
 import 'bootstrap/dist/js/bootstrap.bundle';
 
@@ -16,4 +18,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
         calendar.render();  // Закрываем скобку здесь, чтобы завершить вызов функции
     }
-});  // Закрываем скобку здесь, чтобы завершить вызов addEventListener
+});  // Закрываем скобку здесь, чтобы заве  ршить вызов addEventListener

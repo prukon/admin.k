@@ -18,7 +18,8 @@
     <link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel="stylesheet">
 
     <!-- Включение DataTables JS -->
-    <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+    {{--<script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>--}}
+    <script src="{{ asset('js/datatables/jquery.dataTables.min.js') }}"></script>
 
 
     <!-- Scripts -->

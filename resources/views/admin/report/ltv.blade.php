@@ -11,7 +11,7 @@
     </tr>
     </thead>
 </table>
-@section('scripts')
+{{--@section('scripts')--}}
     <script type="text/javascript">
         // Функция для форматирования даты
         function formatDateToMonthYear(dateStr) {
@@ -121,4 +121,4 @@
 
         });
     </script>
-@endsection
+{{--@endsection--}}
