@@ -14,6 +14,11 @@
     <script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>
     {{--Fontawesome--}}
     <script src="{{ asset('js/fontawesome/fontawesome.js') }}"></script>
+    {{--bootstrap--}}
+    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
+
+
+
     {{--Datapicker--}}
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.material.css') }}">
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.minimal.css') }}">
@@ -29,7 +34,7 @@
     <link rel="stylesheet" href="{{ asset('https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css') }}">
     <!-- Tempusdominus Bootstrap 4 -->
     <link rel="stylesheet"
-          href="{{ asset('plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css') }}">
+{{--          href="{{ asset('plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css') }}">--}}
     <!-- iCheck -->
     <link rel="stylesheet" href="{{ asset('plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
     <!-- JQVMap -->
