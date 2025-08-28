@@ -1,6 +1,5 @@
 @extends('layouts.admin2')
 @section('content')
-    {{--<div class="col-md-12 main-content users-list text-start">--}}
     <div class="main-content text-start">
 
         <h4 class="pt-3">Группы</h4>

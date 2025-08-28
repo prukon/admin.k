@@ -13,6 +13,10 @@ class ContactSubmission extends Model
         'name',
         'email',
         'phone',
+        'website',
         'message',
     ];
+
+
+
 }
