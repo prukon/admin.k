@@ -26,6 +26,42 @@
     'resources/sass/app.scss'
     ])
 
+
+    <script>
+        function showModalQueued(modalId, opts = {}) {
+            const $current = $('.modal.show').last();                 // текущая (если есть)
+            const currentId = $current.length ? $current.attr('id') : null;
+
+            const targetEl = document.getElementById(modalId);
+            if (!targetEl) return;
+
+            // гарантируем, что модалка — прямой ребёнок body
+            document.body.appendChild(targetEl);
+
+            const target = bootstrap.Modal.getOrCreateInstance(targetEl, opts);
+
+            // когда НОВАЯ закроется — вернуть предыдущую (если была)
+            $(targetEl).off('hidden.bs.modal.return').one('hidden.bs.modal.return', function () {
+                if (currentId) {
+                    const prevEl = document.getElementById(currentId);
+                    if (prevEl) bootstrap.Modal.getOrCreateInstance(prevEl).show();
+                }
+            });
+
+            if (currentId && currentId !== modalId) {
+                const prevEl = document.getElementById(currentId);
+                const prev = bootstrap.Modal.getInstance(prevEl);
+                // после полного скрытия предыдущей — показать новую
+                $(prevEl).off('hidden.bs.modal.openNext').one('hidden.bs.modal.openNext', function () {
+                    target.show();
+                });
+                prev.hide();
+            } else {
+                target.show();
+            }
+        }
+    </script>
+
 </head>
 <body>
 
@@ -126,6 +162,10 @@
 </div>
 
 @yield('scripts')
+
+@include('includes.modal.confirmDeleteModal')
+@include('includes.modal.successModal')
+@include('includes.modal.errorModal')
 
 </body>
 </html>
