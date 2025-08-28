@@ -75,7 +75,7 @@ class PermissionSeeder extends Seeder
             // misc (id=4)
             ['name'=>'manage_roles','description'=>'Управление ролями','group_slug'=>'misc','is_visible'=>0,'sort_order'=>190],
             ['name'=>'change_history','description'=>'Просмотр истории изменений','group_slug'=>'misc','is_visible'=>0,'sort_order'=>180],
-            ['name'=>'student_filter_console','description'=>'Фильтр учеников в консоли','group_slug'=>'misc','is_visible'=>0,'sort_order'=>170],
+//            ['name'=>'student_filter_console','description'=>'Фильтр учеников в консоли','group_slug'=>'misc','is_visible'=>0,'sort_order'=>170],
             ['name'=>'paying_classes','description'=>'Оплата учебных занятий','group_slug'=>'misc','is_visible'=>0,'sort_order'=>100],
             ['name'=>'payment_clubfee','description'=>'Оплата клубного взноса','group_slug'=>'misc','is_visible'=>1,'sort_order'=>175],
             ['name'=>'setting_payment_systems','description'=>'Настройка платежных систем','group_slug'=>'misc','is_visible'=>0,'sort_order'=>200],

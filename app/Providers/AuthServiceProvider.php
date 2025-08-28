@@ -315,9 +315,9 @@ class AuthServiceProvider extends ServiceProvider
 
 
         // Фильтр учеников в консоли
-        Gate::define('student-filter-console', function (User $user) {
-            return $user->hasPermission('student_filter_console');
-        });
+//        Gate::define('student-filter-console', function (User $user) {
+//            return $user->hasPermission('student_filter_console');
+//        });
 
         // Оплата занятий
         Gate::define('paying-classes', function (User $user) {

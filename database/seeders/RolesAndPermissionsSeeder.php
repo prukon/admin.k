@@ -117,11 +117,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'sort_order' => 160,
         ]);
 
-        $studentFilterConsole = Permission::create([
-            'name' => 'student_filter_console',
-            'description' => 'Фильтр учеников в консоли',
-            'sort_order' => 170,
-        ]);
+//        $studentFilterConsole = Permission::create([
+//            'name' => 'student_filter_console',
+//            'description' => 'Фильтр учеников в консоли',
+//            'sort_order' => 170,
+//        ]);
 
         $changeHistory = Permission::create([
             'name' => 'change_history',
