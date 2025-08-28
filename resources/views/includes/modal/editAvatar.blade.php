@@ -12,7 +12,7 @@
     .avatar-clip{
         width: 130px;
         aspect-ratio: 1 / 1;           /* всегда квадрат */
-        border: 2px solid #FFD700;     /* жёлтый бордер 2px */
+        border: 2px solid #f3a12b;     /* жёлтый бордер 2px */
         border-radius: 50%;
         overflow: hidden;               /* обрезаем ТОЛЬКО фото */
         display: grid;
@@ -103,7 +103,7 @@
     .modal-avatar .zoom-rect{
         width: 100%;
         height: auto;
-        border: 4px solid #FFD700;
+        border: 4px solid #f3a12b;
         border-radius: .5rem;        /* если не нужно скругление — поставь 0 */
         overflow: hidden;
         box-shadow: 0 12px 40px rgba(0,0,0,.4);
@@ -267,30 +267,6 @@
 
 
 <!-- Модалка: Большое фото -->
-{{--<div class="modal fade modal-avatar" id="avatarZoomModal" tabindex="-1" aria-hidden="true">--}}
-    {{--<div class="modal-dialog modal-dialog-centered">--}}
-        {{--<div class="modal-content bg-transparent border-0 shadow-none">--}}
-            {{--<div class="d-flex justify-content-center align-items-center p-3">--}}
-                {{--<div class="zoom-wrap">--}}
-                    {{--<div class="zoom-rect position-relative">--}}
-                        {{--<!-- крестик теперь тут -->--}}
-                        {{--<button type="button"--}}
-                                {{--class="btn-close btn-close-white position-absolute end-0 top-0 m-2"--}}
-                                {{--data-bs-dismiss="modal"--}}
-                                {{--aria-label="Закрыть"></button>--}}
-
-                        {{--<img src="{{ auth()->user()->image--}}
-                            {{--? asset('storage/avatars/'.auth()->user()->image)--}}
-                            {{--: asset('/img/default-avatar.png') }}"--}}
-                             {{--alt="Avatar large"--}}
-                             {{--class="js-zoom-image">--}}
-                    {{--</div>--}}
-                {{--</div>--}}
-            {{--</div>--}}
-        {{--</div>--}}
-    {{--</div>--}}
-{{--</div>--}}
-
 <div class="modal fade modal-avatar" id="avatarZoomModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-transparent border-0 shadow-none">
@@ -518,6 +494,8 @@
                         const modal = bootstrap.Modal.getInstance(document.getElementById('avatarEditModal'));
                         modal?.hide();
                         resetEditor();
+                        showSuccessModal("Изменение аватарки ", "Аватар успешно изменен.", 1);
+
                     },
                     error: function (xhr) {
                         alert('Ошибка загрузки: ' + (xhr.responseJSON?.message || xhr.statusText));
@@ -575,22 +553,29 @@
     function toggleOpenPhotoButton(avatarEl) {
         const img = avatarEl.querySelector('.avatar-clip img');
         const openBtn = avatarEl.querySelector('.js-open-photo');
+        const delBtn = avatarEl.querySelector('.js-delete-photo');
+
+
         if (!img || !openBtn) return;
 
         const defaultSrc = "{{ asset('img/default-avatar.png') }}"; // дефолт
 
         if (img.getAttribute('src').includes(defaultSrc)) {
             openBtn.style.display = 'none'; // скрыть
+            delBtn.style.display = 'none'; // скрыть
         } else {
             openBtn.style.display = ''; // показать (возврат к стандартному состоянию)
+            delBtn.style.display = ''; // показать (возврат к стандартному состоянию)
         }
     }
 
     //Скрытие "открыть фото". Для вызова в success
     function setOpenPhotoVisibilityByUser(user) {
         const $btn = $('.avatar .js-open-photo');
+        const delBtn = $('.avatar .js-delete-photo');
         const hasAvatar = !!(user && (user.image || user.image_crop));
         $btn.toggle(hasAvatar);
+        delBtn.toggle(hasAvatar);
     }
 
     // Вызываем при загрузке
