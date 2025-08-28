@@ -1,47 +1,47 @@
-.btn-primary {
-    background-color: white;!important;
-    border-color: #f3a12b!important;
-    color: black;
-    font-size: small;
+/*.btn-primary {*/
+    /*background-color: white;!important;*/
+    /*border-color: #f3a12b!important;*/
+    /*color: black;*/
+    /*font-size: small;*/
 
-}
+/*}*/
 
-.btn-primary:hover {
-    background-color: #f3a12b;
-    border-color: white;
-}
+/*.btn-primary:hover {*/
+    /*background-color: #f3a12b;*/
+    /*border-color: white;*/
+/*}*/
 
- .btn-istok {
-     background-color: white!important;
-     border-color: #f3a12b!important;
-     color: black!important;
- }
+ /*.btn-istok {*/
+     /*background-color: white!important;*/
+     /*border-color: #f3a12b!important;*/
+     /*color: black!important;*/
+ /*}*/
 
- .btn-istok:hover {
-    background-color: #f3a12b!important;
-    border-color: white!important;
-     color: white!important;
-}
+ /*.btn-istok:hover {*/
+    /*background-color: #f3a12b!important;*/
+    /*border-color: white!important;*/
+     /*color: white!important;*/
+/*}*/
 
- .pagination .active .page-link {
-     background-color: #f3a12b;
-     border-color: #f3a12b;
- }
- .badge-info {
-     background-color: #f3a12b;
- }
- .main-content a {
-     color: #2d2d2d;
- }
+ /*.pagination .active .page-link {*/
+     /*background-color: #f3a12b;*/
+     /*border-color: #f3a12b;*/
+ /*}*/
+ /*.badge-info {*/
+     /*background-color: #f3a12b;*/
+ /*}*/
+ /*.main-content a {*/
+     /*color: #2d2d2d;*/
+ /*}*/
 
- .btn-danger {
-     color: black;
-     border-color: red;
-     background-color: white;
-     font-size: small;
+ /*.btn-danger {*/
+     /*color: black;*/
+     /*border-color: red;*/
+     /*background-color: white;*/
+     /*font-size: small;*/
 
- }
+ /*}*/
 
-.seasons .season .buttonPaided {
-    background-color: #f3a12b;
-}
+/*.seasons .season .buttonPaided {*/
+    /*background-color: #f3a12b;*/
+/*}*/

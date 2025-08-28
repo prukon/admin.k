@@ -169,16 +169,16 @@ footer .social-networks {
 .avatar_wrapper {
     height: 190px;
     width: 141px;
-    border: solid 1px #e7a246;
+    /*border: solid 1px #e7a246;*/
     text-align: center;
     position: relative;
 }
 
-.personal-data {
-    /*padding-top: 10px;*/
-    /*padding-bottom: 10px;*/
-    margin-bottom: 1rem;
-}
+/*.personal-data {*/
+    /*!*padding-top: 10px;*!*/
+    /*!*padding-bottom: 10px;*!*/
+    /*margin-bottom: 1rem;*/
+/*}*/
 
 .change-team {
     text-decoration: underline;
@@ -1443,5 +1443,119 @@ a.disabled {
 
 .rule-table thead th {
     vertical-align: middle;
+}
+
+
+
+/*fc-istok*/
+.btn-primary {
+    background-color: white;!important;
+    border-color: #f3a12b!important;
+    color: black;
+    font-size: small;
+
+}
+
+.btn-primary:hover {
+    background-color: #f3a12b;
+    border-color: white;
+}
+
+.btn-istok {
+    background-color: white!important;
+    border-color: #f3a12b!important;
+    color: black!important;
+}
+
+.btn-istok:hover {
+    background-color: #f3a12b!important;
+    border-color: white!important;
+    color: white!important;
+}
+
+.pagination .active .page-link {
+    background-color: #f3a12b;
+    border-color: #f3a12b;
+}
+.badge-info {
+    background-color: #f3a12b;
+}
+.main-content a {
+    color: #2d2d2d;
+}
+
+.btn-danger {
+    color: black;
+    border-color: red;
+    background-color: white;
+    font-size: small;
+
+}
+
+.seasons .season .buttonPaided {
+    background-color: #f3a12b;
+}
+
+
+/*media style*/
+@media screen and (max-width: 1399px) {
+    header .main-menu {
+        font-size: 12px;
+    }
+
+    header .tel {
+        font-size: 12px;
+    }
+}
+
+@media screen and (max-width: 991px) {
+    header .main-menu {
+        font-size: 11px;
+        Letter-spacing: 0.4px;
+    }
+
+    header .tel {
+        font-size: 11px;
+    }
+}
+
+@media screen and (max-width: 767px) {
+    .social-networks {
+        margin-right: 0;
+    }
+
+    header .main-menu a {
+        padding-right: 4px;
+    }
+}
+
+@media screen and (max-width: 575px) {
+    header .main-menu {
+        font-size: 10px;
+        Letter-spacing: 0.4px;
+    }
+
+    header .main-menu a {
+        padding-right: 4px;
+    }
+
+    header .tel {
+        font-size: 11px;
+    }
+}
+
+@media screen and (max-width: 464px) {
+    header .main-menu {
+        font-size: 9px;
+        Letter-spacing: 0.4px;
+    }
+
+    header .main-menu a {
+        padding-right: 4px;
+    }
+
+    header .tel {
+        font-size: 10px;
+    }
 }
 

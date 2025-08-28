@@ -8,14 +8,21 @@
 
     <title>кружок.onlline - сервис учета для детских садов, тематических школ и секций</title>
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
+
     {{--JQuery--}}
     <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
+
     {{--JQuery-UI--}}
     <script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>
-    {{--Fontawesome--}}
-    <script src="{{ asset('js/fontawesome/fontawesome.js') }}"></script>
+
     {{--bootstrap--}}
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
+
+    {{--Fontawesome--}}
+    <script src="{{ asset('js/fontawesome/fontawesome.js') }}"></script>
+    <link rel="stylesheet" href="{{ asset('plugins/fontawesome-free/css/all.min.css') }}">
+
+
 
 
 
@@ -24,30 +31,82 @@
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.minimal.css') }}">
     <link rel="stylesheet" href="{{ asset('css/datapicker/themes-jquery-ui.css') }}">
     <script src="{{ asset('js/datapicker/datepicker.js') }}"></script>
-{{--scripts--}}
-<!-- Google Font: Source Sans Pro -->
-    <link rel="stylesheet"
-          href="{{ asset('https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback') }}">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="{{ asset('plugins/fontawesome-free/css/all.min.css') }}">
+
+    <!-- Google Font: Source Sans Pro -->
+    {{--<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">--}}
+
     <!-- Ionicons -->
-    <link rel="stylesheet" href="{{ asset('https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css') }}">
-    <!-- Tempusdominus Bootstrap 4 -->
-    <link rel="stylesheet"
-{{--          href="{{ asset('plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css') }}">--}}
+    {{--<link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">--}}
+
+
+
     <!-- iCheck -->
     <link rel="stylesheet" href="{{ asset('plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
+
     <!-- JQVMap -->
     <link rel="stylesheet" href="{{ asset('plugins/jqvmap/jqvmap.min.css') }}">
+
     <!-- Theme style -->
     <link rel="stylesheet" href="{{ asset('dist/css/adminlte.min.css') }}">
+
     <!-- overlayScrollbars -->
     <link rel="stylesheet" href="{{ asset('plugins/overlayScrollbars/css/OverlayScrollbars.min.css') }}">
+
     <!-- Daterange picker -->
     <link rel="stylesheet" href="{{ asset('plugins/daterangepicker/daterangepicker.css') }}">
+
     <!-- summernote -->
     <link rel="stylesheet" href="{{ asset('plugins/summernote/summernote-bs4.min.css') }}">
 
+    <!-- daterangepicker -->
+    <script src="{{ asset('plugins/moment/moment.min.js') }}"></script>
+    <script src="{{ asset('plugins/daterangepicker/daterangepicker.js') }}"></script>
+    <script src="{{ asset('plugins/summernote/summernote-bs4.min.js') }}"></script>
+
+    <!-- AdminLTE App -->
+    <script src="{{ asset('dist/js/adminlte.js') }}"></script>
+
+    {{--Cropie--}}
+    {{--<link rel="stylesheet" href="{{ asset('css/croppie.min.css') }}">--}}
+    {{--<link rel="stylesheet" href="{{ asset('css/croppie.css') }}">--}}
+{{--    <script src="{{ asset('js/croppie.min.js') }}"></script>--}}
+
+    {{--Select2--}}
+    <link rel="stylesheet" href="{{ asset('css/select2/select2.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/select2/select2-bootstrap-5-theme.min.css') }}">
+    <script src="{{ asset('js/select2/select2.full.min.js') }}"></script>
+
+    <!-- Включение DataTables CSS -->
+    <link rel="stylesheet" href="{{ asset('css/jquery.dataTables.min.css') }}">
+    <script src="{{ asset('js/datatables/jquery.dataTables.min.js') }}"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/cropperjs@1.6.1/dist/cropper.min.css">
+    <script src="https://unpkg.com/cropperjs@1.6.1/dist/cropper.min.js"></script>
+
+    @vite([
+    'resources/sass/app.scss',
+    'resources/css/style.css'
+    ])
+
+
+    <style>
+        /* Переопределяем пути к стрелкам сортировки */
+        table.dataTable thead .sorting {
+            background-image:url("/img/datatables/sort_both.png") !important;
+        }
+        table.dataTable thead .sorting_asc {
+            background-image:url("/img/datatables/sort_asc.png") !important;
+        }
+        table.dataTable thead .sorting_desc {
+            background-image:url("/img/datatables/sort_desc.png") !important;
+        }
+        table.dataTable thead .sorting_asc_disabled {
+            background-image:url("/img/datatables/sort_asc_disabled.png") !important;
+        }
+        table.dataTable thead .sorting_desc_disabled {
+            background-image:url("/img/datatables/sort_desc_disabled.png") !important;
+        }
+    </style>
 
     <script>
         /**
@@ -89,7 +148,6 @@
         }
     </script>
 
-
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
 <div class="wrapper">
@@ -106,7 +164,7 @@
     @endphp
 
     <nav class="main-header navbar navbar-expand navbar-white navbar-light">
-        <!-- Left navbar links -->
+        <!-- Левый бар (акардион для моб версии) -->
         <ul class="navbar-nav ml-3">
             <li class="nav-item">
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
@@ -121,8 +179,8 @@
             @endforeach
         </ul>
 
-    @can('partner-view')
         <!-- Форма переключения партнёров -->
+    @can('partner-view')
             <div class="collapse navbar-collapse mr-3">
                 <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
                     @csrf
@@ -136,6 +194,7 @@
                 </form>
             </div>
     @endcan
+
 
 
     <!-- Right navbar links -->
@@ -391,7 +450,7 @@
     </nav>
     <!-- /.navbar -->
 
-    <!-- Main Sidebar Container -->
+    <!-- Левое меню -->
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
         <!-- Brand Logo -->
         <a href="/" class="brand-link my-brand-link  ml-3">
@@ -462,28 +521,9 @@
         <!-- /.sidebar -->
     </aside>
 
-    <!-- Content Wrapper. Contains page content -->
+    <!-- Контент -->
     <div class="content-wrapper">
         <!-- Content Header (Page header) -->
-    {{--        <div class="content-header">--}}
-    {{--            <div class="container-fluid">--}}
-    {{--                <div class="row mb-2">--}}
-    {{--                    <div class="col-sm-6">--}}
-    {{--                        <h1 class="m-0">Dashboard</h1>--}}
-    {{--                    </div>--}}
-    {{--                    <!-- /.col -->--}}
-
-    {{--                    <div class="col-sm-6">--}}
-    {{--                        <ol class="breadcrumb float-sm-right">--}}
-    {{--                            <li class="breadcrumb-item"><a href="#">Home</a></li>--}}
-    {{--                            <li class="breadcrumb-item active">Dashboard v1</li>--}}
-    {{--                        </ol>--}}
-    {{--                    </div><!-- /.col -->--}}
-
-    {{--                </div><!-- /.row -->--}}
-    {{--            </div><!-- /.container-fluid -->--}}
-    {{--        </div>--}}
-    <!-- /.content-header -->
 
         <!-- Main content -->
         <section class="content">
@@ -491,11 +531,11 @@
 
                 @yield('content')
 
-            </div><!-- /.container-fluid -->
+            </div>
         </section>
-        <!-- /.content -->
     </div>
-    <!-- /.content-wrapper -->
+
+    <!-- Футер -->
     <footer class="main-footer">
 
         <div> Copyright &copy; 2023-2025 <a target="_blank" href="https://кружок.onlline/">кружок.onlline</a>.
@@ -506,117 +546,15 @@
         </div>
     </footer>
 
-    <!-- Control Sidebar -->
-    <aside class="control-sidebar control-sidebar-dark">
-        <!-- Control sidebar content goes here -->
-    </aside>
-    <!-- /.control-sidebar -->
+
 </div>
-<!-- ./wrapper -->
-
-<!-- jQuery -->
-{{--<script src="{{ asset('plugins/jquery/jquery.min.js') }}"></script>--}}
-{{--<!-- jQuery UI 1.11.4 -->--}}
-{{--<script src="{{ asset('plugins/jquery-ui/jquery-ui.min.js') }}"></script>--}}
-<!-- Resolve conflict in jQuery UI tooltip with Bootstrap tooltip -->
-
-
-{{--JQuery--}}
-{{--<script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>--}}
-
-{{--JQuery-UI--}}
-{{--<script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>--}}
 
 <script>
     $.widget.bridge('uibutton', $.ui.button)
 </script>
-<!-- Bootstrap 4 -->
-{{--<script src="{{ asset('plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>--}}
-<!-- ChartJS -->
-{{--<script src="{{ asset('plugins/chart.js/Chart.min.js') }}"></script>--}}
-<!-- Sparkline -->
-{{--<script src="{{ asset('plugins/sparklines/sparkline.js') }}"></script>--}}
-<!-- JQVMap -->
-{{--<script src="{{ asset('plugins/jqvmap/jquery.vmap.min.js') }}"></script>--}}
-{{--<script src="{{ asset('plugins/jqvmap/maps/jquery.vmap.usa.js') }}"></script>--}}
-<!-- jQuery Knob Chart -->
-{{--<script src="{{ asset('plugins/jquery-knob/jquery.knob.min.js') }}"></script>--}}
-<!-- daterangepicker -->
-<script src="{{ asset('plugins/moment/moment.min.js') }}"></script>
-<script src="{{ asset('plugins/daterangepicker/daterangepicker.js') }}"></script>
-<!-- Tempusdominus Bootstrap 4 -->
-{{--<script src="{{ asset('plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js') }}"></script>--}}
-<!-- Summernote -->
-<script src="{{ asset('plugins/summernote/summernote-bs4.min.js') }}"></script>
-<!-- overlayScrollbars -->
-{{--<script src="{{ asset('plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js') }}"></script>--}}
-<!-- AdminLTE App -->
-<script src="{{ asset('dist/js/adminlte.js') }}"></script>
-<!-- AdminLTE for demo purposes -->
-{{--<script src="{{ asset('dist/js/demo.js') }}"></script>--}}
-<!-- AdminLTE dashboard demo (This is only for demo purposes) -->
-{{--<script src="{{ asset('dist/js/pages/dashboard.js') }}"></script>--}}
+
+
 @yield('scripts')
-
-{{--Cropie--}}
-{{--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css">--}}
-    <link rel="stylesheet" href="{{ asset('css/croppie.min.css') }}">
-
-
-<link rel="stylesheet" href="{{ asset('css/croppie.css') }}">
-
-
-
-{{--<script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js"></script>--}}
-<script src="{{ asset('js/croppie.min.js') }}"></script>
-
-
-
-
-
-{{--Select2--}}
-<link rel="stylesheet" href="{{ asset('css/select2/select2.min.css') }}">
-<link rel="stylesheet" href="{{ asset('css/select2/select2-bootstrap-5-theme.min.css') }}">
-<script src="{{ asset('js/select2/select2.full.min.js') }}"></script>
-
-{{--Bootstrap--}}
-@vite(['resources/js/app.js', 'resources/sass/app.scss'])
-
-<link rel="stylesheet" href="{{ asset('css/fcistok.css') }}">
-{{--<link rel="stylesheet" href="{{ asset('css/style.css') }}">--}}
-@vite(['resources/css/style.css'])
-
-<link rel="stylesheet" href="{{ asset('css/media-style.css') }}">
-<link rel="stylesheet" href="{{ asset('css/calendar.css') }}">
-
-<!-- Включение DataTables CSS -->
-{{--<link href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css" rel="stylesheet">--}}
-<link rel="stylesheet" href="{{ asset('css/jquery.dataTables.min.css') }}">
-
-<style>
-    /* Переопределяем пути к стрелкам сортировки */
-    table.dataTable thead .sorting {
-        background-image:url("/img/datatables/sort_both.png") !important;
-    }
-    table.dataTable thead .sorting_asc {
-        background-image:url("/img/datatables/sort_asc.png") !important;
-    }
-    table.dataTable thead .sorting_desc {
-        background-image:url("/img/datatables/sort_desc.png") !important;
-    }
-    table.dataTable thead .sorting_asc_disabled {
-        background-image:url("/img/datatables/sort_asc_disabled.png") !important;
-    }
-    table.dataTable thead .sorting_desc_disabled {
-        background-image:url("/img/datatables/sort_desc_disabled.png") !important;
-    }
-</style>
-
-
-
-<!-- Включение DataTables JS -->
-{{--<script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>--}}
-<script src="{{ asset('js/datatables/jquery.dataTables.min.js') }}"></script>
 
 
 {{--<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">--}}
@@ -667,10 +605,10 @@
 
 @stack('scripts')
 
+{{--jivo site--}}
 {{--<script src="//code.jivo.ru/widget/3lc75ICTPG" async></script>--}}
 
 
-{{-- в layout.blade.php, перед </body> --}}
 @include('includes.modal.confirmDeleteModal')
 @include('includes.modal.successModal')
 @include('includes.modal.errorModal')

@@ -1,7 +1,4 @@
 {{--Cropie--}}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css">
-<link rel="stylesheet" href="{{ asset('css/croppie.css') }}">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js"></script>
 
 <!-- Модальное окно редактирования пользователя -->
 <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
@@ -19,35 +16,463 @@
                 <!-- Блок для аватарки -->
                     <div class="mb-3 d-flex flex-column align-items-center">
                         <div>
-                            <div class="avatar_wrapper d-flex align-items-center justify-content-center">
-                                {{--                                <span>--}}
-                                <img id="confirm-img" src="/img/default.png" alt="Аватар по умолчанию"
-                                     class="img-thumbnail">
-                                {{--                            </span>--}}
+                            {{----1----------------------}}
+
+                            <style>
+
+                                /* ========== АВАТАР НА СТРАНИЦЕ ========== */
+
+                                /* Внешний контейнер: тут hover и меню. ВАЖНО: overflow: visible */
+                                .avatar {
+                                    position: relative;
+                                    display: inline-block;
+                                }
+
+                                /* Внутренний круг: обрезка фото + жёлтый бордер */
+                                .avatar-clip {
+                                    width: 130px;
+                                    aspect-ratio: 1 / 1; /* всегда квадрат */
+                                    border: 2px solid #FFD700; /* жёлтый бордер 2px */
+                                    border-radius: 50%;
+                                    overflow: hidden; /* обрезаем ТОЛЬКО фото */
+                                    display: grid;
+                                    place-items: center; /* центрирование img */
+                                    background: #f3f3f3;
+                                    box-sizing: border-box; /* бордер внутри размеров */
+                                }
+
+                                /* Картинка заполняет круг без искажений */
+                                .avatar-clip img {
+                                    width: 100% !important;
+                                    height: 100% !important;
+                                    object-fit: cover;
+                                    object-position: center;
+                                    display: block;
+                                    border-radius: 50%;
+                                }
+
+                                /* ========== МЕНЮ ДЕЙСТВИЙ ПОД АВАТАРКОЙ ========== */
+
+                                .avatar-actions {
+                                    position: absolute;
+                                    top: 100%;
+                                    left: 50%;
+                                    transform: translate(-50%, 8px); /* визуальный отступ без gap */
+                                    background: #fff;
+                                    border: 1px solid rgba(0, 0, 0, .12);
+                                    border-radius: .5rem;
+                                    box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
+                                    z-index: 20;
+                                    padding: 10px;
+
+                                    /* «скрыто» по умолчанию — но без display:none (чтобы не мигало) */
+                                    display: block;
+                                    opacity: 0;
+                                    visibility: hidden;
+                                    pointer-events: none;
+                                    transition: opacity .12s ease, visibility .12s ease;
+                                    text-align: left;
+                                }
+
+                                /* «Мостик», чтобы курсор не терял hover между аватаркой и меню */
+                                .avatar-actions::before {
+                                    content: "";
+                                    position: absolute;
+                                    top: -8px;
+                                    left: 0;
+                                    right: 0;
+                                    height: 8px;
+                                }
+
+                                /* Открытое состояние — добавляется JS-классом .is-open на .avatar */
+                                .avatar.is-open .avatar-actions {
+                                    opacity: 1;
+                                    visibility: visible;
+                                    pointer-events: auto;
+                                }
+
+                                /* Пункты меню + подсветка */
+                                .avatar-actions .dropdown-item {
+                                    display: flex;
+                                    align-items: center;
+                                    gap: .5rem;
+                                    padding: .5rem 1rem;
+                                    cursor: pointer;
+                                    border-radius: .25rem;
+                                    transition: background-color .15s ease, color .15s ease;
+                                }
+
+                                .avatar-actions .dropdown-item:hover {
+                                    background-color: #f0f0f0;
+                                    color: #0057d8; /* лёгкая «VK»-подсветка текста/иконки */
+                                }
+
+                                .avatar-actions .dropdown-item:hover i {
+                                    color: #0057d8;
+                                }
+
+                                /* ========== МОДАЛКА ПРОСМОТРА БОЛЬШОЙ АВАТАРКИ (ПРЯМОУГОЛЬНИК) ========== */
+
+                                .modal-avatar .modal-dialog {
+                                    max-width: none;
+                                }
+
+                                .modal-avatar .modal-content {
+                                    background: rgba(0, 0, 0, .85);
+                                }
+
+                                /* Контейнер: вписываемся в экран и по ширине, и по высоте */
+                                .modal-avatar .zoom-wrap {
+                                    max-width: 92vw;
+                                    max-height: 92vh;
+                                }
+
+                                /* Прямоугольный кадр с жёлтым бордером (не круг!) */
+                                .modal-avatar .zoom-rect {
+                                    width: 100%;
+                                    height: auto;
+                                    border: 4px solid #FFD700;
+                                    border-radius: .5rem; /* если не нужно скругление — поставь 0 */
+                                    overflow: hidden;
+                                    box-shadow: 0 12px 40px rgba(0, 0, 0, .4);
+                                }
+
+                                /* Фото вписывается целиком, без обрезки */
+                                .modal-avatar .zoom-rect img {
+                                    width: 100%;
+                                    height: auto;
+                                    max-height: 90vh; /* контроль по высоте окна */
+                                    object-fit: contain; /* сохранить пропорции, не обрезать */
+                                    display: block;
+                                }
+
+                                /* Крестик закрытия (вверху справа, на тёмном фоне белый) */
+                                .modal-avatar .btn-close {
+                                    position: absolute;
+                                    right: .5rem;
+                                    top: .5rem;
+                                    filter: invert(1) grayscale(100%);
+                                    opacity: .9;
+                                }
+
+                                .modal-avatar .btn-close:hover {
+                                    opacity: 1;
+                                }
+
+                            </style>
+
+                            <div class="avatar_wrapper">
+                                <div class="avatar">                         <!-- ВНЕШНИЙ контейнер (hover + меню) -->
+                                    <div class="avatar-clip">
+                                        <!-- ВНУТРЕННИЙ круг (обрезка фото + бордер) -->
+                                        <img
+                                                src="{{ auth()->user()->image_crop ? asset('storage/avatars/'.auth()->user()->image_crop) : asset('/img/default-avatar.png') }}"
+                                                alt="Avatar">
+                                    </div>
+
+                                    <div class="avatar-actions">
+                                        <button class="dropdown-item js-open-photo" type="button">
+                                            <i class="fa-solid fa-image"></i> Открыть фото
+                                        </button>
+                                        <button class="dropdown-item js-change-photo" type="button"
+                                                data-bs-toggle="modal" data-bs-target="#avatarEditModal">
+                                            <i class="fa-solid fa-pen-to-square"></i> Изменить фото
+                                        </button>
+                                        <button class="dropdown-item text-danger js-delete-photo" type="button">
+                                            <i class="fa-solid fa-trash"></i> Удалить фото
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="avatar-menu mt-3">
-                            <ul class=" ">
-                                {{--                                <li class="pl-3 pr-3 pt-1 pb-1">--}}
-                                {{--                                    <i class="fa-regular fa-image mr-2"></i>--}}
-                                {{--                                    <a href="#" id="open-photo">Открыть фотографию</a>--}}
-                                {{--                                </li>--}}
-                                <li class="pl-3 pr-3 pt-1 pb-1">
-                                    <i class="fa-regular fa-pen-to-square mr-2"></i>
-                                    <a href="#" id="update-photo">Обновить фотографию</a>
-                                </li>
-                                <li class="pl-3 pr-3 pt-1 pb-1">
-                                    <i class="fa-regular fa-trash-can mr-2"></i>
-                                    <a href="#" disabled id="delete-photo">Удалить фотографию</a>
-                                </li>
-                            </ul>
+
+                            <!-- Модалка: Большого фото -->
+                            <!-- Модалка: Большое фото (адаптивный зум) -->
+                            <div class="modal fade modal-avatar" id="avatarZoomModal" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content bg-transparent border-0 shadow-none position-relative">
+                                        <button type="button"
+                                                class="btn-close btn-close-white position-absolute end-0 top-0 m-2"
+                                                data-bs-dismiss="modal" aria-label="Закрыть"></button>
+
+                                        <div class="d-flex justify-content-center align-items-center p-3">
+                                            <div class="zoom-wrap">
+                                                <div class="zoom-rect">
+                                                    <img src="{{ auth()->user()->image ? asset('storage/avatars/'.auth()->user()->image) : asset('/img/default-avatar.png') }}"
+                                                         alt="Avatar large"
+                                                         class="js-zoom-image">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Модалка: Редактирование/замена -->
+                            <div class="modal fade" id="avatarEditModal" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered modal-xl">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Загрузка новой фотографии</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                    aria-label="Закрыть"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p class="text-muted mb-3">
+                                                Загрузите изображение в формате JPG, PNG, WEBP или GIF.
+                                            </p>
+
+                                            <div class="d-flex flex-column flex-lg-row gap-3">
+                                                <div class="flex-grow-1">
+                                                    <div class="border rounded p-2">
+                                                        <img id="cropperSource" alt="Source"
+                                                             style="max-width:100%; display:none;">
+                                                        <div id="placeholder" class="text-center text-muted p-5">
+                                                            <div class="mb-2">Выберите файл для редактирования</div>
+                                                            <button class="btn btn-primary js-choose-file">Выбрать
+                                                                файл
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-shrink-0" style="width:280px;">
+                                                    <div class="mb-2 fw-semibold">Предпросмотр миниатюры</div>
+                                                    <div class="border rounded-circle overflow-hidden"
+                                                         style="width:256px;height:256px;">
+                                                        <img id="previewThumb" alt="Preview"
+                                                             style="width:100%;height:100%;object-fit:cover;display:none;">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <input type="file" class="d-none" id="avatarFile" accept="image/*">
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-outline-secondary"
+                                                    data-bs-dismiss="modal">Отмена
+                                            </button>
+                                            <button type="button" class="btn btn-primary js-save-avatar" disabled>
+                                                Сохранить
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <script>
+                                // задержка пропадания меню при ховере
+                                document.addEventListener('DOMContentLoaded', function () {
+                                    const avatar = document.querySelector('.avatar');
+                                    const menu = avatar.querySelector('.avatar-actions');
+                                    let hideTimer;
+
+                                    const open = () => {
+                                        clearTimeout(hideTimer);
+                                        avatar.classList.add('is-open');
+                                    };
+                                    const close = () => {
+                                        avatar.classList.remove('is-open');
+                                    };
+
+                                    avatar.addEventListener('mouseenter', open);
+                                    avatar.addEventListener('mouseleave', () => {
+                                        hideTimer = setTimeout(close, 200); // можно 200–300 мс; если хочешь 3 сек — поставь 3000
+                                    });
+
+                                    // На самом меню тоже страхуемся
+                                    menu.addEventListener('mouseenter', open);
+                                    menu.addEventListener('mouseleave', () => {
+                                        hideTimer = setTimeout(close, 200);
+                                    });
+                                });
+
+
+                                {{--новая аватарка--}}
+                                $(function () {
+
+                                    $.ajaxSetup({
+                                        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+                                    });
+
+                                    const $currentAvatar = $('.avatar-clip img');   // вместо .js-current-avatar
+                                    const $zoomImg = $('.js-zoom-image');
+
+
+
+                                    // универсальная загрузка аватарки. Грузим текущего юзера, или ajax если есть.
+                                    $(function () {
+                                        const $zoomImg = $('.js-zoom-image');
+
+                                        // По умолчанию (текущий авторизованный пользователь)
+                                        let zoomSrc = "{{ auth()->user()->image
+        ? asset('storage/avatars/'.auth()->user()->image)
+        : asset('/img/default-avatar.png') }}";
+
+                                        // Единый обработчик открытия
+                                        $(document).off('click', '.js-open-photo').on('click', '.js-open-photo', function () {
+                                            // на всякий случай актуализируем src перед показом
+                                            $zoomImg.attr('src', zoomSrc);
+                                            const el = document.getElementById('avatarZoomModal');
+                                            const modal = bootstrap.Modal.getOrCreateInstance(el);
+                                            modal.show();
+                                        });
+
+                                        // === КОГДА ПРИШЁЛ AJAX С ДАННЫМИ ЮЗЕРА (в твоём success) ===
+                                        // Вызови эту функцию и передай response.user
+                                        window.setZoomImageFromUser = function (user) {
+                                            if (user && user.image) {
+                                                zoomSrc = "{{ asset('storage/avatars') }}/" + user.image;
+                                            } else if (user && user.image_crop) {
+                                                // фолбэк: если нет большой — покажем кроп
+                                                zoomSrc = "{{ asset('storage/avatars') }}/" + user.image_crop;
+                                            } else {
+                                                zoomSrc = "{{ asset('img/default-avatar.png') }}";
+                                            }
+                                            // можно сразу обновить картинку в модалке (на случай, если она уже открыта)
+                                            $zoomImg.attr('src', zoomSrc);
+                                        };
+                                    });
+
+
+                                    // Удаление
+                                    $('.js-delete-photo').on('click', function () {
+                                        showConfirmDeleteModal(
+                                            "Удаление пользователя",
+                                            "Вы уверены, что хотите удалить аватар пользователя?",
+                                            function() {
+                                                $.ajax({
+                                                    url: '/profile/avatar',
+                                                    method: 'POST',
+                                                    data: {_method: 'DELETE'},
+                                                    success: function (res) {
+                                                        // Ставим дефолт
+                                                        const def = '/img/default-avatar.png';
+                                                        $currentAvatar.attr('src', def);
+                                                        $zoomImg.attr('src', def);
+                                                        // Тост/уведомление по желанию
+                                                    },
+                                                    error: function (xhr) {
+                                                        alert('Ошибка удаления: ' + (xhr.responseJSON?.message || xhr.statusText));
+                                                    }
+                                                });
+                                            });
+                                    });
+
+                                    // ====== Редактор (Cropper.js) ======
+                                    let cropper = null;
+                                    const $fileInput = $('#avatarFile');
+                                    const $sourceImg = $('#cropperSource');
+                                    const $placeholder = $('#placeholder');
+                                    const $preview = $('#previewThumb');
+                                    const $saveBtn = $('.js-save-avatar');
+
+                                    // Открыть выбор файла
+                                    $('.js-choose-file').on('click', () => $fileInput.trigger('click'));
+                                    $('.js-change-photo').on('click', () => {
+                                        // при каждом открытии оставляем как есть; если нужно — можно делать reset
+                                    });
+
+                                    // Загрузка файла в редактор
+                                    $fileInput.on('change', function () {
+                                        const file = this.files[0];
+                                        if (!file) return;
+
+                                        const url = URL.createObjectURL(file);
+                                        $sourceImg.attr('src', url).show();
+                                        $placeholder.hide();
+                                        $preview.hide();
+
+                                        // Инициируем/пересоздаём кроппер
+                                        if (cropper) {
+                                            cropper.destroy();
+                                            cropper = null;
+                                        }
+                                        cropper = new Cropper($sourceImg[0], {
+                                            aspectRatio: 1,            // квадрат для аватарки
+                                            viewMode: 1,               // внутри холста
+                                            dragMode: 'move',
+                                            guides: false,
+                                            center: true,
+                                            background: false,
+                                            autoCropArea: 1,
+                                            movable: true,
+                                            zoomable: true,
+                                            rotatable: false,
+                                            scalable: false,
+                                            ready() {
+                                                $saveBtn.prop('disabled', false);
+                                            },
+                                            crop() {
+                                                // Превью миниатюры (256x256)
+                                                if (!cropper) return;
+                                                const canvas = cropper.getCroppedCanvas({width: 256, height: 256});
+                                                $preview.attr('src', canvas.toDataURL('image/jpeg', 0.9)).show();
+                                            }
+                                        });
+                                    });
+
+                                    // Сохранение: собираем два Blob-а — big (1024x1024) и crop (256x256)
+                                    $saveBtn.on('click', function () {
+                                        if (!cropper) return;
+
+                                        const bigCanvas = cropper.getCroppedCanvas({width: 1024, height: 1024}); // «большая»
+                                        const cropCanvas = cropper.getCroppedCanvas({width: 256, height: 256}); // миниатюра
+
+                                        // Преобразуем в Blob и отправляем FormData
+                                        Promise.all([
+                                            new Promise(res => bigCanvas.toBlob(b => res(b), 'image/jpeg', 0.92)),
+                                            new Promise(res => cropCanvas.toBlob(b => res(b), 'image/jpeg', 0.92))
+                                        ]).then(function ([bigBlob, cropBlob]) {
+                                            const fd = new FormData();
+                                            fd.append('image_big', bigBlob, 'big.jpg');
+                                            fd.append('image_crop', cropBlob, 'crop.jpg');
+
+                                            $.ajax({
+                                                url: '/profile/avatar',
+                                                method: 'POST',
+                                                processData: false,
+                                                contentType: false,
+                                                data: fd,
+                                                success: function (res) {
+                                                    // Обновляем аватар (крошку) и картинку для зума
+                                                    $currentAvatar.attr('src', res.image_crop_url + '?v=' + Date.now());
+                                                    $zoomImg.attr('src', res.image_url + '?v=' + Date.now());
+
+                                                    // Закрываем модалку и чистим состояние
+                                                    const modal = bootstrap.Modal.getInstance(document.getElementById('avatarEditModal'));
+                                                    modal?.hide();
+                                                    resetEditor();
+                                                },
+                                                error: function (xhr) {
+                                                    alert('Ошибка загрузки: ' + (xhr.responseJSON?.message || xhr.statusText));
+                                                }
+                                            });
+                                        });
+                                    });
+
+                                    function resetEditor() {
+                                        $fileInput.val('');
+                                        $saveBtn.prop('disabled', true);
+                                        if (cropper) {
+                                            cropper.destroy();
+                                            cropper = null;
+                                        }
+                                        $sourceImg.hide().attr('src', '');
+                                        $preview.hide().attr('src', '');
+                                        $placeholder.show();
+                                    }
+
+                                    // Сброс при закрытии модалки
+                                    document.getElementById('avatarEditModal').addEventListener('hidden.bs.modal', resetEditor);
+                                });
+                            </script>
+
+                            {{-----2---------------------}}
+
                         </div>
 
                     </div>
 
                     <!-- Поле "Имя" -->
-
-
                     <div class="mb-3">
                         <label for="edit-name" class="form-label">Имя ученика *</label>
                         <input type="text"
@@ -58,7 +483,7 @@
                     </div>
 
                     <!-- Поле "Дата рождения" -->
-                                     <div class="mb-3">
+                    <div class="mb-3">
                         <label for="edit-birthday" class="form-label">Дата рождения</label>
                         <input
                                 type="date"
@@ -68,12 +493,14 @@
                                 @cannot('users-birthdate-update') disabled aria-disabled="true" @endcannot
                         >
                         @cannot('users-birthdate-update')
-                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение даты рождения</div>
+                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
+                                даты рождения
+                            </div>
                         @endcannot
                     </div>
 
                     <!-- Поле "Группа" -->
-                                  <div class="mb-3">
+                    <div class="mb-3">
                         <label for="edit-team" class="form-label">Группа</label>
                         <select
                                 id="edit-team"
@@ -94,10 +521,6 @@
                         @endcannot
                     </div>
 
-
-
-
-
                     <!-- Поле "Дата начала занятий" -->
                     <div class="mb-3">
                         <label for="edit-start_date" class="form-label">Дата начала занятий</label>
@@ -115,11 +538,9 @@
                         @endcannot
                     </div>
 
-
-
+                {{--Пользовательские поля--}}
                 @if($fields->isNotEmpty()) <!-- Проверяем, есть ли пользовательские поля -->
                     <div class="mb-3">
-                        {{--<h5>Пользовательские поля</h5>--}}
                         <div id="custom-fields-container"> <!-- Контейнер для пользовательских полей -->
 
 
@@ -139,13 +560,12 @@
                                 @cannot('users-email-update') disabled aria-disabled="true" @endcannot
                         >
                         @cannot('users-email-update')
-                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение email</div>
+                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
+                                email
+                            </div>
                         @endcannot
                     </div>
 
-
-
-                    {{-- Поле "Телефон" --}}
                     {{-- Поле "Телефон" --}}
                     @php $canPhone = auth()->user()->can('users-phone-update'); @endphp
 
@@ -191,9 +611,6 @@
                         @endunless
                     </div>
 
-
-
-
                     <!-- Поле "Активность" -->
                     <div class="mb-3">
                         <label for="edit-activity" class="form-label">Активность</label>
@@ -207,7 +624,9 @@
                             <option value="1">Активен</option>
                         </select>
                         @cannot('users-activity-update')
-                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение активности</div>
+                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
+                                активности
+                            </div>
                         @endcannot
                     </div>
 
@@ -228,10 +647,11 @@
                             @endforeach
                         </select>
                         @cannot('users-role-update')
-                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение роли</div>
+                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
+                                роли
+                            </div>
                         @endcannot
                     </div>
-
 
                     <!-- Блок изменения пароля -->
                     <div class="buttons-wrap change-pass-wrap" id="change-pass-wrap" style="display: none;">
@@ -250,13 +670,6 @@
                             менее 8 символов
                         </div>
                     </div>
-
-                    <!-- Кнопка для изменения пароля -->
-                    {{--<div class="button-group buttons-wrap mt-3">--}}
-                        {{--<button type="button" id="change-password-btn" class="btn btn-primary  change-password-btn">--}}
-                            {{--Изменить пароль--}}
-                        {{--</button>--}}
-                    {{--</div>--}}
 
                     @php $canChange = auth()->user()->can('users-password-update'); @endphp
 
@@ -290,11 +703,6 @@
                         </script>
                     @endunless
 
-
-
-
-
-
                 <!-- Кнопка для сохранения данных -->
                     <button type="submit" class="btn btn-primary mt-3 save-change-modal">Сохранить изменения</button>
                     <!-- Кнопка для сохранения данных -->
@@ -311,61 +719,9 @@
     </div>
 </div>
 
-<!-- Модалка для редактирования аватарки -->
-{{--<div class="modal fade" id="uploadPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">--}}
-<div class="modal fade" id="editPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
-    <div class="modal-dialog ">
-        <div class="modal-content background-color-grey">
-            <div class="modal-header">
-                <h5 class="modal-title" id="uploadPhotoModalLabel">Редактирование аватарки</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Поле для загрузки изображения -->
-                <input type="file" id="upload" accept="image/*" class="form-control mb-3">
-
-                <!-- Контейнер для Croppie -->
-                <div id="upload-demo"></div>
-
-                <!-- Кнопка для сохранения изображения -->
-                <button id="saveImageBtn" class="btn btn-primary mt-3">Сохранить фото</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
 
     $(document).ready(function () {
-
-        var $uploadCrop = null;
-
-        // Функция инициализации Croppie
-        function initializeCroppie() {
-            if ($uploadCrop) {
-                console.log('Croppie уже инициализирован, пропускаем инициализацию.');
-                return;
-            }
-            $uploadCrop = $('#upload-demo').croppie({
-                viewport: {width: 138, height: 170, type: 'square'},
-                boundary: {width: 300, height: 300},
-                showZoomer: true
-            });
-            console.log('Croppie успешно инициализирован.');
-        }
-
-        // Проверка, если аватарка дефолтная, отключаем кнопку "Удалить фотографию"
-        function toggleDeleteButton() {
-            const defaultAvatarUrl = '/img/default.png';
-            const currentAvatarUrl = $('#confirm-img').attr('src');
-            const deletePhotoButton = $('#delete-photo');
-
-            if (currentAvatarUrl === defaultAvatarUrl) {
-                deletePhotoButton.addClass('disabled').attr('disabled', true);
-            } else {
-                deletePhotoButton.removeClass('disabled').attr('disabled', false);
-            }
-        }
 
         // Функция редактирования пользователя
         function editMidalUser() {
@@ -387,139 +743,6 @@
 
             showPassword();
 
-            // При выборе файла изображения загружаем его в Croppie
-            $('#upload').on('change', function () {
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    console.log('Загружен файл для Croppie:', e.target.result);
-                    $uploadCrop.croppie('bind', {
-                        url: e.target.result
-                    }).then(function () {
-                        console.log('Croppie bind complete');
-                    });
-                };
-                reader.readAsDataURL(this.files[0]);
-            });
-
-            // Открытие модалки для выбора фото (без закрытия основной модалки)
-            $('#upload-photo').on('click', function (e) {
-                e.preventDefault(); // Предотвращаем закрытие основной модалки
-                console.log('Открыта вторая модалка для загрузки аватарки');
-
-
-                // Получаем текущий URL аватарки
-                var currentAvatarUrl = $('#confirm-img').attr('src');
-                // var currentAvatarUrl = '/img/default.png'   ;
-                console.log('Текущий URL аватарки:', currentAvatarUrl);
-
-                $uploadCrop.croppie('bind', {
-                    url: '/img/white.jpg'
-                })
-
-                // $('#upload-demo').css('background-color', '#ffffff');
-
-
-                // Если аватарка не является изображением по умолчанию, загружаем её в Croppie
-                if (currentAvatarUrl && currentAvatarUrl !== '/img/default.png') {
-                    $uploadCrop.croppie('bind', {
-                        url: currentAvatarUrl
-                    }).then(function () {
-                        console.log('Текущая аватарка успешно загружена в Croppie.');
-                    }).catch(function (error) {
-                        console.error('Ошибка загрузки текущей аватарки в Croppie:', error);
-                    });
-                }
-
-
-                $('#editUserModal').css('opacity', '0.5'); // Уменьшаем прозрачность основной модалки
-                $('#uploadPhotoModal').modal({
-                    backdrop: 'static',  // Запрещаем закрытие модалки при клике вне её
-                    keyboard: false      // Отключаем закрытие модалки по клавише Esc
-                }).modal('show'); // Открываем модалку для выбора фото
-
-            });
-
-
-            function closeUploadAvatarModal2() {
-                console.log("closeUploadAvatarModal2()");
-                console.log('Модалка Croppie закрыта, восстанавливаем прозрачность основной модалки');
-                $('#editUserModal').css('opacity', '1'); // Восстанавливаем прозрачность основной модалки
-            }
-
-
-            // Закрытие второй модалки
-            $('#uploadPhotoModal').on('hidden.bs.modal', function () {
-                closeUploadAvatarModal2();
-            });
-
-            // Обработчик сохранения фото
-            $('#saveImageBtn').on('click', function () {
-                console.log('Клик по кнопке "Сохранить фото" во второй модалке.');
-
-                $uploadCrop.croppie('result', {
-                    type: 'canvas',
-                    size: 'viewport'
-                }).then(function (resp) {
-                    console.log('Base64 данных изображения:', resp);
-
-                    var action = $('#edit-user-form').attr('action');
-                    // console.log('Action формы:', action);
-
-                    if (action) {
-                        let userId = action.split('/').pop();
-                        console.log('User ID:', userId);
-
-                        let token = $('input[name="_token"]').val();
-
-                        $.ajax({
-                            url: `/admin/user/${userId}/update-avatar`,
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': token
-                            },
-                            data: {
-                                avatar: resp
-                            },
-                            success: function (response) {
-                                console.log('Ответ сервера:', response);
-                                try {
-                                    if (response.success) {
-                                        // Обновляем аватарку в модалке
-                                        let newAvatarUrl = response.avatar_url + '?' + new Date().getTime();
-                                        $('#confirm-img').attr('src', newAvatarUrl);
-                                        console.log('URL изображения после обновления:', $('#confirm-img').attr('src'));
-                                        showSuccessModal("Обновление аватара", "Аватар успешно обновлен.");
-
-
-                                        // Закрытие второй модалки и возврат к основной модалке
-                                        $('#editPhotoModal').modal('hide');
-                                        $('#editUserModal').css('opacity', '1').modal('show');
-                                    } else {
-                                        // console.error('Ответ сервера не содержит success:', response);
-                                        // alert('Не удалось обновить аватар. Ошибка ответа.');
-                                        $('#errorModal').modal('show');
-                                    }
-                                } catch (error) {
-                                    $('#errorModal').modal('show');
-                                    // console.error('Ошибка обработки ответа от сервера:', error);
-                                }
-                            },
-                            error: function (xhr, status, error) {
-                                // console.error('Ошибка при загрузке аватарки:', error);
-                                // console.log('Статус ответа:', status);
-                                // console.log('Ответ сервера:', xhr.responseText);
-                                // alert('Ошибка при загрузке аватарки. Проверьте лог сервера.');
-                                $('#errorModal').modal('show');
-                            }
-                        });
-                    } else {
-                        console.error('Action attribute отсутствует или пустой в форме.');
-                    }
-                }).catch(function (error) {
-                    console.error('Ошибка при обработке изображения Croppie:', error);
-                });
-                // closeUploadAvatarModal();
-            });
 
             // Показать/скрыть изменение пароля
             $('#change-password-btn').on('click', function () {
@@ -582,92 +805,6 @@
                 $('#change-pass-wrap').hide();
                 $('#error-message').hide();
             });
-
-        }
-
-        //Клик по обновить фотографию
-        function clickToUpdatePhoto() {
-            document.getElementById('update-photo').addEventListener('click', function (e) {
-                e.preventDefault();
-                // Открытие модального окна для обновления аватарки
-                // $('#uploadPhotoModal').modal('show');
-                $('#editPhotoModal').modal('show');
-            });
-        }
-
-        // Показывать контекстое меню при наведении
-        function showContexMenu() {
-            let menuTimeout;
-
-            // Показываем меню при наведении на аватар
-            $('.avatar_wrapper').hover(
-                function () {
-                    clearTimeout(menuTimeout);
-                    $(document).find('.avatar-menu').show();
-                },
-                function () {
-                    menuTimeout = setTimeout(() => {
-                        $(document).find('.avatar-menu').hide();
-                    }, 300); // добавляем небольшую задержку
-                }
-            );
-
-            // Устанавливаем обработчики для меню, чтобы оно не исчезало при наведении
-            $('.avatar-menu').hover(
-                function () {
-                    clearTimeout(menuTimeout); // отменяем таймер скрытия
-                    $(document).show();
-                },
-                function () {
-                    menuTimeout = setTimeout(() => {
-                        $(document).hide();
-                        $(document).find('.avatar-menu').hide();
-                    }, 300); // добавляем небольшую задержку перед скрытием
-                }
-            );
-        }
-
-        //Удаление аватарки
-        function deteleAvatar() {
-            document.getElementById('delete-photo').addEventListener('click', function (e) {
-                e.preventDefault();
-
-
-                showConfirmDeleteModal(
-                    "Удаление аватарки",
-                    "Вы уверены, что хотите удалить аватарку?",
-                    function () {
-                        // Подтверждение удаления фотографии
-                        // if (confirm('Вы уверены, что хотите удалить фотографию?')) {
-                        let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
-                        let token = $('input[name="_token"]').val();
-
-                        $.ajax({
-                            url: `/admin/user/${userId}/delete-avatar`, // Указываем маршрут для удаления аватарки
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': token
-                            },
-                            success: function (response) {
-                                if (response.success) {
-                                    $('#confirm-img').attr('src', '/img/default.png'); // Устанавливаем аватарку по умолчанию
-                                    showSuccessModal("Удаление аватара", "Аватар успешно удален.");
-                                    toggleDeleteButton();
-                                } else {
-                                    // alert('Ошибка удаления аватарки');
-                                    $('#errorModal').modal('show');
-                                }
-                            },
-                            error: function () {
-                                // alert('Ошибка удаления аватарки. Проверьте лог сервера.');
-                                $('#errorModal').modal('show');
-                            }
-                        });
-                        // }
-                    });
-
-
-            });
         }
 
         // ОКРЫТЫТЬ МОДАЛКУ ЮЗЕРА и загружаем его данные для редактирования UserController edit
@@ -700,7 +837,7 @@
                         roleSelect.empty();
                         response.roles.forEach(function (role) {
                             roleSelect.append(
-                                $('<option>', { value: role.id, text: role.label })
+                                $('<option>', {value: role.id, text: role.label})
                             );
                         });
                         roleSelect.val(response.user.role_id);
@@ -708,13 +845,17 @@
                         // 3) Устанавливаем action формы
                         $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);
 
-                        // 4) Отображаем аватарку
-                        if (response.user.image_crop) {
-                            $('#confirm-img').attr('src', `/storage/avatars/${response.user.image_crop}`);
+                        if (response.user && response.user.image_crop) {
+                            $('.avatar-clip img').attr('src', "{{ asset('storage/avatars') }}/" + response.user.image_crop);
                         } else {
-                            $('#confirm-img').attr('src', '/img/default.png');
+                            $('.avatar-clip img').attr('src', "{{ asset('img/default-avatar.png') }}");
                         }
-                        toggleDeleteButton();
+
+
+                        // большая аватарка (для модалки просмотра)
+                        setZoomImageFromUser(response.user);
+
+
 
                         // 5) Заполняем кастомные поля
                         const container = $('#custom-fields-container');
@@ -731,27 +872,10 @@
                                 if (uf) userValue = uf.pivot.value || '';
                             }
 
-
-
-                            // 2) Проверяем доступ по pivot‑таблице user_field_role
-                            //    (field.roles — массив ID ролей)
-                            // console.log(`\\Log [Field ${field.slug}] roles =`, field.roles);
                             console.log(`\Log [Field ${field.slug}] editable =`, field.editable); // Изменено: логируем для отладки
 
-
                             const roles = Array.isArray(field.roles) ? field.roles : [];
-                            // const hasAccess = isSuperadmin || roles.includes(current.role_id);
-
-
-                            // let hasAccess = Array.isArray(field.roles) && field.roles.includes(currentRoleId);
-                            // console.log(`\\Log [Field ${field.slug}] hasAccess =`, hasAccess);
-
-
-
-                            // let disabledAttr = hasAccess ? '' : 'disabled';
-
                             const disabledAttr = field.editable ? '' : 'disabled'; // Изменено: вместо расчёта по role_id
-
 
                             // 3) Генерируем HTML
                             const html = `
@@ -808,81 +932,6 @@
             });
         }
 
-
-        function editUserForm2() {
-            $('#edit-user-form')
-                .off('submit.edit') // чтобы не дублировались хендлеры
-                .on('submit.edit', function (e) {
-                    e.preventDefault();
-
-                    const $form  = $(this);
-                    const url    = $form.attr('action');
-                    const method = 'PATCH';
-
-                    // 1) Что реально отправится как строка (как у вас)
-                    const qs = $form.serialize();
-
-                    // 2) Те же данные в виде объекта (нагляднее)
-                    const obj = {};
-                    $form.serializeArray().forEach(({ name, value }) => {
-                        // поддержка массивов: name[]
-                        if (name.endsWith('[]')) {
-                            const key = name.slice(0, -2);
-                            (obj[key] ||= []).push(value);
-                        } else if (obj[name] !== undefined) {
-                            obj[name] = [].concat(obj[name], value);
-                        } else {
-                            obj[name] = value;
-                        }
-                    });
-
-                    // 3) Лог чекбоксов (важно: неотмеченные НЕ попадают в serialize())
-                    const checkboxes = $form.find('input[type="checkbox"]').map((_, el) => ({
-                        name: el.name,
-                        checked: el.checked,
-                        value: el.value
-                    })).get();
-
-                    console.groupCollapsed(`[EDIT USER] ${method} ${url}`);
-                    console.log('Query string:', qs);
-                    console.table($form.serializeArray());   // таблицей — наглядно
-                    console.log('Как объект:', obj);
-                    console.table(checkboxes);
-                    console.groupEnd();
-
-                    $.ajax({
-                        url: url,
-                        type: method,
-                        data: qs, // то же, что и раньше
-                        headers: {
-                            // если в meta уже есть токен — пробросим его
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                        },
-                        beforeSend: function (jqXHR, settings) {
-                            console.groupCollapsed('[AJAX beforeSend]');
-                            console.log('settings.type:', settings.type);
-                            console.log('settings.url:', settings.url);
-                            console.log('settings.data:', settings.data);
-                            console.groupEnd();
-                        },
-                        success: function (response, status, xhr) {
-                            console.log('[AJAX success]', { status: xhr.status, response });
-                            showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлен.", 1);
-                        },
-                        error: function (xhr) {
-                            console.warn('[AJAX error]', { status: xhr.status, text: xhr.responseText });
-                            eroorRespone(xhr);
-                        },
-                        complete: function (xhr, status) {
-                            console.log('[AJAX complete]', status);
-                        }
-                    });
-                });
-        }
-
-
-
-
         // Вызов модалки удаления
         $(document).on('click', '.confirm-delete-modal', function () {
             deleteUser();
@@ -918,11 +967,7 @@
             );
         }
 
-        clickToUpdatePhoto();
         editMidalUser();
-        initializeCroppie();
-        showContexMenu();
-        deteleAvatar();
         editUserLink();
         editUserForm();
     });
@@ -932,25 +977,28 @@
     (function () {
         const $doc = $(document);
         const digits = s => String(s || '').replace(/\D/g, '');
+
         function formatPhone(raw) {
             let d = digits(raw).replace(/^8/, '7');
             if (d && d[0] !== '7') d = '7' + d;
             d = d.slice(0, 11);
-            const p1 = d.slice(1,4), p2 = d.slice(4,7), p3 = d.slice(7,9), p4 = d.slice(9,11);
-            return '+7 (' + (p1.padEnd(3,'_')) + ') ' + (p2.padEnd(3,'_')) + '-' + (p3.padEnd(2,'_')) + '-' + (p4.padEnd(2,'_'));
+            const p1 = d.slice(1, 4), p2 = d.slice(4, 7), p3 = d.slice(7, 9), p4 = d.slice(9, 11);
+            return '+7 (' + (p1.padEnd(3, '_')) + ') ' + (p2.padEnd(3, '_')) + '-' + (p3.padEnd(2, '_')) + '-' + (p4.padEnd(2, '_'));
         }
+
         function sameAsOriginal($input) {
-            const orig = digits($input.data('original') || '').replace(/^8/,'7');
-            const cur  = digits($input.val()).replace(/^8/,'7');
+            const orig = digits($input.data('original') || '').replace(/^8/, '7');
+            const cur = digits($input.val()).replace(/^8/, '7');
             return !!orig && orig === cur;
         }
+
         function updateIcon($input) {
             const $iconWrap = $('#phone-verify-icon');
-            const $icon     = $iconWrap.find('i');
-            const $status   = $('#phone-verify-status');
-            const hasAny    = digits($input.val()).length > 0;
+            const $icon = $iconWrap.find('i');
+            const $status = $('#phone-verify-status');
+            const hasAny = digits($input.val()).length > 0;
             const wasVerified = Number($input.data('verified')) === 1;
-            const isSame    = sameAsOriginal($input);
+            const isSame = sameAsOriginal($input);
 
             if (!hasAny) {
                 $iconWrap.addClass('d-none');
@@ -976,22 +1024,29 @@
                 $status.addClass('d-none');
             }
         }
+
         function formatDate(str) {
             const d = new Date(String(str).replace(' ', 'T'));
-            const pad = n => String(n).padStart(2,'0');
-            return pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '.' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+            const pad = n => String(n).padStart(2, '0');
+            return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
         }
 
         // Делегированные обработчики — работают и в модалках
         $doc.on('input', '#edit-phone', function () {
             const pos = this.selectionStart || 0;
             this.value = formatPhone(this.value);
-            try { this.setSelectionRange(pos, pos); } catch(e) {}
+            try {
+                this.setSelectionRange(pos, pos);
+            } catch (e) {
+            }
             updateIcon($(this));
         });
         $doc.on('paste blur', '#edit-phone', function () {
             const el = this;
-            setTimeout(() => { el.value = formatPhone(el.value); updateIcon($(el)); }, 0);
+            setTimeout(() => {
+                el.value = formatPhone(el.value);
+                updateIcon($(el));
+            }, 0);
         });
 
         // Инициализация при показе модалки/страницы
@@ -1004,7 +1059,10 @@
         });
         $(function () {
             const $inp = $('#edit-phone');
-            if ($inp.length) { if ($inp.val()) $inp.val(formatPhone($inp.val())); updateIcon($inp); }
+            if ($inp.length) {
+                if ($inp.val()) $inp.val(formatPhone($inp.val()));
+                updateIcon($inp);
+            }
         });
     })();
 </script>

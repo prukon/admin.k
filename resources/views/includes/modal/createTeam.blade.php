@@ -1,5 +1,3 @@
-<!-- Подключение CSS Bootstrap (в head) -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-...ваш-интегрити-ключ..." crossorigin="anonymous">
 
 <!-- Ваш HTML-контент, включая модальные окна и форму -->
 

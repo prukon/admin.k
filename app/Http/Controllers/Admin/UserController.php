@@ -22,6 +22,8 @@ use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
+
 
 use App\Servises\UserService;
 
@@ -593,7 +595,7 @@ if ($request->user()->can('users-phone-update') && $newPhone !== $originalPhone)
     public function updatePassword(UpdatePasswordRequest $request, \App\Models\User $user)
     {
         $partnerId = app('current_partner')->id ?? null;
-        $actor     = $request->user();
+        $actor = $request->user();
 
 //        \Log::info('[users.password.update] partner check', [
 //            'actor_id'         => $actor->id,
@@ -621,12 +623,12 @@ if ($request->user()->can('users-phone-update') && $newPhone !== $originalPhone)
             $user->save();
 
             \App\Models\MyLog::create([
-                'type'        => 2,
-                'action'      => 26,
-                'author_id'   => $request->user()->id,
+                'type' => 2,
+                'action' => 26,
+                'author_id' => $request->user()->id,
                 'description' => sprintf('Пароль пользователя "%s" изменён администратором "%s".',
                     $user->name, $request->user()->name),
-                'partner_id'  => $partnerId,
+                'partner_id' => $partnerId,
             ]);
         });
 
@@ -675,6 +677,107 @@ if ($request->user()->can('users-phone-update') && $newPhone !== $originalPhone)
 
         // Своя ролевая модель (role_id/slug) — пример:
         return ($actor->role->name ?? null) === 'superadmin'; // подставьте ваш slug/проверку
+    }
+
+    //Удаление аватарки юзера
+    public function destroyUserAvatar($id)
+    {
+        $user = User::findOrFail($id);
+        $partnerId = app('current_partner')->id;
+        $authorId = auth()->id(); // Авторизованный пользователь
+
+        DB::transaction(function () use ($user, $authorId, $partnerId) {
+
+            // Удаляем файлы если есть
+            if ($user->image) {
+                Storage::disk('public')->delete('avatars/' . $user->image);
+            }
+            if ($user->image_crop) {
+                Storage::disk('public')->delete('avatars/' . $user->image_crop);
+            }
+
+            // Чистим поля
+            $user->update([
+                'image' => null,
+                'image_crop' => null,
+            ]);
+
+            MyLog::create([
+                'type' => 2, // Лог для обновления юзеров
+                'action' => 299, // Лог для обновления учетной записи
+                'author_id' => $authorId,
+                'partner_id' => $partnerId,
+                'description' => ("Пользователю " . $user->name . " удален аватар."),
+                'created_at' => now(),
+            ]);
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Аватар удалён',
+        ]);
+    }
+
+    //Загрузка аватарки юзеру
+    public function uploadUserAvatar(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $partnerId = app('current_partner')->id;
+        $authorId = auth()->id(); // Авторизованный пользователь
+
+        $result = DB::transaction(function () use ($request, $user, $authorId, $partnerId) {
+
+            // проверим файлы
+            if (!$request->hasFile('image_big') || !$request->hasFile('image_crop')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Файлы не загружены',
+                ], 422);
+            }
+
+            // удаляем старые файлы
+            if ($user->image) {
+                Storage::disk('public')->delete('avatars/' . $user->image);
+            }
+            if ($user->image_crop) {
+                Storage::disk('public')->delete('avatars/' . $user->image_crop);
+            }
+
+            // сохраняем новые
+            $bigFile = $request->file('image_big');
+            $cropFile = $request->file('image_crop');
+
+            $bigName = Str::uuid() . '.' . $bigFile->getClientOriginalExtension();
+            $cropName = Str::uuid() . '.' . $cropFile->getClientOriginalExtension();
+
+            $bigFile->storeAs('avatars', $bigName, 'public');
+            $cropFile->storeAs('avatars', $cropName, 'public');
+
+            // обновляем БД
+            $user->update([
+                'image' => $bigName,
+                'image_crop' => $cropName,
+            ]);
+
+
+            MyLog::create([
+                'type' => 2, // Лог для обновления юзеров
+                'action' => 27, // Лог для обновления учетной записи
+                'author_id' => $authorId,
+                'partner_id' => $partnerId,
+                'description' => ("Пользователю " . $user->name . " изменен аватар."),
+                'created_at' => now(),
+            ]);
+            return compact('bigName', 'cropName');
+        });
+
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Аватар обновлён',
+            'image_url' => asset('storage/avatars/' . $result['bigName']),
+            'image_crop_url' => asset('storage/avatars/' . $result['cropName']),
+        ]);
     }
 
 }

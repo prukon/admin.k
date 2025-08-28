@@ -1,61 +1,61 @@
-@media screen and (max-width: 1399px) {
-    header .main-menu {
-        font-size: 12px;
-    }
+/*@media screen and (max-width: 1399px) {*/
+    /*header .main-menu {*/
+        /*font-size: 12px;*/
+    /*}*/
 
-    header .tel {
-        font-size: 12px;
-    }
-}
+    /*header .tel {*/
+        /*font-size: 12px;*/
+    /*}*/
+/*}*/
 
-@media screen and (max-width: 991px) {
-    header .main-menu {
-        font-size: 11px;
-        Letter-spacing: 0.4px;
-    }
+/*@media screen and (max-width: 991px) {*/
+    /*header .main-menu {*/
+        /*font-size: 11px;*/
+        /*Letter-spacing: 0.4px;*/
+    /*}*/
 
-    header .tel {
-        font-size: 11px;
-    }
-}
+    /*header .tel {*/
+        /*font-size: 11px;*/
+    /*}*/
+/*}*/
 
-@media screen and (max-width: 767px) {
-    .social-networks {
-        margin-right: 0;
-    }
+/*@media screen and (max-width: 767px) {*/
+    /*.social-networks {*/
+        /*margin-right: 0;*/
+    /*}*/
 
-    header .main-menu a {
-        padding-right: 4px;
-    }
-}
+    /*header .main-menu a {*/
+        /*padding-right: 4px;*/
+    /*}*/
+/*}*/
 
-@media screen and (max-width: 575px) {
-    header .main-menu {
-        font-size: 10px;
-        Letter-spacing: 0.4px;
-    }
+/*@media screen and (max-width: 575px) {*/
+    /*header .main-menu {*/
+        /*font-size: 10px;*/
+        /*Letter-spacing: 0.4px;*/
+    /*}*/
 
-    header .main-menu a {
-        padding-right: 4px;
-    }
+    /*header .main-menu a {*/
+        /*padding-right: 4px;*/
+    /*}*/
 
-    header .tel {
-        font-size: 11px;
-    }
-}
+    /*header .tel {*/
+        /*font-size: 11px;*/
+    /*}*/
+/*}*/
 
-@media screen and (max-width: 464px) {
-    header .main-menu {
-        font-size: 9px;
-        Letter-spacing: 0.4px;
-    }
+/*@media screen and (max-width: 464px) {*/
+    /*header .main-menu {*/
+        /*font-size: 9px;*/
+        /*Letter-spacing: 0.4px;*/
+    /*}*/
 
-    header .main-menu a {
-        padding-right: 4px;
-    }
+    /*header .main-menu a {*/
+        /*padding-right: 4px;*/
+    /*}*/
 
-    header .tel {
-        font-size: 10px;
-    }
-}
+    /*header .tel {*/
+        /*font-size: 10px;*/
+    /*}*/
+/*}*/
 

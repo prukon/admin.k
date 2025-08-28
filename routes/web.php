@@ -131,6 +131,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/user/logs-data', [UserController::class, 'log'])->name('logs.data.user');
         Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users-password-update','throttle:5,1'])
             ->whereNumber('user');
+        //      Удаление аватарки админом
+        Route::delete('/admin/users/{id}/avatar', [UserController::class, 'destroyUserAvatar'])->name('admin.users.avatar.destroy');
+//      Обновление аватарки админом
+        Route::post('/admin/users/{id}/avatar', [UserController::class, 'uploadUserAvatar']);
 
     });
 
@@ -168,11 +172,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('edit-menu', [SettingController::class, 'editMenu'])->name('editMenu');
     Route::get('admin/settings/logs-all-data', [SettingController::class, 'logsAllData'])->name('logs.all.data');
 
+
     //Страница Настойки- Права
-
-
-
-//    Route::middleware('can:manage-roles')->group(function () {
     Route::middleware('can:settings-roles-view')->group(function () {
         Route::get('admin/settings/rules', [RuleController::class, 'showRules'])->name('admin.setting.rule');
         Route::post('admin/setting/rule/toggle', [RuleController::class, 'togglePermission'])->name('admin.setting.rule.toggle');
@@ -194,9 +195,15 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('account-settings/users/{user}/edit', [AccountController::class, 'user'])->name('admin.cur.user.edit');
         Route::patch('account-settings/users/{user}', [AccountController::class, 'update'])->name('account.user.update');
         Route::post('user/update-password', [AccountController::class, 'updatePassword']);
+
+        Route::post('/profile/avatar', [AccountController::class, 'store']);        // добалвение/замена
+        Route::delete('/profile/avatar', [AccountController::class, 'destroy']);    // удаление
+
     });
 
-    //Учетная запись - вкладка организация
+
+
+        //Учетная запись - вкладка организация
     Route::middleware('can:account-partner-view')->group(function () {
         Route::get('account-settings/partner/{user}/edit', [PartnerSettingController::class, 'partner'])->name('admin.cur.company.edit');
         Route::patch('account-settings/partner/{partner}', [PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
@@ -244,11 +251,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::post('/partner/accept-offer', [\App\Http\Controllers\PartnerOfferController::class, 'acceptOffer'])->name('partner.accept-offer');
 
     //Обновление аватарки юзером
-    Route::post('/profile/upload-user-avatar', [\App\Http\Controllers\Admin\AccountController::class, 'uploadAvatar'])->name('profile.user.uploadAvatar');
+//    Route::post('/profile/upload-user-avatar', [\App\Http\Controllers\Admin\AccountController::class, 'uploadAvatar'])->name('profile.user.uploadAvatar');
 
     //Обновление аватара админом
-    Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\Admin\AccountController::class, 'updateAvatar'])->name('admin.user.update-avatar');
-    Route::post('/admin/user/{user}/delete-avatar', [\App\Http\Controllers\Admin\AccountController::class, 'deleteAvatar'])->name('user.delete-avatar');
+//    Route::post('admin/user/{user}/update-avatar', [\App\Http\Controllers\Admin\AccountController::class, 'updateAvatar'])->name('admin.user.update-avatar');
+//    Route::post('/admin/user/{user}/delete-avatar', [\App\Http\Controllers\Admin\AccountController::class, 'deleteAvatar'])->name('user.delete-avatar');
 
 
     //переключение между партнерами

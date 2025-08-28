@@ -1,11 +1,10 @@
 /* ===== Подключения библиотек (локально через Vite) =====
- * Порядок: Bootstrap CSS → (прочие CSS) → jQuery UI → Bootstrap JS → DataTables → Select2 → Croppie → moment+Daterangepicker → FullCalendar (JS)
+ * Порядок: Bootstrap CSS → (прочие CSS) → jQuery UI → DataTables → Select2 → Croppie → moment+Daterangepicker → FullCalendar (JS)
  * ВАЖНО: jQuery уже подключён инлайн в layout.
  */
 
 /* --- CSS --- */
-/* Bootstrap 5 стили (нужны для выпадающих меню, модалок и т.д.) */
-import 'bootstrap/dist/css/bootstrap.min.css';
+/* Bootstrap 5 стили — ВЫПИЛЕНЫ, так как уже подключаются через layout */
 
 /* jQuery UI (datepicker, draggable, dialog…) */
 import 'jquery-ui-dist/jquery-ui.css';
@@ -28,8 +27,7 @@ import 'daterangepicker/daterangepicker.css';
 /* jQuery UI — использует глобальный window.jQuery (он из layout) */
 import 'jquery-ui-dist/jquery-ui';
 
-/* Bootstrap JS (bundle включает Popper — нужен для dropdown) */
-import 'bootstrap/dist/js/bootstrap.bundle';
+/* Bootstrap JS (bundle включает Popper) — ВЫПИЛЕН, т.к. подключается через layout */
 
 /* DataTables: jQuery-плагин, просто импортов достаточно */
 import 'datatables.net-bs5';
@@ -51,3 +49,10 @@ import 'daterangepicker';
 import { Calendar } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 window.FullCalendar = { Calendar, dayGridPlugin };
+
+// Cropper
+// import Cropper from 'cropperjs';
+// import 'cropperjs/dist/cropper.css';
+//
+// // чтобы можно было использовать в твоих скриптах без сборки модулей:
+// window.Cropper = Cropper;

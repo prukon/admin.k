@@ -27,6 +27,7 @@
         "vite": "^5.0.0"
     },
     "dependencies": {
+        "cropperjs": "^2.0.1",
         "datatables.net-dt": "^2.3.2"
     }
 }

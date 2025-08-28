@@ -1,10 +1,10 @@
 //app.js
 
-import './bootstrap';
-import 'bootstrap/dist/js/bootstrap.bundle';
+// import './bootstrap';
+// import 'bootstrap/dist/js/bootstrap.bundle';
 
-import { Calendar } from '@fullcalendar/core';
-import dayGridPlugin from '@fullcalendar/daygrid';
+// import { Calendar } from '@fullcalendar/core';
+// import dayGridPlugin from '@fullcalendar/daygrid';
 
 document.addEventListener('DOMContentLoaded', function() {
     let calendarEl = document.getElementById('calendar');
