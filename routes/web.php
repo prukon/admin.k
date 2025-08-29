@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MyGroupController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\User\Report\ReportController;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +26,8 @@ use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\Admin\PartnerController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Security\PhoneChangeController;
+use App\Http\Controllers\ContractsController;
+use App\Http\Controllers\Webhooks\PodpislonWebhookController;
 
 
 Auth::routes();
@@ -89,6 +92,13 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/getUserPayments', [ReportController::class, 'getUserPayments'])->name('payments.getUserPayments');
     });
 
+//    Моя группа
+    Route::middleware(['can:myGroup-view'])->group(function () {
+        Route::get('/my-group', [MyGroupController::class, 'index'])->name('my-group.index');
+        Route::get('/my-group/data', [MyGroupController::class, 'data'])->name('my-group.data');
+    });
+
+
     //Установка цен
     Route::middleware('can:setPrices-view')->group(function () {
         Route::get('admin/setting-prices', [SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
@@ -128,7 +138,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('admin/user/{user}', [UserController::class, 'delete'])->name('admin.user.delete');
         Route::post('admin/field/store', [UserController::class, 'storeFields'])->name('admin.field.store');
         Route::get('admin/user/logs-data', [UserController::class, 'log'])->name('logs.data.user');
-        Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users-password-update','throttle:5,1'])
+        Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users-password-update', 'throttle:5,1'])
             ->whereNumber('user');
         //      Удаление аватарки админом
         Route::delete('/admin/users/{id}/avatar', [UserController::class, 'destroyUserAvatar'])->name('admin.users.avatar.destroy');
@@ -200,9 +210,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     });
 
-
-
-        //Учетная запись - вкладка организация
+    //Учетная запись - вкладка организация
     Route::middleware('can:account-partner-view')->group(function () {
         Route::get('account-settings/partner/{user}/edit', [PartnerSettingController::class, 'partner'])->name('admin.cur.company.edit');
         Route::patch('account-settings/partner/{partner}', [PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
@@ -222,7 +230,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Страница О сервисе
     Route::get('/about', [\App\Http\Controllers\AboutController::class, 'index'])->name('about');
 
-
     //Страница оплаты робокассы
     Route::middleware('can:paying-classes')->group(function () {
         Route::post('payment', [TransactionController::class, 'index'])->name('payment');
@@ -233,6 +240,26 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     //Оплата клубного взноса (робокасса)
     Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee')->middleware('can:payment-clubfee'); //Оплата клубного взноса
+
+
+//    Route::middleware('can:paying-classes')->group(function () {
+
+        Route::get('/contracts', [ContractsController::class, 'index'])->name('contracts.index');
+        Route::get('/contracts/create', [ContractsController::class, 'create'])->name('contracts.create');
+        Route::post('/contracts', [ContractsController::class, 'store'])->name('contracts.store');
+
+        Route::get('/contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
+
+        Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
+        Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
+
+        Route::post('/contracts/{contract}/send', [ContractsController::class, 'send'])->name('contracts.send');
+        Route::post('/contracts/{contract}/resend', [ContractsController::class, 'resend'])->name('contracts.resend');
+        Route::post('/contracts/{contract}/revoke', [ContractsController::class, 'revoke'])->name('contracts.revoke');
+        Route::get('/contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
+//    });
+
+
 
     //    Оплата ТБанк
 //    Route::get('/tinkoff/form', [\App\Http\Controllers\TinkoffPaymentController::class, 'index'])->name('tinkoff.form');
@@ -284,3 +311,4 @@ Route::post('/tinkoff/pay', [\App\Http\Controllers\TinkoffPaymentController::cla
 Route::post('/tinkoff/callback', [\App\Http\Controllers\TinkoffPaymentController::class, 'callback'])->name('tinkoff.callback'); // пока заглушка
 
 
+// Webhook без auth

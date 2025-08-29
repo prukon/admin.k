@@ -11,7 +11,6 @@ use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
 use Illuminate\Support\Facades\DB;
 
-
 class   User extends Authenticatable
 
 {
@@ -22,12 +21,10 @@ class   User extends Authenticatable
     protected $table = 'users'; //явное указание к какой таблице в БД привязана модель
     protected $guarded = []; //разрешение на изменение данных в таблице
     protected $dates = ['deleted_at'];
-
     protected $hidden = [
         'password',
         'remember_token',
     ];
-
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
@@ -39,17 +36,13 @@ class   User extends Authenticatable
         'phone_verified_at' => 'datetime',
     ];
 
-
-
     public $timestamps = true;
-
 
     public function users()
     {
         // pivot: role_user (user_id, role_id)
         return $this->belongsToMany(User::class, 'role_user', 'role_id', 'user_id');
     }
-
 
     public function getBirthdayForFormAttribute(): ?string
     {
@@ -78,26 +71,25 @@ class   User extends Authenticatable
             ->withTimestamps();
     }
 
-//    Восстановление пароля через емаил
+    //Восстановление пароля через емаил
     public function sendPasswordResetNotification($token)
     {
         $this->notify(new ResetPasswordNotification($token));
     }
 
-//Связь многие-ко-многим с партнёрами.
+    //Связь многие-ко-многим с партнёрами.
     public function partners()
     {
         return $this->belongsToMany(Partner::class, 'partner_user');
     }
 
-// Пример метода для удобного добавления партнёра к пользователю.
+    //Пример метода для удобного добавления партнёра к пользователю.
     public function attachPartner($partnerId)
     {
         return $this->partners()->attach($partnerId);
     }
 
-//     Пример метода для синхронизации партнёров (заменяет текущие связи новыми).
-
+    //Пример метода для синхронизации партнёров (заменяет текущие связи новыми).
     public function syncPartners(array $partnerIds)
     {
         return $this->partners()->sync($partnerIds);
@@ -118,24 +110,15 @@ class   User extends Authenticatable
         )->withTimestamps();
     }
 
-//    public function hasRole(string $roleName)
-//    {
-//        return $this->roles()
-//            ->where('name', $roleName)
-//            ->exists();
-//    }
-
     public function hasRole(string $roleName): bool
     {
         return $this->role && $this->role->name === $roleName;
     }
 
-
     public function role()
     {
         return $this->belongsTo(Role::class, 'role_id');
     }
-
 
     public function hasPermission(string $permissionName): bool
     {
@@ -169,7 +152,5 @@ class   User extends Authenticatable
         $this->two_factor_expires_at = null;
         $this->save();
     }
-
-
 }
 

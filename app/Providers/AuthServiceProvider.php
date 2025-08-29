@@ -29,7 +29,6 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-
         Gate::define('verify-phone', function (User $actor, User $target) {
             return $actor->id === $target->id || in_array((int)$actor->role_id, [1, 10], true);
         });
@@ -39,98 +38,55 @@ class AuthServiceProvider extends ServiceProvider
             return $user->role_id === 1 ? true : null;
         });
 
-
 ////////////////////////ГЛАВНОЕ МЕНЮ//////////////////////
-///
-///
-        //        // Страница "Консоль"
-//        Gate::define('dashboard-view', function (User $user) {
-//            return $user->hasPermission('dashboard.view');
-//        });
 
         // Страница "Консоль"
         Gate::define('dashboard-view', function (User $user) {
             return $user->hasPermission('dashboard.view');
         });
 
-        //        // Отчёты
-//        Gate::define('reports', function (User $user) {
-//            return $user->hasPermission('reports');
-//        });
-
         // Отчёты
         Gate::define('reports-view', function (User $user) {
             return $user->hasPermission('reports.view');
         });
 
-        //        // Мои платежи
-//        Gate::define('my-payments', function (User $user) {
-//            return $user->hasPermission('my_payments');
-//        });
-
         // Мои платежи
         Gate::define('myPayments-view', function (User $user) {
-            return $user->hasPermission('myPayments.view ');
+            return $user->hasPermission('myPayments.view');
         });
 
-        //        // Установка цен
-//        Gate::define('set-prices', function (User $user) {
-//            return $user->hasPermission('set_prices');
-//        });
+        // Мои группы
+        Gate::define('myGroup-view', function (User $user) {
+            return $user->hasPermission('myGroup.view');
+        });
 
-
+        Gate::define('contracts-view', function (User $user) {
+            return $user->hasPermission('contracts.view');
+        });
         // Установка цен
         Gate::define('setPrices-view', function (User $user) {
             return $user->hasPermission('setPrices.view');
         });
-
-        //        // Журнал расписания
-//        Gate::define('schedule-journal', function (User $user) {
-//            return $user->hasPermission('schedule_journal');
-//        });
-//
 
         // Журнал расписания
         Gate::define('schedule-view', function (User $user) {
             return $user->hasPermission('schedule.view');
         });
 
-        //        // Управление пользователями
-//        Gate::define('manage-users', function (User $user) {
-//            return $user->hasPermission('manage_users');
-//        });
-
-
         // Управление пользователями
         Gate::define('users-view', function (User $user) {
             return $user->hasPermission('users.view');
         });
 
-        //        // Управление группами
-//        Gate::define('manage-groups', function (User $user) {
-//            return $user->hasPermission('manage_groups');
-//        });
-//
         // Управление группами
         Gate::define('groups-view', function (User $user) {
             return $user->hasPermission('groups.view');
         });
 
-        //        // Страница "Партнеры"
-//        Gate::define('partner-view', function (User $user) {
-//            return $user->hasPermission('partner.view');
-//        });
-//
-
         // Страница "Партнеры"
         Gate::define('partner-view', function (User $user) {
             return $user->hasPermission('partner.view');
         });
-
-        //        // Общие настройки
-//        Gate::define('general-settings', function (User $user) {
-//            return $user->hasPermission('general_settings');
-//        });
 
         // Страница "Настройки
         Gate::define('settings-view', function (User $user) {
@@ -147,52 +103,25 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('settings.paymentSystems.view');
         });
 
-
-
-
-        //        // Страница "Учетная запись -> Личные данные"
-//        Gate::define('account-user-view', function (User $user) {
-//            return $user->hasPermission('account.user.view');
-//        });
-
         // Страница "Учетная запись -> Личные данные"
         Gate::define('account-user-view', function (User $user) {
             return $user->hasPermission('account.user.view');
         });
-
 
         // Страница "Учетная запись -> организация"
         Gate::define('account-partner-view', function (User $user) {
             return $user->hasPermission('account.partner.view');
         });
 
-        //        // Страница "Лиды"
-//        Gate::define('leads-view', function (User $user) {
-//            return $user->hasPermission('leads.view');
-//        });
-
         // Страница "Лиды"
         Gate::define('leads-view', function (User $user) {
             return $user->hasPermission('leads.view');
         });
 
-        //        // Оплата сервиса
-//        Gate::define('service-payment', function (User $user) {
-//            return $user->hasPermission('service_payment');
-//        });
-
-
         // Оплата сервиса
         Gate::define('servicePayments-view', function (User $user) {
             return $user->hasPermission('servicePayments.view');
         });
-
-///
-
-////
-
-//
-
 
         ////////////////////////Учетная запись //////////////////////
 
@@ -225,7 +154,6 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('account-user-phone-update', function (User $user) {
             return $user->hasPermission('account.user.phone.update');
         });
-
 
 //////////////////////// Управление пользователями //////////////////////
 
@@ -276,7 +204,6 @@ class AuthServiceProvider extends ServiceProvider
 
 //////////////////////// Разное  //////////////////////
 
-
         // Пример: Gate для доступа в админку
         Gate::define('access-admin-panel', function (User $user) {
             return $user->hasPermission('access_admin_panel');
@@ -292,32 +219,10 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('delete_users');
         });
 
-        // Управление ролями
-//        Gate::define('manage-roles', function (User $user) {
-//            return $user->hasPermission('manage_roles');
-//        });
-
         // История изменений
         Gate::define('change-history', function (User $user) {
             return $user->hasPermission('change_history');
         });
-
-
-        // Изменение активности пользователя
-//        Gate::define('changing-user-activity', function (User $user) {
-//            return $user->hasPermission('changing_user_activity');
-//        });
-
-//        Изменение роли пользователя
-//        Gate::define('changing-user-rules', function (User $user) {
-//            return $user->hasPermission('changing_user_rules');
-//        });
-
-
-        // Фильтр учеников в консоли
-//        Gate::define('student-filter-console', function (User $user) {
-//            return $user->hasPermission('student_filter_console');
-//        });
 
         // Оплата занятий
         Gate::define('paying-classes', function (User $user) {
@@ -334,9 +239,5 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('setting_payment_systems');
         });
 
-        // Изменение своего партнера
-//        Gate::define('changing-partner', function (User $user) {
-//            return $user->hasPermission('changing_partner');
-//        });
     }
 }

@@ -10,290 +10,378 @@
             </div>
             <div class="modal-body">
                 <form id="edit-user-form" class="text-start" method="post">
-                @csrf
-                @method('patch')
-
-                <!-- Блок для аватарки -->
+                    @csrf
+                    @method('patch')
                     <div class="mb-3 d-flex flex-column align-items-center">
-                        <div>
 
-                            <div class="avatar_wrapper">
-                                <div class="avatar">                         <!-- ВНЕШНИЙ контейнер (hover + меню) -->
-                                    <div class="avatar-clip">
-                                        <!-- ВНУТРЕННИЙ круг (обрезка фото + бордер) -->
-                                        <img
-                                                src="{{ auth()->user()->image_crop ? asset('storage/avatars/'.auth()->user()->image_crop) : asset('/img/default-avatar.png') }}"
-                                                alt="Avatar">
-                                    </div>
+                        <!-- Блок для аватарки -->
+                        <div class="mb-3 d-flex flex-column align-items-center">
+                            <div>
+                                <div class="avatar_wrapper">
+                                    <div class="avatar">
+                                        <!-- ВНЕШНИЙ контейнер (hover + меню) -->
+                                        <div class="avatar-clip">
+                                            <!-- ВНУТРЕННИЙ круг (обрезка фото + бордер) -->
+                                            <img
+                                                    src="{{ auth()->user()->image_crop ? asset('storage/avatars/'.auth()->user()->image_crop) : asset('/img/default-avatar.png') }}"
+                                                    alt="Avatar">
+                                        </div>
 
-                                    <div class="avatar-actions">
-                                        <button class="dropdown-item js-open-photo" type="button">
-                                            <i class="fa-solid fa-image"></i> Открыть фото
-                                        </button>
-                                        <button class="dropdown-item js-change-photo" type="button"
-                                                data-bs-toggle="modal" data-bs-target="#avatarEditModal">
-                                            <i class="fa-solid fa-pen-to-square"></i> Изменить фото
-                                        </button>
-                                        <button class="dropdown-item text-danger js-delete-photo" type="button">
-                                            <i class="fa-solid fa-trash"></i> Удалить фото
-                                        </button>
+                                        <div class="avatar-actions">
+                                            <button class="dropdown-item js-open-photo" type="button">
+                                                <i class="fa-solid fa-image"></i> Открыть фото
+                                            </button>
+                                            <button class="dropdown-item js-change-photo" type="button"
+                                                    data-bs-toggle="modal" data-bs-target="#avatarEditModal">
+                                                <i class="fa-solid fa-pen-to-square"></i> Изменить фото
+                                            </button>
+                                            <button class="dropdown-item text-danger js-delete-photo" type="button">
+                                                <i class="fa-solid fa-trash"></i> Удалить фото
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
+                                @include('includes.modal.editAvatar')
                             </div>
-
-                            <!-- CRUD аватарки -->
-                            @include('includes.modal.editAvatar')
-
                         </div>
 
                     </div>
 
-                    <!-- Поле "Имя" -->
-                    <div class="mb-3">
-                        <label for="edit-name" class="form-label">Имя ученика *</label>
-                        <input type="text"
-                               name="name"
-                               class="form-control"
-                               id="edit-name"
-                               @cannot('users-name-update') disabled aria-disabled="true" @endcannot>
-                    </div>
 
-                    <!-- Поле "Дата рождения" -->
-                    <div class="mb-3">
-                        <label for="edit-birthday" class="form-label">Дата рождения</label>
-                        <input
-                                type="date"
-                                name="birthday"
-                                id="edit-birthday"
-                                class="form-control"
-                                @cannot('users-birthdate-update') disabled aria-disabled="true" @endcannot
-                        >
-                        @cannot('users-birthdate-update')
-                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
-                                даты рождения
+                    <!-- ДВЕ КОЛОНКИ -->
+                    <div class="row g-3"> <!-- g-3 = отступы между полями -->
+
+                        <!-- Поле "Имя" -->
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-name" class="form-label">Имя ученика *</label>
+                                <input type="text"
+                                       name="name"
+                                       class="form-control"
+                                       id="edit-name"
+                                       @cannot('users-name-update') disabled aria-disabled="true" @endcannot>
                             </div>
-                        @endcannot
-                    </div>
-
-                    <!-- Поле "Группа" -->
-                    <div class="mb-3">
-                        <label for="edit-team" class="form-label">Группа</label>
-                        <select
-                                id="edit-team"
-                                name="team_id"
-                                class="form-select"
-                                @cannot('users-group-update') disabled aria-disabled="true" @endcannot
-                        >
-                            <option value="">Без группы</option>
-                            @foreach($allTeams as $team)
-                                <option value="{{ $team->id }}">{{ $team->title }}</option>
-                            @endforeach
-                        </select>
-
-                        @cannot('users-group-update')
-                            <div class="form-text text-muted">
-                                <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение группы
-                            </div>
-                        @endcannot
-                    </div>
-
-                    <!-- Поле "Дата начала занятий" -->
-                    <div class="mb-3">
-                        <label for="edit-start_date" class="form-label">Дата начала занятий</label>
-                        <input
-                                type="date"
-                                id="edit-start_date"
-                                name="start_date"
-                                class="form-control"
-                                @cannot('users-startDate-update') disabled aria-disabled="true" @endcannot
-                        >
-                        @cannot('users-startDate-update')
-                            <div class="form-text text-muted">
-                                <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение даты начала
-                            </div>
-                        @endcannot
-                    </div>
-
-                {{--Пользовательские поля--}}
-                @if($fields->isNotEmpty()) <!-- Проверяем, есть ли пользовательские поля -->
-                    <div class="mb-3">
-                        <div id="custom-fields-container"> <!-- Контейнер для пользовательских полей -->
-
-
                         </div>
-                    </div>
-                @endif
 
-                <!-- Поле "Email" -->
-                    <div class="mb-3">
-                        <label for="edit-email" class="form-label">Адрес электронной почты*</label>
-                        <input
-                                type="email"
-                                id="edit-email"
-                                name="email"
-                                class="form-control"
-                                required
-                                @cannot('users-email-update') disabled aria-disabled="true" @endcannot
-                        >
-                        @cannot('users-email-update')
-                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
-                                email
+                        <!-- Поле "Дата рождения" -->
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-birthday" class="form-label">Дата рождения</label>
+                                <input
+                                        type="date"
+                                        name="birthday"
+                                        id="edit-birthday"
+                                        class="form-control"
+                                        @cannot('users-birthdate-update') disabled aria-disabled="true" @endcannot
+                                >
+                                @cannot('users-birthdate-update')
+                                    <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
+                                        изменение
+                                        даты рождения
+                                    </div>
+                                @endcannot
                             </div>
-                        @endcannot
-                    </div>
+                        </div>
 
-                    {{-- Поле "Телефон" --}}
-                    @php $canPhone = auth()->user()->can('users-phone-update'); @endphp
+                        <!-- Поле "Группа" -->
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-team" class="form-label">Группа</label>
+                                <select
+                                        id="edit-team"
+                                        name="team_id"
+                                        class="form-select"
+                                        @cannot('users-group-update') disabled aria-disabled="true" @endcannot
+                                >
+                                    <option value="">Без группы</option>
+                                    @foreach($allTeams as $team)
+                                        <option value="{{ $team->id }}">{{ $team->title }}</option>
+                                    @endforeach
+                                </select>
 
-                    <div class="mb-3">
-                        <label for="edit-phone" class="form-label">Телефон</label>
+                                @cannot('users-group-update')
+                                    <div class="form-text text-muted">
+                                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение группы
+                                    </div>
+                                @endcannot
+                            </div>
+                        </div>
 
-                        <div class="input-group">
-                            <input
-                                    type="tel"
-                                    class="form-control"
-                                    id="edit-phone"
-                                    name="phone"
-                                    value="{{ old('phone', $user->phone) }}"
-                                    placeholder="+7 (___) ___-__-__"
-                                    data-original="{{ $user->phone ?? '' }}"
-                                    data-verified="{{ $user->phone_verified_at ? 1 : 0 }}"
-                                    @unless($canPhone) disabled aria-disabled="true" @endunless
-                            >
+                        <!-- Поле "Дата начала занятий" -->
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-start_date" class="form-label">Дата начала занятий</label>
+                                <input
+                                        type="date"
+                                        id="edit-start_date"
+                                        name="start_date"
+                                        class="form-control"
+                                        @cannot('users-startDate-update') disabled aria-disabled="true" @endcannot
+                                >
+                                @cannot('users-startDate-update')
+                                    <div class="form-text text-muted">
+                                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение даты начала
+                                    </div>
+                                @endcannot
+                            </div>
+                        </div>
 
-                            {{-- Индикатор статуса (галка/крест) --}}
-                            <span id="phone-verify-icon" class="input-group-text d-none">
+
+                        {{-- Поле "email" --}}
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-email" class="form-label">Адрес электронной почты*</label>
+                                <input
+                                        type="email"
+                                        id="edit-email"
+                                        name="email"
+                                        class="form-control"
+                                        required
+                                        @cannot('users-email-update') disabled aria-disabled="true" @endcannot
+                                >
+                                @cannot('users-email-update')
+                                    <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
+                                        изменение
+                                        email
+                                    </div>
+                                @endcannot
+                            </div>
+                        </div>
+
+                        {{-- Поле "Телефон" --}}
+                        <div class="col-12 col-md-6">
+                            @php $canPhone = auth()->user()->can('users-phone-update'); @endphp
+                            <div class="mb-3">
+                                <label for="edit-phone" class="form-label">Телефон</label>
+
+                                <div class="input-group">
+                                    <input
+                                            type="tel"
+                                            class="form-control"
+                                            id="edit-phone"
+                                            name="phone"
+                                            value="{{ old('phone', $user->phone) }}"
+                                            placeholder="+7 (___) ___-__-__"
+                                            data-original="{{ $user->phone ?? '' }}"
+                                            data-verified="{{ $user->phone_verified_at ? 1 : 0 }}"
+                                            @unless($canPhone) disabled aria-disabled="true" @endunless
+                                    >
+
+                                    {{-- Индикатор статуса (галка/крест) --}}
+                                    <span id="phone-verify-icon" class="input-group-text d-none">
             <i class="fa-solid fa-circle-check"></i>
         </span>
-                        </div>
+                                </div>
 
-                        @php
-                            $verifiedAt = $user->phone_verified_at ? \Carbon\Carbon::parse($user->phone_verified_at) : null;
-                        @endphp
-                        <small
-                                id="phone-verify-status"
-                                class="small {{ $verifiedAt ? 'text-success' : 'd-none' }}"
-                                data-verified-at="{{ $verifiedAt ? $verifiedAt->format('Y-m-d H:i:s') : '' }}"
-                        >
-                            @if($verifiedAt)
-                                Подтверждён {{ $verifiedAt->format('d.m.Y H:i') }}
-                            @endif
-                        </small>
+                                @php
+                                    $verifiedAt = $user->phone_verified_at ? \Carbon\Carbon::parse($user->phone_verified_at) : null;
+                                @endphp
+                                <small
+                                        id="phone-verify-status"
+                                        class="small {{ $verifiedAt ? 'text-success' : 'd-none' }}"
+                                        data-verified-at="{{ $verifiedAt ? $verifiedAt->format('Y-m-d H:i:s') : '' }}"
+                                >
+                                    @if($verifiedAt)
+                                        Подтверждён {{ $verifiedAt->format('d.m.Y H:i') }}
+                                    @endif
+                                </small>
 
-                        @unless($canPhone)
-                            <div class="form-text text-muted mt-1">
-                                <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение телефона
-                            </div>
-                        @endunless
-                    </div>
-
-                    <!-- Поле "Активность" -->
-                    <div class="mb-3">
-                        <label for="edit-activity" class="form-label">Активность</label>
-                        <select
-                                id="edit-activity"
-                                name="is_enabled"
-                                class="form-select"
-                                @cannot('users-activity-update') disabled aria-disabled="true" @endcannot
-                        >
-                            <option value="0">Неактивен</option>
-                            <option value="1">Активен</option>
-                        </select>
-                        @cannot('users-activity-update')
-                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
-                                активности
-                            </div>
-                        @endcannot
-                    </div>
-
-                    <!-- Поле "Роль" -->
-                    <div class="mb-3">
-                        <label for="role_id" class="form-label">Роль</label>
-                        <select
-                                id="role_id"
-                                name="role_id"
-                                class="form-select"
-                                @cannot('users-role-update') disabled aria-disabled="true" @endcannot
-                        >
-                            @foreach($roles as $role)
-                                <option value="{{ $role->id }}"
-                                        @if(($editingUser->role_id ?? $user->role_id ?? null) === $role->id) selected @endif>
-                                    {{ $role->label }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @cannot('users-role-update')
-                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
-                                роли
-                            </div>
-                        @endcannot
-                    </div>
-
-                    <!-- Блок изменения пароля -->
-                    <div class="buttons-wrap change-pass-wrap" id="change-pass-wrap" style="display: none;">
-                        <div class="d-flex align-items-center mt-3">
-                            <div class="position-relative wrap-change-password">
-                                <input type="password" id="new-password" class="form-control"
-                                       placeholder="Новый пароль">
-                                <span toggle="#new-password" class="fa fa-fw fa-eye field-icon toggle-password"></span>
-                            </div>
-                            <button type="button" id="apply-password-btn" class="btn btn-primary ml-2">Применить
-                            </button>
-                            <button type="button" id="cancel-change-password-btn" class="btn btn-danger ml-2">Отмена
-                            </button>
-                        </div>
-                        <div id="error-message" class="text-danger mt-2" style="display:none;">Пароль должен быть не
-                            менее 8 символов
-                        </div>
-                    </div>
-
-                    @php $canChange = auth()->user()->can('users-password-update'); @endphp
-
-                    <div class="button-group buttons-wrap mt-3">
-                        <button type="button"
-                                id="change-password-btn"
-                                class="btn btn-primary change-password-btn {{ $canChange ? '' : 'opacity-50 pe-none' }}"
-                                @unless($canChange)
-                                aria-disabled="true"
-                                tabindex="-1"
-                                data-bs-toggle="tooltip"
-                                title="Нет прав на изменение пароля"
+                                @unless($canPhone)
+                                    <div class="form-text text-muted mt-1">
+                                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение телефона
+                                    </div>
                                 @endunless
-                        >
-                            <i class="fa-solid fa-key me-1"></i> Изменить пароль
-                        </button>
+                            </div>
+                        </div>
+
+
+                        <!-- Поле "Активность" -->
+                        <div class="col-12 col-md-6">
+
+                            <div class="mb-3">
+                                <label for="edit-activity" class="form-label">Активность</label>
+                                <select
+                                        id="edit-activity"
+                                        name="is_enabled"
+                                        class="form-select"
+                                        @cannot('users-activity-update') disabled aria-disabled="true" @endcannot
+                                >
+                                    <option value="0">Неактивен</option>
+                                    <option value="1">Активен</option>
+                                </select>
+                                @cannot('users-activity-update')
+                                    <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
+                                        изменение
+                                        активности
+                                    </div>
+                                @endcannot
+                            </div>
+                        </div>
+                        <!-- Поле "Роль" -->
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="role_id" class="form-label">Роль</label>
+                                <select
+                                        id="role_id"
+                                        name="role_id"
+                                        class="form-select"
+                                        @cannot('users-role-update') disabled aria-disabled="true" @endcannot
+                                >
+                                    @foreach($roles as $role)
+                                        <option value="{{ $role->id }}"
+                                                @if(($editingUser->role_id ?? $user->role_id ?? null) === $role->id) selected @endif>
+                                            {{ $role->label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @cannot('users-role-update')
+                                    <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
+                                        изменение
+                                        роли
+                                    </div>
+                                @endcannot
+                            </div>
+                        </div>
+
+                        <!-- НОВОЕ ПОЛЕ: Договор -->
+                        <div class="col-12">
+                            <label class="form-label d-block">Договор</label>
+
+                            <!-- реальный контрол (select или hidden) -->
+                            <select id="contract_status" name="contract_status" class="form-select d-none">
+                                <option value="signed"    {{ $user->contract_status === 'signed' ? 'selected' : '' }}>подписан</option>
+                                <option value="unsigned"  {{ $user->contract_status === 'unsigned' ? 'selected' : '' }}>не подписан</option>
+                            </select>
+
+                            <!-- визуальный индикатор -->
+                            <div id="contract-indicator" class="d-inline-flex align-items-center gap-2 small fw-medium">
+                                <i class="fa-regular fa-circle" aria-hidden="true"></i>
+                                <span>—</span>
+                                {{--<button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="toggle-contract">--}}
+                                    {{--Переключить статус--}}
+                                {{--</button>--}}
+                            </div>
+                            {{--<div class="form-text">Иконка + текст меняются в зависимости от статуса.</div>--}}
+                        </div>
+
+
+
+                        {{--Пользовательские поля--}}
+                        <div class="col-12 col-md-6">
+                        @if($fields->isNotEmpty()) <!-- Проверяем, есть ли пользовательские поля -->
+                            <div class="mb-3">
+                                <div id="custom-fields-container"> <!-- Контейнер для пользовательских полей -->
+
+
+                                </div>
+                            </div>
+                        @endif
+
+                        <!-- Поле "Email" -->
+                        </div>
+                        <!-- Блок изменения пароля -->
+                        <div class="buttons-wrap change-pass-wrap" id="change-pass-wrap" style="display: none;">
+                            <div class="d-flex align-items-center mt-3">
+                                <div class="position-relative wrap-change-password">
+                                    <input type="password" id="new-password" class="form-control"
+                                           placeholder="Новый пароль">
+                                    <span toggle="#new-password"
+                                          class="fa fa-fw fa-eye field-icon toggle-password"></span>
+                                </div>
+                                <button type="button" id="apply-password-btn" class="btn btn-primary ml-2">Применить
+                                </button>
+                                <button type="button" id="cancel-change-password-btn" class="btn btn-danger ml-2">Отмена
+                                </button>
+                            </div>
+                            <div id="error-message" class="text-danger mt-2" style="display:none;">Пароль должен быть не
+                                менее 8 символов
+                            </div>
+                        </div>
+
+                        @php $canChange = auth()->user()->can('users-password-update'); @endphp
+
+                        <div class="button-group buttons-wrap mt-3">
+                            <button type="button"
+                                    id="change-password-btn"
+                                    class="btn btn-primary mt-3 change-password-btn {{ $canChange ? '' : 'opacity-50 pe-none' }}"
+                                    @unless($canChange)
+                                    aria-disabled="true"
+                                    tabindex="-1"
+                                    data-bs-toggle="tooltip"
+                                    title="Нет прав на изменение пароля"
+                                    @endunless
+                            >
+                                <i class="fa-solid fa-key me-1"></i> Изменить пароль
+                            </button>
+
+                            @unless($canChange)
+                                <div class="form-text text-muted mt-2">
+                                    <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение пароля
+                                </div>
+                            @endunless
+
 
                         @unless($canChange)
-                            <div class="form-text text-muted mt-2">
-                                <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение пароля
-                            </div>
+                            <script>
+                                // Tooltip изменения пароля
+                                document.addEventListener('DOMContentLoaded', function () {
+                                    const btn = document.getElementById('change-password-btn');
+                                    if (btn) new bootstrap.Tooltip(btn);
+                                });
+                            </script>
                         @endunless
-                    </div>
 
-                    @unless($canChange)
-                        <script>
-                            document.addEventListener('DOMContentLoaded', function () {
-                                const btn = document.getElementById('change-password-btn');
-                                if (btn) new bootstrap.Tooltip(btn);
-                            });
-                        </script>
-                    @endunless
-
-                <!-- Кнопка для сохранения данных -->
-                    <button type="submit" class="btn btn-primary mt-3 save-change-modal">Сохранить изменения</button>
                     <!-- Кнопка для сохранения данных -->
+                        <button type="submit" class="btn btn-primary mt-3 save-change-modal">Сохранить изменения
+                        </button>
+                        <!-- Кнопка для сохранения данных -->
 
-                    {{--<button type="submit" class="btn btn-danger mt-3 save-change-modal">Удалить</button>--}}
-                    <button type="button" id="delete-user-btn" class="btn btn-danger mt-3 confirm-delete-modal">
-                        Удалить
-                    </button>
-
+                        {{--<button type="submit" class="btn btn-danger mt-3 save-change-modal">Удалить</button>--}}
+                        <button type="button" id="delete-user-btn" class="btn btn-danger mt-3 confirm-delete-modal">
+                            Удалить
+                        </button>
+                        </div>
                 </form>
             </div>
 
         </div>
     </div>
 </div>
+<style>
+    .modal-content.background-color-grey { background: #fff; border-radius: 16px; }
+    .modal-title { font-weight: 600; }
+    .form-label { font-weight: 500; }
+</style>
+
+<script>
+    // Отрисовка индикатора по значению select
+    function renderContractIndicator() {
+        var val  = $('#contract_status').val();        // signed | unsigned
+        var $ind = $('#contract-indicator');
+        var $ico = $ind.find('i');
+        var $txt = $ind.find('span');
+
+        if (val === 'signed') {
+            $ico.attr('class', 'fa-solid fa-circle-check text-success');
+            $txt.text('Подписан');
+        } else {
+            $ico.attr('class', 'fa-solid fa-circle-xmark text-danger');
+            $txt.text('Не подписан');
+        }
+    }
+
+    $(document).on('shown.bs.modal', '#editUserModal', function () {
+        renderContractIndicator();
+    });
+
+    // Кнопка переключения (можно убрать и управлять только сервером)
+    $('#toggle-contract').on('click', function(){
+        var val = $('#contract_status').val() === 'signed' ? 'unsigned' : 'signed';
+        $('#contract_status').val(val);
+        renderContractIndicator();
+    });
+</script>
+
 
 <script>
 

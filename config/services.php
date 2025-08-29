@@ -35,4 +35,11 @@ return [
         'api_id' => env('SMSRU_API_KEY'),
         'from'    => env('SMSRU_FROM'),
     ],
+
+    'podpislon' => [
+        'base_url'       => env('PODPISLON_BASE_URL', 'https://api.podpislon.example/v1'),
+        'key'            => env('PODPISLON_API_KEY'),
+        'webhook_secret' => env('PODPISLON_WEBHOOK_SECRET'), // для проверки вебхуков
+    ],
+
 ];

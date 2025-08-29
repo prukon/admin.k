@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 
+use App\Services\Signatures\SignatureProvider;
+use App\Services\Signatures\Providers\PodpislonProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,7 +23,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(SignatureProvider::class, function () {
+            return new PodpislonProvider();
+        });
     }
 
     /**

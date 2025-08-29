@@ -29,14 +29,25 @@
         @endcan
 
         {{--Платежи юзера--}}
-        @can('myPayments-view ')
+        @can('myPayments-view')
             <li class="nav-item">
                 <a href="/reports/payments" class="nav-link">
                     <i class="nav-icon fa-solid fa-receipt"></i>
-                    <p>Платежи</p>
+                    <p>Мои платежи</p>
                 </a>
             </li>
         @endcan
+
+        {{--Группа юзера--}}
+        @can('myGroup-view')
+            <li class="nav-item">
+                <a href="/my-group" class="nav-link">
+                    <i class="nav-icon fa-solid fa-layer-group"></i>
+                    <p>Моя группа</p>
+                </a>
+            </li>
+        @endcan
+
 
         {{--Установка цен--}}
         @can('setPrices-view')
@@ -79,8 +90,15 @@
             </li>
         @endcan
 
-
-
+        {{--Договоры--}}
+        @can('contracts-view')
+            <li class="nav-item">
+                <a href="/contracts" class="nav-link">
+                    <i class="nav-icon fa-solid fa-layer-group"></i>
+                    <p>Договоры</p>
+                </a>
+            </li>
+        @endcan
 
         {{--Настройки--}}
         @can('settings-view')
