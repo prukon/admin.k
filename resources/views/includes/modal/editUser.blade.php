@@ -244,25 +244,25 @@
                         </div>
 
                         <!-- НОВОЕ ПОЛЕ: Договор -->
-                        <div class="col-12">
-                            <label class="form-label d-block">Договор</label>
+                        {{--<div class="col-12">--}}
+                            {{--<label class="form-label d-block">Договор</label>--}}
 
-                            <!-- реальный контрол (select или hidden) -->
-                            <select id="contract_status" name="contract_status" class="form-select d-none">
-                                <option value="signed"    {{ $user->contract_status === 'signed' ? 'selected' : '' }}>подписан</option>
-                                <option value="unsigned"  {{ $user->contract_status === 'unsigned' ? 'selected' : '' }}>не подписан</option>
-                            </select>
+                            {{--<!-- реальный контрол (select или hidden) -->--}}
+                            {{--<select id="contract_status" name="contract_status" class="form-select d-none">--}}
+                                {{--<option value="signed"    {{ $user->contract_status === 'signed' ? 'selected' : '' }}>подписан</option>--}}
+                                {{--<option value="unsigned"  {{ $user->contract_status === 'unsigned' ? 'selected' : '' }}>не подписан</option>--}}
+                            {{--</select>--}}
 
-                            <!-- визуальный индикатор -->
-                            <div id="contract-indicator" class="d-inline-flex align-items-center gap-2 small fw-medium">
-                                <i class="fa-regular fa-circle" aria-hidden="true"></i>
-                                <span>—</span>
+                            {{--<!-- визуальный индикатор -->--}}
+                            {{--<div id="contract-indicator" class="d-inline-flex align-items-center gap-2 small fw-medium">--}}
+                                {{--<i class="fa-regular fa-circle" aria-hidden="true"></i>--}}
+                                {{--<span>—</span>--}}
                                 {{--<button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="toggle-contract">--}}
                                     {{--Переключить статус--}}
                                 {{--</button>--}}
-                            </div>
+                            {{--</div>--}}
                             {{--<div class="form-text">Иконка + текст меняются в зависимости от статуса.</div>--}}
-                        </div>
+                        {{--</div>--}}
 
 
 
