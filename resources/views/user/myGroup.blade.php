@@ -19,10 +19,10 @@
             <div id="current-user"
                  class="position-absolute d-flex flex-column align-items-center"
                  style="top: 12px; left: 50%; transform: translateX(-50%);">
-                <div class="avatar avatar-lg mb-2">
+                <div class="small fw-semibold text-center name mb-2"></div>
+                <div class="avatar avatar-lg">
                     <img src="" alt="you" class="avatar-img" />
                 </div>
-                <div class="small fw-semibold text-center name"></div>
             </div>
 
             {{-- Контейнер для участников снизу --}}

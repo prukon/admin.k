@@ -111,10 +111,6 @@
         @endcan
 
 
-
-
-
-
         {{--Учетная запись--}}
         @can('account-user-view')
         <li class="nav-item">
@@ -122,9 +118,19 @@
                 <i class="nav-icon fa-solid fa-user"></i>
                 <p>Учетная запись</p>
             </a>
-            @endcan
-
         </li>
+        @endcan
+
+        {{--Учетная запись--}}
+        @can('messages-view')
+            <li class="nav-item">
+                <a href="/chat" class="nav-link">
+                    <i class="nav-icon fa-solid fa-message"></i>
+                              <p>Сообщения</p>
+                </a>
+            </li>
+        @endcan
+
 
 
         <hr class="sidebar-separator">

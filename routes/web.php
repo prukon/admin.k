@@ -13,6 +13,8 @@ use App\Http\Controllers\Admin\SettingPricesController;
 use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Chat\ChatApiController;
+use App\Http\Controllers\Chat\ChatPageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MyGroupController;
 use App\Http\Controllers\TransactionController;
@@ -244,21 +246,20 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
 //    Route::middleware('can:paying-classes')->group(function () {
 
-        Route::get('/contracts', [ContractsController::class, 'index'])->name('contracts.index');
-        Route::get('/contracts/create', [ContractsController::class, 'create'])->name('contracts.create');
-        Route::post('/contracts', [ContractsController::class, 'store'])->name('contracts.store');
+    Route::get('/contracts', [ContractsController::class, 'index'])->name('contracts.index');
+    Route::get('/contracts/create', [ContractsController::class, 'create'])->name('contracts.create');
+    Route::post('/contracts', [ContractsController::class, 'store'])->name('contracts.store');
 
-        Route::get('/contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
+    Route::get('/contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
 
-        Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
-        Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
+    Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
+    Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
 
-        Route::post('/contracts/{contract}/send', [ContractsController::class, 'send'])->name('contracts.send');
-        Route::post('/contracts/{contract}/resend', [ContractsController::class, 'resend'])->name('contracts.resend');
-        Route::post('/contracts/{contract}/revoke', [ContractsController::class, 'revoke'])->name('contracts.revoke');
-        Route::get('/contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
+    Route::post('/contracts/{contract}/send', [ContractsController::class, 'send'])->name('contracts.send');
+    Route::post('/contracts/{contract}/resend', [ContractsController::class, 'resend'])->name('contracts.resend');
+    Route::post('/contracts/{contract}/revoke', [ContractsController::class, 'revoke'])->name('contracts.revoke');
+    Route::get('/contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
 //    });
-
 
 
     //    Оплата ТБанк
@@ -294,6 +295,29 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('2fa/disable', [TwoFactorController::class, 'disable'])->name('admin.2fa.disable');
     });
 
+
+//    Route::middleware(['can:admin'])->prefix('admin')->group(function () {
+    // Страница чата
+    Route::get('/chat', [ChatPageController::class, 'index'])->name('chat.index');
+
+    // API для фронта (ПРЯМЫЕ URL)
+    Route::get('/chat/api/threads', [ChatApiController::class, 'threads']);
+    Route::get('/chat/api/threads/{thread}', [ChatApiController::class, 'thread'])->whereNumber('thread');
+    Route::get('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'messages'])->whereNumber('thread');
+
+    // ВАЖНО: отправка сообщения → storeMessage (а не storeThread)
+    Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread');
+
+    // Создание 1-на-1 или группы
+    Route::post('/chat/api/threads', [ChatApiController::class, 'storeThread']);
+
+    // Живой поиск пользователей для модалок
+    Route::get('/chat/api/users', [ChatApiController::class, 'users']);
+    Route::get('/chat/api/threads/{thread}/members', [ChatApiController::class, 'members']);
+    Route::post('/chat/api/threads/{thread}/members', [ChatApiController::class, 'addMembers']);
+
+
+//    });
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
