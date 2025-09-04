@@ -304,17 +304,21 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('/chat/api/threads', [ChatApiController::class, 'threads']);
     Route::get('/chat/api/threads/{thread}', [ChatApiController::class, 'thread'])->whereNumber('thread');
     Route::get('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'messages'])->whereNumber('thread');
-
     // ВАЖНО: отправка сообщения → storeMessage (а не storeThread)
     Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread');
-
     // Создание 1-на-1 или группы
     Route::post('/chat/api/threads', [ChatApiController::class, 'storeThread']);
-
     // Живой поиск пользователей для модалок
     Route::get('/chat/api/users', [ChatApiController::class, 'users']);
     Route::get('/chat/api/threads/{thread}/members', [ChatApiController::class, 'members']);
     Route::post('/chat/api/threads/{thread}/members', [ChatApiController::class, 'addMembers']);
+
+
+    Route::post('/chat/api/threads/{thread}/typing', [ChatApiController::class, 'typing']);
+    Route::patch('/chat/api/threads/{thread}/read', [ChatApiController::class, 'markRead']);
+
+
+
 
 
 //    });
