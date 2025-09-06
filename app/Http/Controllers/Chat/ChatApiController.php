@@ -261,24 +261,21 @@ class ChatApiController extends Controller
 
 
 // 2) Инбокс-бамп для каждого получателя (левая колонка: превью + счётчик)
-//    ─ фронт поднимет чат наверх, обновит превью и инкрементнёт непрочитанные
         foreach ($thread->recipientIdsExcept($msg->user_id) as $uid) {
             event(new InboxBump($uid, [
                 'thread_id'         => (int) $thread->id,
-                'last_message'      => $lastPreview,                                // тот же превью, что и раньше
+                'last_message'      => $lastPreview,
                 'last_message_time' => $msg->created_at->toDateTimeString(),
-                'increment_unread'  => true,                                        // как у тебя
-                // 'unread_count'    => $точное_число_если_считаешь,               // необязательно
-                'title'             => $this->resolveThreadTitleForUser($thread, $uid), // оставляем твою логику титула
-                'avatar'            => $thread->avatar_url ?? null,                 // если есть
+                'increment_unread'  => true,
+                'title'             => $this->resolveThreadTitleForUser($thread, $uid),
+                'avatar'            => $thread->avatar_url ?? null,
                 'member_count'      => $membersCount,
                 'is_group'          => $isGroup,
                 'recipients'        => $recipientIds,
             ]));
         }
 
-// 3) (НЕОБЯЗАТЕЛЬНО) Оставляем твой старый ThreadUpdated — для обратной совместимости.
-//    Если другие клиенты или страницы всё ещё сидят на нём — пусть остаётся.
+// 3) ThreadUpdated — для обратной совместимости.
         foreach ($recipientIds as $uid) {
             if ((int) $uid === (int) $msg->user_id) continue;
 
@@ -290,19 +287,8 @@ class ChatApiController extends Controller
                 'is_group'           => $isGroup,
                 'recipients'         => $recipientIds,
                 'increment_unread'   => true,
-                // 'unread_count'     => $точное_число_если_считаешь,
             ]));
         }
-
-
-
-
-
-
-
-
-
-
 
         return response()->json([
             'id' => $msg->id,
@@ -345,7 +331,6 @@ class ChatApiController extends Controller
         ]));
 
         // 4) Общие поля для превью/инбокса
-        // NB: берём участников напрямую из participants (без join на users), чтобы не ловить ошибок вида "users.id".
         $recipientIds = $thread->participants()->pluck('user_id')->all(); // [int...]
         $recipientsExceptSender = array_values(array_filter(
             $recipientIds,
@@ -356,23 +341,22 @@ class ChatApiController extends Controller
     $membersCount = count($recipientIds);
     $isGroup      = $membersCount > 2;
 
-    // 5) Инбокс-бамп (левая колонка: превью + счётчик) — для каждого получателя
+    // 5) Инбокс-бамп
     foreach ($recipientsExceptSender as $uid) {
         event(new InboxBump((int)$uid, [
             'thread_id'         => (int) $thread->id,
             'last_message'      => $lastPreview,
             'last_message_time' => $msg->created_at->toDateTimeString(),
-            'increment_unread'  => true, // фронт инкрементнёт, если не передаём unread_count
-            // 'unread_count'    => $точное_число_если_считаешь,
+            'increment_unread'  => true,
             'title'             => $this->resolveThreadTitleForUser($thread, (int)$uid),
-            'avatar'            => $thread->avatar_url ?? null, // если поле есть
+            'avatar'            => $thread->avatar_url ?? null,
             'member_count'      => $membersCount,
             'is_group'          => $isGroup,
             'recipients'        => $recipientIds,
         ]));
     }
 
-    // 6) (Опционально) Оставляем твой старый ThreadUpdated для обратной совместимости
+    // 6) ThreadUpdated (опционально)
     foreach ($recipientsExceptSender as $uid) {
         event(new ThreadUpdated($thread->id, [
             'title'             => $this->resolveThreadTitleForUser($thread, (int)$uid),
@@ -382,7 +366,6 @@ class ChatApiController extends Controller
             'is_group'          => $isGroup,
             'recipients'        => $recipientIds,
             'increment_unread'  => true,
-            // 'unread_count'    => $точное_число_если_считаешь,
         ]));
     }
 

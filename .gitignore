@@ -1,39 +1,53 @@
-# OS & IDE
+# ── ОС и редакторы ─────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+*.iml
 .idea/
 .vscode/
-*.iml
-/.fleet
+*.sublime-project
+*.sublime-workspace
 
-# Зависимости (ставим через composer/npm/PNPM/Yarn)
-vendor/
+# ── Node / фронтенд ────────────────────────────────────────────
 node_modules/
-
-# Логи менеджеров пакетов
 npm-debug.log*
+yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.eslintcache
+.vite/
+public/hot
+public/build/
+*.map
 
-# Секреты/окружение
+# ── PHP / Composer / Laravel ───────────────────────────────────
+vendor/
+composer.phar
+.phpunit.result.cache
+phpunit.xml.cache
+
+# окружение
 .env
 .env.*
 !.env.example
+.env.backup
 
-# Laravel / сборка фронта
-public/hot
-public/storage
-public/build
+# storage и логи (каталоги будут существовать благодаря своим .gitignore)
 storage/*.key
-bootstrap/cache/*.php
+storage/debugbar/
+storage/framework/
+storage/logs/
 
-# Тесты/отчёты
-.phpunit.result.cache
-/.phpunit.cache
-/coverage
+# Если хотите оставить только symlink, не файлы:
+public/storage
 
-# Разное
-*.log
-composer.phar
-.eslintcache
-.stylelintcache
+# bootstrap cache (оставляем .gitignore в каталоге)
+bootstrap/cache/*
+
+# Homestead / Valet / прочее локальное
+Homestead.yaml
+Homestead.json
+
+# Временные/служебные
+*.pid
+*.seed
+*.pid.lock

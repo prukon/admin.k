@@ -784,10 +784,9 @@
                 const uid  = e?.message?.user_id;
                 const ts   = e?.message?.created_at;
 
-                // если это моё же событие — можно игнорить (во избежание дублей)
                 if (uid === me) return;
-
                 if (messageExists(mid)) return;
+
                 appendMessage(e.message, $('#messagesBox'));
                 lastMessageId = mid;
 
@@ -946,31 +945,19 @@
                 const text = $input.val().trim();
                 if (!text) return;
 
-                // мгновенно очищаем инпут и даём визуальный фидбек на кнопке
                 $input.val('');
-
-
-                // const $btn = $(this).find('button[type="submit"]');
-                // const oldBtnHtml = $btn.html();
-                // $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Отправка');
-                //
-
                 const $btn = $(this).find('button[type="submit"]');
-// просто блокируем на время запроса, без изменения разметки/текста
                 $btn.prop('disabled', true);
 
-                // сразу обновим превью/время в левом списке (оптимистично)
                 const nowIso = new Date().toISOString().slice(0,19).replace('T',' ');
                 updateThreadById(id, { last_message: text, last_message_time: nowIso, updated_at: nowIso });
 
-                // отправляем на сервер
                 $.ajax({
                     url: '/chat/api/threads/' + id + '/messages',
                     method: 'POST',
                     headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()},
                     data: { body: text },
                     success: function (m) {
-                        // если уже пришло по сокету и добавилось — не дублируем
                         if (!messageExists(m.id)) {
                             appendMessage(m, $('#messagesBox'));
                             lastMessageId = m.id;
@@ -978,7 +965,6 @@
                             if (box) void box.offsetHeight;
                             scrollBottom();
                         }
-                        // точные времена/превью
                         updateThreadById(id, {
                             last_message: m.body,
                             last_message_time: m.created_at,
@@ -986,18 +972,12 @@
                         });
                     },
                     error: function () {
-                        // вернём текст пользователю в инпут для повторной отправки
                         $input.val(text).focus();
-                        // можно показать alert/toast по вкусу
                         alert('Не удалось отправить сообщение. Проверьте соединение и попробуйте ещё раз.');
                     },
                     complete: function () {
-                        // $btn.prop('disabled', false).html(oldBtnHtml);
                         $btn.prop('disabled', false);
-
                     }
-
-
                 });
             });
 
@@ -1087,6 +1067,158 @@
                 }, 6000);
             }
 
+            // ====== ДОБАВЛЕНО: ЛОГИКА МОДАЛОК "КОНТАКТЫ" И "СОЗДАТЬ ГРУППУ" ======
+
+            // дебаунсер
+            function makeDebounced(fn, delay) {
+                let t;
+                return function() {
+                    const args = arguments, ctx = this;
+                    clearTimeout(t);
+                    t = setTimeout(() => fn.apply(ctx, args), delay);
+                };
+            }
+
+            // ---- Контакты ----
+            function renderContactsList(list) {
+                const $ul = $('#contactsList').empty();
+                if (!Array.isArray(list) || list.length === 0) {
+                    $ul.append('<li class="text-muted text-center py-3">Ничего не найдено</li>');
+                    return;
+                }
+                list.forEach(u => {
+                    const $li = $(`
+<li data-id="${u.id}">
+  <div class="contact-row">
+    <img class="contact-avatar" src="${escapeHtml(u.avatar)}" alt="">
+    <div class="flex-grow-1">
+      <div class="contact-name">${escapeHtml(u.name || '')}</div>
+      <div class="contact-sub">${escapeHtml(u.email || '')}</div>
+    </div>
+  </div>
+</li>`);
+                    $ul.append($li);
+                });
+            }
+
+            function loadContacts(q = '') {
+                $.ajax({
+                    url: '/chat/api/users',
+                    method: 'GET',
+                    data: { q: q },
+                    success: function (list) { renderContactsList(list); }
+                });
+            }
+
+            // клик по контакту — открыть/создать приватный диалог
+            $('#contactsList').on('click', '.contact-row', function () {
+                const uid = Number($(this).closest('li').data('id'));
+                if (!uid) return;
+                $.ajax({
+                    url: '/chat/api/threads',
+                    method: 'POST',
+                    headers: {'X-CSRF-TOKEN': csrf},
+                    data: { type: 'private', members: [uid] },
+                    success: function (res) {
+                        $('#contactsModal').modal('hide');
+                        loadThreads();
+                        if (res?.thread_id) openThread(res.thread_id);
+                    },
+                    error: function (xhr) {
+                        alert('Не удалось открыть диалог: ' + (xhr.responseJSON?.message || xhr.statusText));
+                    }
+                });
+            });
+
+            $('#contactsModal').on('shown.bs.modal', function () {
+                $('#contactsSearch').val('');
+                loadContacts('');
+            });
+            $('#contactsSearch').on('input', makeDebounced(function () {
+                loadContacts($(this).val().trim());
+            }, 300));
+
+            // ---- Создать группу ----
+            let groupSelected = new Set();
+
+            function renderGroupUsers(list) {
+                const $ul = $('#groupUsers').empty();
+                if (!Array.isArray(list) || list.length === 0) {
+                    $ul.append('<li class="text-muted text-center py-3">Пользователи не найдены</li>');
+                    return;
+                }
+                list.forEach(u => {
+                    const checked = groupSelected.has(u.id) ? 'checked' : '';
+                    const $li = $(`
+<li data-id="${u.id}">
+  <div class="group-row">
+    <input class="form-check-input" type="checkbox" value="${u.id}" ${checked}>
+    <img class="group-avatar" src="${escapeHtml(u.avatar)}" alt="">
+    <div class="flex-grow-1">
+      <div class="group-name">${escapeHtml(u.name || '')}</div>
+      <div class="group-sub">${escapeHtml(u.email || '')}</div>
+    </div>
+  </div>
+</li>`);
+                    $li.find('input[type="checkbox"]').on('change', function () {
+                        const id = Number(u.id);
+                        if (this.checked) groupSelected.add(id); else groupSelected.delete(id);
+                    });
+                    // клик по строке переключает чекбокс
+                    $li.on('click', function (e) {
+                        if ($(e.target).is('input')) return;
+                        const $cb = $(this).find('input[type="checkbox"]');
+                        $cb.prop('checked', !$cb.prop('checked')).trigger('change');
+                    });
+                    $ul.append($li);
+                });
+            }
+
+            function loadGroupUsers(q = '') {
+                $.ajax({
+                    url: '/chat/api/users',
+                    method: 'GET',
+                    data: { q: q },
+                    success: function (list) { renderGroupUsers(list); }
+                });
+            }
+
+            $('#groupModal').on('shown.bs.modal', function () {
+                $('#groupSubject').val('');
+                $('#groupSearch').val('');
+                groupSelected = new Set();
+                loadGroupUsers('');
+            });
+
+            $('#groupSearch').on('input', makeDebounced(function () {
+                loadGroupUsers($(this).val().trim());
+            }, 300));
+
+            $('#createGroupBtn').on('click', function (e) {
+                e.preventDefault();
+                const subject = ($('#groupSubject').val() || '').trim();
+                if (!subject) { alert('Введите название группы'); return; }
+                const members = Array.from(groupSelected);
+                if (members.length < 1) { alert('Выберите хотя бы одного участника'); return; }
+
+                const $btn = $(this).prop('disabled', true);
+                $.ajax({
+                    url: '/chat/api/threads',
+                    method: 'POST',
+                    headers: {'X-CSRF-TOKEN': csrf},
+                    data: { type: 'group', subject: subject, members: members },
+                    success: function (res) {
+                        $('#groupModal').modal('hide');
+                        loadThreads();
+                        if (res?.thread_id) openThread(res.thread_id);
+                    },
+                    error: function (xhr) {
+                        alert('Не удалось создать группу: ' + (xhr.responseJSON?.message || xhr.statusText));
+                    },
+                    complete: function () { $btn.prop('disabled', false); }
+                });
+            });
+
             // ===== Инициализация =====
             try {
                 const p = window.Echo.connector.pusher;
@@ -1099,4 +1231,3 @@
         })();
     </script>
 @endpush
-
