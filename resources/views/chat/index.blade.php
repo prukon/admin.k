@@ -310,6 +310,40 @@
         #groupInfoAddResults li .flex-grow-1 {
             text-align: left;
         }
+
+        /* Подзаголовок в хедере чата всегда занимает одну строку */
+        .chat-sub {
+            min-height: 1.1rem; /* ≈ 17–18px; можешь подогнать под свой line-height */
+            line-height: 1.1rem;
+        }
+
+        /* Чуть сбросим отступы, чтобы высота header была стабильной */
+        .chat-title { margin-bottom: 0.15rem; }
+
+        /* плавные ховеры для элементов списка чатов */
+        .chat-list-item {
+            transition: background-color .15s ease, box-shadow .15s ease, border-left-color .15s ease, transform .05s ease;
+        }
+
+        .chat-list-item:hover {
+            background: rgba(243, 161, 43, 0.06);              /* чуть светлее */
+            border-left-color: #2eaadc;       /* акцент слева */
+            box-shadow: 0 2px 8px rgba(0,0,0,.04);
+        }
+
+        .chat-list-item:active {
+            transform: translateY(1px);       /* тактильность при клике */
+        }
+
+        /* чтобы активный выглядел стабильно и при ховере */
+        .chat-list-item.active:hover {
+            background: #e2f1ff;
+            border-left-color: #2eaadc;
+            box-shadow: 0 2px 8px rgba(0,0,0,.05);
+        }
+
+
+
     </style>
 
     <div class="container py-3">
@@ -338,12 +372,22 @@
                             {{--</div>--}}
 
                             <div>
+
+                                {{--<div class="chat-title" id="threadTitle">Выберите диалог</div>--}}
+                                {{--<!-- строка под заголовком: тут будет "3 участника", кликабельна -->--}}
+                                {{--<div class="chat-sub">--}}
+                                    {{--<span id="threadMembersLine" class="text-primary"--}}
+                                          {{--style="cursor:pointer; display:none;"></span>--}}
+                                {{--</div>--}}
+
                                 <div class="chat-title" id="threadTitle">Выберите диалог</div>
-                                <!-- строка под заголовком: тут будет "3 участника", кликабельна -->
                                 <div class="chat-sub">
-                                    <span id="threadMembersLine" class="text-primary"
-                                          style="cursor:pointer; display:none;"></span>
+                                    <!-- невидим, но занимает место -->
+                                    <span id="threadMembersLine" class="text-primary invisible" style="cursor:pointer;"></span>
                                 </div>
+
+
+
                             </div>
 
 
@@ -485,113 +529,93 @@
 
     <!-- 3) Инициализация Echo под Reverb -->
     <script>
-        // pusher-js должен быть доступен глобально
         window.Pusher = window.Pusher || Pusher;
-        // включим логи (потом можно выключить)
         if (window.Pusher) window.Pusher.logToConsole = true;
 
-        // ключ берём из конфига reverb (v1.5.1 хранит тут)
         const REVERB_KEY =
         @json(config('reverb.apps.apps.0.key')) ??
-        @json(config('broadcasting.connections.reverb.key')); // запасной путь
+        @json(config('broadcasting.connections.reverb.key'));
 
-        console.log('[Echo] key =', REVERB_KEY);
-
-        const WS_HOST = window.location.hostname; // браузер сам даст punycode: test.xn--f1ahbpis.online
-        console.log('[WS_HOST]', WS_HOST);
+        const WS_HOST = window.location.hostname;
 
         window.Echo = new Echo({
             broadcaster: 'reverb',
             key: REVERB_KEY,
-            // wsHost: window.location.hostname,
-            // wsHost: 'test.xn--f1ahbpis.online',
             wsHost: WS_HOST,
             wsPort: 443,
             wssPort: 443,
             forceTLS: true,
-            enabledTransports: ['wss'],   // ✅ оставляем только wss
-            wsPath: '/app',           // <-- ДОБАВЬ ЭТО
-
-            encrypted: true,              // ✅ добавляем это
+            enabledTransports: ['wss'],
+            wsPath: '/app',
+            encrypted: true,
             authEndpoint: '/broadcasting/auth',
-            auth: {
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                }
-            }
-        })
+            auth: { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } }
+        });
 
         try {
             const p = window.Echo.connector.pusher;
-            console.log('[Echo] connector:', window.Echo?.connector);
-            console.log('[Pusher] config:', p?.config);
-            console.log('[Pusher] ws options:', p?.connection?.options);
-
-            // состояния сокета
             p.connection.bind('state_change', s => console.log('[WS state]', s.previous, '→', s.current));
             p.connection.bind('error', err => console.error('[WS error]', err));
             p.connection.bind('connected', () => console.log('[WS] connected'));
             p.connection.bind('disconnected', () => console.log('[WS] disconnected'));
-
-            // логируем авторизацию приватных каналов 
-            const _authorize = p.config.authorizer;
-            if (_authorize) {
-                console.log('[Auth] authorizer present');
-            }
-        } catch (e) {
-            console.warn('[Echo] diag error:', e);
-        }
-
-
-        // полезные логи состояния сокета
-        const p = window.Echo.connector.pusher;
-        p.connection.bind('state_change', s => console.log('[WS state]', s.previous, '→', s.current));
-        p.connection.bind('error', err => console.error('[WS error]', err));
+        } catch (e) { console.warn('[Echo] diag error:', e); }
     </script>
 
-
+    <!-- 4) Логика чата (AJAX) -->
     <script>
         let currentThreadMeta = {id: null, is_group: false, member_count: 0, title: ''};
 
         (function () {
             const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const me = {{ auth()->id() }};
-            let threadsCache = [];
-            let currentThreadId = null;
-            let lastMessageId = null;
+            const me   = {{ auth()->id() }};
 
-            function escapeHtml(t) {
-                return $('<div/>').text(t ?? '').html();
-            }
+            let threadsCache     = [];
+            let currentThreadId  = null;
+            let lastMessageId    = null;
 
-            function debounce(fn, ms) {
-                let t;
-                return function () {
-                    const a = arguments, c = this;
-                    clearTimeout(t);
-                    t = setTimeout(() => fn.apply(c, a), ms || 300);
-                }
-            }
+            // Каналы
+            let threadChannel = null; // активный тред
+            let inboxChannel  = null; // инбокс пользователя
 
+            // Пулы
+            let safetyPoll       = null;
+            let threadsListPoll  = null;
+
+            function escapeHtml(t) { return $('<div/>').text(t ?? '').html(); }
             function isToday(ts) {
                 if (!ts) return false;
                 const d = new Date(ts), n = new Date();
-                return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+                return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
             }
-
-            function pad(n) {
-                return n < 10 ? ('0' + n) : n;
-            }
-
+            function pad(n){ return n<10 ? ('0'+n) : n; }
             function fmtTime(ts) {
                 if (!ts) return '';
                 const d = new Date(ts);
-                return isToday(ts) ? (pad(d.getHours()) + ':' + pad(d.getMinutes())) : (pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + String(d.getFullYear()).slice(-2));
+                return isToday(ts) ? `${pad(d.getHours())}:${pad(d.getMinutes())}`
+                    : `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${String(d.getFullYear()).slice(-2)}`;
+            }
+            function scrollBottom() {
+                const $b = $('#messagesBox'); $b.scrollTop($b[0].scrollHeight);
             }
 
-            function scrollBottom() {
-                const $b = $('#messagesBox');
-                $b.scrollTop($b[0].scrollHeight);
+            // антидубликаты по DOM
+            function messageExists(id) {
+                if (!id) return false;
+                return $(`#messagesBox [data-mid="${CSS.escape(String(id))}"]`).length > 0;
+            }
+
+            // ===== сортировка: 1) непрочитанные сверху 2) по времени DESC
+            function sortThreads(list) {
+                return list.sort((a,b) => {
+                    const au = a.unread_count||0, bu = b.unread_count||0;
+                    if (au>0 || bu>0) {
+                        if (au===0 && bu>0) return 1;
+                        if (au>0 && bu===0) return -1;
+                    }
+                    const at = new Date(a.last_message_time || a.updated_at || 0).getTime();
+                    const bt = new Date(b.last_message_time || b.updated_at || 0).getTime();
+                    return bt - at;
+                });
             }
 
             const svgOne = '<svg viewBox="0 0 24 24"><path fill="#6c757d" d="M9 16.2l-3.5-3.5-1.4 1.4L9 19 20.3 7.7l-1.4-1.4z"/></svg>';
@@ -605,9 +629,9 @@
                     return;
                 }
                 list.forEach(t => {
-                    const active = (t.id === currentThreadId) ? ' active' : '';
+                    const active = (String(t.id) === String(currentThreadId)) ? ' active' : '';
                     const unread = t.unread_count || 0;
-                    const badge = unread > 0 ? `<span class="badge rounded-pill bg-primary ms-2">${unread}</span>` : '';
+                    const badge  = unread > 0 ? `<span class="badge rounded-pill bg-primary ms-2">${unread}</span>` : '';
                     const titleHtml = `${escapeHtml(t.title)} ${badge}`;
                     const $item = $(`
 <div class="chat-list-item${active}" data-id="${t.id}">
@@ -620,7 +644,7 @@
     <div class="chat-li-preview">${escapeHtml(t.last_message || '')}</div>
   </div>
 </div>
-            `).on('click', function (e) {
+                    `).on('click', function (e) {
                         e.preventDefault();
                         openThread(t.id);
                     });
@@ -630,151 +654,158 @@
 
             function loadThreads() {
                 $.ajax({
-                    url: '/chat/api/threads', method: 'GET',
+                    url: '/chat/api/threads',
+                    method: 'GET',
                     success: function (res) {
                         threadsCache = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-                        threadsCache.sort((a, b) => new Date(b.last_message_time || b.updated_at) - new Date(a.last_message_time || a.updated_at));
+                        sortThreads(threadsCache);
                         renderThreads(threadsCache);
+                        ensureInboxSubscription();
                     }
                 });
             }
 
             $('#threadSearch').on('input', function () {
                 const q = $(this).val().toLowerCase().trim();
-                if (!q) return renderThreads(threadsCache);
+                if (!q) return renderThreads(sortThreads([...threadsCache]));
                 const filtered = threadsCache.filter(t =>
                     (t.title && t.title.toLowerCase().includes(q)) ||
                     (t.last_message && t.last_message.toLowerCase().includes(q))
                 );
-                renderThreads(filtered);
+                renderThreads(sortThreads(filtered));
             });
 
-            // ===== Персональный канал: обновления списка тредов
-            const userChannel = window.Echo.private('user.' + me);
-            userChannel.listen('.thread.updated', (e) => {
-                const id = e.threadId ?? e.payload?.threadId ?? e.payload?.id ?? null;
-                if (!id) {
-                    loadThreads();
-                    return;
-                }
-
-                let exists = false;
-                threadsCache = (threadsCache || []).map(t => {
-                    if (t.id === id) {
-                        exists = true;
-                        return Object.assign({}, t, {
-                            last_message: e.payload.last_message || t.last_message,
-                            last_message_time: e.payload.last_message_time || t.last_message_time,
-                            updated_at: e.payload.last_message_time || t.updated_at,
-                            member_count: e.payload.member_count ?? t.member_count,
-                            is_group: e.payload.is_group ?? t.is_group,
-                            title: e.payload.title || t.title,
-                        });
+            // ===== helper: точечное обновление треда
+            function updateThreadById(id, patch) {
+                let updated = false;
+                threadsCache = threadsCache.map(t => {
+                    if (String(t.id) === String(id)) {
+                        updated = true;
+                        return Object.assign({}, t, patch);
                     }
                     return t;
                 });
-                if (!exists) {
-                    loadThreads();
-                    return;
-                }
-
-                threadsCache.sort((a, b) => new Date(b.last_message_time || b.updated_at) - new Date(a.last_message_time || a.updated_at));
+                if (!updated) return false;
+                sortThreads(threadsCache);
                 renderThreads(threadsCache);
+                return true;
+            }
+
+            // ===== USER канал (если бэкенд кидает thread.updated)
+            const userChannel = window.Echo.private('user.' + me);
+            userChannel.listen('.thread.updated', (e) => {
+                const id = e.threadId ?? e.payload?.threadId ?? e.payload?.id ?? null;
+                if (!id) { loadThreads(); return; }
+                const patch = {
+                    last_message:      e.payload?.last_message,
+                    last_message_time: e.payload?.last_message_time,
+                    updated_at:        e.payload?.last_message_time || e.payload?.updated_at,
+                    member_count:      e.payload?.member_count,
+                    is_group:          e.payload?.is_group,
+                    title:             e.payload?.title,
+                    avatar:            e.payload?.avatar
+                };
+                if (typeof e.payload?.unread_count !== 'undefined') patch.unread_count = e.payload.unread_count;
+                if (!updateThreadById(id, patch)) loadThreads();
             });
 
-            // ===== Подписка на текущий тред
-            let threadChannel = null;
-            let typingTimer = null;
+            // ===== ИНБОКС канал (для левого списка) =====
+            function ensureInboxSubscription() {
+                if (inboxChannel) return;
+                inboxChannel = window.Echo.private('inbox.' + me);
 
-            function subscribeThread2(threadId) {
-                if (threadChannel) {
-                    threadChannel.stopListening('.message.created')
-                        .stopListening('.typing')
-                        .stopListening('.thread.read');
-                }
-                threadChannel = window.Echo.private('thread.' + threadId);
+                inboxChannel.listen('.inbox.bump', (e) => {
+                    const id   = e.thread_id ?? e.threadId;
+                    const body = e.last_message ?? e.message?.body ?? '';
+                    const ts   = e.last_message_time ?? e.message?.created_at ?? e.updated_at;
+                    const title= e.title;
+                    const avatar = e.avatar;
+                    const unreadFromServer = typeof e.unread_count !== 'undefined' ? Number(e.unread_count) : null;
+                    const incUnread = e.increment_unread ? 1 : 0;
 
-                threadChannel.subscribed(() => console.log('[thread] subscribed:', threadId))
-                    .error(e => console.error('[thread] channel error:', e));
-
-// Ловим вообще все события этого канала
-                if (threadChannel.subscription) {
-                    // pusher-js >=8
-                    threadChannel.subscription.bind_global((eventName, data) => {
-                        console.log('[thread GLOBAL]', eventName, data);
-                    });
-                } else if (threadChannel.pusher) {
-                    // старый доступ
-                    threadChannel.pusher.channel('private-thread.' + threadId)
-                        ?.bind_global((eventName, data) => console.log('[thread GLOBAL]', eventName, data));
-                }
-
-                threadChannel.listen('.message.created', (e) => {
-                    const mid = e?.message?.id;
-                    const body = e?.message?.body ?? '';
-                    const uid = e?.message?.user_id;
-
-                    if (currentThreadId === threadId) {
-                        appendMessage(e.message, $('#messagesBox'));
-                        lastMessageId = mid;
-                        scrollBottom();
-
-                        // сразу пометим прочитанное
-                        $.ajax({
-                            url: '/chat/api/threads/' + currentThreadId + '/read',
-                            method: 'PATCH',
-                            headers: {'X-CSRF-TOKEN': csrf}
-                        });
-
-                        // сбросить badge
-                        threadsCache = threadsCache.map(t => t.id === threadId ? Object.assign({}, t, {
-                            unread_count: 0,
-                            last_message: body,
-                            last_message_time: e.message.created_at,
-                            updated_at: e.message.created_at
-                        }) : t);
-                        threadsCache.sort((a, b) => new Date(b.last_message_time || b.updated_at) - new Date(a.last_message_time || a.updated_at));
-                        renderThreads(threadsCache);
-                        return;
-                    }
-
-                    // Если неактивный тред — увеличим непрочитанные
+                    let found = false;
                     threadsCache = threadsCache.map(t => {
-                        if (t.id === threadId) {
-                            const inc = (uid !== me) ? 1 : 0;
+                        if (String(t.id) === String(id)) {
+                            found = true;
+                            const nextUnread = (unreadFromServer !== null)
+                                ? unreadFromServer
+                                : (String(currentThreadId) === String(id) ? 0 : (t.unread_count || 0) + incUnread);
+
                             return Object.assign({}, t, {
-                                last_message: body,
-                                last_message_time: e.message.created_at,
-                                updated_at: e.message.created_at,
-                                unread_count: (t.unread_count || 0) + inc
+                                last_message: body || t.last_message,
+                                last_message_time: ts || t.last_message_time,
+                                updated_at: ts || t.updated_at,
+                                unread_count: nextUnread,
+                                title: title || t.title,
+                                avatar: avatar || t.avatar
                             });
                         }
                         return t;
                     });
-                    threadsCache.sort((a, b) => new Date(b.last_message_time || b.updated_at) - new Date(a.last_message_time || a.updated_at));
+
+                    if (!found) {
+                        threadsCache.push({
+                            id,
+                            title: title || 'Диалог',
+                            avatar: avatar || '/img/default-avatar.png',
+                            last_message: body,
+                            last_message_time: ts,
+                            updated_at: ts,
+                            unread_count: (unreadFromServer !== null)
+                                ? unreadFromServer
+                                : (String(currentThreadId) === String(id) ? 0 : incUnread)
+                        });
+                    }
+
+                    sortThreads(threadsCache);
                     renderThreads(threadsCache);
                 });
 
-                threadChannel.listen('.typing', (e) => {
-                    if (e.userId === me) return;
-                    const $sub = $('#threadSub');
-                    if (e.isTyping) {
-                        $sub.text('печатает…').show();
-                        clearTimeout(typingTimer);
-                        typingTimer = setTimeout(() => $sub.text('').hide(), 4000);
-                    } else {
-                        $sub.text('').hide();
-                    }
-                });
-
-                threadChannel.listen('.thread.read', (e) => {
-                    if (currentThreadId === threadId) {
-                        $('#messagesBox .msg-row.msg-mine .checks').each(function () {
-                            $(this).html(`<span class="check">${svgTwo}</span>`);
+                inboxChannel.listen('.inbox.sync', (e) => {
+                    if (Array.isArray(e.threads)) {
+                        const byId = Object.create(null);
+                        e.threads.forEach(t => { byId[String(t.id)] = t; });
+                        threadsCache = threadsCache.map(t => {
+                            const fresh = byId[String(t.id)];
+                            return fresh ? Object.assign({}, t, fresh) : t;
                         });
-                        threadsCache = threadsCache.map(t => t.id === threadId ? Object.assign({}, t, {unread_count: 0}) : t);
+                        sortThreads(threadsCache);
                         renderThreads(threadsCache);
                     }
+                });
+            }
+
+            // ===== Подписка на текущий тред (активный чат) =====
+            let typingTimer = null;
+
+            function onMessageCreatedActive(e, threadId) {
+                const mid  = e?.message?.id;
+                const body = e?.message?.body ?? '';
+                const uid  = e?.message?.user_id;
+                const ts   = e?.message?.created_at;
+
+                // если это моё же событие — можно игнорить (во избежание дублей)
+                if (uid === me) return;
+
+                if (messageExists(mid)) return;
+                appendMessage(e.message, $('#messagesBox'));
+                lastMessageId = mid;
+
+                const box = $('#messagesBox')[0];
+                if (box) void box.offsetHeight;
+                scrollBottom();
+
+                $.ajax({
+                    url: '/chat/api/threads/' + currentThreadId + '/read',
+                    method: 'PATCH',
+                    headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()}
+                });
+
+                updateThreadById(threadId, {
+                    unread_count: 0,
+                    last_message: body,
+                    last_message_time: ts,
+                    updated_at: ts
                 });
             }
 
@@ -783,116 +814,58 @@
                     try {
                         threadChannel
                             .stopListening('.message.created')
+                            .stopListening('message.created')
                             .stopListening('.typing')
                             .stopListening('.thread.read');
-                    } catch (e) {
-                        console.warn('[thread] stopListening error:', e);
-                    }
+                    } catch (e) { console.warn('[thread] stopListening error:', e); }
                 }
 
-                console.log('[thread] subscribing to', threadId);
                 threadChannel = window.Echo.private('thread.' + threadId);
 
                 if (typeof threadChannel.subscribed === 'function') {
                     threadChannel.subscribed(() => console.log('[thread] subscribed:', threadId));
-                } else {
-                    console.warn('[thread] no .subscribed() on channel API');
                 }
                 if (typeof threadChannel.error === 'function') {
                     threadChannel.error(e => console.error('[thread] channel error:', e));
                 }
 
-                // Глобально ловим все события этого канала
-                try {
-                    if (threadChannel.subscription && typeof threadChannel.subscription.bind_global === 'function') {
-                        threadChannel.subscription.bind_global((eventName, data) => {
-                            console.log('[thread GLOBAL]', eventName, data);
-                        });
-                    } else if (window.Echo?.connector?.pusher?.channel) {
-                        const raw = window.Echo.connector.pusher.channel('private-thread.' + threadId);
-                        if (raw?.bind_global) {
-                            raw.bind_global((eventName, data) => {
-                                console.log('[thread GLOBAL]', eventName, data);
-                            });
-                        }
-                    }
-                } catch (e) {
-                    console.warn('[thread] bind_global setup error:', e);
-                }
-
-                threadChannel.listen('.message.created', (e) => {
-                    console.log('[thread] .message.created', e);
-                    const mid = e?.message?.id;
-                    const body = e?.message?.body ?? '';
-                    const uid = e?.message?.user_id;
-
-                    if (currentThreadId === threadId) {
-                        appendMessage(e.message, $('#messagesBox'));
-                        lastMessageId = mid;
-                        scrollBottom();
-
-                        $.ajax({
-                            url: '/chat/api/threads/' + currentThreadId + '/read',
-                            method: 'PATCH',
-                            headers: {'X-CSRF-TOKEN': csrf}
-                        });
-
-                        threadsCache = threadsCache.map(t => t.id === threadId ? Object.assign({}, t, {
-                            unread_count: 0,
-                            last_message: body,
-                            last_message_time: e.message.created_at,
-                            updated_at: e.message.created_at
-                        }) : t);
-                        threadsCache.sort((a, b) => new Date(b.last_message_time || b.updated_at) - new Date(a.last_message_time || a.updated_at));
-                        renderThreads(threadsCache);
-                        return;
-                    }
-
-                    threadsCache = threadsCache.map(t => {
-                        if (t.id === threadId) {
-                            const inc = (uid !== me) ? 1 : 0;
-                            return Object.assign({}, t, {
-                                last_message: body,
-                                last_message_time: e.message.created_at,
-                                updated_at: e.message.created_at,
-                                unread_count: (t.unread_count || 0) + inc
-                            });
-                        }
-                        return t;
-                    });
-                    threadsCache.sort((a, b) => new Date(b.last_message_time || b.updated_at) - new Date(a.last_message_time || a.updated_at));
-                    renderThreads(threadsCache);
-                });
+                threadChannel
+                    .listen('.message.created', (e) => onMessageCreatedActive(e, threadId))
+                    .listen('message.created',  (e) => onMessageCreatedActive(e, threadId));
 
                 threadChannel.listen('.typing', (e) => {
-                    console.log('[thread] .typing', e);
                     if (e.userId === me) return;
                     const $sub = $('#threadSub');
                     if (e.isTyping) {
                         $sub.text('печатает…').show();
                         clearTimeout(typingTimer);
                         typingTimer = setTimeout(() => $sub.text('').hide(), 4000);
-                    } else {
-                        $sub.text('').hide();
-                    }
+                    } else { $sub.text('').hide(); }
                 });
 
                 threadChannel.listen('.thread.read', (e) => {
-                    console.log('[thread] .thread.read', e);
-                    if (currentThreadId === threadId) {
+                    if (String(currentThreadId) === String(threadId)) {
                         $('#messagesBox .msg-row.msg-mine .checks').each(function () {
                             $(this).html(`<span class="check">${svgTwo}</span>`);
                         });
-                        threadsCache = threadsCache.map(t => t.id === threadId ? Object.assign({}, t, {unread_count: 0}) : t);
-                        renderThreads(threadsCache);
+                        updateThreadById(threadId, { unread_count: 0 });
                     }
                 });
             }
 
+            try {
+                const p = window.Echo.connector.pusher;
+                p.connection.bind('connected', () => {
+                    if (currentThreadId) subscribeThread(currentThreadId);
+                    ensureInboxSubscription();
+                });
+            } catch (e) { console.warn('[WS] reconnect hook error', e); }
 
+            // ===== Открытие треда =====
             function openThread(threadId) {
                 $.ajax({
-                    url: '/chat/api/threads/' + threadId, method: 'GET',
+                    url: '/chat/api/threads/' + threadId,
+                    method: 'GET',
                     success: function (res) {
                         currentThreadId = res.thread.id;
                         currentThreadMeta = {
@@ -906,11 +879,10 @@
                         const $line = $('#threadMembersLine');
                         if (currentThreadMeta.is_group) {
                             const n = currentThreadMeta.member_count;
-                            const suf = (n % 10 === 1 && n % 100 !== 11) ? '' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'а' : 'ов');
-                            $line.text(n + ' участник' + suf).show();
-                        } else {
-                            $line.hide().text('');
-                        }
+                            const suf = (n % 10 === 1 && n % 100 !== 11) ? '' :
+                                (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'а' : 'ов');
+                            $line.text(n + ' участник' + suf).removeClass('invisible');
+                        } else { $line.text('').addClass('invisible'); }
 
                         $('.chat-list-item').removeClass('active');
                         $(`.chat-list-item[data-id="${currentThreadId}"]`).addClass('active');
@@ -923,19 +895,24 @@
                         $.ajax({
                             url: '/chat/api/threads/' + currentThreadId + '/read',
                             method: 'PATCH',
-                            headers: {'X-CSRF-TOKEN': csrf}
+                            headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()}
                         });
 
-                        threadsCache = threadsCache.map(t => t.id === currentThreadId ? Object.assign({}, t, {unread_count: 0}) : t);
-                        renderThreads(threadsCache);
+                        updateThreadById(currentThreadId, { unread_count: 0 });
+
+                        startSafetyPoll();
+                        startThreadsListPoll();
+                        ensureInboxSubscription();
                     }
                 });
             }
 
-            // ===== Отрисовка сообщений (без fetch; только AJAX)
+            // ===== Отрисовка сообщений =====
             function renderMessages(msgs) {
                 const $box = $('#messagesBox').empty();
                 msgs.forEach(m => appendMessage(m, $box));
+                const box = $('#messagesBox')[0];
+                if (box) void box.offsetHeight;
                 scrollBottom();
             }
 
@@ -953,10 +930,11 @@
                 }
                 bubble.append(meta);
                 const row = $(`<div class="${rowClass}"></div>`).append($('<div class="msg-inner"></div>').append(bubble));
+                if (m.id) row.attr('data-mid', String(m.id));
                 $box.append(row);
             }
 
-            // ===== Отправка (AJAX)
+            // ===== Отправка (без рисования «pending») =====
             $('#sendForm').on('submit', function (e) {
                 e.preventDefault();
                 const id = Number(currentThreadId);
@@ -964,36 +942,66 @@
                     alert('Сначала выберите диалог слева.');
                     return;
                 }
-                const text = $('#msgInput').val().trim();
+                const $input = $('#msgInput');
+                const text = $input.val().trim();
                 if (!text) return;
+
+                // мгновенно очищаем инпут и даём визуальный фидбек на кнопке
+                $input.val('');
+
+
+                // const $btn = $(this).find('button[type="submit"]');
+                // const oldBtnHtml = $btn.html();
+                // $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Отправка');
+                //
+
+                const $btn = $(this).find('button[type="submit"]');
+// просто блокируем на время запроса, без изменения разметки/текста
+                $btn.prop('disabled', true);
+
+                // сразу обновим превью/время в левом списке (оптимистично)
+                const nowIso = new Date().toISOString().slice(0,19).replace('T',' ');
+                updateThreadById(id, { last_message: text, last_message_time: nowIso, updated_at: nowIso });
+
+                // отправляем на сервер
                 $.ajax({
                     url: '/chat/api/threads/' + id + '/messages',
                     method: 'POST',
-                    headers: {'X-CSRF-TOKEN': csrf},
-                    data: {body: text},
+                    headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()},
+                    data: { body: text },
                     success: function (m) {
-                        $('#msgInput').val('');
-                        appendMessage(m, $('#messagesBox'));
-                        lastMessageId = m.id;
-                        scrollBottom();
-
-                        threadsCache = threadsCache.map(t => {
-                            if (t.id === id) {
-                                return Object.assign({}, t, {
-                                    last_message: m.body,
-                                    last_message_time: m.created_at,
-                                    updated_at: m.created_at
-                                });
-                            }
-                            return t;
+                        // если уже пришло по сокету и добавилось — не дублируем
+                        if (!messageExists(m.id)) {
+                            appendMessage(m, $('#messagesBox'));
+                            lastMessageId = m.id;
+                            const box = $('#messagesBox')[0];
+                            if (box) void box.offsetHeight;
+                            scrollBottom();
+                        }
+                        // точные времена/превью
+                        updateThreadById(id, {
+                            last_message: m.body,
+                            last_message_time: m.created_at,
+                            updated_at: m.created_at
                         });
-                        threadsCache.sort((a, b) => new Date(b.last_message_time || b.updated_at) - new Date(a.last_message_time || a.updated_at));
-                        renderThreads(threadsCache);
+                    },
+                    error: function () {
+                        // вернём текст пользователю в инпут для повторной отправки
+                        $input.val(text).focus();
+                        // можно показать alert/toast по вкусу
+                        alert('Не удалось отправить сообщение. Проверьте соединение и попробуйте ещё раз.');
+                    },
+                    complete: function () {
+                        // $btn.prop('disabled', false).html(oldBtnHtml);
+                        $btn.prop('disabled', false);
+
                     }
+
+
                 });
             });
 
-            // ===== «Печатает…» (AJAX, как просил)
+            // ===== «Печатает…» =====
             let typingSent = false;
             let typingStopTimer = null;
 
@@ -1004,8 +1012,8 @@
                     $.ajax({
                         url: '/chat/api/threads/' + currentThreadId + '/typing',
                         method: 'POST',
-                        headers: {'X-CSRF-TOKEN': csrf},
-                        data: {is_typing: 1}
+                        headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()},
+                        data: { is_typing: 1 }
                     });
                 }
                 clearTimeout(typingStopTimer);
@@ -1014,15 +1022,80 @@
                     $.ajax({
                         url: '/chat/api/threads/' + currentThreadId + '/typing',
                         method: 'POST',
-                        headers: {'X-CSRF-TOKEN': csrf},
-                        data: {is_typing: 0}
+                        headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()},
+                        data: { is_typing: 0 }
                     });
                 }, 2500);
             });
 
-            // ===== Контакты/Группы — твой существующий код оставляю без изменений (AJAX на /chat/api/*)
+            // ===== Safety-поллер активного треда =====
+            function startSafetyPoll() {
+                clearInterval(safetyPoll);
+                safetyPoll = setInterval(() => {
+                    if (!currentThreadId || !lastMessageId) return;
+                    $.ajax({
+                        url: '/chat/api/threads/' + currentThreadId + '/messages',
+                        method: 'GET',
+                        data: { after_id: lastMessageId },
+                        success: function (list) {
+                            (list || []).forEach(m => {
+                                if (!messageExists(m.id)) {
+                                    appendMessage(m, $('#messagesBox'));
+                                    lastMessageId = m.id;
+                                }
+                            });
+                            if (list?.length) {
+                                const box = $('#messagesBox')[0];
+                                if (box) void box.offsetHeight;
+                                scrollBottom();
+                            }
+                        }
+                    });
+                }, 7000);
+            }
+
+            // ===== Лёгкий пулл списка тредов =====
+            function startThreadsListPoll() {
+                clearInterval(threadsListPoll);
+                threadsListPoll = setInterval(() => {
+                    $.ajax({
+                        url: '/chat/api/threads',
+                        method: 'GET',
+                        success: function (res) {
+                            const fresh = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+                            const map = Object.create(null);
+                            fresh.forEach(t => { map[String(t.id)] = t; });
+                            threadsCache = threadsCache.map(t => {
+                                const f = map[String(t.id)];
+                                if (!f) return t;
+                                return Object.assign({}, t, {
+                                    last_message: f.last_message,
+                                    last_message_time: f.last_message_time,
+                                    updated_at: f.last_message_time || f.updated_at,
+                                    unread_count: f.unread_count,
+                                    title: f.title || t.title,
+                                    avatar: f.avatar || t.avatar
+                                });
+                            });
+                            fresh.forEach(f => {
+                                if (!threadsCache.find(x => String(x.id) === String(f.id))) threadsCache.push(f);
+                            });
+                            sortThreads(threadsCache);
+                            renderThreads(threadsCache);
+                        }
+                    });
+                }, 6000);
+            }
+
+            // ===== Инициализация =====
+            try {
+                const p = window.Echo.connector.pusher;
+                p.connection.bind('state_change', s => console.log('[WS state]', s.previous, '→', s.current));
+                p.connection.bind('error', err => console.error('[WS error]', err));
+            } catch (e) { console.warn('[WS] bind error', e); }
 
             loadThreads();
+            startThreadsListPoll();
         })();
     </script>
 @endpush

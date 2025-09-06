@@ -37,3 +37,7 @@ Broadcast::channel('user.{userId}', function ($user, $userId) {
         ? ['id' => $user->id, 'name' => $user->name]
         : false;
 });
+
+Broadcast::channel('inbox.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Chat;
 
+use App\Events\InboxBump;
 use App\Events\MessageCreated;
 use App\Events\ThreadReadUpdated;
 use App\Events\ThreadUpdated;
@@ -57,8 +58,8 @@ class ChatApiController extends Controller
     {
         $participants = $thread->participants()->with('user:id,name')->get();
         if ($participants->count() === 2) {
-            $other = $participants->firstWhere('user_id', '<>', $viewerId)?->user;
-            return $other?->name ?? 'Диалог';
+            $other = $participants->firstWhere('user_id', '<>', $viewerId) ?->user;
+            return $other ?->name ?? 'Диалог';
         }
         return $thread->subject ?: 'Группа';
     }
@@ -70,7 +71,7 @@ class ChatApiController extends Controller
 
         $threads = Thread::query()
             ->whereHas('participants', fn($q) => $q->where('user_id', $uid))
-            ->select(['threads.id','threads.subject','threads.updated_at'])
+            ->select(['threads.id', 'threads.subject', 'threads.updated_at'])
         ->with(['participants.user:id,name,image_crop'])
         ->addSelect([
             'last_message_body' => Message::select('body')
@@ -102,7 +103,7 @@ class ChatApiController extends Controller
 
             $lastTs = $t->last_message_time
                 ? \Illuminate\Support\Carbon::parse($t->last_message_time)->toDateTimeString()
-                : ($t->updated_at?->toDateTimeString());
+                : ($t->updated_at ?->toDateTimeString());
 
             $others = $t->participants->filter(fn($p) => (int)$p->user_id !== (int)$uid)->values();
             $avatarUser = $others->count() ? $others->first()->user : null;
@@ -111,12 +112,12 @@ class ChatApiController extends Controller
             $memberCount = $t->participants->count();
 
             return (object)[
-                'id'                => $t->id,
-                'title'             => $title,
-                'avatar'            => $avatar,
-                'last_message'      => $lastPreview,
+                'id' => $t->id,
+                'title' => $title,
+                'avatar' => $avatar,
+                'last_message' => $lastPreview,
                 'last_message_time' => $lastTs,
-                'updated_at'        => $t->updated_at?->toDateTimeString(),
+                'updated_at' => $t->updated_at ?->toDateTimeString(),
                 'member_count'      => $memberCount,
                 'is_group'          => $memberCount > 2,
                 'unread_count'      => (int)($t->unread_count ?? 0),
@@ -136,17 +137,17 @@ class ChatApiController extends Controller
             ->latest('id')
             ->take(30)
             ->with('user:id,name')
-            ->get(['id','user_id','body','created_at'])
+            ->get(['id', 'user_id', 'body', 'created_at'])
             ->reverse()
             ->values()
             ->map(function ($m) use ($thread, $uid) {
                 $isMine = (int)$m->user_id === (int)$uid;
                 return [
-                    'id'         => $m->id,
-                    'user_id'    => $m->user_id,
-                    'body'       => $m->body,
+                    'id' => $m->id,
+                    'user_id' => $m->user_id,
+                    'body' => $m->body,
                     'created_at' => $m->created_at->toDateTimeString(),
-                    'is_read'    => $isMine ? $this->isMessageReadByOthers($thread, $m) : null,
+                    'is_read' => $isMine ? $this->isMessageReadByOthers($thread, $m) : null,
                 ];
             });
 
@@ -162,10 +163,10 @@ class ChatApiController extends Controller
 
         return response()->json([
             'thread' => [
-                'id'           => $thread->id,
-                'subject'      => $title,
-                'online'       => '',
-                'is_group'     => $thread->participants()->count() > 2,
+                'id' => $thread->id,
+                'subject' => $title,
+                'online' => '',
+                'is_group' => $thread->participants()->count() > 2,
                 'member_count' => $thread->participants()->count(),
             ],
             'messages' => $messages,
@@ -179,24 +180,24 @@ class ChatApiController extends Controller
         $uid = Auth::id();
 
         $request->validate([
-            'after_id'  => ['nullable','integer','min:1'],
-            'before_id' => ['nullable','integer','min:1'],
+            'after_id' => ['nullable', 'integer', 'min:1'],
+            'before_id' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $query = $thread->messages()->orderBy('id','desc');
+        $query = $thread->messages()->orderBy('id', 'desc');
 
         if ($request->filled('after_id')) {
             $query->where('id', '>', (int)$request->after_id);
-            $list = $query->take(100)->with('user:id,name')->get(['id','user_id','body','created_at']);
+            $list = $query->take(100)->with('user:id,name')->get(['id', 'user_id', 'body', 'created_at']);
 
             return response()->json($list->map(function ($m) use ($thread, $uid) {
                 $isMine = (int)$m->user_id === (int)$uid;
                 return [
-                    'id'         => $m->id,
-                    'user_id'    => $m->user_id,
-                    'body'       => $m->body,
+                    'id' => $m->id,
+                    'user_id' => $m->user_id,
+                    'body' => $m->body,
                     'created_at' => $m->created_at->toDateTimeString(),
-                    'is_read'    => $isMine ? $this->isMessageReadByOthers($thread, $m) : null,
+                    'is_read' => $isMine ? $this->isMessageReadByOthers($thread, $m) : null,
                 ];
             })->values());
         }
@@ -205,16 +206,16 @@ class ChatApiController extends Controller
             $query->where('id', '<', (int)$request->before_id);
         }
 
-        $messages = $query->take(30)->with('user:id,name')->get(['id','user_id','body','created_at'])
+        $messages = $query->take(30)->with('user:id,name')->get(['id', 'user_id', 'body', 'created_at'])
             ->reverse()->values()
             ->map(function ($m) use ($thread, $uid) {
                 $isMine = (int)$m->user_id === (int)$uid;
                 return [
-                    'id'         => $m->id,
-                    'user_id'    => $m->user_id,
-                    'body'       => $m->body,
+                    'id' => $m->id,
+                    'user_id' => $m->user_id,
+                    'body' => $m->body,
                     'created_at' => $m->created_at->toDateTimeString(),
-                    'is_read'    => $isMine ? $this->isMessageReadByOthers($thread, $m) : null,
+                    'is_read' => $isMine ? $this->isMessageReadByOthers($thread, $m) : null,
                 ];
             });
 
@@ -222,18 +223,18 @@ class ChatApiController extends Controller
     }
 
     /** Создание сообщения + broadcast */
-    public function storeMessage(Request $request, Thread $thread)
+    public function storeMessage2(Request $request, Thread $thread)
     {
         $this->assertParticipant($thread);
 
         $data = $request->validate([
-            'body' => ['required','string','min:1','max:5000'],
+            'body' => ['required', 'string', 'min:1', 'max:5000'],
         ], [], ['body' => 'текст сообщения']);
 
-        $msg = Message::create([
-            'thread_id' => $thread->id,
-            'user_id'   => Auth::id(),
-            'body'      => $data['body'],
+
+        $msg = $thread->messages()->create([
+            'user_id' => auth()->id(),
+            'body'    => $data['body'],
         ]);
 
         Participant::updateOrCreate(
@@ -243,42 +244,166 @@ class ChatApiController extends Controller
 
         $thread->touch();
 
+
         event(new MessageCreated($thread->id, [
             'id'         => $msg->id,
             'user_id'    => $msg->user_id,
             'body'       => $msg->body,
             'created_at' => $msg->created_at->toDateTimeString(),
-            'is_read'    => true,
+            'is_read'    => null,
         ]));
 
-        $recipientIds = $thread->participants()->pluck('user_id')->all();
-        $lastPreview = mb_strimwidth(strip_tags((string)$msg->body), 0, 90, '…');
-        event(new ThreadUpdated($thread->id, [
-            'title'             => $this->resolveThreadTitleForUser($thread, Auth::id()),
-            'last_message'      => $lastPreview,
-            'last_message_time' => $msg->created_at->toDateTimeString(),
-            'member_count'      => $thread->participants()->count(),
-            'is_group'          => $thread->participants()->count() > 2,
-            'recipients'        => $recipientIds,
-        ]));
+        // Подготовим общие поля (как у тебя было)
+        $recipientIds = $thread->users()->pluck('users.id')->all(); // через модель Thread и связь users()
+        $lastPreview  = mb_strimwidth(strip_tags((string)$msg->body), 0, 90, '…');
+        $membersCount = $thread->users()->count();
+        $isGroup      = $membersCount > 2;
+
+
+// 2) Инбокс-бамп для каждого получателя (левая колонка: превью + счётчик)
+//    ─ фронт поднимет чат наверх, обновит превью и инкрементнёт непрочитанные
+        foreach ($thread->recipientIdsExcept($msg->user_id) as $uid) {
+            event(new InboxBump($uid, [
+                'thread_id'         => (int) $thread->id,
+                'last_message'      => $lastPreview,                                // тот же превью, что и раньше
+                'last_message_time' => $msg->created_at->toDateTimeString(),
+                'increment_unread'  => true,                                        // как у тебя
+                // 'unread_count'    => $точное_число_если_считаешь,               // необязательно
+                'title'             => $this->resolveThreadTitleForUser($thread, $uid), // оставляем твою логику титула
+                'avatar'            => $thread->avatar_url ?? null,                 // если есть
+                'member_count'      => $membersCount,
+                'is_group'          => $isGroup,
+                'recipients'        => $recipientIds,
+            ]));
+        }
+
+// 3) (НЕОБЯЗАТЕЛЬНО) Оставляем твой старый ThreadUpdated — для обратной совместимости.
+//    Если другие клиенты или страницы всё ещё сидят на нём — пусть остаётся.
+        foreach ($recipientIds as $uid) {
+            if ((int) $uid === (int) $msg->user_id) continue;
+
+            event(new ThreadUpdated($thread->id, [
+                'title'              => $this->resolveThreadTitleForUser($thread, $uid),
+                'last_message'       => $lastPreview,
+                'last_message_time'  => $msg->created_at->toDateTimeString(),
+                'member_count'       => $membersCount,
+                'is_group'           => $isGroup,
+                'recipients'         => $recipientIds,
+                'increment_unread'   => true,
+                // 'unread_count'     => $точное_число_если_считаешь,
+            ]));
+        }
+
+
+
+
+
+
+
+
+
+
 
         return response()->json([
+            'id' => $msg->id,
+            'user_id' => $msg->user_id,
+            'body' => $msg->body,
+            'created_at' => $msg->created_at->toDateTimeString(),
+            'is_read' => true,
+        ], 201);
+    }
+
+    public function storeMessage(Request $request, Thread $thread)
+    {
+        $this->assertParticipant($thread);
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'min:1', 'max:5000'],
+        ], [], ['body' => 'текст сообщения']);
+
+        // 1) Создаём сообщение
+        $msg = $thread->messages()->create([
+            'user_id' => Auth::id(),
+            'body'    => $data['body'],
+        ]);
+
+        // 2) Обновляем last_read для отправителя
+        Participant::updateOrCreate(
+            ['thread_id' => $thread->id, 'user_id' => Auth::id()],
+            ['last_read' => now()]
+        );
+
+        $thread->touch();
+
+        // 3) Событие в сам тред (для активного окна чата)
+        event(new MessageCreated($thread->id, [
             'id'         => $msg->id,
             'user_id'    => $msg->user_id,
             'body'       => $msg->body,
             'created_at' => $msg->created_at->toDateTimeString(),
-            'is_read'    => true,
-        ], 201);
+            'is_read'    => null,
+        ]));
+
+        // 4) Общие поля для превью/инбокса
+        // NB: берём участников напрямую из participants (без join на users), чтобы не ловить ошибок вида "users.id".
+        $recipientIds = $thread->participants()->pluck('user_id')->all(); // [int...]
+        $recipientsExceptSender = array_values(array_filter(
+            $recipientIds,
+            fn ($uid) => (int)$uid !== (int)$msg->user_id
+    ));
+
+    $lastPreview  = mb_strimwidth(strip_tags((string)$msg->body), 0, 90, '…');
+    $membersCount = count($recipientIds);
+    $isGroup      = $membersCount > 2;
+
+    // 5) Инбокс-бамп (левая колонка: превью + счётчик) — для каждого получателя
+    foreach ($recipientsExceptSender as $uid) {
+        event(new InboxBump((int)$uid, [
+            'thread_id'         => (int) $thread->id,
+            'last_message'      => $lastPreview,
+            'last_message_time' => $msg->created_at->toDateTimeString(),
+            'increment_unread'  => true, // фронт инкрементнёт, если не передаём unread_count
+            // 'unread_count'    => $точное_число_если_считаешь,
+            'title'             => $this->resolveThreadTitleForUser($thread, (int)$uid),
+            'avatar'            => $thread->avatar_url ?? null, // если поле есть
+            'member_count'      => $membersCount,
+            'is_group'          => $isGroup,
+            'recipients'        => $recipientIds,
+        ]));
     }
+
+    // 6) (Опционально) Оставляем твой старый ThreadUpdated для обратной совместимости
+    foreach ($recipientsExceptSender as $uid) {
+        event(new ThreadUpdated($thread->id, [
+            'title'             => $this->resolveThreadTitleForUser($thread, (int)$uid),
+            'last_message'      => $lastPreview,
+            'last_message_time' => $msg->created_at->toDateTimeString(),
+            'member_count'      => $membersCount,
+            'is_group'          => $isGroup,
+            'recipients'        => $recipientIds,
+            'increment_unread'  => true,
+            // 'unread_count'    => $точное_число_если_считаешь,
+        ]));
+    }
+
+    // 7) Ответ отправителю
+    return response()->json([
+        'id'         => $msg->id,
+        'user_id'    => $msg->user_id,
+        'body'       => $msg->body,
+        'created_at' => $msg->created_at->toDateTimeString(),
+        'is_read'    => true,
+    ], 201);
+}
 
     /** Создать 1-на-1 или группу */
     public function storeThread(Request $request)
     {
         $data = $request->validate([
-            'type'       => ['required', Rule::in(['private','group'])],
-            'subject'    => ['nullable','string','max:120'],
-            'members'    => ['required','array','min:1'],
-            'members.*'  => ['integer','exists:users,id'],
+            'type' => ['required', Rule::in(['private', 'group'])],
+            'subject' => ['nullable', 'string', 'max:120'],
+            'members' => ['required', 'array', 'min:1'],
+            'members.*' => ['integer', 'exists:users,id'],
         ]);
 
         $uid = Auth::id();
@@ -295,14 +420,14 @@ class ChatApiController extends Controller
 
         Participant::create([
             'thread_id' => $thread->id,
-            'user_id'   => $uid,
+            'user_id' => $uid,
             'last_read' => now(),
         ]);
 
         foreach ($others as $memberId) {
             Participant::create([
                 'thread_id' => $thread->id,
-                'user_id'   => (int)$memberId,
+                'user_id' => (int)$memberId,
             ]);
         }
 
@@ -327,21 +452,21 @@ class ChatApiController extends Controller
         }
 
         if ($q !== '') {
-            $qb->where(function($w) use ($q) {
+            $qb->where(function ($w) use ($q) {
                 $w->where('name', 'like', "%{$q}%")
                     ->orWhere('email', 'like', "%{$q}%");
             });
         }
 
         $users = $qb->orderBy('name')->limit(100)
-            ->get(['id','name','email','image_crop']);
+            ->get(['id', 'name', 'email', 'image_crop']);
 
-        $users = $users->map(function($u){
+        $users = $users->map(function ($u) {
             return [
-                'id'    => $u->id,
-                'name'  => $u->name,
+                'id' => $u->id,
+                'name' => $u->name,
                 'email' => $u->email,
-                'avatar'=> $this->avatarUrl($u),
+                'avatar' => $this->avatarUrl($u),
             ];
         })->values();
 
@@ -356,20 +481,20 @@ class ChatApiController extends Controller
         $members = $thread->participants()
             ->with('user:id,name,email,image_crop')
             ->get()
-            ->map(function($p){
+            ->map(function ($p) {
                 $u = $p->user;
                 return [
-                    'id'     => $u->id,
-                    'name'   => $u->name,
-                    'email'  => $u->email,
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
                     'avatar' => $this->avatarUrl($u),
                 ];
             })->values();
 
         return response()->json([
-            'thread_id'     => $thread->id,
-            'member_count'  => $members->count(),
-            'members'       => $members,
+            'thread_id' => $thread->id,
+            'member_count' => $members->count(),
+            'members' => $members,
         ]);
     }
 
@@ -379,8 +504,8 @@ class ChatApiController extends Controller
         $this->assertParticipant($thread);
 
         $data = $request->validate([
-            'members'   => ['required','array','min:1'],
-            'members.*' => ['integer','exists:users,id'],
+            'members' => ['required', 'array', 'min:1'],
+            'members.*' => ['integer', 'exists:users,id'],
         ]);
 
         $existingIds = $thread->participants()->pluck('user_id')->all();
@@ -393,13 +518,13 @@ class ChatApiController extends Controller
         foreach ($toAdd as $uid) {
             Participant::create([
                 'thread_id' => $thread->id,
-                'user_id'   => $uid,
+                'user_id' => $uid,
             ]);
         }
 
         $thread->touch();
 
-        return response()->json(['ok'=>true, 'added'=>$toAdd], 201);
+        return response()->json(['ok' => true, 'added' => $toAdd], 201);
     }
 
     /** «Печатает…» */
@@ -407,7 +532,7 @@ class ChatApiController extends Controller
     {
         $this->assertParticipant($thread);
         $data = $request->validate([
-            'is_typing' => ['required','boolean'],
+            'is_typing' => ['required', 'boolean'],
         ]);
         event(new Typing($thread->id, Auth::id(), (bool)$data['is_typing']));
         return response()->json(['ok' => true]);
