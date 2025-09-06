@@ -1,0 +1,11 @@
+[0;1;32m●[0m reverb.service - Laravel Reverb (WS)
+     Loaded: loaded (/etc/systemd/system/reverb.service; enabled; vendor preset: enabled)
+     Active: [0;1;32mactive (running)[0m since Sat 2025-09-06 03:24:59 MSK; 16ms ago
+   Main PID: 758690 (php8.2)
+      Tasks: 1 (limit: 2308)
+     Memory: 1.5M
+        CPU: 6ms
+     CGroup: /system.slice/reverb.service
+             └─758690 /usr/bin/php8.2 artisan reverb:start --no-interaction --host=127.0.0.1 --port=6008
+
+Sep 06 03:24:59 kyfqwgzfdy systemd[1]: Started Laravel Reverb (WS).
