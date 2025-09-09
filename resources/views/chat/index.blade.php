@@ -533,8 +533,12 @@
         if (window.Pusher) window.Pusher.logToConsole = true;
 
         const REVERB_KEY =
-        @json(config('reverb.apps.apps.0.key')) ??
-        @json(config('broadcasting.connections.reverb.key'));
+        {{--@json(config('reverb.apps.apps.0.key')) ??--}}
+        {{--@json(config('broadcasting.connections.reverb.key'));--}}
+
+        @json(config('reverb.apps.0.key') ??
+            config('broadcasting.connections.reverb.key') ?? env('REVERB_APP_KEY'));
+
 
         const WS_HOST = window.location.hostname;
 

@@ -1,5 +1,11 @@
 @extends('layouts.admin2')
 @section('content')
+    <style>
+        .wrap-club-fee-pay img {
+
+        }
+    </style>
+
     <div class="main-content text-start">
 
     <h4 class="pt-3 pb-3">Оплата клубного взноса</h4>
@@ -8,11 +14,10 @@
             <div class="mt-3">Сумма оплаты: <span class="bolt-text"><input id="paymentAmount" type="number" min="1"> руб.</span>
             </div>
         </div>
-            <div class="text-center">
+            <div class="text-center ">
                 <div class="wrap-pay mt-3 wrap-club-fee-pay">
                 <h5 class="pay-name mt-3 mb-3">Робокасса</h5>
-                <img src="{{ asset('storage/robokassa.svg') }}">
-                {{--            <div>Проверка значения: <span id="checkOutSum2"></span></div>--}}
+                <img   class="img-fluid d-block mx-auto" src="{{ asset('/img/partners/robokassa.png') }}">
 
                 <form class="mb-3 mt-3" id="paymentForm" action="{{ route('payment.pay') }}" method="POST"
                       onsubmit="return setOutSum();">
