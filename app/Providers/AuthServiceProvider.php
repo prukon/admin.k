@@ -128,6 +128,13 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('servicePayments.view');
         });
 
+        // Кошелек
+        Gate::define('partnerWallet-view', function (User $user) {
+            return $user->hasPermission('partnerWallet.view');
+        });
+
+
+
         ////////////////////////Учетная запись //////////////////////
 
         // Изменение своего имени

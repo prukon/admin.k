@@ -121,7 +121,7 @@
         </li>
         @endcan
 
-        {{--Учетная запись--}}
+        {{--Сообщения (Чат)--}}
         @can('messages-view')
             <li class="nav-item">
                 <a href="/chat" class="nav-link">

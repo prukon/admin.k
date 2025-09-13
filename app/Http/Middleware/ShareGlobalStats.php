@@ -11,8 +11,8 @@ class ShareGlobalStats
 {
     public function handle($request, Closure $next)
     {
-        View::share('allTeamsCount', Team::count());
-        View::share('allUsersCount',  User::count());
+//        View::share('allTeamsCount', Team::count());
+//        View::share('allUsersCount',  User::count());
 
         return $next($request);
     }

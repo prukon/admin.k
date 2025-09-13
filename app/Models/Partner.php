@@ -46,7 +46,11 @@ class Partner extends Model
      */
     protected $casts = [
         'business_type' => 'string',
+        'wallet_balance' => 'decimal:2',
+
     ];
+
+
 
     /**
      * Даты, которые должны быть обработаны как Carbon экземпляры.
@@ -108,6 +112,10 @@ class Partner extends Model
     public function syncUsers(array $userIds)
     {
         return $this->users()->sync($userIds);
+    }
+
+    public function walletTransactions() {
+        return $this->hasMany(PartnerWalletTransaction::class);
     }
 
 }

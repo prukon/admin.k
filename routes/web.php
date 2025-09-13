@@ -19,6 +19,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MyGroupController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\User\Report\ReportController;
+use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisterController;
@@ -244,22 +245,57 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee')->middleware('can:payment-clubfee'); //Оплата клубного взноса
 
 
-//    Route::middleware('can:paying-classes')->group(function () {
+    //Договоры
+    Route::middleware('can:contracts-view')->group(function () {
+        // AJAX для Select2 (поиск учеников текущего партнёра)
+        Route::get('/contracts/users-search', [ContractsController::class, 'usersSearch'])->name('contracts.users.search');
+        // AJAX для получения групп ученика
+        Route::get('/contracts/user-group', [ContractsController::class, 'userGroup'])->name('contracts.user.group');
+        Route::get('/contracts', [ContractsController::class, 'index'])->name('contracts.index');
+        Route::get('/contracts/create', [ContractsController::class, 'create'])->name('contracts.create');
+        Route::post('/contracts', [ContractsController::class, 'store'])->name('contracts.store');
+        Route::get('/contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
+        Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
+        Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
+        Route::post('/contracts/{contract}/send', [ContractsController::class, 'send'])->name('contracts.send');
+        Route::post('/contracts/{contract}/resend', [ContractsController::class, 'resend'])->name('contracts.resend');
+        Route::post('/contracts/{contract}/revoke', [ContractsController::class, 'revoke'])->name('contracts.revoke');
+        Route::get('/contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
+        Route::post('/contracts/{contract}/send-email', [ContractsController::class, 'sendEmail'])->name('contracts.sendEmail');
 
-    Route::get('/contracts', [ContractsController::class, 'index'])->name('contracts.index');
-    Route::get('/contracts/create', [ContractsController::class, 'create'])->name('contracts.create');
-    Route::post('/contracts', [ContractsController::class, 'store'])->name('contracts.store');
+    });
 
-    Route::get('/contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
+    //Сообщения (ЧАТ)
+    Route::middleware('can:messages-view')->group(function () {
+        // Страница чата
+        Route::get('/chat', [ChatPageController::class, 'index'])->name('chat.index');
+        // API для фронта (ПРЯМЫЕ URL)
+        Route::get('/chat/api/threads', [ChatApiController::class, 'threads']);
+        Route::get('/chat/api/threads/{thread}', [ChatApiController::class, 'thread'])->whereNumber('thread');
+        Route::get('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'messages'])->whereNumber('thread');
+        // ВАЖНО: отправка сообщения → storeMessage (а не storeThread)
+        Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread');
+        // Создание 1-на-1 или группы
+        Route::post('/chat/api/threads', [ChatApiController::class, 'storeThread']);
+        // Живой поиск пользователей для модалок
+        Route::get('/chat/api/users', [ChatApiController::class, 'users']);
+        Route::get('/chat/api/threads/{thread}/members', [ChatApiController::class, 'members']);
+        Route::post('/chat/api/threads/{thread}/members', [ChatApiController::class, 'addMembers']);
+        Route::post('/chat/api/threads/{thread}/typing', [ChatApiController::class, 'typing']);
+        Route::patch('/chat/api/threads/{thread}/read', [ChatApiController::class, 'markRead']);
+    });
 
-    Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
-    Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
 
-    Route::post('/contracts/{contract}/send', [ContractsController::class, 'send'])->name('contracts.send');
-    Route::post('/contracts/{contract}/resend', [ContractsController::class, 'resend'])->name('contracts.resend');
-    Route::post('/contracts/{contract}/revoke', [ContractsController::class, 'revoke'])->name('contracts.revoke');
-    Route::get('/contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
-//    });
+//    Кошелек партнера
+    Route::middleware('can:partnerWallet-view')->group(function () {
+        Route::get('/partner-wallet', [PartnerPaymentController::class, 'showWallet'])->name('partner.wallet');
+        // Создать платёж на пополнение кошелька
+        Route::post('/partner-wallet/topup', [PartnerPaymentController::class, 'createWalletTopupYookassa'])->name('partner.wallet.topup');
+        // История транзакций кошелька (DataTables)
+        Route::get('/partner-wallet/transactions', [PartnerPaymentController::class, 'getWalletTransactionsData'])->name('partner.wallet.transactions');
+        // Возврат после оплаты (YooKassa redirect) — просто страница "обрабатывается"
+        Route::get('/partner-wallet/success', [PartnerPaymentController::class, 'ykWalletSuccess'])->name('partner.wallet.success');
+    });
 
 
     //    Оплата ТБанк
@@ -296,38 +332,15 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
 
-//    Route::middleware(['can:admin'])->prefix('admin')->group(function () {
-    // Страница чата
-    Route::get('/chat', [ChatPageController::class, 'index'])->name('chat.index');
-
-    // API для фронта (ПРЯМЫЕ URL)
-    Route::get('/chat/api/threads', [ChatApiController::class, 'threads']);
-    Route::get('/chat/api/threads/{thread}', [ChatApiController::class, 'thread'])->whereNumber('thread');
-    Route::get('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'messages'])->whereNumber('thread');
-    // ВАЖНО: отправка сообщения → storeMessage (а не storeThread)
-    Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread');
-    // Создание 1-на-1 или группы
-    Route::post('/chat/api/threads', [ChatApiController::class, 'storeThread']);
-    // Живой поиск пользователей для модалок
-    Route::get('/chat/api/users', [ChatApiController::class, 'users']);
-    Route::get('/chat/api/threads/{thread}/members', [ChatApiController::class, 'members']);
-    Route::post('/chat/api/threads/{thread}/members', [ChatApiController::class, 'addMembers']);
-
-
-    Route::post('/chat/api/threads/{thread}/typing', [ChatApiController::class, 'typing']);
-    Route::patch('/chat/api/threads/{thread}/read', [ChatApiController::class, 'markRead']);
-
-
-
-
-
-//    });
 });
 // Маршрут для обработки результатов оплаты робокассы (callback от Robokassa)
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
 
 //вебхук емани
 Route::post('/webhook/yookassa', [\App\Http\Controllers\WebhookController::class, 'handleWebhook'])->name('webhook.yookassa');
+
+// Вебхук YooKassa (без CSRF)
+Route::post('/partner-wallet/webhook', [PartnerPaymentController::class, 'ykWalletWebhook'])->name('partner.wallet.webhook');
 
 
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');
@@ -339,4 +352,6 @@ Route::post('/tinkoff/pay', [\App\Http\Controllers\TinkoffPaymentController::cla
 Route::post('/tinkoff/callback', [\App\Http\Controllers\TinkoffPaymentController::class, 'callback'])->name('tinkoff.callback'); // пока заглушка
 
 
-// Webhook без auth
+Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle'])
+    ->withoutMiddleware([VerifyCsrfToken::class])// <— добавь это
+    ->name('webhooks.podpislon');

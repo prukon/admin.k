@@ -8,10 +8,22 @@
 
   новый пример:
     error: function(response) {
-           $('#error-modal-message').text(response.message || 'Ошибка при удалении роли!');
+           $('#error-modal-message').text(response.message || 'Ошибка.');
            eroorRespone(response);
       }
 
+еще новыее:
+
+    error: function (response) {
+      // аккуратно достанем текст ошибки и подставим в модалку
+      var msg = (response && response.responseJSON && response.responseJSON.message)
+                  ? response.responseJSON.message
+                  : (response && response.message) ? response.message : 'Ошибка.';
+      $('#error-modal-message').text(msg);
+
+      // твой обработчик ошибки (как просил)
+      eroorRespone(response);
+    }
 
 
 

@@ -126,6 +126,16 @@ return [
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],
+
+        'podpislon' => [
+            'driver' => 'daily',
+            'path'   => storage_path('logs/podpislon-webhooks.log'),
+            'level'  => env('LOG_PODPISLON_LEVEL', 'debug'),
+            'days'   => 14,
+        ],
+
+
+
     ],
 
 ];

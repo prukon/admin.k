@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
 
-    <title>кружок.onlline - сервис учета для детских садов, тематических школ и секций</title>
+    <title>кружок.online - сервис учета для детских садов, тематических школ и секций</title>
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
 
     {{--JQuery--}}
@@ -23,9 +23,6 @@
     <link rel="stylesheet" href="{{ asset('plugins/fontawesome-free/css/all.min.css') }}">
 
 
-
-
-
     {{--Datapicker--}}
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.material.css') }}">
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.minimal.css') }}">
@@ -35,12 +32,12 @@
     <!-- Google Font: Source Sans Pro -->
     {{--<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">--}}
 
-    <!-- Ionicons -->
+<!-- Ionicons -->
     {{--<link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">--}}
 
 
 
-    <!-- iCheck -->
+<!-- iCheck -->
     <link rel="stylesheet" href="{{ asset('plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
 
     <!-- JQVMap -->
@@ -69,7 +66,7 @@
     {{--Cropie--}}
     {{--<link rel="stylesheet" href="{{ asset('css/croppie.min.css') }}">--}}
     {{--<link rel="stylesheet" href="{{ asset('css/croppie.css') }}">--}}
-{{--    <script src="{{ asset('js/croppie.min.js') }}"></script>--}}
+    {{--    <script src="{{ asset('js/croppie.min.js') }}"></script>--}}
 
     {{--Select2--}}
     <link rel="stylesheet" href="{{ asset('css/select2/select2.min.css') }}">
@@ -92,19 +89,23 @@
     <style>
         /* Переопределяем пути к стрелкам сортировки */
         table.dataTable thead .sorting {
-            background-image:url("/img/datatables/sort_both.png") !important;
+            background-image: url("/img/datatables/sort_both.png") !important;
         }
+
         table.dataTable thead .sorting_asc {
-            background-image:url("/img/datatables/sort_asc.png") !important;
+            background-image: url("/img/datatables/sort_asc.png") !important;
         }
+
         table.dataTable thead .sorting_desc {
-            background-image:url("/img/datatables/sort_desc.png") !important;
+            background-image: url("/img/datatables/sort_desc.png") !important;
         }
+
         table.dataTable thead .sorting_asc_disabled {
-            background-image:url("/img/datatables/sort_asc_disabled.png") !important;
+            background-image: url("/img/datatables/sort_asc_disabled.png") !important;
         }
+
         table.dataTable thead .sorting_desc_disabled {
-            background-image:url("/img/datatables/sort_desc_disabled.png") !important;
+            background-image: url("/img/datatables/sort_desc_disabled.png") !important;
         }
     </style>
 
@@ -180,7 +181,7 @@
         </ul>
 
         <!-- Форма переключения партнёров -->
-    @can('partner-view')
+        @can('partner-view')
             <div class="collapse navbar-collapse mr-3">
                 <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
                     @csrf
@@ -201,15 +202,6 @@
         <ul class="navbar-nav ml-auto social-menu mr-3">
             <!-- Navbar Search -->
 
-            {{--            <li class="nav-item">--}}
-            {{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
-            {{--                   href="https://vk.com/fc_istok_spb"><i class="fa-brands fa-vk" aria-hidden="true"></i></a>--}}
-            {{--            </li>--}}
-            {{--            <li class="nav-item ml-2">--}}
-            {{--                <a target="_blank" class="d-flex justify-content-center align-items-center"--}}
-            {{--                   href="https://www.youtube.com/channel/UCmOq_eBvQIQgP9sEGlpHwdg"><i class="fa-brands fa-youtube"--}}
-            {{--                                                                                      aria-hidden="true"></i></a>--}}
-            {{--            </li>--}}
 
             @foreach($socialItems as $social)
                 <li class="nav-item {{ $loop->first ? '' : 'ml-2' }}">
@@ -280,13 +272,6 @@
             </script>
 
 
-            <!-- Модальное окно настройки меню -->
-            {{--@include('includes.confirmLogout')--}}
-
-        <!-- Модальное окно подтверждения удаления -->
-            {{--                @include('includes.modal.confirmDeleteModal')--}}
-
-
             <script>
                 // Вызов модалки логаута
                 $(document).on('click', '.confirm-logout-modal', function () {
@@ -324,128 +309,6 @@
             </script>
 
 
-            {{--            <li class="nav-item">--}}
-            {{--                <a class="nav-link" data-widget="navbar-search" href="#" role="button">--}}
-            {{--                    <i class="fas fa-search"></i>--}}
-            {{--                </a>--}}
-            {{--                <div class="navbar-search-block">--}}
-            {{--                    <form class="form-inline">--}}
-            {{--                        <div class="input-group input-group-sm">--}}
-            {{--                            <input class="form-control form-control-navbar" type="search" placeholder="Search"--}}
-            {{--                                   aria-label="Search">--}}
-            {{--                            <div class="input-group-append">--}}
-            {{--                                <button class="btn btn-navbar" type="submit">--}}
-            {{--                                    <i class="fas fa-search"></i>--}}
-            {{--                                </button>--}}
-            {{--                                <button class="btn btn-navbar" type="button" data-widget="navbar-search">--}}
-            {{--                                    <i class="fas fa-times"></i>--}}
-            {{--                                </button>--}}
-            {{--                            </div>--}}
-            {{--                        </div>--}}
-            {{--                    </form>--}}
-            {{--                </div>--}}
-            {{--            </li>--}}
-
-        <!-- Messages Dropdown Menu -->
-            {{--                        <li class="nav-item dropdown">--}}
-            {{--                            <a class="nav-link" data-toggle="dropdown" href="#">--}}
-            {{--                                <i class="far fa-comments"></i>--}}
-            {{--                                <span class="badge badge-danger navbar-badge">3</span>--}}
-            {{--                            </a>--}}
-            {{--                            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
-            {{--                                <a href="#" class="dropdown-item">--}}
-            {{--                                    <!-- Message Start -->--}}
-            {{--                                    <div class="media">--}}
-            {{--                                        <img src="{{ asset('dist/img/user1-128x128.jpg') }}" alt="User Avatar"--}}
-            {{--                                             class="img-size-50 mr-3 img-circle">--}}
-            {{--                                        <div class="media-body">--}}
-            {{--                                            <h3 class="dropdown-item-title">--}}
-            {{--                                                Brad Diesel--}}
-            {{--                                                <span class="float-right text-sm text-danger"><i class="fas fa-star"></i></span>--}}
-            {{--                                            </h3>--}}
-            {{--                                            <p class="text-sm">Call me whenever you can...</p>--}}
-            {{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
-            {{--                                        </div>--}}
-            {{--                                    </div>--}}
-            {{--                                    <!-- Message End -->--}}
-            {{--                                </a>--}}
-            {{--                                <div class="dropdown-divider"></div>--}}
-            {{--                                <a href="#" class="dropdown-item">--}}
-            {{--                                    <!-- Message Start -->--}}
-            {{--                                    <div class="media">--}}
-            {{--                                        <img src="{{ asset('dist/img/user8-128x128.jpg') }}" alt="User Avatar"--}}
-            {{--                                             class="img-size-50 img-circle mr-3">--}}
-            {{--                                        <div class="media-body">--}}
-            {{--                                            <h3 class="dropdown-item-title">--}}
-            {{--                                                John Pierce--}}
-            {{--                                                <span class="float-right text-sm text-muted"><i class="fas fa-star"></i></span>--}}
-            {{--                                            </h3>--}}
-            {{--                                            <p class="text-sm">I got your message bro</p>--}}
-            {{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
-            {{--                                        </div>--}}
-            {{--                                    </div>--}}
-            {{--                                    <!-- Message End -->--}}
-            {{--                                </a>--}}
-            {{--                                <div class="dropdown-divider"></div>--}}
-            {{--                                <a href="#" class="dropdown-item">--}}
-            {{--                                    <!-- Message Start -->--}}
-            {{--                                    <div class="media">--}}
-            {{--                                        <img src="{{ asset('dist/img/user3-128x128.jpg') }}" alt="User Avatar"--}}
-            {{--                                             class="img-size-50 img-circle mr-3">--}}
-            {{--                                        <div class="media-body">--}}
-            {{--                                            <h3 class="dropdown-item-title">--}}
-            {{--                                                Nora Silvester--}}
-            {{--                                                <span class="float-right text-sm text-warning"><i class="fas fa-star"></i></span>--}}
-            {{--                                            </h3>--}}
-            {{--                                            <p class="text-sm">The subject goes here</p>--}}
-            {{--                                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>--}}
-            {{--                                        </div>--}}
-            {{--                                    </div>--}}
-            {{--                                    <!-- Message End -->--}}
-            {{--                                </a>--}}
-            {{--                                <div class="dropdown-divider"></div>--}}
-            {{--                                <a href="#" class="dropdown-item dropdown-footer">See All Messages</a>--}}
-            {{--                            </div>--}}
-            {{--                        </li>--}}
-
-        <!-- Notifications Dropdown Menu -->
-            {{--<li class="nav-item dropdown">--}}
-            {{--<a class="nav-link" data-toggle="dropdown" href="#">--}}
-            {{--<i class="far fa-bell"></i>--}}
-            {{--<span class="badge badge-warning navbar-badge">15</span>--}}
-            {{--</a>--}}
-            {{--<div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">--}}
-            {{--<span class="dropdown-item dropdown-header">15 Notifications</span>--}}
-            {{--<div class="dropdown-divider"></div>--}}
-            {{--<a href="#" class="dropdown-item">--}}
-            {{--<i class="fas fa-envelope mr-2"></i> 4 new messages--}}
-            {{--<span class="float-right text-muted text-sm">3 mins</span>--}}
-            {{--</a>--}}
-            {{--<div class="dropdown-divider"></div>--}}
-            {{--<a href="#" class="dropdown-item">--}}
-            {{--<i class="fas fa-users mr-2"></i> 8 friend requests--}}
-            {{--<span class="float-right text-muted text-sm">12 hours</span>--}}
-            {{--</a>--}}
-            {{--<div class="dropdown-divider"></div>--}}
-            {{--<a href="#" class="dropdown-item">--}}
-            {{--<i class="fas fa-file mr-2"></i> 3 new reports--}}
-            {{--<span class="float-right text-muted text-sm">2 days</span>--}}
-            {{--</a>--}}
-            {{--<div class="dropdown-divider"></div>--}}
-            {{--<a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>--}}
-            {{--</div>--}}
-            {{--</li>--}}
-            {{--<li class="nav-item">--}}
-            {{--<a class="nav-link" data-widget="fullscreen" href="#" role="button">--}}
-            {{--<i class="fas fa-expand-arrows-alt"></i>--}}
-            {{--</a>--}}
-            {{--</li>--}}
-            {{--<li class="nav-item">--}}
-            {{--<a class="nav-link" data-widget="control-sidebar" data-controlsidebar-slide="true" href="#"--}}
-            {{--role="button">--}}
-            {{--<i class="fas fa-th-large"></i>--}}
-            {{--</a>--}}
-            {{--</li>--}}
         </ul>
     </nav>
     <!-- /.navbar -->
@@ -457,7 +320,7 @@
             {{--<a href="/" class="ml-3">--}}
             {{--                        <img src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="Kidslink Logo"--}}
             {{--                             class="brand-image img-circle elevation-3" style="opacity: .8">--}}
-            <span class="brand-text font-weight-light">кружок.onlline</span>
+            <span class="brand-text font-weight-light">кружок.online</span>
         </a>
 
         <!-- Sidebar -->
@@ -475,11 +338,7 @@
                     <h6> Почта: {{auth()->user()->email}}</h6>
                     <h6> Роль: {{auth()->user()->role->label}}</h6>
 
-                    @can('service-payment')
-                        {{--<h6> Оплачено до: <a href="/partner-payment/history"><span--}}
-                        {{--class="badge badge-success latestEndDate">--}}
-                        {{--{{ \Carbon\Carbon::parse($latestEndDate)->format('d.m.Y') }}--}}
-                        {{--</span></a></h6>--}}
+                    @can('servicePayments-view')
 
                         @php
                             $parsedDate = \Carbon\Carbon::parse($latestEndDate);
@@ -494,7 +353,14 @@
             {{ $parsedDate->format('d.m.Y') }}
         </span>
                             </a>
+
                         </h6>
+                    @endcan
+
+
+                    @can('partnerWallet-view')
+                        <h6> Баланс: {{ number_format((float)($partnerWalletBalance ?? 0), 0, ',', ' ') }}руб.
+                            <a href="/partner-wallet">(пополнить)</a></h6>
                     @endcan
 
                 </div>
@@ -538,7 +404,7 @@
     <!-- Футер -->
     <footer class="main-footer">
 
-        <div> Copyright &copy; 2023-2025 <a target="_blank" href="https://кружок.onlline/">кружок.onlline</a>.
+        <div> Copyright &copy; 2023-2025 <a target="_blank" href="https://кружок.online/">кружок.online</a>.
             Все права защищены.
         </div>
         <div class="float-right d-none d-sm-inline-block">
@@ -555,42 +421,6 @@
 
 
 @yield('scripts')
-
-
-{{--<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">--}}
-{{--<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>--}}
-{{--<script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>--}}
-
-
-{{--снежинки--}}
-{{--<script src="https://daruse.ru/assets/js/snowfall.js"></script>--}}
-{{--<script type="text/javascript">$(document).snowfall();</script>--}}
-
-{{--Принятие оферты--}}
-{{--@if (!auth('partner')->user()->offer_accepted)--}}
-
-{{--@php--}}
-{{--    dump(auth()->user());--}}
-{{--    dump(auth('partner')->user());--}}
-{{--@endphp--}}
-
-
-{{--@php--}}
-{{--    logger('offer_accepted = ' . optional(auth('partner')->user())->offer_accepted);--}}
-{{--@endphp--}}
-
-
-{{--@if (auth('partner')->check() && !auth('partner')->user()->offer_accepted)--}}
-{{--    <script>--}}
-{{--        document.addEventListener("DOMContentLoaded", function () {--}}
-{{--            var modal = new bootstrap.Modal(document.getElementById('partnerOfferModal'));--}}
-{{--            modal.show();--}}
-{{--        });--}}
-{{--    </script>--}}
-{{--    @include('partner.offer_modal')--}}
-{{--    @include('includes.modal.offerModal')--}}
-{{--@endif--}}
-
 
 
 @if (auth()->check() && optional(auth()->user()->role)->name === 'admin' && !auth()->user()->offer_accepted)

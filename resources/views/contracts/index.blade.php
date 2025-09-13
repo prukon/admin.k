@@ -18,9 +18,11 @@
                 <thead>
                 <tr>
                     <th>#</th>
-                    <th>Ученик</th>
+                    <th>Имя</th>
+                    <th>Фамилия</th>
                     <th>Группа</th>
-                    <th>Файл</th>
+                    <th>Телефон</th>
+                    <th>Email</th>
                     <th>Статус</th>
                     <th>Обновлён</th>
                     <th class="text-end">Действия</th>
@@ -30,17 +32,36 @@
                 @forelse($contracts as $c)
                     <tr>
                         <td>{{ $c->id }}</td>
-                        <td>{{ $c->user_id }}</td>
-                        <td>{{ $c->group_id ?? '—' }}</td>
-                        <td><a href="{{ url('/contracts/'.$c->id) }}">Просмотр</a></td>
-                        <td><span class="badge bg-secondary">{{ $c->status }}</span></td>
-                        <td>{{ $c->updated_at->format('d.m.Y H:i') }}</td>
+                        <td>{{ $c->user_name ?? '—' }}</td>
+                        <td>{{ $c->user_lastname  ?? '—' }}</td>
+                        <td>{{ $c->team_title ?? '—' }}</td>
+                        <td>{{ $c->user_phone ?? '—' }}</td>
+                        <td>{{ $c->user_email ?? '—' }}</td>
+                        <td>
+    <span class="badge {{ $c->status_badge_class }}">
+        {{ $c->status_ru }}
+    </span>
+                        </td>
+
+                        <td>{{ $c->updated_at?->format('d.m.Y H:i:s') }}</td>
                         <td class="text-end">
-                            <a class="btn btn-sm btn-outline-secondary" href="{{ url('/contracts/'.$c->id) }}">Открыть</a>
+                            <div class="d-inline-flex gap-2">
+                                {{--<a class="btn btn-sm btn-outline-primary"--}}
+                                   {{--href="{{ url('/contracts/'.$c->id.'/download-original') }}">--}}
+                                    {{--Скачать--}}
+                                {{--</a>--}}
+
+                                <a class="btn btn-sm btn-outline-secondary" href="{{ url('/contracts/'.$c->id) }}">
+                                    Подробнее
+                                </a>
+
+                            </div>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="text-center text-muted">Пока пусто</td></tr>
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">Пока пусто</td>
+                    </tr>
                 @endforelse
                 </tbody>
             </table>

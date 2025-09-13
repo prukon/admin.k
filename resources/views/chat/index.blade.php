@@ -14,15 +14,28 @@
             padding: .6rem .75rem;
             cursor: pointer;
             border-left: 4px solid transparent;
+            transition: background-color .15s ease, box-shadow .15s ease, border-left-color .15s ease, transform .05s ease;
         }
 
         .chat-list-item:hover {
-            background: #f8f9fa;
+            background: rgba(243, 161, 43, 0.06);
+            border-left-color: #2eaadc;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .04);
+        }
+
+        .chat-list-item:active {
+            transform: translateY(1px);
         }
 
         .chat-list-item.active {
             background: #eaf6ff;
             border-left-color: #2eaadc;
+        }
+
+        .chat-list-item.active:hover {
+            background: #e2f1ff;
+            border-left-color: #2eaadc;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
         }
 
         .chat-avatar {
@@ -48,6 +61,7 @@
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
+            text-align: left;
         }
 
         .chat-li-time {
@@ -57,30 +71,31 @@
 
         /* ===== Правый блок ===== */
         .dialog-bg {
-            background: #e6ffe8;
+            background: url("/img/background-chat.jpg") repeat;
+            background-size: cover;
         }
 
         /* ===== Строка сообщения и пузырь ===== */
         .msg-row {
             display: flex;
-            width: 100%; /* ВАЖНО: строка на всю ширину */
+            width: 100%;
             margin: .25rem 0;
         }
 
         .msg-inner {
             display: flex;
-            flex-direction: column; /* пузырь + мета в колонку */
-            width: 100%; /* ВАЖНО: внутренняя обёртка на всю ширину */
+            flex-direction: column;
+            width: 100%;
             max-width: 100%;
         }
 
         .msg-bubble {
-            max-width: 75%; /* 3/4 ширины всей строки */
-            padding: .6rem .9rem;
+            max-width: 75%;
+            padding: .6rem 3.2rem 1.4rem .9rem; /* справа место под время */
             border-radius: 16px;
             background: #ffffff;
             position: relative;
-            word-break: break-word; /* НЕ break-all, чтобы не ломать «привет» на буквы */
+            word-break: break-word;
             box-shadow: 0 1px 0 rgba(0, 0, 0, .03);
         }
 
@@ -96,21 +111,20 @@
             margin-left: auto;
         }
 
+        /* Время/чеки внутри баббла */
         .msg-meta {
+            position: absolute;
+            bottom: 4px;
+            right: 8px;
+            font-size: .7rem;
+            color: #6c757d;
             display: flex;
             align-items: center;
-            gap: .25rem;
-            font-size: .75rem;
-            color: #6c757d;
-            margin-top: 1.35rem;
-        }
-
-        .msg-row.msg-other .msg-meta {
-            align-self: flex-start;
+            gap: .2rem;
         }
 
         .msg-row.msg-mine .msg-meta {
-            align-self: flex-end;
+            color: #4CAF50;
         }
 
         .checks {
@@ -143,6 +157,12 @@
         .chat-sub {
             font-size: .9rem;
             color: #6c757d;
+            min-height: 1.1rem;
+            line-height: 1.1rem;
+        }
+
+        .chat-title {
+            margin-bottom: 0.15rem;
         }
 
         /* ===== Модалки (единый стиль) ===== */
@@ -163,8 +183,16 @@
         }
 
         .contact-list {
-            /*max-height:420px;*/
             overflow: auto;
+        }
+
+        .list-unstyled {
+            margin: 0;
+            padding: 0;
+        }
+
+        .list-unstyled > li {
+            list-style: none;
         }
 
         .contact-row, .group-row {
@@ -187,6 +215,21 @@
             object-fit: cover;
         }
 
+        /* Заголовок строки с ролью справа */
+        .row-topline {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: .5rem;
+        }
+
+        .row-role {
+            font-size: .8rem;
+            color: #6c757d;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
+
         .contact-name, .group-name {
             font-weight: 600;
         }
@@ -194,15 +237,6 @@
         .contact-sub, .group-sub {
             font-size: .85rem;
             color: #6c757d;
-        }
-
-        .list-unstyled {
-            margin: 0;
-            padding: 0;
-        }
-
-        .list-unstyled > li {
-            list-style: none;
         }
 
         .chat-actions .btn {
@@ -223,127 +257,30 @@
             overflow-y: auto;
         }
 
-        #groupUsers .group-row {
-            display: flex;
-            align-items: center;
-            gap: .65rem;
-            padding: .5rem .25rem;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-
-        #groupUsers .group-row:hover {
-            background: #f5f7f9;
-        }
-
-        /* ключевое: отменяем любые позиционирования/float у bootstrap */
         #groupUsers .form-check-input {
             position: static !important;
             float: none !important;
             margin: 0 .5rem 0 0 !important;
-            flex: 0 0 auto; /* не растягивать */
+            flex: 0 0 auto;
         }
 
-        /* чтобы текст не наползал на чекбокс и всё было слева */
-        #groupUsers .group-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            object-fit: cover;
+        #groupInfoMembers li .flex-grow-1, #groupInfoAddResults li .flex-grow-1 {
+            text-align: left;
         }
 
-        #groupUsers .group-name {
-            font-weight: 600;
+        /* Сделать модалку "Создать группу" уже */
+        #groupModal .modal-dialog {
+            max-width: 440px;
         }
-
-        #groupUsers .group-sub {
-            font-size: .85rem;
-            color: #6c757d;
-        }
-
 
         #groupModal .modal-content {
             max-height: 950px;
         }
 
-        /* ===== Правый блок ===== */
-        .dialog-bg {
-            background: url("/img/background-chat.jpg") repeat; /* путь см. ниже */
-            background-size: cover; /* или contain / auto — под твой вкус */
-        }
-
-        .msg-bubble {
-            max-width: 75%;
-            padding: .6rem 3.2rem 1.4rem .9rem; /* справа больше отступа под время */
-            border-radius: 16px;
-            background: #ffffff;
-            position: relative; /* для абсолютного позиционирования времени */
-            word-break: break-word;
-            box-shadow: 0 1px 0 rgba(0, 0, 0, .03);
-        }
-
-        /* Время внутри баббла */
-        .msg-meta {
-            position: absolute;
-            bottom: 4px;
-            right: 8px;
-            font-size: .7rem;
-            color: #6c757d;
-            display: flex;
-            align-items: center;
-            gap: .2rem;
-        }
-
-        /* для моих сообщений галочки идут рядом со временем */
-        .msg-row.msg-mine .msg-meta {
-            color: #4CAF50; /* можно другой цвет для своих */
-        }
-
+        /* Левый список — поисковая выдача */
         .chat-li-middle .chat-li-preview {
             text-align: left;
         }
-
-        #groupInfoMembers li .flex-grow-1 {
-            text-align: left;
-        }
-
-        #groupInfoAddResults li .flex-grow-1 {
-            text-align: left;
-        }
-
-        /* Подзаголовок в хедере чата всегда занимает одну строку */
-        .chat-sub {
-            min-height: 1.1rem; /* ≈ 17–18px; можешь подогнать под свой line-height */
-            line-height: 1.1rem;
-        }
-
-        /* Чуть сбросим отступы, чтобы высота header была стабильной */
-        .chat-title { margin-bottom: 0.15rem; }
-
-        /* плавные ховеры для элементов списка чатов */
-        .chat-list-item {
-            transition: background-color .15s ease, box-shadow .15s ease, border-left-color .15s ease, transform .05s ease;
-        }
-
-        .chat-list-item:hover {
-            background: rgba(243, 161, 43, 0.06);              /* чуть светлее */
-            border-left-color: #2eaadc;       /* акцент слева */
-            box-shadow: 0 2px 8px rgba(0,0,0,.04);
-        }
-
-        .chat-list-item:active {
-            transform: translateY(1px);       /* тактильность при клике */
-        }
-
-        /* чтобы активный выглядел стабильно и при ховере */
-        .chat-list-item.active:hover {
-            background: #e2f1ff;
-            border-left-color: #2eaadc;
-            box-shadow: 0 2px 8px rgba(0,0,0,.05);
-        }
-
-
-
     </style>
 
     <div class="container py-3">
@@ -353,7 +290,6 @@
                 <div class="card h-100">
                     <div class="chat-list-search">
                         <div class="input-group input-group-sm">
-                            {{--<span class="input-group-text">🔎</span>--}}
                             <input type="text" id="threadSearch" class="form-control" placeholder="Поиск">
                         </div>
                     </div>
@@ -366,31 +302,13 @@
                 <div class="card h-100">
                     <div class="card-header">
                         <div class="chat-header-line">
-                            {{--<div>--}}
-                            {{--<div class="chat-title" id="threadTitle">Выберите диалог</div>--}}
-                            {{--<div class="chat-sub" id="threadSub">&nbsp;</div>--}}
-                            {{--</div>--}}
-
                             <div>
-
-                                {{--<div class="chat-title" id="threadTitle">Выберите диалог</div>--}}
-                                {{--<!-- строка под заголовком: тут будет "3 участника", кликабельна -->--}}
-                                {{--<div class="chat-sub">--}}
-                                    {{--<span id="threadMembersLine" class="text-primary"--}}
-                                          {{--style="cursor:pointer; display:none;"></span>--}}
-                                {{--</div>--}}
-
                                 <div class="chat-title" id="threadTitle">Выберите диалог</div>
                                 <div class="chat-sub">
-                                    <!-- невидим, но занимает место -->
-                                    <span id="threadMembersLine" class="text-primary invisible" style="cursor:pointer;"></span>
+                                    <span id="threadMembersLine" class="text-primary invisible"
+                                          style="cursor:pointer;"></span>
                                 </div>
-
-
-
                             </div>
-
-
                             <div class="chat-actions">
                                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
                                         data-bs-target="#contactsModal">Контакты
@@ -464,7 +382,7 @@
                         <input type="text" id="groupSearch" class="form-control" placeholder="Кого добавить в группу">
                     </div>
 
-                    <ul id="groupUsers" class="list-unstyled" style="max-height:600px; overflow:auto;"></ul>
+                    <ul id="groupUsers" class="list-unstyled"></ul>
                     <div class="form-text">Выберите участников (чекбоксы). Вы будете добавлены автоматически.</div>
                 </div>
                 <div class="modal-footer">
@@ -475,8 +393,7 @@
         </div>
     </div>
 
-
-    <!-- Модалка: Информация о группе -->
+    <!-- Модалка: Информация о группе (без изменений в этой задаче) -->
     <div class="modal fade" id="groupInfoModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
@@ -514,16 +431,12 @@
         </div>
     </div>
 
-
     <meta name="csrf-token" content="{{ csrf_token() }}">
 @endsection
-
-
 
 @push('scripts')
     <!-- 1) pusher-js -->
     <script src="https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js"></script>
-
     <!-- 2) laravel-echo (>=1.16) -->
     <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
 
@@ -533,12 +446,9 @@
         if (window.Pusher) window.Pusher.logToConsole = true;
 
         const REVERB_KEY =
-        {{--@json(config('reverb.apps.apps.0.key')) ??--}}
-        {{--@json(config('broadcasting.connections.reverb.key'));--}}
-
-        @json(config('reverb.apps.0.key') ??
-            config('broadcasting.connections.reverb.key') ?? env('REVERB_APP_KEY'));
-
+                @json(config('reverb.apps.0.key') ??
+                      config('broadcasting.connections.reverb.key') ??
+                      env('REVERB_APP_KEY'));
 
         const WS_HOST = window.location.hostname;
 
@@ -553,7 +463,7 @@
             wsPath: '/app',
             encrypted: true,
             authEndpoint: '/broadcasting/auth',
-            auth: { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } }
+            auth: {headers: {'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content}}
         });
 
         try {
@@ -562,7 +472,9 @@
             p.connection.bind('error', err => console.error('[WS error]', err));
             p.connection.bind('connected', () => console.log('[WS] connected'));
             p.connection.bind('disconnected', () => console.log('[WS] disconnected'));
-        } catch (e) { console.warn('[Echo] diag error:', e); }
+        } catch (e) {
+            console.warn('[Echo] diag error:', e);
+        }
     </script>
 
     <!-- 4) Логика чата (AJAX) -->
@@ -571,35 +483,51 @@
 
         (function () {
             const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const me   = {{ auth()->id() }};
+            const me = {{ auth()->id() }};
 
-            let threadsCache     = [];
-            let currentThreadId  = null;
-            let lastMessageId    = null;
+            let threadsCache = [];
+            let currentThreadId = null;
+            let lastMessageId = null;
+
+
+            // «оптимистичные» сообщения: tempId -> true
+            const optimisticMap = new Map();
+
+            let lastReadAtByThreadId = Object.create(null);
+
 
             // Каналы
             let threadChannel = null; // активный тред
-            let inboxChannel  = null; // инбокс пользователя
+            let inboxChannel = null; // инбокс пользователя
 
             // Пулы
-            let safetyPoll       = null;
-            let threadsListPoll  = null;
+            let safetyPoll = null;
+            let threadsListPoll = null;
 
-            function escapeHtml(t) { return $('<div/>').text(t ?? '').html(); }
+            function escapeHtml(t) {
+                return $('<div/>').text(t ?? '').html();
+            }
+
             function isToday(ts) {
                 if (!ts) return false;
                 const d = new Date(ts), n = new Date();
-                return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
+                return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
             }
-            function pad(n){ return n<10 ? ('0'+n) : n; }
+
+            function pad(n) {
+                return n < 10 ? ('0' + n) : n;
+            }
+
             function fmtTime(ts) {
                 if (!ts) return '';
                 const d = new Date(ts);
                 return isToday(ts) ? `${pad(d.getHours())}:${pad(d.getMinutes())}`
-                    : `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${String(d.getFullYear()).slice(-2)}`;
+                    : `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)}`;
             }
+
             function scrollBottom() {
-                const $b = $('#messagesBox'); $b.scrollTop($b[0].scrollHeight);
+                const $b = $('#messagesBox');
+                $b.scrollTop($b[0].scrollHeight);
             }
 
             // антидубликаты по DOM
@@ -610,11 +538,11 @@
 
             // ===== сортировка: 1) непрочитанные сверху 2) по времени DESC
             function sortThreads(list) {
-                return list.sort((a,b) => {
-                    const au = a.unread_count||0, bu = b.unread_count||0;
-                    if (au>0 || bu>0) {
-                        if (au===0 && bu>0) return 1;
-                        if (au>0 && bu===0) return -1;
+                return list.sort((a, b) => {
+                    const au = a.unread_count || 0, bu = b.unread_count || 0;
+                    if (au > 0 || bu > 0) {
+                        if (au === 0 && bu > 0) return 1;
+                        if (au > 0 && bu === 0) return -1;
                     }
                     const at = new Date(a.last_message_time || a.updated_at || 0).getTime();
                     const bt = new Date(b.last_message_time || b.updated_at || 0).getTime();
@@ -634,8 +562,10 @@
                 }
                 list.forEach(t => {
                     const active = (String(t.id) === String(currentThreadId)) ? ' active' : '';
-                    const unread = t.unread_count || 0;
-                    const badge  = unread > 0 ? `<span class="badge rounded-pill bg-primary ms-2">${unread}</span>` : '';
+                    const unreadRaw = t.unread_count || 0;
+                    const unread = (String(t.id) === String(currentThreadId)) ? 0 : unreadRaw; // НЕ показываем в активном чате
+
+                    const badge = unread > 0 ? `<span class="badge rounded-pill bg-primary ms-2">${unread}</span>` : '';
                     const titleHtml = `${escapeHtml(t.title)} ${badge}`;
                     const $item = $(`
 <div class="chat-list-item${active}" data-id="${t.id}">
@@ -685,7 +615,8 @@
                 threadsCache = threadsCache.map(t => {
                     if (String(t.id) === String(id)) {
                         updated = true;
-                        return Object.assign({}, t, patch);
+                        const cleaned = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+                        return Object.assign({}, t, cleaned);
                     }
                     return t;
                 });
@@ -695,19 +626,23 @@
                 return true;
             }
 
+
             // ===== USER канал (если бэкенд кидает thread.updated)
             const userChannel = window.Echo.private('user.' + me);
             userChannel.listen('.thread.updated', (e) => {
                 const id = e.threadId ?? e.payload?.threadId ?? e.payload?.id ?? null;
-                if (!id) { loadThreads(); return; }
+                if (!id) {
+                    loadThreads();
+                    return;
+                }
                 const patch = {
-                    last_message:      e.payload?.last_message,
+                    last_message: e.payload?.last_message,
                     last_message_time: e.payload?.last_message_time,
-                    updated_at:        e.payload?.last_message_time || e.payload?.updated_at,
-                    member_count:      e.payload?.member_count,
-                    is_group:          e.payload?.is_group,
-                    title:             e.payload?.title,
-                    avatar:            e.payload?.avatar
+                    updated_at: e.payload?.last_message_time || e.payload?.updated_at,
+                    member_count: e.payload?.member_count,
+                    is_group: e.payload?.is_group,
+                    title: e.payload?.title,
+                    avatar: e.payload?.avatar
                 };
                 if (typeof e.payload?.unread_count !== 'undefined') patch.unread_count = e.payload.unread_count;
                 if (!updateThreadById(id, patch)) loadThreads();
@@ -718,46 +653,61 @@
                 if (inboxChannel) return;
                 inboxChannel = window.Echo.private('inbox.' + me);
 
+                // Пришёл бамп инбокса (новое сообщение / обновление превью)
                 inboxChannel.listen('.inbox.bump', (e) => {
-                    const id   = e.thread_id ?? e.threadId;
-                    const body = e.last_message ?? e.message?.body ?? '';
-                    const ts   = e.last_message_time ?? e.message?.created_at ?? e.updated_at;
-                    const title= e.title;
+                    const id     = e.thread_id ?? e.threadId;
+                    const body   = e.last_message ?? e.message?.body ?? '';
+                    const ts     = e.last_message_time ?? e.message?.created_at ?? e.updated_at;
+                    const title  = e.title;
                     const avatar = e.avatar;
+
                     const unreadFromServer = typeof e.unread_count !== 'undefined' ? Number(e.unread_count) : null;
-                    const incUnread = e.increment_unread ? 1 : 0;
+                    const incUnread        = e.increment_unread ? 1 : 0;
+
+                    const isActive      = String(currentThreadId) === String(id);
+                    const readTs        = lastReadAtByThreadId[id];
+                    const isAlreadyRead = readTs && ts && (new Date(ts).getTime() <= new Date(readTs).getTime());
 
                     let found = false;
                     threadsCache = threadsCache.map(t => {
                         if (String(t.id) === String(id)) {
                             found = true;
+
                             const nextUnread = (unreadFromServer !== null)
-                                ? unreadFromServer
-                                : (String(currentThreadId) === String(id) ? 0 : (t.unread_count || 0) + incUnread);
+                                ? (isActive || isAlreadyRead ? 0 : unreadFromServer)
+                                : (isActive || isAlreadyRead ? 0 : (t.unread_count || 0) + incUnread);
 
                             return Object.assign({}, t, {
-                                last_message: body || t.last_message,
-                                last_message_time: ts || t.last_message_time,
-                                updated_at: ts || t.updated_at,
-                                unread_count: nextUnread,
-                                title: title || t.title,
-                                avatar: avatar || t.avatar
+                                last_message:       body || t.last_message,
+                                last_message_time:  ts   || t.last_message_time,
+                                updated_at:         ts   || t.updated_at,
+                                unread_count:       nextUnread,
+                                title:              title  || t.title,
+                                avatar:             avatar || t.avatar,
+                                member_count:       typeof e.member_count !== 'undefined' ? e.member_count : t.member_count,
+                                is_group:           typeof e.is_group   !== 'undefined' ? e.is_group   : t.is_group,
+                                recipients:         e.recipients || t.recipients
                             });
                         }
                         return t;
                     });
 
                     if (!found) {
+                        const nextUnread = (unreadFromServer !== null)
+                            ? (isActive || isAlreadyRead ? 0 : unreadFromServer)
+                            : (isActive || isAlreadyRead ? 0 : incUnread);
+
                         threadsCache.push({
                             id,
-                            title: title || 'Диалог',
-                            avatar: avatar || '/img/default-avatar.png',
-                            last_message: body,
+                            title:             title || 'Диалог',
+                            avatar:            avatar || '/img/default-avatar.png',
+                            last_message:      body,
                             last_message_time: ts,
-                            updated_at: ts,
-                            unread_count: (unreadFromServer !== null)
-                                ? unreadFromServer
-                                : (String(currentThreadId) === String(id) ? 0 : incUnread)
+                            updated_at:        ts,
+                            unread_count:      nextUnread,
+                            member_count:      e.member_count,
+                            is_group:          e.is_group,
+                            recipients:        e.recipients || []
                         });
                     }
 
@@ -765,17 +715,62 @@
                     renderThreads(threadsCache);
                 });
 
+                // Массовая синхронизация списка тредов
                 inboxChannel.listen('.inbox.sync', (e) => {
-                    if (Array.isArray(e.threads)) {
-                        const byId = Object.create(null);
-                        e.threads.forEach(t => { byId[String(t.id)] = t; });
-                        threadsCache = threadsCache.map(t => {
-                            const fresh = byId[String(t.id)];
-                            return fresh ? Object.assign({}, t, fresh) : t;
+                    if (!Array.isArray(e.threads)) return;
+
+                    const byId = Object.create(null);
+                    e.threads.forEach(t => { byId[String(t.id)] = t; });
+
+                    // Обновляем существующие
+                    threadsCache = threadsCache.map(t => {
+                        const fresh = byId[String(t.id)];
+                        if (!fresh) return t;
+
+                        const isActive      = String(currentThreadId) === String(t.id);
+                        const ts            = fresh.last_message_time || fresh.updated_at;
+                        const readTs        = lastReadAtByThreadId[t.id];
+                        const isAlreadyRead = readTs && ts && (new Date(ts).getTime() <= new Date(readTs).getTime());
+                        const unread        = typeof fresh.unread_count !== 'undefined' ? Number(fresh.unread_count) : (t.unread_count || 0);
+
+                        return Object.assign({}, t, {
+                            last_message:      fresh.last_message ?? t.last_message,
+                            last_message_time: ts ?? t.last_message_time,
+                            updated_at:        ts ?? t.updated_at,
+                            unread_count:      (isActive || isAlreadyRead) ? 0 : unread,
+                            title:             fresh.title  || t.title,
+                            avatar:            fresh.avatar || t.avatar,
+                            member_count:      typeof fresh.member_count !== 'undefined' ? fresh.member_count : t.member_count,
+                            is_group:          typeof fresh.is_group   !== 'undefined' ? fresh.is_group   : t.is_group,
+                            recipients:        fresh.recipients || t.recipients
                         });
-                        sortThreads(threadsCache);
-                        renderThreads(threadsCache);
-                    }
+                    });
+
+                    // Добавляем новые
+                    e.threads.forEach(f => {
+                        if (threadsCache.find(x => String(x.id) === String(f.id))) return;
+
+                        const isActive      = String(currentThreadId) === String(f.id);
+                        const ts            = f.last_message_time || f.updated_at;
+                        const readTs        = lastReadAtByThreadId[f.id];
+                        const isAlreadyRead = readTs && ts && (new Date(ts).getTime() <= new Date(readTs).getTime());
+
+                        threadsCache.push({
+                            id:               f.id,
+                            title:            f.title  || 'Диалог',
+                            avatar:           f.avatar || '/img/default-avatar.png',
+                            last_message:     f.last_message,
+                            last_message_time:ts,
+                            updated_at:       ts,
+                            unread_count:     (isActive || isAlreadyRead) ? 0 : Number(f.unread_count || 0),
+                            member_count:     f.member_count,
+                            is_group:         f.is_group,
+                            recipients:       f.recipients || []
+                        });
+                    });
+
+                    sortThreads(threadsCache);
+                    renderThreads(threadsCache);
                 });
             }
 
@@ -783,33 +778,54 @@
             let typingTimer = null;
 
             function onMessageCreatedActive(e, threadId) {
-                const mid  = e?.message?.id;
-                const body = e?.message?.body ?? '';
-                const uid  = e?.message?.user_id;
-                const ts   = e?.message?.created_at;
+                // нормализуем payload: либо e.message, либо плоский e
+                const msg  = (e && e.message) ? e.message : e;
+                const mid  = msg?.id;
+                const body = msg?.body ?? '';
+                const uid  = msg?.user_id;
+                const ts   = msg?.created_at;
 
-                if (uid === me) return;
-                if (messageExists(mid)) return;
+                if (!mid && !body) return; // защитно, если пришёл совсем пустой event
 
-                appendMessage(e.message, $('#messagesBox'));
+                if (uid === me) {
+                    // прилетел ответ на «оптимистичное» — заменим временный узел
+                    const $opt = $('#messagesBox .msg-row.msg-mine[data-temp="1"]').last();
+                    if ($opt.length) {
+                        $opt.attr('data-mid', String(mid)).removeAttr('data-temp').removeAttr('data-oid');
+                        const $meta = $opt.find('.msg-meta');
+                        $meta.find('span.time').text(fmtTime(ts));
+                        $meta.find('.checks').html(`<span class="check">${svgTwo}</span>`);
+                    } else {
+                        if (!messageExists(mid)) appendMessage(msg, $('#messagesBox'));
+                    }
+                } else {
+                    if (!messageExists(mid)) appendMessage(msg, $('#messagesBox'));
+                }
+
                 lastMessageId = mid;
 
-                const box = $('#messagesBox')[0];
-                if (box) void box.offsetHeight;
-                scrollBottom();
-
-                $.ajax({
-                    url: '/chat/api/threads/' + currentThreadId + '/read',
-                    method: 'PATCH',
-                    headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()}
-                });
-
+                // синхронизируем левую колонку сразу
                 updateThreadById(threadId, {
-                    unread_count: 0,
+                    unread_count: 0, // активный тред — счётчик скрываем
                     last_message: body,
                     last_message_time: ts,
                     updated_at: ts
                 });
+
+                // прокрутка
+                const box = $('#messagesBox')[0];
+                if (box) void box.offsetHeight;
+                scrollBottom();
+
+                // пометить прочитанным, если не моё и чат активный
+                if (uid !== me && String(currentThreadId) === String(threadId)) {
+                    $.ajax({
+                        url: '/chat/api/threads/' + currentThreadId + '/read',
+                        method: 'PATCH',
+                        headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()}
+                    });
+                    lastReadAtByThreadId[currentThreadId] = ts || new Date().toISOString();
+                }
             }
 
             function subscribeThread(threadId) {
@@ -820,7 +836,9 @@
                             .stopListening('message.created')
                             .stopListening('.typing')
                             .stopListening('.thread.read');
-                    } catch (e) { console.warn('[thread] stopListening error:', e); }
+                    } catch (e) {
+                        console.warn('[thread] stopListening error:', e);
+                    }
                 }
 
                 threadChannel = window.Echo.private('thread.' + threadId);
@@ -832,9 +850,16 @@
                     threadChannel.error(e => console.error('[thread] channel error:', e));
                 }
 
+
                 threadChannel
+                // если в событии задан broadcastAs('message.created')
                     .listen('.message.created', (e) => onMessageCreatedActive(e, threadId))
-                    .listen('message.created',  (e) => onMessageCreatedActive(e, threadId));
+                    .listen('message.created',  (e) => onMessageCreatedActive(e, threadId))
+                    // дефолтный кейс Laravel без broadcastAs:
+                    .listen('.MessageCreated', (e) => onMessageCreatedActive(e, threadId))
+                    .listen('.App\\Events\\MessageCreated', (e) => onMessageCreatedActive(e, threadId));
+
+
 
                 threadChannel.listen('.typing', (e) => {
                     if (e.userId === me) return;
@@ -843,7 +868,9 @@
                         $sub.text('печатает…').show();
                         clearTimeout(typingTimer);
                         typingTimer = setTimeout(() => $sub.text('').hide(), 4000);
-                    } else { $sub.text('').hide(); }
+                    } else {
+                        $sub.text('').hide();
+                    }
                 });
 
                 threadChannel.listen('.thread.read', (e) => {
@@ -851,7 +878,7 @@
                         $('#messagesBox .msg-row.msg-mine .checks').each(function () {
                             $(this).html(`<span class="check">${svgTwo}</span>`);
                         });
-                        updateThreadById(threadId, { unread_count: 0 });
+                        updateThreadById(threadId, {unread_count: 0});
                     }
                 });
             }
@@ -862,7 +889,9 @@
                     if (currentThreadId) subscribeThread(currentThreadId);
                     ensureInboxSubscription();
                 });
-            } catch (e) { console.warn('[WS] reconnect hook error', e); }
+            } catch (e) {
+                console.warn('[WS] reconnect hook error', e);
+            }
 
             // ===== Открытие треда =====
             function openThread(threadId) {
@@ -885,7 +914,9 @@
                             const suf = (n % 10 === 1 && n % 100 !== 11) ? '' :
                                 (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'а' : 'ов');
                             $line.text(n + ' участник' + suf).removeClass('invisible');
-                        } else { $line.text('').addClass('invisible'); }
+                        } else {
+                            $line.text('').addClass('invisible');
+                        }
 
                         $('.chat-list-item').removeClass('active');
                         $(`.chat-list-item[data-id="${currentThreadId}"]`).addClass('active');
@@ -900,8 +931,10 @@
                             method: 'PATCH',
                             headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()}
                         });
+                        lastReadAtByThreadId[currentThreadId] = new Date().toISOString();
 
-                        updateThreadById(currentThreadId, { unread_count: 0 });
+
+                        updateThreadById(currentThreadId, {unread_count: 0});
 
                         startSafetyPoll();
                         startThreadsListPoll();
@@ -909,6 +942,49 @@
                     }
                 });
             }
+
+
+            $('#threadMembersLine').off('click').on('click', function () {
+                if (!currentThreadId || !currentThreadMeta.is_group) return;
+
+                // заголовок и счетчик
+                $('#groupInfoTitle').text(currentThreadMeta.title);
+                const n = Number(currentThreadMeta.member_count || 0);
+                const suf = (n % 10 === 1 && n % 100 !== 11) ? '' :
+                    (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'а' : 'ов');
+                $('#groupInfoCount').text(n + ' участник' + suf);
+
+                // первичная отрисовка
+                $('#groupInfoMembers').empty().append('<li class="text-muted py-2 ps-2">Загрузка…</li>');
+                $('#groupInfoModal').modal('show');
+
+                // загрузить состав группы
+                $.ajax({
+                    url: '/chat/api/threads/' + currentThreadId + '/members',
+                    method: 'GET',
+                    success: function (res) {
+                        const $ul = $('#groupInfoMembers').empty();
+                        (res.members || []).forEach(m => {
+                            const $li = $(`
+<li>
+  <div class="contact-row">
+    <img class="contact-avatar" src="${escapeHtml(m.avatar)}" alt="">
+    <div class="flex-grow-1">
+      <div class="contact-name">${escapeHtml(m.name || '')}</div>
+    </div>
+  </div>
+</li>`);
+                            $ul.append($li);
+                        });
+                        const n2 = Number(res.member_count || (res.members || []).length || 0);
+                        const suf2 = (n2 % 10 === 1 && n2 % 100 !== 11) ? '' :
+                            (n2 % 10 >= 2 && n2 % 10 <= 4 && (n2 % 100 < 10 || n2 % 100 >= 20) ? 'а' : 'ов');
+                        $('#groupInfoCount').text(n2 + ' участник' + suf2);
+                        currentThreadMeta.member_count = n2; // обновим локально
+                    }
+                });
+            });
+
 
             // ===== Отрисовка сообщений =====
             function renderMessages(msgs) {
@@ -919,25 +995,36 @@
                 scrollBottom();
             }
 
-            function appendMessage(m, $box) {
-                const mine = m.user_id === me;
+            function appendMessage(m, $box, opts = {}) {
+                const mine = m.user_id === me || opts.mine === true;
                 const rowClass = mine ? 'msg-row msg-mine' : 'msg-row msg-other';
                 const bubble = $('<div class="msg-bubble"></div>').html(escapeHtml(m.body));
                 const meta = $('<div class="msg-meta"></div>');
-                meta.append(`<span>${fmtTime(m.created_at)}</span>`);
+
+                // время/чеки
+                const tStr = opts.ts ? fmtTime(opts.ts) : fmtTime(m.created_at);
+                meta.append(`<span class="time">${tStr}</span>`);
                 if (mine) {
                     const isRead = !!m.is_read;
                     const checks = $('<span class="checks"></span>');
-                    checks.append(`<span class="check">${isRead ? svgTwo : svgOne}</span>`);
+                    checks.append(`<span class="check">${(opts.pending ? svgOne : (isRead ? svgTwo : svgOne))}</span>`);
                     meta.append(checks);
                 }
                 bubble.append(meta);
+
                 const row = $(`<div class="${rowClass}"></div>`).append($('<div class="msg-inner"></div>').append(bubble));
-                if (m.id) row.attr('data-mid', String(m.id));
+
+                if (m.id) {
+                    row.attr('data-mid', String(m.id));
+                } else if (opts.tempId) {
+                    row.attr('data-mid', String(opts.tempId)).attr('data-temp', '1').attr('data-oid', String(opts.tempId));
+                }
+
                 $box.append(row);
+                return row;
             }
 
-            // ===== Отправка (без рисования «pending») =====
+            // ===== Отправка: «оптимистичное» добавление =====
             $('#sendForm').on('submit', function (e) {
                 e.preventDefault();
                 const id = Number(currentThreadId);
@@ -949,26 +1036,46 @@
                 const text = $input.val().trim();
                 if (!text) return;
 
+                // очистить инпут и заблокировать кнопку
                 $input.val('');
                 const $btn = $(this).find('button[type="submit"]');
                 $btn.prop('disabled', true);
 
-                const nowIso = new Date().toISOString().slice(0,19).replace('T',' ');
-                updateThreadById(id, { last_message: text, last_message_time: nowIso, updated_at: nowIso });
+                // создаем временный id и «одновременную» отрисовку справа + обновление слева
+                const tempId = 'tmp-' + Date.now();
+                optimisticMap.set(tempId, true);
+                const nowIso = new Date().toISOString();
 
+
+                updateThreadById(id, {last_message: text, last_message_time: nowIso, updated_at: nowIso});
+
+                appendMessage({user_id: me, body: text, created_at: nowIso, is_read: false}, $('#messagesBox'), {
+                    mine: true, tempId, pending: true, ts: nowIso
+                });
+                const box = $('#messagesBox')[0];
+                if (box) void box.offsetHeight;
+                scrollBottom();
+
+
+                // реальный POST
                 $.ajax({
                     url: '/chat/api/threads/' + id + '/messages',
                     method: 'POST',
                     headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()},
-                    data: { body: text },
+                    data: {body: text},
                     success: function (m) {
-                        if (!messageExists(m.id)) {
-                            appendMessage(m, $('#messagesBox'));
-                            lastMessageId = m.id;
-                            const box = $('#messagesBox')[0];
-                            if (box) void box.offsetHeight;
-                            scrollBottom();
+                        // если temp-строка ещё существует — заменим её данными от сервера (будет дублирующая защита из .listen)
+                        const $temp = $(`#messagesBox .msg-row.msg-mine[data-oid="${CSS.escape(String(tempId))}"]`);
+                        if ($temp.length) {
+                            $temp.attr('data-mid', String(m.id)).removeAttr('data-temp').removeAttr('data-oid');
+                            const $meta = $temp.find('.msg-meta');
+                            $meta.find('span.time').text(fmtTime(m.created_at));
+                            $meta.find('.checks').html(`<span class="check">${svgTwo}</span>`);
+                        } else {
+                            // если вдруг не нашли (например, перерисовка) — просто дорисуем
+                            if (!messageExists(m.id)) appendMessage(m, $('#messagesBox'));
                         }
+                        lastMessageId = m.id;
                         updateThreadById(id, {
                             last_message: m.body,
                             last_message_time: m.created_at,
@@ -976,10 +1083,14 @@
                         });
                     },
                     error: function () {
-                        $input.val(text).focus();
+                        // восстановим текст в инпут и сообщим об ошибке
+                        $('#msgInput').val(text).focus();
+                        // удалим оптимистичное
+                        $(`#messagesBox .msg-row[data-oid="${CSS.escape(String(tempId))}"]`).remove();
                         alert('Не удалось отправить сообщение. Проверьте соединение и попробуйте ещё раз.');
                     },
                     complete: function () {
+                        optimisticMap.delete(tempId);
                         $btn.prop('disabled', false);
                     }
                 });
@@ -997,7 +1108,7 @@
                         url: '/chat/api/threads/' + currentThreadId + '/typing',
                         method: 'POST',
                         headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()},
-                        data: { is_typing: 1 }
+                        data: {is_typing: 1}
                     });
                 }
                 clearTimeout(typingStopTimer);
@@ -1007,7 +1118,7 @@
                         url: '/chat/api/threads/' + currentThreadId + '/typing',
                         method: 'POST',
                         headers: {'X-CSRF-TOKEN': csrf, 'X-Socket-Id': window.Echo.socketId()},
-                        data: { is_typing: 0 }
+                        data: {is_typing: 0}
                     });
                 }, 2500);
             });
@@ -1020,7 +1131,7 @@
                     $.ajax({
                         url: '/chat/api/threads/' + currentThreadId + '/messages',
                         method: 'GET',
-                        data: { after_id: lastMessageId },
+                        data: {after_id: lastMessageId},
                         success: function (list) {
                             (list || []).forEach(m => {
                                 if (!messageExists(m.id)) {
@@ -1048,7 +1159,9 @@
                         success: function (res) {
                             const fresh = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
                             const map = Object.create(null);
-                            fresh.forEach(t => { map[String(t.id)] = t; });
+                            fresh.forEach(t => {
+                                map[String(t.id)] = t;
+                            });
                             threadsCache = threadsCache.map(t => {
                                 const f = map[String(t.id)];
                                 if (!f) return t;
@@ -1071,19 +1184,26 @@
                 }, 6000);
             }
 
-            // ====== ДОБАВЛЕНО: ЛОГИКА МОДАЛОК "КОНТАКТЫ" И "СОЗДАТЬ ГРУППУ" ======
-
-            // дебаунсер
+            // ====== ДЕБАУНС ======
             function makeDebounced(fn, delay) {
                 let t;
-                return function() {
+                return function () {
                     const args = arguments, ctx = this;
                     clearTimeout(t);
                     t = setTimeout(() => fn.apply(ctx, args), delay);
                 };
             }
 
-            // ---- Контакты ----
+            /* ---------- Контакты ---------- */
+
+            function fmtLastSeen(iso) {
+                if (!iso) return '';
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return '';
+                return 'был(а) в сети ' + (isToday(iso) ? `${pad(d.getHours())}:${pad(d.getMinutes())}` :
+                    `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)}`);
+            }
+
             function renderContactsList(list) {
                 const $ul = $('#contactsList').empty();
                 if (!Array.isArray(list) || list.length === 0) {
@@ -1091,13 +1211,20 @@
                     return;
                 }
                 list.forEach(u => {
+                    const roleText = u.role_label || u.role_name || '';
+                    const lastSeen = fmtLastSeen(u.last_seen_at);
                     const $li = $(`
 <li data-id="${u.id}">
   <div class="contact-row">
     <img class="contact-avatar" src="${escapeHtml(u.avatar)}" alt="">
     <div class="flex-grow-1">
-      <div class="contact-name">${escapeHtml(u.name || '')}</div>
-      <div class="contact-sub">${escapeHtml(u.email || '')}</div>
+      <div class="row-topline">
+        <div class="contact-name">${escapeHtml(u.name || '')}</div>
+        <div class="row-role">${escapeHtml(roleText)}</div>
+      </div>
+<div class="contact-sub">${escapeHtml(u.team_title || '')}</div>
+<div class="contact-sub">${escapeHtml(lastSeen)}</div>
+
     </div>
   </div>
 </li>`);
@@ -1109,20 +1236,40 @@
                 $.ajax({
                     url: '/chat/api/users',
                     method: 'GET',
-                    data: { q: q },
-                    success: function (list) { renderContactsList(list); }
+                    data: {q: q},
+                    success: function (list) {
+                        renderContactsList(list);
+                    }
                 });
             }
 
             // клик по контакту — открыть/создать приватный диалог
+// клик по контакту — открыть/создать приватный диалог
             $('#contactsList').on('click', '.contact-row', function () {
                 const uid = Number($(this).closest('li').data('id'));
                 if (!uid) return;
+
+                // ищем, есть ли уже приватный тред с этим пользователем
+                const existing = threadsCache.find(t =>
+                    !t.is_group &&
+                    t.recipients &&
+                    t.recipients.length === 2 &&
+                    t.recipients.includes(uid)
+                );
+
+                if (existing) {
+                    // просто открываем существующий чат
+                    $('#contactsModal').modal('hide');
+                    openThread(existing.id);
+                    return;
+                }
+
+                // если не нашли — создаём новый
                 $.ajax({
                     url: '/chat/api/threads',
                     method: 'POST',
                     headers: {'X-CSRF-TOKEN': csrf},
-                    data: { type: 'private', members: [uid] },
+                    data: {type: 'private', members: [uid]},
                     success: function (res) {
                         $('#contactsModal').modal('hide');
                         loadThreads();
@@ -1142,7 +1289,8 @@
                 loadContacts($(this).val().trim());
             }, 300));
 
-            // ---- Создать группу ----
+            /* ---------- Создать группу ---------- */
+
             let groupSelected = new Set();
 
             function renderGroupUsers(list) {
@@ -1153,14 +1301,21 @@
                 }
                 list.forEach(u => {
                     const checked = groupSelected.has(u.id) ? 'checked' : '';
+                    const roleText = u.role_label || u.role_name || '';
+                    const lastSeen = fmtLastSeen(u.last_seen_at);
                     const $li = $(`
 <li data-id="${u.id}">
   <div class="group-row">
     <input class="form-check-input" type="checkbox" value="${u.id}" ${checked}>
     <img class="group-avatar" src="${escapeHtml(u.avatar)}" alt="">
     <div class="flex-grow-1">
-      <div class="group-name">${escapeHtml(u.name || '')}</div>
-      <div class="group-sub">${escapeHtml(u.email || '')}</div>
+      <div class="row-topline">
+        <div class="group-name">${escapeHtml(u.name || '')}</div>
+        <div class="row-role">${escapeHtml(roleText)}</div>
+      </div>
+  <div class="group-sub">${escapeHtml(u.team_title || '')}</div>
+<div class="group-sub">${escapeHtml(lastSeen)}</div>
+
     </div>
   </div>
 </li>`);
@@ -1168,7 +1323,7 @@
                         const id = Number(u.id);
                         if (this.checked) groupSelected.add(id); else groupSelected.delete(id);
                     });
-                    // клик по строке переключает чекбокс
+                    // клик по строке — переключаем чекбокс
                     $li.on('click', function (e) {
                         if ($(e.target).is('input')) return;
                         const $cb = $(this).find('input[type="checkbox"]');
@@ -1182,8 +1337,10 @@
                 $.ajax({
                     url: '/chat/api/users',
                     method: 'GET',
-                    data: { q: q },
-                    success: function (list) { renderGroupUsers(list); }
+                    data: {q: q},
+                    success: function (list) {
+                        renderGroupUsers(list);
+                    }
                 });
             }
 
@@ -1201,16 +1358,22 @@
             $('#createGroupBtn').on('click', function (e) {
                 e.preventDefault();
                 const subject = ($('#groupSubject').val() || '').trim();
-                if (!subject) { alert('Введите название группы'); return; }
+                if (!subject) {
+                    alert('Введите название группы');
+                    return;
+                }
                 const members = Array.from(groupSelected);
-                if (members.length < 1) { alert('Выберите хотя бы одного участника'); return; }
+                if (members.length < 1) {
+                    alert('Выберите хотя бы одного участника');
+                    return;
+                }
 
                 const $btn = $(this).prop('disabled', true);
                 $.ajax({
                     url: '/chat/api/threads',
                     method: 'POST',
                     headers: {'X-CSRF-TOKEN': csrf},
-                    data: { type: 'group', subject: subject, members: members },
+                    data: {type: 'group', subject: subject, members: members},
                     success: function (res) {
                         $('#groupModal').modal('hide');
                         loadThreads();
@@ -1219,7 +1382,9 @@
                     error: function (xhr) {
                         alert('Не удалось создать группу: ' + (xhr.responseJSON?.message || xhr.statusText));
                     },
-                    complete: function () { $btn.prop('disabled', false); }
+                    complete: function () {
+                        $btn.prop('disabled', false);
+                    }
                 });
             });
 
@@ -1228,7 +1393,9 @@
                 const p = window.Echo.connector.pusher;
                 p.connection.bind('state_change', s => console.log('[WS state]', s.previous, '→', s.current));
                 p.connection.bind('error', err => console.error('[WS error]', err));
-            } catch (e) { console.warn('[WS] bind error', e); }
+            } catch (e) {
+                console.warn('[WS] bind error', e);
+            }
 
             loadThreads();
             startThreadsListPoll();

@@ -39,10 +39,9 @@ class PermissionSeeder extends Seeder
             ['name'=>'account.user.view','description'=>'Страница "Учетная запись -> Личные данные"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>65], // в дампе как id=35 (mainMenu) — оставляю как в дампе
             ['name'=>'account.partner.view','description'=>'Страница "Учетная запись -> Организация"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>70],
             ['name'=>'messages.view','description'=>'Страница "Сообщения"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>73],
-
             ['name'=>'leads.view','description'=>'Страница "Лиды"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>75],
             ['name'=>'servicePayments.view','description'=>'Страница "Оплата сервиса"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>80],
-
+            ['name'=>'partnerWallet.view','description'=>'Страница "Кошелек"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>90],
 
             // account (id=2)
             ['name'=>'name_editing','description'=>'Изменение своего имени','group_slug'=>'account','is_visible'=>1,'sort_order'=>10],

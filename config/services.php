@@ -12,6 +12,8 @@ return [
     | location for this type of information, allowing packages to have
     | a conventional file to locate the various service credentials.
     |
+
+    config/services.php
     */
 
     'mailgun' => [
@@ -37,9 +39,11 @@ return [
     ],
 
     'podpislon' => [
-        'base_url'       => env('PODPISLON_BASE_URL', 'https://api.podpislon.example/v1'),
+        'base_url'       => env('PODPISLON_BASE_URL', 'https://podpislon.ru/integration'),
         'key'            => env('PODPISLON_API_KEY'),
-        'webhook_secret' => env('PODPISLON_WEBHOOK_SECRET'), // для проверки вебхуков
+        'webhook_secret' => env('PODPISLON_WEBHOOK_SECRET'),
+        'http_debug'     => env('PODPISLON_HTTP_DEBUG', false),      // для Guzzle on_stats/debug
+        'upload_strategy'=> env('PODPISLON_UPLOAD_STRATEGY', 'auto'), // auto|multipart|json
     ],
 
 ];
