@@ -237,7 +237,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('payment', [TransactionController::class, 'index'])->name('payment');
         Route::post('payment/pay', [TransactionController::class, 'pay'])->name('payment.pay');
 
-    }); 
+    });
     Route::get('payment/success', [TransactionController::class, 'success'])->name('payment.success');
     Route::get('payment/fail', [TransactionController::class, 'fail'])->name('payment.fail');
 

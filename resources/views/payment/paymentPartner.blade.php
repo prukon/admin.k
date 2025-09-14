@@ -55,7 +55,7 @@
                                             {{--                            <input type="hidden" name="client_id" value="{{ $client->id }}"> <!-- client_id передаётся скрыто -->--}}
                                             {{--                                            <input type="hidden" name="partner_id" value="{{ $partner->id }}">--}}
                                             <input type="hidden" name="partner_id" value="1">
-                                            <input type="hidden" name="amount" value="2.00">
+                                            <input type="hidden" name="amount" value="2500.00">
                                             <input type="hidden" name="days" value="29">
                                             <input type="hidden" name="description" value="Учет до 200 пользователей">
 
@@ -68,32 +68,32 @@
                             </div>
 
                             <!-- Тариф 1 год -->
-                            <div class="col-md-6">
-                                <div class="card mb-4 shadow-sm">
-                                    <div class="card-header text-center">
-                                        <h4 class="my-0 font-weight-normal">1 год</h4>
-                                    </div>
-                                    <div class="card-body text-center">
+                            {{--<div class="col-md-6">--}}
+                                {{--<div class="card mb-4 shadow-sm">--}}
+                                    {{--<div class="card-header text-center">--}}
+                                        {{--<h4 class="my-0 font-weight-normal">1 год</h4>--}}
+                                    {{--</div>--}}
+                                    {{--<div class="card-body text-center">--}}
 
-                                        <h5>27 000 ₽</h5>
-                                        <ul class="list-unstyled mt-3 mb-4">
-                                            <li>Приоритетная поддержка</li>
-                                            <li>Учет до 200 пользователей</li>
-                                            <li>Отчеты</li>
-                                        </ul>
-                                        <form action="{{route('createPaymentYookassa')}}" method="post">
-                                            @csrf
-                                            <input type="hidden" name="partner_id" value="1">
-                                            <input type="hidden" name="amount" value="27000.00">
-                                            <input type="hidden" name="days" value="365">
-                                            <input type="hidden" name="description" value="Учет до 200 пользователей">
+                                        {{--<h5>27 000 ₽</h5>--}}
+                                        {{--<ul class="list-unstyled mt-3 mb-4">--}}
+                                            {{--<li>Приоритетная поддержка</li>--}}
+                                            {{--<li>Учет до 200 пользователей</li>--}}
+                                            {{--<li>Отчеты</li>--}}
+                                        {{--</ul>--}}
+                                        {{--<form action="{{route('createPaymentYookassa')}}" method="post">--}}
+                                            {{--@csrf--}}
+                                            {{--<input type="hidden" name="partner_id" value="1">--}}
+                                            {{--<input type="hidden" name="amount" value="27000.00">--}}
+                                            {{--<input type="hidden" name="days" value="365">--}}
+                                            {{--<input type="hidden" name="description" value="Учет до 200 пользователей">--}}
 
-                                            <button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
+                                            {{--<button type="submit" class="btn btn-lg btn-block btn-primary">Оплатить--}}
+                                            {{--</button>--}}
+                                        {{--</form>--}}
+                                    {{--</div>--}}
+                                {{--</div>--}}
+                            {{--</div>--}}
                         </div>
 
                         <!-- Информация о получении услуги -->
