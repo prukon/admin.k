@@ -31,6 +31,7 @@ use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Security\PhoneChangeController;
 use App\Http\Controllers\ContractsController;
 use App\Http\Controllers\Webhooks\PodpislonWebhookController;
+use App\Http\Controllers\YooKassaWebhookController;
 
 
 Auth::routes();
@@ -235,9 +236,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:paying-classes')->group(function () {
         Route::post('payment', [TransactionController::class, 'index'])->name('payment');
         Route::post('payment/pay', [TransactionController::class, 'pay'])->name('payment.pay');
-        Route::get('payment/success', [TransactionController::class, 'success'])->name('payment.success');
-        Route::get('payment/fail', [TransactionController::class, 'fail'])->name('payment.fail');
-    });
+
+    }); 
+    Route::get('payment/success', [TransactionController::class, 'success'])->name('payment.success');
+    Route::get('payment/fail', [TransactionController::class, 'fail'])->name('payment.fail');
+
 
     //Оплата клубного взноса (робокасса)
     Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee')->middleware('can:payment-clubfee'); //Оплата клубного взноса
@@ -331,10 +334,13 @@ Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
 
     // Yookassa абон. плата
-Route::post('/webhook/yookassa', [\App\Http\Controllers\WebhookController::class, 'handleWebhook'])->name('webhook.yookassa');
+//Route::post('/webhook/yookassa', [\App\Http\Controllers\WebhookController::class, 'handleWebhook'])->name('webhook.yookassa');
+    // YooKassa webhook пополнение кошелька (без CSRF)
+    Route::post('/partner-wallet/webhook', [PartnerPaymentController::class, 'ykWalletWebhook'])->name('partner.wallet.webhook');
+// YooKassa webhook единый (без CSRF)
+Route::post('/webhook/yookassa', [YooKassaWebhookController::class, 'handle']);
 
-    // YooKassa webhook (без CSRF)
-Route::post('/partner-wallet/webhook', [PartnerPaymentController::class, 'ykWalletWebhook'])->name('partner.wallet.webhook');
+
 
     // Podpislon
 Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle'])->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon');
