@@ -359,7 +359,7 @@
 
 
                     @can('partnerWallet-view')
-                        <h6> Баланс: {{ number_format((float)($partnerWalletBalance ?? 0), 0, ',', ' ') }}руб.
+                        <h6> Баланс: {{ number_format((float)($partnerWalletBalance ?? 0), 0, ',', ' ') }} руб.
                             <a href="/partner-wallet">(пополнить)</a></h6>
                     @endcan
 

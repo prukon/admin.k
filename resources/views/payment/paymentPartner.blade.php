@@ -55,7 +55,7 @@
                                             {{--                            <input type="hidden" name="client_id" value="{{ $client->id }}"> <!-- client_id передаётся скрыто -->--}}
                                             {{--                                            <input type="hidden" name="partner_id" value="{{ $partner->id }}">--}}
                                             <input type="hidden" name="partner_id" value="1">
-                                            <input type="hidden" name="amount" value="2500.00">
+                                            <input type="hidden" name="amount" value="2.00">
                                             <input type="hidden" name="days" value="29">
                                             <input type="hidden" name="description" value="Учет до 200 пользователей">
 

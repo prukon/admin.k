@@ -34,7 +34,7 @@
 
 
 
-    function showConfirmDeleteModal(headerText, messageText, confirmCallback) {
+    function showConfirmDeleteModal2(headerText, messageText, confirmCallback) {
         const modalEl   = document.getElementById('confirmDeleteModal');
         const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: false });
 
@@ -66,33 +66,46 @@
     }
 
 
-
-    function showConfirmDeleteModal3(headerText, messageText, confirmCallback) {
+    function showConfirmDeleteModal(headerText, messageText, confirmCallback) {
         const modalEl   = document.getElementById('confirmDeleteModal');
-        const titleEl   = document.getElementById('confirmDeleteModalLabel');
-        const bodyEl    = modalEl.querySelector('.modal-body');
-        const oldBtn    = document.getElementById('confirmDeleteBtn');
+        const modalInst = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: false });
 
-        // текст
-        if (titleEl) titleEl.textContent = headerText;
-        if (bodyEl)  bodyEl.textContent  = messageText;
-
-        // сброс обработчика кнопки
-        const btn = oldBtn.cloneNode(true);
-        oldBtn.parentNode.replaceChild(btn, oldBtn);
-
-        // Показ — через очередь, чтобы нижняя модалка скрывалась корректно
+        // держим модалку в body
         document.body.appendChild(modalEl);
-        showModalQueued('confirmDeleteModal', { backdrop: 'static', keyboard: false });
 
-        // На "Да": СНАЧАЛА прячем confirm, и только ПОСЛЕ hidden вызываем callback
-        btn.addEventListener('click', function () {
-            const inst = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modalEl.addEventListener('hidden.bs.modal', function handler() {
-                modalEl.removeEventListener('hidden.bs.modal', handler);
-                if (typeof confirmCallback === 'function') confirmCallback();
-            }, { once: true });
-            inst.hide();
+        const titleEl = document.getElementById('confirmDeleteModalLabel');
+        const bodyEl  = modalEl.querySelector('.modal-body');
+
+        if (titleEl) titleEl.textContent = headerText;
+
+        // Если есть HTML-теги — рендерим как HTML, иначе текст с переносами
+        const looksLikeHtml = /<[^>]+>/.test(messageText);
+        if (bodyEl) {
+            if (looksLikeHtml) {
+                bodyEl.style.whiteSpace = '';      // на всякий случай сброс
+                bodyEl.innerHTML = messageText;    // рендерим HTML
+            } else {
+                bodyEl.style.whiteSpace = 'pre-line'; // чтобы \n стали переносами
+                bodyEl.textContent = messageText;     // безопасный текст
+            }
+        }
+
+        // снять старые обработчики клика
+        const oldBtn = document.getElementById('confirmDeleteBtn');
+        const newBtn = oldBtn.cloneNode(true);
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+
+        newBtn.addEventListener('click', function () {
+            try { if (typeof confirmCallback === 'function') confirmCallback(); }
+            finally {
+                const inst = bootstrap.Modal.getInstance(modalEl);
+                if (inst) inst.hide();
+            }
         });
+
+        showModalQueued('confirmDeleteModal', { backdrop: 'static', keyboard: false });
     }
 </script>
+
+
+

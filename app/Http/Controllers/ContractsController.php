@@ -15,9 +15,11 @@ use App\Models\Partner;
 
 use Illuminate\Support\Facades\DB;
 
+use Illuminate\Validation\ValidationException;
 
 
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Cache;
 
 
 class ContractsController extends Controller
@@ -41,7 +43,7 @@ class ContractsController extends Controller
         return view('contracts.create', compact('partner', 'partnerId'));
     }
 
-    public function store(Request $request)
+    public function store2(Request $request)
     {
         $validated = $request->validate([
             'user_id' => ['required','integer'],
@@ -85,6 +87,105 @@ class ContractsController extends Controller
         return redirect()->route('contracts.show', $contract->id)
             ->with('success', 'Договор создан. Теперь можно отправить на подпись.');
     }
+
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => ['required','integer'],
+            'pdf'     => ['required','file','mimes:pdf','max:10240'],
+        ], [], ['pdf' => 'PDF-файл договора']);
+
+        $partnerId = $this->currentPartnerId();
+        abort_unless($partnerId, 403, 'Не выбран партнёр.');
+
+        /** @var User $student */
+        $student = User::query()
+            ->where('id', $validated['user_id'])
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->first();
+
+        abort_unless($student, 422, 'Ученик не найден у текущего партнёра.');
+
+        // комиссия за создание договора
+        $fee = $this->createContractFee(); // 50.00 по умолчанию
+
+        try {
+            $contract = \DB::transaction(function () use ($request, $partnerId, $student, $fee) {
+                // 1) Блокируем строку партнёра до конца транзакции
+                /** @var Partner $partner */
+//                $partner = Partner::whereKey($partnerId)->lockForUpdate()->firstOrFail();
+                    $partner = app('current_partner');
+
+
+                if ($partner->wallet_balance < $fee) {
+                    // Денег нет — кидаем валидационную ошибку (422)
+                    throw ValidationException::withMessages([
+                        'wallet' => 'Недостаточно средств для создания договора.',
+                    ]);
+                }
+
+                // 2) Списываем деньги
+                // (используем точное десятичное поле DECIMAL(12,2), простого вычитания достаточно)
+                $partner->wallet_balance = $partner->wallet_balance - $fee;
+                $partner->save();
+
+                Cache::forget("partner_balance_{$partner->id}");
+
+
+                // 3) Готовим данные договора
+                $groupId = $student->team_id; // может быть null — это ок
+
+                $path = $request->file('pdf')->store('documents/'.date('Y/m'));
+                $sha  = hash_file('sha256', \Storage::path($path));
+
+                // 4) Создаём договор
+                $contract = Contract::create([
+                    'school_id'       => $partnerId,
+                    'user_id'         => $student->id,
+                    'group_id'        => $groupId,
+                    'source_pdf_path' => $path,
+                    'source_sha256'   => $sha,
+                    'status'          => Contract::STATUS_DRAFT,
+                    'provider'        => 'podpislon',
+                ]);
+
+                // 5) Логируем события: списание и создание
+                ContractEvent::create([
+                    'contract_id'  => $contract->id,
+                    'type'         => 'wallet_debited',
+                    'payload_json' => json_encode([
+                        'amount'   => number_format($fee, 2, '.', ''),
+                        'currency' => 'RUB',
+                        'partner_id' => $partnerId,
+                        'balance_after' => number_format($partner->wallet_balance, 2, '.', ''),
+                    ], JSON_UNESCAPED_UNICODE),
+                ]);
+
+                ContractEvent::create([
+                    'contract_id'  => $contract->id,
+                    'type'         => 'created',
+                    'payload_json' => null,
+                ]);
+
+                return $contract;
+            });
+
+        } catch (ValidationException $e) {
+            // Денег не хватило — вернёмся назад с ошибкой 422
+            return back()
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('error', 'Недостаточно средств для создания договора.');
+        }
+
+        return redirect()->route('contracts.show', $contract->id)
+            ->with('success', 'Договор создан. С баланса списано 50 ₽. Теперь можно отправить на подпись.');
+    }
+
+
+
     // ------- AJAX: поиск учеников текущего партнёра для Select2 -------
 
     public function usersSearch(Request $request)
@@ -449,12 +550,6 @@ class ContractsController extends Controller
         }
     }
 
-    public function resend2(Contract $contract, Request $request, SignatureProvider $provider)
-    {
-        // Повторную отправку делаем как новую запись sign_request
-        return $this->send($contract, $request, $provider);
-    }
-
     /**
      * Официальный ресенд SMS по package (+необязательный sid подписанта).
      * Возвращает ['ok'=>bool, 'data'=>mixed] при успехе или ['ok'=>false, 'error'=>string].
@@ -503,7 +598,6 @@ class ContractsController extends Controller
         }
         return ['ok' => false, 'error' => (string)($j['message'] ?? 'Resend failed'), 'data'=>$j];
     }
-
 
     public function revoke(Contract $contract, SignatureProvider $provider)
     {
@@ -687,6 +781,41 @@ class ContractsController extends Controller
         }
     }
 
+    private function createContractFee(): float
+    {
+        return (float) (config('billing.contract_create_fee') ?? 50.00);
+    }
 
+
+    public function checkBalance(Request $request)
+    {
+        $partnerId = $this->currentPartnerId();
+        abort_unless($partnerId, 403, 'Партнёр не выбран.');
+
+        $fee = (float) (config('billing.contract_create_fee') ?? 50.00);
+
+        $balance = \App\Models\Partner::whereKey($partnerId)->value('wallet_balance');
+        if ($balance === null) {
+            return response()->json([
+                'ok'      => false,
+                'message' => 'Партнёр не найден.',
+            ], 404);
+        }
+
+        if ((float)$balance >= $fee) {
+            return response()->json([
+                'ok'      => true,
+                'balance' => (float)$balance,
+                'fee'     => $fee,
+            ]);
+        }
+
+        return response()->json([
+            'ok'      => false,
+            'message' => 'Недостаточно средств для создания договора.',
+            'balance' => (float)$balance,
+            'fee'     => $fee,
+        ], 422);
+    }
 
 }
