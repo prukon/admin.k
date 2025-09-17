@@ -54,7 +54,7 @@
                         <!-- Поле "Имя" -->
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
-                                <label for="edit-name" class="form-label">Имя ученика *</label>
+                                <label for="edit-name" class="form-label">Имя ученика*</label>
                                 <input type="text"
                                        name="name"
                                        class="form-control"
@@ -62,6 +62,20 @@
                                        @cannot('users-name-update') disabled aria-disabled="true" @endcannot>
                             </div>
                         </div>
+
+                        <!-- Поле "Фамилия" -->
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-lastname" class="form-label">Фамилия ученика*</label>
+                                <input type="text"
+                                       name="lastname"
+                                       class="form-control"
+                                       id="edit-lastname"
+                                       @cannot('users-name-update') disabled aria-disabled="true" @endcannot>
+                            </div>
+                        </div>
+
+
 
                         <!-- Поле "Дата рождения" -->
                         <div class="col-12 col-md-6">
@@ -489,6 +503,7 @@
 
                         // 1) Заполняем стандартные поля
                         $('#edit-user-form #edit-name').val(response.user.name);
+                        $('#edit-user-form #edit-lastname').val(response.user.lastname);
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-team').val(response.user.team_id);
                         $('#edit-user-form #edit-start_date').val(response.user.start_date);
@@ -578,31 +593,68 @@
         }
 
         // ОТПРАВКА AJAX.-> /UserController->Update Обработчик обновления данных пользователя
+
         function editUserForm() {
-            $('#edit-user-form').on('submit', function (e) {
-                e.preventDefault();
+            $('#edit-user-form')
+                .off('submit') // чтобы не дублировались хендлеры при повторном открытии
+                .on('submit', function (e) {
+                    e.preventDefault();
 
-                let form = $(this);
-                let url = form.attr('action');
+                    const $form = $(this);
+                    const url = $form.attr('action');
 
-                console.log('Отправляем форму для обновления пользователя с URL:', url);
-                console.log('form.serialize():' + form.serialize());
+                    // Сброс прошлых ошибок
+                    $form.find('.is-invalid').removeClass('is-invalid');
+                    $form.find('.invalid-feedback').remove();
 
-                // AJAX-запрос для обновления данных пользователя
-                $.ajax({
-                    url: url,
-                    method: 'PATCH',
-                    data: form.serialize(),
-                    success: function (response) {
-                        showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлен.", 1);
-                        console.log(response);
-                    },
-                    error: function (response) {
-                        eroorRespone(response);
-                    }
+                    $.ajax({
+                        url: url,
+                        method: 'PATCH',
+                        data: $form.serialize(),
+                        headers: { 'Accept': 'application/json' }, // Laravel вернёт JSON для 422
+                        success: function (response) {
+                            showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлён.", 1);
+                            // при желании: обновить список/закрыть модалку и т.п.
+                        },
+                        error: function (xhr) {
+                            // Валидация
+                            if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                                const errors = xhr.responseJSON.errors;
+
+                                Object.keys(errors).forEach(function (field) {
+                                    const messages = errors[field];
+                                    const safe = field.replace(/\./g, '\\.').replace(/\*/g, '\\*');
+
+                                    // Ищем по name="field", если нет — по id
+                                    let $input = $form.find('[name="' + safe + '"]');
+                                    if (!$input.length) $input = $form.find('#' + field);
+
+                                    if ($input.length) {
+                                        $input.addClass('is-invalid');
+                                        $('<div class="invalid-feedback d-block"></div>')
+                                            .text(messages[0])
+                                            .insertAfter($input);
+                                    }
+                                });
+
+                                // Фокус на первое неверное поле
+                                $form.find('.is-invalid').first().trigger('focus');
+                                return;
+                            }
+
+                            // Прочие ошибки
+                            const msg = xhr.responseJSON?.message || 'Что-то пошло не так. Попробуйте ещё раз.';
+                            if (typeof showErrorModal === 'function') {
+                                showErrorModal('Ошибка', msg, 1);
+                            } else {
+                                alert(msg);
+                            }
+                        }
+                    });
                 });
-            });
         }
+
+
 
         // Вызов модалки удаления
         $(document).on('click', '.confirm-delete-modal', function () {

@@ -34,7 +34,8 @@ class DashboardController extends Controller
         $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
         $allUsersSelect = User::where('is_enabled', true)
             ->where('partner_id', $partnerId)
-            ->orderBy('name', 'asc')->get();
+//            ->orderBy('name', 'asc')->get();
+            ->orderBy('lastname', 'asc')->get();
 
         $allTeams = Team::where('is_enabled', true)
             ->where('partner_id', $partnerId)

@@ -58,6 +58,30 @@
                 @endunless
             </div>
 
+
+
+            {{-- Поле "Фамилия" --}}
+            @php $canEditName = auth()->user()->can('name-editing'); @endphp
+            <div class="mb-3">
+                <label for="lastname" class="form-label">Фамилия ученика*</label>
+
+                <input type="text" id="lastname" name="lastname" class="form-control @error('lastname') is-invalid @enderror"
+                       value="{{ old('lastname', $user->lastname) }}"
+                       @unless($canEditName) disabled aria-disabled="true" @endunless >
+
+                @error('lastname')
+                <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+
+
+                @unless($canEditName)
+                    <div class="form-text text-muted mt-1">
+                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение фамилии
+                    </div>
+                @endunless
+            </div>
+
+
             {{-- Поле "Дата рождения" --}}
             <div class="mb-3">
                 <label for="birthday" class="form-label">Дата рождения</label>
@@ -793,7 +817,7 @@
             }
 
             //Обновление юзера
-            function updateUserData() {
+            function updateUserData2() {
                 // Отслеживаем событие отправки формы
                 $('#userUpdateForm').on('submit', function (e) {
                     e.preventDefault(); // Отключаем стандартную отправку формы
@@ -820,6 +844,66 @@
                     });
                 });
             }
+
+            function updateUserData() {
+                $('#userUpdateForm')
+                    .off('submit') // чтобы не плодились хэндлеры при повторных инициализациях
+                    .on('submit', function (e) {
+                        e.preventDefault();
+
+                        const $form = $(this);
+                        const formData = $form.serialize();
+
+                        // Сброс прошлых ошибок
+                        $form.find('.is-invalid').removeClass('is-invalid');
+                        $form.find('.invalid-feedback').remove();
+
+                        $.ajax({
+                            url: "{{ route('account.user.update', $user->id) }}",
+                            type: 'PATCH',
+                            data: formData,
+                            headers: { 'Accept': 'application/json' }, // важно для 422 в JSON
+                            success: function () {
+                                showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлён.", 1);
+                            },
+                            error: function (xhr) {
+                                // Laravel validation 422
+                                if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                                    const errors = xhr.responseJSON.errors;
+
+                                    Object.keys(errors).forEach(function (field) {
+                                        const messages = errors[field];
+                                        const safe = field.replace(/\./g, '\\.').replace(/\*/g, '\\*');
+
+                                        // Сначала ищем по name="field", если нет — по id
+                                        let $input = $form.find('[name="' + safe + '"]');
+                                        if (!$input.length) $input = $form.find('#' + field);
+
+                                        if ($input.length) {
+                                            $input.addClass('is-invalid');
+                                            $('<div class="invalid-feedback d-block"></div>')
+                                                .text(messages[0])
+                                                .insertAfter($input);
+                                        }
+                                    });
+
+                                    // Фокус на первое поле с ошибкой
+                                    $form.find('.is-invalid').first().trigger('focus');
+                                    return;
+                                }
+
+                                // Прочие ошибки
+                                const msg = xhr.responseJSON?.message || 'Что-то пошло не так. Попробуйте ещё раз.';
+                                if (typeof showErrorModal === 'function') {
+                                    showErrorModal('Ошибка', msg, 1);
+                                } else {
+                                    alert(msg);
+                                }
+                            }
+                        });
+                    });
+            }
+
 
             changePasswordBtn();
             applyPasswordBtn();

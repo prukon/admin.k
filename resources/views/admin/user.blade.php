@@ -54,7 +54,9 @@
 
                     <a href="javascript:void(0);" class="edit-user-link" data-id="{{ $user->id }}"
                        style="{{ $user->is_enabled == 0 ? 'color: red;' : '' }}">
-                        {{ $counter }}. {{$user->name}}
+                        {{--{{ $counter }}. {{$user->name}}--}}
+                        {{ $counter }}. {{ $user?->full_name ?: 'Без имени' }}
+
                     </a>
 
                 </div>

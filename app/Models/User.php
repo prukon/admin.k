@@ -36,6 +36,9 @@ class   User extends Authenticatable
         'phone_verified_at' => 'datetime',
     ];
 
+    protected $appends = ['full_name'];
+
+
     public $timestamps = true;
 
     public function users()
@@ -152,5 +155,12 @@ class   User extends Authenticatable
         $this->two_factor_expires_at = null;
         $this->save();
     }
+
+    public function getFullNameAttribute(): string
+    {
+        return trim(($this->lastname ?? '').' '.($this->name ?? ''));
+    }
+
+
 }
 

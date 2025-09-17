@@ -111,9 +111,8 @@
                     <tr data-user-id="{{ $user->id }}">
 
                         <td class="text-center align-middle sticky-col-1 number-line">{{ $index + 1 }}</td>
-                        <td class="schedule-user-name sticky-col-2">{{ $user->name }}</td>
-
-
+                        {{--<td class="schedule-user-name sticky-col-2">{{ $user->name }}</td>--}}
+                        <td class="schedule-user-name sticky-col-2">{{ $user?->full_name ?: 'Без имени' }}</td>
                         <td class="text-center">
                             @if(isset($userPrices[$user->id]) && $userPrices[$user->id]->is_paid == 1)
                                 <i class="fas fa-circle-check text-success"></i>

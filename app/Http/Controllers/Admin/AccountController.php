@@ -197,11 +197,11 @@ class AccountController extends Controller
         ]);
 
         DB::transaction(function () use ($user, $authorId, $partnerId, $validated, $oldData) {
-            \Log::debug('Старые данные пользователя', [
-                'name' => $oldData->name,
-                'birthday' => $oldData->birthday ?->format('Y-m-d'),
-            'email'    => $oldData->email,
-        ]);
+//            \Log::debug('Старые данные пользователя', [
+//                'name' => $oldData->name,
+//                'birthday' => $oldData->birthday ?->format('Y-m-d'),
+//            'email'    => $oldData->email,
+//        ]);
 
         $this->service->update($user, $validated);
 
@@ -220,11 +220,11 @@ class AccountController extends Controller
 
         $user->refresh();
 
-        \Log::debug('Новые данные пользователя', [
-            'name' => $user->name,
-            'birthday' => $user->birthday ?->format('Y-m-d'),
-            'email'    => $user->email,
-        ]);
+//        \Log::debug('Новые данные пользователя', [
+//            'name' => $user->name,
+//            'birthday' => $user->birthday ?->format('Y-m-d'),
+//            'email'    => $user->email,
+//        ]);
 
         // DIFF-лог (телефон/2FA)
         $mask = function (?string $p) {
@@ -245,21 +245,40 @@ class AccountController extends Controller
         $desc = $diff ? "Изменения (2FA/телефон):\n— " . implode("\n— ", $diff) : "Изменения (2FA/телефон): отсутствуют.";
 
         $authorName = Auth::user()->name;
+//        MyLog::create([
+//            'type' => 2,
+//            'action' => 23,
+//            'partner_id' => $partnerId,
+//            'author_id' => $authorId,
+//            'description' => "Автор: {$authorName} (ID {$authorId}).\n"
+//                . "Старые: {$oldData->name}, "
+//                . ($oldData->birthday ? \Carbon\Carbon::parse($oldData->birthday)->format('d.m.Y') : 'null')
+//                . ", {$oldData->email}.\n"
+//                . "Новые: {$user->name}, "
+//                . ($user->birthday ? \Carbon\Carbon::parse($user->birthday)->format('d.m.Y') : 'null')
+//                . ", {$user->email}.\n"
+//                . $desc,
+//            'created_at' => now(),
+//        ]);
+
+
         MyLog::create([
             'type' => 2,
             'action' => 23,
             'partner_id' => $partnerId,
             'author_id' => $authorId,
             'description' => "Автор: {$authorName} (ID {$authorId}).\n"
-                . "Старые: {$oldData->name}, "
+                . "Старые: " . trim(($oldData->lastname ?? '') . ' ' . ($oldData->name ?? '')) . ", "
                 . ($oldData->birthday ? \Carbon\Carbon::parse($oldData->birthday)->format('d.m.Y') : 'null')
                 . ", {$oldData->email}.\n"
-                . "Новые: {$user->name}, "
+                . "Новые: " . trim(($user->lastname ?? '') . ' ' . ($user->name ?? '')) . ", "
                 . ($user->birthday ? \Carbon\Carbon::parse($user->birthday)->format('d.m.Y') : 'null')
                 . ", {$user->email}.\n"
                 . $desc,
             'created_at' => now(),
         ]);
+
+
 
         \Log::info('MyLog-запись успешно создана');
     });

@@ -72,6 +72,7 @@ class AccountUpdateRequest extends FormRequest
 
         if ($this->user()->can('name-editing')) {
             $rules['name'] = ['required','string','max:30'];
+            $rules['lastname'] = ['required','string','max:30'];
         }
 
         if ($this->user()->can('account-user-birthdate-update')) {
@@ -155,6 +156,7 @@ class AccountUpdateRequest extends FormRequest
     {
         return [
             'name'               => 'Имя',
+            'lastname'           => 'Фамилия',
             'birthday'           => 'Дата рождения',
             'team_id'            => 'Группа',
             'email'              => 'Email',
@@ -172,6 +174,11 @@ class AccountUpdateRequest extends FormRequest
             'name.required' => 'Поле "Имя" обязательно для заполнения.',
             'name.string'   => 'Поле "Имя" должно быть строкой.',
             'name.max'      => 'Поле "Имя" не должно превышать :max символов.',
+
+            // Фамилия
+            'lastname.required' => 'Поле "Фамилия" обязательно для заполнения.',
+            'lastname.string'   => 'Поле "Фамилия" должно быть строкой.',
+            'lastname.max'      => 'Поле "Фамилия" не должно превышать :max символов.',
 
             // Дата рождения
             'birthday.date'            => 'Поле "Дата рождения" должно быть корректной датой.',

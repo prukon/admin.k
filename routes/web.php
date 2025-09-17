@@ -147,7 +147,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/admin/users/{id}/avatar', [UserController::class, 'destroyUserAvatar'])->name('admin.users.avatar.destroy');
 //      Обновление аватарки админом
         Route::post('/admin/users/{id}/avatar', [UserController::class, 'uploadUserAvatar']);
-
     });
 
     //Группы
@@ -206,7 +205,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('account-settings/users/{user}/edit', [AccountController::class, 'user'])->name('admin.cur.user.edit');
         Route::patch('account-settings/users/{user}', [AccountController::class, 'update'])->name('account.user.update');
         Route::post('user/update-password', [AccountController::class, 'updatePassword']);
-
         Route::post('/profile/avatar', [AccountController::class, 'store']);        // добалвение/замена
         Route::delete('/profile/avatar', [AccountController::class, 'destroy']);    // удаление
 
@@ -263,7 +261,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
         Route::post('/contracts/{contract}/send-email', [ContractsController::class, 'sendEmail'])->name('contracts.sendEmail');
         Route::post('/contracts/check-balance', [ContractsController::class, 'checkBalance']);
-
     });
 
     //Сообщения (ЧАТ)
@@ -316,14 +313,12 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('2fa/disable', [TwoFactorController::class, 'disable'])->name('admin.2fa.disable');
     });
 
-
     //    Оплата ТБанк
 //    Route::get('/tinkoff/form', [\App\Http\Controllers\TinkoffPaymentController::class, 'index'])->name('tinkoff.form');
 //    Route::post('/tinkoff/init', [\App\Http\Controllers\TinkoffPaymentController::class, 'init'])->name('tinkoff.init');
 //    Route::post('/tinkoff/callback', [\App\Http\Controllers\TinkoffPaymentController::class, 'callback'])->name('tinkoff.callback');
     //    Route::get('/tinkoff/success', [\App\Http\Controllers\TinkoffPaymentController::class, 'success'])->name('tinkoff.success');
     //    Route::get('/tinkoff/fail', [\App\Http\Controllers\TinkoffPaymentController::class, 'fail'])->name('tinkoff.fail');
-
 
 });
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');

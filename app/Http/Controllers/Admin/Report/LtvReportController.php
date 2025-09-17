@@ -16,7 +16,7 @@ class LtvReportController extends Controller
     //Отчет LTV
     public function ltv()
     {
-         return view('admin.report.index', ['activeTab' => 'ltv']);
+        return view('admin.report.index', ['activeTab' => 'ltv']);
     }
 
     //Данные для отчета LTV
@@ -27,7 +27,7 @@ class LtvReportController extends Controller
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
 
-//         dd($currentMonth);
+        //         dd($currentMonth);
         if ($request->ajax()) {
 
 
@@ -48,25 +48,32 @@ class LtvReportController extends Controller
                 ->get();
 
             $usersWithTotalUnpaidPrices = DB::table('users_prices')
-                ->join('users', 'users.id', '=', 'users_prices.user_id')          // INNER JOIN
-                ->select(
-                    'users.name  as user_name',
-                    'users.id    as user_id',
-                    DB::raw('SUM(users_prices.price)  as total_price'),
-                    'users.is_enabled',
-                    DB::raw('MIN(users_prices.created_at) as first_payment_date'),
-                    DB::raw('MAX(users_prices.created_at) as last_payment_date'),
-                    DB::raw('COUNT(users_prices.id)        as payment_count')
-                )
+                ->join('users', 'users.id', '=', 'users_prices.user_id')// INNER JOIN
+//                    ->select(
+////                        'users.name  as user_name',
+////                        'users.id    as user_id',
+////                        DB::raw('SUM(users_prices.price)  as total_price'),
+////                        'users.is_enabled',
+////                        DB::raw('MIN(users_prices.created_at) as first_payment_date'),
+////                        DB::raw('MAX(users_prices.created_at) as last_payment_date'),
+////                        DB::raw('COUNT(users_prices.id)        as payment_count')
+////                    )
+///
+
+                ->selectRaw("
+    TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name,
+    users.id as user_id,
+    SUM(users_prices.price) as total_price,
+    users.is_enabled,
+    MIN(users_prices.created_at) as first_payment_date,
+    MAX(users_prices.created_at) as last_payment_date,
+    COUNT(users_prices.id) as payment_count
+")
                 ->where('users_prices.price', '>', 0)
-                ->where('users.partner_id', $partnerId)                           // фильтр по партнёру пользователя
-                ->groupBy('users.id', 'users.name', 'users.is_enabled')
+                ->where('users.partner_id', $partnerId)// фильтр по партнёру пользователя
+//                    ->groupBy('users.id', 'users.name', 'users.is_enabled')
+                ->groupBy('users.id', 'users.lastname', 'users.name', 'users.is_enabled')
                 ->get();
-
-
-
-
-
 
 
             // Добавляем проверку на наличие данных
@@ -85,11 +92,11 @@ class LtvReportController extends Controller
                 ->addColumn('user_name', function ($row) {
                     return $row->user_name ? $row->user_name : 'Без имени'; // Проверяем наличие имени пользователя
                 })
-//                ->addColumn('month', function($row) {
-//                    return $row->new_month; // Месяц
-//                })
+                //                ->addColumn('month', function($row) {
+                //                    return $row->new_month; // Месяц
+                //                })
                 ->addColumn('total_price', function ($row) {
-//                    return number_format($row->total_price, 2) . ' руб'; // Формат цены
+                    //                    return number_format($row->total_price, 2) . ' руб'; // Формат цены
                     $totalPrice = (float)$row->total_price; // Приведение к числу
                     return $totalPrice;
 
@@ -136,5 +143,5 @@ class LtvReportController extends Controller
             \Log::error('Ошибка преобразования даты: ' . $e->getMessage());
             return null;
         }
-    } 
+    }
 }

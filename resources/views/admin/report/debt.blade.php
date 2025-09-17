@@ -58,15 +58,7 @@
                         }
                     },
 
-                    // {
-                    //     data: 'price',
-                    //     name: 'price',
-                    //     render: function (data, type, row) {
-                    //         return row.price;
-                    //     }
-                    // }
-
-                    {
+                                   {
                         data: 'price',
                         name: 'price',
                         render: function (data, type, row) {

@@ -30,11 +30,19 @@
 
                     <select class="form-select" id="single-select-user" data-placeholder="ФИО">
                         <option value="">Выберите пользователя</option>
-                        @foreach($allUsersSelect as $index => $user)
-                            <option value="{{ $user->name }}" label="{{ $user->label }}" data-user-id="{{ $user->id }}">
-                                {{ $index + 1 }}. {{ $user->name }}
+
+                        @foreach ($allUsersSelect as $index => $user)
+                            @php($fullName = $user->full_name ?? trim(($user->lastname ?? '').' '.($user->name ?? '')))
+                            <option
+                                    value="{{ $user->id }}"             {{-- обычно в value кладут id --}}
+                            label="{{ $fullName }}"
+                                    data-user-id="{{ $user->id }}"
+                            >
+                                {{ $index + 1 }}. {{ $fullName }}
                             </option>
                         @endforeach
+
+
                     </select>
 
                 </div>
@@ -73,11 +81,10 @@
             </div>
             <div class="col-7 col-lg-3 header-wrap">
                 <div class="personal-data-header">
-                    <div class="name">Имя: <span class="name-value"> @if($curUser)
-                                {{$curUser->name}}
-                            @else
-                                -
-                            @endif </span></div>
+
+                    <div class="name">
+                        Имя:<span class="name-value">{{ $curUser?->full_name ?: '-' }}</span>
+                    </div>
 
                     <div class="birthday">Дата рождения: <span class="birthday-value"> @if($curUser->birthday)
                                 {{ \Carbon\Carbon::parse($curUser->birthday)->format('d.m.Y') }}
@@ -337,11 +344,6 @@
                     const creditValueWrap = season.querySelector('.is_credit')
 
                     creditValueField.textContent = totalSum;
-                    // if (totalSum == 0) {
-                    //     creditValueWrap.classList.add('display-none');
-                    // } else {
-                    //     creditValueWrap.classList.remove('display-none');
-                    // }
 
                     if (totalSum == 0) {
                         creditValueWrap.classList.add('visibility-hidden');
@@ -359,7 +361,6 @@
 
                     creditNoticeSumm.textContent = totalSumAllSeasons;
                 }
-
 
             }
 
@@ -436,11 +437,21 @@
                             }
 
                             // Вставка имени
-                            function apendNameToUser() {
+                            function apendNameToUser2() {
                                 if (user.name) {
                                     $('.name-value').html(user.name);
                                 } else $('.name-value').html("-");
                             }
+
+                            function apendNameToUser() {
+                                const display =
+                                    (user?.full_name || '').trim() ||                                   // из аксессора "Фамилия Имя"
+                                    [user?.lastname, user?.name].filter(Boolean).join(' ').trim() ||    // фолбэк
+                                    '-';
+
+                                $('.name-value').text(display); // безопаснее, чем .html()
+                            }
+
 
                             // Вставка почты
                             function apendEmailToUser() {
@@ -496,8 +507,6 @@
                                         .attr('alt', 'avatar');
                                 }
                             }
-
-
 
 
                             // Вставка большой  аватарки юзеру
@@ -662,20 +671,28 @@
                                     userList = usersTeam;
                                 }
 
+
                                 userList.forEach(function (user) {
-                                    let option = $('<option></option>')
-                                        .attr('value', user.name)
-                                        .attr('label', user.label)
-                                        .attr('data-team', user.team_id ? 'true' : 'false') // Проверяем наличие команды и добавляем data-атрибут
-                                        .attr('data-user-id', user.id) // Добавляем id пользователя в DOM
-                                        .text(counter + '. ' + user.name); // Добавляем нумерацию перед именем
+                                    const fullName =
+                                        (user?.full_name && String(user.full_name).trim()) ||               // "Фамилия Имя" из бэка
+                                        [ (user?.lastname || '').trim(), (user?.name || '').trim() ]        // фолбэк
+                                            .filter(Boolean)
+                                            .join(' ')
+                                            .trim();
 
-                                    // Добавляем опцию в select
+                                    const option = $('<option></option>')
+                                    // .val(user.id) // предпочтительно хранить id
+                                        .val(user.name)
+                                        .attr('label', fullName || '-')
+                                        .attr('data-team', user.team_id ? 'true' : 'false')
+                                        .attr('data-user-id', user.id)
+                                        .text(counter + '. ' + (fullName || '-'));
+
                                     $('#single-select-user').append(option);
-
-                                    // Увеличиваем счетчик
                                     counter++;
                                 });
+
+
 
                                 // Инициализируем Select2 с кастомными шаблонами
                                 initializeSelect2();

@@ -92,7 +92,11 @@ $roles = $rolesQuery
         ->paginate(20);
 
     // 7) Все команды партнёра
-    $allTeams = Team::where('partner_id', $partnerId)->get();
+//    $allTeams = Team::where('partner_id', $partnerId)->get();
+    $allTeams = Team::where('partner_id', $partnerId)
+    ->orderBy('order_by', 'asc')// сортировка по order_by по возрастанию
+    ->get();
+
 
 
 //    dd($roles);
@@ -283,6 +287,7 @@ $roles = $rolesQuery
 
         // Снимок "старых" значений до обновления
         $oldName = $user->name;
+        $oldLastname = $user->lastname;
         $oldEmail = $user->email;
         $oldIsEnabled = (bool)$user->is_enabled;
         $oldBirthday = $user->birthday; // может быть Carbon или строка
@@ -317,6 +322,7 @@ if ($request->user()->can('users-phone-update') && $newPhone !== $originalPhone)
         $user,
         $validatedData,
         $oldName,
+        $oldLastname,
         $oldEmail,
         $oldIsEnabled,
         $oldBirthday,
@@ -374,9 +380,10 @@ if ($request->user()->can('users-phone-update') && $newPhone !== $originalPhone)
             'author_id' => $authorId,
             'partner_id' => $partnerId,
             'description' => sprintf(
-                "Старые:\nИмя: %s, Д.р: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s.\n" .
-                "Новые:\nИмя: %s, Д.р: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s%s",
+                "Старые:\nИмя: %s, Фамилия: %s, Д.р: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s.\n" .
+                "Новые:\nИмя: %s, Фамилия: %s, Д.р: %s, Группа: %s, Email: %s, Активен: %s, Роль: %s%s",
                 $oldName,
+                $oldLastname,
                 $formatDateForLog($oldBirthday),
                 $oldTeamName,
                 $oldEmail,
@@ -384,6 +391,7 @@ if ($request->user()->can('users-phone-update') && $newPhone !== $originalPhone)
                 $oldRoleName,
 
                 $user->name,
+                $user->lastname,
                 $formatDateForLog($user->birthday),
                 $newTeamName,
                 $user->email,

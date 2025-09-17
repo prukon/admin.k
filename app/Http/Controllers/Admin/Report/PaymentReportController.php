@@ -91,12 +91,12 @@ class PaymentReportController extends Controller
 
             return DataTables::of($payments)
                 ->addIndexColumn()
-                ->addColumn('user_name', function ($row) {
-                    // Проверяем, есть ли пользователь в таблице payments
-                    return $row->user_name
-                        ? $row->user_name // Возвращаем имя пользователя из payments
-                        : ($row->user ? $row->user->name : 'Без пользователя'); // Или из связанной модели, если нет в payments
-                })
+                    ->addColumn('user_name', function ($row) {
+                        // Проверяем, есть ли пользователь в таблице payments
+                        return $row->user_name
+                            ? $row->user_name // Возвращаем имя пользователя из payments
+                            : ($row->user ? $row->user->name : 'Без пользователя'); // Или из связанной модели, если нет в payments
+                    })
                 ->addColumn('user_id', function ($row) {
                     // Возвращаем user_id, если он существует, иначе null
                     return $row->user ? $row->user->id : null;

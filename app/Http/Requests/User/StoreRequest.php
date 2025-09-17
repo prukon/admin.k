@@ -15,6 +15,7 @@ class StoreRequest extends FormRequest
     {
         return [
             'name'        => 'required|string|max:25',
+            'lastname'    => 'required|string|max:25',
             'birthday'    => 'nullable|date',
             'team_id'     => 'nullable|integer|exists:teams,id', // было string — ставим integer + exists
             'start_date'  => 'nullable|date',
@@ -31,6 +32,7 @@ class StoreRequest extends FormRequest
     {
         return [
             'name'       => 'Имя',
+            'lastname'   => 'Фамилия',
             'email'      => 'Email',
             'password'   => 'Пароль',
             'birthday'   => 'Дата рождения',
@@ -47,6 +49,10 @@ class StoreRequest extends FormRequest
             'name.required'     => 'Пожалуйста, укажите имя.',
             'name.string'       => 'Имя должно быть строкой.',
             'name.max'          => 'Имя не должно превышать :max символов.',
+
+            'lastname.required'     => 'Пожалуйста, укажите фамилию.',
+            'lastname.string'       => 'Фамилия должна быть строкой.',
+            'lastname.max'          => 'Фамилия не должно превышать :max символов.',
 
             'email.required'    => 'Пожалуйста, введите адрес электронной почты.',
             'email.email'       => 'Введите корректный адрес электронной почты.',

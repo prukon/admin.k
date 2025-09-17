@@ -71,6 +71,7 @@ class SettingPricesController extends Controller
 
         // 1) все команды текущего партнёра
         $allTeams = Team::where('partner_id', $partnerId)
+            ->orderBy('order_by', 'asc')// сортировка по order_by по возрастанию
             ->whereNull('deleted_at')
             ->get();
 

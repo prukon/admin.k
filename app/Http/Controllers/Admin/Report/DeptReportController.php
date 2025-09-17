@@ -58,7 +58,6 @@ class DeptReportController extends Controller
                 ->where('users_prices.new_month', '<', $currentMonth)
                 ->get();
 
-
             $usersWithUnpaidPrices = DB::table('users_prices')
                 ->join('users', 'users.id', '=', 'users_prices.user_id')          // INNER JOIN: берём только записи с найденным user
                 ->select(
@@ -75,13 +74,30 @@ class DeptReportController extends Controller
                 ->get();
 
 
+            $usersWithUnpaidPrices = DB::table('users_prices')
+                ->join('users', 'users.id', '=', 'users_prices.user_id')
+//                ->select(
+//                    'users.name  as user_name',
+//                    'users.id    as user_id',
+//                    'users_prices.new_month',
+//                    'users_prices.price'
+//                )
 
+                ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
+                ->addSelect('users.id as user_id', 'users_prices.new_month', 'users_prices.price')
 
+                ->where('users_prices.is_paid', 0)
+                ->where('users.is_enabled', 1)
+                ->where('users_prices.price', '>', 0)
+                ->where('users_prices.new_month', '<', $currentMonth)
+                ->where('users.partner_id', $partnerId)
+                ->get();
 
-
-
-
-
+            return DataTables::of($usersWithUnpaidPrices)
+                ->addIndexColumn()
+                ->addColumn('month', fn($row) => $row->new_month)
+    ->addColumn('price', fn($row) => (float)$row->price)
+    ->make(true);
 
 
             // Добавляем проверку на наличие данных
@@ -97,9 +113,9 @@ class DeptReportController extends Controller
 
             return DataTables::of($usersWithUnpaidPrices)
                 ->addIndexColumn()
-                ->addColumn('user_name', function ($row) {
-                    return $row->user_name ? $row->user_name : 'Без имени'; // Проверяем наличие имени пользователя
-                })
+//                ->addColumn('user_name', function ($row) {
+//                    return $row->user_name ? $row->user_name : 'Без имени'; // Проверяем наличие имени пользователя
+//                })
                 ->addColumn('month', function ($row) {
                     return $row->new_month; // Месяц
                 })
