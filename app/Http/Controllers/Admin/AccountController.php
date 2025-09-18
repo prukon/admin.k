@@ -90,7 +90,6 @@ class AccountController extends Controller
 
     }
 
-
     public function update(AccountUpdateRequest $request, User $user)
     {
         $partnerId = app('current_partner')->id;
@@ -288,7 +287,6 @@ class AccountController extends Controller
         return response()->json(['success' => true, 'message' => 'Пользователь успешно обновлен']);
     }
 
-
     public function updatePassword(Request $request)
     {
         $partnerId = app('current_partner')->id;
@@ -316,97 +314,6 @@ class AccountController extends Controller
         });
         return response()->json(['success' => true]);
     }
-
-    //обновление аватарки (Учетная запись)
-//    public function uploadAvatar(Request $request)
-//    {
-//        // Если у тебя обязательно есть партнёр в middleware — оставляю как есть
-//        $partnerId = app('current_partner')->id ?? null;
-//
-//        // Валидируем, что пришёл data URL картинки
-//        $request->validate([
-//            'croppedImage' => ['required','string','starts_with:data:image/'],
-//        ], [
-//            'croppedImage.required' => 'Изображение не передано',
-//        ]);
-//
-//        $user = Auth::user();
-//        if (!$user) {
-//            return response()->json(['success' => false, 'message' => 'Не авторизован'], 401);
-//        }
-//
-//        // 1) Парсим data URL вида: data:image/png;base64,AAAA...
-//        $dataUrl = $request->input('croppedImage');
-//
-//        if (!preg_match('#^data:image/(png|jpeg|jpg|webp);base64,(.+)$#i', $dataUrl, $m)) {
-//            return response()->json(['success' => false, 'message' => 'Неверный формат изображения'], 422);
-//        }
-//
-//        $mime   = strtolower($m[1]);     // png|jpeg|jpg|webp
-//        $base64 = $m[2];
-//
-//        // 2) Определяем расширение ($ext)
-//        //    Нормализуем jpeg -> jpg
-//        $ext = $mime === 'jpeg' ? 'jpg' : ($mime === 'jpg' ? 'jpg' : ($mime === 'png' ? 'png' : 'webp'));
-//
-//        // 3) Декодируем в бинарь
-//        $binary = base64_decode($base64, true);
-//        if ($binary === false) {
-//            return response()->json(['success' => false, 'message' => 'Не удалось декодировать изображение'], 422);
-//        }
-//
-//        // (опционально) ограничим размер, например 2 МБ
-//        if (strlen($binary) > 2 * 1024 * 1024) {
-//            return response()->json(['success' => false, 'message' => 'Слишком большой файл (max 2 MB)'], 422);
-//        }
-//
-//        // 4) Генерим имя файла
-//        //    Можно сделать стабильно user_{id}.jpg и всегда перезаписывать.
-//        //    Я оставлю вариант с random-хвостом, чтобы избежать жёсткого кэша.
-//        $fileName = 'user_' . $user->id . '_' . Str::random(8) . '.' . $ext;
-//
-//        // 5) Папка назначения
-//        $dir = public_path('img/avatars');
-//        if (!is_dir($dir)) {
-//            mkdir($dir, 0775, true);
-//        }
-//        $path = $dir . DIRECTORY_SEPARATOR . $fileName;
-//
-//        // 6) Сохраняем и обновляем пользователя в транзакции
-//        DB::transaction(function () use ($path, $binary, $user, $fileName, $partnerId) {
-//
-//            // Сохраняем новый файл
-//            file_put_contents($path, $binary);
-//
-//            // Удаляем старый, если был
-//            if (!empty($user->image_crop)) {
-//                @unlink(public_path('img/avatars/' . $user->image_crop));
-//            }
-//
-//            // Обновляем запись пользователя
-//            $user->image_crop = $fileName;
-//            $user->save();
-//
-//            // Лог
-//            MyLog::create([
-//                'type'        => 2,   // обновление юзеров
-//                'action'      => 28,  // обновление учётной записи
-//                'author_id'   => $user->id,
-//                'partner_id'  => $partnerId,
-//                'description' => ($user->name . " изменил аватар."),
-//                'created_at'  => now(),
-//            ]);
-//        });
-//
-//        // 7) Возвращаем публичный URL
-//        return response()->json([
-//            'success'   => true,
-//            'image_url' => asset('img/avatars/' . $fileName),
-//        ]);
-//    }
-
-
-
 
     public function phoneSendCode(Request $request, User $user)
     {
@@ -589,7 +496,6 @@ class AccountController extends Controller
         ]);
     }
 
-
 //    новая загрузка аватарки
     public function store(Request $request)
     {
@@ -687,6 +593,5 @@ class AccountController extends Controller
 
         return response()->json(['message' => 'Фото удалено']);
     }
-
 
 }

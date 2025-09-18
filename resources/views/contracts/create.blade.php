@@ -8,57 +8,269 @@
         $CURRENT_PARTNER_ID = $partnerId ?? (auth()->user()->partner_id ?? null);
     @endphp
 
-    <div class="container py-3">
-        <h1 class="h4 mb-3">Создать договор (загрузка PDF)</h1>
 
-        <form id="contract-create-form" method="post" action="/contracts" enctype="multipart/form-data">
+    <div class="main-content text-start">
 
-            @csrf
+        <h4 class="pt-3">Создать договор</h4>
+        <hr>
+        {{--<div class="buttons d-flex flex-row align-items-center mb-3">--}}
+            {{--<button id="new-team" type="button" class="btn btn-primary mr-2 new-team width-170"--}}
+                    {{--data-bs-toggle="modal" data-bs-target="#createTeamModal">--}}
+                {{--Добавить группу--}}
+            {{--</button>--}}
+            {{--<button type="button" class="btn btn-primary width-170" id="logs" data-bs-toggle="modal"--}}
+                    {{--data-bs-target="#historyModal">История изменений--}}
+            {{--</button>--}}
+        {{--</div>--}}
 
-            <div class="row g-3">
 
-                {{-- Партнёр текущего пользователя (только просмотр) --}}
-                <div class="col-md-4">
-                    <label class="form-label">Партнёр</label>
-                    <input type="text" class="form-control" value="{{ $partner->title ?? '—' }}" disabled>
+
+        <div class="container py-3">
+            {{--<h1 class="h4 mb-3">Создать договор (загрузка PDF)</h1>--}}
+
+            <form id="contract-create-form" method="post" action="/contracts" enctype="multipart/form-data">
+
+                @csrf
+
+                <div class="row g-3">
+
+                    {{-- Партнёр текущего пользователя (только просмотр) --}}
+                    <div class="col-md-4">
+                        <label class="form-label">Партнёр</label>
+                        <input type="text" class="form-control" value="{{ $partner->title ?? '—' }}" disabled>
+                    </div>
+
+                    {{-- Ученик (Select2 через AJAX по активным ученикам текущего партнёра) --}}
+                    <div class="col-md-4">
+                        <label class="form-label">Ученик</label>
+                        <select name="user_id" id="user_id" class="form-control" required></select>
+                        @error('user_id')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    {{-- Группа (заполняется автоматом по выбранному ученику, редактировать нельзя) --}}
+                    <div class="col-md-4">
+                        <label class="form-label">Группа (опц.)</label>
+                        <select id="group_id_select" class="form-control" disabled>
+                            <option value="">—</option>
+                        </select>
+                        <input type="hidden" name="group_id" id="group_id_hidden">
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">PDF-файл договора</label>
+                        <input type="file" name="pdf" class="form-control" accept="application/pdf" required>
+                        @error('pdf')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
                 </div>
 
-                {{-- Ученик (Select2 через AJAX по активным ученикам текущего партнёра) --}}
-                <div class="col-md-4">
-                    <label class="form-label">Ученик</label>
-                    <select name="user_id" id="user_id" class="form-control" required></select>
-                    @error('user_id')
-                    <div class="text-danger small mt-1">{{ $message }}</div>
-                    @enderror
-                </div>
+                <div class="mt-3 d-flex gap-2">
+                    {{--<button type="submit" class="btn btn-primary">Сохранить</button>--}}
+                    {{--<button type="submit" id="btn-save" class="btn btn-primary">Сохранить</button>--}}
+                    <button id="btn-save" type="button" class="btn btn-primary">Сохранить</button>
 
-                {{-- Группа (заполняется автоматом по выбранному ученику, редактировать нельзя) --}}
-                <div class="col-md-4">
-                    <label class="form-label">Группа (опц.)</label>
-                    <select id="group_id_select" class="form-control" disabled>
-                        <option value="">—</option>
-                    </select>
-                    <input type="hidden" name="group_id" id="group_id_hidden">
-                </div>
 
-                <div class="col-12">
-                    <label class="form-label">PDF-файл договора</label>
-                    <input type="file" name="pdf" class="form-control" accept="application/pdf" required>
-                    @error('pdf')
-                    <div class="text-danger small mt-1">{{ $message }}</div>
-                    @enderror
+                    <a href="{{ url('/contracts') }}" class="btn btn-outline-secondary">Отмена</a>
+                </div>
+            </form>
+            <hr>
+
+
+            {{-- ====== Блок "Как это работает" (интеграция с Подпислоном) ====== --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4 p-md-5">
+                    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+                        <div>
+                            <h2 class="h3 mb-3">Как это работает</h2>
+                            <p class="text-muted mb-3">
+                                В <strong>кружок.online</strong> вы загружаете PDF-договор и отправляете его клиенту на подпись
+                                через интеграцию с сервисом <strong>Подпислон</strong>. Клиент получает SMS со ссылкой на договор и
+                                вводит одноразовый СМС код для подписания договора — это простая электронная подпись (ПЭП).
+                            </p>
+                            <p  class="text-muted mb-3">
+                                Таким образом договор будет подписан с двух сторон.
+                                С вашей стороны мы подписываем его автоматически при загрузке.
+                                Клиент подписывает договор вводом СМС кода.
+
+                            </p>
+                            <p class="text-muted mb-0">
+                                Подписанный документ автоматически сохраняется в личном кабинете у вас и у клиента, а также отправляется по e-mail. Документ, подписанный ПЭП, обладает
+                                юридической значимостью в рамках ФЗ&nbsp;№&nbsp;63 «Об электронной подписи», при соблюдении
+                                условий его использования сторонами.
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <hr class="my-4">
+
+                    {{-- Шаги --}}
+                    <div class="row g-4">
+                        <div class="col-12">
+                            <h3 class="h5 mb-3">Пошаговый процесс</h3>
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <span class="step-dot">1</span>
+                                <div>
+                                    <div class="fw-semibold mb-1">Загрузка документа</div>
+                                    <div class="text-muted small">
+                                      Вы загружаете договор, выбираете ученика и подписанта (родитель или представитель, с кем будет заключен договор).
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <span class="step-dot">2</span>
+                                <div>
+                                    <div class="fw-semibold mb-1">Отправка ссылки</div>
+                                    <div class="text-muted small">
+                                        Сервис отправляет клиенту SMS со ссылкой на страницу подписания.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <span class="step-dot">3</span>
+                                <div>
+                                    <div class="fw-semibold mb-1">Ознакомление</div>
+                                    <div class="text-muted small">
+                                        Клиент открывает документ из ссылку в СМС, знакомится с текстом договора.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <span class="step-dot">4</span>
+                                <div>
+                                    <div class="fw-semibold mb-1">Подтверждение ПЭП</div>
+                                    <div class="text-muted small">
+                                        Клиент выражает согласие и вводит код из SMS (ПЭП).
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <span class="step-dot">5</span>
+                                <div>
+                                    <div class="fw-semibold mb-1">Фиксация подписи</div>
+                                    <div class="text-muted small">
+                                        Регистрируется подпись, формируется отметка и сохраняется событие.
+                                        Договор подписан с 2 сторон.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <span class="step-dot">6</span>
+                                <div>
+                                    <div class="fw-semibold mb-1">Хранение</div>
+                                    <div class="text-muted small">
+                                        Подписанный файл доступен в личном кабинете компании и у клиента.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <span class="step-dot">7</span>
+                                <div>
+                                    <div class="fw-semibold mb-1">Уведомления</div>
+                                    <div class="text-muted small">
+                                        Менеджер видит статус: «Отправлен», «Подписан», «Отменён» и т. д.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <span class="step-dot">8</span>
+                                <div>
+                                    <div class="fw-semibold mb-1">Выдача клиенту</div>
+                                    <div class="text-muted small">
+                                        Клиент получает подписанный документ на e-mail и может скачать его со страницы.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Важно / условия --}}
+                    <div class="alert alert-info mt-4 mb-0">
+                        <div class="fw-semibold mb-1">Важно</div>
+                        <ul class="mb-0 ps-3">
+                            <li>Стоимость <u>создания</u> договора внутри сервиса составляет <strong>50&nbsp;₽</strong>. Это плата за формирование карточки договора и возможность его отправки на подпись.</li>
+                            <li>После создания договора <strong>нельзя изменить подписанта</strong> и <strong>нельзя заменить загруженный файл</strong>.
+                                Если нужно сменить подписанта или документ — создайте новый договор.</li>
+                            <li>Услуга не подлежит возврату.</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
-            <div class="mt-3 d-flex gap-2">
-                {{--<button type="submit" class="btn btn-primary">Сохранить</button>--}}
-                {{--<button type="submit" id="btn-save" class="btn btn-primary">Сохранить</button>--}}
-                <button id="btn-save" type="button" class="btn btn-primary">Сохранить</button>
+            {{-- Стили шагов --}}
+            @push('styles')
+                <style>
+                    .step-dot{
+                        display:inline-flex;align-items:center;justify-content:center;
+                        width:40px;height:40px;border-radius:50%;
+                        background:#ffe8cc;color:#fd7e14;font-weight:700;flex:0 0 40px;
+                        box-shadow: inset 0 0 0 2px #fd7e14;
+                    }
+                </style>
+            @endpush
 
 
-                <a href="{{ url('/contracts') }}" class="btn btn-outline-secondary">Отмена</a>
-            </div>
-        </form>
+
+            {{-- ====== Стили / Иконки ====== --}}
+            @push('styles')
+                <link rel="stylesheet"
+                      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+                <style>
+                    .step-dot {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 50%;
+                        background: #ffe8cc;
+                        color: #fd7e14;
+                        font-weight: 700;
+                        flex: 0 0 40px;
+                        box-shadow: inset 0 0 0 2px #fd7e14;
+                    }
+
+                    .step-ic {
+                        font-size: 1.1rem;
+                        color: #fd7e14
+                    }
+
+                    .accordion-button:focus {
+                        box-shadow: none
+                    }
+                </style>
+            @endpush
+
+
+        </div>
+
     </div>
 @endsection
 
@@ -298,17 +510,24 @@
 
             showConfirmDeleteModal(
                 'Создание договора',
+
+                'Изменить файл и ученика после создания договора будет нельзя.<br>' +
                 '<span class="fw-semibold text-danger">Стоимость создания договора 50&nbsp;руб.</span><br>' +
-                'Вы уверены, что хотите создать договор пользователя?',
+                'Создать договор?<br>',
                 onConfirmCreateContract
             );
 
         }
 
+
+
+
+
+
         // Подтверждено пользователем — проверяем баланс и сабмитим форму
         function onConfirmCreateContract() {
             var $form = $('#contract-create-form');
-            var $btn  = $('#btn-save');
+            var $btn = $('#btn-save');
 
             // Если предчек уже был — сразу сабмит
             if ($form.data('precheckDone') === true) {
@@ -335,7 +554,7 @@
         // Успешный предчек: разрешаем сабмит формы
         function handleCheckBalanceSuccess() {
             var $form = $('#contract-create-form');
-            var $btn  = $('#btn-save');
+            var $btn = $('#btn-save');
 
             $form.data('precheckDone', true);
             $btn.prop('disabled', false);
@@ -345,7 +564,7 @@
         // Баланса не хватило / ошибка
         function handleCheckBalanceFail(xhr) {
             var $form = $('#contract-create-form');
-            var $btn  = $('#btn-save');
+            var $btn = $('#btn-save');
 
             $btn.prop('disabled', false);
 
@@ -358,7 +577,7 @@
             $form.prepend($alert);
 
             if ($alert[0] && $alert[0].scrollIntoView) {
-                $alert[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                $alert[0].scrollIntoView({behavior: 'smooth', block: 'start'});
             }
         }
 

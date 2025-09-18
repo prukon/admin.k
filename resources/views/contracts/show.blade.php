@@ -277,6 +277,8 @@
                         <input type="email" class="form-control" id="recipientEmail"
                                placeholder="user@example.com" value="{{ $student->email ?? '' }}" required>
                     </div>
+                    <div>Отправка договора на почту для ознакомления. Договор не подписан сторонами.</div>
+
                     <div id="emailSendError" class="alert alert-danger d-none"></div>
                     <div id="emailSendSuccess" class="alert alert-success d-none"></div>
                 </div>

@@ -60,9 +60,6 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('myGroup.view');
         });
 
-        Gate::define('contracts-view', function (User $user) {
-            return $user->hasPermission('contracts.view');
-        });
         // Установка цен
         Gate::define('setPrices-view', function (User $user) {
             return $user->hasPermission('setPrices.view');
@@ -112,6 +109,12 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('account-partner-view', function (User $user) {
             return $user->hasPermission('account.partner.view');
         });
+
+        // Страница "Учетная запись -> Документы"
+        Gate::define('account-documents-view', function (User $user) {
+            return $user->hasPermission('account.documents.view');
+        });
+
 
         // Страница "Сообщения"
         Gate::define('messages-view', function (User $user) {

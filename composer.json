@@ -7,6 +7,7 @@
     "require": {
         "php": "^8.1",
         "cmgmyr/messenger": "^2.31",
+        "dompdf/dompdf": "^3.1",
         "guzzlehttp/guzzle": "^7.2",
         "intervention/image": "*",
         "jenssegers/agent": "^2.6",
@@ -15,6 +16,7 @@
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
         "laravel/ui": "^4.3",
+        "phpoffice/phpword": "^1.4",
         "yajra/laravel-datatables-oracle": "^10.11",
         "yoomoney/yookassa-sdk-php": "^3.7"
     },

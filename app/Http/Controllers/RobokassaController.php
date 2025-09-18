@@ -150,7 +150,9 @@ class RobokassaController extends Controller
         Payment::create([
             'user_id' => $Shp_userId,
             'partner_id'  => $partnerId,
-            'user_name' => $user?->name ?? 'Неизвестно',
+//            'user_name' => $user?->name ?? 'Неизвестно',
+            'user_name' => ($user?->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
+
             'team_title' => $teamName,
             'operation_date' => $currentDateTime,
             'payment_month' => $Shp_paymentDate,
@@ -159,14 +161,17 @@ class RobokassaController extends Controller
         ]);
 
         // Логирование
-        MyLog::create([
-            'type' => 5,
-            'action' => 50,
-            'author_id' => $Shp_userId,
-            'partner_id'  => $partnerId,
-            'description' => "Платеж на сумму: " . intval($outSum) . " руб от {$user?->name}. ID: {$Shp_userId}. Группа: {$teamName}. Период: {$Shp_paymentDate}.",
-            'created_at' => now(),
+    MyLog::create([
+    'type'       => 5,
+    'action'     => 50,
+    'author_id'  => $Shp_userId,
+    'partner_id' => $partnerId,
+    'description'=> "Платеж на сумму: " . (int)$outSum . " руб от "
+        . ( ($user?->full_name ?? trim( ($user?->lastname ?? '') . ' ' . ($user?->name ?? '') )) ?: 'Неизвестно' )
+        . ". ID: $Shp_userId. Группа: $teamName. Период: $Shp_paymentDate.",
+    'created_at' => now(),
         ]);
+
 
         // Ответ Robokassa
         echo "OK$invId\n";

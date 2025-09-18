@@ -107,6 +107,10 @@
         table.dataTable thead .sorting_desc_disabled {
             background-image: url("/img/datatables/sort_desc_disabled.png") !important;
         }
+
+        .content-wrapper {
+            height: auto!important;
+        }
     </style>
 
     <script>

@@ -41,11 +41,11 @@ class   User extends Authenticatable
 
     public $timestamps = true;
 
-    public function users()
-    {
-        // pivot: role_user (user_id, role_id)
-        return $this->belongsToMany(User::class, 'role_user', 'role_id', 'user_id');
-    }
+//    public function users()
+//    {
+//        // pivot: role_user (user_id, role_id)
+//        return $this->belongsToMany(User::class, 'role_user', 'role_id', 'user_id');
+//    }
 
     public function getBirthdayForFormAttribute(): ?string
     {

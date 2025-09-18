@@ -210,10 +210,20 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     });
 
-    //Учетная запись - вкладка организация
+    //Учетная запись - вкладка "организация"
     Route::middleware('can:account-partner-view')->group(function () {
         Route::get('account-settings/partner/{user}/edit', [PartnerSettingController::class, 'partner'])->name('admin.cur.company.edit');
         Route::patch('account-settings/partner/{partner}', [PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
+    });
+
+//
+    //Учетная запись - вкладка "Мои договоры"
+    Route::middleware('can:account-documents-view')->group(function () {
+        Route::get('account-settings/documents', [ContractsController::class, 'myDocuments']);
+        Route::get('account-settings/documents/contracts/{contract}/requests', [ContractsController::class, 'myDocumentRequests']);
+        Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
+        Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
+
     });
 
     //    Лиды
@@ -234,11 +244,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:paying-classes')->group(function () {
         Route::post('payment', [TransactionController::class, 'index'])->name('payment');
         Route::post('payment/pay', [TransactionController::class, 'pay'])->name('payment.pay');
-
     });
+
     Route::get('payment/success', [TransactionController::class, 'success'])->name('payment.success');
     Route::get('payment/fail', [TransactionController::class, 'fail'])->name('payment.fail');
-
 
     //Оплата клубного взноса (робокасса)
     Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee')->middleware('can:payment-clubfee'); //Оплата клубного взноса
@@ -253,15 +262,18 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/contracts/create', [ContractsController::class, 'create'])->name('contracts.create');
         Route::post('/contracts', [ContractsController::class, 'store'])->name('contracts.store');
         Route::get('/contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
-        Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
-        Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
         Route::post('/contracts/{contract}/send', [ContractsController::class, 'send'])->name('contracts.send');
         Route::post('/contracts/{contract}/resend', [ContractsController::class, 'resend'])->name('contracts.resend');
         Route::post('/contracts/{contract}/revoke', [ContractsController::class, 'revoke'])->name('contracts.revoke');
         Route::get('/contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
         Route::post('/contracts/{contract}/send-email', [ContractsController::class, 'sendEmail'])->name('contracts.sendEmail');
         Route::post('/contracts/check-balance', [ContractsController::class, 'checkBalance']);
+        Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
+        Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
+
     });
+
+
 
     //Сообщения (ЧАТ)
     Route::middleware('can:messages-view')->group(function () {
@@ -294,7 +306,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/partner-wallet/success', [PartnerPaymentController::class, 'ykWalletSuccess'])->name('partner.wallet.success');
     });
 
-
 //    Route::post('/account/user/{user}/verify-phone', [\App\Http\Controllers\Admin\AccountSettingController::class, 'verifyPhone'])->name('account.user.verifyPhone');
     Route::post('/account/user/{user}/phone/send-code', [\App\Http\Controllers\Admin\AccountController::class, 'phoneSendCode'])->name('account.user.phoneSendCode');
     Route::post('/account/user/{user}/phone/confirm-code', [\App\Http\Controllers\Admin\AccountController::class, 'phoneConfirmCode'])->name('account.user.phoneConfirmCode');
@@ -323,7 +334,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
 });
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');
 
-
         // --- ВЕБХУКИ ---
     // Robokassa
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
@@ -335,8 +345,6 @@ Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class,
 // YooKassa webhook единый (без CSRF)
 Route::post('/webhook/yookassa', [YooKassaWebhookController::class, 'handle']);
 
-
-
     // Podpislon
 Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle'])->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon');
 
@@ -344,5 +352,3 @@ Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle']
 //Route::get('/tinkoff/payout/{paymentId}', [\App\Http\Controllers\TinkoffPayoutController::class, 'payout']);
 Route::post('/tinkoff/pay', [\App\Http\Controllers\TinkoffPaymentController::class, 'init'])->name('tinkoff.pay');
 Route::post('/tinkoff/callback', [\App\Http\Controllers\TinkoffPaymentController::class, 'callback'])->name('tinkoff.callback'); // пока заглушка
-
-

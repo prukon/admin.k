@@ -27,6 +27,7 @@ class PermissionSeeder extends Seeder
             ['name'=>'reports.view','description'=>'Страница "Отчеты"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>15],
             ['name'=>'myPayments.view','description'=>'Страница "Мои платежи"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>16],
             ['name'=>'myGroup.view','description'=>'Страница "Моя группа"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>17],
+
             ['name'=>'setPrices.view','description'=>'Страница "Установка цен"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>20],
             ['name'=>'schedule.view','description'=>'Страница "Журнал расписания"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>30],
             ['name'=>'users.view','description'=>'Страница "Пользователи"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>40],
@@ -38,6 +39,8 @@ class PermissionSeeder extends Seeder
             ['name'=>'settings.paymentSystems.view','description'=>'Страница "Настройки  -> Платежные системы"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>62],
             ['name'=>'account.user.view','description'=>'Страница "Учетная запись -> Личные данные"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>65], // в дампе как id=35 (mainMenu) — оставляю как в дампе
             ['name'=>'account.partner.view','description'=>'Страница "Учетная запись -> Организация"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>70],
+            ['name'=>'account.documents.view','description'=>'Страница "Учетная запись -> "Мои документы"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>70],
+
             ['name'=>'messages.view','description'=>'Страница "Сообщения"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>73],
             ['name'=>'leads.view','description'=>'Страница "Лиды"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>75],
             ['name'=>'servicePayments.view','description'=>'Страница "Оплата сервиса"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>80],
