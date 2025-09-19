@@ -133,8 +133,8 @@ class ContractsController extends Controller
         }
 
         return redirect()->route('contracts.show', $contract->id)
-            ->with('success', 'Договор создан. С баланса списано 50 ₽. Теперь можно отправить на подпись.');
-    }
+            ->with('success', 'Договор создан. С баланса списано 70 ₽. Теперь можно отправить на подпись.');
+    } 
 
     // ------- AJAX: поиск учеников текущего партнёра для Select2 -------
     public function usersSearch(Request $request)
@@ -735,7 +735,7 @@ class ContractsController extends Controller
     }
     private function createContractFee(): float
     {
-        return (float)(config('billing.contract_create_fee') ?? 50.00);
+        return (float)(config('billing.contract_create_fee') ?? 70.00);
     }
     public function checkBalance(Request $request)
     {
