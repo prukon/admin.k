@@ -85,6 +85,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('partner.view');
         });
 
+             // Страница "Договоры"
+        Gate::define('contracts-view', function (User $user) {
+            return $user->hasPermission('contracts.view');
+        });
+
         // Страница "Настройки
         Gate::define('settings-view', function (User $user) {
             return $user->hasPermission('settings.view');
