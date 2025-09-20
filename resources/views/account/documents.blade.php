@@ -8,7 +8,7 @@
 
             {{-- Заголовок + фильтр статуса --}}
             <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 pt-3 pb-2">
-                <h4 class="mb-0">Мои договоры</h4>
+                <h4 class="mb-0">Договоры</h4>
 
 {{--                <form action="/account-settings/documents" method="get" class="d-flex gap-2">--}}
 {{--                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">--}}

@@ -8,18 +8,35 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ContractSignRequest extends Model
 {
     protected $fillable = [
-        'contract_id', 'signer_name', 'signer_phone', 'ttl_hours',
-        'provider_request_id', 'status', 'meta'
+        'contract_id',
+        'signer_name',
+        'signer_lastname',
+        'signer_firstname',
+        'signer_middlename',
+        'signer_phone',
+        'ttl_hours',
+        'provider_request_id',
+        'status',
+        'meta',
     ];
 
     protected $casts = [
         'meta' => 'array',
     ];
 
-public static array $STATUS_RU = ['created' => 'Создана',
-'sent' => 'Отправлена',
-'failed' => 'Ошибка',
-'resent' => 'Отправлена повторно',];
+
+
+
+
+
+
+public static array $STATUS_RU = [
+'created' => 'Создана',
+'sent'    => 'Отправлена',
+'failed'  => 'Ошибка',
+'resent'  => 'Отправлена повторно',
+];
+
 
 public static array $STATUS_BADGE = [
 'created' => 'bg-secondary',
@@ -42,6 +59,15 @@ public static array $STATUS_BADGE = [
     {
         $s = (string)$this->status;
         return self::$STATUS_BADGE[$s] ?? 'bg-secondary';
+    }
+
+    /** Опционально: удобно иметь готовое ФИО */
+    public function getSignerFioAttribute(): string
+    {
+        return trim(preg_replace(
+            '/\s+/', ' ',
+            ($this->signer_lastname ?? '').' '.($this->signer_firstname ?? '').' '.($this->signer_middlename ?? '')
+        )) ?: (string)($this->signer_name ?? '');
     }
 }
 

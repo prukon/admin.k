@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use LogicException;
 use App\Models\User;
 
+use Illuminate\Support\Facades\Auth; // ← добавили
 
 
 class PodpislonProvider implements SignatureProvider
@@ -98,29 +99,44 @@ class PodpislonProvider implements SignatureProvider
         $fileSize = filesize($filePath) ?: 0;
 
         // 2) Контакт — ИМЯ и ФАМИЛИЯ строго из БД users
-        $user = null;
-        try {
-            if ($contract->user_id) {
-                $user = \App\Models\User::select('id','name','lastname','phone')->find($contract->user_id);
-            }
-        } catch (\Throwable $e) {
-            Log::warning('PODPISLON: cannot load user', [
-                'contract_id' => $contract->id,
-                'user_id'     => $contract->user_id,
-                'error'       => $e->getMessage(),
-            ]);
-        }
+//        $user = null;
+//        try {
+//            if ($contract->user_id) {
+//                $user = \App\Models\User::select('id','name','lastname','phone')->find($contract->user_id);
+//            }
+//        } catch (\Throwable $e) {
+//            Log::warning('PODPISLON: cannot load user', [
+//                'contract_id' => $contract->id,
+//                'user_id'     => $contract->user_id,
+//                'error'       => $e->getMessage(),
+//            ]);
+//        }
+//
+//        $firstName   = $user?->name ?? 'Подписант';
+//        $lastName    = $user?->lastname ?? 'Безфамильный';
+//        $signerPhone = $request->signer_phone; // телефон из формы
+//
+//        $contact = [
+//            'name'        => $firstName,
+//            'last_name'   => $lastName,   // обязательное поле в Подпислоне
+//            'second_name' => '',
+//            'phone'       => $signerPhone,
+//        ];
 
-        $firstName   = $user?->name ?? 'Подписант';
-        $lastName    = $user?->lastname ?? 'Безфамильный';
-        $signerPhone = $request->signer_phone; // телефон из формы
+        // 2) Контакт — из формы (ContractSignRequest)
+        $signerPhone   = $request->signer_phone;
 
+// Если ты добавишь в модель/таблицу ContractSignRequest отдельные поля,
+// используй их напрямую. Если пока нет колонок — можно передать через
+// динамические атрибуты, см. примечание ниже.
         $contact = [
-            'name'        => $firstName,
-            'last_name'   => $lastName,   // обязательное поле в Подпислоне
-            'second_name' => '',
+            'name'        => $request->signer_firstname ?? '',   // имя
+            'last_name'   => $request->signer_lastname  ?? '',   // фамилия
+            'second_name' => $request->signer_middlename ?? '',  // отчество
             'phone'       => $signerPhone,
         ];
+
+
 
         $url = rtrim($this->baseUrl, '/').'/add-document';
 
@@ -403,6 +419,7 @@ class PodpislonProvider implements SignatureProvider
         try {
             ContractEvent::create([
                 'contract_id' => $contract->id,
+                'author_id'    => Auth::id(),
                 'type' => $type,
                 'payload_json' => $payload ? json_encode($payload, JSON_UNESCAPED_UNICODE) : null,
             ]);

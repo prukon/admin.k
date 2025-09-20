@@ -20,7 +20,7 @@ use Illuminate\Validation\ValidationException;
 
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Cache;
-
+use Illuminate\Support\Str;
 
 class ContractsController extends Controller
 {
@@ -106,7 +106,8 @@ class ContractsController extends Controller
                 // 5) Логируем события: списание и создание
                 ContractEvent::create([
                     'contract_id' => $contract->id,
-                    'type' => 'wallet_debited',
+                    'author_id'    => Auth::id(), // ← добавили
+                    'type' => 'Списание баланса за создание договора',
                     'payload_json' => json_encode([
                         'amount' => number_format($fee, 2, '.', ''),
                         'currency' => 'RUB',
@@ -117,6 +118,7 @@ class ContractsController extends Controller
 
                 ContractEvent::create([
                     'contract_id' => $contract->id,
+                    'author_id'    => Auth::id(), // ← добавили
                     'type' => 'created',
                     'payload_json' => null,
                 ]);
@@ -284,17 +286,39 @@ class ContractsController extends Controller
 
     public function send(Contract $contract, Request $request, SignatureProvider $provider): \Illuminate\Http\JsonResponse
     {
+//        \Log::info('[contracts.send] start', [
+//            'contract_id' => $contract->id,
+//            'payload' => $request->only('signer_name', 'signer_phone', 'ttl_hours'),
+//        ]);
+//
+//        // --- валидация
+//        $validated = $request->validate([
+//            'signer_name' => ['nullable', 'string', 'max:255'],
+//            'signer_phone' => ['required', 'string', 'max:32'],
+//            'ttl_hours' => ['nullable', 'integer', 'min:1', 'max:168'],
+//        ]);
+
         \Log::info('[contracts.send] start', [
             'contract_id' => $contract->id,
-            'payload' => $request->only('signer_name', 'signer_phone', 'ttl_hours'),
+            'payload' => $request->only('signer_lastname','signer_firstname','signer_middlename','signer_phone','ttl_hours'),
         ]);
 
-        // --- валидация
         $validated = $request->validate([
-            'signer_name' => ['nullable', 'string', 'max:255'],
-            'signer_phone' => ['required', 'string', 'max:32'],
-            'ttl_hours' => ['nullable', 'integer', 'min:1', 'max:168'],
+            'signer_lastname'   => ['required', 'string', 'max:100'],
+            'signer_firstname'  => ['required', 'string', 'max:100'],
+            'signer_middlename' => ['nullable', 'string', 'max:100'],
+            'signer_phone'      => ['required', 'string', 'max:32'],
+            'ttl_hours'         => ['nullable', 'integer', 'min:1', 'max:168'],
         ]);
+
+// Собираем ФИО для хранения и передачи в провайдер
+        $signerFio = trim(
+            preg_replace('/\s+/', ' ',
+                ($validated['signer_lastname'] ?? '') . ' ' .
+                ($validated['signer_firstname'] ?? '') . ' ' .
+                ($validated['signer_middlename'] ?? '')
+            )
+        );
 
 // НОРМАЛИЗАЦИЯ ТЕЛЕФОНА (RU): к 11 цифрам, ведущая 7
         $raw = (string)$validated['signer_phone'];
@@ -358,13 +382,27 @@ class ContractsController extends Controller
         };
 
         // Всегда пишем запись об отправке в историю (и для resend тоже)
+
+//        $sr = new \App\Models\ContractSignRequest([
+//            'signer_name' => $validated['signer_name'] ?? null,
+//            'signer_phone' => $phone,
+//            'ttl_hours' => $validated['ttl_hours'] ?? 72,
+//            'status' => 'created',
+//        ]);
+//        $contract->signRequests()->save($sr);
+
+
         $sr = new \App\Models\ContractSignRequest([
-            'signer_name' => $validated['signer_name'] ?? null,
-            'signer_phone' => $phone,
-            'ttl_hours' => $validated['ttl_hours'] ?? 72,
-            'status' => 'created',
+            'signer_name'       => $signerFio,
+            'signer_lastname'   => $validated['signer_lastname'] ?? null,
+            'signer_firstname'  => $validated['signer_firstname'] ?? null,
+            'signer_middlename' => $validated['signer_middlename'] ?? null,
+            'signer_phone'      => $phone,
+            'ttl_hours'         => $validated['ttl_hours'] ?? 72,
+            'status'            => 'created',
         ]);
         $contract->signRequests()->save($sr);
+
 
         // ===== РЕСЕНД: документ уже существует у провайдера — НЕ создаём новый
         if ($contract->provider === 'podpislon' && $contract->provider_doc_id) {
@@ -391,6 +429,7 @@ class ContractsController extends Controller
                     // Событие "resend" — ОК (НЕ пишем "sent" здесь, чтобы не дублировать с провайдером)
                     ContractEvent::create([
                         'contract_id' => $contract->id,
+                        'author_id'    => Auth::id(),
                         'type' => 'resend',
                         'payload_json' => json_encode(['res' => $res, 'doc' => $doc], JSON_UNESCAPED_UNICODE),
                     ]);
@@ -408,6 +447,7 @@ class ContractsController extends Controller
                 $links = $signingLinks();
                 ContractEvent::create([
                     'contract_id' => $contract->id,
+                    'author_id'    => Auth::id(),
                     'type' => 'resend_failed',
                     'payload_json' => json_encode(['res' => $res, 'links' => $links], JSON_UNESCAPED_UNICODE),
                 ]);
@@ -425,6 +465,7 @@ class ContractsController extends Controller
                 $links = $signingLinks();
                 ContractEvent::create([
                     'contract_id' => $contract->id,
+                    'author_id'    => Auth::id(),
                     'type' => 'resend_failed',
                     'payload_json' => json_encode(['error' => $e->getMessage(), 'links' => $links], JSON_UNESCAPED_UNICODE),
                 ]);
@@ -472,6 +513,7 @@ class ContractsController extends Controller
             $links = $signingLinks();
             ContractEvent::create([
                 'contract_id' => $contract->id,
+                'author_id'    => Auth::id(),
                 'type' => 'failed',
                 'payload_json' => json_encode(['res' => $res, 'links' => $links], JSON_UNESCAPED_UNICODE),
             ]);
@@ -491,6 +533,7 @@ class ContractsController extends Controller
 
             ContractEvent::create([
                 'contract_id' => $contract->id,
+                'author_id'    => Auth::id(),
                 'type' => 'failed',
                 'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
             ]);
@@ -566,6 +609,7 @@ class ContractsController extends Controller
 
             ContractEvent::create([
                 'contract_id' => $contract->id,
+                'author_id'    => Auth::id(),
                 'type' => 'revoked',
                 'payload_json' => null,
             ]);
@@ -574,6 +618,7 @@ class ContractsController extends Controller
         } catch (\Throwable $e) {
             ContractEvent::create([
                 'contract_id' => $contract->id,
+                'author_id'    => Auth::id(),
                 'type' => 'failed',
                 'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
             ]);
@@ -594,6 +639,7 @@ class ContractsController extends Controller
 
                 ContractEvent::create([
                     'contract_id' => $contract->id,
+                    'author_id'    => Auth::id(),
                     'type' => 'status_sync',
                     'payload_json' => json_encode($data, JSON_UNESCAPED_UNICODE),
                 ]);
@@ -631,6 +677,7 @@ class ContractsController extends Controller
 
         ContractEvent::create([
             'contract_id' => $contract->id,
+            'author_id'    => Auth::id(),
             'type' => 'signed_pdf_saved',
             'payload_json' => json_encode(['path' => $path], JSON_UNESCAPED_UNICODE),
         ]);
@@ -659,6 +706,7 @@ class ContractsController extends Controller
 
             ContractEvent::create([
                 'contract_id' => $contract->id,
+                'author_id'    => Auth::id(),
                 'type' => 'email_sent',
                 'payload_json' => json_encode(['to' => $to], JSON_UNESCAPED_UNICODE),
             ]);
@@ -715,6 +763,7 @@ class ContractsController extends Controller
 
             ContractEvent::create([
                 'contract_id' => $contract->id,
+                'author_id'    => Auth::id(),
                 'type' => $sendSigned ? 'email_signed_sent' : 'email_sent',
                 'payload_json' => json_encode(['to' => $to], JSON_UNESCAPED_UNICODE),
             ]);

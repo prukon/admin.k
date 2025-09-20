@@ -72,7 +72,7 @@
 
 
                         @if($contract->status === 'draft')
-                            <button class="btn btn-success" id="openSendModal" data-id="{{ $contract->id }}">Отправить
+                            <button class="btn btn-success" id="openSendModal" data-id="{{ $contract->id }}">Отправить СМС
                                 на подпись
                             </button>
 
@@ -116,8 +116,10 @@
                                         <thead>
                                         <tr>
                                             <th>#</th>
-                                            <th>Имя</th>
-                                            <th>Фамилия</th>
+                                            {{--<th>Имя</th>--}}
+                                            {{--<th>Фамилия</th>--}}
+                                            <th>ФИО подписанта</th>
+
                                             <th>Телефон</th>
                                             <th>Статус</th>
                                             <th>Создано</th>
@@ -127,8 +129,11 @@
                                         @forelse($requests as $r)
                                             <tr>
                                                 <td>{{ $r->id }}</td>
-                                                <td>{{ $r->signer_name ?? ($student->name ?? '—') }}</td>
-                                                <td>{{ $student->lastname ?? '—' }}</td>
+                                                {{--<td>{{ $r->signer_name ?? ($student->name ?? '—') }}</td>--}}
+                                                {{--<td>{{ $student->lastname ?? '—' }}</td>--}}
+                                                <td>{{ $r->signer_fio ?: ($r->signer_name ?? '—') }}</td>
+
+
                                                 <td>{{ $r->signer_phone ?? '—' }}</td>
                                                 <td>
                                                     <span class="badge {{ $r->status_badge_class }}">{{ $r->status_ru }}</span>
@@ -165,6 +170,7 @@
                                         <thead>
                                         <tr>
                                             <th>#</th>
+                                            <th>Автор</th> {{-- новая колонка --}}
                                             <th>Событие</th>
                                             <th>Дата</th>
                                         </tr>
@@ -173,6 +179,7 @@
                                         @forelse($events as $e)
                                             <tr>
                                                 <td>{{ $e->id }}</td>
+                                                <td>{{ $e->author_fio }}</td> {{-- Фамилия Имя или "Система" --}}
                                                 <td>{{ $e->type_ru }}</td>
                                                 <td>{{ $e->created_at->format('d.m.Y H:i:s') }}</td>
                                             </tr>
@@ -234,20 +241,63 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="contractId" value="{{ $contract->id }}">
+
+
+                    {{--@php--}}
+                        {{--$defaultSignerName = trim(($student->name ?? '').' '.($student->lastname ?? ''));--}}
+                    {{--@endphp--}}
+                    {{----}}
+                    {{--<div class="mb-3">--}}
+                        {{--<label class="form-label">Имя и фамилия подписанта</label>--}}
+                        {{--<input type="text" class="form-control" id="signerName" maxlength="255"--}}
+                               {{--value="{{ $defaultSignerName }}">--}}
+                    {{--</div>--}}
+                    {{--<div class="mb-3">--}}
+                        {{--<label class="form-label">Телефон для SMS*</label>--}}
+                        {{--<input type="text" class="form-control" id="signerPhone" placeholder="+7..."--}}
+                               {{--value="{{ $student->phone ?? '' }}" required>--}}
+                        {{--<div id="signerPhoneErr" class="text-danger small mt-1 d-none"></div>--}}
+                    {{--</div>--}}
+
+
                     @php
-                        $defaultSignerName = trim(($student->name ?? '').' '.($student->lastname ?? ''));
+                        $defaultLast  = trim($student->lastname ?? '');
+                        $defaultFirst = trim($student->name ?? '');
                     @endphp
+
                     <div class="mb-3">
-                        <label class="form-label">Имя и фамилия подписанта</label>
-                        <input type="text" class="form-control" id="signerName" maxlength="255"
-                               value="{{ $defaultSignerName }}">
+                        <label class="form-label">Данные подписанта</label>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-4">
+                                <input type="text" class="form-control" id="signerLastname" placeholder="Фамилия"
+                                       value="{{ $student->lastname ?? '' }}" maxlength="100" required>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <input type="text" class="form-control" id="signerFirstname" placeholder="Имя"
+                                       value="{{ $student->name ?? '' }}" maxlength="100" required>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <input type="text" class="form-control" id="signerMiddlename" placeholder="Отчество"
+                                       value="" maxlength="100">
+                            </div>
+                        </div>
                     </div>
+
+
+
+
+
+
+
                     <div class="mb-3">
                         <label class="form-label">Телефон для SMS*</label>
                         <input type="text" class="form-control" id="signerPhone" placeholder="+7..."
                                value="{{ $student->phone ?? '' }}" required>
                         <div id="signerPhoneErr" class="text-danger small mt-1 d-none"></div>
                     </div>
+
+
+
 
                     <div id="sendError" class="alert alert-danger d-none"></div>
                     <div id="sendSuccess" class="alert alert-success d-none"></div>
@@ -366,15 +416,29 @@
                 var contractId = $('#contractId').val();
 
                 $.ajax({
-                    type: 'POST',
-                    url: '/contracts/' + contractId + '/send',
-                    dataType: 'json',
-                    headers: {'Accept': 'application/json'},
-                    data: {
-                        _token: $('meta[name="csrf-token"]').attr('content'),
-                        signer_name: $('#signerName').val(),
-                        signer_phone: $('#signerPhone').val()
-                        // ttl_hours не шлём, поле скрыто — сервер и так подставит 72
+
+                    // type: 'POST',
+                    // url: '/contracts/' + contractId + '/send',
+                    // dataType: 'json',
+                    // headers: {'Accept': 'application/json'},
+                    // data: {
+                    //     _token: $('meta[name="csrf-token"]').attr('content'),
+                    //     signer_name: $('#signerName').val(),
+                    //     signer_phone: $('#signerPhone').val()
+                    //
+                        type: 'POST',
+                        url: '/contracts/' + contractId + '/send',
+                        dataType: 'json',
+                        headers: {'Accept': 'application/json'},
+                        data: {
+                            _token: $('meta[name="csrf-token"]').attr('content'),
+                            signer_lastname:   $('#signerLastname').val(),
+                            signer_firstname:  $('#signerFirstname').val(),
+                            signer_middlename: $('#signerMiddlename').val(),
+                            signer_phone:      $('#signerPhone').val()
+                            // ttl_hours не шлём (сервер подставит 72)
+
+
                     },
 
                     success: function (resp) {

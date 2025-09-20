@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ContractEvent extends Model
 {
-    protected $fillable = ['contract_id','type','payload_json'];
+    protected $fillable = [
+        'contract_id',
+        'type',
+        'payload_json',
+        'author_id'        // ← добавили
+    ];
 
     // ContractEvent.php
 public static array $TYPE_RU = [
@@ -35,5 +40,21 @@ public static array $TYPE_RU = [
 
     public function contract(): BelongsTo {
         return $this->belongsTo(Contract::class);
+    }
+
+    public function author()
+    {
+        return $this->belongsTo(User::class, 'author_id');
+    }
+
+    // Удобный аксессор для вывода Фамилия Имя
+    public function getAuthorFioAttribute(): string
+    {
+        $u = $this->author;
+        if (!$u) return 'Система';
+        $last = trim((string)($u->lastname ?? ''));
+        $name = trim((string)($u->name ?? ''));
+        $fio = trim($last.' '.$name);
+        return $fio !== '' ? $fio : ($u->email ?? 'Пользователь');
     }
 }
