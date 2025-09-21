@@ -82,8 +82,8 @@
                             <button class="btn btn-outline-success" id="openResendModal" data-id="{{ $contract->id }}">
                                 Повторно отправить на подпись
                             </button>
-                            <a class="btn btn-outline-secondary" id="syncStatusBtn" data-id="{{ $contract->id }}">Обновить
-                                статус</a>
+                            {{--<a class="btn btn-outline-secondary" id="syncStatusBtn" data-id="{{ $contract->id }}">Обновить--}}
+                                {{--статус</a>--}}
                         @endif
 
 

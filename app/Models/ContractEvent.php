@@ -29,8 +29,8 @@ public static array $TYPE_RU = [
 'document_opened'     => 'Документ открыт (вебхук)',
 'document_signed'     => 'Документ подписан (вебхук)',
 'unknown'             => 'Неизвестное событие',
-'webhook_document_signed'=> 'Ответ от провайдера подписан',
-'webhook_document_opened'=> 'Ответ от провайдера открыт',
+'webhook_document_signed'=> 'Ответ от провайдера: "Договор подписан"',
+'webhook_document_opened'=> 'Ответ от провайдера: "СМС открыта"',
 ];
 
     public function getTypeRuAttribute(): string

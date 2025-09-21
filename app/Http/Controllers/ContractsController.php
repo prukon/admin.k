@@ -12,11 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Partner;
-
 use Illuminate\Support\Facades\DB;
-
 use Illuminate\Validation\ValidationException;
-
 
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Cache;
@@ -24,32 +21,49 @@ use Illuminate\Support\Str;
 
 class ContractsController extends Controller
 {
-    private function currentPartnerId(): ?int
-    {
-        // приоритет: у юзера -> в сессии -> из запроса (fallback)
-        return Auth::user()->partner_id
-            ?? session('current_partner_id')
-            ?? session('partner_id')
-            ?? (request()->has('partner_id') ? (int)request()->get('partner_id') : null);
+//    private function currentPartnerId(): ?int
+//    {
+//        // приоритет: у юзера -> в сессии -> из запроса (fallback)
+//        return Auth::user()->partner_id
+//            ?? session('current_partner_id')
+//            ?? session('partner_id')
+//            ?? (request()->has('partner_id') ? (int)request()->get('partner_id') : null);
+//    }
+
+
+    // единая точка входа
+    private function partner(): \App\Models\Partner {
+        $p = app('current_partner');
+        abort_unless($p, 403, 'Партнёр не выбран.');
+        return $p;
     }
+    private function partnerId(): int {
+        return $this->partner()->id;
+    }
+
 
     public function create()
     {
-        $partnerId = $this->currentPartnerId();
-        $partner = $partnerId ? Partner::find($partnerId) : null;
+//        $partnerId = $this->currentPartnerId();
+//        $partner = $partnerId ? Partner::find($partnerId) : null;
+
+        $partner   = app('current_partner');
+        $partnerId = app('current_partner')->id;
 
         return view('contracts.create', compact('partner', 'partnerId'));
+
     }
 
     public function store(Request $request)
     {
+        $partner   = $this->partner();
+        $partnerId = $partner->id;
+
         $validated = $request->validate([
             'user_id' => ['required', 'integer'],
             'pdf' => ['required', 'file', 'mimes:pdf', 'max:10240'],
         ], [], ['pdf' => 'PDF-файл договора']);
 
-        $partnerId = $this->currentPartnerId();
-        abort_unless($partnerId, 403, 'Не выбран партнёр.');
 
         /** @var User $student */
         $student = User::query()
@@ -95,6 +109,7 @@ class ContractsController extends Controller
                 // 4) Создаём договор
                 $contract = Contract::create([
                     'school_id' => $partnerId,
+
                     'user_id' => $student->id,
                     'group_id' => $groupId,
                     'source_pdf_path' => $path,
@@ -142,7 +157,8 @@ class ContractsController extends Controller
     public function usersSearch(Request $request)
     {
         $q = trim((string)$request->get('q', ''));
-        $partnerId = $this->currentPartnerId();
+        $partnerId = $this->partnerId();
+
 
         \Log::debug('[usersSearch] start', [
             'auth_user_id' => \Illuminate\Support\Facades\Auth::id(),
@@ -196,11 +212,10 @@ class ContractsController extends Controller
     public function userGroup(Request $request)
     {
         $userId = (int)$request->get('user_id');
-        $partnerId = $this->currentPartnerId();
+        $partnerId = $this->partnerId();
 
         \Log::debug('[userGroup] start', ['userId' => $userId, 'partnerId' => $partnerId]);
 
-        abort_unless($partnerId, 403, 'Партнёр не выбран.');
 
         $student = User::query()
             ->where('id', $userId)
@@ -235,7 +250,11 @@ class ContractsController extends Controller
 
     public function index(Request $request)
     {
+        $partnerId = $this->partnerId();
+
+
         $q = \App\Models\Contract::query()
+            ->where('contracts.school_id', $partnerId) // <— критичное ограничение по партнёру
             ->when($request->status, fn($qq) => $qq->where('contracts.status', $request->status))
             ->when($request->group_id, fn($qq) => $qq->where('contracts.group_id', $request->group_id))
             // Подтягиваем имя ученика, телефон, email и название группы
@@ -258,6 +277,8 @@ class ContractsController extends Controller
 
     public function show(Contract $contract)
     {
+        abort_unless($contract->school_id === $this->partnerId(), 403, 'Нет доступа к договору этого партнёра.');
+
         $events = $contract->events()->orderBy('id', 'desc')->get();
         $requests = $contract->signRequests()->orderBy('id', 'desc')->get();
 
@@ -274,12 +295,12 @@ class ContractsController extends Controller
 
         return view('contracts.show', compact('contract', 'events', 'requests', 'student', 'teamTitle'));
     }
-    public function downloadOriginal(Contract $contract)
-    {
+    public function downloadOriginal(Contract $contract) {
+        abort_unless($contract->school_id === $this->partnerId(), 403);
         return Storage::download($contract->source_pdf_path, 'contract-' . $contract->id . '.pdf');
     }
-    public function downloadSigned(Contract $contract)
-    {
+    public function downloadSigned(Contract $contract) {
+        abort_unless($contract->school_id === $this->partnerId(), 403);
         abort_unless($contract->signed_pdf_path, 404);
         return Storage::download($contract->signed_pdf_path, 'contract-' . $contract->id . '-signed.pdf');
     }
@@ -297,6 +318,7 @@ class ContractsController extends Controller
 //            'signer_phone' => ['required', 'string', 'max:32'],
 //            'ttl_hours' => ['nullable', 'integer', 'min:1', 'max:168'],
 //        ]);
+        abort_unless($contract->school_id === $this->partnerId(), 403, 'Нет доступа к договору этого партнёра.');
 
         \Log::info('[contracts.send] start', [
             'contract_id' => $contract->id,
@@ -601,6 +623,8 @@ class ContractsController extends Controller
     }
     public function revoke(Contract $contract, SignatureProvider $provider)
     {
+        abort_unless($contract->school_id === $this->partnerId(), 403, 'Нет доступа к договору этого партнёра.');
+
         try {
             $provider->revoke($contract);
 
@@ -629,6 +653,8 @@ class ContractsController extends Controller
 
     public function status(Contract $contract, SignatureProvider $provider)
     {
+        abort_unless($contract->school_id === $this->partnerId(), 403, 'Нет доступа к договору этого партнёра.');
+
         try {
             $data = $provider->getStatus($contract);
             $status = $this->mapProviderStatus($data['status'] ?? null);
@@ -668,6 +694,8 @@ class ContractsController extends Controller
     }
     protected function downloadAndAttachSigned(Contract $contract, SignatureProvider $provider): void
     {
+        abort_unless($contract->school_id === $this->partnerId(), 403, 'Нет доступа к договору этого партнёра.');
+
         $file = $provider->downloadSigned($contract);
         $path = 'documents/' . date('Y/m') . '/' . $file['filename'];
         Storage::put($path, $file['content']);
@@ -682,42 +710,10 @@ class ContractsController extends Controller
             'payload_json' => json_encode(['path' => $path], JSON_UNESCAPED_UNICODE),
         ]);
     }
-    public function sendEmail2(Contract $contract, \Illuminate\Http\Request $request)
-    {
-        $validated = $request->validate([
-            'email' => ['required', 'email']
-        ]);
-
-        try {
-            $to = $validated['email'];
-            $path = $contract->source_pdf_path ? Storage::path($contract->source_pdf_path) : null;
-
-            // простое письмо с вложением оригинального PDF (если он есть)
-            Mail::raw('Договор во вложении.', function ($message) use ($to, $contract, $path) {
-                $message->to($to)
-                    ->subject('Договор #' . $contract->id);
-                if ($path && is_file($path)) {
-                    $message->attach($path, [
-                        'as' => 'contract-' . $contract->id . '.pdf',
-                        'mime' => 'application/pdf',
-                    ]);
-                }
-            });
-
-            ContractEvent::create([
-                'contract_id' => $contract->id,
-                'author_id'    => Auth::id(),
-                'type' => 'email_sent',
-                'payload_json' => json_encode(['to' => $to], JSON_UNESCAPED_UNICODE),
-            ]);
-
-            return response()->json(['message' => 'Отправлено на email']);
-        } catch (\Throwable $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-    }
     public function sendEmail(Contract $contract, Request $request)
     {
+        abort_unless($contract->school_id === $this->partnerId(), 403, 'Нет доступа к договору этого партнёра.');
+
         $validated = $request->validate([
             'email' => ['required', 'email'],
             'signed' => ['nullable'], // 0/1/true/false
@@ -788,12 +784,12 @@ class ContractsController extends Controller
     }
     public function checkBalance(Request $request)
     {
-        $partnerId = $this->currentPartnerId();
-        abort_unless($partnerId, 403, 'Партнёр не выбран.');
+        $partnerId = $this->partnerId();
+        $fee = (float)(config('billing.contract_create_fee') ?? 70.00);
 
-        $fee = (float)(config('billing.contract_create_fee') ?? 50.00);
-
+// свежий баланс из БД (не объект из контейнера)
         $balance = \App\Models\Partner::whereKey($partnerId)->value('wallet_balance');
+
         if ($balance === null) {
             return response()->json([
                 'ok' => false,

@@ -534,7 +534,7 @@ class PodpislonProvider implements SignatureProvider
 //        throw new LogicException('Подпислон: отзыв подписи не поддерживается API.');
 //    }
 
-    public function resendForContract(Contract $contract): array
+    public function resendForContract2(Contract $contract): array
     {
         if (!$contract->provider_doc_id) {
             throw new \RuntimeException('Нет provider_doc_id');
@@ -560,6 +560,42 @@ class PodpislonProvider implements SignatureProvider
         }
 
         return $this->resend($package, $sid);
+    }
+
+    public function resendForContract(Contract $contract, ?string $sid = null): array
+    {
+        $package = $contract->provider_doc_id ?? $contract->provider_package ?? null;
+        if (!$package) {
+            return ['ok' => false, 'error' => 'Нет package/provider_doc_id для ресенда'];
+        }
+
+        $url = rtrim($this->baseUrl, '/') . '/repeat-send';
+        $payload = ['package' => (string)$package];
+        if ($sid) $payload['sid'] = (string)$sid;
+
+        $t0 = microtime(true);
+        Log::info('PODPISLON: RESEND start', ['url' => $url, 'payload' => $payload]);
+
+        $resp = Http::withHeaders($this->headers())->asForm()->post($url, $payload);
+
+        $ms = (int) round((microtime(true) - $t0) * 1000);
+        Log::info('PODPISLON: RESEND response', [
+            'status' => $resp->status(),
+            'ok'     => $resp->ok(),
+            'ms'     => $ms,
+            'body'   => mb_substr($resp->body(), 0, 1000),
+        ]);
+
+        if (!$resp->ok()) {
+            return ['ok' => false, 'error' => 'HTTP '.$resp->status().': '.$resp->body()];
+        }
+
+        $j  = $resp->json();
+        $ok = (bool)($j['status'] ?? $j['ok'] ?? $j['success'] ?? false);
+
+        return $ok
+            ? ['ok' => true,  'data' => $j]
+            : ['ok' => false, 'error' => (string)($j['message'] ?? 'Resend failed'), 'data' => $j];
     }
 
 
@@ -647,48 +683,64 @@ class PodpislonProvider implements SignatureProvider
     }
 
 
-//    public function resend(Contract $contract, Request $request, SignatureProvider $provider)
-//    {
-//        \Log::info('[ContractsController@resend] start', [
-//            'contract_id'     => $contract->id,
-//            'provider'        => $contract->provider,
-//            'provider_doc_id' => $contract->provider_doc_id,
-//        ]);
-//
-//        try {
-//            /** @var \App\Services\Signatures\Providers\PodpislonProvider $pod */
-//            $pod = app(\App\Services\Signatures\Providers\PodpislonProvider::class);
-//            $res = $pod->resendForContract($contract);
-//
-//            \Log::info('[ContractsController@resend] provider OK', [
-//                'contract_id' => $contract->id,
-//                'res'         => $res,
-//            ]);
-//
-//            ContractEvent::create([
-//                'contract_id'  => $contract->id,
-//                'type'         => 'resend',
-//                'payload_json' => json_encode($res, JSON_UNESCAPED_UNICODE),
-//            ]);
-//
-//            return response()->json(['message' => 'Ссылка повторно отправлена', 'status' => 'resent']);
-//        } catch (\Throwable $e) {
-//            \Log::error('[ContractsController@resend] provider FAIL', [
-//                'contract_id' => $contract->id,
-//                'error'       => $e->getMessage(),
-//                'trace'       => $e->getTraceAsString(),
-//            ]);
-//
-//            ContractEvent::create([
-//                'contract_id'  => $contract->id,
-//                'type'         => 'resend_failed',
-//                'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
-//            ]);
-//
-//            return response()->json(['message'=>$e->getMessage()], 422);
-//        }
-//    }
+    public function resend2(Contract $contract, Request $request, SignatureProvider $provider)
+    {
+        \Log::info('[ContractsController@resend] start', [
+            'contract_id'     => $contract->id,
+            'provider'        => $contract->provider,
+            'provider_doc_id' => $contract->provider_doc_id,
+        ]);
 
+        try {
+            /** @var \App\Services\Signatures\Providers\PodpislonProvider $pod */
+            $pod = app(\App\Services\Signatures\Providers\PodpislonProvider::class);
+            $res = $pod->resendForContract($contract);
+
+            \Log::info('[ContractsController@resend] provider OK', [
+                'contract_id' => $contract->id,
+                'res'         => $res,
+            ]);
+
+            ContractEvent::create([
+                'contract_id'  => $contract->id,
+                'type'         => 'resend',
+                'payload_json' => json_encode($res, JSON_UNESCAPED_UNICODE),
+            ]);
+
+            return response()->json(['message' => 'Ссылка повторно отправлена', 'status' => 'resent']);
+        } catch (\Throwable $e) {
+            \Log::error('[ContractsController@resend] provider FAIL', [
+                'contract_id' => $contract->id,
+                'error'       => $e->getMessage(),
+                'trace'       => $e->getTraceAsString(),
+            ]);
+
+            ContractEvent::create([
+                'contract_id'  => $contract->id,
+                'type'         => 'resend_failed',
+                'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
+            ]);
+
+            return response()->json(['message'=>$e->getMessage()], 422);
+        }
+    }
+
+    public function resend(string $package, ?string $sid = null): array
+    {
+        $url = rtrim($this->baseUrl, '/') . '/repeat-send';
+        $payload = ['package' => $package];
+        if ($sid) $payload['sid'] = $sid;
+
+        $resp = Http::withHeaders($this->headers())->asForm()->post($url, $payload);
+        if (!$resp->ok()) {
+            return ['ok' => false, 'error' => 'HTTP '.$resp->status().': '.$resp->body()];
+        }
+        $j  = $resp->json();
+        $ok = (bool)($j['status'] ?? $j['ok'] ?? $j['success'] ?? false);
+
+        return $ok ? ['ok' => true, 'data' => $j]
+            : ['ok' => false, 'error' => (string)($j['message'] ?? 'Resend failed'), 'data' => $j];
+    }
 
 //    private function sendMultipart(string $url, string $filePath, array $contact)
 //    {

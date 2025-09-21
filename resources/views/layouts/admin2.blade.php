@@ -362,10 +362,30 @@
                     @endcan
 
 
+                    {{--@can('partnerWallet-view')--}}
+                        {{--<h6> Баланс: {{ number_format((float)($partnerWalletBalance ?? 0), 0, ',', ' ') }} руб.--}}
+                            {{--<a href="/partner-wallet">(пополнить)</a></h6>--}}
+                    {{--@endcan--}}
+
+
+                    @php
+                        /** @var \App\Models\Partner|null $cp */
+                        $cp = app()->bound('current_partner') ? app('current_partner') : null;
+                        $balance = $cp?->wallet_balance ?? ($partnerWalletBalance ?? null);
+                    @endphp
+
                     @can('partnerWallet-view')
-                        <h6> Баланс: {{ number_format((float)($partnerWalletBalance ?? 0), 0, ',', ' ') }} руб.
-                            <a href="/partner-wallet">(пополнить)</a></h6>
+                        @if($cp)
+                            <h6>
+                                Баланс
+                                {{ number_format((float)$balance, 0, ',', ' ') }} ₽
+                                <a href="/partner-wallet">(пополнить)</a>
+                            </h6>
+                        @else
+                            <h6>Партнёр не выбран</h6>
+                        @endif
                     @endcan
+
 
                 </div>
             </div>
