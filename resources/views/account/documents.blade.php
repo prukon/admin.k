@@ -80,21 +80,24 @@
 
 
 
-                                        <a class="btn btn-sm btn-outline-primary"
-                                           href="{{ url('/contracts/'.$c->id.'/download-original') }}">
-                                            Оригинал
-                                        </a>
+
 
 
                                         @if($c->signed_pdf_path)
                                             <a class="btn btn-sm btn-primary"
                                                href="{{ url('/contracts/'.$c->id.'/download-signed') }}">
-                                                Подписанный
+                                                Скачать
                                             </a>
                                         @else
-                                            <button class="btn btn-sm btn-outline-secondary" disabled>
-                                                Подписанный
-                                            </button>
+
+                                            <a class="btn btn-sm btn-outline-primary"
+                                               href="{{ url('/contracts/'.$c->id.'/download-original') }}">
+                                                Скачать
+                                            </a>
+
+                                            {{--<button class="btn btn-sm btn-outline-secondary" disabled>--}}
+                                                {{--Скачать (подписанный)--}}
+                                            {{--</button>--}}
                                         @endif
                                     </div>
 

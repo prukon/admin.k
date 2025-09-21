@@ -270,11 +270,13 @@
                         <div class="row g-2">
                             <div class="col-12 col-md-4">
                                 <input type="text" class="form-control" id="signerLastname" placeholder="Фамилия"
-                                       value="{{ $student->lastname ?? '' }}" maxlength="100" required>
+                                       {{--value="{{ $student->lastname ?? '' }}" --}}
+                                       maxlength="100" required>
                             </div>
                             <div class="col-12 col-md-4">
                                 <input type="text" class="form-control" id="signerFirstname" placeholder="Имя"
-                                       value="{{ $student->name ?? '' }}" maxlength="100" required>
+                                       {{--value="{{ $student->name ?? '' }}" --}}
+                                       maxlength="100" required>
                             </div>
                             <div class="col-12 col-md-4">
                                 <input type="text" class="form-control" id="signerMiddlename" placeholder="Отчество"
