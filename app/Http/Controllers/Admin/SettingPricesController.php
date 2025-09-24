@@ -65,7 +65,7 @@ class SettingPricesController extends Controller
         }
     }
 
-    public function index(FilterRequest $request)
+    public function index2(FilterRequest $request)
     {
         $partnerId = app('current_partner')->id;
 
@@ -114,6 +114,40 @@ class SettingPricesController extends Controller
 //            'logs'
         ));
     }
+
+    public function index(FilterRequest $request)
+    {
+        $partnerId = app('current_partner')->id;
+
+        // 1) Команды партнёра, сразу в нужном порядке
+        $allTeams = Team::where('partner_id', $partnerId)
+            ->whereNull('deleted_at')
+            ->orderBy('order_by', 'asc')
+            ->get();
+
+        // 3) Месяц
+        Carbon::setLocale('ru');
+        $monthString = session('prices_month', Str::ucfirst(Carbon::now()->translatedFormat('F Y')));
+        $monthDate   = $this->formatedDate($monthString);
+
+        // 5) Гарантируем наличие TeamPrice на этот месяц для каждой команды
+        foreach ($allTeams as $team) {
+            TeamPrice::firstOrCreate(
+                ['team_id' => $team->id, 'new_month' => $monthDate],
+                ['price'   => 0]
+            );
+        }
+
+        // 6) Цены за месяц, ключ — team_id
+        $teamPrices = TeamPrice::where('new_month', $monthDate)
+            ->whereHas('team', fn($q) => $q->where('partner_id', $partnerId)->whereNull('deleted_at'))
+        ->get()
+        ->keyBy('team_id');
+
+    return view('admin.settingPrices', compact('allTeams', 'monthString', 'teamPrices'));
+}
+
+
 
     // AJAX ПОДРОБНО. Получение списка пользователей
     public function getTeamPrice(Request $request)

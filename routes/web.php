@@ -17,6 +17,9 @@ use App\Http\Controllers\Chat\ChatApiController;
 use App\Http\Controllers\Chat\ChatPageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MyGroupController;
+use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\PayoutsController;
+use App\Http\Controllers\SmRegisterController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\User\Report\ReportController;
 use App\Http\Middleware\VerifyCsrfToken;
@@ -273,8 +276,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     });
 
-
-
     //Сообщения (ЧАТ)
     Route::middleware('can:messages-view')->group(function () {
         // Страница чата
@@ -305,6 +306,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // Возврат после оплаты (YooKassa redirect) — просто страница "обрабатывается"
         Route::get('/partner-wallet/success', [PartnerPaymentController::class, 'ykWalletSuccess'])->name('partner.wallet.success');
     });
+
+//    Тинькоф эквайринг
+
+
 
 //    Route::post('/account/user/{user}/verify-phone', [\App\Http\Controllers\Admin\AccountSettingController::class, 'verifyPhone'])->name('account.user.verifyPhone');
     Route::post('/account/user/{user}/phone/send-code', [\App\Http\Controllers\Admin\AccountController::class, 'phoneSendCode'])->name('account.user.phoneSendCode');

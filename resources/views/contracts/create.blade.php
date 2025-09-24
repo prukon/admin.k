@@ -51,7 +51,7 @@
 
                     {{-- Группа (заполняется автоматом по выбранному ученику, редактировать нельзя) --}}
                     <div class="col-md-4">
-                        <label class="form-label">Группа (опц.)</label>
+                        <label class="form-label">Группа</label>
                         <select id="group_id_select" class="form-control" disabled>
                             <option value="">—</option>
                         </select>

@@ -5,6 +5,12 @@ namespace App\Console;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
+
+//use App\Models\Payout;
+//use App\Models\Deal;
+//use App\Services\Tinkoff\TinkoffA2cService;
+//use Illuminate\Support\Facades\Log;
+
 class Kernel extends ConsoleKernel
 {
     /**
@@ -14,6 +20,7 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
     }
+
 
     /**
      * Register the commands for the application.
