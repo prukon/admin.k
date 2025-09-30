@@ -54,9 +54,30 @@
                             <div class="text-danger error-registration_number"></div>
                         </div>
 
-                        {{-- Почтовый адрес --}}
+                        {{-- Название для SMS/выписок --}}
                         <div class="mb-3">
-                            <label for="address" class="form-label">Почтовый адрес</label>
+                            <label for="sms_name" class="form-label">Название для SMS/выписок</label>
+                            <input type="text" class="form-control" id="sms_name" name="sms_name" maxlength="14" value="{{ old('sms_name') }}">
+                            <div class="text-danger error-sms_name"></div>
+                        </div>
+
+                        {{-- Город --}}
+                        <div class="mb-3">
+                            <label for="city" class="form-label">Город</label>
+                            <input type="text" class="form-control" id="city" name="city" maxlength="100" value="{{ old('city') }}">
+                            <div class="text-danger error-city"></div>
+                        </div>
+
+                        {{-- Индекс --}}
+                        <div class="mb-3">
+                            <label for="zip" class="form-label">Индекс</label>
+                            <input type="text" class="form-control" id="zip" name="zip" maxlength="20" pattern="\d{6}" value="{{ old('zip') }}">
+                            <div class="text-danger error-zip"></div>
+                        </div>
+
+                        {{-- Адрес --}}
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Адрес</label>
                             <input type="text" class="form-control" id="address" name="address" value="{{ old('address') }}">
                             <div class="text-danger error-address"></div>
                         </div>
@@ -83,7 +104,7 @@
                         </div>
                     </div>
 
-                    {{-- Реквизиты --}}
+                    {{-- Реквизиты + Данные руководителя --}}
                     <div class="col-12 col-lg-6 mb-3">
                         <h4 id="requisites">Реквизиты</h4>
                         <div id="bankFields">
@@ -99,11 +120,38 @@
                                 <input type="text" class="form-control" id="bank_bik" name="bank_bik" value="{{ old('bank_bik') }}">
                                 <div class="text-danger error-bank_bik"></div>
                             </div>
-                            {{-- Расчетный счет --}}
+                            {{-- Расчетный счёт --}}
                             <div class="mb-3">
-                                <label for="bank_account" class="form-label">Расчетный счет</label>
+                                <label for="bank_account" class="form-label">Расчётный счёт</label>
                                 <input type="text" class="form-control" id="bank_account" name="bank_account" value="{{ old('bank_account') }}">
                                 <div class="text-danger error-bank_account"></div>
+                            </div>
+                        </div>
+
+                        {{-- Данные руководителя (JSON ceo) --}}
+                        <div class="col-12 mb-3">
+                            <h4>Данные руководителя</h4>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="ceo_last_name" class="form-label">Фамилия</label>
+                                    <input type="text" class="form-control" id="ceo_last_name" name="ceo[last_name]" maxlength="100" value="{{ old('ceo.last_name') }}">
+                                    <div class="text-danger error-ceo.last_name"></div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="ceo_first_name" class="form-label">Имя</label>
+                                    <input type="text" class="form-control" id="ceo_first_name" name="ceo[first_name]" maxlength="100" value="{{ old('ceo.first_name') }}">
+                                    <div class="text-danger error-ceo.first_name"></div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="ceo_middle_name" class="form-label">Отчество</label>
+                                    <input type="text" class="form-control" id="ceo_middle_name" name="ceo[middle_name]" maxlength="100" value="{{ old('ceo.middle_name') }}">
+                                    <div class="text-danger error-ceo.middle_name"></div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="ceo_phone" class="form-label">Телефон руководителя</label>
+                                    <input type="text" class="form-control" id="ceo_phone" name="ceo[phone]" maxlength="20" value="{{ old('ceo.phone') }}">
+                                    <div class="text-danger error-ceo.phone"></div>
+                                </div>
                             </div>
                         </div>
 
@@ -136,70 +184,75 @@
     </div>
 </div>
 
-{{--@include('includes.modal.confirmDeleteModal')--}}
-{{--@include('includes.modal.successModal')--}}
-{{--@include('includes.modal.errorModal')--}}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('partnerForm');
 
-{{--@section('scripts')--}}
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('partnerForm');
-
-            form.addEventListener('submit', e => {
-                e.preventDefault();
-
-                // очищаем старые ошибки
-                form.querySelectorAll('[class^="text-danger error-"]').forEach(div => div.textContent = '');
-                form.querySelectorAll('.is-invalid').forEach(input => input.classList.remove('is-invalid'));
-
-                const data = new FormData(form);
-                fetch(form.action, {
-                    method: 'POST',
-                    body: data,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': form.querySelector('input[name="_token"]').value
-                    }
-                })
-                    .then(res => {
-                        if (res.status === 422) return res.json().then(json => { throw json.errors; });
-                        if (!res.ok) throw { general: ['Ошибка сервера'] };
-                        return res.json();
-                    })
-                    .then(json => {
-                        showSuccessModal('Создание партнёра', json.message, 1);
-                        // сброс формы
-                        form.reset();
-                        // скрываем модалку
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('createPartnerModal'));
-                        modal.hide();
-                    })
-                    .catch(errors => {
-                        // если errors — объект полей
-                        Object.keys(errors).forEach(field => {
-                            const input = form.querySelector(`[name="${field}"]`);
-                            const errDiv = form.querySelector(`.error-${field}`);
-                            if (input) input.classList.add('is-invalid');
-                            if (errDiv) errDiv.textContent = errors[field].join(' ');
-                        });
-                        if (errors.general) {
-                            $('#errorModal').modal('show');
-                        }
-                    });
-            });
-
-            // логика показа/скрытия полей и переименования лейбла «Наименование»
-            function toggleFields() {
-                const type = form.business_type.value;
-                const isPP = type === 'physical_person';
-                ['tax_id_wrapper','kpp_wrapper','registration_number_wrapper','requisites','bankFields']
-                    .forEach(id => document.getElementById(id).style.display = isPP ? 'none' : '');
-                document.getElementById('label-title').textContent = isPP ? 'ФИО*' : 'Наименование*';
+        function findInputByField(field) {
+            // Прямое совпадение name="field"
+            let el = form.querySelector(`[name="${field}"]`);
+            if (el) return el;
+            // Если это вложенное поле вида ceo.last_name → ищем ceo[last_name]
+            if (field.includes('.')) {
+                const arrName = field.replace(/\.(\w+)/g, '[$1]');
+                el = form.querySelector(`[name="${arrName}"]`);
+                if (el) return el;
             }
+            return null;
+        }
 
-            form.business_type.addEventListener('change', toggleFields);
-            toggleFields();
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+
+            // очищаем старые ошибки
+            form.querySelectorAll('[class^="text-danger error-"]').forEach(div => div.textContent = '');
+            form.querySelectorAll('.is-invalid').forEach(input => input.classList.remove('is-invalid'));
+
+            const data = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: data,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': form.querySelector('input[name="_token"]').value
+                }
+            })
+                .then(res => {
+                    if (res.status === 422) return res.json().then(json => { throw json.errors; });
+                    if (!res.ok) throw { general: ['Ошибка сервера'] };
+                    return res.json();
+                })
+                .then(json => {
+                    console.log('[Partner.store] success:', json);
+                    showSuccessModal('Создание партнёра', json.message, 1);
+                    form.reset();
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createPartnerModal'));
+                    modal && modal.hide();
+                })
+                .catch(errors => {
+                    console.warn('[Partner.store] validation errors:', errors);
+                    Object.keys(errors).forEach(field => {
+                        const input = findInputByField(field);
+                        // блок для текста ошибки
+                        const errDiv = form.querySelector(`.error-${field}`) ||
+                            (field.includes('.') ? form.querySelector(`.error-${field.replace(/\./g,'\\.')}`) : null);
+                        if (input) input.classList.add('is-invalid');
+                        if (errDiv) errDiv.textContent = Array.isArray(errors[field]) ? errors[field].join(' ') : String(errors[field]);
+                    });
+                    if (errors.general) { $('#errorModal').modal('show'); }
+                });
         });
-    </script>
 
-{{--@endsection--}}
+        // переименование лейбла «Наименование» и скрытие реквизитов для ФЛ (если нужно)
+        function toggleFields() {
+            const type = form.business_type.value;
+            const isPP = type === 'physical_person';
+            ['tax_id_wrapper','kpp_wrapper','registration_number_wrapper','requisites','bankFields']
+                .forEach(id => { const n = document.getElementById(id); if (n) n.style.display = isPP ? 'none' : ''; });
+            document.getElementById('label-title').textContent = isPP ? 'ФИО*' : 'Наименование*';
+        }
+        form.business_type.addEventListener('change', toggleFields);
+        toggleFields();
+    });
+</script>

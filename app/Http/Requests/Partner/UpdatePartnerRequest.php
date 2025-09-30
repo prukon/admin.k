@@ -34,6 +34,12 @@ class UpdatePartnerRequest extends FormRequest
             'tax_id'              => 'nullable|string|max:12',
             'kpp'                 => 'nullable|string|max:9',
             'registration_number' => 'nullable|string|max:20',
+
+            // Новые поля:
+            'sms_name'            => 'nullable|string|max:14',
+            'city'                => 'nullable|string|max:100',
+            'zip'                 => 'nullable|string|max:20|regex:/^\d{6}$/',
+
             'address'             => 'nullable|string|max:255',
             'phone'               => 'nullable|string|max:20',
             'email'               => "required|email|max:255|unique:partners,email,{$partnerId}",
@@ -43,6 +49,13 @@ class UpdatePartnerRequest extends FormRequest
             'bank_account'        => 'nullable|string|max:20',
             'order_by'            => 'nullable|integer',
             'is_enabled'          => 'required|boolean',
+
+            // Данные руководителя (JSON)
+            'ceo'                 => 'nullable|array',
+            'ceo.last_name'       => 'nullable|string|max:100',
+            'ceo.first_name'      => 'nullable|string|max:100',
+            'ceo.middle_name'     => 'nullable|string|max:100',
+            'ceo.phone'           => 'nullable|string|max:20',
         ];
     }
 
@@ -74,7 +87,14 @@ class UpdatePartnerRequest extends FormRequest
             'tax_id'              => 'ИНН',
             'kpp'                 => 'КПП',
             'registration_number' => 'ОГРН (ОГРНИП)',
-            'address'             => 'Почтовый адрес',
+
+            // Новые:
+            'sms_name'            => 'Название для SMS/выписок',
+            'city'                => 'Город',
+            'zip'                 => 'Индекс',
+
+
+            'address'             => 'Адрес',
             'phone'               => 'Телефон',
             'email'               => 'E-mail партнёра',
             'website'             => 'Сайт',
@@ -83,6 +103,13 @@ class UpdatePartnerRequest extends FormRequest
             'bank_account'        => 'Расчетный счет',
             'order_by'            => 'Сортировка',
             'is_enabled'          => 'Активность',
+
+
+            // CEO
+            'ceo.last_name'       => 'Фамилия руководителя',
+            'ceo.first_name'      => 'Имя руководителя',
+            'ceo.middle_name'     => 'Отчество руководителя',
+            'ceo.phone'           => 'Телефон руководителя',
         ];
     }
 }

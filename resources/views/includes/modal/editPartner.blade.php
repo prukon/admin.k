@@ -52,7 +52,25 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="edit-address" class="form-label">Почтовый адрес</label>
+                            <label for="edit-sms_name" class="form-label">Название для SMS/выписок</label>
+                            <input type="text" name="sms_name" class="form-control" id="edit-sms_name" maxlength="14">
+                            <p class="text-danger" id="edit-sms_name-error"></p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="edit-city" class="form-label">Город</label>
+                            <input type="text" name="city" class="form-control" id="edit-city" maxlength="100">
+                            <p class="text-danger" id="edit-city-error"></p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="edit-zip" class="form-label">Индекс</label>
+                            <input type="text" name="zip" class="form-control" id="edit-zip" maxlength="20" pattern="\d{6}">
+                            <p class="text-danger" id="edit-zip-error"></p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="edit-address" class="form-label">Адрес</label>
                             <input type="text" name="address" class="form-control" id="edit-address">
                             <p class="text-danger" id="edit-address-error"></p>
                         </div>
@@ -76,7 +94,7 @@
                         </div>
                     </div>
 
-                    {{-- Реквизиты --}}
+                    {{-- Реквизиты + Данные руководителя --}}
                     <div class="col-12 col-lg-6 mb-3">
                         <h4>Реквизиты</h4>
                         <div id="edit-bankFields">
@@ -91,9 +109,35 @@
                                 <p class="text-danger" id="edit-bank_bik-error"></p>
                             </div>
                             <div class="mb-3">
-                                <label for="edit-bank_account" class="form-label">Расчетный счет</label>
+                                <label for="edit-bank_account" class="form-label">Расчётный счёт</label>
                                 <input type="text" name="bank_account" class="form-control" id="edit-bank_account">
                                 <p class="text-danger" id="edit-bank_account-error"></p>
+                            </div>
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <h4>Данные руководителя</h4>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="edit-ceo_last_name" class="form-label">Фамилия</label>
+                                    <input type="text" name="ceo[last_name]" class="form-control" id="edit-ceo_last_name" maxlength="100">
+                                    <p class="text-danger" id="edit-ceo_last_name-error"></p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="edit-ceo_first_name" class="form-label">Имя</label>
+                                    <input type="text" name="ceo[first_name]" class="form-control" id="edit-ceo_first_name" maxlength="100">
+                                    <p class="text-danger" id="edit-ceo_first_name-error"></p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="edit-ceo_middle_name" class="form-label">Отчество</label>
+                                    <input type="text" name="ceo[middle_name]" class="form-control" id="edit-ceo_middle_name" maxlength="100">
+                                    <p class="text-danger" id="edit-ceo_middle_name-error"></p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="edit-ceo_phone" class="form-label">Телефон руководителя</label>
+                                    <input type="text" name="ceo[phone]" class="form-control" id="edit-ceo_phone" maxlength="20">
+                                    <p class="text-danger" id="edit-ceo_phone-error"></p>
+                                </div>
                             </div>
                         </div>
 
@@ -124,55 +168,86 @@
     </div>
 </div>
 
-{{--@include('includes.modal.confirmDeleteModal')--}}
-{{--@include('includes.modal.successModal')--}}
-{{--@include('includes.modal.errorModal')--}}
-
 <script>
-    $(document).ready(function() {
-        // Открытие модалки и загрузка данных партнёра
-        $('.edit-partner-link').on('click', function() {
+    $(function () {
+
+        function normalizeCeo(raw) {
+            var ceo = raw;
+            if (typeof ceo === 'string') {
+                try { ceo = JSON.parse(ceo) || {}; } catch (e) { ceo = {}; }
+            }
+            if (!ceo || typeof ceo !== 'object') ceo = {};
+            ceo.last_name   = ceo.last_name   ?? '';
+            ceo.first_name  = ceo.first_name  ?? '';
+            ceo.middle_name = ceo.middle_name ?? '';
+            ceo.phone       = ceo.phone       ?? '';
+            return ceo;
+        }
+
+        function fillPartnerForm(response) {
+            // Консольный лог: что получили с бэка (как просил)
+            console.log('[Partner.edit] payload from backend:', response);
+
+            $('#edit-partner-id').val(response.id);
+            $('#edit-business_type').val(response.business_type);
+            $('#edit-title').val(response.title);
+            $('#edit-tax_id').val(response.tax_id);
+            $('#edit-kpp').val(response.kpp);
+            $('#edit-registration_number').val(response.registration_number);
+
+            $('#edit-sms_name').val(response.sms_name || '');
+            $('#edit-city').val(response.city || '');
+            $('#edit-zip').val(response.zip || '');
+
+            $('#edit-address').val(response.address || '');
+            $('#edit-phone').val(response.phone || '');
+            $('#edit-email').val(response.email || '');
+            $('#edit-website').val(response.website || '');
+            $('#edit-bank_name').val(response.bank_name || '');
+            $('#edit-bank_bik').val(response.bank_bik || '');
+            $('#edit-bank_account').val(response.bank_account || '');
+            $('#edit-order_by').val(response.order_by);
+            $('#edit-is_enabled').val(response.is_enabled ? '1' : '0');
+
+            $('#edit-title').siblings('label').text(
+                response.business_type === 'physical_person' ? 'ФИО*' : 'Наименование*'
+            );
+
+            var ceo = normalizeCeo(response.ceo);
+            $('#edit-ceo_last_name').val(ceo.last_name);
+            $('#edit-ceo_first_name').val(ceo.first_name);
+            $('#edit-ceo_middle_name').val(ceo.middle_name);
+            $('#edit-ceo_phone').val(ceo.phone);
+
+            // очистка ошибок
+            $('#edit-partner-form p.text-danger').text('');
+            $('#edit-partner-form .is-invalid').removeClass('is-invalid');
+        }
+
+        // Открытие модалки и загрузка данных
+        $('.edit-partner-link').on('click', function () {
             var partnerId = $(this).data('id');
+
+            // сброс формы
+            document.getElementById('edit-partner-form').reset();
 
             $.ajax({
                 url: '/admin/partner/' + partnerId + '/edit',
                 type: 'GET',
                 dataType: 'json',
-                success: function(response) {
-                    $('#edit-partner-id').val(response.id);
-                    $('#edit-business_type').val(response.business_type);
-                    $('#edit-title').val(response.title);
-                    $('#edit-tax_id').val(response.tax_id);
-                    $('#edit-kpp').val(response.kpp);
-                    $('#edit-registration_number').val(response.registration_number);
-                    $('#edit-address').val(response.address);
-                    $('#edit-phone').val(response.phone);
-                    $('#edit-email').val(response.email);
-                    $('#edit-website').val(response.website);
-                    $('#edit-bank_name').val(response.bank_name);
-                    $('#edit-bank_bik').val(response.bank_bik);
-                    $('#edit-bank_account').val(response.bank_account);
-                    $('#edit-order_by').val(response.order_by);
-                    $('#edit-is_enabled').val(response.is_enabled ? '1' : '0');
-                    $('#edit-title').siblings('label').text(
-                        response.business_type === 'physical_person' ? 'ФИО*' : 'Наименование*'
-                    );
-                    $('#edit-business_type').trigger('change');
-
-                    // сброс старых ошибок
-                    $('#edit-partner-form p.text-danger').text('');
-                    $('#edit-partner-form .is-invalid').removeClass('is-invalid');
-
+                success: function (response) {
+                    fillPartnerForm(response);
                     $('#editPartnerModal').modal('show');
                 },
-                error: function() {
+                error: function (xhr) {
+                    console.error('[Partner.edit] error:', xhr?.responseText || xhr);
                     alert('Не удалось загрузить данные партнёра.');
                 }
             });
         });
 
-        // Отправка формы обновления через AJAX
-        $('#update-partner-btn').on('click', function() {
+        // Обновление
+        $('#update-partner-btn').on('click', function () {
             var partnerId = $('#edit-partner-id').val();
             var formData = $('#edit-partner-form').serialize();
 
@@ -180,17 +255,19 @@
                 url: '/admin/partner/' + partnerId,
                 type: 'PATCH',
                 data: formData,
-                success: function() {
-                    showSuccessModal("Редактирование партнера", "Партнер успешно отредактирован.", 1);
+                success: function (resp) {
+                    console.log('[Partner.update] success:', resp);
+                    showSuccessModal("Редактирование партнера", "Партнёр успешно отредактирован.", 1);
                     $('#editPartnerModal').modal('hide');
                 },
-                error: function(xhr) {
+                error: function (xhr) {
+                    console.error('[Partner.update] error:', xhr?.responseText || xhr);
                     if (xhr.status === 422) {
-                        // выводим сообщения валидации под соответствующим полем
-                        var errors = xhr.responseJSON.errors;
-                        $.each(errors, function(field, messages) {
-                            $('#edit-' + field + '-error').text(messages.join(' '));
-                            $('#edit-' + field).addClass('is-invalid');
+                        var errors = xhr.responseJSON.errors || {};
+                        $.each(errors, function (field, messages) {
+                            var fieldId = field.replace(/\./g, '_'); // ceo.last_name -> ceo_last_name
+                            $('#edit-' + fieldId + '-error').text(messages.join(' '));
+                            $('#edit-' + fieldId).addClass('is-invalid');
                         });
                     } else {
                         $('#errorModal').modal('show');
@@ -199,31 +276,30 @@
             });
         });
 
-        // Удаление партнёра
+        // Удаление
         $(document).on('click', '#delete-partner-btn', function () {
-            deletePartner();
-        });
-
-        function deletePartner() {
             showConfirmDeleteModal(
                 "Удаление партнёра",
                 "Вы уверены, что хотите удалить партнёра?",
-                function() {
+                function () {
                     var partnerId = $('#edit-partner-id').val();
                     $.ajax({
                         url: '/admin/partner/' + partnerId,
                         type: 'DELETE',
                         data: { _token: $('input[name="_token"]').val() },
-                        success: function() {
+                        success: function (resp) {
+                            console.log('[Partner.delete] success:', resp);
                             showSuccessModal("Удаление партнёра", "Партнёр успешно удалён.", 1);
                             $('#editPartnerModal').modal('hide');
                         },
-                        error: function() {
+                        error: function (xhr) {
+                            console.error('[Partner.delete] error:', xhr?.responseText || xhr);
                             $('#errorModal').modal('show');
                         }
                     });
                 }
             );
-        }
+        });
+
     });
 </script>

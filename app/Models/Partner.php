@@ -22,24 +22,8 @@ class Partner extends Model
     /**
      * Атрибуты, которые можно массово назначать.
      */
-    protected $fillable = [
-        'business_type',
-        'title',
-        'tax_id',
-        'registration_number',
-        'address',
-        'phone',
-        'email',
-        'website',
+    protected $guarded = []; //разрешение на изменение данных в таблице}
 
-        'bank_name',
-        'bank_bik',
-        'bank_account',
-        'kpp',
-        'order_by',
-        'is_enabled',
-
-    ];
 
     /**
      * Типы кастинга атрибутов.
@@ -48,6 +32,7 @@ class Partner extends Model
         'business_type' => 'string',
         'wallet_balance' => 'decimal:2',
         'ceo' => 'array',
+        'is_enabled' => 'boolean',
 
 
     ];
