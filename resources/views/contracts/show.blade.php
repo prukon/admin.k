@@ -242,24 +242,6 @@
                 <div class="modal-body">
                     <input type="hidden" id="contractId" value="{{ $contract->id }}">
 
-
-                    {{--@php--}}
-                        {{--$defaultSignerName = trim(($student->name ?? '').' '.($student->lastname ?? ''));--}}
-                    {{--@endphp--}}
-                    {{----}}
-                    {{--<div class="mb-3">--}}
-                        {{--<label class="form-label">Имя и фамилия подписанта</label>--}}
-                        {{--<input type="text" class="form-control" id="signerName" maxlength="255"--}}
-                               {{--value="{{ $defaultSignerName }}">--}}
-                    {{--</div>--}}
-                    {{--<div class="mb-3">--}}
-                        {{--<label class="form-label">Телефон для SMS*</label>--}}
-                        {{--<input type="text" class="form-control" id="signerPhone" placeholder="+7..."--}}
-                               {{--value="{{ $student->phone ?? '' }}" required>--}}
-                        {{--<div id="signerPhoneErr" class="text-danger small mt-1 d-none"></div>--}}
-                    {{--</div>--}}
-
-
                     @php
                         $defaultLast  = trim($student->lastname ?? '');
                         $defaultFirst = trim($student->name ?? '');
@@ -285,16 +267,21 @@
                         </div>
                     </div>
 
-
-
-
-
-
-
                     <div class="mb-3">
                         <label class="form-label">Телефон для SMS*</label>
+                        {{--<input type="text" class="form-control" id="signerPhone" placeholder="+7..."--}}
+                               {{--value="{{ $student->phone ?? '' }}" required>--}}
+
+                        @php
+                            $raw = preg_replace('/\D+/', '', $student->phone ?? '');
+                            if (strlen($raw) === 11 && ($raw[0] === '7' || $raw[0] === '8')) $prefill = substr($raw, 1);
+                            elseif (strlen($raw) === 10) $prefill = $raw;
+                            else $prefill = '';
+                        @endphp
+
                         <input type="text" class="form-control" id="signerPhone" placeholder="+7..."
-                               value="{{ $student->phone ?? '' }}" required>
+                               value="{{ $prefill }}" required>
+
                         <div id="signerPhoneErr" class="text-danger small mt-1 d-none"></div>
                     </div>
 

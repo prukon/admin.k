@@ -1,25 +1,49 @@
 <?php
-//
-//return [
-//    'eacq' => [
-//        'base'         => env('TINKOFF_EACQ_API', 'https://securepay.tinkoff.ru'),
-//        'terminal'     => env('TINKOFF_EACQ_TERMINAL_KEY'),
-//        'password'     => env('TINKOFF_EACQ_PASSWORD'),
-//        'success_url'  => env('APP_ENV_DOMAIN').'/payments/success',
-//        'fail_url'     => env('APP_ENV_DOMAIN').'/payments/fail',
-//        'callback_url' => env('APP_ENV_DOMAIN').'/payments/callback', // NotificationURL
-//    ],
-//    'a2c' => [
-//        'base'     => env('TINKOFF_A2C_API', 'https://api.tinkoff.ru'),
-//        'terminal' => env('TINKOFF_A2C_TERMINAL_KEY'),
-//        'password' => env('TINKOFF_A2C_PASSWORD'),
-//    ],
-//    'acqapi' => [
-//        'base'     => env('ACQAPI_BASE', 'https://acqapi-test.tinkoff.ru'),
-//        'username' => env('ACQAPI_OAUTH_USERNAME'),
-//        'password' => env('ACQAPI_OAUTH_PASSWORD'),
-//        'cert'     => env('ACQAPI_CLIENT_CERT'),
-//        'key'      => env('ACQAPI_CLIENT_KEY'),
-//    ],
-//    'grace_hours' => 48,
-//];
+
+return [
+    'env' => env('APP_ENV', 'production'),
+
+    'payment' => [
+        'terminal_key' => env('TINKOFF_TERMINAL_KEY'),
+        'password'     => env('TINKOFF_TOKEN_PASSWORD'),
+        'success_url'  => env('TINKOFF_PAYMENT_SUCCESS_URL'),
+        'fail_url'     => env('TINKOFF_PAYMENT_FAIL_URL'),
+        'notify_url'   => env('TINKOFF_PAYMENT_NOTIFICATION_URL'),
+        'base_url'     => env('TINKOFF_FORCE_BASE') === 'prod'
+            ? 'https://securepay.tinkoff.ru'
+            : 'https://rest-api-test.tinkoff.ru',
+    ],
+
+    'e2c' => [
+        'terminal_key' => env('TINKOFF_E2C_TERMINAL_KEY'),
+        'password'     => env('TINKOFF_E2C_TOKEN_PASSWORD'),
+        'base_url'     => env('TINKOFF_FORCE_BASE') === 'prod'
+            ? 'https://securepay.tinkoff.ru'
+            : 'https://rest-api-test.tinkoff.ru',
+    ],
+
+    'sm_register' => [
+        'base_url'   => env('TINKOFF_FORCE_BASE') === 'prod'
+            ? 'https://acqapi.tinkoff.ru'
+            : 'https://acqapi-test.tinkoff.ru',
+        'oauth_path' => '/oauth/token',
+        'mtls' => [
+            'cert' => env('TINKOFF_MTLS_CERT'),
+            'key'  => env('TINKOFF_MTLS_KEY'),
+            'ca'   => env('TINKOFF_MTLS_CA'),
+        ],
+        'login'    => env('TINKOFF_OAUTH_LOGIN'),
+        'password' => env('TINKOFF_OAUTH_PASSWORD'),
+    ],
+
+
+    // Тарифы для UI (можно править в .env или вынести в БД позже)
+    'tariffs' => [
+        'acquiring' => ['percent' => 2.49, 'min_fixed' => 3.49], // банк за прием платежа
+        'payouts' => [
+            'jur' => ['percent' => 0.10, 'min_fixed' => 0.00], // ЮЛ/ИП
+            'fl'  => ['percent' => 1.00, 'min_fixed' => 30.00], // ФЛ
+            'sbp' => ['percent' => 0.70, 'min_fixed' => 0.00], // СБП
+        ],
+    ],
+];

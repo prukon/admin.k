@@ -41,7 +41,6 @@ class ContractsController extends Controller
         return $this->partner()->id;
     }
 
-
     public function create()
     {
 //        $partnerId = $this->currentPartnerId();

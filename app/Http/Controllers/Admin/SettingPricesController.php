@@ -26,95 +26,6 @@ use Illuminate\Support\Str;
 class SettingPricesController extends Controller
 {
 
-    public function formatedDate2($month)
-    {
-        // Массив соответствий русских и английских названий месяцев
-        $months = [
-            'Январь' => 'January',
-            'Февраль' => 'February',
-            'Март' => 'March',
-            'Апрель' => 'April',
-            'Май' => 'May',
-            'Июнь' => 'June',
-            'Июль' => 'July',
-            'Август' => 'August',
-            'Сентябрь' => 'September',
-            'Октябрь' => 'October',
-            'Ноябрь' => 'November',
-            'Декабрь' => 'December',
-        ];
-
-        // Разделение строки на месяц и год
-        $parts = explode(' ', $month);
-        if (count($parts) === 2 && isset($months[$parts[0]])) {
-            $month = $months[$parts[0]] . ' ' . $parts[1]; // Замена русского месяца на английский
-        } else {
-            return null; // Если формат не соответствует "Месяц Год", возвращаем null
-        }
-
-        // Преобразуем строку в объект DateTime
-        try {
-            $date = \DateTime::createFromFormat('F Y', $month); // F - имя месяца, Y - год
-            if ($date) {
-                return $date->format('Y-m-01'); // Всегда возвращаем первое число месяца
-            }
-            return null; // Возвращаем null, если не удалось преобразовать
-        } catch (\Exception $e) {
-            \Log::error('Ошибка преобразования даты: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    public function index2(FilterRequest $request)
-    {
-        $partnerId = app('current_partner')->id;
-
-        // 1) все команды текущего партнёра
-        $allTeams = Team::where('partner_id', $partnerId)
-            ->orderBy('order_by', 'asc')// сортировка по order_by по возрастанию
-            ->whereNull('deleted_at')
-            ->get();
-
-        // 2) история изменений
-        $logs = MyLog::with('author')
-            ->where('partner_id', $partnerId)
-            ->orderBy('created_at','desc')
-            ->get();
-
-        // 3) месяц из сессии или текущий
-        Carbon::setLocale('ru');
-        $monthString = session('prices_month',
-            Str::ucfirst(Carbon::now()->translatedFormat('F Y'))
-        );
-
-        // 4) приводим в date‑формат для фильтрации
-        $monthDate = $this->formatedDate($monthString);
-
-        // 5) убеждаемся, что для всех команд есть TeamPrice
-        foreach($allTeams as $team) {
-            TeamPrice::firstOrCreate(
-                ['team_id'=> $team->id, 'new_month'=> $monthDate],
-                ['price'  => 0]
-            );
-        }
-
-        // 6) загружаем цены именно за этот месяц
-        $teamPrices = TeamPrice::with('team')
-            ->where('new_month', $monthDate)
-            ->whereHas('team', fn($q)=>
-                $q->where('partner_id',$partnerId)
-                    ->whereNull('deleted_at')
-            )
-            ->get();
-
-        return view('admin.settingPrices', compact(
-            'allTeams',
-            'monthString',
-            'teamPrices'
-//            'logs'
-        ));
-    }
-
     public function index(FilterRequest $request)
     {
         $partnerId = app('current_partner')->id;
@@ -147,8 +58,6 @@ class SettingPricesController extends Controller
     return view('admin.settingPrices', compact('allTeams', 'monthString', 'teamPrices'));
 }
 
-
-
     // AJAX ПОДРОБНО. Получение списка пользователей
     public function getTeamPrice(Request $request)
     {
@@ -157,10 +66,18 @@ class SettingPricesController extends Controller
         $selectedDate = $data['selectedDate'] ?? null;
         $teamId = $data['teamId'] ?? null;
 
+//        $usersTeam = User::where('team_id', $teamId)
+//            ->where('is_enabled', true)
+//            ->orderBy('name', 'asc')
+//            ->get();
+
         $usersTeam = User::where('team_id', $teamId)
             ->where('is_enabled', true)
-            ->orderBy('name', 'asc')
+            ->orderBy('lastname', 'asc')   // сначала по фамилии
+            ->orderBy('name', 'asc')       // затем по имени
             ->get();
+
+
 
         $usersPrice = [];
         $selectedDate = $this->formatedDate($selectedDate);
@@ -503,8 +420,6 @@ class SettingPricesController extends Controller
             'selectedDate' => $selectedDate
         ]);
     }
-
-
 
     // Метод для обработки DataTables запросов
     public function getLogsData()

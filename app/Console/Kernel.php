@@ -19,6 +19,16 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
+
+
+        // Europe/Riga 03:30 — добиваем статусы и выполняем отложенные
+        $schedule->job(new \App\Jobs\TinkoffRunScheduledPayoutsJob)
+            ->timezone('Europe/Riga')->dailyAt('03:30');
+
+        $schedule->job(new \App\Jobs\TinkoffPollPayoutStatesJob)
+            ->timezone('Europe/Riga')->dailyAt('03:40');
+
+
     }
 
 

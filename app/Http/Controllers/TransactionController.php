@@ -80,7 +80,7 @@ class TransactionController extends Controller
             $outSum = $_POST['outSum'];
         }
 
-        $partnerId =123;
+        $partnerId =1;
 
 
         // Дополнительная логика, если необходимо

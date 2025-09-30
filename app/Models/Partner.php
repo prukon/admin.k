@@ -47,6 +47,8 @@ class Partner extends Model
     protected $casts = [
         'business_type' => 'string',
         'wallet_balance' => 'decimal:2',
+        'ceo' => 'array',
+
 
     ];
 

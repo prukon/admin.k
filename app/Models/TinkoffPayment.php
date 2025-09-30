@@ -7,10 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 class TinkoffPayment extends Model
 {
     protected $fillable = [
-        'payment_id', 'order_id', 'amount', 'status', 'response'
+        'order_id','partner_id','amount','method','status','tinkoff_payment_id',
+        'deal_id','payment_url','payload','confirmed_at','canceled_at',
     ];
 
     protected $casts = [
-        'response' => 'array',
+        'payload' => 'array',
+        'confirmed_at' => 'datetime',
+        'canceled_at' => 'datetime',
     ];
+
+    public function partner() { return $this->belongsTo(\App\Models\Partner::class); }
+    public function payout()  { return $this->hasOne(TinkoffPayout::class, 'payment_id'); }
 }

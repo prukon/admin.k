@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', function () {
             // Добавляем класс 'action-button' только к текущей нажатой кнопке
             button.classList.add('action-button');
 
-
             const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
             document.querySelector('#right_bar .btn-setting-prices').setAttribute('disabled', 'disabled');
             // Находим родительский div (родителя с классом 'wrap-team')
@@ -44,8 +43,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                 usersPrice = response.usersPrice;
                                 var usersTeam = response.usersTeam;
 
-
-
                                 let rightBar = $('.wrap-users');
                                 rightBar.empty();
 
@@ -58,7 +55,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                     // Добавляем нумерацию: (i + 1) + '. ' + имя
                                     // let userNameFormatted = (i + 1) + '. ' + (userTeam ? userTeam.name : 'Имя не найдено');
                                     let userNameFormatted = (i + 1) + '. ' + (userTeam ? [userTeam.lastname, userTeam.name].filter(Boolean).join(' ').trim() : 'Имя не найдено');
-
 
                                     let userBlock = `
                         <div class="row mb-2">
@@ -88,14 +84,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         console.dir(xhr);
                     }
                 });
-
-
             }
         });
     }
 
     //AJAX Кнопка ОК. Установка цен группе и юзерам.
-
     // Вешаем обработчики на кнопки с классом .ok
     const okButtons = document.querySelectorAll('.ok');
     for (let i = 0; i < okButtons.length; i++) {
@@ -149,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function () {
     $('.set-price-all-teams').on('click', function () {
         showConfirmDeleteModal(
             "Установка цена всем группам",
-            "Вы уверены, что хотите применить изменения?", function() {
+            "Вы уверены, что хотите применить изменения?", function () {
                 // ----
                 // Выполняем действия только после подтверждения
                 const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
@@ -169,7 +162,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         teamId: teamId
                     });
                 });
-
 
                 if (teamsData.length === 0) {
                     console.error('Teams data is empty');
@@ -195,7 +187,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         );
     });
-
 
     // ПРИМЕНИТЬ СПРАВА. Установка цен всем ученикам
     $('#set-price-all-users').on('click', function () {
@@ -256,19 +247,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
                                 // Добавляем порядковый номер
                                 const userNumber = i + 1; // Нумерация с 1
-                                const userName = usersPrice[i].user?.name ?? 'Неизвестный';
+                                // const userName = usersPrice[i].user?.name ?? 'Неизвестный';
+
+                                // Безопасно собираем "Фамилия Имя" с запасными вариантами
+                                const first = (usersPrice[i].user?.name || '').trim();
+                                const last = (usersPrice[i].user?.lastname || '').trim();
+                                const userName = (last || first) ? `${last} ${first}`.trim() : 'Неизвестный';
+
+
+                                //             let userBlock = `
+                                //     <div class="row mb-2">
+                                //         <div id="${usersPrice[i].user_id}" class="user-name col-6">${userNumber}. ${userName}</div>
+                                //         <div class="user-price col-4">
+                                //             <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
+                                //         </div>
+                                //         <div class="check col-2">
+                                //             <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
+                                //         </div>
+                                //     </div>
+                                // `;
 
                                 let userBlock = `
-                        <div class="row mb-2">
-                            <div id="${usersPrice[i].user_id}" class="user-name col-6">${userNumber}. ${userName}</div>
-                            <div class="user-price col-4">
-                                <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
-                            </div>
-                            <div class="check col-2">
-                                <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
-                            </div>
-                        </div>
-                    `;
+                      <div class="row mb-2">
+                         <div id="${usersPrice[i].user_id}" class="user-name col-6">${userNumber}. ${userName}</div>
+                         <div class="user-price col-4">
+                         <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
+                         </div>
+                          <div class="check col-2">
+                          <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
+                         </div>
+                      </div>
+                            `;
+
+
                                 rightBar.append(userBlock);
                                 document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
                             }

@@ -20,6 +20,16 @@ use App\Http\Controllers\MyGroupController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\PayoutsController;
 use App\Http\Controllers\SmRegisterController;
+use App\Http\Controllers\TinkoffAdminPartnerController;
+use App\Http\Controllers\TinkoffAdminPaymentController;
+use App\Http\Controllers\TinkoffCommissionController;
+use App\Http\Controllers\TinkoffDealController;
+use App\Http\Controllers\TinkoffDebugController;
+use App\Http\Controllers\TinkoffPartnerAdminController;
+use App\Http\Controllers\TinkoffPaymentController;
+use App\Http\Controllers\TinkoffPayoutController;
+use App\Http\Controllers\TinkoffQrController;
+use App\Http\Controllers\TinkoffWebhookController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\User\Report\ReportController;
 use App\Http\Middleware\VerifyCsrfToken;
@@ -307,8 +317,53 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/partner-wallet/success', [PartnerPaymentController::class, 'ykWalletSuccess'])->name('partner.wallet.success');
     });
 
-//    Тинькоф эквайринг
+//    Тинькоф эквайринг мультирасчеты
+// admin-only (добавь middleware 'can:admin' или свой)
+    Route::middleware(['auth'])->group(function () {
+        Route::post('/tinkoff/payouts/{deal}/pay-now', [TinkoffPayoutController::class, 'payNow']);
+        Route::post('/tinkoff/payouts/{deal}/delay', [TinkoffPayoutController::class, 'delay']);
+        Route::post('/tinkoff/deals/{deal}/close', [TinkoffDealController::class, 'close']);
 
+        // Комиссии
+        Route::get('/admin/tinkoff/commissions', [TinkoffCommissionController::class, 'index']);
+        Route::get('/admin/tinkoff/commissions/create', [TinkoffCommissionController::class, 'create']);
+        Route::post('/admin/tinkoff/commissions', [TinkoffCommissionController::class, 'store']);
+        Route::get('/admin/tinkoff/commissions/{id}/edit', [TinkoffCommissionController::class, 'edit']);
+        Route::put('/admin/tinkoff/commissions/{id}', [TinkoffCommissionController::class, 'update']);
+        Route::delete('/admin/tinkoff/commissions/{id}', [TinkoffCommissionController::class, 'destroy']);
+        // Карточки (admin-only)
+        Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show']);
+        Route::get('/admin/tinkoff/partners/{id}', [TinkoffAdminPartnerController::class, 'show']);
+        Route::post('/payments/tinkoff/create', [TinkoffPaymentController::class, 'create'])
+            ->name('payment.tinkoff.pay');
+        Route::get('/tinkoff/debug/state/{paymentId}', [TinkoffDebugController::class, 'state'])
+            ->middleware('auth'); // только под админа, если надо
+        Route::get('/tinkoff/debug/tpay-status', [TinkoffDebugController::class, 'tpayStatus']);
+        Route::post('/payments/tinkoff/qr-init', [TinkoffQrController::class, 'init'])->name('payment.tinkoff.qrInit');
+        Route::get('/tinkoff/qr/{paymentId}', [TinkoffQrController::class, 'show'])->name('tinkoff.qr');
+        Route::get('/tinkoff/qr/{paymentId}/json', [TinkoffQrController::class, 'getQr']);
+//        Список платежей
+        Route::get('/admin/tinkoff/payments', [TinkoffAdminPaymentController::class, 'index']);
+        Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show']);
+        Route::post('/tinkoff/debug/verify-token', [TinkoffDebugController::class, 'verifyToken']);
+        // регистрация в sm-register (создание PartnerId)
+
+
+
+
+        Route::post('/admin/tinkoff/partners/{id}/sm-register', [TinkoffAdminPartnerController::class, 'smRegister'])
+            ->name('tinkoff.partners.smRegister');
+
+        Route::post('/admin/tinkoff/partners/{id}/sm-patch', [TinkoffAdminPartnerController::class, 'smPatch'])
+            ->name('tinkoff.partners.smPatch');
+
+        Route::post('/admin/tinkoff/partners/{id}/sm-refresh', [TinkoffAdminPartnerController::class, 'smRefresh'])
+            ->name('tinkoff.partners.smRefresh');
+
+
+
+
+    });
 
 
 //    Route::post('/account/user/{user}/verify-phone', [\App\Http\Controllers\Admin\AccountSettingController::class, 'verifyPhone'])->name('account.user.verifyPhone');
@@ -329,31 +384,30 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('2fa/disable', [TwoFactorController::class, 'disable'])->name('admin.2fa.disable');
     });
 
-    //    Оплата ТБанк
-//    Route::get('/tinkoff/form', [\App\Http\Controllers\TinkoffPaymentController::class, 'index'])->name('tinkoff.form');
-//    Route::post('/tinkoff/init', [\App\Http\Controllers\TinkoffPaymentController::class, 'init'])->name('tinkoff.init');
-//    Route::post('/tinkoff/callback', [\App\Http\Controllers\TinkoffPaymentController::class, 'callback'])->name('tinkoff.callback');
-    //    Route::get('/tinkoff/success', [\App\Http\Controllers\TinkoffPaymentController::class, 'success'])->name('tinkoff.success');
-    //    Route::get('/tinkoff/fail', [\App\Http\Controllers\TinkoffPaymentController::class, 'fail'])->name('tinkoff.fail');
 
 });
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');
 
-        // --- ВЕБХУКИ ---
-    // Robokassa
+// --- ВЕБХУКИ ---
+// Robokassa
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
 
-    // Yookassa абон. плата
+// Yookassa абон. плата
 //Route::post('/webhook/yookassa', [\App\Http\Controllers\WebhookController::class, 'handleWebhook'])->name('webhook.yookassa');
-    // YooKassa webhook пополнение кошелька (без CSRF)
-    Route::post('/partner-wallet/webhook', [PartnerPaymentController::class, 'ykWalletWebhook'])->name('partner.wallet.webhook');
+// YooKassa webhook пополнение кошелька (без CSRF)
+Route::post('/partner-wallet/webhook', [PartnerPaymentController::class, 'ykWalletWebhook'])->name('partner.wallet.webhook');
 // YooKassa webhook единый (без CSRF)
 Route::post('/webhook/yookassa', [YooKassaWebhookController::class, 'handle']);
 
-    // Podpislon
+// Podpislon
 Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle'])->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon');
 
 //Тиньков мультирасчеты
-//Route::get('/tinkoff/payout/{paymentId}', [\App\Http\Controllers\TinkoffPayoutController::class, 'payout']);
-Route::post('/tinkoff/pay', [\App\Http\Controllers\TinkoffPaymentController::class, 'init'])->name('tinkoff.pay');
-Route::post('/tinkoff/callback', [\App\Http\Controllers\TinkoffPaymentController::class, 'callback'])->name('tinkoff.callback'); // пока заглушка
+Route::get('/payments/tinkoff/{order}/success', [TinkoffPaymentController::class, 'success']);
+Route::get('/payments/tinkoff/{order}/fail', [TinkoffPaymentController::class, 'fail']);
+Route::post('/webhooks/tinkoff/payments', [TinkoffWebhookController::class, 'payments']);
+
+
+Route::post('/admin/tinkoff/debug/ingest-webhook', [TinkoffDebugController::class, 'ingest'])
+    ->withoutMiddleware([VerifyCsrfToken::class])     // <— убрать CSRF
+    ->middleware('throttle:20,1');

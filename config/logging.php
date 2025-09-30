@@ -134,6 +134,13 @@ return [
             'days'   => 14,
         ],
 
+        'tinkoff' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/tinkoff.log'),
+            'level' => 'debug',
+            'days' => 14,
+        ],
+
 
 
     ],

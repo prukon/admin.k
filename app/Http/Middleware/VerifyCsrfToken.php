@@ -14,5 +14,7 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         '/webhook/yookassa',
         '/partner-wallet/webhook',
+        '/webhooks/tinkoff/*',
+
     ];
 }
