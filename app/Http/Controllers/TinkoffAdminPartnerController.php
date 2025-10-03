@@ -5,22 +5,34 @@ namespace App\Http\Controllers;
 use App\Models\Partner;
 use App\Models\TinkoffPayout;
 use App\Models\TinkoffPayment;
-
 use App\Services\Tinkoff\SmRegisterClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-
-
-
 class TinkoffAdminPartnerController extends Controller
 {
+    /**
+     * Страница партнёра.
+     * Теперь, если в сессии выбран current_partner — показываем его,
+     * игнорируя $id из URL. Иначе используем $id.
+     */
     public function show($id)
     {
-        $partner = Partner::findOrFail($id);
-        $waiting = TinkoffPayout::where('partner_id', $id)->whereIn('status', ['INITIATED', 'CREDIT_CHECKING'])->count();
+        $sessionPartnerId = session('current_partner');
+        $effectiveId = $sessionPartnerId ?: $id;
 
-        $latestPayments = TinkoffPayment::where('partner_id', $id)->latest()->limit(20)->get();
+        if ($sessionPartnerId && $sessionPartnerId !== (int)$id) {
+            Log::info('[admin][show] session current_partner='.$sessionPartnerId.' (url id='.$id.') — показываю партнёра из сессии');
+        }
+
+        $partner = Partner::findOrFail($effectiveId);
+
+        $waiting = TinkoffPayout::where('partner_id', $partner->id)
+            ->whereIn('status', ['INITIATED', 'CREDIT_CHECKING'])
+            ->count();
+
+        $latestPayments = TinkoffPayment::where('partner_id', $partner->id)
+            ->latest()->limit(20)->get();
 
         return view('tinkoff.partners.show', compact('partner', 'waiting', 'latestPayments'));
     }
@@ -47,9 +59,6 @@ class TinkoffAdminPartnerController extends Controller
             'phone'                => 'nullable|string|max:32',
             'website'              => 'nullable|url|max:255',       // сайт теперь из partners.website
             'kpp'                  => 'nullable|string|max:12',
-
-            // ВАЖНО: sms_name (billingDescriptor) больше НЕ принимаем из формы — берём из БД
-            // 'sms_name'          => 'nullable|string|max:14',
         ]);
 
         // ---- helpers ----
@@ -80,59 +89,53 @@ class TinkoffAdminPartnerController extends Controller
             return [$first, $last, $middle];
         };
         $sanitizeStreet = function (string $raw, string $city): string {
-            // убираем упоминания города из строки улицы (г., СПб, Санкт-Петербург — в любом месте)
+            // убираем упоминания города из строки улицы
             $s = preg_replace('/\b(г\.?|город)\b[\s\.]*санкт[\s\-]*петербург\b/iu', '', $raw);
             $s = preg_replace('/\bсанкт[\s\-]*петербург\b/iu', '', $s);
             $s = preg_replace('/\b(спб|с\-пб)\b/iu', '', $s);
 
-            // приводим тип улицы
+            // нормализация типа улицы и служебных сокращений
             $s = preg_replace('/\b(пр[\.\-]?\s*т|просп\.?|пр\-т)\b/iu', 'проспект', $s);
-
-            // чистим "корп./стр." и "кв./оф." → допустимые сокращения
-            $s = preg_replace('/корп\.?\s*\/\s*ст\.?/iu', 'к.', $s); // «корп./ст.» → «к.»
+            $s = preg_replace('/корп\.?\s*\/\s*ст\.?/iu', 'к.', $s);
             $s = preg_replace('/корп\.?/iu', 'к.', $s);
             $s = preg_replace('/стр\.?/iu', 'стр.', $s);
             $s = preg_replace('/кв\.?\s*\/\s*оф\.?/iu', 'оф.', $s);
             $s = preg_replace('/кв\.?/iu', 'кв.', $s);
             $s = preg_replace('/оф\.?/iu', 'оф.', $s);
 
-            // оставляем только буквы/цифры/пробел/точку/запятую
+            // допустимые символы + нормализация пробелов/запятых
             $s = preg_replace('/[^0-9A-Za-zА-Яа-яЁё\s\.,]/u', '', $s);
-
-            // нормализуем пробелы/запятые
             $s = preg_replace('/\s*,\s*/u', ', ', $s);
             $s = preg_replace('/\s+/u', ' ', $s);
             $s = trim($s, " ,");
 
-            // если вдруг строка опустела — подстрахуемся исходным значением без города
             if ($s === '') $s = trim(preg_replace('/'.$city.'/iu', '', $raw));
-
             return $s;
         };
 
         // ---- подготовка данных ----
         $phone   = $normalizePhone($validated['phone'] ?? ($partner->phone ?? null));
 
-        // billingDescriptor: ТОЛЬКО из БД; если пусто — генерим из title и сохраним
+        // billingDescriptor: из БД; если пусто — сгенерим из title и сохраним
         $bdFromDb = $partner->sms_name ?: null;
         $bd       = $bdFromDb ?: $makeDescriptor($validated['title']);
 
         $city    = preg_match('/^(\s*spb|\s*спб)$/iu', $validated['city']) ? 'Санкт-Петербург' : $validated['city'];
         $street  = $sanitizeStreet($validated['address'], $city);
 
-        // KPP обязателен; для ИП/ФЛ/НКО — нули (000000000)
+        // KPP: для ИП/ФЛ/НКО — нули
         $kpp = $validated['kpp'] ?? $partner->kpp ?? null;
         if ($validated['business_type'] !== 'company') $kpp = '000000000';
         if (!$kpp) $kpp = '000000000';
 
-        // сайт — из partners.website (или app.url, если пусто)
+        // сайт — из БД/конфига
         $siteUrl = $validated['website'] ?? $partner->website ?? config('app.url');
 
         // ОГРН/ОГРНИП — Integer
         $ogrnDigits = preg_replace('/\D+/', '', (string)$validated['registration_number']);
         $ogrn = $ogrnDigits !== '' ? (int)$ogrnDigits : null;
 
-        // CEO: если есть JSON в БД — берём оттуда, иначе конструируем из title/phone
+        // CEO: из БД или строим из title/phone
         $existingCeo = is_array($partner->ceo) ? $partner->ceo : null;
         if ($existingCeo && !empty($existingCeo['firstName']) && !empty($existingCeo['lastName'])) {
             $ceoFirst  = $existingCeo['firstName'];
@@ -144,11 +147,11 @@ class TinkoffAdminPartnerController extends Controller
             $ceoPhone = $normalizePhone($validated['phone'] ?? ($partner->phone ?? null)) ?: '+70000000000';
         }
 
-        // ---- payload по доке ----
+        // ---- payload ----
         $payload = [
             'billingDescriptor' => $bd,
             'fullName'          => $validated['title'],
-            'name'              => $validated['title'],      // короткое имя идёт из title
+            'name'              => $validated['title'],
             'inn'               => (string)$validated['tax_id'],
             'kpp'               => (string)$kpp,
             'ogrn'              => $ogrn,
@@ -181,7 +184,7 @@ class TinkoffAdminPartnerController extends Controller
             ],
         ];
 
-        // рекурсивно чистим null/пустые
+        // чистка null/пустых
         $clean = function ($v) use (&$clean) {
             if (is_array($v)) {
                 $o = [];
@@ -196,13 +199,13 @@ class TinkoffAdminPartnerController extends Controller
         $payload = $clean($payload);
 
         try {
-            \Log::channel('tinkoff')->info('[sm-register][payload] '.json_encode($payload, JSON_UNESCAPED_UNICODE));
+            Log::channel('tinkoff')->info('[sm-register][payload] '.json_encode($payload, JSON_UNESCAPED_UNICODE));
             $response = $sm->register($payload);
 
             $shopCode = data_get($response, 'shopCode') ?? data_get($response, 'code') ?? data_get($response, 'id');
             $status   = data_get($response, 'status') ?? 'REGISTERED';
 
-            // если в БД не было sms_name — сохраним сгенерированное значение
+            // если в БД не было sms_name — сохраним сгенер
             $smsToSave = $partner->sms_name ?: $bd;
 
             $partner->fill([
@@ -219,7 +222,7 @@ class TinkoffAdminPartnerController extends Controller
                 'phone'                         => $phone ?: $partner->phone,
                 'website'                       => $siteUrl,
                 'kpp'                           => $kpp,
-                'sms_name'                      => $smsToSave, // billingDescriptor из БД или сгенерённое
+                'sms_name'                      => $smsToSave,
                 'ceo'                           => [
                     'firstName'  => $ceoFirst,
                     'lastName'   => $ceoLast,
@@ -234,7 +237,7 @@ class TinkoffAdminPartnerController extends Controller
             return back()->with('ok', "Партнёр зарегистрирован (shopCode: {$shopCode})");
 
         } catch (\Throwable $e) {
-            \Log::channel('tinkoff')->error('[sm-register][register] '.$e->getMessage());
+            Log::channel('tinkoff')->error('[sm-register][register] '.$e->getMessage());
             $msg = 'Ошибка регистрации: '.$e->getMessage();
             return $request->ajax()
                 ? response()->json(['ok'=>false,'error'=>$msg], 422)
@@ -278,7 +281,6 @@ class TinkoffAdminPartnerController extends Controller
                 'details'  => $validated['sm_details_template'],
             ],
             'email'     => $validated['email'],
-            // у них в модели — plural. Поэтому отправляем массив addresses, а не одиночный address
             'addresses' => [ $address ],
         ];
 
@@ -299,21 +301,32 @@ class TinkoffAdminPartnerController extends Controller
         $payload = $clean($payload);
 
         try {
+            Log::info('[admin][smPatch] partner_id='.$partner->id.' shopCode='.$partner->tinkoff_partner_id);
+            Log::info('[admin][smPatch] outgoing payload='.json_encode($payload, JSON_UNESCAPED_UNICODE));
+
             $response = $sm->patch($partner->tinkoff_partner_id, $payload);
 
-            $partner->bank_name = $validated['bank_name'];
-            $partner->bank_bik = $validated['bank_bik'];
-            $partner->bank_account = $validated['bank_account'];
-            $partner->sm_details_template = $validated['sm_details_template'];
-            $partner->bank_details_version = (int)($partner->bank_details_version ?? 0) + 1;
+            // локально обновляем не только банк, но и "новые" поля из формы
+            $partner->bank_name                    = $validated['bank_name'];
+            $partner->bank_bik                     = $validated['bank_bik'];
+            $partner->bank_account                 = $validated['bank_account'];
+            $partner->sm_details_template          = $validated['sm_details_template'];
+            $partner->bank_details_version         = (int)($partner->bank_details_version ?? 0) + 1;
             $partner->bank_details_last_updated_at = now();
+
+            $partner->email = $validated['email'];
+            $partner->address = $validated['address'];
+            if (array_key_exists('city', $validated)) $partner->city = $validated['city'];
+            if (array_key_exists('zip',  $validated)) $partner->zip  = $validated['zip'];
+
             $partner->save();
 
             return $request->ajax()
                 ? response()->json(['ok'=>true,'raw'=>$response])
-                : back()->with('ok','Реквизиты обновлены в sm-register');
+                : back()->with('ok','Данные партнёра обновлены в sm-register');
+
         } catch (\Throwable $e) {
-            \Log::channel('tinkoff')->error('[sm-register][patch] '.$e->getMessage());
+            Log::channel('tinkoff')->error('[sm-register][patch] '.$e->getMessage());
             $msg = 'Ошибка PATCH: '.$e->getMessage();
             return $request->ajax()
                 ? response()->json(['ok'=>false,'error'=>$msg], 422)

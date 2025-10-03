@@ -34,6 +34,9 @@ class Partner extends Model
         'ceo' => 'array',
         'is_enabled' => 'boolean',
 
+        'is_registered'       => 'boolean',   // GENERATED column
+        'registered_at'       => 'datetime',
+        'bank_details_last_updated_at' => 'datetime',
 
     ];
 
@@ -103,6 +106,24 @@ class Partner extends Model
 
     public function walletTransactions() {
         return $this->hasMany(PartnerWalletTransaction::class);
+    }
+
+    // На случай, если где-то ещё хочется использовать геттер без поля в БД
+    public function getIsRegisteredAttribute($value)
+    {
+        // если есть GENERATED — $value уже придёт. Если нет — подстрахуемся логикой:
+        return $value ?? !empty($this->tinkoff_partner_id);
+    }
+
+    // Удобный скоуп выборки только зарегистрированных
+    public function scopeRegistered($q)
+    {
+        return $q->where('is_registered', 1);
+    }
+
+    public function scopeNotRegistered($q)
+    {
+        return $q->where('is_registered', 0);
     }
 
 }

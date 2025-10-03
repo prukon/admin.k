@@ -17,14 +17,14 @@ class ContractEvent extends Model
     // ContractEvent.php
 public static array $TYPE_RU = [
 'created'             => 'Создан',
-'sent'                => 'Отправлено',
+'sent'                => 'Отправлено СМС',
 'failed'              => 'Ошибка',
 'status_sync'         => 'Синхронизация статуса',
 'email_sent'          => 'Отправлено на email',
 'signed_pdf_saved'    => 'Подписанный файл сохранён',
 'revoke_not_supported'=> 'Отзыв не поддерживается',
-'resend'              => 'Повторная отправка',
-'resend_failed'       => 'Повторная отправка — ошибка',
+'resend'              => 'Повторная отправка СМС',
+'resend_failed'       => 'Повторная отправка СМС — ошибка',
 'failed_status'       => 'Ошибка получения статуса',
 'document_opened'     => 'Документ открыт (вебхук)',
 'document_signed'     => 'Документ подписан (вебхук)',

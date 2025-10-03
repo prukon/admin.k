@@ -112,14 +112,40 @@
                              aria-labelledby="headingHistory">
                             <div class="accordion-body p-0">
                                 <div class="table-responsive">
+                                    {{--<table class="table table-sm m-0 align-middle">--}}
+                                        {{--<thead>--}}
+                                        {{--<tr>--}}
+                                            {{--<th>#</th>--}}
+                                            {{--<th>ФИО подписанта</th>--}}
+                                            {{--<th>Телефон</th>--}}
+                                            {{--<th>Статус</th>--}}
+                                            {{--<th>Создано</th>--}}
+                                        {{--</tr>--}}
+                                        {{--</thead>--}}
+                                        {{--<tbody>--}}
+                                        {{--@forelse($requests as $r)--}}
+                                            {{--<tr>--}}
+                                                {{--<td>{{ $r->id }}</td>--}}
+                                                {{--<td>{{ $r->signer_fio ?: ($r->signer_name ?? '—') }}</td>--}}
+                                                {{--<td>{{ $r->signer_phone ?? '—' }}</td>--}}
+                                                {{--<td>--}}
+                                                    {{--<span class="badge {{ $r->status_badge_class }}">{{ $r->status_ru }}</span>--}}
+                                                {{--</td>--}}
+                                                {{--<td>{{ $r->created_at->format('d.m.Y H:i:s') }}</td>--}}
+                                            {{--</tr>--}}
+                                        {{--@empty--}}
+                                            {{--<tr>--}}
+                                                {{--<td colspan="6" class="text-center text-muted py-3">Нет отправок</td>--}}
+                                            {{--</tr>--}}
+                                        {{--@endforelse--}}
+                                        {{--</tbody>--}}
+                                    {{--</table>--}}
+
                                     <table class="table table-sm m-0 align-middle">
                                         <thead>
                                         <tr>
                                             <th>#</th>
-                                            {{--<th>Имя</th>--}}
-                                            {{--<th>Фамилия</th>--}}
                                             <th>ФИО подписанта</th>
-
                                             <th>Телефон</th>
                                             <th>Статус</th>
                                             <th>Создано</th>
@@ -128,12 +154,8 @@
                                         <tbody>
                                         @forelse($requests as $r)
                                             <tr>
-                                                <td>{{ $r->id }}</td>
-                                                {{--<td>{{ $r->signer_name ?? ($student->name ?? '—') }}</td>--}}
-                                                {{--<td>{{ $student->lastname ?? '—' }}</td>--}}
+                                                <td>{{ $loop->remaining + 1 }}</td> {{-- обратная нумерация --}}
                                                 <td>{{ $r->signer_fio ?: ($r->signer_name ?? '—') }}</td>
-
-
                                                 <td>{{ $r->signer_phone ?? '—' }}</td>
                                                 <td>
                                                     <span class="badge {{ $r->status_badge_class }}">{{ $r->status_ru }}</span>
@@ -142,11 +164,13 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="6" class="text-center text-muted py-3">Нет отправок</td>
+                                                <td colspan="5" class="text-center text-muted py-3">Нет отправок</td>
                                             </tr>
                                         @endforelse
                                         </tbody>
                                     </table>
+
+
                                 </div>
                             </div>
                         </div>
@@ -166,11 +190,14 @@
                         <div id="collapseEvents" class="accordion-collapse collapse" aria-labelledby="headingEvents">
                             <div class="accordion-body p-0">
                                 <div class="table-responsive">
+
+
+
                                     <table class="table table-sm m-0 align-middle">
                                         <thead>
                                         <tr>
                                             <th>#</th>
-                                            <th>Автор</th> {{-- новая колонка --}}
+                                            <th>Автор</th>
                                             <th>Событие</th>
                                             <th>Дата</th>
                                         </tr>
@@ -178,18 +205,20 @@
                                         <tbody>
                                         @forelse($events as $e)
                                             <tr>
-                                                <td>{{ $e->id }}</td>
-                                                <td>{{ $e->author_fio }}</td> {{-- Фамилия Имя или "Система" --}}
+                                                <td>{{ $loop->remaining + 1 }}</td> {{-- обратная нумерация --}}
+                                                <td>{{ $e->author_fio }}</td>
                                                 <td>{{ $e->type_ru }}</td>
                                                 <td>{{ $e->created_at->format('d.m.Y H:i:s') }}</td>
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="3" class="text-center text-muted py-3">Пока пусто</td>
+                                                <td colspan="4" class="text-center text-muted py-3">Пока пусто</td>
                                             </tr>
                                         @endforelse
                                         </tbody>
                                     </table>
+
+
                                 </div>
                             </div>
                         </div>
