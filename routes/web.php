@@ -361,6 +361,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('tinkoff.partners.smRefresh');
 
 
+// routes/web.php
+        Route::post('/admin/tinkoff/partners/{id}/sm-pull', [TinkoffAdminPartnerController::class, 'smPull'])
+            ->name('tinkoff.partners.smPull');
 
 
     });

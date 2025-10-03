@@ -425,4 +425,112 @@ class TinkoffAdminPartnerController extends Controller
             return back()->withErrors(['sm' => $msg]);
         }
     }
+
+    // TinkoffAdminPartnerController.php
+
+// app/Http/Controllers/TinkoffAdminPartnerController.php
+
+// app/Http/Controllers/TinkoffAdminPartnerController.php
+
+    public function smPull($id, \Illuminate\Http\Request $r, \App\Services\Tinkoff\SmRegisterClient $sm)
+    {
+        $partner = \App\Models\Partner::findOrFail($id);
+        if (!$partner->tinkoff_partner_id) {
+            return $r->ajax()
+                ? response()->json(['ok' => false, 'error' => 'Нет PartnerId'], 422)
+                : back()->withErrors(['sm' => 'Нет PartnerId']);
+        }
+
+        try {
+            // 1) Тянем данные у банка
+            $remote = $sm->getStatus($partner->tinkoff_partner_id);
+
+            // ЛОГ 1: сырой ответ
+            \Log::channel('tinkoff')->info(
+                '[admin][smPull][remote_raw] shopCode='.$partner->tinkoff_partner_id.' body='.json_encode($remote, JSON_UNESCAPED_UNICODE)
+            );
+
+            // Доп. лог ключей на верхнем уровне и в bankAccount
+            \Log::channel('tinkoff')->info(
+                '[admin][smPull][remote_keys] top=' . implode(',', array_keys($remote ?: [])) .
+                ' bankAccount_keys=' . implode(',', array_keys((array) data_get($remote, 'bankAccount', []))) .
+                ' addresses_present=' . (data_get($remote, 'addresses') ? 'yes' : 'no')
+            );
+
+            // 2) Распаковываем
+            $addr    = data_get($remote, 'addresses.0', []);
+            $bank    = data_get($remote, 'bankAccount', []);
+            $phones  = data_get($remote, 'phones', []);
+            $phone   = data_get($phones, '0.phone');
+            $details = (string) data_get($bank, 'details', ''); // <-- то самое поле
+
+            // sms_name берём из БД (источник истины), если пусто — попробуем из ответа (если когда-нибудь начнут присылать)
+            $smsName = $partner->sms_name ?: (string) data_get($remote, 'billingDescriptor');
+
+            // 3) Что собираемся писать (включили sm_details_template)
+            $toWrite = [
+                'title'               => (string) data_get($remote, 'fullName', $partner->title),
+                'tax_id'              => (string) data_get($remote, 'inn', $partner->tax_id),
+                'kpp'                 => (string) data_get($remote, 'kpp', $partner->kpp),
+                'registration_number' => (string) data_get($remote, 'ogrn', $partner->registration_number),
+
+                'email'   => (string) data_get($remote, 'email', $partner->email),
+                'website' => (string) data_get($remote, 'siteUrl', $partner->website),
+                'phone'   => $phone ?: $partner->phone,
+
+                // адресов в ответе у тебя сейчас нет — оставляем локальные, чтобы не затирать пустотой
+                'city'    => (string) data_get($addr, 'city', $partner->city),
+                'zip'     => (string) data_get($addr, 'zip', $partner->zip),
+                'address' => (string) data_get($addr, 'street', $partner->address),
+
+                'bank_name'          => (string) data_get($bank, 'bankName', $partner->bank_name),
+                'bank_bik'           => (string) data_get($bank, 'bik', $partner->bank_bik),
+                'bank_account'       => (string) data_get($bank, 'account', $partner->bank_account),
+                'sm_details_template'=> $details !== '' ? $details : ($partner->sm_details_template ?? null), // <-- добавлено
+
+                'sm_register_status' => (string) data_get($remote, 'status', $partner->sm_register_status),
+                'sms_name'           => $smsName ?: $partner->sms_name,
+            ];
+
+            // ЛОГ 2: что планируем писать + отдельно значение details
+            \Log::channel('tinkoff')->info('[admin][smPull][bank.details] "'.$details.'"');
+            \Log::channel('tinkoff')->info('[admin][smPull][to_write] '.json_encode($toWrite, JSON_UNESCAPED_UNICODE));
+
+            // 4) Дифф
+            $before = $partner->only(array_keys($toWrite));
+
+            // Заполняем и сохраняем
+            $partner->fill($toWrite);
+
+            $dirty = $partner->getDirty();
+            if (!empty($dirty)) {
+                $partner->bank_details_version = (int) ($partner->bank_details_version ?? 0) + 1;
+                $partner->bank_details_last_updated_at = now();
+            }
+            $partner->save();
+
+            // 5) ЛОГ 3: что реально изменилось
+            $after   = $partner->fresh()->only(array_keys($toWrite));
+            $changed = [];
+            foreach ($after as $k => $v) {
+                if (($before[$k] ?? null) !== $v) {
+                    $changed[$k] = ['from' => $before[$k] ?? null, 'to' => $v];
+                }
+            }
+            \Log::channel('tinkoff')->info('[admin][smPull][changed] '.json_encode($changed, JSON_UNESCAPED_UNICODE));
+
+            if ($r->ajax()) {
+                return response()->json(['ok' => true, 'changed' => $changed, 'remote' => $remote]);
+            }
+            return back()->with('ok', 'Реквизиты подтянуты из sm-register');
+
+        } catch (\Throwable $e) {
+            \Log::channel('tinkoff')->error('[sm-register][pull] '.$e->getMessage());
+            $msg = 'Ошибка pull: '.$e->getMessage();
+            return $r->ajax()
+                ? response()->json(['ok' => false, 'error' => $msg], 422)
+                : back()->withErrors(['sm' => $msg]);
+        }
+    }
+
 }

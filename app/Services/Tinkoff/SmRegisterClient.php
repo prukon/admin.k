@@ -2,27 +2,22 @@
 
 namespace App\Services\Tinkoff;
 
-use GuzzleHttp\Client;
-use Illuminate\Support\Facades\Log;
-
-
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Client\PendingRequest;
 
 class SmRegisterClient
 {
-
-    protected function base(): \Illuminate\Http\Client\PendingRequest
+    /** Базовая заготовка HTTP-клиента с mTLS */
+    protected function base(): PendingRequest
     {
         $options = [
             'timeout'     => 20,
             'http_errors' => false,
             'verify'      => true,
-            'cert'        => env('TCS_MTLS_CERT'), // СТРОКА (путь к .pem серта)
-            'ssl_key'     => env('TCS_MTLS_KEY'),  // СТРОКА (путь к .key)
-            // Временный дебаг (по желанию):
-            // 'debug'     => fopen(storage_path('logs/guzzle-debug.log'), 'a'),
+            'cert'        => env('TCS_MTLS_CERT'),
+            'ssl_key'     => env('TCS_MTLS_KEY'),
         ];
 
         if (!is_string($options['cert']) || !file_exists($options['cert'])) {
@@ -32,28 +27,28 @@ class SmRegisterClient
             throw new \RuntimeException('Файл приватного ключа не найден: '.var_export($options['ssl_key'], true));
         }
 
-        return \Illuminate\Support\Facades\Http::withOptions($options)
+        return Http::withOptions($options)
             ->baseUrl('https://acqapi.tinkoff.ru')
             ->acceptJson();
     }
 
-
+    /** Получение и кэш OAuth-токена */
     protected function getAccessToken(): string
     {
         return Cache::remember('tcs_sm_oauth_token', 55 * 60, function () {
             $resp = $this->base()
                 ->asForm()
-                ->withHeaders(['Authorization' => 'Basic cGFydG5lcjpwYXJ0bmVy'])// partner:partner
+                ->withHeaders(['Authorization' => 'Basic cGFydG5lcjpwYXJ0bmVy']) // partner:partner
                 ->post('/oauth/token', [
                     'grant_type' => 'password',
-                    'username' => env('TINKOFF_OAUTH_LOGIN'),
-                    'password' => env('TINKOFF_OAUTH_PASSWORD'),
+                    'username'   => env('TINKOFF_OAUTH_LOGIN'),
+                    'password'   => env('TINKOFF_OAUTH_PASSWORD'),
                 ]);
 
             if (!$resp->ok()) {
                 throw new \RuntimeException('OAuth error: ' . $resp->status() . ' ' . $resp->body());
             }
-            $token = (string)data_get($resp->json(), 'access_token');
+            $token = (string) data_get($resp->json(), 'access_token');
             if (!$token) {
                 throw new \RuntimeException('OAuth empty token: ' . $resp->body());
             }
@@ -61,10 +56,10 @@ class SmRegisterClient
         });
     }
 
+    /** POST /sm-register/register — регистрация точки (как было) */
     public function register(array $payload): array
     {
-
-        \Log::channel('tinkoff')->info('[sm-register][request] '.json_encode($payload, JSON_UNESCAPED_UNICODE));
+        Log::channel('tinkoff')->info('[sm-register][register][payload] '.json_encode($payload, JSON_UNESCAPED_UNICODE));
 
         $token = $this->getAccessToken();
 
@@ -72,8 +67,9 @@ class SmRegisterClient
             ->withToken($token)
             ->post('/sm-register/register', $payload);
 
+        Log::channel('tinkoff')->info('[sm-register][register][resp] status='.$r->status().' body='.$r->body());
+
         if ($r->status() === 422) {
-            // ошибки валидации от банка
             throw new \InvalidArgumentException('Validation: ' . $r->body());
         }
         if (!$r->successful()) {
@@ -82,13 +78,20 @@ class SmRegisterClient
         return $r->json();
     }
 
-    public function patch(string $partnerId, array $payload): array
+    /** PATCH /sm-register/register/{shopCode} — обновление реквизитов */
+    public function patch(string $shopCode, array $payload): array
     {
-        $token = $this->getAccessToken();
+        $shopCode = trim($shopCode);
+        $token    = $this->getAccessToken();
+
+        Log::channel('tinkoff')->info("[sm-register][patch][request] shopCode={$shopCode} payload=".json_encode($payload, JSON_UNESCAPED_UNICODE));
 
         $r = $this->base()
             ->withToken($token)
-            ->patch("/sm-register/$partnerId", $payload);
+            ->asJson() // Content-Type: application/json — требование доки для PATCH
+            ->patch("/sm-register/register/{$shopCode}", $payload);
+
+        Log::channel('tinkoff')->info('[sm-register][patch][resp] status='.$r->status().' body='.$r->body());
 
         if (!$r->successful()) {
             throw new \RuntimeException('sm-register PATCH failed: ' . $r->status() . ' ' . $r->body());
@@ -96,13 +99,19 @@ class SmRegisterClient
         return $r->json();
     }
 
-    public function getStatus(string $partnerId): array
+    /** GET /sm-register/register/shop/{shopCode} — получение информации/статуса точки */
+    public function getStatus(string $shopCode): array
     {
-        $token = $this->getAccessToken();
+        $shopCode = trim($shopCode);
+        $token    = $this->getAccessToken();
+
+        Log::channel('tinkoff')->info("[sm-register][status][request] shopCode={$shopCode}");
 
         $r = $this->base()
             ->withToken($token)
-            ->get("/sm-register/$partnerId/status");
+            ->get("/sm-register/register/shop/{$shopCode}");
+
+        Log::channel('tinkoff')->info('[sm-register][status][resp] status='.$r->status().' body='.$r->body());
 
         if (!$r->successful()) {
             throw new \RuntimeException('sm-register status failed: ' . $r->status() . ' ' . $r->body());

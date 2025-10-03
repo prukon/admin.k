@@ -445,14 +445,60 @@
                                     </div>
                                 </div>
                             </div>
+ 
 
-                            <div class="mt-3 d-flex gap-2">
-                                <button class="btn btn-primary">Сохранить в sm-register</button>
-                                <form action="{{ route('tinkoff.partners.smRefresh', $partner->id) }}" method="POST" class="d-inline">@csrf
-                                    <button class="btn btn-outline-secondary" formaction="{{ route('tinkoff.partners.smRefresh', $partner->id) }}">Обновить статус</button>
-                                </form>
-                            </div>
+
+                            {{-- закрываем основной PATCH-форму сразу после полей --}}
                         </form>
+
+                        {{-- панель действий: три независимые кнопки одинаковой высоты --}}
+                        <div class="mt-3 d-flex flex-wrap gap-2 align-items-stretch">
+
+                            {{-- 1) Сохранить в sm-register (отправляет PATCH-форму по её id) --}}
+                            <button type="submit"
+                                    form="sm-patch-form"
+                                    class="btn btn-primary">
+                                Сохранить в sm-register
+                            </button>
+
+                            {{-- 2) Обновить статус --}}
+                            <form action="{{ route('tinkoff.partners.smRefresh', $partner->id) }}"
+                                  method="POST"
+                                  class="m-0">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-secondary h-100">
+                                    Обновить статус
+                                </button>
+                            </form>
+
+                            {{-- 3) Забрать реквизиты из sm-register --}}
+                            <form action="{{ route('tinkoff.partners.smPull', $partner->id) }}"
+                                  method="POST"
+                                  class="m-0">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-primary h-100">
+                                    Забрать реквизиты из sm-register
+                                </button>
+                            </form>
+                        </div>
+
+
+
+                        {{--<div class="mt-3 d-flex gap-2">--}}
+                                {{--<button class="btn btn-primary">Сохранить в sm-register</button>--}}
+
+                                {{--<form action="{{ route('tinkoff.partners.smRefresh', $partner->id) }}" method="POST" class="d-inline">--}}
+                                    {{--@csrf--}}
+                                    {{--<button class="btn btn-outline-secondary">Обновить статус</button>--}}
+                                {{--</form>--}}
+
+                                {{--<form action="{{ route('tinkoff.partners.smPull', $partner->id) }}" method="POST" class="d-inline">--}}
+                                    {{--@csrf--}}
+                                    {{--<button class="btn btn-outline-primary">Забрать реквизиты из sm-register</button>--}}
+                                {{--</form>--}}
+                            {{--</div>--}}
+
+                        {{--</form>--}}
                     </div>
                 </div>
 
