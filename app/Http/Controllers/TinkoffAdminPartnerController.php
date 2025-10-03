@@ -254,85 +254,153 @@ class TinkoffAdminPartnerController extends Controller
                 : back()->withErrors(['sm'=>'Сначала зарегистрируйте партнёра (нет PartnerId)']);
         }
 
+        // те же поля, что и в регистрации
         $validated = $request->validate([
+            'business_type'        => 'required|string|in:individual_entrepreneur,company,physical_person,non_commercial_organization',
+            'title'                => 'required|string|max:255',
+            'email'                => 'required|email',
+            'tax_id'               => 'required|string|max:20',     // ИНН
+            'registration_number'  => 'required|string|max:20',     // ОГРН/ОГРНИП
+            'address'              => 'required|string|max:255',
+            'city'                 => 'required|string|max:100',
+            'zip'                  => 'required|string|max:20',
+
             'bank_name'            => 'required|string|max:255',
             'bank_bik'             => 'required|string|max:20',
             'bank_account'         => 'required|string|max:32',
             'sm_details_template'  => 'required|string|max:500',
-            'email'                => 'required|email',
-            'address'              => 'required|string|max:255',
-            'city'                 => 'nullable|string|max:100',
-            'zip'                  => 'nullable|string|max:20',
+
+            'phone'                => 'nullable|string|max:32',
+            'website'              => 'nullable|url|max:255',
+            'kpp'                  => 'nullable|string|max:12',
         ]);
 
-        $address = [
+        // helpers (короткие версии)
+        $normalizePhone = fn (?string $raw) =>
+        (!$raw || !($d=preg_replace('/\D+/','',$raw))) ? null :
+            ('+'.(strlen($d)===11 && ($d[0]==='7'||$d[0]==='8') ? '7'.substr($d,1) : (strlen($d)===10 ? '7'.$d : $d)));
+
+    $sanitizeStreet = function (string $raw, string $city): string {
+        $s = preg_replace('/\b(г\.?|город)\b[\s\.]*санкт[\s\-]*петербург\b/iu', '', $raw);
+        $s = preg_replace('/\bсанкт[\s\-]*петербург\b/iu', '', $s);
+        $s = preg_replace('/\b(спб|с\-пб)\b/iu', '', $s);
+        $s = preg_replace('/\b(пр[\.\-]?\s*т|просп\.?|пр\-т)\b/iu', 'проспект', $s);
+        $s = preg_replace('/корп\.?\s*\/\s*ст\.?/iu', 'к.', $s);
+        $s = preg_replace('/корп\.?/iu', 'к.', $s);
+        $s = preg_replace('/стр\.?/iu', 'стр.', $s);
+        $s = preg_replace('/кв\.?\s*\/\s*оф\.?/iu', 'оф.', $s);
+        $s = preg_replace('/кв\.?/iu', 'кв.', $s);
+        $s = preg_replace('/оф\.?/iu', 'оф.', $s);
+        $s = preg_replace('/[^0-9A-Za-zА-Яа-яЁё\s\.,]/u', '', $s);
+        $s = preg_replace('/\s*,\s*/u', ', ', $s);
+        $s = preg_replace('/\s+/u', ' ', $s);
+        $s = trim($s, " ,");
+        if ($s === '') $s = trim(preg_replace('/'.$city.'/iu', '', $raw));
+        return $s;
+    };
+
+    // подготовка данных (как в регистрации)
+    $phone   = $normalizePhone($validated['phone'] ?? $partner->phone);
+    $city    = preg_match('/^(\s*spb|\s*спб)$/iu', $validated['city']) ? 'Санкт-Петербург' : $validated['city'];
+    $street  = $sanitizeStreet($validated['address'], $city);
+
+    $kpp = $validated['business_type'] === 'company'
+        ? ($validated['kpp'] ?: $partner->kpp ?: '000000000')
+        : '000000000';
+
+    $ogrnDigits = preg_replace('/\D+/', '', (string)$validated['registration_number']);
+    $ogrn = $ogrnDigits !== '' ? (int)$ogrnDigits : null;
+
+    $siteUrl = $validated['website'] ?? $partner->website ?? config('app.url');
+
+    // формируем широкий PATCH-пейлоад (банк + адрес + базовые поля)
+    $payload = [
+        // billingDescriptor НЕ меняем из формы — источник истины в БД/регистрации
+        'fullName' => $validated['title'],
+        'name'     => $validated['title'],
+        'inn'      => (string)$validated['tax_id'],
+        'kpp'      => (string)$kpp,
+        'ogrn'     => $ogrn,
+
+        'addresses' => [[
             'type'    => 'legal',
-            'country' => 'RU',
-            'street'  => $validated['address'],
-            'city'    => $validated['city'] ?? null,
-            'zip'     => $validated['zip'] ?? null,
-        ];
+            'zip'     => (string)$validated['zip'],
+            'country' => 'RUS',
+            'city'    => $city,
+            'street'  => $street,
+        ]],
 
-        $payload = [
-            'bankAccount' => [
-                'bankName' => $validated['bank_name'],
-                'bik'      => $validated['bank_bik'],
-                'account'  => $validated['bank_account'],
-                'details'  => $validated['sm_details_template'],
-            ],
-            'email'     => $validated['email'],
-            'addresses' => [ $address ],
-        ];
+        'phones' => $phone ? [[
+            'type'        => 'common',
+            'phone'       => $phone,
+            'description' => 'Контакт',
+        ]] : [],
 
-        // чистим null/пустые
-        $clean = function ($value) use (&$clean) {
-            if (is_array($value)) {
-                $result = [];
-                foreach ($value as $key => $item) {
-                    $cleaned = $clean($item);
-                    if ($cleaned !== null && $cleaned !== '') {
-                        $result[$key] = $cleaned;
-                    }
-                }
-                return $result;
+        'email'   => $validated['email'],
+        'siteUrl' => $siteUrl,
+
+        'bankAccount' => [
+            'account'  => (string)$validated['bank_account'],
+            'bankName' => $validated['bank_name'],
+            'bik'      => (string)$validated['bank_bik'],
+            'details'  => $validated['sm_details_template'],
+        ],
+    ];
+
+    // чистим null/пустые
+    $clean = function ($v) use (&$clean) {
+        if (is_array($v)) {
+            $o = [];
+            foreach ($v as $k => $x) {
+                $cx = $clean($x);
+                if ($cx !== null && $cx !== '') $o[$k] = $cx;
             }
-            return $value;
-        };
-        $payload = $clean($payload);
-
-        try {
-            Log::info('[admin][smPatch] partner_id='.$partner->id.' shopCode='.$partner->tinkoff_partner_id);
-            Log::info('[admin][smPatch] outgoing payload='.json_encode($payload, JSON_UNESCAPED_UNICODE));
-
-            $response = $sm->patch($partner->tinkoff_partner_id, $payload);
-
-            // локально обновляем не только банк, но и "новые" поля из формы
-            $partner->bank_name                    = $validated['bank_name'];
-            $partner->bank_bik                     = $validated['bank_bik'];
-            $partner->bank_account                 = $validated['bank_account'];
-            $partner->sm_details_template          = $validated['sm_details_template'];
-            $partner->bank_details_version         = (int)($partner->bank_details_version ?? 0) + 1;
-            $partner->bank_details_last_updated_at = now();
-
-            $partner->email = $validated['email'];
-            $partner->address = $validated['address'];
-            if (array_key_exists('city', $validated)) $partner->city = $validated['city'];
-            if (array_key_exists('zip',  $validated)) $partner->zip  = $validated['zip'];
-
-            $partner->save();
-
-            return $request->ajax()
-                ? response()->json(['ok'=>true,'raw'=>$response])
-                : back()->with('ok','Данные партнёра обновлены в sm-register');
-
-        } catch (\Throwable $e) {
-            Log::channel('tinkoff')->error('[sm-register][patch] '.$e->getMessage());
-            $msg = 'Ошибка PATCH: '.$e->getMessage();
-            return $request->ajax()
-                ? response()->json(['ok'=>false,'error'=>$msg], 422)
-                : back()->withErrors(['sm'=>$msg]);
+            return $o;
         }
+        return $v;
+    };
+    $payload = $clean($payload);
+
+    try {
+        Log::info('[admin][smPatch] partner_id='.$partner->id.' shopCode='.$partner->tinkoff_partner_id);
+        Log::info('[admin][smPatch] outgoing payload='.json_encode($payload, JSON_UNESCAPED_UNICODE));
+
+        $response = $sm->patch($partner->tinkoff_partner_id, $payload);
+
+        // локально обновляем всё, что есть в форме
+        $partner->fill([
+            'title'                        => $validated['title'],
+            'tax_id'                       => $validated['tax_id'],
+            'registration_number'          => $validated['registration_number'],
+            'kpp'                          => $kpp,
+
+            'address'                      => $validated['address'],
+            'city'                         => $city,
+            'zip'                          => (string)$validated['zip'],
+
+            'email'                        => $validated['email'],
+            'phone'                        => $phone ?: $partner->phone,
+            'website'                      => $siteUrl,
+
+            'bank_name'                    => $validated['bank_name'],
+            'bank_bik'                     => $validated['bank_bik'],
+            'bank_account'                 => $validated['bank_account'],
+            'sm_details_template'          => $validated['sm_details_template'],
+            'bank_details_version'         => (int)($partner->bank_details_version ?? 0) + 1,
+            'bank_details_last_updated_at' => now(),
+        ])->save();
+
+        return $request->ajax()
+            ? response()->json(['ok'=>true,'raw'=>$response])
+            : back()->with('ok','Данные партнёра обновлены в sm-register');
+    } catch (\Throwable $e) {
+        Log::channel('tinkoff')->error('[sm-register][patch] '.$e->getMessage());
+        $msg = 'Ошибка PATCH: '.$e->getMessage();
+        return $request->ajax()
+            ? response()->json(['ok'=>false,'error'=>$msg], 422)
+            : back()->withErrors(['sm'=>$msg]);
     }
+}
 
     public function smRefresh($id, Request $r, SmRegisterClient $sm)
     {

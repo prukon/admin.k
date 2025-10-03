@@ -315,67 +315,139 @@
                 </script>
             @else
                 {{-- ФОРМА PATCH РЕКВИЗИТОВ --}}
+                {{-- ФОРМА ПОЛНОГО PATCH --}}
                 <div class="card">
                     <div class="card-header">Обновить реквизиты в sm-register</div>
                     <div class="card-body">
-                        <form action="{{ route('tinkoff.partners.smPatch', $partner->id) }}" method="POST">
+                        <form action="{{ route('tinkoff.partners.smPatch', $partner->id) }}" method="POST" id="sm-patch-form">
                             @csrf
+
                             <div class="row g-3">
+                                {{-- Юр. форма --}}
                                 <div class="col-md-4">
-                                    <label class="form-label">Банк</label>
-                                    <input name="bank_name" class="form-control" required value="{{ $partner->bank_name }}">
-                                    <div class="form-text">API (PATCH): <code>bankAccount.bankName*</code>.</div>
+                                    <label class="form-label">Юр. форма</label>
+                                    <select name="business_type" class="form-select" id="business_type" required>
+                                        @php $bt = $partner->business_type; @endphp
+                                        <option value="individual_entrepreneur" @selected($bt==='individual_entrepreneur')>ИП</option>
+                                        <option value="company" @selected($bt==='company')>ЮЛ</option>
+                                        <option value="physical_person" @selected($bt==='physical_person')>ФЛ</option>
+                                        <option value="non_commercial_organization" @selected($bt==='non_commercial_organization')>НКО</option>
+                                    </select>
                                 </div>
 
+                                {{-- Наименование --}}
                                 <div class="col-md-4">
-                                    <label class="form-label">БИК</label>
-                                    <input name="bank_bik" class="form-control" required value="{{ $partner->bank_bik }}">
-                                    <div class="form-text">API (PATCH): <code>bankAccount.bik*</code>.</div>
+                                    <label class="form-label">Наименование</label>
+                                    <input name="title" id="title" class="form-control" required value="{{ $partner->title }}">
                                 </div>
 
+                                {{-- E-mail --}}
                                 <div class="col-md-4">
-                                    <label class="form-label">Р/с</label>
-                                    <input name="bank_account" class="form-control" required value="{{ $partner->bank_account }}">
-                                    <div class="form-text">API (PATCH): <code>bankAccount.account*</code>.</div>
-                                </div>
-
-                                <div class="col-md-6">
                                     <label class="form-label">E-mail</label>
                                     <input name="email" class="form-control" type="email" required value="{{ $partner->email }}">
                                 </div>
 
-                                <div class="col-md-6">
-                                    <label class="form-label">Улица, дом, офис</label>
-                                    <input name="address" class="form-control" required value="{{ $partner->address }}">
+                                {{-- ИНН/ОГРН/КПП --}}
+                                <div class="col-md-4">
+                                    <label class="form-label">ИНН</label>
+                                    <input name="tax_id" class="form-control" required value="{{ $partner->tax_id }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">ОГРН/ОГРНИП</label>
+                                    <input name="registration_number" class="form-control" required value="{{ $partner->registration_number }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">КПП</label>
+                                    <input name="kpp" id="kpp" class="form-control" value="{{ $partner->kpp }}">
+                                    <div class="form-text">Для ИП/ФЛ/НКО отправится 000000000.</div>
                                 </div>
 
-                                <div class="col-md-3">
+                                {{-- Контакты / сайт --}}
+                                <div class="col-md-4">
+                                    <label class="form-label">Телефон контакта</label>
+                                    <input name="phone" id="phone" class="form-control" type="tel" value="{{ $partner->phone }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Сайт</label>
+                                    <input name="website" id="website" class="form-control" type="url"
+                                           value="{{ $partner->website ?? '' }}" placeholder="{{ config('app.url') }}">
+                                </div>
+
+                                {{-- billingDescriptor (read-only) --}}
+                                <div class="col-md-4">
+                                    <label class="form-label">Название для SMS/выписок</label>
+                                    <input class="form-control" value="{{ $partner->sms_name ?? '' }}" readonly>
+                                    <div class="form-text">Меняется из БД (billingDescriptor), не отсюда.</div>
+                                </div>
+
+                                {{-- Адрес --}}
+                                <div class="col-md-2">
                                     <label class="form-label">Город</label>
                                     <input name="city" class="form-control" required value="{{ $partner->city }}">
                                 </div>
-
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label class="form-label">Индекс</label>
-                                    <input
-                                            name="zip"
-                                            class="form-control"
-                                            required
-                                            pattern="[0-9]{6}"
-                                            inputmode="numeric"
-                                            autocomplete="postal-code"
-                                            maxlength="6"
-                                            value="{{ $partner->zip }}"
-                                    >
+                                    <input name="zip" class="form-control" required pattern="\d{6}" maxlength="6" value="{{ $partner->zip }}">
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">Улица, дом, офис</label>
+                                    <input name="address" class="form-control" required value="{{ $partner->address }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Страна (адрес)</label>
+                                    <input class="form-control" value="RUS" readonly>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Тип адреса</label>
+                                    <input class="form-control" value="legal" readonly>
+                                </div>
+
+                                {{-- Банк --}}
+                                <div class="col-md-4">
+                                    <label class="form-label">Банк</label>
+                                    <input name="bank_name" class="form-control" required value="{{ $partner->bank_name }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">БИК</label>
+                                    <input name="bank_bik" class="form-control" required value="{{ $partner->bank_bik }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Р/с</label>
+                                    <input name="bank_account" class="form-control" required value="{{ $partner->bank_account }}">
                                 </div>
 
                                 <div class="col-12">
                                     <label class="form-label">Назначение платежа (details)</label>
                                     <textarea name="sm_details_template" class="form-control" rows="2" required>{{ $partner->sm_details_template }}</textarea>
                                 </div>
+
+                                {{-- CEO (read-only) --}}
+                                <div class="col-12">
+                                    <div class="alert alert-secondary mb-0">
+                                        <div class="row g-3">
+                                            <div class="col-md-3">
+                                                <label class="form-label mb-1">CEO: Фамилия</label>
+                                                <input class="form-control" value="{{ data_get($partner->ceo, 'lastName', '') }}" readonly>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label mb-1">CEO: Имя</label>
+                                                <input class="form-control" value="{{ data_get($partner->ceo, 'firstName', '') }}" readonly>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label mb-1">CEO: Отчество</label>
+                                                <input class="form-control" value="{{ data_get($partner->ceo, 'middleName', '') }}" readonly>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label mb-1">CEO: Телефон</label>
+                                                <input class="form-control" value="{{ data_get($partner->ceo, 'phone', '') }}" readonly>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="mt-3 d-flex gap-2">
-                                <button class="btn btn-primary">Сохранить в см-register</button>
+                                <button class="btn btn-primary">Сохранить в sm-register</button>
                                 <form action="{{ route('tinkoff.partners.smRefresh', $partner->id) }}" method="POST" class="d-inline">@csrf
                                     <button class="btn btn-outline-secondary" formaction="{{ route('tinkoff.partners.smRefresh', $partner->id) }}">Обновить статус</button>
                                 </form>
@@ -383,6 +455,24 @@
                         </form>
                     </div>
                 </div>
+
+                @push('scripts')
+                    <script>
+                        (function($){
+                            function toggleKpp(){
+                                var bt = $('#business_type').val();
+                                var $kpp = $('#kpp');
+                                if(bt === 'company'){
+                                    $kpp.prop('disabled', false);
+                                } else {
+                                    $kpp.val('000000000').prop('disabled', true);
+                                }
+                            }
+                            $(document).on('change', '#business_type', toggleKpp);
+                            toggleKpp();
+                        })(jQuery);
+                    </script>
+                @endpush
             @endif
         </div>
 
@@ -542,7 +632,7 @@
             var $form = $(this);
             var url   = '/admin/tinkoff/partners/{{ $partner->id }}/sm-register';
             var data  = $form.serialize();
- 
+
             $.ajax({
                 url: url,
                 method: 'POST',
