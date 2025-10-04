@@ -4,7 +4,7 @@
     <div class="container py-3">
 
         <div class="main-content text-start">
-            <h4 class="pt-3"><Партнёр></Партнёр>: {{ $partner->title }}</h4>
+            <h4 class="pt-3">Партнёр: {{ $partner->title }}</h4>
 
             @if ($errors->any())
                 <div class="alert alert-danger">
@@ -445,7 +445,7 @@
                                     </div>
                                 </div>
                             </div>
- 
+
 
 
                             {{-- закрываем основной PATCH-форму сразу после полей --}}

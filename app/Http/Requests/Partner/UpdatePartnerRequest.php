@@ -6,24 +6,24 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdatePartnerRequest extends FormRequest
 {
-    /**
-     * Подготовка данных перед валидацией:
-     * если в поле website нет схемы, добавляем http://
-     */
     protected function prepareForValidation()
     {
         if ($this->filled('website') && !preg_match('#^https?://#i', $this->website)) {
+            $this->merge(['website' => 'http://' . $this->website]);
+        }
+        $ceo = $this->input('ceo', []);
+        if (is_array($ceo)) {
             $this->merge([
-                'website' => 'http://' . $this->website,
+                'ceo' => [
+                    'lastName'   => $ceo['lastName']   ?? $ceo['last_name']   ?? '',
+                    'firstName'  => $ceo['firstName']  ?? $ceo['first_name']  ?? '',
+                    'middleName' => $ceo['middleName'] ?? $ceo['middle_name'] ?? '',
+                    'phone'      => $ceo['phone']      ?? '',
+                ]
             ]);
         }
     }
 
-    /**
-     * Правила валидации.
-     *
-     * @return array
-     */
     public function rules()
     {
         $partnerId = $this->route('partner')->id;
@@ -35,50 +35,39 @@ class UpdatePartnerRequest extends FormRequest
             'kpp'                 => 'nullable|string|max:9',
             'registration_number' => 'nullable|string|max:20',
 
-            // Новые поля:
             'sms_name'            => 'nullable|string|max:14',
             'city'                => 'nullable|string|max:100',
             'zip'                 => 'nullable|string|max:20|regex:/^\d{6}$/',
-
             'address'             => 'nullable|string|max:255',
+
             'phone'               => 'nullable|string|max:20',
             'email'               => "required|email|max:255|unique:partners,email,{$partnerId}",
             'website'             => 'nullable|url|max:255',
+
             'bank_name'           => 'nullable|string|max:255',
             'bank_bik'            => 'nullable|string|max:9',
             'bank_account'        => 'nullable|string|max:20',
+
             'order_by'            => 'nullable|integer',
             'is_enabled'          => 'required|boolean',
 
-            // Данные руководителя (JSON)
             'ceo'                 => 'nullable|array',
-            'ceo.last_name'       => 'nullable|string|max:100',
-            'ceo.first_name'      => 'nullable|string|max:100',
-            'ceo.middle_name'     => 'nullable|string|max:100',
+            'ceo.lastName'        => 'nullable|string|max:100',
+            'ceo.firstName'       => 'nullable|string|max:100',
+            'ceo.middleName'      => 'nullable|string|max:100',
             'ceo.phone'           => 'nullable|string|max:20',
         ];
     }
 
-    /**
-     * Сообщения об ошибках.
-     *
-     * @return array
-     */
     public function messages()
     {
         return [
-            'email.unique'       => 'Партнёр с таким E-mail уже существует.',
-            'website.url'        => 'Поле «Сайт» должно быть корректным URL. Например: example.com или http://example.com.',
-            'website.max'        => 'Поле «Сайт» не должно превышать :max символов.',
-            // остальные сообщения можно перенести из StorePartnerRequest…
+            'email.unique' => 'Партнёр с таким E-mail уже существует.',
+            'website.url'  => 'Поле «Сайт» должно быть корректным URL.',
+            'zip.regex'    => 'Индекс должен содержать 6 цифр (например, 197350).',
         ];
     }
 
-    /**
-     * Названия полей для вывода в сообщениях.
-     *
-     * @return array
-     */
     public function attributes()
     {
         return [
@@ -88,27 +77,23 @@ class UpdatePartnerRequest extends FormRequest
             'kpp'                 => 'КПП',
             'registration_number' => 'ОГРН (ОГРНИП)',
 
-            // Новые:
             'sms_name'            => 'Название для SMS/выписок',
             'city'                => 'Город',
             'zip'                 => 'Индекс',
-
-
             'address'             => 'Адрес',
+
             'phone'               => 'Телефон',
             'email'               => 'E-mail партнёра',
             'website'             => 'Сайт',
             'bank_name'           => 'Наименование банка',
             'bank_bik'            => 'БИК',
-            'bank_account'        => 'Расчетный счет',
+            'bank_account'        => 'Расчётный счёт',
             'order_by'            => 'Сортировка',
             'is_enabled'          => 'Активность',
 
-
-            // CEO
-            'ceo.last_name'       => 'Фамилия руководителя',
-            'ceo.first_name'      => 'Имя руководителя',
-            'ceo.middle_name'     => 'Отчество руководителя',
+            'ceo.lastName'        => 'Фамилия руководителя',
+            'ceo.firstName'       => 'Имя руководителя',
+            'ceo.middleName'      => 'Отчество руководителя',
             'ceo.phone'           => 'Телефон руководителя',
         ];
     }

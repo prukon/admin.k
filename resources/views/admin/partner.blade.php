@@ -35,7 +35,7 @@
         </div>
     </div>
     <!-- Модальное окно создания команды -->
-    @include('includes.modal.createPartner')
+{{--    @include('includes.modal.createPartner')--}}
 
     <!-- Модальное окно редактирования команды -->
     @include('includes.modal.editPartner')

@@ -70,44 +70,29 @@ class PartnerController extends Controller
         $authorId = auth()->id();
         $data     = $request->validated();
 
-        // На всякий: если ceo не передан — нормализуем пустую структуру
-        if (!isset($data['ceo']) || !is_array($data['ceo'])) {
-            $data['ceo'] = [
-                'last_name'   => '',
-                'first_name'  => '',
-                'middle_name' => '',
-                'phone'       => '',
-            ];
-        } else {
-            // защитимся от отсутствующих ключей
-            $data['ceo'] = array_merge([
-                'last_name'   => '',
-                'first_name'  => '',
-                'middle_name' => '',
-                'phone'       => '',
-            ], $data['ceo']);
-        }
+        // гарантируем наличие camelCase-ключей
+        $data['ceo'] = [
+            'lastName'   => $data['ceo']['lastName']   ?? '',
+            'firstName'  => $data['ceo']['firstName']  ?? '',
+            'middleName' => $data['ceo']['middleName'] ?? '',
+            'phone'      => $data['ceo']['phone']      ?? '',
+        ];
 
-        // Создадим переменную, чтобы вернуть созданного партнёра после транзакции
         $partner = null;
 
         DB::transaction(function () use ($data, $authorId, &$partner) {
-            // Создаём партнёра
             $partner = Partner::create($data);
 
-            // Список полей для лога (с учётом новых и переименований)
             $fields = [
                 'business_type'       => 'Тип бизнеса',
                 'title'               => 'Наименование',
                 'tax_id'              => 'ИНН',
                 'kpp'                 => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',
-
                 'sms_name'            => 'Название для SMS/выписок',
                 'city'                => 'Город',
                 'zip'                 => 'Индекс',
                 'address'             => 'Адрес',
-
                 'phone'               => 'Телефон',
                 'email'               => 'E-mail',
                 'website'             => 'Сайт',
@@ -121,30 +106,25 @@ class PartnerController extends Controller
             $lines = [];
             foreach ($fields as $key => $label) {
                 $val = $partner->{$key} ?? '—';
-                if ($key === 'is_enabled') {
-                    $val = $val ? 'Да' : 'Нет';
-                }
+                if ($key === 'is_enabled') $val = $val ? 'Да' : 'Нет';
                 $lines[] = "{$label}: {$val}";
             }
 
-            // Добьём блоком CEO
             $ceo = $partner->ceo ?? [];
-            $lines[] = "Фамилия руководителя: " . ($ceo['last_name']   ?? '—');
-            $lines[] = "Имя руководителя: "     . ($ceo['first_name']  ?? '—');
-            $lines[] = "Отчество руководителя: ". ($ceo['middle_name'] ?? '—');
-            $lines[] = "Телефон руководителя: " . ($ceo['phone']       ?? '—');
+            $lines[] = "Фамилия руководителя: " . ($ceo['lastName']   ?? '—');
+            $lines[] = "Имя руководителя: "     . ($ceo['firstName']  ?? '—');
+            $lines[] = "Отчество руководителя: ". ($ceo['middleName'] ?? '—');
+            $lines[] = "Телефон руководителя: " . ($ceo['phone']      ?? '—');
 
-            // Запись лога создания
             MyLog::create([
-                'type'        => 80, // ваш код типа лога
-                'action'      => 81, // ваш код действия «создание партнёра»
+                'type'        => 80,
+                'action'      => 81,
                 'author_id'   => $authorId,
                 'partner_id'  => $partner->id,
                 'description' => "Создан новый партнёр:\n" . implode("\n", $lines),
                 'created_at'  => now(),
             ]);
 
-            // Laravel-лог: что создали (для отладки)
             \Log::info('[Partner.store] created', [
                 'partner_id' => $partner->id,
                 'payload'    => $partner->only(array_keys($fields)) + ['ceo' => $partner->ceo],
@@ -159,17 +139,19 @@ class PartnerController extends Controller
 
     public function edit(Partner $partner)
     {
-        // ceo уже приведён к массиву благодаря $casts;
-        // нормализуем поля на случай null в отдельных ключах
-        $ceo = $partner->ceo ?: [];
-        if (!is_array($ceo)) {
-            $ceo = json_decode($ceo ?? '[]', true) ?: [];
-        }
+        // что реально в БД (на случай смешанных версий)
+        $raw = \DB::table('partners')->where('id', $partner->id)->value('ceo');
+
+        // cast модели (array|null)
+        $cast = $partner->ceo;
+
+        // нормализация к camelCase (поддержка legacy snake_case)
+        $src = is_array($cast) ? $cast : (json_decode($raw ?? '[]', true) ?: []);
         $ceo = [
-            'last_name'   => $ceo['last_name']   ?? '',
-            'first_name'  => $ceo['first_name']  ?? '',
-            'middle_name' => $ceo['middle_name'] ?? '',
-            'phone'       => $ceo['phone']       ?? '',
+            'lastName'   => $src['lastName']   ?? $src['last_name']   ?? '',
+            'firstName'  => $src['firstName']  ?? $src['first_name']  ?? '',
+            'middleName' => $src['middleName'] ?? $src['middle_name'] ?? '',
+            'phone'      => $src['phone']      ?? '',
         ];
 
         $payload = [
@@ -179,28 +161,27 @@ class PartnerController extends Controller
             'tax_id'              => $partner->tax_id,
             'kpp'                 => $partner->kpp,
             'registration_number' => $partner->registration_number,
-
             'sms_name'            => $partner->sms_name,
             'city'                => $partner->city,
             'zip'                 => $partner->zip,
             'address'             => $partner->address,
-
             'phone'               => $partner->phone,
             'email'               => $partner->email,
             'website'             => $partner->website,
-
             'bank_name'           => $partner->bank_name,
             'bank_bik'            => $partner->bank_bik,
             'bank_account'        => $partner->bank_account,
-
             'order_by'            => $partner->order_by,
             'is_enabled'          => (bool) $partner->is_enabled,
-
             'ceo'                 => $ceo,
         ];
 
-        // ЛОГ: что отдаём на фронт
-        Log::info('[Partner.edit] payload', ['partner_id' => $partner->id, 'payload' => $payload]);
+        \Log::info('[Partner.edit] payload', [
+            'partner_id' => $partner->id,
+            'raw_ceo'    => $raw,
+            'cast_ceo'   => $cast,
+            'payload'    => $payload
+        ]);
 
         return response()->json($payload);
     }
@@ -210,24 +191,32 @@ class PartnerController extends Controller
         $authorId = auth()->id();
         $data     = $request->validated();
 
-        DB::transaction(function () use ($data, $authorId, $partner) {
+        // гарантия camelCase-ключей в ceo
+        $data['ceo'] = [
+            'lastName'   => $data['ceo']['lastName']   ?? '',
+            'firstName'  => $data['ceo']['firstName']  ?? '',
+            'middleName' => $data['ceo']['middleName'] ?? '',
+            'phone'      => $data['ceo']['phone']      ?? '',
+        ];
+
+        \DB::transaction(function () use ($data, $authorId, $partner) {
 
             $old = $partner->only([
                 'business_type','title','tax_id','kpp','registration_number',
-                'address','phone','email','website',
+                'sms_name','city','zip','address',
+                'phone','email','website',
                 'bank_name','bank_bik','bank_account',
-                'order_by','is_enabled',
-                'sms_name','city','zip','ceo',
+                'order_by','is_enabled','ceo',
             ]);
 
             $partner->update($data);
 
             $new = $partner->only([
                 'business_type','title','tax_id','kpp','registration_number',
-                'address','phone','email','website',
+                'sms_name','city','zip','address',
+                'phone','email','website',
                 'bank_name','bank_bik','bank_account',
-                'order_by','is_enabled',
-                'sms_name','city','zip','ceo',
+                'order_by','is_enabled','ceo',
             ]);
 
             $fields = [
@@ -236,6 +225,9 @@ class PartnerController extends Controller
                 'tax_id'              => 'ИНН',
                 'kpp'                 => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',
+                'sms_name'            => 'Название для SMS/выписок',
+                'city'                => 'Город',
+                'zip'                 => 'Индекс',
                 'address'             => 'Адрес',
                 'phone'               => 'Телефон',
                 'email'               => 'E-mail',
@@ -245,53 +237,55 @@ class PartnerController extends Controller
                 'bank_account'        => 'Расчётный счёт',
                 'order_by'            => 'Сортировка',
                 'is_enabled'          => 'Активность',
-                'sms_name'            => 'Название для SMS/выписок',
-                'city'                => 'Город',
-                'zip'                 => 'Индекс',
             ];
 
             $oldLines = [];
             $newLines = [];
 
             foreach ($fields as $key => $label) {
-                $oldVal = $old[$key] ?? '—';
-                $newVal = $new[$key] ?? '—';
-
-                if ($key === 'is_enabled') {
-                    $oldVal = $oldVal ? 'Да' : 'Нет';
-                    $newVal = $newVal ? 'Да' : 'Нет';
-                }
-
-                if ((string) $oldVal !== (string) $newVal) {
-                    $oldLines[] = "{$label}: {$oldVal}";
-                    $newLines[] = "{$label}: {$newVal}";
+                $ov = $old[$key] ?? '—';
+                $nv = $new[$key] ?? '—';
+                if ($key === 'is_enabled') { $ov = $ov ? 'Да' : 'Нет'; $nv = $nv ? 'Да' : 'Нет'; }
+                if ((string)$ov !== (string)$nv) {
+                    $oldLines[] = "{$label}: {$ov}";
+                    $newLines[] = "{$label}: {$nv}";
                 }
             }
 
-            // CEО: сравниваем по ключам
-            $oldCeo = is_array($old['ceo'] ?? null) ? ($old['ceo'] ?? []) : (json_decode($old['ceo'] ?? '[]', true) ?: []);
-            $newCeo = is_array($new['ceo'] ?? null) ? ($new['ceo'] ?? []) : (json_decode($new['ceo'] ?? '[]', true) ?: []);
+            // сравнение CEO (camelCase, понимаем legacy snake_case в old)
+            $oldCeoSrc = is_array($old['ceo'] ?? null) ? $old['ceo'] : (json_decode($old['ceo'] ?? '[]', true) ?: []);
+            $newCeoSrc = is_array($new['ceo'] ?? null) ? $new['ceo'] : (json_decode($new['ceo'] ?? '[]', true) ?: []);
 
-            $ceoFields = [
-                'last_name'   => 'Фамилия руководителя',
-                'first_name'  => 'Имя руководителя',
-                'middle_name' => 'Отчество руководителя',
-                'phone'       => 'Телефон руководителя',
+            $oldCeo = [
+                'lastName'   => $oldCeoSrc['lastName']   ?? $oldCeoSrc['last_name']   ?? '',
+                'firstName'  => $oldCeoSrc['firstName']  ?? $oldCeoSrc['first_name']  ?? '',
+                'middleName' => $oldCeoSrc['middleName'] ?? $oldCeoSrc['middle_name'] ?? '',
+                'phone'      => $oldCeoSrc['phone']      ?? '',
+            ];
+            $newCeo = [
+                'lastName'   => $newCeoSrc['lastName']   ?? $newCeoSrc['last_name']   ?? '',
+                'firstName'  => $newCeoSrc['firstName']  ?? $newCeoSrc['first_name']  ?? '',
+                'middleName' => $newCeoSrc['middleName'] ?? $newCeoSrc['middle_name'] ?? '',
+                'phone'      => $newCeoSrc['phone']      ?? '',
             ];
 
-            foreach ($ceoFields as $ckey => $clabel) {
-                $o = $oldCeo[$ckey] ?? '—';
-                $n = $newCeo[$ckey] ?? '—';
-                if ((string) $o !== (string) $n) {
-                    $oldLines[] = "{$clabel}: {$o}";
-                    $newLines[] = "{$clabel}: {$n}";
+            $ceoLabels = [
+                'lastName'   => 'Фамилия руководителя',
+                'firstName'  => 'Имя руководителя',
+                'middleName' => 'Отчество руководителя',
+                'phone'      => 'Телефон руководителя',
+            ];
+
+            foreach ($ceoLabels as $k => $label) {
+                if ((string)($oldCeo[$k] ?? '') !== (string)($newCeo[$k] ?? '')) {
+                    $oldLines[] = "{$label}: " . ($oldCeo[$k] ?? '—');
+                    $newLines[] = "{$label}: " . ($newCeo[$k] ?? '—');
                 }
             }
 
-            if (!empty($oldLines)) {
-                $description = "Изменённые данные:\n"
-                    . "Старые значения:\n" . implode("\n", $oldLines) . "\n"
-                    . "Новые значения:\n" . implode("\n", $newLines);
+            if ($oldLines) {
+                $description = "Изменённые данные:\nСтарые значения:\n" . implode("\n", $oldLines)
+                    . "\nНовые значения:\n" . implode("\n", $newLines);
 
                 MyLog::create([
                     'type'        => 80,
@@ -303,11 +297,9 @@ class PartnerController extends Controller
                 ]);
             }
 
-            // ЛОГ: фиксация успешного обновления и нового среза ключевых полей
-            Log::info('[Partner.update] updated', [
+            \Log::info('[Partner.update] updated', [
                 'partner_id' => $partner->id,
-                'changed_fields' => array_values($fields),
-                'after' => $new,
+                'after'      => $new,
             ]);
         });
 
