@@ -27,7 +27,6 @@ class PermissionSeeder extends Seeder
             ['name'=>'reports.view','description'=>'Страница "Отчеты"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>15],
             ['name'=>'myPayments.view','description'=>'Страница "Мои платежи"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>16],
             ['name'=>'myGroup.view','description'=>'Страница "Моя группа"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>17],
-
             ['name'=>'setPrices.view','description'=>'Страница "Установка цен"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>20],
             ['name'=>'schedule.view','description'=>'Страница "Журнал расписания"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>30],
             ['name'=>'users.view','description'=>'Страница "Пользователи"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>40],
@@ -72,6 +71,7 @@ class PermissionSeeder extends Seeder
             ['name'=>'manage_roles','description'=>'Управление ролями','group_slug'=>'misc','is_visible'=>0,'sort_order'=>190],
             ['name'=>'changing_partner','description'=>'Изменение партнера','group_slug'=>'misc','is_visible'=>0,'sort_order'=>190],
             ['name'=>'setting_payment_systems','description'=>'Настройка платежных систем','group_slug'=>'misc','is_visible'=>0,'sort_order'=>200],
+            ['name'=>'payment_method_T-Bank','description'=>'Способ оплаты "Т-Банк','group_slug'=>'misc','is_visible'=>0,'sort_order'=>200],
 
 //            ['name'=>'student_filter_console','description'=>'Фильтр учеников в консоли','group_slug'=>'misc','is_visible'=>0,'sort_order'=>170],
 

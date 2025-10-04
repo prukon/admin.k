@@ -29,6 +29,9 @@
                 <div class="pay-fee mb-3">Комиссия: 0 руб.</div>
             </div>
 
+
+
+            @can('payment-method-T-Bank')
             {{-- Тинькофф --}}
             <div class="wrap-pay" style="max-width: 300px;">
                 <h5 class="pay-name mt-3 mb-3">Тинькофф (мультирасчёты)</h5>
@@ -60,24 +63,7 @@
                 </form>
                 <div class="pay-fee mb-3">Комиссия: как у СБП</div>
             </div>
-
-
-            {{-- Тинькофф --}}
-{{--            <div class="wrap-pay" style="max-width: 300px;">--}}
-{{--                <h5 class="pay-name mt-3 mb-3">Тинькофф</h5>--}}
-{{--                <img src="{{ asset('storage/tinkoff.svg') }}" style="max-width: 100%;">--}}
-{{--                <form class="mb-3 mt-3" id="tinkoffForm" action="{{ route('tinkoff.pay') }}" method="POST">--}}
-{{--                    @csrf--}}
-{{--                    <input type="hidden" name="userName" value="{{ auth()->user()->name }}">--}}
-{{--                    <input type="hidden" name="userId" value="{{ auth()->user()->id }}">--}}
-{{--                    <input type="hidden" name="outSum" value="{{ $outSum }}">--}}
-{{--                    <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">--}}
-{{--                    <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">--}}
-{{--                    <input type="hidden" name="partnerId" value="{{ $partnerId }}">--}}
-{{--                    <button type="submit" class="btn btn-bd-primary pay-btn">Оплатить</button>--}}
-{{--                </form>--}}
-{{--                <div class="pay-fee mb-3">Комиссия: 0 руб.</div>--}}
-{{--            </div>--}}
+            @endcan
 
         </div>
     </div>

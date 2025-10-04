@@ -259,5 +259,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('setting_payment_systems');
         });
 
+        // Настройка платежных систем
+        Gate::define('payment-method-T-Bank', function (User $user) {
+            return $user->hasPermission('payment_method_T-Bank');
+        });
+
+
     }
 }
