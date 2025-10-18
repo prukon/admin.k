@@ -76,7 +76,6 @@
                         </div>
 
 
-
                         <!-- Поле "Дата рождения" -->
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
@@ -168,6 +167,13 @@
                             <div class="mb-3">
                                 <label for="edit-phone" class="form-label">Телефон</label>
 
+                                <script>
+                                    $(function () {
+                                        $('#edit-phone').inputmask("+7 (999) 999-99-99"); // <-- твоя маска
+                                    });
+                                </script>
+
+
                                 <div class="input-group">
                                     <input
                                             type="tel"
@@ -175,9 +181,8 @@
                                             id="edit-phone"
                                             name="phone"
                                             value="{{ old('phone', $user->phone) }}"
-                                            placeholder="+7 (___) ___-__-__"
-                                            data-original="{{ $user->phone ?? '' }}"
-                                            data-verified="{{ $user->phone_verified_at ? 1 : 0 }}"
+                                            placeholder="+7 (XXX) XXX-XX-XX"
+                                            data-can-phone="{{ $canPhone ? 1 : 0 }}"
                                             @unless($canPhone) disabled aria-disabled="true" @endunless
                                     >
 
@@ -259,39 +264,40 @@
 
                         <!-- НОВОЕ ПОЛЕ: Договор -->
                         {{--<div class="col-12">--}}
-                            {{--<label class="form-label d-block">Договор</label>--}}
+                        {{--<label class="form-label d-block">Договор</label>--}}
 
-                            {{--<!-- реальный контрол (select или hidden) -->--}}
-                            {{--<select id="contract_status" name="contract_status" class="form-select d-none">--}}
-                                {{--<option value="signed"    {{ $user->contract_status === 'signed' ? 'selected' : '' }}>подписан</option>--}}
-                                {{--<option value="unsigned"  {{ $user->contract_status === 'unsigned' ? 'selected' : '' }}>не подписан</option>--}}
-                            {{--</select>--}}
+                        {{--<!-- реальный контрол (select или hidden) -->--}}
+                        {{--<select id="contract_status" name="contract_status" class="form-select d-none">--}}
+                        {{--<option value="signed"    {{ $user->contract_status === 'signed' ? 'selected' : '' }}>подписан</option>--}}
+                        {{--<option value="unsigned"  {{ $user->contract_status === 'unsigned' ? 'selected' : '' }}>не подписан</option>--}}
+                        {{--</select>--}}
 
-                            {{--<!-- визуальный индикатор -->--}}
-                            {{--<div id="contract-indicator" class="d-inline-flex align-items-center gap-2 small fw-medium">--}}
-                                {{--<i class="fa-regular fa-circle" aria-hidden="true"></i>--}}
-                                {{--<span>—</span>--}}
-                                {{--<button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="toggle-contract">--}}
-                                    {{--Переключить статус--}}
-                                {{--</button>--}}
-                            {{--</div>--}}
-                            {{--<div class="form-text">Иконка + текст меняются в зависимости от статуса.</div>--}}
+                        {{--<!-- визуальный индикатор -->--}}
+                        {{--<div id="contract-indicator" class="d-inline-flex align-items-center gap-2 small fw-medium">--}}
+                        {{--<i class="fa-regular fa-circle" aria-hidden="true"></i>--}}
+                        {{--<span>—</span>--}}
+                        {{--<button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="toggle-contract">--}}
+                        {{--Переключить статус--}}
+                        {{--</button>--}}
+                        {{--</div>--}}
+                        {{--<div class="form-text">Иконка + текст меняются в зависимости от статуса.</div>--}}
                         {{--</div>--}}
 
 
 
                         {{--Пользовательские поля--}}
                         <div class="col-12 col-md-6">
-                        @if($fields->isNotEmpty()) <!-- Проверяем, есть ли пользовательские поля -->
-                            <div class="mb-3">
-                                <div id="custom-fields-container"> <!-- Контейнер для пользовательских полей -->
+                            @if($fields->isNotEmpty())
+                                <!-- Проверяем, есть ли пользовательские поля -->
+                                <div class="mb-3">
+                                    <div id="custom-fields-container"> <!-- Контейнер для пользовательских полей -->
 
 
+                                    </div>
                                 </div>
-                            </div>
-                        @endif
+                            @endif
 
-                        <!-- Поле "Email" -->
+                            <!-- Поле "Email" -->
                         </div>
                         <!-- Блок изменения пароля -->
                         <div class="buttons-wrap change-pass-wrap" id="change-pass-wrap" style="display: none;">
@@ -319,7 +325,7 @@
                                     id="change-password-btn"
                                     class="btn btn-primary mt-3 change-password-btn {{ $canChange ? '' : 'opacity-50 pe-none' }}"
                                     @unless($canChange)
-                                    aria-disabled="true"
+                                        aria-disabled="true"
                                     tabindex="-1"
                                     data-bs-toggle="tooltip"
                                     title="Нет прав на изменение пароля"
@@ -335,25 +341,25 @@
                             @endunless
 
 
-                        @unless($canChange)
-                            <script>
-                                // Tooltip изменения пароля
-                                document.addEventListener('DOMContentLoaded', function () {
-                                    const btn = document.getElementById('change-password-btn');
-                                    if (btn) new bootstrap.Tooltip(btn);
-                                });
-                            </script>
-                        @endunless
+                            @unless($canChange)
+                                <script>
+                                    // Tooltip изменения пароля
+                                    document.addEventListener('DOMContentLoaded', function () {
+                                        const btn = document.getElementById('change-password-btn');
+                                        if (btn) new bootstrap.Tooltip(btn);
+                                    });
+                                </script>
+                            @endunless
 
-                    <!-- Кнопка для сохранения данных -->
-                        <button type="submit" class="btn btn-primary mt-3 save-change-modal">Сохранить изменения
-                        </button>
-                        <!-- Кнопка для сохранения данных -->
+                            <!-- Кнопка для сохранения данных -->
+                            <button type="submit" class="btn btn-primary mt-3 save-change-modal">Сохранить изменения
+                            </button>
+                            <!-- Кнопка для сохранения данных -->
 
-                        {{--<button type="submit" class="btn btn-danger mt-3 save-change-modal">Удалить</button>--}}
-                        <button type="button" id="delete-user-btn" class="btn btn-danger mt-3 confirm-delete-modal">
-                            Удалить
-                        </button>
+                            {{--<button type="submit" class="btn btn-danger mt-3 save-change-modal">Удалить</button>--}}
+                            <button type="button" id="delete-user-btn" class="btn btn-danger mt-3 confirm-delete-modal">
+                                Удалить
+                            </button>
                         </div>
                 </form>
             </div>
@@ -361,16 +367,13 @@
         </div>
     </div>
 </div>
-<style>
-    .modal-content.background-color-grey { background: #fff; border-radius: 16px; }
-    .modal-title { font-weight: 600; }
-    .form-label { font-weight: 500; }
-</style>
+
+<script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.8/dist/jquery.inputmask.min.js"></script>
 
 <script>
     // Отрисовка индикатора по значению select
     function renderContractIndicator() {
-        var val  = $('#contract_status').val();        // signed | unsigned
+        var val = $('#contract_status').val();        // signed | unsigned
         var $ind = $('#contract-indicator');
         var $ico = $ind.find('i');
         var $txt = $ind.find('span');
@@ -389,7 +392,7 @@
     });
 
     // Кнопка переключения (можно убрать и управлять только сервером)
-    $('#toggle-contract').on('click', function(){
+    $('#toggle-contract').on('click', function () {
         var val = $('#contract_status').val() === 'signed' ? 'unsigned' : 'signed';
         $('#contract_status').val(val);
         renderContractIndicator();
@@ -400,6 +403,51 @@
 <script>
 
     $(document).ready(function () {
+
+        function applyPhoneUI(user){
+            const $phone    = $('#edit-phone');
+            const $iconWrap = $('#phone-verify-icon');
+            const $icon     = $iconWrap.find('i');
+            const $status   = $('#phone-verify-status');
+            const canPhone  = String($phone.data('can-phone')) === '1';
+
+            // Сброс прошлого состояния + маска
+            if ($phone.inputmask) { $phone.inputmask('remove'); }
+            $phone.inputmask("+7 (999) 999-99-99");
+
+            $('#phone-edit-locked-note').remove();
+            $iconWrap.addClass('d-none'); $icon.attr('class','');
+            if ($status.length){ $status.addClass('d-none').text(''); }
+
+            // База по правам админа
+            $phone.prop('disabled', !canPhone)
+                .attr('aria-disabled', !canPhone ? 'true' : null);
+
+            // Применение правил для текущего пользователя
+            const verifiedAt = user.phone_verified_at ? user.phone_verified_at : null;
+
+            if (verifiedAt) {
+                // Подтвержден → всегда locked
+                $phone.prop('disabled', true).attr('aria-disabled','true');
+                $icon.attr('class','fa-solid fa-circle-check text-success');
+                $iconWrap.removeClass('d-none');
+                if ($status.length){
+                    if (!$status.text().trim()) $status.text('Подтверждён');
+                    $status.removeClass('d-none');
+                }
+                $('<div/>', {
+                    id: 'phone-edit-locked-note',
+                    class: 'form-text text-success mt-1'
+                }).html('<i class="fa-solid fa-lock me-1"></i>Редактирование номера запрещено после подтверждения.')
+                    .insertAfter($('#phone-verify-status'));
+            } else {
+                // Не подтвержден → редактировать можно только если есть право
+                if (canPhone) $phone.prop('disabled', false).removeAttr('aria-disabled');
+                $icon.attr('class','fa-solid fa-circle-xmark text-danger');
+                $iconWrap.removeClass('d-none');
+            }
+        }
+
 
         // Функция редактирования пользователя
         function editMidalUser() {
@@ -530,17 +578,12 @@
                             $('.avatar-clip img').attr('src', "{{ asset('img/default-avatar.png') }}");
                         }
 
-
                         // большая аватарка (для модалки просмотра)
-                        // setZoomImageFromUser(response.user);
-
-                        // Вставка большой  аватарки юзеру
                         setZoomImageFromUser(response.user);
                         //Вставка data-id в кнопку добавления аватарки (для добавления чужих аватаров)
-                        setSelectedUserContext(response.user); // <- это ключевое, сюда кладём data-id
+                        setSelectedUserContext(response.user);
                         // Вставим data-id в кнопку удаления аватарки (для удаления чужих аватаров)
                         $('.js-delete-photo').attr('data-id', response.user.id);
-
                         //отключение кнопки "открыть фото" где нет фото
                         setOpenPhotoVisibilityByUser(response.user);
 
@@ -559,30 +602,31 @@
                                 if (uf) userValue = uf.pivot.value || '';
                             }
 
-                            console.log(`\Log [Field ${field.slug}] editable =`, field.editable); // Изменено: логируем для отладки
+                            console.log(`\\Log [Field ${field.slug}] editable =`, field.editable);
 
                             const roles = Array.isArray(field.roles) ? field.roles : [];
-                            const disabledAttr = field.editable ? '' : 'disabled'; // Изменено: вместо расчёта по role_id
+                            const disabledAttr = field.editable ? '' : 'disabled';
 
-                            // 3) Генерируем HTML
                             const html = `
-            <div class="mb-3 custom-field" data-slug="${field.slug}">
-                <label for="custom-${field.slug}" class="form-label">${field.name}</label>
-                <input
-                    type="text"
-                    name="custom[${field.slug}]"
-                    class="form-control"
-                    id="custom-${field.slug}"
-                    value="${userValue}"
-                    ${disabledAttr}
-                />
-            </div>
-        `;
+                                <div class="mb-3 custom-field" data-slug="${field.slug}">
+                                    <label for="custom-${field.slug}" class="form-label">${field.name}</label>
+                                    <input
+                                        type="text"
+                                        name="custom[${field.slug}]"
+                                        class="form-control"
+                                        id="custom-${field.slug}"
+                                        value="${userValue}"
+                                        ${disabledAttr}
+                                    />
+                                </div>
+                            `;
                             container.append(html);
                         });
 
                         // 6) Открываем модалку
                         $('#editUserModal').modal('show');
+                        applyPhoneUI(response.user);
+
                     },
 
                     error: function () {
@@ -591,7 +635,6 @@
                 });
             });
         }
-
         // ОТПРАВКА AJAX.-> /UserController->Update Обработчик обновления данных пользователя
 
         function editUserForm() {
@@ -611,7 +654,7 @@
                         url: url,
                         method: 'PATCH',
                         data: $form.serialize(),
-                        headers: { 'Accept': 'application/json' }, // Laravel вернёт JSON для 422
+                        headers: {'Accept': 'application/json'}, // Laravel вернёт JSON для 422
                         success: function (response) {
                             showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлён.", 1);
                             // при желании: обновить список/закрыть модалку и т.п.
@@ -654,8 +697,6 @@
                 });
         }
 
-
-
         // Вызов модалки удаления
         $(document).on('click', '.confirm-delete-modal', function () {
             deleteUser();
@@ -691,102 +732,34 @@
             );
         }
 
+        $(document).on('hidden.bs.modal', '#editUserModal', function () {
+            const $form   = $('#edit-user-form');
+            const $phone  = $('#edit-phone');
+            const canPhone = String($phone.data('can-phone')) === '1';
+
+            $form[0]?.reset?.();
+
+            if ($phone.inputmask) { $phone.inputmask('remove'); }
+            $phone.inputmask("+7 (999) 999-99-99");
+
+            $('#phone-verify-icon').addClass('d-none').find('i').attr('class','');
+            $('#phone-verify-status').addClass('d-none').text('');
+            $('#phone-edit-locked-note').remove();
+
+            // Вернуть базу по правам админа (чтобы не «залипало» между пользователями)
+            $phone.prop('disabled', !canPhone)
+                .attr('aria-disabled', !canPhone ? 'true' : null);
+
+            $form.find('.is-invalid').removeClass('is-invalid');
+            $form.find('.invalid-feedback').remove();
+        });
+
+
         editMidalUser();
         editUserLink();
         editUserForm();
     });
 </script>
 
-<script>
-    (function () {
-        const $doc = $(document);
-        const digits = s => String(s || '').replace(/\D/g, '');
 
-        function formatPhone(raw) {
-            let d = digits(raw).replace(/^8/, '7');
-            if (d && d[0] !== '7') d = '7' + d;
-            d = d.slice(0, 11);
-            const p1 = d.slice(1, 4), p2 = d.slice(4, 7), p3 = d.slice(7, 9), p4 = d.slice(9, 11);
-            return '+7 (' + (p1.padEnd(3, '_')) + ') ' + (p2.padEnd(3, '_')) + '-' + (p3.padEnd(2, '_')) + '-' + (p4.padEnd(2, '_'));
-        }
 
-        function sameAsOriginal($input) {
-            const orig = digits($input.data('original') || '').replace(/^8/, '7');
-            const cur = digits($input.val()).replace(/^8/, '7');
-            return !!orig && orig === cur;
-        }
-
-        function updateIcon($input) {
-            const $iconWrap = $('#phone-verify-icon');
-            const $icon = $iconWrap.find('i');
-            const $status = $('#phone-verify-status');
-            const hasAny = digits($input.val()).length > 0;
-            const wasVerified = Number($input.data('verified')) === 1;
-            const isSame = sameAsOriginal($input);
-
-            if (!hasAny) {
-                $iconWrap.addClass('d-none');
-                $status.addClass('d-none');
-                return;
-            }
-
-            // Верифицирован и номер не меняли -> зелёная галка + "Подтверждён …"
-            if (wasVerified && isSame) {
-                $iconWrap.removeClass('d-none text-danger').addClass('text-success');
-                $icon.removeClass('fa-circle-xmark').addClass('fa-circle-check');
-                const vAt = $status.data('verified-at');
-                if (vAt) {
-                    $status.removeClass('d-none').addClass('text-success')
-                        .text('Подтверждён ' + formatDate(vAt));
-                } else {
-                    $status.addClass('d-none');
-                }
-            } else {
-                // Иначе — только красный крестик, без подписи
-                $iconWrap.removeClass('d-none text-success').addClass('text-danger');
-                $icon.removeClass('fa-circle-check').addClass('fa-circle-xmark');
-                $status.addClass('d-none');
-            }
-        }
-
-        function formatDate(str) {
-            const d = new Date(String(str).replace(' ', 'T'));
-            const pad = n => String(n).padStart(2, '0');
-            return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-        }
-
-        // Делегированные обработчики — работают и в модалках
-        $doc.on('input', '#edit-phone', function () {
-            const pos = this.selectionStart || 0;
-            this.value = formatPhone(this.value);
-            try {
-                this.setSelectionRange(pos, pos);
-            } catch (e) {
-            }
-            updateIcon($(this));
-        });
-        $doc.on('paste blur', '#edit-phone', function () {
-            const el = this;
-            setTimeout(() => {
-                el.value = formatPhone(el.value);
-                updateIcon($(el));
-            }, 0);
-        });
-
-        // Инициализация при показе модалки/страницы
-        $doc.on('shown.bs.modal', function (e) {
-            const $inp = $(e.target).find('#edit-phone');
-            if ($inp.length) {
-                if ($inp.val()) $inp.val(formatPhone($inp.val()));
-                updateIcon($inp);
-            }
-        });
-        $(function () {
-            const $inp = $('#edit-phone');
-            if ($inp.length) {
-                if ($inp.val()) $inp.val(formatPhone($inp.val()));
-                updateIcon($inp);
-            }
-        });
-    })();
-</script>

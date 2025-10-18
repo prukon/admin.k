@@ -7,10 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class MyLog extends Model
 {
-
     protected $table = 'my_logs'; // Явно указываем таблицу, если нужно
     protected $guarded = []; //разрешение на изменение данных в таблице}
-
 
     // Укажите, что поле created_at является датой
     protected $casts = [
@@ -34,6 +32,12 @@ class MyLog extends Model
     public function getTypeLabelAttribute()
     {
         return self::$typeLabels[$this->type] ?? 'Неизвестный тип';
+    }
+
+    // Полиморфная связь для навигации (по желанию)
+    public function target(): MorphTo
+    {
+        return $this->morphTo(__FUNCTION__, 'target_type', 'target_id');
     }
 
 

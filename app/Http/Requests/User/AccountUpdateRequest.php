@@ -42,15 +42,6 @@ class AccountUpdateRequest extends FormRequest
             'two_factor_enabled' => $resolvedTwoFactorEnabled,
             'is_enabled'         => $resolvedIsEnabled,
         ]);
-
-//        Log::info('AdminUpdateRequest: prepareForValidation', [
-//            'editor_user_id'        => optional($this->user())->id,
-//            'target_user_id'        => optional($targetUser)->id,
-//            'incoming_has_tfa'      => $incomingHasTfa,
-//            'incoming_tfa_raw'      => $this->input('two_factor_enabled'),
-//            'resolved_two_factor'   => $resolvedTwoFactorEnabled,
-//            'resolved_is_enabled'   => $resolvedIsEnabled,
-//        ]);
     }
 
     /**
@@ -93,6 +84,12 @@ class AccountUpdateRequest extends FormRequest
                 Rule::unique('users', 'email')->ignore($targetUserId),
             ];
         }
+
+        if ($this->user()->can('account-user-phone-update')) {
+            $rules['phone'] = ['sometimes','nullable','string','max:32'];
+        }
+
+
 
         return $rules;
     }
@@ -161,6 +158,8 @@ class AccountUpdateRequest extends FormRequest
             'team_id'            => 'Группа',
             'email'              => 'Email',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
+            'phone'              => 'Телефон',
+
         ];
     }
 

@@ -15,6 +15,7 @@
                             <th>ID</th>
                             <th>Действие</th>
                             <th>Автор</th>
+                            <th>Что меняли</th>
                             <th>Описание</th>
                             <th>Дата создания</th>
                         </tr>
@@ -45,31 +46,19 @@
                     columns: [
                         {data: 'id', name: 'id'},
                         {data: 'action', name: 'action'},
-                        {data: 'author', name: 'author'},
-                        {
-                            data: 'description',
-                            name: 'description',
+                        {data: 'author', name: 'author' }, // заменили author
+                        {data: 'target_label', name: 'target_label' }, // заменили target
+
+                        {data: 'description', name: 'description',
                             render: function (data, type, row) {
                                 return data.replace(/\n/g, "<br>"); // Преобразование новых строк в <br>
                             }
                         },
                         {data: 'created_at', name: 'created_at'}
                     ],
-                    order: [[4, 'desc']], // Сортировка по дате создания (последние записи первыми)
-                    // columnDefs: [
-                    //     { width: "40px", targets: 0 }, // ID
-                    //     { width: "150px", targets: 4 } // Дата создания
-                    // ],
-                    // autoWidth: false, // Отключаем автоширину, чтобы вручную заданные стили применялись
-
+                    order: [[5, 'desc']], // Сортировка по дате создания (последние записи первыми)
                     scrollX: true,
-
-                    // fixedColumns: {
-                    //     leftColumns: 2
-                    // },
-
                     language: {
-                        // url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json",
                         "processing": "Обработка...",
                         "search": "",
                         "searchPlaceholder": "Поиск...",

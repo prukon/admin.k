@@ -14,6 +14,7 @@ export default defineConfig({
                 'resources/css/style.css',
                 'resources/css/schedule.css',
                 'resources/css/landing.css',
+                'resources/css/user.css',
 
 
                 'resources/js/common-scripts.js', //выпил

@@ -90,12 +90,33 @@ class AccountController extends Controller
 
     }
 
+
+//    Обновление юзера в учетной записи
     public function update(AccountUpdateRequest $request, User $user)
     {
         $partnerId = app('current_partner')->id;
-        $authorId = Auth::id();
-        $oldData = $user->replicate();
-        $validated = $request->validated();
+        $authorId  = Auth::id();
+
+        // Снимки до изменений (для дифф-логов)
+        $original   = $user->getOriginal();
+        $oldData    = $user->replicate();
+        $validated  = $request->validated();
+
+        // --- локализованные подписи полей для человекочитаемых логов
+        $fieldLabel = function (string $key): string {
+            static $map = [
+                'lastname'            => 'Фамилия',
+                'name'                => 'Имя',
+                'email'               => 'Email',
+                'is_enabled'          => 'Аккаунт активен',
+                'team_id'             => 'Команда',
+                'role_id'             => 'Роль',
+                'birthday'            => 'Дата рождения',
+                'phone'               => 'Телефон',
+                'two_factor_enabled'  => 'Двухфакторная аутентификация (SMS)',
+            ];
+            return $map[$key] ?? $key;
+        };
 
         // --- нормализация телефона
         $normalize = function (?string $phone): ?string {
@@ -105,184 +126,320 @@ class AccountController extends Controller
             if (strlen($digits) === 10) $digits = '7' . $digits;
             return $digits ?: null;
         };
+        $originalPhone = $normalize($original['phone'] ?? null); // ✳ для корректного сравнения
         $incomingPhone = $normalize($validated['phone'] ?? null);
-        $currentPhone = $normalize($user->phone);
+        $currentPhone  = $normalize($user->phone);
         $isDeletePhone = array_key_exists('phone', $validated) && $incomingPhone === null;
 
-        // --- 2FA: учитываем глобалку force_2fa_admins
-        $targetRoleId = (int)($validated['role_id'] ?? $user->role_id);
-        $isAdminRole = ($targetRoleId === 10);
-
-        // В AdminUpdateRequest в prepareForValidation мы уже нормализуем two_factor_enabled:
-        // если чекбокс не прислан — берём текущее значение пользователя.
+        // --- 2FA: глобалка force_2fa_admins
+        $targetRoleId   = (int)($validated['role_id'] ?? $user->role_id);
+        $isAdminRole    = ($targetRoleId === 10);
         $requestedTwoFa = (int)$request->boolean('two_factor_enabled');
+        $forceAdmin2fa  = Setting::getBool('force_2fa_admins', false, null);
 
-        $forceAdmin2fa = Setting::getBool('force_2fa_admins', false, null);
-
-        // КЛЮЧЕВОЕ:
-        // - если глобалка ON и это админ — 2FA обязательно;
-        // - иначе берём то, что реально пришло (или текущее, если чекбокс не прислан).
+        // Итоговое состояние 2FA
         $twoFaEnabled = ($isAdminRole && $forceAdmin2fa) ? 1 : $requestedTwoFa;
         $validated['two_factor_enabled'] = $twoFaEnabled;
 
-        \Log::info('Account update: 2FA decision', [
-            'editor_id' => $authorId,
-            'user_id' => $user->id,
-            'is_admin_role' => $isAdminRole,
-            'forceAdmin2fa' => $forceAdmin2fa,
-            'requested_two_fa' => $requestedTwoFa,
-            'final_two_fa' => $twoFaEnabled,
-            'incoming_phone' => $incomingPhone,
-            'current_phone' => $currentPhone,
+        \Log::info('User update: 2FA decision', [
+            'editor_id'       => $authorId,
+            'user_id'         => $user->id,
+            'is_admin_role'   => $isAdminRole,
+            'force_admin_2fa' => $forceAdmin2fa,
+            'requested_2fa'   => $requestedTwoFa,
+            'final_2fa'       => $twoFaEnabled,
+            'incoming_phone'  => $incomingPhone,
+            'current_phone'   => $currentPhone,
         ]);
 
-        // Если 2FA была включена и мы её выключаем (и это НЕ админ под глобалкой) — чистим служебные поля
+        // Если 2FA была включена и мы её выключаем (не админ под глобалкой) — чистим служебные поля
         if (!$isAdminRole && $user->two_factor_enabled && $twoFaEnabled === 0) {
-            $validated['two_factor_code'] = null;
+            $validated['two_factor_code']       = null;
             $validated['two_factor_expires_at'] = null;
         }
 
         // --- правила по телефону
         if ($isDeletePhone) {
-            // удалять телефон разрешаем только когда 2FA не включена итогово
             if ($twoFaEnabled === 1) {
-                \Log::info('Account update: phone delete blocked (2FA ON)', ['user_id' => $user->id]);
+                \Log::info('User update: phone delete blocked (2FA ON)', ['user_id' => $user->id]);
                 return response()->json([
                     'message' => 'Нельзя удалить телефон при включённой 2FA.',
-                    'errors' => ['phone' => ['Нельзя удалить телефон при включённой 2FA.']],
+                    'errors'  => ['phone' => ['Нельзя удалить телефон при включённой 2FA.']],
                 ], 422);
             }
-            $validated['phone'] = null;
-            $validated['phone_verified_at'] = null;
-            $validated['two_factor_phone_pending'] = null;
-            $validated['phone_change_new_code'] = null;
+            // Удаление телефона допустимо
+            $validated['phone']                       = null;
+            $validated['phone_verified_at']           = null;
+            $validated['two_factor_phone_pending']    = null;
+            $validated['phone_change_new_code']       = null;
             $validated['phone_change_new_expires_at'] = null;
-            $validated['phone_change_old_code'] = null;
+            $validated['phone_change_old_code']       = null;
             $validated['phone_change_old_expires_at'] = null;
-        } elseif ($incomingPhone !== null && $incomingPhone !== $currentPhone) {
-            // запрет обхода SMS-подтверждения (смена номера только через форму подтверждения)
-            \Log::info('Account update: direct phone change blocked', [
-                'user_id' => $user->id,
-                'current' => $currentPhone,
-                'incoming' => $incomingPhone,
-            ]);
-            return response()->json([
-                'message' => 'Смените телефон через подтверждение SMS-кодом (кнопка «Подтвердить»).',
-                'errors' => ['phone' => ['Подтвердите новый номер через SMS перед сохранением.']],
-            ], 422);
-        }
 
-        // Требуем телефон ТОЛЬКО если 2FA реально включена итогово
-        if ($twoFaEnabled === 1) {
-            $phoneFor2fa = $currentPhone; // номер менять здесь нельзя
-            if (!$phoneFor2fa || !preg_match('/^7\d{10}$/', $phoneFor2fa)) {
-                \Log::info('Account update: phone required because 2FA ON', [
+            \Log::info('User update: phone cleared by request', ['user_id' => $user->id]);
+        }
+        // ✱ ИЗМЕНЕНО: новая логика смены телефона
+        elseif ($incomingPhone !== null && $incomingPhone !== $currentPhone) {
+            $isVerified = !is_null($user->phone_verified_at); // подтверждён ли текущий номер
+
+            if ($isVerified) {
+                // ✱ ИЗМЕНЕНО: запрещаем менять подтверждённый номер
+                \Log::info('User update: phone change blocked (verified)', [
                     'user_id' => $user->id,
-                    'phone' => $phoneFor2fa,
+                    'from'    => $currentPhone,
+                    'to'      => $incomingPhone,
+                ]);
+                return response()->json([
+                    'message' => 'Нельзя менять подтверждённый номер. Сбросьте подтверждение или свяжитесь с администратором.',
+                    'errors'  => ['phone' => ['Номер подтверждён. Смена запрещена.']],
+                ], 422);
+            } else {
+                // ✱ ИЗМЕНЕНО: номер не подтверждён — разрешаем прямую смену и чистим служебные поля
+                $validated['phone']                       = $incomingPhone;
+                $validated['phone_verified_at']           = null; // остаётся неподтверждённым
+                $validated['two_factor_phone_pending']    = null;
+                $validated['phone_change_new_code']       = null;
+                $validated['phone_change_new_expires_at'] = null;
+                $validated['phone_change_old_code']       = null;
+                $validated['phone_change_old_expires_at'] = null;
+
+                \Log::info('User update: phone changed (unverified -> new value saved)', [
+                    'user_id' => $user->id,
+                    'from'    => $currentPhone,
+                    'to'      => $incomingPhone,
+                ]);
+            }
+        }
+        // --- конец блока правил по телефону
+
+        // Требуем телефон только если 2FA включена итогово
+        if ($twoFaEnabled === 1) {
+            $phoneFor2fa = $normalize($validated['phone'] ?? $user->phone); // ✱ ИЗМЕНЕНО: учитывать возможную смену выше
+            if (!$phoneFor2fa || !preg_match('/^7\d{10}$/', $phoneFor2fa)) {
+                \Log::info('User update: phone required because 2FA ON', [
+                    'user_id' => $user->id,
+                    'phone'   => $phoneFor2fa,
                 ]);
                 return response()->json([
                     'message' => 'Укажите корректный номер телефона для SMS (формат 79XXXXXXXXX).',
-                    'errors' => ['phone' => ['Телефон обязателен для включения 2FA и должен быть формата 79XXXXXXXXX']],
+                    'errors'  => ['phone' => ['Телефон обязателен для включения 2FA и должен быть формата 79XXXXXXXXX']],
                 ], 422);
             }
         }
 
-        \Log::info('Начало обновления пользователя', [
-            'author_id' => $authorId,
-            'user_id' => $user->id,
+        \Log::info('User update: start', [
+            'editor_id'  => $authorId,
+            'user_id'    => $user->id,
             'partner_id' => $partnerId,
-            'input' => $request->all(),
-            'validated' => $validated,
+            'input'      => $request->all(),
+            'validated'  => $validated,
         ]);
 
-        DB::transaction(function () use ($user, $authorId, $partnerId, $validated, $oldData) {
-//            \Log::debug('Старые данные пользователя', [
-//                'name' => $oldData->name,
-//                'birthday' => $oldData->birthday ?->format('Y-m-d'),
-//            'email'    => $oldData->email,
-//        ]);
+        // --- ДОП. ПАРАМЕТРЫ (как было изначально): custom[slug] = value
+        $custom = (array) $request->input('custom', []);
+        \Log::info('Полученные кастомные поля', $custom);
 
-        $this->service->update($user, $validated);
+        // Роль редактора (кто сохраняет)
+        $editorRoleId = (int) auth()->user()->role_id;
 
-        // принудительно дочистим при удалении телефона (на случай, если сервис не тронет)
-        if (array_key_exists('phone', $validated) && $validated['phone'] === null) {
-            $user->forceFill([
-                'phone' => null,
-                'phone_verified_at' => null,
-                'two_factor_phone_pending' => null,
-                'phone_change_new_code' => null,
-                'phone_change_new_expires_at' => null,
-                'phone_change_old_code' => null,
-                'phone_change_old_expires_at' => null,
-            ])->save();
-        }
+        // Значения user_field_values до изменений
+        $oldFieldValuesById = \App\Models\UserFieldValue::query()
+            ->where('user_id', $user->id)
+            ->pluck('value', 'field_id')
+            ->toArray();
 
-        $user->refresh();
+        // Для подписи в диффе: ЛОКАЛИЗАЦИЯ из user_fields.name
+        $fieldNameById = []; // [field_id => name]
 
-//        \Log::debug('Новые данные пользователя', [
-//            'name' => $user->name,
-//            'birthday' => $user->birthday ?->format('Y-m-d'),
-//            'email'    => $user->email,
-//        ]);
+        DB::transaction(function () use (
+            $user, $authorId, $partnerId, $validated, $original,
+            $custom, $editorRoleId, &$fieldNameById, $oldFieldValuesById, $fieldLabel, $normalize, $originalPhone
+        ) {
+            // Обновление основной модели
+            $this->service->update($user, $validated);
 
-        // DIFF-лог (телефон/2FA)
-        $mask = function (?string $p) {
-            if (!$p) return 'null';
-            $d = preg_replace('/\D+/', '', $p);
-            return '***' . substr($d, -4);
-        };
-        $label = fn($v)=> (int)$v === 1 ? 'включена' : 'выключена';
+            // Дочистка служебных полей при удалении телефона (страховка)
+            if (array_key_exists('phone', $validated) && $validated['phone'] === null) {
+                $user->forceFill([
+                    'phone'                       => null,
+                    'phone_verified_at'           => null,
+                    'two_factor_phone_pending'    => null,
+                    'phone_change_new_code'       => null,
+                    'phone_change_new_expires_at' => null,
+                    'phone_change_old_code'       => null,
+                    'phone_change_old_expires_at' => null,
+                ])->save();
+            }
 
-        $diff = [];
-        if ($oldData->phone !== $user->phone) {
-            $diff[] = "Телефон: {$mask($oldData->phone)} → {$mask($user->phone)}";
-        }
-        $old2fa = (int)$oldData->two_factor_enabled; $new2fa = (int)$user->two_factor_enabled;
-        if ($old2fa !== $new2fa) $diff[] = "2FA: {$label($old2fa)} → {$label($new2fa)}";
-        if ($old2fa === 1 && $new2fa === 0) $diff[] = "Очищены служебные поля 2FA (код/срок).";
+            // Сохранение кастомных полей (через slug) + сбор локализованных имён
+            foreach ($custom as $slug => $newValue) {
+                $field = \App\Models\UserField::query()->where('slug', $slug)->first();
+                if (!$field) {
+                    \Log::warning("Неизвестное поле custom[{$slug}] — пропускаем");
+                    continue;
+                }
 
-        $desc = $diff ? "Изменения (2FA/телефон):\n— " . implode("\n— ", $diff) : "Изменения (2FA/телефон): отсутствуют.";
+                // берём именно колонку name (локализованное имя поля)
+                $fieldNameById[$field->id] = $field->name;
 
-        $authorName = Auth::user()->name;
-//        MyLog::create([
-//            'type' => 2,
-//            'action' => 23,
-//            'partner_id' => $partnerId,
-//            'author_id' => $authorId,
-//            'description' => "Автор: {$authorName} (ID {$authorId}).\n"
-//                . "Старые: {$oldData->name}, "
-//                . ($oldData->birthday ? \Carbon\Carbon::parse($oldData->birthday)->format('d.m.Y') : 'null')
-//                . ", {$oldData->email}.\n"
-//                . "Новые: {$user->name}, "
-//                . ($user->birthday ? \Carbon\Carbon::parse($user->birthday)->format('d.m.Y') : 'null')
-//                . ", {$user->email}.\n"
-//                . $desc,
-//            'created_at' => now(),
-//        ]);
+                $allowedRoleIds = \DB::table('user_field_role')
+                    ->where('user_field_id', $field->id)
+                    ->pluck('role_id')
+                    ->map(fn($v) => (int)$v)
+                    ->all();
+
+                \Log::debug("UserField ID {$field->id}, allowed roles: " . json_encode($allowedRoleIds));
+                $isEditable = in_array($editorRoleId, $allowedRoleIds, true);
+                \Log::info("Обработка поля {$slug}: Редактируемое - " . ($isEditable ? 'Да' : 'Нет') . " ");
+
+                if (!$isEditable) {
+                    \Log::warning("Пользователь {$authorId} не может редактировать поле {$slug} ");
+                    continue;
+                }
+
+                \App\Models\UserFieldValue::query()->updateOrCreate(
+                    ['user_id' => $user->id, 'field_id' => $field->id],
+                    ['value' => $newValue]
+                );
+            }
+
+            $user->refresh();
+
+            // --------- DIFF: основные поля (локализованные подписи) ---------
+            // ✱ ИЗМЕНЕНО: показываем номер полностью (без маски)
+            $showPhone = function (?string $p) {
+                if (!$p) return 'null';
+                $d = preg_replace('/\D+/', '', $p);
+                return $d ?: 'null';
+            };
+            $labelOnOff = fn($v) => ((int)$v === 1 ? 'включена' : 'выключена');
+            $labelYesNo = fn($v) => ((int)$v === 1 ? 'Да' : 'Нет');
+
+            $watched = ['lastname','name','email','is_enabled','team_id','role_id','birthday'];
+            $changes = [];
+
+            // ✱ NEW: маппинг team_id -> title для человекочитаемых логов
+            $teamTitle = function ($id): ?string {
+                static $titles = null;
+                if ($titles === null) {
+                    // Подтягиваем все названия разом (кешируется в статике)
+                    $titles = \App\Models\Team::query()
+                        ->pluck('title', 'id')
+                        ->map(fn($v) => (string)$v)
+                        ->toArray();
+                }
+                if ($id === null) return null;
+                return $titles[$id] ?? ('#'.$id); // если команда уже удалена — покажем #id
+            };
 
 
-        MyLog::create([
-            'type' => 2,
-            'action' => 23,
-            'partner_id' => $partnerId,
-            'author_id' => $authorId,
-            'description' => "Автор: {$authorName} (ID {$authorId}).\n"
-                . "Старые: " . trim(($oldData->lastname ?? '') . ' ' . ($oldData->name ?? '')) . ", "
-                . ($oldData->birthday ? \Carbon\Carbon::parse($oldData->birthday)->format('d.m.Y') : 'null')
-                . ", {$oldData->email}.\n"
-                . "Новые: " . trim(($user->lastname ?? '') . ' ' . ($user->name ?? '')) . ", "
-                . ($user->birthday ? \Carbon\Carbon::parse($user->birthday)->format('d.m.Y') : 'null')
-                . ", {$user->email}.\n"
-                . $desc,
-            'created_at' => now(),
-        ]);
+            foreach ($watched as $field) {
+                $old = $original[$field] ?? null;
+                $new = $user->{$field};
+
+                if ($field === 'birthday') {
+                    $old = $old ? \Carbon\Carbon::parse($old)->format('d.m.Y') : null;
+                    $new = $new ? \Carbon\Carbon::parse($new)->format('d.m.Y') : null;
+                }
+                if ($field === 'is_enabled') {
+                    $old = $old === null ? null : $labelYesNo((int)$old);
+                    $new = $new === null ? null : $labelYesNo((int)$new);
+                }
+
+                // ✱ NEW: для team_id — логируем названия групп (teams.title), а не ID
+                if ($field === 'team_id') {
+                    $oldTitle = $teamTitle($original['team_id'] ?? null);
+                    $newTitle = $teamTitle($user->team_id);
+                    if (($original['team_id'] ?? null) != $user->team_id) {
+                        $changes[] = $fieldLabel('team_id') . ': ' .
+                            ($oldTitle === null ? 'null' : $oldTitle) . ' → ' .
+                            ($newTitle === null ? 'null' : $newTitle);
+                    }
+                    continue; // важно: пропускаем общий пуш ниже
+                }
 
 
+                if ($old != $new) {
+                    $changes[] = $fieldLabel($field) . ': ' . ($old === null ? 'null' : $old) . ' → ' . ($new === null ? 'null' : $new);
+                }
+            }
 
-        \Log::info('MyLog-запись успешно создана');
-    });
+            // ✱ ИЗМЕНЕНО: явная проверка и логирование телефона — без маски
+            $updatedPhone = $normalize($user->phone);
+            if ($originalPhone !== $updatedPhone) {
+                \Log::info('User update: phone changed', [
+                    'user_id' => $user->id,
+                    'from'    => $showPhone($originalPhone),
+                    'to'      => $showPhone($updatedPhone),
+                ]);
+                $changes[] = $fieldLabel('phone') . ': ' . $showPhone($originalPhone) . ' → ' . $showPhone($updatedPhone);
+            }
 
-        \Log::info('Успешная транзакция обновления пользователя', ['user_id' => $user->id]);
+            $old2fa = (int)($original['two_factor_enabled'] ?? 0);
+            $new2fa = (int)$user->two_factor_enabled;
+            if ($old2fa !== $new2fa) {
+                $changes[] = $fieldLabel('two_factor_enabled') . ': ' . $labelOnOff($old2fa) . ' → ' . $labelOnOff($new2fa);
+            }
+            if ($old2fa === 1 && $new2fa === 0) {
+                $changes[] = '— очищены служебные поля 2FA (код/срок)';
+            }
+
+            // --------- DIFF: кастомные поля (имена из user_fields.name) ---------
+            $newFieldValuesById = \App\Models\UserFieldValue::query()
+                ->where('user_id', $user->id)
+                ->pluck('value', 'field_id')
+                ->toArray();
+
+            $fieldDiffLines = [];
+            $allIds = array_unique(array_merge(array_keys($oldFieldValuesById), array_keys($newFieldValuesById)));
+            foreach ($allIds as $fid) {
+                $oldV = $oldFieldValuesById[$fid] ?? null;
+                $newV = $newFieldValuesById[$fid] ?? null;
+                if ($oldV != $newV) {
+                    if (!isset($fieldNameById[$fid])) {
+                        $f = \App\Models\UserField::query()->where('id', $fid)->first(['id','name']);
+                        $fieldNameById[$fid] = $f?->name ?? ("Поле #{$fid}");
+                    }
+                    $title = $fieldNameById[$fid];
+                    $fieldDiffLines[] = $title . ': ' . ($oldV === null ? 'null' : (string)$oldV) . ' → ' . ($newV === null ? 'null' : (string)$newV);
+                }
+            }
+            if ($fieldDiffLines) {
+                $changes[] = "Изменения доп. полей:\n" . implode("\n", $fieldDiffLines);
+            }
+
+            $desc = $changes ? implode("\n", $changes) : "Изменения: отсутствуют.";
+
+            // --------- запись в MyLog (безопасно к отсутствию action_name_ru) ---------
+            $authorName  = Auth::user()->name ?? ('ID '.$authorId);
+            $targetLabel = method_exists($user, 'getFullNameAttribute')
+                ? ($user->full_name ?? trim(($user->lastname ?? '').' '.($user->name ?? '')))
+                : trim(($user->lastname ?? '').' '.($user->name ?? ''));
+
+            $logData = [
+                'type'         => 2,                           // логи пользователей
+                'action'       => 23,                          // обновление пользователя
+                'partner_id'   => $partnerId,
+                'author_id'    => $authorId,
+                'target_type'  => \App\Models\User::class,
+                'target_id'    => $user->id,
+                'target_label' => $targetLabel,
+                'description'  => $desc,
+                'created_at'   => now(),
+            ];
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn('my_logs', 'action_name_ru')) {
+                $logData['action_name_ru'] = 'Обновление учётной записи пользователя';
+            }
+
+            MyLog::create($logData);
+
+            \Log::info('User update: saved and logged', [
+                'editor_id'  => $authorId,
+                'user_id'    => $user->id,
+                'partner_id' => $partnerId,
+            ]);
+        });
 
         return response()->json(['success' => true, 'message' => 'Пользователь успешно обновлен']);
     }
@@ -314,7 +471,6 @@ class AccountController extends Controller
         });
         return response()->json(['success' => true]);
     }
-
     public function phoneSendCode(Request $request, User $user)
     {
         // Права: сам себе или админ/супер
@@ -324,49 +480,45 @@ class AccountController extends Controller
             abort(403, $res->message() ?: 'Недостаточно прав.');
         }
 
+        // Нормализация входа -> цифры 79XXXXXXXXX
         $raw = (string)$request->input('phone', '');
         $digits = preg_replace('/\D+/', '', $raw);
-        if (strlen($digits) === 11 && str_starts_with($digits, '8')) {
-            $digits = '7' . substr($digits, 1);
-        }
-        if (strlen($digits) === 10 && $digits[0] !== '7') {
-            $digits = '7' . $digits;
-        }
+        if (strlen($digits) === 11 && str_starts_with($digits, '8')) $digits = '7' . substr($digits, 1);
+        if (strlen($digits) === 10) $digits = '7' . $digits;
+
         if (!preg_match('/^7\d{10}$/', $digits)) {
             return response()->json(['success' => false, 'message' => 'Некорректный номер. Формат 79XXXXXXXXX.'], 422);
         }
 
-        // Если номер не меняется и уже подтверждён — бессмысленно слать код
-        if ($user->phone_verified_at && $user->phone === $digits) {
+        // Если номер не меняется и уже подтверждён — не шлём код
+        $currentDigits = preg_replace('/\D+/', '', (string)$user->phone);
+        if ($user->phone_verified_at && $currentDigits === $digits) {
             return response()->json(['success' => true, 'alreadyVerified' => true]);
         }
 
-        // Генерим код, сохраняем "ожидаемый" номер и дедлайны
+        // Генерим код
         $code = (string)random_int(100000, 999999);
         $expires = now()->addMinutes(10);
 
-        $user->two_factor_phone_pending = $digits;
-        $user->phone_change_new_code = Hash::make($code);
+        // ✅ Храним pending в E.164 (+7…)
+        $user->two_factor_phone_pending = '+' . $digits;
+        $user->phone_change_new_code = \Hash::make($code);
         $user->phone_change_new_expires_at = $expires;
-        // на всякий пожарный очистим старые значения другого шага
+        // Чистим старый шаг на всякий случай
         $user->phone_change_old_code = null;
         $user->phone_change_old_expires_at = null;
         $user->save();
 
-        \Log::info('phoneSendCode: code generated', [
-            'target_id' => $user->id,
-            'to' => '***' . substr($digits, -4),
-            'expires' => $expires->toDateTimeString(),
+        \Log::debug('phoneSendCode: saved pending', [
+            'user_id'   => $user->id,
+            'pending'   => $user->two_factor_phone_pending,
+            'digits'    => $digits,
+            'expires'   => $expires->toDateTimeString(),
         ]);
 
-        // Отправка SMS (замени на свой сервис)
+        // Отправка SMS — шлюзу отдаем цифры (79…)
         try {
-            if (class_exists(\App\Servises\SmsRuService::class)) {
-                app(\App\Servises\SmsRuService::class)->send($digits, "Код подтверждения: {$code}");
-            } else {
-                // заглушка
-                \Log::warning('SmsRuService not found, code (debug): ' . $code);
-            }
+            app(\App\Servises\SmsRuService::class)->send($digits, "Код подтверждения: {$code}");
         } catch (\Throwable $e) {
             \Log::error('phoneSendCode: sms send failed', ['err' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => 'Не удалось отправить SMS. Попробуйте позже.'], 500);
@@ -374,62 +526,6 @@ class AccountController extends Controller
 
         return response()->json(['success' => true]);
     }
-
-    public function phoneConfirmCode2(Request $request, User $user)
-    {
-        $res = \Gate::inspect('verify-phone', $user);
-        if ($res->denied()) {
-            \Log::warning('phoneConfirmCode: denied', ['actor_id' => \Auth::id(), 'target_id' => $user->id]);
-            abort(403, $res->message() ?: 'Недостаточно прав.');
-        }
-
-        $rawPhone = (string)$request->input('phone', '');
-        $digits = preg_replace('/\D+/', '', $rawPhone);
-        if (strlen($digits) === 11 && str_starts_with($digits, '8')) {
-            $digits = '7' . substr($digits, 1);
-        }
-        if (strlen($digits) === 10 && $digits[0] !== '7') {
-            $digits = '7' . $digits;
-        }
-        $code = trim((string)$request->input('code', ''));
-
-        if (!preg_match('/^7\d{10}$/', $digits) || !preg_match('/^\d{4,8}$/', $code)) {
-            return response()->json(['success' => false, 'message' => 'Неверные данные.'], 422);
-        }
-
-        // Проверяем, что ожидаем этот номер
-        if (!$user->two_factor_phone_pending || $user->two_factor_phone_pending !== $digits) {
-            return response()->json(['success' => false, 'message' => 'Этот номер не ожидается к подтверждению.'], 422);
-        }
-
-        if (!$user->phone_change_new_code || !$user->phone_change_new_expires_at) {
-            return response()->json(['success' => false, 'message' => 'Код не запрошен.'], 422);
-        }
-        if (now()->greaterThan($user->phone_change_new_expires_at)) {
-            return response()->json(['success' => false, 'message' => 'Код истёк. Запросите новый.'], 422);
-        }
-
-        if (!Hash::check($code, $user->phone_change_new_code)) {
-            return response()->json(['success' => false, 'message' => 'Неверный код.'], 422);
-        }
-
-        // Всё ок — применяем номер
-        $user->phone = $digits;
-        $user->phone_verified_at = now();
-        $user->two_factor_phone_pending = null;
-        $user->phone_change_new_code = null;
-        $user->phone_change_new_expires_at = null;
-        $user->two_factor_phone_changed_at = now();
-        $user->save();
-
-        \Log::info('phoneConfirmCode: success', [
-            'target_id' => $user->id,
-            'phone' => '***' . substr($digits, -4),
-        ]);
-
-        return response()->json(['success' => true, 'verified_at' => now()->format('Y-m-d H:i:s')]);
-    }
-
     public function phoneConfirmCode(Request $request, User $user)
     {
         $res = \Gate::inspect('verify-phone', $user);
@@ -438,21 +534,29 @@ class AccountController extends Controller
             abort(403, $res->message() ?: 'Недостаточно прав.');
         }
 
+        // Вход -> цифры 79…
         $rawPhone = (string)$request->input('phone', '');
         $digits = preg_replace('/\D+/', '', $rawPhone);
-        if (strlen($digits) === 11 && str_starts_with($digits, '8')) {
-            $digits = '7' . substr($digits, 1);
-        }
-        if (strlen($digits) === 10 && $digits[0] !== '7') {
-            $digits = '7' . $digits;
-        }
+        if (strlen($digits) === 11 && str_starts_with($digits, '8')) $digits = '7' . substr($digits, 1);
+        if (strlen($digits) === 10) $digits = '7' . $digits;
+
         $code = trim((string)$request->input('code', ''));
 
         if (!preg_match('/^7\d{10}$/', $digits) || !preg_match('/^\d{4,8}$/', $code)) {
             return response()->json(['success' => false, 'message' => 'Неверные данные.'], 422);
         }
 
-        if (!$user->two_factor_phone_pending || $user->two_factor_phone_pending !== $digits) {
+        // ✅ Сравниваем pending по цифрам (в БД он теперь хранится как +7…)
+        $pendingDigits = preg_replace('/\D+/', '', (string)$user->two_factor_phone_pending);
+
+        \Log::debug('phoneConfirmCode: compare', [
+            'user_id'       => $user->id,
+            'pending_raw'   => $user->two_factor_phone_pending,
+            'pendingDigits' => $pendingDigits,
+            'inputDigits'   => $digits,
+        ]);
+
+        if (!$pendingDigits || $pendingDigits !== $digits) {
             return response()->json(['success' => false, 'message' => 'Этот номер не ожидается к подтверждению.'], 422);
         }
 
@@ -462,13 +566,12 @@ class AccountController extends Controller
         if (now()->greaterThan($user->phone_change_new_expires_at)) {
             return response()->json(['success' => false, 'message' => 'Код истёк. Запросите новый.'], 422);
         }
-
         if (!\Hash::check($code, $user->phone_change_new_code)) {
             return response()->json(['success' => false, 'message' => 'Неверный код.'], 422);
         }
 
-        // Применяем номер
-        $user->phone = $digits;
+        // ✅ Применяем номер в E.164 (+7…)
+        $user->phone = '+' . $digits;
         $user->phone_verified_at = now();
         $user->two_factor_phone_pending = null;
         $user->phone_change_new_code = null;
@@ -478,24 +581,19 @@ class AccountController extends Controller
 
         \Log::info('phoneConfirmCode: success', [
             'target_id' => $user->id,
-            'phone' => '***' . substr($digits, -4),
+            'phone'     => $user->phone,
         ]);
 
-        // ✅ Считаем, что текущая сессия прошла 2FA (мы же только что подтвердили телефон по SMS)
         if (\Auth::id() === $user->id) {
             session(['2fa:passed' => true]);
             session()->forget(['2fa:last_sent_at']);
-            \Log::info('phoneConfirmCode: marked session 2fa:passed', ['user_id' => $user->id]);
         }
 
         return response()->json([
             'success' => true,
             'verified_at' => now()->format('Y-m-d H:i:s'),
-            // можно отдать redirect, если хочешь сразу увезти в кабинет:
-            // 'redirect' => route('cabinet'),
         ]);
     }
-
 //    новая загрузка аватарки
     public function store(Request $request)
     {
@@ -557,7 +655,6 @@ class AccountController extends Controller
             'image_crop' => $cropName,
         ]);
     }
-
 //    новое удаление аватарки
     public function destroy(Request $request)
     {

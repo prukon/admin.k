@@ -195,7 +195,9 @@ class TwoFactorController extends Controller
         }
 
         // Сохраняем
-        $user->forceFill(['phone' => $digits])->save();
+//        $user->forceFill(['phone' => $digits])->save();
+        $user->forceFill(['phone' => '+'.$digits])->save();
+
 
         // Генерим и отправляем код
         $code = (string) random_int(100000, 999999);

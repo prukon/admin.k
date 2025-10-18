@@ -156,9 +156,37 @@ class   User extends Authenticatable
         $this->save();
     }
 
-    public function getFullNameAttribute(): string
+    public function getFullNameAttributeOld(): string
     {
         return trim(($this->lastname ?? '').' '.($this->name ?? ''));
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        // Склеиваем фамилию и имя с пробелом, убираем лишние
+        return trim(collect([$this->lastname, $this->name])->filter()->implode(' '));
+    }
+
+
+
+    // use Illuminate\Database\Eloquent\Casts\Attribute;  // сверху
+
+    private function toE164(?string $v): ?string {
+        if (!$v) return null;
+        $d = preg_replace('/\D+/', '', $v);
+        if (strlen($d) === 11 && $d[0] === '8') $d = '7'.substr($d,1);
+        if (strlen($d) === 10) $d = '7'.$d;
+        return $d ? '+'.$d : null;
+    }
+
+    public function setPhoneAttribute($v): void
+    {
+        $this->attributes['phone'] = $this->toE164($v);
+    }
+
+    public function setTwoFactorPhonePendingAttribute($v): void
+    {
+        $this->attributes['two_factor_phone_pending'] = $this->toE164($v);
     }
 
 

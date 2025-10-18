@@ -2,6 +2,7 @@
 
 namespace App\Servises;
 
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserFieldValue;
@@ -73,33 +74,6 @@ class UserService
             if (!empty($data['custom']) && is_array($data['custom'])) {
                 foreach ($data['custom'] as $slug => $value) {
                     $userField = UserField::where('slug', $slug)->first();
-
-//                    if ($userField) {
-//                        // Массив ID ролей, которым разрешено редактировать поле
-//                        $permissionsId = $userField->permissions_id ?? [];
-//
-//                        // Разрешено редактировать ТОЛЬКО если $user->role_id есть в $permissionsId
-//                        $isEditable = in_array($currentUser->role_id, $permissionsId);
-//
-//                        \Log::info("Обработка поля {$slug}: Редактируемое - " . ($isEditable ? 'Да' : 'Нет'));
-//
-//                        if ($isEditable) {
-//                            // Сохраняем/обновляем значение в user_field_values
-//                            $updated = UserFieldValue::updateOrCreate(
-//                                [
-//                                    'user_id'  => $user->id,
-//                                    'field_id' => $userField->id,
-//                                ],
-//                                ['value' => $value]
-//                            );
-//
-//                            \Log::info("Обновлено поле {$slug} (ID: {$userField->id}) для пользователя {$user->id}: {$value}");
-//                        } else {
-//                            \Log::warning("Пользователь {$user->id} не может редактировать поле {$slug}");
-//                        }
-//                    } else {
-//                        \Log::warning("Поле с slug {$slug} не найдено в базе.");
-//                    }
 
                     if ($userField) {
                         // Получаем список ролей, которым разрешено редактировать это поле

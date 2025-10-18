@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+//use App\Models\Log;
 use App\Models\MenuItem;
 use App\Models\Partner;
 use App\Models\PartnerAccess;
@@ -19,6 +20,11 @@ use App\Services\Signatures\Providers\PodpislonProvider;
 
 
 use Illuminate\Support\Facades\Cache;
+
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Observers\UserObserver;
+
 
 
 
@@ -39,8 +45,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Paginator::useBootstrap();
 
+        if (app()->environment(['local','development','testing'])) {
+            DB::listen(function ($query) {
+                Log::debug('SQL', [
+                    'sql'      => $query->sql,
+                    'bindings' => $query->bindings,
+                    'time_ms'  => $query->time,
+                ]);
+            });
+        }
+
+
+
+        Paginator::useBootstrap();
 
         // Убедитесь, что запрос инициализирован
 //        if (Auth::check()) {
@@ -82,5 +100,9 @@ class AppServiceProvider extends ServiceProvider
             ]);
         });
 
+//        User::observe(UserObserver::class);
+
     }
+
+
 }

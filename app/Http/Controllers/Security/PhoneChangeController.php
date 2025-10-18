@@ -113,7 +113,8 @@ class PhoneChangeController extends Controller
 
             $code = (string)random_int(100000, 999999);
             $u->forceFill([
-                'two_factor_phone_pending'    => $new,
+//                'two_factor_phone_pending'    => $new,
+                'two_factor_phone_pending'    => str_starts_with($new, '+') ? $new : ('+'.$new),
                 'phone_change_old_code'       => Hash::make($code),
                 'phone_change_old_expires_at' => now()->addMinutes(10),
             ])->save();
@@ -145,10 +146,24 @@ class PhoneChangeController extends Controller
 
         $code = (string)random_int(100000, 999999);
         $u->forceFill([
-            'two_factor_phone_pending'    => $new,
+//            'two_factor_phone_pending'    => $new,
+            'two_factor_phone_pending'    => str_starts_with($new, '+') ? $new : ('+'.$new),
             'phone_change_new_code'       => Hash::make($code),
             'phone_change_new_expires_at' => now()->addMinutes(10),
         ])->save();
+
+        Log::debug('PC.start: after-save (model snapshot)', [
+            'user_id'       => $u->id,
+            'pending_attr'  => $u->getAttributes()['two_factor_phone_pending'] ?? null, // что в "сырых" атрибутах модели
+            'pending_prop'  => $u->two_factor_phone_pending,                             // что вернёт аксессор/каст (если есть)
+        ]);
+
+        $directDbPending = \DB::table('users')->where('id', $u->id)->value('two_factor_phone_pending');
+        Log::debug('PC.start: after-save (db readback)', [
+            'user_id'      => $u->id,
+            'db_pending'   => $directDbPending,
+        ]);
+
 
         $result = $sms->send($new, "Подтверждение номера: код {$code}. Действителен 10 минут.");
 
@@ -262,13 +277,28 @@ class PhoneChangeController extends Controller
         $new = $u->two_factor_phone_pending;
 
         $u->forceFill([
-            'phone'                       => $new,
+//            'phone'                        => $new,
+            'phone'                       => str_starts_with($new, '+') ? $new : ('+'.$new),
             'two_factor_phone_pending'    => null,
             'phone_change_new_code'       => null,
             'phone_change_new_expires_at' => null,
             'two_factor_phone_changed_at' => now(),
             'phone_verified_at'           => now(),
         ])->save();
+
+        Log::debug('PC.start: after-save (model snapshot)', [
+            'user_id'       => $u->id,
+            'pending_attr'  => $u->getAttributes()['two_factor_phone_pending'] ?? null, // что в "сырых" атрибутах модели
+            'pending_prop'  => $u->two_factor_phone_pending,                             // что вернёт аксессор/каст (если есть)
+        ]);
+
+        $directDbPending = \DB::table('users')->where('id', $u->id)->value('two_factor_phone_pending');
+        Log::debug('PC.start: after-save (db readback)', [
+            'user_id'      => $u->id,
+            'db_pending'   => $directDbPending,
+        ]);
+
+
 
         Log::info('PhoneChangeStrong: verifyNew -> CHANGED', [
             'user_id' => $u->id,

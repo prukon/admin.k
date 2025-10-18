@@ -1,0 +1,13 @@
+
+.modal-content.background-color-grey {
+    background: #fff;
+    border-radius: 16px;
+}
+
+.modal-title {
+    font-weight: 600;
+}
+
+.form-label {
+    font-weight: 500;
+}
