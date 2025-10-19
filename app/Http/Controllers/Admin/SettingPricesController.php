@@ -223,7 +223,7 @@ class SettingPricesController extends Controller
                     ->where('new_month', $selectedDate)
                     ->first();
 
-                if ($userPrice) { 
+                if ($userPrice) {
                     // Если запись существует и не оплачена, обновляем её
                     if (!$userPrice->is_paid) {
                         $userPrice->update([

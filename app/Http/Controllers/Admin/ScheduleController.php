@@ -172,10 +172,16 @@ class ScheduleController extends Controller
                 'action'      => 93,
                 'author_id'   => $authorId,
                 'partner_id'  => $partnerId, // ИЗМЕНЕНИЕ #4: сохраняем partner_id
+
+                'target_type'  => 'App\Models\ScheduleUser',
+                'target_id'    => $user->id,
+                'target_label' => $user->full_name,
+
+
                 'description' => sprintf(
                     'Дата: "%s", Имя: "%s",%sСтатус до: "%s", Статус после: "%s",%sКомментарий: "%s"',
                     $formattedDate,
-                    $user->name,
+                    $user->full_name,
                     "\n",
                     $oldStatusName,
                     $newStatusName,
@@ -310,9 +316,14 @@ class ScheduleController extends Controller
                     'action'      => 94,
                     'author_id'   => $authorId,
                     'partner_id'  => $partnerId, // ИЗМЕНЕНИЕ #4: добавляем в лог partner_id
+
+                'target_type'  => 'App\Models\ScheduleUser',
+                'target_id'    =>  $team->id,
+                'target_label' => $team->title,
+
                     'description' => sprintf(
                             'Имя: %s, Установлена группа: %s',
-                            $user->name,
+                            $user->full_name,
                             $team?->title ?? '—'
             ),
             'created_at'  => now(),
@@ -371,7 +382,6 @@ class ScheduleController extends Controller
                 ];
             }
         }
-        Log::info('Расписание: план вставок', ['count' => count($inserts)]);
 
         DB::transaction(function () use ($user, $from, $to, $inserts, $authorId, $partnerId, $weekdays) {
             // 5) Удаляем старые через Eloquent, чтобы не запутываться с join
@@ -397,6 +407,12 @@ class ScheduleController extends Controller
             'action'      => 95,
             'author_id'   => $authorId,
             'partner_id'  => $partnerId,
+
+            'target_type'  => 'App\Models\ScheduleUser',
+            'target_id'    =>  $user->id,
+            'target_label' => $user->full_name,
+
+
             'description' => sprintf(
                 "Пользователь: %s (ID:%d)\nПериод: %s - %s\nДни: %s",
                 $user->name,
@@ -431,7 +447,8 @@ class ScheduleController extends Controller
 
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {
-                return $log->author ? $log->author->name : 'Неизвестно';
+                return $log->author?->full_name ?? '—';
+
             })
             ->editColumn('created_at', function ($log) {
                 return $log->created_at->format('d.m.Y / H:i:s');
