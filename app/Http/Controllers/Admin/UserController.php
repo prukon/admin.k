@@ -466,10 +466,30 @@ class UserController extends Controller
             'fields.*.roles' => 'nullable|array',
             'fields.*.roles.*' => 'integer|exists:roles,id',
         ]);
-        $partnerId = app('current_partner')->id;
-        $authorId = auth()->id();
 
-        DB::transaction(function () use ($data, $partnerId, $authorId) {
+        $partnerId = app('current_partner')->id;
+        $authorId  = auth()->id();
+
+        // ХЕЛПЕР для генерации уникального slug
+        $makeUniqueSlug = function (string $baseName, int $partnerId, ?int $ignoreId = null): string {
+            $base = Str::slug($baseName . '-' . $partnerId);
+            $slug = $base;
+            $i = 1;
+
+            while (
+            UserField::query()
+                ->where('slug', $slug)
+                ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
+                ->exists()
+            ) {
+                $slug = $base . '-' . $i;
+                $i++;
+            }
+
+            return $slug;
+        };
+
+        DB::transaction(function () use ($data, $partnerId, $authorId, $makeUniqueSlug) {
             $submittedIds = collect($data['fields'])
                 ->pluck('id')
                 ->filter()
@@ -482,88 +502,128 @@ class UserController extends Controller
                 ->all();
 
             if ($toDelete) {
+                // Получаем удаляемые поля заранее (до удаления)
+                $fieldsToDelete = UserField::whereIn('id', $toDelete)->get(['id', 'name']);
+
+                // Удаляем поля
                 UserField::whereIn('id', $toDelete)->delete();
-                foreach ($toDelete as $deletedId) {
+
+                // Логируем каждое удалённое поле
+                foreach ($fieldsToDelete as $field) {
+                    // 🧾 УДАЛЕНИЕ ДОП. ПОЛЯ
                     MyLog::create([
-                        'type' => 2,
-                        'action' => 210,
-                        'author_id' => $authorId,
-                        'description' => "Удалено поле ID: {$deletedId}",
-                        'partner_id' => $partnerId,
-                        'created_at' => now(),
+                        'type'         => 2,
+                        'action'       => 210,
+                        'author_id'    => $authorId,
+                        'partner_id'   => $partnerId,
+                        'target_type'  => \App\Models\UserField::class,
+                        'target_id'    => $field->id,
+                        'target_label' => $field->name,
+                        'description'  => "Удалено поле '{$field->name}' (ID: {$field->id})",
+                        'created_at'   => now(),
                     ]);
                 }
             }
 
-            // Обрабатываем новые и существующие
+            // Обрабатываем новые и существующие поля
             foreach ($data['fields'] as $item) {
                 $fieldId = $item['id'] ?? null;
-                $name = $item['name'];
-                $type = $item['field_type'];
-                $roles = $item['roles'] ?? [];
+                $name    = $item['name'];
+                $type    = $item['field_type'];
+                $roles   = $item['roles'] ?? [];
 
-                // Генерируем slug
-                $slug = Str::slug($name . $partnerId);
+                // Генерируем уникальный slug
+                $slug = $makeUniqueSlug($name, $partnerId, $fieldId);
 
                 if ($fieldId) {
-                    // Обновление
+                    // === Обновление существующего поля ===
                     $field = UserField::where('partner_id', $partnerId)
                         ->findOrFail($fieldId);
 
                     $changes = [];
 
+//                    if ($field->name !== $name) {
+//                        $changes[] = "Название: '{$field->name}' → '{$name}'\n";
+//                    }
+//                    if ($field->field_type !== $type) {
+//                        $changes[] = "Тип: '{$field->field_type}' → '{$type}'\n";
+//                    }
+
                     if ($field->name !== $name) {
-                        $changes[] = "name: '{$field->name}' → '{$name}'";
+                        $changes[] = "Название: '{$field->name}' → '{$name}'";
                     }
                     if ($field->field_type !== $type) {
-                        $changes[] = "type: '{$field->field_type}' → '{$type}'";
+                        $changes[] = "Тип: '{$field->field_type}' → '{$type}'";
                     }
 
-                    // Обновляем основные поля
+
+                    // Обновляем основные поля, если есть изменения
                     if ($changes) {
                         $field->update([
-                            'name' => $name,
-                            'slug' => $slug,
+                            'name'       => $name,
+                            'slug'       => $slug,
                             'field_type' => $type,
                         ]);
                     }
 
-                    // Синхронизируем роли через pivot
+                    // --- Сравниваем и логируем изменения ролей ---
+                    $oldRoleIds = $field->roles()->pluck('roles.id')->all();
                     $field->roles()->sync($roles);
 
-                    // Логируем, если были изменения
-                    if ($changes || true) {
-                        MyLog::create([
-                            'type' => 2,
-                            'action' => 210,
-                            'author_id' => $authorId,
-                            'description' => "Обновлено поле '{$name}' (ID: {$fieldId}), изменения: "
-                                . implode('; ', $changes)
-                                . ", роли: [" . implode(',', $roles) . "]",
-                            'partner_id' => $partnerId,
-                            'created_at' => now(),
-                        ]);
+                    $allIds   = array_values(array_unique(array_merge($oldRoleIds, $roles)));
+                    $nameMap  = Role::whereIn('id', $allIds)->pluck('name', 'id')->toArray();
+
+                    $oldNames = collect($oldRoleIds)->map(fn($id) => $nameMap[$id] ?? (string)$id)->unique()->sort()->values()->all();
+                    $newNames = collect($roles)     ->map(fn($id) => $nameMap[$id] ?? (string)$id)->unique()->sort()->values()->all();
+
+                    if ($oldNames !== $newNames) {
+                        $changes[] = "Роли: [" . (implode(', ', $oldNames) ?: '-') . "] → [" . (implode(', ', $newNames) ?: '-') . "]";
                     }
+
+
+                    
+                    $description = !empty($changes)
+                        ? implode(";\n", $changes) . "\n"   // ; уходит в конец строки, затем перенос
+                        : '';
+
+//               ИЗМЕНЕНИЯ ДОП ПОЛЯ
+                    MyLog::create([
+                        'type'         => 2,
+                        'action'       => 210,
+                        'author_id'    => $authorId,
+                        'partner_id'   => $partnerId,
+                        'target_type'  => \App\Models\UserField::class,
+                        'target_id'    => $field->id,
+                        'target_label' => $field->name,
+                        'description'  => $description,
+                        'created_at'   => now(),
+                    ]);
                 } else {
-                    // Создание нового поля
+                    // === Создание нового поля ===
                     $field = UserField::create([
-                        'name' => $name,
-                        'slug' => $slug,
+                        'name'       => $name,
+                        'slug'       => $slug,
                         'field_type' => $type,
                         'partner_id' => $partnerId,
                     ]);
 
-                    // Синхронизируем роли через pivot
                     $field->roles()->sync($roles);
 
+                    $newNames = Role::whereIn('id', $roles)->pluck('name')->sort()->values()->all();
+
+                    //               СОЗДАНИЕ ДОП ПОЛЯ
                     MyLog::create([
-                        'type' => 2,
-                        'action' => 210,
-                        'author_id' => $authorId,
-                        'description' => "Создано поле '{$name}' (ID: {$field->id}), роли: ["
-                            . implode(',', $roles) . "]",
-                        'partner_id' => $partnerId,
-                        'created_at' => now(),
+                        'type'         => 2,
+                        'action'       => 210,
+                        'author_id'    => $authorId,
+                        'partner_id'   => $partnerId,
+                        'target_type'  => \App\Models\UserField::class,
+                        'target_id'    => $field->id,
+                        'target_label' => $field->name,
+                        'description'  =>
+                            "Создано поле '{$field->name}' (ID: {$field->id})\n" .
+                            "Роли: [-] → [" . (implode(', ', $newNames) ?: '-') . "]",
+                        'created_at'   => now(),
                     ]);
                 }
             }
@@ -571,6 +631,7 @@ class UserController extends Controller
 
         return response()->json(['message' => 'Поля успешно сохранены']);
     }
+
 
     public function updatePassword(UpdatePasswordRequest $request, \App\Models\User $user)
     {
@@ -604,44 +665,6 @@ class UserController extends Controller
 
         return response()->json(['success' => true]);
     }
-
-    public function log2(FilterRequest $request)
-    {
-        $partnerId = app('current_partner')->id;
-        $logs = MyLog::with('author')
-            ->where('type', 2)// User логи
-            ->where('partner_id', $partnerId)
-            ->select('my_logs.*');
-        return DataTables::of($logs)
-            ->addColumn('author', function ($log) {
-                return $log->author ? $log->author->name : 'Неизвестно';
-            })
-            ->editColumn('created_at', function ($log) {
-                return $log->created_at->format('d.m.Y / H:i:s');
-            })
-            ->editColumn('action', function ($log) {
-                // Логика для преобразования типа
-                $typeLabels = [
-                    21 => 'Создание пользователя',
-                    22 => 'Обновление учетной записи в пользователях',
-                    23 => 'Обновление учетной записи (админ)',
-                    24 => 'Удаление пользователя в пользователях',
-                    25 => 'Изменение пароля (админ)',
-                    26 => 'Изменение пароля',
-                    27 => 'Изменение аватара (админ)',
-                    28 => 'Изменение аватара',
-                    29 => 'Изменение данных партнера',
-                    210 => 'Изменение доп полей пользователя',
-                    299 => 'Удаление аватара', // ← ДОБАВИЛ
-
-
-
-                ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип(user)';
-            })
-            ->make(true);
-    }
-
 
     public function log(FilterRequest $request)
     {
@@ -701,8 +724,6 @@ class UserController extends Controller
 
             ->make(true);
     }
-
-
     protected function isSuperAdmin(\App\Models\User $actor): bool
     {
         // Если используете Spatie\Permission:
@@ -711,8 +732,7 @@ class UserController extends Controller
         // Своя ролевая модель (role_id/slug) — пример:
         return ($actor->role->name ?? null) === 'superadmin'; // подставьте ваш slug/проверку
     }
-
-    //Удаление аватарки юзера
+    //Удаление аватарки юзера в пользователях
     public function destroyUserAvatar($id)
     {
         $user = User::findOrFail($id);
@@ -720,6 +740,8 @@ class UserController extends Controller
         $authorId = auth()->id(); // Авторизованный пользователь
 
         DB::transaction(function () use ($user, $authorId, $partnerId) {
+
+            $targetLabel = $user->full_name ?: "user#{$user->id}";
 
             // Удаляем файлы если есть
             if ($user->image) {
@@ -735,12 +757,17 @@ class UserController extends Controller
                 'image_crop' => null,
             ]);
 
+
+
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 299, // Лог для обновления учетной записи
                 'author_id' => $authorId,
                 'partner_id' => $partnerId,
-                'description' => ("Пользователю " . $user->name . " удален аватар."),
+                'target_type'  => \App\Models\User::class,
+                'target_id'    => $user->id,
+                'target_label' => $targetLabel,
+                'description' => ("Пользователю " . $targetLabel . " удален аватар."),
                 'created_at' => now(),
             ]);
         });
@@ -750,8 +777,7 @@ class UserController extends Controller
             'message' => 'Аватар удалён',
         ]);
     }
-
-    //Загрузка аватарки юзеру
+    //Загрузка аватарки юзеру  в пользователях
     public function uploadUserAvatar(Request $request, $id)
     {
         $user = User::findOrFail($id);
@@ -759,6 +785,7 @@ class UserController extends Controller
         $authorId = auth()->id(); // Авторизованный пользователь
 
         $result = DB::transaction(function () use ($request, $user, $authorId, $partnerId) {
+            $targetLabel = $user->full_name ?: "user#{$user->id}";
 
             // проверим файлы
             if (!$request->hasFile('image_big') || !$request->hasFile('image_crop')) {
@@ -798,7 +825,10 @@ class UserController extends Controller
                 'action' => 27, // Лог для обновления учетной записи
                 'author_id' => $authorId,
                 'partner_id' => $partnerId,
-                'description' => ("Пользователю " . $user->name . " изменен аватар."),
+                'target_type'  => \App\Models\User::class,
+                'target_id'    => $user->id,
+                'target_label' => $targetLabel,
+                'description'  => "Пользователю {$targetLabel} изменён аватар.",
                 'created_at' => now(),
             ]);
             return compact('bigName', 'cropName');
