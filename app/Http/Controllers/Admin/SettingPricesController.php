@@ -65,28 +65,14 @@ class SettingPricesController extends Controller
         $data = json_decode($request->getContent(), true);
         $selectedDate = $data['selectedDate'] ?? null;
         $teamId = $data['teamId'] ?? null;
-
-//        $usersTeam = User::where('team_id', $teamId)
-//            ->where('is_enabled', true)
-//            ->orderBy('name', 'asc')
-//            ->get();
-
         $usersTeam = User::where('team_id', $teamId)
             ->where('is_enabled', true)
             ->orderBy('lastname', 'asc')   // сначала по фамилии
             ->orderBy('name', 'asc')       // затем по имени
             ->get();
-
-
-
         $usersPrice = [];
         $selectedDate = $this->formatedDate($selectedDate);
-
-
-        \Log::info('$usersTeam:', $usersTeam->toArray());
-
         foreach ($usersTeam as $user) {
-            \Log::info('$user:', $user->toArray());
             $userPrice = UserPrice::firstOrCreate(
                 [
                     'new_month' => $selectedDate,
@@ -159,9 +145,8 @@ class SettingPricesController extends Controller
         ]);
     }
 
-    /**
-     * Помогает преобразовать строку "Сентябрь 2024" в YYYY-MM-01
-     */
+
+//     Помогает преобразовать строку "Сентябрь 2024" в YYYY-MM-01
     protected function formatedDate(string $monthString): string
     {
         // Ваши реализации: разбить на месяц и год, собрать дату первого числа
@@ -214,7 +199,13 @@ class SettingPricesController extends Controller
                 'action' => 13, // Изменение цен в одной группе
                 'author_id' => $authorId,
                 'partner_id'  => $partnerId,
-                'description' => "Обновлена цена : {$teamPrice} руб. Группа: {$teamTitle}. ID: {$teamId}. Дата: {$selectedDateString}.",
+                'description' => "Обновлена цена: {$teamPrice} руб. Период: {$selectedDateString}.",
+
+                // ✅ ДОБАВЛЕНО:
+                'target_type'  => 'App\Models\UserPrice',
+                'target_id'    => $teamId,
+                'target_label' => $teamTitle,
+
                 'created_at' => now(),
             ]);
 
@@ -232,7 +223,7 @@ class SettingPricesController extends Controller
                     ->where('new_month', $selectedDate)
                     ->first();
 
-                if ($userPrice) {
+                if ($userPrice) { 
                     // Если запись существует и не оплачена, обновляем её
                     if (!$userPrice->is_paid) {
                         $userPrice->update([
@@ -263,37 +254,35 @@ class SettingPricesController extends Controller
     public function setPriceAllTeams(Request $request)
     {
         $partnerId = app('current_partner')->id;
-
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
-
         $selectedDate = $data['selectedDate'] ?? null;
         $teamsData = $data['teamsData'] ?? null;
-
         if (is_null($teamsData) || !is_array($teamsData)) {
             return response()->json(['error' => 'Invalid teams data1'], 400);
         }
-
-
-
         $selectedDateString = $selectedDate;
         $selectedDate = $this->formatedDate($selectedDate);
 
         if (is_null($teamsData) || !is_array($teamsData)) {
             return response()->json(['error' => 'Invalid teams data2'], 400);
         }
-
-
         $authorId = auth()->id(); // Авторизованный пользователь
 
-
         DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $teamsData, $partnerId) {
-
             // Перебираем массив и обновляем цены команд
             foreach ($teamsData as $teamData) {
                 // Обновляем цены для групп
 //                $team = Team::where('title', $teamData['name'])->first();
                 $teamId = $teamData['teamId'];
+
+                $team = \App\Models\Team::select('id', 'title')->find($teamId);
+
+                if (!$team) {
+                    \Log::warning('setPriceAllTeams: команда не найдена по teamId', ['teamId' => $teamId]);
+                    continue;
+                }
+
                 if ($teamId) {
                     // Обновляем или создаем запись в таблице team_prices
                     TeamPrice::updateOrCreate(
@@ -305,14 +294,17 @@ class SettingPricesController extends Controller
                             'price' => $teamData['price']
                         ]
                     );
-
                     // Логируем успешное обновление цены для команды
                     MyLog::create([
                         'type' => 1,
                         'action' => 11, // Изменение цен во всех группах
                         'author_id' => $authorId,
                         'partner_id'  => $partnerId,
-                        'description' => "Обновлена цена: {$teamData['price']} руб. Команда: {$teamId}. ID: {$teamId}. Дата: {$selectedDateString}.",
+                        // ✅ ДОБАВЛЕНО:
+                        'target_type'  => 'App\Models\UserPrice',
+                        'target_id'    => $teamId,
+                        'target_label' => $team->title,
+                        'description' => "Обновлена цена: {$teamData['price']} руб. Период: {$selectedDateString}.",
                         'created_at' => now(),
                     ]);
                 }
@@ -323,9 +315,6 @@ class SettingPricesController extends Controller
                 $users = User::where('team_id', $teamId)
                     ->where('is_enabled', 1)
                     ->get();
-
-
-
 
                 foreach ($users as $user) {
                     $userPrice = UserPrice::where('user_id', $user['id'])
@@ -404,7 +393,11 @@ class SettingPricesController extends Controller
                             'action' => 12, // Лог для обновления цены команды
                             'author_id' => $authorId,
                             'partner_id'  => $partnerId,
-                            'description' => "Обновлена цена: {$priceData['price']} руб. Имя: {$userName}. ID: {$priceData['user_id']}. Дата: {$selectedDateString}.",
+                            'target_type'  => 'App\Models\UserPrice',
+                            'target_id'    => $priceData['user_id'],
+                            'target_label' => $userName,
+
+                            'description' => "Обновлена цена: {$priceData['price']} руб. Период: {$selectedDateString}.",
                             'created_at' => now(),
                         ]);
                     }
@@ -433,7 +426,9 @@ class SettingPricesController extends Controller
 
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {
-                return $log->author ? $log->author->name : 'Неизвестно';
+//                return $log->author ? $log->author->name : 'Неизвестно';
+                return $log->author?->full_name ?? '—';
+
             })
             ->editColumn('created_at', function ($log) {
                 return $log->created_at->format('d.m.Y / H:i:s');

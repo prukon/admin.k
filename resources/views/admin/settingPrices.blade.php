@@ -57,11 +57,11 @@
             </div>
         </div>
         <div class="row justify-content-center  mt-3 " id='wrap-bars'>
+{{--            Применить слева--}}
             <div id='left_bar' class="col-12 col-lg-5 mb-3 ">
                 <button id="set-price-all-teams"
                         class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-teams">Применить
                 </button>
-
                 @if(isset($allTeams) && $allTeams->count() > 0)
                     @foreach($allTeams as $idx => $team)
                         @php
@@ -82,10 +82,10 @@
                         </div>
                     @endforeach
                 @endif
-
-
             </div>
+
             <div class="col-md-auto"></div>
+            {{--            Применить справа--}}
             <div id='right_bar' class="col-12 col-lg-5">
                 <button disabled id="set-price-all-users"
                         class="btn btn-primary btn-setting-prices mb-3 mt-3 set-price-all-users">
@@ -128,9 +128,5 @@
             showLogModal("{{ route('logs.data.settingPrice') }}"); // Здесь можно динамически передать route
         });
     </script>
-
-
-
-
 
 @endsection
