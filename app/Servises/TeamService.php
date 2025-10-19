@@ -17,14 +17,11 @@ class TeamService
     public function store($data)
     {
         $partnerId = app('current_partner')->id;
-
-        $data['order_by'] = $data['order_by'] ?? 10;
+        $data['order_by'] = $data['order_by'] ??     10;
         $data['partner_id'] = $partnerId ?? 1; // Устанавливаем partner_id = 1, если не передан в данных
         $weekdays = $data['weekdays'] ?? [];
         unset($data['weekdays']);
-
         $team = Team::create($data);
-
         if (!empty($weekdays) && $team->id) {
             $team->weekdays()->sync($weekdays);
         }
@@ -35,8 +32,6 @@ class TeamService
 
     public function update($team, $data)
     {
-
-
         $weekdays = $data['weekdays'] ?? [];
         unset($data['weekdays']);
 
@@ -53,14 +48,12 @@ class TeamService
         $team->delete();
     }
 
+//    Создание группы
     public function storeWithLogging(array $data, int $authorId): Team
     {
         $team = DB::transaction(function () use ($data, $authorId) {
+            $partnerId = app('current_partner')->id;
             $team = $this->store($data);
-
-//            $weekdaysFormatted = $this->formatWeekdays($data['weekdays'] ?? []);
-
-
             $weekdaysMap = [
                 1 => 'пн',
                 2 => 'вт',
@@ -76,42 +69,58 @@ class TeamService
                     return $weekdaysMap[$day] ?? $day; // Если дня нет в мапе, вернётся исходное значение
                 }, $data['weekdays']);
             }
+            $description = sprintf(
+                "Название: %s\nДни недели: %s\nСортировка: %s\nАктивность: %s",
+                $team->title ?? '-',
+                implode(', ', $weekdaysFormatted) ?: '-',
+                $data['order_by'] ?? '-',
+                !empty($data['is_enabled']) ? 'Да' : 'Нет'
+            );
 
-            $description = $this->generateLogDescription($data, $weekdaysFormatted);
-            $this->logCreation($authorId, $description);
+            MyLog::create([
+                'type' => 3,
+                'action' => 31,
+                'author_id' => $authorId,
+                'partner_id'  => $partnerId,
+                'target_type'  => \App\Models\Team::class, // ✅
+                'target_id'    => $team->id,               // ✅
+                'target_label' => $team->title,            // ✅
+                'description' => $description,
+                'created_at' => Carbon::now(),
+            ]);
 
             return $team;
         });
-
-
         return $team;
-
     }
 
-    private function generateLogDescription(array $data, array $weekdaysFormatted): string
-    {
-        return sprintf(
-            "Название: %s, дни недели: %s, сортировка: %s, активность: %s",
-            $data['title'] ?? '—',
-            $weekdaysFormatted ? implode(', ', $weekdaysFormatted) : 'не указаны',
-            $data['order_by'] ?? 'не указана',
-            !empty($data['is_enabled']) ? 'Да' : 'Нет'
-        );
-    }
+//    private function generateLogDescription(array $data, array $weekdaysFormatted): string
+//    {
+//        return sprintf(
+//            "Название: %s, дни недели: %s, сортировка: %s, активность: %s",
+//            $data['title'] ?? '—',
+//            $weekdaysFormatted ? implode(', ', $weekdaysFormatted) : 'не указаны',
+//            $data['order_by'] ?? 'не указана',
+//            !empty($data['is_enabled']) ? 'Да' : 'Нет'
+//        );
+//    }
 
-    private function logCreation(int $authorId, string $description): void
-    {
-        $partnerId = app('current_partner')->id;
-
-        MyLog::create([
-            'type' => 3,
-            'action' => 31,
-            'author_id' => $authorId,
-            'partner_id'  => $partnerId,
-            'description' => $description,
-            'created_at' => Carbon::now(),
-        ]);
-    }
+//    private function logCreation(int $authorId, string $description, $team): void
+//    {
+//        $partnerId = app('current_partner')->id;
+//
+//        MyLog::create([
+//            'type' => 3,
+//            'action' => 31,
+//            'author_id' => $authorId,
+//            'partner_   id'  => $partnerId,
+//            'target_type'  => \App\Models\Team::class, // ✅
+//            'target_id'    => $team->id,               // ✅
+//            'target_label' => $team->title,            // ✅
+//            'description' => $description,
+//            'created_at' => Carbon::now(),
+//        ]);
+//    }
 
 
 }

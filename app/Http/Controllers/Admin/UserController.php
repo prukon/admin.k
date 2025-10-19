@@ -456,6 +456,7 @@ class UserController extends Controller
         return response()->json(['success' => 'Пользователь успешно удалён']);
     }
 
+    //TODO: Сделать логирование только доп. полей, в которых были изменения. Сейчас в лог попадают все доп. поля.
     public function storeFields(Request $request)
     {
         $data = $request->validate([
@@ -542,13 +543,6 @@ class UserController extends Controller
 
                     $changes = [];
 
-//                    if ($field->name !== $name) {
-//                        $changes[] = "Название: '{$field->name}' → '{$name}'\n";
-//                    }
-//                    if ($field->field_type !== $type) {
-//                        $changes[] = "Тип: '{$field->field_type}' → '{$type}'\n";
-//                    }
-
                     if ($field->name !== $name) {
                         $changes[] = "Название: '{$field->name}' → '{$name}'";
                     }
@@ -571,7 +565,9 @@ class UserController extends Controller
                     $field->roles()->sync($roles);
 
                     $allIds   = array_values(array_unique(array_merge($oldRoleIds, $roles)));
-                    $nameMap  = Role::whereIn('id', $allIds)->pluck('name', 'id')->toArray();
+//                    $nameMap  = Role::whereIn('id', $allIds)->pluck('name', 'id')->toArray();
+                    $nameMap  = Role::whereIn('id', $allIds)->pluck('label', 'id')->toArray(); // <-- изменено
+
 
                     $oldNames = collect($oldRoleIds)->map(fn($id) => $nameMap[$id] ?? (string)$id)->unique()->sort()->values()->all();
                     $newNames = collect($roles)     ->map(fn($id) => $nameMap[$id] ?? (string)$id)->unique()->sort()->values()->all();
@@ -581,7 +577,7 @@ class UserController extends Controller
                     }
 
 
-                    
+
                     $description = !empty($changes)
                         ? implode(";\n", $changes) . "\n"   // ; уходит в конец строки, затем перенос
                         : '';
@@ -631,7 +627,6 @@ class UserController extends Controller
 
         return response()->json(['message' => 'Поля успешно сохранены']);
     }
-
 
     public function updatePassword(UpdatePasswordRequest $request, \App\Models\User $user)
     {

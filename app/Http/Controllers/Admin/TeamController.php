@@ -49,8 +49,6 @@ class TeamController extends Controller
         $authorId = auth()->id();
         $data = $request->validated();
         $team = $this->service->storeWithLogging($data, $authorId);
-
-
         if ($request->ajax()) {
             return response()->json([
                 'message' => 'Группа создана успешно',
@@ -60,7 +58,6 @@ class TeamController extends Controller
                 ],
             ]);
         }
-
         return redirect()->route('admin.team.index');
     }
 
@@ -78,7 +75,7 @@ class TeamController extends Controller
         ]);
     }
 
-    public function update(UpdateRequest $request, $id)
+    public function update2(UpdateRequest $request, $id)
     {
         $partnerId = app('current_partner')->id;
 
@@ -148,6 +145,108 @@ class TeamController extends Controller
         return response()->json(['message' => 'Группа успешно обновлена']);
     }
 
+    public function update(UpdateRequest $request, $id)
+    {
+        $partnerId = app('current_partner')->id;
+
+        $authorId = auth()->id();
+        $data = $request->validated();
+
+        // Попытка загрузить команду по ID
+        $team = Team::with('weekdays')->find($id); // Подгружаем связанные дни недели
+
+        // Проверка наличия команды и её ID перед обновлением
+        if (!$team || !$team->id) {
+            return response()->json(['error' => 'Команда не найдена или не имеет ID'], 404);
+        }
+
+        DB::transaction(function () use ($data, $authorId, $team, $partnerId) {
+            // Создаём копию данных с подгруженными днями недели
+            $oldData = $team->replicate();
+            $oldData->setRelation('weekdays', $team->weekdays); // Подгружаем связанные данные в копию
+
+            // ✅ Маппинг чисел в сокращения дней недели (оставил как есть)
+            $weekdaysMap = [
+                1 => 'пн',
+                2 => 'вт',
+                3 => 'ср',
+                4 => 'чт',
+                5 => 'пт',
+                6 => 'сб',
+                7 => 'вс',
+            ];
+
+            // ✅ Преобразование старых и новых дней недели в сокращения (оставил как было)
+            $oldWeekdaysFormatted = $oldData->weekdays->pluck('id')->map(function ($day) use ($weekdaysMap) {
+                return $weekdaysMap[$day] ?? $day;
+            })->toArray();
+
+            $newWeekdaysFormatted = collect($data['weekdays'] ?? [])->map(function ($day) use ($weekdaysMap) {
+                return $weekdaysMap[$day] ?? $day;
+            })->toArray();
+
+            // ✅ Считаем дифф только по изменённым полям и готовим многострочное описание
+            $changes = [];
+
+
+// Название
+            if (array_key_exists('title', $data) && $data['title'] !== $oldData->title) {
+                $changes[] = "Название: \"{$oldData->title}\" → \"{$data['title']}\"";
+            }
+
+// Дни недели
+            $oldSet = collect($oldWeekdaysFormatted)->values()->sort()->implode(', ');
+            $newSet = collect($newWeekdaysFormatted)->values()->sort()->implode(', ');
+            if ($oldSet !== $newSet) {
+                $changes[] = "Дни недели: " . ($oldSet !== '' ? $oldSet : 'не указаны') . " → " . ($newSet !== '' ? $newSet : 'не указаны');
+            }
+
+// ✅ Сортировка (исправлено)
+            if (array_key_exists('order_by', $data)) {
+                $oldOrder = $oldData->order_by ?? 'не указана';
+                $newOrder = $data['order_by'] ?? 'не указана';
+
+                if ((string)$newOrder !== (string)$oldOrder) {
+                    $changes[] = "Сортировка: {$oldOrder} → {$newOrder}";
+                }
+            }
+
+// Активность
+            if (array_key_exists('is_enabled', $data)) {
+                $oldEnabled = $oldData->is_enabled ? 'Да' : 'Нет';
+                $newEnabled = $data['is_enabled'] ? 'Да' : 'Нет';
+                if ($newEnabled !== $oldEnabled) {
+                    $changes[] = "Активность: {$oldEnabled} → {$newEnabled}";
+                }
+            }
+
+            // ✅ Обновление данных через сервис
+            $this->service->update($team, $data);
+
+            // ✅ Пишем лог только если есть изменения
+            if (!empty($changes)) {
+                \App\Models\MyLog::create([
+                    'type'         => 3,                 // Логи по группам
+                    'action'       => 32,               // Обновление группы
+                    'author_id'    => $authorId,
+                    'partner_id'   => $partnerId,
+                    'target_type'  => 'App\Models\Team',
+                    'target_id'    => $team->id,
+                    'target_label' => $team->title,
+                    'description'  => implode("\n", $changes), // Каждое поле — с новой строки
+                    'created_at'   => now(),
+                ]);
+
+                \Log::info("Обновлена группа '{$team->title}' (ID {$team->id}) пользователем ID {$authorId}. Изменения: " . str_replace("\n", ' | ', implode("\n", $changes)));
+            } else {
+                \Log::info("Группа '{$team->title}' (ID {$team->id}) обновлена без изменений полей. Автор ID {$authorId}.");
+            }
+        });
+
+        return response()->json(['message' => 'Группа успешно обновлена']);
+    }
+
+
     public function delete(Team $team)
     {
         $partnerId = app('current_partner')->id;
@@ -156,7 +255,7 @@ class TeamController extends Controller
 
         DB::transaction(function () use ($team, $authorId, $partnerId) {
             // Обновляем пользователей, устанавливая team_id в null
-            \App\Models\User::where('team_id', $team->id)->update(['team_id' => null]);
+           User::where('team_id', $team->id)->update(['team_id' => null]);
 
             // Мягкое удаление группы
             $team->delete();
@@ -167,6 +266,11 @@ class TeamController extends Controller
                 'action' => 33,
                 'author_id' => $authorId,
                 'partner_id'  => $partnerId,
+
+                'target_type' => 'App\Models\Team',
+                'target_id'   => $team->id,
+                'target_label'=> $team->title,
+
 
                 'description' => "Группа удалена: {$team->title}. ID: {$team->id}.",
                 'created_at' => now(),
@@ -187,7 +291,9 @@ class TeamController extends Controller
             ->select('my_logs.*');
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {
-                return $log->author ? $log->author->name : 'Неизвестно';
+//                return $log->author ? $log->author->name : 'Неизвестно';
+                return $log->author?->full_name ?? '—';
+
             })
             ->editColumn('created_at', function ($log) {
                 return $log->created_at->format('d.m.Y / H:i:s');
