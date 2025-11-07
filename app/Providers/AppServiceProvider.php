@@ -47,24 +47,17 @@ class AppServiceProvider extends ServiceProvider
     {
 
         if (app()->environment(['local','development','testing'])) {
-            DB::listen(function ($query) {
-                Log::debug('SQL', [
-                    'sql'      => $query->sql,
-                    'bindings' => $query->bindings,
-                    'time_ms'  => $query->time,
-                ]);
-            });
+
+//            DB::listen(function ($query) {
+//                Log::debug('SQL', [
+//                    'sql'      => $query->sql,
+//                    'bindings' => $query->bindings,
+//                    'time_ms'  => $query->time,
+//                ]);
+//            });
         }
 
-
-
         Paginator::useBootstrap();
-
-        // Убедитесь, что запрос инициализирован
-//        if (Auth::check()) {
-//            $currentUserId = Auth::id(); // Получение ID текущего пользователя
-//            $currentUserName = Auth::user()->name; // Получение имени текущего пользователя
-//        }
 
         //Получаем срок оплаты сервиса
         View::composer('*', function ($view) {
@@ -100,9 +93,5 @@ class AppServiceProvider extends ServiceProvider
             ]);
         });
 
-//        User::observe(UserObserver::class);
-
     }
-
-
 }

@@ -33,6 +33,7 @@ use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\Log;
 use App\Models\MyLog;
 
+use App\Support\BuildsLogTable;
 
 //use App\Models\Log;
 //use Illuminate\Support\Facades\Log;
@@ -42,6 +43,7 @@ use App\Models\MyLog;
 
 class PartnerController extends Controller
 {
+    use BuildsLogTable;
 
     public function __construct(TeamService $service)
     {
@@ -119,8 +121,6 @@ class PartnerController extends Controller
             MyLog::create([
                 'type' => 80,
                 'action' => 81,
-                'author_id' => $authorId,
-                'partner_id' => $partner->id,
                 'target_type' => 'App\Models\Partner',
                 'target_id' => $partner->id,
                 'target_label' => $partner->title,
@@ -298,12 +298,10 @@ class PartnerController extends Controller
                 // переносы строк после каждой пары
                 $description = implode(";\n", $changes) . "\n";
 
-
+            //Изменение партнера
                 MyLog::create([
                     'type' => 80,
                     'action' => 82,
-                    'author_id' => $authorId,
-                    'partner_id' => $partner->id,
                     'target_type' => 'App\Models\Partner',
                     'target_id' => $partner->id,
                     'target_label' => $partner->title,
@@ -381,8 +379,6 @@ class PartnerController extends Controller
             MyLog::create([
                 'type' => 80,      // ваш код типа лога
                 'action' => 83,      // ваш код действия «удаление партнёра»
-                'author_id' => $authorId,
-                'partner_id' => $partner->id,
                 'target_type' => 'App\Models\Partner',
                 'target_id' => $partner->id,
                 'target_label' => $partner->title,
@@ -398,33 +394,7 @@ class PartnerController extends Controller
 
     public function log(FilterRequest $request)
     {
-        $partnerId = app('current_partner')->id;
-
-        $logs = MyLog::with('author')
-            ->where('type', 80) // Team партнеров
-//            ->where('partner_id', $partnerId)        // ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
-
-            ->select('my_logs.*');
-        return DataTables::of($logs)
-            ->addColumn('author', function ($log) {
-                return $log->author?->full_name ?? '—';
-            })
-            ->editColumn('created_at', function ($log) {
-                return $log->created_at->format('d.m.Y / H:i:s');
-            })
-            ->editColumn('action', function ($log) {
-                // Логика для преобразования типа
-                $typeLabels = [
-
-                    81 => 'Создание партнера суперадмином',
-                    82 => 'Изменение партнера суперадмином',
-                    83 => 'Удаление партнера',
-
-
-                ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип';
-            })
-            ->make(true);
+        return $this->buildLogDataTable(80);
     }
 
 }

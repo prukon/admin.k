@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin\Setting;
 use App\Http\Controllers\Controller;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
+
 //use App\Models\Log;
 use App\Models\MyLog;
 use App\Models\MenuItem;
+use App\Models\Partner;
 use App\Models\Setting;
 use App\Models\SocialItem;
 use App\Models\Team;
@@ -22,9 +24,11 @@ use Yajra\DataTables\DataTables;
 use App\Models\Role;
 use App\Models\Permission;
 use App\Models\Log;
+use App\Support\BuildsLogTable;
 
 class SettingController extends Controller
 {
+    use BuildsLogTable;
 
     //ВКЛАДКА НАСТРОЙКИ
     //Страница Настройки
@@ -66,19 +70,19 @@ class SettingController extends Controller
     //AJAX Активность регистрации
     public function registrationActivity(Request $request)
     {
-        $partnerId = app('current_partner')->id;
+        $partner = app('current_partner');
 
         $isRegistrationActivity = $request->query('isRegistrationActivity');
         $authorId = auth()->id(); // Авторизованный пользователь
 
-        DB::transaction(function () use ($isRegistrationActivity, $authorId, $partnerId) {
+        DB::transaction(function () use ($isRegistrationActivity, $authorId, $partner) {
 
             $isRegistrationActivity = filter_var($isRegistrationActivity, FILTER_VALIDATE_BOOLEAN);
             // Обновляем или создаем запись в таблице team_prices
             Setting::updateOrCreate(
                 [
                     'name' => "registrationActivity",
-                    'partner_id' => "$partnerId",
+                    'partner_id' => "$partner->id",
                 ],
                 [
                     'status' => $isRegistrationActivity
@@ -96,7 +100,10 @@ class SettingController extends Controller
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
-                'partner_id' => $partnerId,
+                'partner_id' => $partner->id,
+                'target_type' => 'App\Models\Setting',
+                'target_id' => $partner->id,
+                'target_label' => $partner->title,
                 'description' => ("Включение регистрации в сервисе: " . $isRegistrationActivityValue),
                 'created_at' => now(),
             ]);
@@ -112,18 +119,19 @@ class SettingController extends Controller
     //AJAX Текст сообщения для юзеров
     public function textForUsers(Request $request)
     {
-        $partnerId = app('current_partner')->id;
+        $partner = app('current_partner');
+
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
         $textForUsers = $data['textForUsers'] ?? null;
         $authorId = auth()->id(); // Авторизованный пользователь
 
-        DB::transaction(function () use ($textForUsers, $authorId, $partnerId) {
+        DB::transaction(function () use ($textForUsers, $authorId, $partner) {
 
             Setting::updateOrCreate(
                 [
                     'name' => "textForUsers",
-                    'partner_id' => "$partnerId",
+                    'partner_id' => "$partner->id",
                 ],
                 [
                     'text' => $textForUsers
@@ -134,7 +142,12 @@ class SettingController extends Controller
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
-                'partner_id' => $partnerId,
+                'partner_id' => $partner->id,
+
+                'target_type' => 'App\Models\Setting',
+                'target_id' => $partner->id,
+                'target_label' => $partner->title,
+
                 'description' => ("Изменение текста уведомления: " . $textForUsers),
                 'created_at' => now(),
             ]);
@@ -148,7 +161,7 @@ class SettingController extends Controller
     //Сохранение меню в шапке
     public function saveMenuItems(Request $request)
     {
-        $partnerId = app('current_partner')->id;
+        $partner = app('current_partner');
         $errors = [];
         $validatedData = [];
         $authorId = auth()->id();
@@ -173,12 +186,10 @@ class SettingController extends Controller
             } else {
                 $data['target_blank'] = !empty($data['target_blank']) ? 1 : 0;
                 $validatedData[$key] = $data;
-                \Log::info("Validated menu_items[$key]", ['data' => $data]);
             }
         }
 
         if (!empty($errors)) {
-            \Log::error('saveMenuItems validation errors', ['errors' => $errors]);
             return response()->json(['success' => false, 'errors' => $errors], 422);
         }
 
@@ -190,24 +201,17 @@ class SettingController extends Controller
             $validatedData,
             $authorId,
             $request,
-            $partnerId,
+            $partner,
             &$oldItems,
             &$newItems
         ) {
-            \Log::info('saveMenuItems transaction started', ['count' => count($validatedData)]);
 
             foreach ($validatedData as $key => $data) {
                 if (is_numeric($key)) {
                     // ИЗМЕНЕНО: ищем только свои записи
-                    $menuItem = MenuItem::where('partner_id', $partnerId)->find($key);
+                    $menuItem = MenuItem::where('partner_id', $partner->id)->find($key);
 
                     if ($menuItem) {
-                        \Log::info('Updating own MenuItem', [
-                            'id' => $key,
-                            'old' => $menuItem->toArray(),
-                            'new' => $data,
-                        ]);
-
                         $oldItems[] = "\"{$menuItem->name}, {$menuItem->link}"
                             . ($menuItem->target_blank ? ", открывать в новой вкладке" : "")
                             . "\"";
@@ -224,13 +228,12 @@ class SettingController extends Controller
                             . "\"";
                     } else {
                         // ИЗМЕНЕНО: при попытке обновить чужую или несуществующую — создаём новую
-                        \Log::warning("MenuItem id {$key} not found for partner {$partnerId}, creating new instead");
 
                         $new = MenuItem::create([
                             'name' => $data['name'],
                             'link' => $data['link'] ?: '',
                             'target_blank' => $data['target_blank'],
-                            'partner_id' => $partnerId,
+                            'partner_id' => $partner->id,
                         ]);
 
                         $newItems[] = "\"{$data['name']}, {$data['link']}"
@@ -239,13 +242,11 @@ class SettingController extends Controller
                     }
                 } else {
                     // ИЗМЕНЕНО: обычное создание для новых ключей
-                    \Log::info('Creating new MenuItem', ['data' => $data, 'partnerId' => $partnerId]);
-
                     $created = MenuItem::create([
                         'name' => $data['name'],
                         'link' => $data['link'] ?: '',
                         'target_blank' => $data['target_blank'],
-                        'partner_id' => $partnerId,
+                        'partner_id' => $partner->id,
                     ]);
 
                     $newItems[] = "\"{$data['name']}, {$data['link']}"
@@ -257,11 +258,9 @@ class SettingController extends Controller
             if ($request->has('deleted_items')) {
                 $toDelete = $request->input('deleted_items');
                 // ИЗМЕНЕНО: удаляем только свои
-                MenuItem::where('partner_id', $partnerId)
+                MenuItem::where('partner_id', $partner->id)
                     ->whereIn('id', $toDelete)
                     ->delete();
-
-                \Log::info('Deleted own MenuItems', ['ids' => $toDelete, 'partnerId' => $partnerId]);
 
                 foreach ($toDelete as $id) {
                     $oldItems[] = "Удалён пункт меню с ID: {$id}";
@@ -277,23 +276,20 @@ class SettingController extends Controller
                 . "\nна:\n"
                 . implode("\n", $newArr);
 
-            \Log::info('Creating MyLog entry', [
-                'description' => $description,
-                'authorId' => $authorId,
-                'partnerId' => $partnerId,
-            ]);
-
             MyLog::create([
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
+
+                'target_type' => 'App\Models\Setting',
+                'target_id' => $partner->id,
+                'target_label' => $partner->title,
+
                 'description' => $description,
                 'created_at' => now(),
-                'partner_id' => $partnerId,
+                'partner_id' => $partner->id,
             ]);
         });
-
-        \Log::info('saveMenuItems completed successfully', ['partnerId' => $partnerId]);
 
         return response()->json(['success' => true]);
     }
@@ -301,7 +297,7 @@ class SettingController extends Controller
     //Сохранение соц. меню в шапке
     public function saveSocialItems(Request $request)
     {
-        $partnerId = app('current_partner')->id;
+        $partner = app('current_partner');
         $authorId = auth()->id();
         $errors = [];
         $validatedData = [];
@@ -328,13 +324,13 @@ class SettingController extends Controller
             return response()->json(['success' => false, 'errors' => $errors], 422);
         }
 
-        DB::transaction(function () use ($authorId, $validatedData, $partnerId) {
+        DB::transaction(function () use ($authorId, $validatedData, $partner) {
             $oldItems = [];
             $newItems = [];
 
             foreach ($validatedData as $data) {
                 // пытаемся найти существующую запись партнёра по названию соцсети
-                $item = SocialItem::where('partner_id', $partnerId)
+                $item = SocialItem::where('partner_id', $partner->id)
                     ->where('name', $data['name'])
                     ->first();
 
@@ -349,7 +345,7 @@ class SettingController extends Controller
                 } else {
                     // создаём новую запись для этого партнёра
                     $item = SocialItem::create([
-                        'partner_id' => $partnerId,
+                        'partner_id' => $partner->id,
                         'name' => $data['name'],
                         'link' => $data['link'] ?: '',
                     ]);
@@ -361,7 +357,7 @@ class SettingController extends Controller
             }
 
             // формируем читаемое описание изменений
-            $description = "Изменены социальные элементы для партнёра #{$partnerId}:\n"
+            $description = "Изменены социальные элементы для партнёра #{$partner->id}:\n"
                 . implode("\n", $oldItems)
                 . "\nна:\n"
                 . implode("\n", $newItems);
@@ -370,7 +366,12 @@ class SettingController extends Controller
                 'type' => 1,
                 'action' => 70,
                 'author_id' => $authorId,
-                'partner_id' => $partnerId,
+                'partner_id' => $partner->id,
+
+                'target_type' => 'App\Models\Setting',
+                'target_id' => $partner->id,
+                'target_label' => $partner->title,
+
                 'description' => $description,
                 'created_at' => now(),
             ]);
@@ -380,91 +381,13 @@ class SettingController extends Controller
     }
 
     //Журнал логов
-    public function logsAllData(Request $request)
+    public function logsAllData(FilterRequest $request)
     {
-        $partnerId = app('current_partner')->id;
-        $logs = MyLog::with('author')
-//            ->where('type', 1) // Добавляем условие для фильтрации по type
-            ->where('partner_id', $partnerId)// ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
-            ->select('my_logs.*');
-
-        return DataTables::of($logs)
-            ->addColumn('author', function ($log) {
-                return $log->author ? $log->author->name : 'Неизвестно';
-            })
-            ->editColumn('created_at', function ($log) {
-                return $log->created_at->format('d.m.Y / H:i:s');
-            })
-            ->editColumn('action', function ($log) {
-                // Логика для преобразования типа
-                $typeLabels = [
-
-                    11 => 'Изм. цен во всех группах (Применить слева)', //Применить слева
-                    12 => 'Инд. изм. цен (Применить справа)', //Применить справа
-                    13 => 'Изм. цен в одной группе  (ок)', //Кнопка "ок"
-
-                    21 => 'Создание пользователя',
-                    22 => 'Обновление учетной записи в пользователях',
-                    23 => 'Обновление учетной записи',
-                    24 => 'Удаление пользователя в пользователях',
-                    25 => 'Изменение пароля (админ)',
-                    26 => 'Изменение пароля',
-                    27 => 'Изменение аватара (админ)',
-                    28 => 'Изменение аватара',
-                    29 => 'Удаление аватара',
-                    299 => 'Удаление аватара (админ)',
-
-                    210 => 'Изменение доп полей пользователя',
-                    211 => 'Изменение номера телефона',
-
-
-
-                    31 => 'Создание группы',
-                    32 => 'Изменение группы',
-                    33 => 'Удаление группы',
-
-                    40 => 'Авторизация',
-
-                    50 => 'Платежи',
-
-                    60 => 'Расписание',
-
-                    70 => 'Изменение настроек',
-
-                    710 => 'Создание роли',
-                    720 => 'Изменение роли',
-                    730 => 'Удаление роли',
-
-                    80 => 'Изменение партнера',
-                    81 => 'Создание партнера суперадмином',
-                    82 => 'Изменение партнера суперадмином',
-                    83 => 'Удаление партнера',
-
-
-                    90 => 'Создание статуса расписания',
-                    91 => 'Изменение статуса расписания',
-                    92 => 'Удаление статуса расписания',
-
-
-                ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип (setting)';
-            })
-            ->make(true);
+        return $this->buildLogDataTable(null);
     }
 
 //    Смена 2 Fa для админов
-    public function toggleForce2faAdmins2(Request $request)
-    {
-        $user = $request->user();
-        if ((int)$user->role_id !== 1) {
-            abort(403, 'Доступ только для суперадмина');
-        }
 
-        $active = filter_var($request->input('force2faAdmins'), FILTER_VALIDATE_BOOLEAN);
-        Setting::setBool('force_2fa_admins', $active, null);
-
-        return response()->json(['success' => true, 'value' => $active]);
-    }
 
     public function toggleForce2faAdmins(Request $request)
     {
@@ -475,9 +398,9 @@ class SettingController extends Controller
             'role_id' => $user?->role_id,
             'payload' => $request->all(),
             'headers' => [
-        'X-Requested-With' => $request->header('X-Requested-With'),
-        'Content-Type'     => $request->header('Content-Type'),
-    ],
+                'X-Requested-With' => $request->header('X-Requested-With'),
+                'Content-Type' => $request->header('Content-Type'),
+            ],
         ]);
 
         if ((int)$user->role_id !== 1) {
@@ -497,10 +420,10 @@ class SettingController extends Controller
             $ok = DB::table('settings')->updateOrInsert(
                 ['name' => 'force_2fa_admins', 'partner_id' => null],
                 [
-                    'status'     => $active ? 1 : 0,
+                    'status' => $active ? 1 : 0,
                     'updated_at' => now(),
                     'created_at' => now(),
-                    'text'       => DB::raw('COALESCE(text, "Обязательная 2FA для роли 10 (админ). 0/1.")'),
+                    'text' => DB::raw('COALESCE(text, "Обязательная 2FA для роли 10 (админ). 0/1.")'),
                 ]
             );
 
@@ -511,7 +434,7 @@ class SettingController extends Controller
             Log::info('toggleForce2faAdmins: row after save', [
                 'exists' => (bool)$row,
                 'status' => $row->status ?? null,
-                'id'     => $row->id ?? null,
+                'id' => $row->id ?? null,
             ]);
 
             return response()->json(['success' => true, 'value' => (bool)($row->status ?? 0)]);
@@ -521,9 +444,11 @@ class SettingController extends Controller
                 'class' => get_class($e),
                 'trace' => $e->getTraceAsString(),
             ]);
-            return response()->json(['success' => false, 'message' => 'DB error: '.$e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'DB error: ' . $e->getMessage()], 500);
         }
     }
+
+
 }
 
  

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
+use App\Models\Partner;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\TeamPrice;
@@ -21,10 +22,12 @@ use Illuminate\Support\Facades\DB;
 use function Termwind\dd;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Str;
+use App\Support\BuildsLogTable;
 
 
 class SettingPricesController extends Controller
 {
+    use BuildsLogTable;
 
     public function index(FilterRequest $request)
     {
@@ -173,13 +176,12 @@ class SettingPricesController extends Controller
         $teamPrice = $data['teamPrice'] ?? null;
         $teamId = $data['teamId'] ?? null;
         $selectedDate = $data['selectedDate'] ?? null;
-
-
         $usersTeam = User::where('team_id', $teamId)->get();
         $authorId = auth()->id(); // Авторизованный пользователь
         $teamTitle = Team::where('id', $teamId)->first()->title;
         $selectedDateString = $selectedDate;
         $selectedDate = $this->formatedDate($selectedDate);
+
 
 
         DB::transaction(function () use ($teamId, $selectedDate, $teamPrice, $authorId, $teamTitle, $selectedDateString, $partnerId) {
@@ -193,19 +195,14 @@ class SettingPricesController extends Controller
                     'price' => $teamPrice
                 ]
             );
-
+//            Кнопка ОК. Установка цен группе и юзерам.
             MyLog::create([
                 'type' => 1,
                 'action' => 13, // Изменение цен в одной группе
-                'author_id' => $authorId,
-                'partner_id'  => $partnerId,
                 'description' => "Обновлена цена: {$teamPrice} руб. Период: {$selectedDateString}.",
-
-                // ✅ ДОБАВЛЕНО:
                 'target_type'  => 'App\Models\UserPrice',
                 'target_id'    => $teamId,
                 'target_label' => $teamTitle,
-
                 'created_at' => now(),
             ]);
 
@@ -253,7 +250,6 @@ class SettingPricesController extends Controller
     //AJAX ПРИМЕНИТЬ слева.Установка цен всем группам
     public function setPriceAllTeams(Request $request)
     {
-        $partnerId = app('current_partner')->id;
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
         $selectedDate = $data['selectedDate'] ?? null;
@@ -269,11 +265,10 @@ class SettingPricesController extends Controller
         }
         $authorId = auth()->id(); // Авторизованный пользователь
 
-        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $teamsData, $partnerId) {
+        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $teamsData) {
             // Перебираем массив и обновляем цены команд
             foreach ($teamsData as $teamData) {
                 // Обновляем цены для групп
-//                $team = Team::where('title', $teamData['name'])->first();
                 $teamId = $teamData['teamId'];
 
                 $team = \App\Models\Team::select('id', 'title')->find($teamId);
@@ -294,13 +289,10 @@ class SettingPricesController extends Controller
                             'price' => $teamData['price']
                         ]
                     );
-                    // Логируем успешное обновление цены для команды
+//                    ПРИМЕНИТЬ слева.Установка цен всем группам
                     MyLog::create([
                         'type' => 1,
                         'action' => 11, // Изменение цен во всех группах
-                        'author_id' => $authorId,
-                        'partner_id'  => $partnerId,
-                        // ✅ ДОБАВЛЕНО:
                         'target_type'  => 'App\Models\UserPrice',
                         'target_id'    => $teamId,
                         'target_label' => $team->title,
@@ -308,9 +300,6 @@ class SettingPricesController extends Controller
                         'created_at' => now(),
                     ]);
                 }
-
-                // Обновляем цены для пользователей
-//                $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
 
                 $users = User::where('team_id', $teamId)
                     ->where('is_enabled', 1)
@@ -349,7 +338,6 @@ class SettingPricesController extends Controller
     //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
     public function setPriceAllUsers(Request $request)
     {
-        $partnerId = app('current_partner')->id;
 
         // Получаем JSON-содержимое запроса и декодируем его
         $data = json_decode($request->getContent(), true);
@@ -360,7 +348,6 @@ class SettingPricesController extends Controller
 
         // Проверка данных
         if (is_null($usersPrice) || !is_array($usersPrice)) {
-            \Log::error('usersPrice не является массивом или пуст');
             return response()->json(['error' => 'Некорректные данные'], 400);
         }
 
@@ -368,7 +355,7 @@ class SettingPricesController extends Controller
         $selectedDateString = $selectedDate;
         $selectedDate = $this->formatedDate($selectedDate); // Предполагаем, что эта функция существует для форматирования даты
 
-        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice, $partnerId) {
+        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice) {
             foreach ($usersPrice as $priceData) {
                 $userPriceRecord = UserPrice::where('user_id', $priceData['user_id'])
                     ->where('new_month', $selectedDate)
@@ -387,16 +374,14 @@ class SettingPricesController extends Controller
                         $userName = $priceData['user']['name'] ?? 'Неизвестный пользователь';
 
 
-                        // Логируем успешное обновление цены для команды
+//                        ПРИМЕНИТЬ справа.Установка цен всем ученикам
                         MyLog::create([
                             'type' => 1,
                             'action' => 12, // Лог для обновления цены команды
-                            'author_id' => $authorId,
-                            'partner_id'  => $partnerId,
+                            'user_id'   => $priceData['user_id'],
                             'target_type'  => 'App\Models\UserPrice',
                             'target_id'    => $priceData['user_id'],
                             'target_label' => $userName,
-
                             'description' => "Обновлена цена: {$priceData['price']} руб. Период: {$selectedDateString}.",
                             'created_at' => now(),
                         ]);
@@ -415,33 +400,10 @@ class SettingPricesController extends Controller
     }
 
     // Метод для обработки DataTables запросов
-    public function getLogsData()
+
+    public function getLogsData(FilterRequest $request)
     {
-        $partnerId = app('current_partner')->id;
-
-        $logs = MyLog::with('author')
-            ->where('type', 1) // Добавляем условие для фильтрации по type
-            ->where('partner_id', $partnerId)        // ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
-            ->select('my_logs.*');
-
-        return DataTables::of($logs)
-            ->addColumn('author', function ($log) {
-//                return $log->author ? $log->author->name : 'Неизвестно';
-                return $log->author?->full_name ?? '—';
-
-            })
-            ->editColumn('created_at', function ($log) {
-                return $log->created_at->format('d.m.Y / H:i:s');
-            })
-            ->editColumn('action', function ($log) {
-                // Логика для преобразования типа
-                $typeLabels = [
-                    11 => 'Изм. цен во всех группах (Применить слева)', //Применить слева
-                    12 => 'Инд. изм. цен (Применить справа)', //Применить справа
-                    13 => 'Изм. цен в одной группе  (ок)', //Кнопка "ок"
-                ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип';
-            })
-            ->make(true);
+        return $this->buildLogDataTable(1);
     }
+
 }

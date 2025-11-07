@@ -89,8 +89,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::match(['get', 'post'], '/cabinet', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/get-user-details', [DashboardController::class, 'getUserDetails'])->name('getUserDetails');
         Route::get('/get-team-details', [DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
-        Route::get('/setup-btn', [DashboardController::class, 'setupBtn'])->name('setupBtn');
-//        Route::get('/content-menu-calendar', [DashboardController::class, 'contentMenuCalendar'])->name('contentMenuCalendar');
     });
 
     //Отчеты
@@ -147,7 +145,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Пользователи
     Route::middleware('can:users-view')->group(function () {
         Route::get('admin/users', [UserController::class, 'index'])->name('admin.user1');
-        Route::get('admin/users/create', [UserController::class, 'create'])->name('admin.user.create');
+//        Route::get('admin/users/create', [UserController::class, 'create'])->name('admin.user.create');
         Route::post('admin/users', [UserController::class, 'store'])->name('admin.user.store');
         Route::get('admin/users/{user}/edit', [UserController::class, 'edit'])->name('admin.user.edit');
         Route::patch('admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
@@ -229,7 +227,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::patch('account-settings/partner/{partner}', [PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
     });
 
-//
     //Учетная запись - вкладка "Мои договоры"
     Route::middleware('can:account-documents-view')->group(function () {
         Route::get('account-settings/documents', [ContractsController::class, 'myDocuments']);

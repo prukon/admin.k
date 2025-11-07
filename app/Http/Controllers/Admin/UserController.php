@@ -23,6 +23,8 @@ use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
+use App\Support\BuildsLogTable;
+
 
 
 use App\Servises\UserService;
@@ -31,6 +33,9 @@ use App\Servises\UserService;
 class UserController extends Controller
 {
     public $service;
+
+    use BuildsLogTable;
+
 
     public function __construct(UserService $service)
     {
@@ -50,11 +55,6 @@ class UserController extends Controller
         $data = $request->validated();
 
 
-
-
-
-
-
         $rolesQuery = Role::query();
 // если не супер-админ — сразу фильтруем по видимости
         if (!$isSuperadmin) {
@@ -70,11 +70,6 @@ class UserController extends Controller
         $roles = $rolesQuery
             ->orderBy('order_by')
             ->get();
-
-
-
-
-
 
         // 4) Произвольные поля партнёра
         $fields = UserField::where('partner_id', $partnerId)->get();
@@ -92,7 +87,6 @@ class UserController extends Controller
             ->paginate(20);
 
         // 7) Все команды партнёра
-//    $allTeams = Team::where('partner_id', $partnerId)->get();
         $allTeams = Team::where('partner_id', $partnerId)
             ->orderBy('order_by', 'asc')// сортировка по order_by по возрастанию
             ->get();
@@ -136,7 +130,6 @@ class UserController extends Controller
             // Создаём пользователя через доменный сервис
             $user = $this->service->store($data);
 
-            $authorId = auth()->id();
 
             // Группа (может отсутствовать)
             $teamTitle = '-';
@@ -158,9 +151,9 @@ class UserController extends Controller
             MyLog::create([
                 'type' => 2,   // юзер-лог
                 'action' => 21,  // создание учётки
-                'author_id' => $authorId,
                 'target_type'  => \App\Models\User::class,
                 'target_id'    => $user->id,
+                'user_id'   => $user->id,
                 'target_label' => $user->full_name ?: "user#{$user->id}",
                 'description' => sprintf(
                     "Имя: %s\nД.р: %s\nНачало: %s\nГруппа: %s\nEmail: %s\nАктивен: %s\nРоль: %s",
@@ -172,7 +165,6 @@ class UserController extends Controller
                     ($data['is_enabled'] ?? false) ? 'Да' : 'Нет',
                     $roleNameOrLabel
                 ),
-                'partner_id' => $partnerId,
             ]);
         });
 
@@ -285,8 +277,6 @@ class UserController extends Controller
 
     public function update(UpdateRequest $request, User $user)
     {
-        $partnerId = app('current_partner')->id;
-        $authorId  = auth()->id();
 
         // Снимок старых значений (только то, что потенциально логируем)
         $old = [
@@ -310,7 +300,7 @@ class UserController extends Controller
             ->map(fn(UserFieldValue $v) => $v->value)
             ->all();
 
-        DB::transaction(function () use ($request, $user, $validatedData, $existingCustomValues, $old, $authorId, $partnerId) {
+        DB::transaction(function () use ($request, $user, $validatedData, $existingCustomValues, $old) {
             // 1) Телефон: менять и логировать только при наличии права
             if (array_key_exists('phone', $validatedData)) {
                 $newPhoneIncoming = (string) $validatedData['phone'];
@@ -406,21 +396,14 @@ class UserController extends Controller
                 MyLog::create([
                     'type'         => 2,
                     'action'       => 22, // изменение учётной записи
-                    'author_id'    => $authorId,
-                    'partner_id'   => $partnerId,
-
+                    'user_id'   => $user->id,
                     'target_type'  => \App\Models\User::class,
                     'target_id'    => $user->id,
                     'target_label' => $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"),
-
                     'description'  => implode("\n", $changes),
                 ]);
             }
 
-            \Log::info('[users.update] diff logged', [
-                'user_id' => $user->id,
-                'count'   => count($changes),
-            ]);
         });
 
         return response()->json([
@@ -433,24 +416,20 @@ class UserController extends Controller
         if (!$user) {
             return response()->json(['error' => 'Пользователь не найден'], 404);
         }
-        $partnerId = app('current_partner')->id;
 
-        $authorId = auth()->id(); // Авторизованный пользователь
-
-        DB::transaction(function () use ($user, $authorId, $partnerId) {
+        DB::transaction(function () use ($user) {
 
             $user->delete();
 
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 24,
-                'author_id' => $authorId,
+                'user_id'   => $user->id,
                 'target_type'  => \App\Models\User::class,
                 'target_id'    => $user->id,
                 'target_label' => $user->full_name ?: "user#{$user->id}",
                 'description' => "Удален пользователь: {$user->name}  ID: {$user->id}.",
                 'created_at' => now(),
-                'partner_id' => $partnerId
             ]);
         });
         return response()->json(['success' => 'Пользователь успешно удалён']);
@@ -469,7 +448,6 @@ class UserController extends Controller
         ]);
 
         $partnerId = app('current_partner')->id;
-        $authorId  = auth()->id();
 
         // ХЕЛПЕР для генерации уникального slug
         $makeUniqueSlug = function (string $baseName, int $partnerId, ?int $ignoreId = null): string {
@@ -490,7 +468,7 @@ class UserController extends Controller
             return $slug;
         };
 
-        DB::transaction(function () use ($data, $partnerId, $authorId, $makeUniqueSlug) {
+        DB::transaction(function () use ($data, $partnerId, $makeUniqueSlug) {
             $submittedIds = collect($data['fields'])
                 ->pluck('id')
                 ->filter()
@@ -515,8 +493,6 @@ class UserController extends Controller
                     MyLog::create([
                         'type'         => 2,
                         'action'       => 210,
-                        'author_id'    => $authorId,
-                        'partner_id'   => $partnerId,
                         'target_type'  => \App\Models\UserField::class,
                         'target_id'    => $field->id,
                         'target_label' => $field->name,
@@ -586,8 +562,6 @@ class UserController extends Controller
                     MyLog::create([
                         'type'         => 2,
                         'action'       => 210,
-                        'author_id'    => $authorId,
-                        'partner_id'   => $partnerId,
                         'target_type'  => \App\Models\UserField::class,
                         'target_id'    => $field->id,
                         'target_label' => $field->name,
@@ -611,8 +585,6 @@ class UserController extends Controller
                     MyLog::create([
                         'type'         => 2,
                         'action'       => 210,
-                        'author_id'    => $authorId,
-                        'partner_id'   => $partnerId,
                         'target_type'  => \App\Models\UserField::class,
                         'target_id'    => $field->id,
                         'target_label' => $field->name,
@@ -647,78 +619,24 @@ class UserController extends Controller
         \DB::transaction(function () use ($user, $newPassword, $request, $partnerId) {
             $user->password = \Hash::make($newPassword);
             $user->save();
+            $targetLabel = trim(($user->lastname ? ($user->lastname.' ') : '').($user->name ?? ''));
 
             \App\Models\MyLog::create([
                 'type' => 2,
                 'action' => 26,
-                'author_id' => $request->user()->id,
+                'user_id'   => $user->id,
+                'target_type'  => \App\Models\User::class,
+                'target_id'    => $user->id,
+                'target_label' => $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"),
+
                 'description' => sprintf('Пароль пользователя "%s" изменён администратором "%s".',
                     $user->name, $request->user()->name),
-                'partner_id' => $partnerId,
             ]);
         });
 
         return response()->json(['success' => true]);
     }
 
-    public function log(FilterRequest $request)
-    {
-        $partnerId = app('current_partner')->id;
-
-        $logs = MyLog::with('author') // 👈 Подгружаем имя автора
-        ->where('type', 2) // user-логи
-        ->where('partner_id', $partnerId)
-            ->select([
-                'id',
-                'type',
-                'action',
-                'target_type',
-                'target_id',
-                'target_label',
-                'author_id',
-                'partner_id',
-                'description',
-                'created_at',
-            ]);
-
-        return DataTables::of($logs)
-            // 👤 Имя автора вместо author_id
-            ->addColumn('author', function ($log) {
-                return $log->author?->full_name ?? '—';
-            })
-
-            // ✅ Человекочитаемая подпись действия
-            ->addColumn('action', function ($log) {
-                static $labels = [
-                    21  => 'Создание пользователя',
-                    22  => 'Обновление учетной записи',
-                    23  => 'Обновление учетной записи (админ)',
-                    24  => 'Удаление пользователя',
-                    25  => 'Изменение пароля (админ)',
-                    26  => 'Изменение пароля',
-                    27  => 'Изменение аватара (админ)',
-                    28  => 'Изменение аватара',
-                    29  => 'Изменение данных партнера',
-                    210 => 'Изменение доп. полей пользователя',
-                    299 => 'Удаление аватара',
-                ];
-                return $labels[$log->action] ?? 'Неизвестный тип';
-            })
-
-            // ✅ Форматирование даты
-            ->editColumn('created_at', function ($log) {
-                return $log->created_at
-                    ? $log->created_at->format('d.m.Y / H:i:s')
-                    : null;
-            })
-
-            // ✅ Возвращаем target_* поля — как в таблице
-            ->editColumn('target_type', fn($log) => $log->target_type ?? '-')
-            ->editColumn('target_id', fn($log) => $log->target_id ?? '-')
-            ->editColumn('target_label', fn($log) => $log->target_label ?? '-')
-
-            ->make(true);
-    }
     protected function isSuperAdmin(\App\Models\User $actor): bool
     {
         // Если используете Spatie\Permission:
@@ -731,10 +649,8 @@ class UserController extends Controller
     public function destroyUserAvatar($id)
     {
         $user = User::findOrFail($id);
-        $partnerId = app('current_partner')->id;
-        $authorId = auth()->id(); // Авторизованный пользователь
 
-        DB::transaction(function () use ($user, $authorId, $partnerId) {
+        DB::transaction(function () use ($user) {
 
             $targetLabel = $user->full_name ?: "user#{$user->id}";
 
@@ -752,14 +668,11 @@ class UserController extends Controller
                 'image_crop' => null,
             ]);
 
-
-
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 299, // Лог для обновления учетной записи
-                'author_id' => $authorId,
-                'partner_id' => $partnerId,
                 'target_type'  => \App\Models\User::class,
+                'user_id'   => $user->id,
                 'target_id'    => $user->id,
                 'target_label' => $targetLabel,
                 'description' => ("Пользователю " . $targetLabel . " удален аватар."),
@@ -776,10 +689,8 @@ class UserController extends Controller
     public function uploadUserAvatar(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $partnerId = app('current_partner')->id;
-        $authorId = auth()->id(); // Авторизованный пользователь
 
-        $result = DB::transaction(function () use ($request, $user, $authorId, $partnerId) {
+        $result = DB::transaction(function () use ($request, $user) {
             $targetLabel = $user->full_name ?: "user#{$user->id}";
 
             // проверим файлы
@@ -818,8 +729,7 @@ class UserController extends Controller
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 27, // Лог для обновления учетной записи
-                'author_id' => $authorId,
-                'partner_id' => $partnerId,
+                'user_id'   => $user->id,
                 'target_type'  => \App\Models\User::class,
                 'target_id'    => $user->id,
                 'target_label' => $targetLabel,
@@ -838,4 +748,8 @@ class UserController extends Controller
         ]);
     }
 
+    public function log(FilterRequest $request)
+    {
+        return $this->buildLogDataTable(2);
+    }
 }

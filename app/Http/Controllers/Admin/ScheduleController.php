@@ -15,10 +15,13 @@ use App\Models\Status;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Support\BuildsLogTable;
 
 
 class ScheduleController extends Controller
 {
+    use BuildsLogTable;
+
     public function index(Request $request)
     {
         // 1) Текущий партнер
@@ -54,7 +57,7 @@ class ScheduleController extends Controller
             }
         }
 
-        $users = $usersQuery->orderBy('name')->get();
+        $users = $usersQuery->orderBy('lastname')->get();
 
         // 6) Записи расписания за месяц — по выбранным users
         $scheduleEntries = ScheduleUser::whereIn('user_id', $users->pluck('id'))
@@ -170,14 +173,10 @@ class ScheduleController extends Controller
             MyLog::create([
                 'type'        => 9,
                 'action'      => 93,
-                'author_id'   => $authorId,
-                'partner_id'  => $partnerId, // ИЗМЕНЕНИЕ #4: сохраняем partner_id
-
                 'target_type'  => 'App\Models\ScheduleUser',
                 'target_id'    => $user->id,
                 'target_label' => $user->full_name,
-
-
+                'user_id'   => $user->id,
                 'description' => sprintf(
                     'Дата: "%s", Имя: "%s",%sСтатус до: "%s", Статус после: "%s",%sКомментарий: "%s"',
                     $formattedDate,
@@ -283,7 +282,6 @@ class ScheduleController extends Controller
     {
         // ИЗМЕНЕНИЕ #1: получаем текущего партнёра из контекста
         $partnerId = app('current_partner')->id;
-        $authorId  = auth()->id();
 
         // ИЗМЕНЕНИЕ #2: проверяем, что пользователь принадлежит этому партнёру
         if ($user->partner_id !== $partnerId) {
@@ -295,7 +293,7 @@ class ScheduleController extends Controller
             'team_id' => 'nullable|exists:teams,id',
         ]);
 
-        DB::transaction(function () use ($authorId, $partnerId, $request, $user) {
+        DB::transaction(function () use ($partnerId, $request, $user) {
             // ИЗМЕНЕНИЕ #3: удостоверяемся, что выбранная команда также относится к этому партнёру
             if ($request->filled('team_id')) {
                 $team = Team::where('id', $request->team_id)
@@ -312,16 +310,13 @@ class ScheduleController extends Controller
 
             // 3) Логируем действие с указанием partner_id
             MyLog::create([
-                    'type'        => 9,
-                    'action'      => 94,
-                    'author_id'   => $authorId,
-                    'partner_id'  => $partnerId, // ИЗМЕНЕНИЕ #4: добавляем в лог partner_id
-
+                'type'        => 9,
+                'action'      => 94,
+                'user_id'   => $user->id,
                 'target_type'  => 'App\Models\ScheduleUser',
                 'target_id'    =>  $team->id,
                 'target_label' => $team->title,
-
-                    'description' => sprintf(
+                'description' => sprintf(
                             'Имя: %s, Установлена группа: %s',
                             $user->full_name,
                             $team?->title ?? '—'
@@ -341,7 +336,6 @@ class ScheduleController extends Controller
     {
         // 1) Контекст
         $partnerId = app('current_partner')->id;
-        $authorId  = auth()->id();
 
         // 2) Проверяем, что пользователь именно нашего партнёра
         if ($user->partner_id !== $partnerId) {
@@ -360,12 +354,6 @@ class ScheduleController extends Controller
         $from     = Carbon::parse($data['date_from']);
         $to       = Carbon::parse($data['date_to']);
 
-        Log::info('Расписание: вход', compact('partnerId') + [
-                'user_id'  => $user->id,
-                'from'     => $from->toDateString(),
-                'to'       => $to->toDateString(),
-                'weekdays' => $weekdays,
-            ]);
 
         // 4) Формируем массив вставок
         $period  = CarbonPeriod::create($from, $to);
@@ -383,36 +371,27 @@ class ScheduleController extends Controller
             }
         }
 
-        DB::transaction(function () use ($user, $from, $to, $inserts, $authorId, $partnerId, $weekdays) {
+        DB::transaction(function () use ($user, $from, $to, $inserts, $partnerId, $weekdays) {
             // 5) Удаляем старые через Eloquent, чтобы не запутываться с join
             $deleted = ScheduleUser::where('user_id', $user->id)
                 ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
                 ->delete();
-            Log::info('Расписание: удалено строк', ['deleted' => $deleted]);
 
             // 6) Вставляем новые
             if (!empty($inserts)) {
                 $inserted = ScheduleUser::insert($inserts);
-                Log::info('Расписание: вставлено строк', ['expected' => count($inserts), 'result' => $inserted]);
-            } else {
-                Log::info('Расписание: нечего вставлять');
             }
 
-            // 7) Логируем в MyLog
             $map   = [1=>'пн',2=>'вт',3=>'ср',4=>'чт',5=>'пт',6=>'суб',7=>'вск'];
             $days  = implode(', ', array_map(fn($d)=> $map[$d] ?? $d, $weekdays));
 
         MyLog::create([
             'type'        => 9,
             'action'      => 95,
-            'author_id'   => $authorId,
-            'partner_id'  => $partnerId,
-
             'target_type'  => 'App\Models\ScheduleUser',
             'target_id'    =>  $user->id,
+            'user_id'   => $user->id,
             'target_label' => $user->full_name,
-
-
             'description' => sprintf(
                 "Пользователь: %s (ID:%d)\nПериод: %s - %s\nДни: %s",
                 $user->name,
@@ -433,41 +412,10 @@ class ScheduleController extends Controller
 
 
     //Настройка логов
-
-    public function getLogsData()
+    public function getLogsData(FilterRequest $request)
     {
-        // ИЗМЕНЕНИЕ #1: получаем текущего партнёра из контекста
-        $partnerId = app('current_partner')->id;
-
-        // Строим базовый запрос по логам
-        $logs = MyLog::with('author')
-            ->where('type', 9)                       // уже было: фильтрация по type
-            ->where('partner_id', $partnerId)        // ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
-            ->select('my_logs.*');
-
-        return DataTables::of($logs)
-            ->addColumn('author', function ($log) {
-                return $log->author?->full_name ?? '—';
-
-            })
-            ->editColumn('created_at', function ($log) {
-                return $log->created_at->format('d.m.Y / H:i:s');
-            })
-            ->editColumn('action', function ($log) {
-                $typeLabels = [
-                    90 => 'Создание статуса расписания',
-                    91 => 'Изменение статуса расписания',
-                    92 => 'Удаление статуса расписания',
-                    93 => 'Изменение расписания (дня)',
-                    94 => 'Установка группы через расписание',
-                    95 => 'Установка индивидуального расписания',
-                ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип';
-            })
-            ->make(true);
+        return $this->buildLogDataTable(9);
     }
-
-
 }
 
 

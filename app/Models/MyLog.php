@@ -13,6 +13,10 @@ class MyLog extends Model
     // Укажите, что поле created_at является датой
     protected $casts = [
         'created_at' => 'datetime',
+        'user_id'     => 'integer',   // <-- поле, добавленное в БД
+        'partner_id'  => 'integer',
+        'author_id'   => 'integer',
+
     ];
 
     public $timestamps = false; // Отключаем автоматическое создание временных меток
@@ -40,5 +44,32 @@ class MyLog extends Model
         return $this->morphTo(__FUNCTION__, 'target_type', 'target_id');
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (MyLog $log) {
+            // 🔹 user_id — если не задан, а пользователь авторизован
+            if (empty($log->user_id) && auth()->check()) {
+                $log->user_id = null;
+            }
+
+            // 🔹 partner_id — если не задан, а контекст партнёра доступен
+            if (empty($log->partner_id) && app()->bound('current_partner')) {
+                $currentPartner = app('current_partner');
+                if ($currentPartner && isset($currentPartner->id)) {
+                    $log->partner_id = $currentPartner->id;
+                }
+            }
+
+            if (empty($log->author_id) && auth()->check()) {
+                $log->author_id = auth()->id();
+            }
+
+        });
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
 }

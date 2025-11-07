@@ -10,10 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Contract extends Model
 {
-    protected $fillable = [
-        'school_id', 'user_id', 'group_id', 'source_pdf_path', 'source_sha256',
-        'provider', 'provider_doc_id', 'status', 'signed_pdf_path', 'signed_at'
-    ];
+    protected $guarded = []; //разрешение на изменение данных в таблице}
+
 
     protected $casts = [
         'signed_at' => 'datetime',

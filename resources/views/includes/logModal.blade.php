@@ -15,6 +15,7 @@
                             <th>ID</th>
                             <th>Действие</th>
                             <th>Автор</th>
+{{--                            <th>Пользователь</th>--}}
                             <th>Что меняли</th>
                             <th>Описание</th>
                             <th>Дата создания</th>
@@ -46,7 +47,8 @@
                     columns: [
                         {data: 'id', name: 'id'},
                         {data: 'action', name: 'action'},
-                        {data: 'author', name: 'author' }, // заменили author
+                        {data: 'author', name: 'author' },
+                        // {data: 'user', name: 'user' },
                         {data: 'target_label', name: 'target_label' }, // заменили target
 
                         {data: 'description', name: 'description',
@@ -82,7 +84,6 @@
                         }
                     }
                 }).columns.adjust().draw();
-
             }
             else {
                     // Если таблица уже есть — просто обновляем данные (если нужно)
@@ -90,25 +91,6 @@
                     dt.ajax.url(routeName).load();
                     dt.columns.adjust().draw();
                 }
-
-
         });
-
     }
-
 </script>
-
-<style>
-    @media (max-width: 768px) {
-        /*.modal-dialog {*/
-        /*    max-width: 100%;*/
-        /*    margin: 0;*/
-        /*}*/
-        /*.modal-content {*/
-        /*    width: 100%;*/
-        /*}*/
-        /*.table th, .table td {*/
-        /*    white-space: nowrap;*/
-        /*}*/
-    }
-</style>

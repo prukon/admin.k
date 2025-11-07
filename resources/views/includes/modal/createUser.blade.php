@@ -59,7 +59,6 @@
                         <label for="role_id" class="form-label">Роль</label>
                         <select name="role_id" class="form-select" id="create_role_id">
                             @foreach($roles as $role)
-                                {{-- value: id роли, отображаем label --}}
                                 <option value="{{ $role->id }}">{{ $role->label }}</option>
                             @endforeach
                         </select>

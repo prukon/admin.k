@@ -17,8 +17,13 @@ use App\Http\Requests\Team\StoreRequest;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
 
+use App\Support\BuildsLogTable;
+
+
 class TeamController extends Controller
 {
+    use BuildsLogTable;
+
     public function __construct(TeamService $service)
     {
         $this->service = $service;
@@ -119,8 +124,6 @@ class TeamController extends Controller
             MyLog::create([
                 'type' => 3,
                 'action' => 32,
-                'author_id' => $authorId,
-                'partner_id'  => $partnerId,
                 'description' => sprintf(
                     "Старые данные:
                     Название: %s, дни недели: %s, сортировка: %s, активность: %s.
@@ -228,8 +231,6 @@ class TeamController extends Controller
                 \App\Models\MyLog::create([
                     'type'         => 3,                 // Логи по группам
                     'action'       => 32,               // Обновление группы
-                    'author_id'    => $authorId,
-                    'partner_id'   => $partnerId,
                     'target_type'  => 'App\Models\Team',
                     'target_id'    => $team->id,
                     'target_label' => $team->title,
@@ -237,9 +238,6 @@ class TeamController extends Controller
                     'created_at'   => now(),
                 ]);
 
-                \Log::info("Обновлена группа '{$team->title}' (ID {$team->id}) пользователем ID {$authorId}. Изменения: " . str_replace("\n", ' | ', implode("\n", $changes)));
-            } else {
-                \Log::info("Группа '{$team->title}' (ID {$team->id}) обновлена без изменений полей. Автор ID {$authorId}.");
             }
         });
 
@@ -249,11 +247,8 @@ class TeamController extends Controller
 
     public function delete(Team $team)
     {
-        $partnerId = app('current_partner')->id;
 
-        $authorId = auth()->id(); // Авторизованный пользователь
-
-        DB::transaction(function () use ($team, $authorId, $partnerId) {
+        DB::transaction(function () use ($team) {
             // Обновляем пользователей, устанавливая team_id в null
            User::where('team_id', $team->id)->update(['team_id' => null]);
 
@@ -264,14 +259,9 @@ class TeamController extends Controller
             MyLog::create([
                 'type' => 3, // Лог для обновления групп
                 'action' => 33,
-                'author_id' => $authorId,
-                'partner_id'  => $partnerId,
-
                 'target_type' => 'App\Models\Team',
                 'target_id'   => $team->id,
                 'target_label'=> $team->title,
-
-
                 'description' => "Группа удалена: {$team->title}. ID: {$team->id}.",
                 'created_at' => now(),
             ]);
@@ -282,32 +272,6 @@ class TeamController extends Controller
 
     public function log(FilterRequest $request)
     {
-        $partnerId = app('current_partner')->id;
-
-        $logs = MyLog::with('author')
-            ->where('type', 3) // Team логи
-            ->where('partner_id', $partnerId)        // ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
-
-            ->select('my_logs.*');
-        return DataTables::of($logs)
-            ->addColumn('author', function ($log) {
-//                return $log->author ? $log->author->name : 'Неизвестно';
-                return $log->author?->full_name ?? '—';
-
-            })
-            ->editColumn('created_at', function ($log) {
-                return $log->created_at->format('d.m.Y / H:i:s');
-            })
-            ->editColumn('action', function ($log) {
-                // Логика для преобразования типа
-                $typeLabels = [
-                    31 => 'Создание группы',
-                    32 => 'Изменение группы',
-                    33 => 'Удаление группы',
-                ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип';
-            })
-            ->make(true);
+        return $this->buildLogDataTable(3);
     }
-
 }

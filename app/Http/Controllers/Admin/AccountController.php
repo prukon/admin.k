@@ -94,7 +94,6 @@ class AccountController extends Controller
 //    Обновление юзера в учетной записи
     public function update(AccountUpdateRequest $request, User $user)
     {
-        $partnerId = app('current_partner')->id;
         $authorId  = Auth::id();
 
         // Снимки до изменений (для дифф-логов)
@@ -141,16 +140,7 @@ class AccountController extends Controller
         $twoFaEnabled = ($isAdminRole && $forceAdmin2fa) ? 1 : $requestedTwoFa;
         $validated['two_factor_enabled'] = $twoFaEnabled;
 
-        \Log::info('User update: 2FA decision', [
-            'editor_id'       => $authorId,
-            'user_id'         => $user->id,
-            'is_admin_role'   => $isAdminRole,
-            'force_admin_2fa' => $forceAdmin2fa,
-            'requested_2fa'   => $requestedTwoFa,
-            'final_2fa'       => $twoFaEnabled,
-            'incoming_phone'  => $incomingPhone,
-            'current_phone'   => $currentPhone,
-        ]);
+
 
         // Если 2FA была включена и мы её выключаем (не админ под глобалкой) — чистим служебные поля
         if (!$isAdminRole && $user->two_factor_enabled && $twoFaEnabled === 0) {
@@ -227,14 +217,6 @@ class AccountController extends Controller
             }
         }
 
-        \Log::info('User update: start', [
-            'editor_id'  => $authorId,
-            'user_id'    => $user->id,
-            'partner_id' => $partnerId,
-            'input'      => $request->all(),
-            'validated'  => $validated,
-        ]);
-
         // --- ДОП. ПАРАМЕТРЫ (как было изначально): custom[slug] = value
         $custom = (array) $request->input('custom', []);
         \Log::info('Полученные кастомные поля', $custom);
@@ -252,7 +234,7 @@ class AccountController extends Controller
         $fieldNameById = []; // [field_id => name]
 
         DB::transaction(function () use (
-            $user, $authorId, $partnerId, $validated, $original,
+            $user, $authorId, $validated, $original,
             $custom, $editorRoleId, &$fieldNameById, $oldFieldValuesById, $fieldLabel, $normalize, $originalPhone
         ) {
             // Обновление основной модели
@@ -411,60 +393,52 @@ class AccountController extends Controller
             $desc = $changes ? implode("\n", $changes) : "Изменения: отсутствуют.";
 
             // --------- запись в MyLog (безопасно к отсутствию action_name_ru) ---------
-            $authorName  = Auth::user()->name ?? ('ID '.$authorId);
             $targetLabel = method_exists($user, 'getFullNameAttribute')
                 ? ($user->full_name ?? trim(($user->lastname ?? '').' '.($user->name ?? '')))
                 : trim(($user->lastname ?? '').' '.($user->name ?? ''));
 
             $logData = [
-                'type'         => 2,                           // логи пользователей
-                'action'       => 23,                          // обновление пользователя
-                'partner_id'   => $partnerId,
-                'author_id'    => $authorId,
+                'type'         => 2,
+                'action'       => 23,
+                'user_id'   => $user->id,
                 'target_type'  => \App\Models\User::class,
                 'target_id'    => $user->id,
                 'target_label' => $targetLabel,
                 'description'  => $desc,
                 'created_at'   => now(),
             ];
-
             if (\Illuminate\Support\Facades\Schema::hasColumn('my_logs', 'action_name_ru')) {
                 $logData['action_name_ru'] = 'Обновление учётной записи пользователя';
             }
-
             MyLog::create($logData);
-
-            \Log::info('User update: saved and logged', [
-                'editor_id'  => $authorId,
-                'user_id'    => $user->id,
-                'partner_id' => $partnerId,
-            ]);
         });
-
         return response()->json(['success' => true, 'message' => 'Пользователь успешно обновлен']);
     }
 
     public function updatePassword(Request $request)
     {
-        $partnerId = app('current_partner')->id;
         $request->validate([
             'password' => 'required|min:8',
         ]);
-//        $currentUser = Auth::user();
         $authorId = auth()->id(); // Авторизованный пользователь
-//        $user = User::findOrFail($id);
         $user = User::findOrFail($authorId);
 
-        DB::transaction(function () use ($user, $authorId, $request, $partnerId) {
+        DB::transaction(function () use ($user, $authorId, $request) {
 
             $user->password = Hash::make($request->password);
             $user->save();
 
+            $targetLabel = trim(($user->lastname ? ($user->lastname.' ') : '').($user->name ?? ''));
+
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 26, // Лог для обновления учетной записи
-                'author_id' => $authorId,
-                'partner_id' => $partnerId,
+                'user_id'   => $user->id,
+                'target_type'  => \App\Models\User::class,
+                'target_id'    => $user->id,
+                'target_label' => $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"),
+
+
                 'description' => ($user->name . " изменил пароль."),
                 'created_at' => now(),
             ]);
@@ -597,7 +571,6 @@ class AccountController extends Controller
 //    новая загрузка аватарки
     public function store(Request $request)
     {
-        $partnerId = app('current_partner')->id;
 
         // Принимаем ДВЕ картинки: big и crop (квадрат), обе — Blob (file)
         $request->validate([
@@ -616,7 +589,7 @@ class AccountController extends Controller
         $cropPath = "avatars/{$cropName}";
 
 
-        DB::transaction(function () use ($user, $partnerId, $request, $bigPath, $cropPath, $bigName, $cropName) {
+        DB::transaction(function () use ($user, $request, $bigPath, $cropPath, $bigName, $cropName) {
 
             // Сохраняем как есть (клиент уже прислал кроп и сжатие)
             Storage::disk('public')->put($bigPath, file_get_contents($request->file('image_big')->getRealPath()));
@@ -634,13 +607,17 @@ class AccountController extends Controller
             $user->image = $bigName;
             $user->image_crop = $cropName;
             $user->save();
+            $targetLabel = trim(($user->lastname ? ($user->lastname.' ') : '').($user->name ?? ''));
 
             // Лог
             MyLog::create([
                 'type' => 2,   // обновление юзеров
                 'action' => 28,  // обновление учётной записи
-                'author_id' => $user->id,
-                'partner_id' => $partnerId,
+                'user_id'   => $user->id,
+                'target_type'  => \App\Models\User::class,
+                'target_id'    => $user->id,
+                'target_label' => $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"),
+
                 'description' => ($user->name . " изменил аватар."),
                 'created_at' => now(),
             ]);
@@ -662,8 +639,6 @@ class AccountController extends Controller
 
         DB::transaction(function () use ($user) {
 
-            $partnerId = app('current_partner')->id;
-
             // Удаляем файлы
             if ($user->image && Storage::disk('public')->exists("avatars/{$user->image}")) {
                 Storage::disk('public')->delete("avatars/{$user->image}");
@@ -675,13 +650,17 @@ class AccountController extends Controller
             $user->image = null;
             $user->image_crop = null;
             $user->save();
+            $targetLabel = trim(($user->lastname ? ($user->lastname.' ') : '').($user->name ?? ''));
 
             // Логируем удаление аватарки
             MyLog::create([
                 'type' => 2,
                 'action' => 29,
-                'author_id' => auth()->id(),
-                'partner_id' => $partnerId,
+                'user_id'   => $user->id,
+                'target_type'  => \App\Models\User::class,
+                'target_id'    => $user->id,
+                'target_label' => $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"),
+
                 'description' => $user->name . " удалил аватар.",
                 'created_at' => now(),
             ]);

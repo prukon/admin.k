@@ -18,10 +18,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use function Termwind\dd;
 
-
-
-
-
 class TransactionController extends Controller
 {
     public function __construct()
@@ -82,14 +78,12 @@ class TransactionController extends Controller
 
         $partnerId =1;
 
-
         // Дополнительная логика, если необходимо
         return view('payment.paymentUser', compact(
             'paymentDate',
             'outSum',
             'formatedPaymentDate',
             'partnerId'
-
         ));
     }
 
@@ -163,13 +157,9 @@ class TransactionController extends Controller
     }
 
 
-
-
 //    Успешная оплата (для юзеров и партнеров)
     public function success(Request $request)
     {
-        \Log::info('Переход на страницу успешной оплаты', $request->all());
-
         return view('payment.success'); // Предполагается, что у вас есть такой вид
     }
 
@@ -177,7 +167,6 @@ class TransactionController extends Controller
     public function fail(Request $request)
     {
         \Log::error('Переход на страницу неудачной оплаты', $request->all());
-
         return view('payment.fail'); // Предполагается, что у вас есть такой вид
     }
 
