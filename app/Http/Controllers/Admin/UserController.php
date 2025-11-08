@@ -83,7 +83,7 @@ class UserController extends Controller
         $allUsers = User::where('partner_id', $partnerId)
             ->when(isset($data['id']), fn($q) => $q->where('id', $data['id']))
             ->filter($filter)
-            ->orderBy('name', 'asc')
+            ->orderBy('lastname', 'asc')
             ->paginate(20);
 
         // 7) Все команды партнёра
