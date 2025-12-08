@@ -190,7 +190,7 @@
                         searchable: false,
                         className: 'text-center',
                         render: function (data, type, row) {
-                            const url = data || '/images/default-avatar.png';
+                            const url = data || '/img/default-avatar.png';
                             return '<img src="' + url + '" alt="" class="rounded-circle" style="width:32px;height:32px;object-fit:cover;">';
                         }
                     },
