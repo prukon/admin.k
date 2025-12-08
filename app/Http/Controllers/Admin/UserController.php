@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Filters\UserFilter;
+//use App\Http\Filters\UserFilter;
 use App\Http\Requests\User\FilterRequest;
 use App\Http\Requests\User\StoreRequest;
 use App\Http\Requests\User\UpdatePasswordRequest;
@@ -42,62 +42,51 @@ class UserController extends Controller
         $this->service = $service;
     }
 
+
     public function index(FilterRequest $request)
     {
-        // 1) Контекст
-        $partnerId = app('current_partner')->id;
-        $user = Auth::user();
-        $currentUser = Auth::user();
-        $userRoleName = $currentUser->role ?->name;
-        $isSuperadmin = $userRoleName === 'superadmin';
+        // 1) Контекст (БЕЗ ИЗМЕНЕНИЙ)
+        $partnerId     = app('current_partner')->id;
+        $user          = Auth::user();
+        $currentUser   = Auth::user();
+        $userRoleName  = $currentUser->role ?->name;
+        $isSuperadmin  = $userRoleName === 'superadmin';
 
-        // 2) Валидация фильтров
+        // 2) Валидация фильтров (есть, но дальше не используем напрямую)
         $data = $request->validated();
 
-
+        // 3) Роли (как было)
         $rolesQuery = Role::query();
-// если не супер-админ — сразу фильтруем по видимости
+
         if (!$isSuperadmin) {
             $rolesQuery->where('is_visible', 1);
         }
-// группируем логику системных ролей / ролей партнёра
+
         $rolesQuery->where(function ($q) use ($partnerId) {
             $q->where('is_sistem', 1)
                 ->orWhereHas('partners', function ($q2) use ($partnerId) {
                     $q2->where('partner_role.partner_id', $partnerId);
                 });
         });
+
         $roles = $rolesQuery
             ->orderBy('order_by')
             ->get();
 
-        // 4) Произвольные поля партнёра
+        // 4) Произвольные поля партнёра (как было)
         $fields = UserField::where('partner_id', $partnerId)->get();
 
-        // 5) Фабрика фильтра
-        $filter = app()->make(UserFilter::class, [
-            'queryParams' => array_filter($data),
-        ]);
+        // !!! ИЗМЕНЕНИЕ: убираем выборку $allUsers и paginate()
+        // Раньше здесь был код с User::...->paginate(20);
+        // Теперь дата для таблицы идет отдельным AJAX-запросом в метод data().
 
-        // 6) Выборка пользователей текущего партнёра с фильтрацией и пагинацией
-        $allUsers = User::where('partner_id', $partnerId)
-            ->when(isset($data['id']), fn($q) => $q->where('id', $data['id']))
-            ->filter($filter)
-            ->orderBy('lastname', 'asc')
-            ->paginate(20);
-
-        // 7) Все команды партнёра
+        // 7) Все команды партнёра (без изменений)
         $allTeams = Team::where('partner_id', $partnerId)
-            ->orderBy('order_by', 'asc')// сортировка по order_by по возрастанию
+            ->orderBy('order_by', 'asc')
             ->get();
 
-
-
-//    dd($roles);
-
-        // 8) Отдаём на view
+        // 8) Отдаём на view (БЕЗ allUsers)
         return view('admin.user', compact(
-            'allUsers',
             'allTeams',
             'fields',
             'currentUser',
@@ -105,6 +94,200 @@ class UserController extends Controller
             'user'
         ));
     }
+
+    /**
+     * DataTables серверный endpoint для списка пользователей.
+     * Возвращает JSON в формате, понятном DataTables.
+     */
+    public function data2(Request $request)
+    {
+        $partnerId    = app('current_partner')->id;
+        $currentUser  = Auth::user();
+        $userRoleName = $currentUser->role ?->name;
+        $isSuperadmin = $userRoleName === 'superadmin';
+
+        // Валидация входящих фильтров + служебных параметров DataTables
+        $validated = $request->validate([
+            'id'      => 'nullable|integer',
+            'name'    => 'nullable|string',
+            'team_id' => 'nullable|string',
+            'status'  => 'nullable|string', // active / inactive / null
+
+            'draw'   => 'nullable|integer',
+            'start'  => 'nullable|integer',
+            'length' => 'nullable|integer',
+        ]);
+
+        // Подготавливаем параметры для UserFilter (если он у тебя есть и уже работает)
+        $queryParams = [
+            'id'      => $validated['id'] ?? null,
+            'name'    => $validated['name'] ?? null,
+            'team_id' => $validated['team_id'] ?? null,
+            'status'  => $validated['status'] ?? null,
+        ];
+
+        /** @var UserFilter $filter */
+        $filter = app()->make(UserFilter::class, [
+            'queryParams' => array_filter(
+                $queryParams,
+                fn($value) => $value !== null && $value !== ''
+            ),
+        ]);
+
+        // Базовый запрос по партнёру
+        $baseQuery = User::where('partner_id', $partnerId)
+            ->filter($filter);
+
+        // Дополнительный фильтр по статусу (если вдруг не реализован в UserFilter)
+        if (!empty($validated['status'])) {
+            if ($validated['status'] === 'active') {
+                $baseQuery->where('is_enabled', 1);
+            } elseif ($validated['status'] === 'inactive') {
+                $baseQuery->where('is_enabled', 0);
+            }
+        }
+
+        // Общее количество записей по партнёру (без фильтров)
+        $totalRecords = User::where('partner_id', $partnerId)->count();
+
+        // Количество записей с учетом фильтров
+        $filteredQuery   = clone $baseQuery;
+        $recordsFiltered = $filteredQuery->count();
+
+        // Пагинация DataTables: start/length
+        $start  = $validated['start'] ?? 0;
+        $length = $validated['length'] ?? 20;
+
+        // Сортировка (для простоты — по фамилии, как было)
+        $baseQuery->orderBy('lastname', 'asc');
+
+        // Подтягиваем команды, чтобы не было N+1
+        $users = $baseQuery
+            ->with('teams')
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        // \Log::debug('Users datatable', ['partner_id' => $partnerId, 'filters' => $queryParams]);
+
+        $data = $users->map(function (User $user) {
+            return [
+                'id'           => $user->id,
+                'avatar'       => $user->avatar_url ?? null, // предполагаю accessor getAvatarUrlAttribute()
+                'name'         => $user->full_name ?: 'Без имени',
+                'teams'        => $user->teams ? $user->teams->pluck('title')->implode(', ') : '',
+                'status_label' => $user->is_enabled ? 'Активен' : 'Неактивен',
+                'is_enabled'   => (int) $user->is_enabled,
+            ];
+        })->toArray();
+
+        return response()->json([
+            'draw'            => (int) ($validated['draw'] ?? 0),
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ]);
+    }
+
+    public function data(Request $request)
+    {
+        $partnerId    = app('current_partner')->id;
+        $currentUser  = Auth::user();
+        $userRoleName = $currentUser->role ?->name;
+        $isSuperadmin = $userRoleName === 'superadmin';
+
+        $validated = $request->validate([
+            'id'      => 'nullable|integer',
+            'name'    => 'nullable|string',
+            'team_id' => 'nullable|string',   // id или 'none'
+            'status'  => 'nullable|string',   // active / inactive
+
+            'draw'   => 'nullable|integer',
+            'start'  => 'nullable|integer',
+            'length' => 'nullable|integer',
+        ]);
+
+        $teamFilter = $validated['team_id'] ?? null;
+
+        // Базовый запрос по партнёру
+        $baseQuery = User::where('partner_id', $partnerId);
+
+        // Фильтр по ID
+        if (!empty($validated['id'])) {
+            $baseQuery->where('id', $validated['id']);
+        }
+
+        // Фильтр по имени
+        if (!empty($validated['name'])) {
+            $name = $validated['name'];
+
+            $baseQuery->where(function ($q) use ($name) {
+                // подставь сюда реальные поля: name, firstname, lastname, full_name — как у тебя в БД
+                $q->where('name', 'like', '%' . $name . '%')
+                    ->orWhere('lastname', 'like', '%' . $name . '%');
+            });
+        }
+
+        // Фильтр по группе: id / none / пусто
+        if ($teamFilter !== null && $teamFilter !== '') {
+            if ($teamFilter === 'none') {
+                $baseQuery->whereNull('team_id');
+            } else {
+                $baseQuery->where('team_id', $teamFilter);
+            }
+        }
+
+        // Фильтр по статусу
+        if (!empty($validated['status'])) {
+            if ($validated['status'] === 'active') {
+                $baseQuery->where('is_enabled', 1);
+            } elseif ($validated['status'] === 'inactive') {
+                $baseQuery->where('is_enabled', 0);
+            }
+        }
+
+        // Общее количество записей по партнёру (без фильтров)
+        $totalRecords = User::where('partner_id', $partnerId)->count();
+
+        // Количество записей с учётом фильтров
+        $filteredQuery   = clone $baseQuery;
+        $recordsFiltered = $filteredQuery->count();
+
+        // Пагинация DataTables
+        $start  = $validated['start'] ?? 0;
+        $length = $validated['length'] ?? 20;
+
+        // Сортировка (как раньше, по фамилии)
+        $baseQuery->orderBy('lastname', 'asc');
+
+        // Подтягиваем ОДНУ команду
+        $users = $baseQuery
+            ->with('team')
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $data = $users->map(function (User $user) {
+            return [
+                'id'           => $user->id,
+                'avatar'       => $user->avatar_url ?? null,
+                'name'         => $user->full_name ?: 'Без имени',
+                'teams'        => $user->team ? $user->team->title : '',
+                'status_label' => $user->is_enabled ? 'Активен' : 'Неактивен',
+                'is_enabled'   => (int) $user->is_enabled,
+            ];
+        })->toArray();
+
+        return response()->json([
+            'draw'            => (int) ($validated['draw'] ?? 0),
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ]);
+    }
+
+
+
 
     public function store(StoreRequest $request)
     {

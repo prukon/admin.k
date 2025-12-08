@@ -534,7 +534,7 @@
         }
 
         // ОКРЫТЫТЬ МОДАЛКУ ЮЗЕРА и загружаем его данные для редактирования UserController edit
-        function editUserLink() {
+        function editUserLink2() {
             $('.edit-user-link').on('click', function () {
                 let userId = $(this).data('id'); // Получаем ID пользователя
                 console.log('Открываем модалку для редактирования пользователя с ID:', userId);
@@ -636,6 +636,103 @@
             });
         }
         // ОТПРАВКА AJAX.-> /UserController->Update Обработчик обновления данных пользователя
+
+        // ОТКРЫТЬ МОДАЛКУ ЮЗЕРА и загрузить его данные для редактирования UserController@edit
+        function editUserLink() {
+            // делегированный обработчик – работает и для динамических элементов (DataTables)
+            $(document).off('click.editUser').on('click.editUser', '.edit-user-link', function (e) {
+                e.preventDefault();
+
+                let userId = $(this).data('id'); // Получаем ID пользователя
+                console.log('Открываем модалку для редактирования пользователя с ID:', userId);
+
+                // AJAX-запрос для получения данных пользователя
+                $.ajax({
+                    url: `/admin/users/${userId}/edit`,
+                    method: 'GET',
+
+                    success: function (response) {
+                        const current      = response.currentUser;
+                        const isSuperadmin = current.isSuperadmin;
+                        console.log('\\Log full response =', response);
+
+                        // 1) Заполняем стандартные поля
+                        $('#edit-user-form #edit-name').val(response.user.name);
+                        $('#edit-user-form #edit-lastname').val(response.user.lastname);
+                        $('#edit-user-form #edit-birthday').val(response.user.birthday);
+                        $('#edit-user-form #edit-team').val(response.user.team_id);
+                        $('#edit-user-form #edit-start_date').val(response.user.start_date);
+                        $('#edit-user-form #edit-email').val(response.user.email);
+                        $('#edit-user-form #edit-phone').val(response.user.phone);
+                        $('#edit-user-form #edit-activity').val(response.user.is_enabled);
+
+                        // 2) Роли
+                        const roleSelect = $('#edit-user-form #role_id');
+                        roleSelect.empty();
+                        response.roles.forEach(function (role) {
+                            roleSelect.append(
+                                $('<option>', {value: role.id, text: role.label})
+                            );
+                        });
+                        roleSelect.val(response.user.role_id);
+
+                        // 3) Устанавливаем action формы (используется в обновлении и смене пароля/удалении)
+                        $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);
+
+                        // 4) Аватар
+                        if (response.user && response.user.image_crop) {
+                            $('.avatar-clip img').attr('src', "{{ asset('storage/avatars') }}/" + response.user.image_crop);
+                        } else {
+                            $('.avatar-clip img').attr('src', "{{ asset('img/default-avatar.png') }}");
+                        }
+
+                        setZoomImageFromUser(response.user);
+                        setSelectedUserContext(response.user);
+                        $('.js-delete-photo').attr('data-id', response.user.id);
+                        setOpenPhotoVisibilityByUser(response.user);
+
+                        // 5) Кастомные поля
+                        const container    = $('#custom-fields-container');
+                        const currentRoleId = response.currentUser.role_id;
+                        container.empty();
+
+                        response.fields.forEach(function (field, idx) {
+                            let userValue = '';
+                            if (response.user.fields) {
+                                const uf = response.user.fields.find(uf => uf.slug === field.slug);
+                                if (uf) userValue = uf.pivot.value || '';
+                            }
+
+                            const disabledAttr = field.editable ? '' : 'disabled';
+
+                            const html = `
+                        <div class="mb-3 custom-field" data-slug="${field.slug}">
+                            <label for="custom-${field.slug}" class="form-label">${field.name}</label>
+                            <input
+                                type="text"
+                                name="custom[${field.slug}]"
+                                class="form-control"
+                                id="custom-${field.slug}"
+                                value="${userValue}"
+                                ${disabledAttr}
+                            />
+                        </div>
+                    `;
+                            container.append(html);
+                        });
+
+                        // 6) Открываем модалку
+                        $('#editUserModal').modal('show');
+                        applyPhoneUI(response.user);
+                    },
+
+                    error: function () {
+                        console.error('Ошибка при загрузке данных пользователя');
+                    }
+                });
+            });
+        }
+
 
         function editUserForm() {
             $('#edit-user-form')

@@ -145,7 +145,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Пользователи
     Route::middleware('can:users-view')->group(function () {
         Route::get('admin/users', [UserController::class, 'index'])->name('admin.user1');
-//        Route::get('admin/users/create', [UserController::class, 'create'])->name('admin.user.create');
         Route::post('admin/users', [UserController::class, 'store'])->name('admin.user.store');
         Route::get('admin/users/{user}/edit', [UserController::class, 'edit'])->name('admin.user.edit');
         Route::patch('admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
@@ -158,6 +157,12 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/admin/users/{id}/avatar', [UserController::class, 'destroyUserAvatar'])->name('admin.users.avatar.destroy');
 //      Обновление аватарки админом
         Route::post('/admin/users/{id}/avatar', [UserController::class, 'uploadUserAvatar']);
+
+
+        // новый роут для DataTables
+        Route::get('/admin/users/data', [UserController::class, 'data'])
+            ->name('admin.users.data');
+
     });
 
     //Группы

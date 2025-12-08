@@ -52,10 +52,17 @@ class   User extends Authenticatable
         return $this->birthday ?->format('Y-m-d');
     }
 
-    public function team()
+    public function team2()
     {
         return $this->belongsTo(Team::class);
     }
+
+    public function team()
+    {
+        // если поле в таблице users называется team_id
+        return $this->belongsTo(Team::class, 'team_id');
+    }
+
 
     public function payments()
     {

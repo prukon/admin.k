@@ -1,149 +1,359 @@
 @extends('layouts.admin2')
+
 @section('content')
     <div class="main-content text-start">
-        <h4 class="pt-3 ">Пользователи</h4>
+        <h4 class="pt-3">Пользователи</h4>
         <hr>
+
         <div class="buttons">
             <div class="row gy-2 index-user-wrap">
+                {{-- ЛЕВАЯ ЧАСТЬ: фильтры --}}
                 <div id="search-container" class="col-12 col-md-6">
-                    <input id="search-input" class="mr-2 search-input ps-3 width-170" type="text" placeholder="Имя">
-                    <select id="search-select" class="mr-2 ml-1 search-select width-170">
-                        <option value="">Группа</option>
-                        <option value="none">Без группы</option>
-                        @foreach($allTeams as $team)
-                            <option value="{{ $team->id }}">{{ $team->title }}</option>
-                        @endforeach
-                    </select>
-                    <button id="search-button" class="btn btn-primary">Найти</button>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <input id="filter-name"
+                               class="form-control search-input width-170"
+                               type="text"
+                               placeholder="Имя">
+
+                        <select id="filter-team"
+                                class="form-select search-select width-170">
+                            <option value="">Группа</option>
+                            <option value="none">Без группы</option>
+                            @foreach($allTeams as $team)
+                                <option value="{{ $team->id }}">{{ $team->title }}</option>
+                            @endforeach
+                        </select>
+
+                        <select id="filter-status"
+                                class="form-select search-select width-170">
+                            <option value="">Все пользователи</option>
+                            <option value="active" selected>Только активные</option>
+                            <option value="inactive">Только неактивные</option>
+                        </select>
+
+                        <button id="filter-apply" class="btn btn-primary">
+                            Найти
+                        </button>
+
+                        <button id="filter-reset" class="btn btn-outline-secondary">
+                            Сбросить
+                        </button>
+                    </div>
                 </div>
-                <div class="col-12 col-md-6 text-start">
-                    <button id="new-user" type="button" class="btn btn-primary mr-2 new-user width-170"
+
+                {{-- ПРАВАЯ ЧАСТЬ: кнопки действий и настройка колонок --}}
+                <div class="col-12 col-md-6 text-start d-flex flex-wrap justify-content-md-end gap-2 align-items-center">
+                    <button id="new-user"
+                            type="button"
+                            class="btn btn-primary mr-2 new-user width-170"
                             data-bs-toggle="modal"
                             data-bs-target="#createUserModal">
                         Новый пользователь
                     </button>
-                    <button id="field-modal" type="button" class="btn btn-primary mr-2"
+
+                    {{-- Старая кнопка настроек доп. полей (не трогаю) --}}
+                    <button id="field-modal"
+                            type="button"
+                            class="btn btn-primary mr-2"
                             data-bs-toggle="modal"
-                            data-bs-target="#fieldModal">Настройки</button>
-                    <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#historyModal">
-                        <i class="fa-solid fa-clock-rotate-left logs "></i>
+                            data-bs-target="#fieldModal">
+                        Настройки
+                    </button>
+
+                    {{-- Новая кнопка для настройки отображаемых колонок списка пользователей --}}
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle"
+                                type="button"
+                                id="columnsDropdown"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                            Поля списка
+                        </button>
+                        <div class="dropdown-menu p-3" aria-labelledby="columnsDropdown" style="min-width: 220px;">
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle"
+                                       type="checkbox"
+                                       data-column-key="avatar"
+                                       id="colAvatar"
+                                       checked>
+                                <label class="form-check-label" for="colAvatar">
+                                    Аватар
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle"
+                                       type="checkbox"
+                                       data-column-key="name"
+                                       id="colName"
+                                       checked>
+                                <label class="form-check-label" for="colName">
+                                    Имя
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle"
+                                       type="checkbox"
+                                       data-column-key="teams"
+                                       id="colTeams"
+                                       checked>
+                                <label class="form-check-label" for="colTeams">
+                                    Группа
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle"
+                                       type="checkbox"
+                                       data-column-key="status_label"
+                                       id="colStatus"
+                                       checked>
+                                <label class="form-check-label" for="colStatus">
+                                    Статус
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle"
+                                       type="checkbox"
+                                       data-column-key="actions"
+                                       id="colActions"
+                                       checked>
+                                <label class="form-check-label" for="colActions">
+                                    Действия
+                                </label>
+                            </div>
+
+                            {{-- При желании сюда же можно добавить чекбоксы под кастомные поля партнёра --}}
+                        </div>
                     </div>
-                    <!-- Модальное окно создания юзера -->
-                @include('includes.modal.createUser')
 
-                <!-- Модальное окно редактирования юзера -->
-                @include('includes.modal.editUser')
+                    {{-- Логи, как и было --}}
+                    <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#historyModal">
+                        <i class="fa-solid fa-clock-rotate-left logs"></i>
+                    </div>
 
-                <!-- Модальное окно редактирования доп полей -->
-                @include('includes.modal.fieldModal')
-
-                <!-- Модальное окно логов -->
-                @include('includes.logModal')
+                    {{-- Модалки, как и были --}}
+                    @include('includes.modal.createUser')
+                    @include('includes.modal.editUser')
+                    @include('includes.modal.fieldModal')
+                    @include('includes.logModal')
                 </div>
             </div>
         </div>
 
         <hr>
-        @php
-            $counter = 1;
-        @endphp
 
-        <div class="wrap-user-list">
-            @foreach($allUsers as $user)
-                <div class="user">
-
-                    <a href="javascript:void(0);" class="edit-user-link" data-id="{{ $user->id }}"
-                       style="{{ $user->is_enabled == 0 ? 'color: red;' : '' }}">
-                        {{--{{ $counter }}. {{$user->name}}--}}
-                        {{ $counter }}. {{ $user?->full_name ?: 'Без имени' }}
-
-                    </a>
-
-                </div>
-                @php
-                    $counter++;
-                @endphp
-            @endforeach
-
-            <div class="mt-3">
-                {{ $allUsers->withQueryString()->links() }}
-            </div>
-
+        {{-- НОВАЯ ТАБЛИЦА DataTables вместо старого списка --}}
+        <div class="table-responsive">
+            <table id="users-table" class="table table-striped table-bordered align-middle w-100">
+                <thead>
+                <tr>
+                    <th>Аватар</th>
+                    <th>Имя</th>
+                    <th>Группа</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{-- тело будет заполняться DataTables через AJAX --}}
+                </tbody>
+            </table>
         </div>
     </div>
-
 @endsection
 
 @section('scripts')
     <script>
-        function clickToSearch() {
+        $(document).ready(function () {
+            const visibleColumnsConfigKey = 'usersTableVisibleColumns';
 
-            function searchUserName() {
-                document.getElementById('search-button').addEventListener('click', function () {
-                    var query = document.getElementById('search-input').value;
-                    // Формируем новый URL
-                    var newUrl = new URL(window.location.href);
-                    if (query) {
-                        // Если в инпуте есть текст, устанавливаем GET-параметр
-                        newUrl.searchParams.set('name', query);
-                    } else {
-                        // Если инпут пустой, удаляем GET-параметр
-                        newUrl.searchParams.delete('name');
+            // Инициализация DataTables
+            const table = $('#users-table').DataTable({
+                processing: true,
+                serverSide: true,
+                pageLength: 20,
+                lengthMenu: [10, 20, 50, 100],
+                ajax: {
+                    url: '/admin/users/data', // <--- прямая строка, как просил
+                    type: 'GET',
+                    data: function (d) {
+                        d.name    = $('#filter-name').val();
+                        d.team_id = $('#filter-team').val();
+                        d.status  = $('#filter-status').val();
                     }
-                    // Обновляем URL без перезагрузки страницы
-                    window.history.pushState(null, '', newUrl);
-                    // Перезагружаем страницу с новым URL
+                },
 
-
-                    var selectedOption = document.getElementById('search-select').value;
-                    // Формируем новый URL
-                    var newUrl = new URL(window.location.href);
-                    if (selectedOption) {
-                        // Если выбрана опция, устанавливаем GET-параметр
-                        newUrl.searchParams.set('team_id', selectedOption);
-                    } else {
-                        // Если не выбрана опция (значение пустое), удаляем GET-параметр
-                        newUrl.searchParams.delete('team_id');
+                columns: [
+                    {
+                        data: 'avatar',
+                        name: 'avatar',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center',
+                        render: function (data, type, row) {
+                            const url = data || '/images/default-avatar.png';
+                            return '<img src="' + url + '" alt="" class="rounded-circle" style="width:32px;height:32px;object-fit:cover;">';
+                        }
+                    },
+                    {
+                        data: 'name',
+                        name: 'name',
+                        render: function (data, type, row) {
+                            // 👉 здесь добавляем атрибуты Bootstrap для модалки
+                            return '<a href="javascript:void(0);" ' +
+                                'class="edit-user-link" ' +
+                                'data-id="' + row.id + '" ' +
+                                'data-bs-toggle="modal" ' +
+                                'data-bs-target="#editUserModal">' +
+                                data +
+                                '</a>';
+                        }
+                    },
+                    {
+                        data: 'teams',
+                        name: 'teams',
+                        defaultContent: ''
+                    },
+                    {
+                        data: 'status_label',
+                        name: 'status_label',
+                        render: function (data, type, row) {
+                            const badgeClass = row.is_enabled ? 'bg-success' : 'bg-secondary';
+                            return '<span class="badge ' + badgeClass + '">' + data + '</span>';
+                        }
+                    },
+                    {
+                        data: null,
+                        name: 'actions',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-end',
+                        render: function (data, type, row) {
+                            // 👉 и тут тоже
+                            return '<button type="button" ' +
+                                'class="btn btn-sm btn-outline-primary edit-user-link" ' +
+                                'data-id="' + row.id + '" ' +
+                                'data-bs-toggle="modal" ' +
+                                'data-bs-target="#editUserModal">' +
+                                'Редактировать' +
+                                '</button>';
+                        }
                     }
-                    // Обновляем URL без перезагрузки страницы
-                    window.history.pushState(null, '', newUrl);
+                ],
 
+                order: [[1, 'asc']], // сортировка по имени по умолчанию
+                language: {
+                    "processing": "Обработка...",
+                    "search": "",
+                    "searchPlaceholder": "Поиск...",
 
-                    window.location.reload();
+                    "lengthMenu": "Показать _MENU_",
+                    "info": "С _START_ до _END_ из _TOTAL_ записей",
+                    "infoEmpty": "С 0 до 0 из 0 записей",
+                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
+                    "loadingRecords": "Загрузка записей...",
+                    "zeroRecords": "Записи отсутствуют.",
+                    "emptyTable": "В таблице отсутствуют данные",
+                    "paginate": {
+                        "first": "",
+                        "previous": "",
+                        "next": "",
+                        "last": ""
+                    },
+                    "aria": {
+                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
+                        "sortDescending": ": активировать для сортировки столбца по убыванию"
+                    }
+                }
+            });
+
+            // -----------------------------
+            // Фильтры (поиск/сброс)
+            // -----------------------------
+            $('#filter-apply').on('click', function () {
+                table.ajax.reload();
+            });
+
+            $('#filter-reset').on('click', function () {
+                $('#filter-name').val('');
+                $('#filter-team').val('');
+                $('#filter-status').val('');
+                table.ajax.reload();
+            });
+
+            // По Enter в поле имени
+            $('#filter-name').on('keyup', function (e) {
+                if (e.key === 'Enter') {
+                    table.ajax.reload();
+                }
+            });
+
+            // -----------------------------
+            // Настройка видимости колонок
+            // -----------------------------
+            const defaultColumnsVisibility = {
+                avatar: true,
+                name: true,
+                teams: true,
+                status_label: true,
+                actions: true
+            };
+
+            function loadVisibleColumnsConfig() {
+                const saved = localStorage.getItem(visibleColumnsConfigKey);
+                if (!saved) {
+                    return {...defaultColumnsVisibility};
+                }
+
+                try {
+                    const parsed = JSON.parse(saved);
+                    return {...defaultColumnsVisibility, ...parsed};
+                } catch (e) {
+                    return {...defaultColumnsVisibility};
+                }
+            }
+
+            function applyVisibleColumns(config) {
+                // Маппинг ключей на индексы колонок в DataTables
+                const map = {
+                    avatar: 0,
+                    name: 1,
+                    teams: 2,
+                    status_label: 3,
+                    actions: 4
+                };
+
+                Object.keys(map).forEach(function (key) {
+                    const column = table.column(map[key]);
+                    const isVisible = !!config[key];
+                    column.visible(isVisible);
+
+                    // поддерживаем чекбоксы в dropdown
+                    $('.column-toggle[data-column-key="' + key + '"]')
+                        .prop('checked', isVisible);
                 });
             }
 
-            // Функция для установки значения инпута при загрузке страницы
-            function setInputFromURL() {
-                var urlParams = new URLSearchParams(window.location.search);
-                var nameQuery = urlParams.get('name');
-                if (nameQuery) {
-                    document.getElementById('search-input').value = nameQuery;
-                }
-            }
+            let currentColumnsConfig = loadVisibleColumnsConfig();
 
-            // Функция для установки значения селекта при загрузке страницы
-            function setSelectFromURL() {
-                var urlParams = new URLSearchParams(window.location.search);
-                var teamId = urlParams.get('team_id');
-                if (teamId) {
-                    document.getElementById('search-select').value = teamId;
-                }
-            }
+            // Применяем сохранённую конфигурацию после инициализации таблицы
+            table.on('init', function () {
+                applyVisibleColumns(currentColumnsConfig);
+            });
 
-            // Вызываем функции после загрузки страницы
-            window.onload = function () {
-                searchUserName();
-                setInputFromURL();
-                setSelectFromURL();
-            };
+            // Обработчик чекбоксов в dropdown "Поля списка"
+            $('.column-toggle').on('change', function () {
+                const key = $(this).data('column-key');
+                const isChecked = $(this).is(':checked');
 
-        }
+                currentColumnsConfig[key] = isChecked;
+                localStorage.setItem(visibleColumnsConfigKey, JSON.stringify(currentColumnsConfig));
+                applyVisibleColumns(currentColumnsConfig);
+            });
 
-        clickToSearch();
-
-        $(document).ready(function () {
-            showLogModal("{{ route('logs.data.user') }}"); // Здесь можно динамически передать route
-        })
+            // -----------------------------
+            // Логи (как у тебя было)
+            // -----------------------------
+            showLogModal("{{ route('logs.data.user') }}");
+        });
     </script>
 @endsection
