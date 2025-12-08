@@ -1,6 +1,6 @@
 @extends('layouts.landingPage')
 
-@section('title', 'кружок.online — Управление спортом онлайн')
+@section('title', 'kidscrm.online — Управление спортом онлайн')
 
 @section('content')
     <!-- Hero -->
@@ -20,7 +20,7 @@
 
             <h2>1. Предмет оферты</h2>
             <p>
-                Оператор предоставляет Пользователю доступ к онлайн-сервису «кружок.online» с целью удобной и безопасной оплаты
+                Оператор предоставляет Пользователю доступ к онлайн-сервису «kidscrm.online» с целью удобной и безопасной оплаты
                 услуг третьих лиц (далее — «Партнёры») в сфере образования, спорта и досуга.
                 Оператор не является исполнителем этих услуг, а обеспечивает техническую возможность осуществления платежей
                 с использованием платёжной инфраструктуры.
@@ -82,7 +82,7 @@
     <!-- Footer -->
     <footer class="bg-dark text-white text-center py-4">
         <div class="container">
-            <p class="mb-1">Все права защищены. 2024 - 2025 кружок.online &copy;</p>
+            <p class="mb-1">Все права защищены. 2024 - 2025 kidscrm.online &copy;</p>
             <div>
                 <a href="oferta" class="text-white text-decoration-none mx-2">Оферта</a>
                 <a href="{{ route('privacy.policy') }}"  class="text-white text-decoration-none mx-2">Политика конфиденциальности</a>

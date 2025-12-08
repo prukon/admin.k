@@ -1,5 +1,5 @@
 @extends('layouts.landingPage')
-@section('title', 'кружок.online — Управление спортом онлайн')
+@section('title', 'kidscrm.online — Управление спортом онлайн')
 @section('content')
 
     <!-- Hero -->
@@ -64,7 +64,7 @@
     <!-- Для кого подходит -->
     <section id="audience" class="py-5">
         <div class="container">
-            <h2 class="text-center mb-5">Кому подходит кружок.online</h2>
+            <h2 class="text-center mb-5">Кому подходит kidscrm.online</h2>
 
             @php
                 $leftAudience = [
@@ -433,7 +433,7 @@
         <div class="container text-center">
             <h2 class="display-6 fw-bold mb-3">Готовы вывести ваши секции на новый уровень?</h2>
             <p class="fs-5 mb-4">
-                Попробуйте <span class="fw-bold">кружок.online</span> бесплатно и получите полную поддержку
+                Попробуйте <span class="fw-bold">kidscrm.online</span> бесплатно и получите полную поддержку
                 персонального куратора при запуске.
             </p>
             <a href="#registration-form" class="btn btn-success btn-lg me-3" data-bs-toggle="modal" data-bs-target="#createOrder">Попробовать бесплатно</a>
@@ -547,7 +547,7 @@
     <!-- Footer -->
     <footer class="bg-dark text-white text-center py-4">
         <div class="container">
-            <p class="mb-1">Все права защищены. 2024 - 2025 кружок.online &copy;</p>
+            <p class="mb-1">Все права защищены. 2024 - 2025 kidscrm.online &copy;</p>
             <div>
                 <a href="oferta" class="text-white text-decoration-none mx-2">Оферта</a>
                 <a href="{{ route('privacy.policy') }}"  class="text-white text-decoration-none mx-2">Политика конфиденциальности</a>

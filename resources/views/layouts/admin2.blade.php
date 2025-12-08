@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
 
-    <title>кружок.online - сервис учета для детских садов, тематических школ и секций</title>
+    <title>kidscrm.online - сервис учета для детских садов, тематических школ и секций</title>
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
 
     {{--JQuery--}}
@@ -324,7 +324,7 @@
             {{--<a href="/" class="ml-3">--}}
             {{--                        <img src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="Kidslink Logo"--}}
             {{--                             class="brand-image img-circle elevation-3" style="opacity: .8">--}}
-            <span class="brand-text font-weight-light">кружок.online</span>
+            <span class="brand-text font-weight-light">kidscrm.online</span>
         </a>
 
         <!-- Sidebar -->
@@ -428,7 +428,7 @@
     <!-- Футер -->
     <footer class="main-footer">
 
-        <div> Copyright &copy; 2023-2025 <a target="_blank" href="https://кружок.online/">кружок.online</a>.
+        <div> Copyright &copy; 2023-2025 <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
             Все права защищены.
         </div>
         <div class="float-right d-none d-sm-inline-block">

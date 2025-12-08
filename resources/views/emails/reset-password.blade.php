@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Сброс пароля | Кружок.online</title>
+    <title>Сброс пароля | Kidscrm.online</title>
 </head>
 <body>
 <p>Здравствуйте!</p>
