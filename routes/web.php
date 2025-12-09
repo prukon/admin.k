@@ -45,6 +45,9 @@ use App\Http\Controllers\Security\PhoneChangeController;
 use App\Http\Controllers\ContractsController;
 use App\Http\Controllers\Webhooks\PodpislonWebhookController;
 use App\Http\Controllers\YooKassaWebhookController;
+use App\Http\Controllers\AdminUserController;
+
+
 
 
 Auth::routes();
@@ -162,6 +165,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // новый роут для DataTables
         Route::get('/admin/users/data', [UserController::class, 'data'])
             ->name('admin.users.data');
+
+        Route::get('admin/users/columns-settings', [UserController::class, 'getColumnsSettings']);
+        Route::post('admin/users/columns-settings', [UserController::class, 'saveColumnsSettings']);
+
 
     });
 
@@ -351,8 +358,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // регистрация в sm-register (создание PartnerId)
 
 
-
-
         Route::post('/admin/tinkoff/partners/{id}/sm-register', [TinkoffAdminPartnerController::class, 'smRegister'])
             ->name('tinkoff.partners.smRegister');
 
@@ -389,6 +394,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('2fa/disable', [TwoFactorController::class, 'disable'])->name('admin.2fa.disable');
     });
 
+    //настройка таблиц
 
 });
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');

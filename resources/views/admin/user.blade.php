@@ -51,7 +51,7 @@
                         Новый пользователь
                     </button>
 
-                    {{-- Старая кнопка настроек доп. полей (не трогаю) --}}
+                    {{-- Старая кнопка настроек доп. полей (как было) --}}
                     <button id="field-modal"
                             type="button"
                             class="btn btn-primary mr-2"
@@ -60,7 +60,7 @@
                         Настройки
                     </button>
 
-                    {{-- Новая кнопка для настройки отображаемых колонок списка пользователей --}}
+                    {{-- Dropdown "Поля списка" --}}
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary dropdown-toggle"
                                 type="button"
@@ -80,6 +80,7 @@
                                     Аватар
                                 </label>
                             </div>
+
                             <div class="form-check">
                                 <input class="form-check-input column-toggle"
                                        type="checkbox"
@@ -90,6 +91,7 @@
                                     Имя
                                 </label>
                             </div>
+
                             <div class="form-check">
                                 <input class="form-check-input column-toggle"
                                        type="checkbox"
@@ -100,6 +102,40 @@
                                     Группа
                                 </label>
                             </div>
+
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle"
+                                       type="checkbox"
+                                       data-column-key="birthday"
+                                       id="colBirthday"
+                                       checked>
+                                <label class="form-check-label" for="colBirthday">
+                                    Дата рождения
+                                </label>
+                            </div>
+
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle"
+                                       type="checkbox"
+                                       data-column-key="email"
+                                       id="colEmail"
+                                       checked>
+                                <label class="form-check-label" for="colEmail">
+                                    Email
+                                </label>
+                            </div>
+
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle"
+                                       type="checkbox"
+                                       data-column-key="phone"
+                                       id="colPhone"
+                                       checked>
+                                <label class="form-check-label" for="colPhone">
+                                    Телефон
+                                </label>
+                            </div>
+
                             <div class="form-check">
                                 <input class="form-check-input column-toggle"
                                        type="checkbox"
@@ -110,6 +146,7 @@
                                     Статус
                                 </label>
                             </div>
+
                             <div class="form-check">
                                 <input class="form-check-input column-toggle"
                                        type="checkbox"
@@ -120,8 +157,6 @@
                                     Действия
                                 </label>
                             </div>
-
-                            {{-- При желании сюда же можно добавить чекбоксы под кастомные поля партнёра --}}
                         </div>
                     </div>
 
@@ -141,7 +176,7 @@
 
         <hr>
 
-        {{-- НОВАЯ ТАБЛИЦА DataTables вместо старого списка --}}
+        {{-- ТАБЛИЦА DataTables --}}
         <div class="table-responsive">
             <table id="users-table" class="table table-striped table-bordered align-middle w-100">
                 <thead>
@@ -149,6 +184,9 @@
                     <th>Аватар</th>
                     <th>Имя</th>
                     <th>Группа</th>
+                    <th>Дата рождения</th>
+                    <th>Email</th>
+                    <th>Телефон</th>
                     <th>Статус</th>
                     <th>Действия</th>
                 </tr>
@@ -164,16 +202,98 @@
 @section('scripts')
     <script>
         $(document).ready(function () {
-            const visibleColumnsConfigKey = 'usersTableVisibleColumns';
 
-            // Инициализация DataTables
+            const defaultColumnsVisibility = {
+                avatar: true,
+                name: true,
+                teams: true,
+                birthday: true,
+                email: true,
+                phone: true,
+                status_label: true,
+                actions: true
+            };
+
+            let currentColumnsConfig = {...defaultColumnsVisibility};
+
+            const columnsMap = {
+                avatar: 0,
+                name: 1,
+                teams: 2,
+                birthday: 3,
+                email: 4,
+                phone: 5,
+                status_label: 6,
+                actions: 7
+            };
+
+            // 👉 аккуратное приведение к boolean
+            function toBool(val, fallback = true) {
+                if (val === undefined || val === null) return fallback;
+
+                if (typeof val === 'boolean') return val;
+
+                if (typeof val === 'number') return val === 1;
+
+                if (typeof val === 'string') {
+                    const v = val.toLowerCase().trim();
+                    if (v === 'true' || v === '1') return true;
+                    if (v === 'false' || v === '0') return false;
+                }
+
+                return fallback;
+            }
+
+            function applyVisibleColumns(config) {
+                Object.keys(columnsMap).forEach(function (key) {
+                    const colIndex = columnsMap[key];
+                    const column = table.column(colIndex);
+
+                    // 👇 здесь учитываем дефолт
+                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
+
+                    column.visible(isVisible);
+
+                    $('.column-toggle[data-column-key="' + key + '"]')
+                        .prop('checked', isVisible);
+                });
+            }
+
+            function loadColumnsConfigFromServer() {
+                $.ajax({
+                    url: '/admin/users/columns-settings',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function (response) {
+                        // response сейчас вида { avatar: "true", name: "false", ... }
+
+                        const merged = {};
+
+                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
+                            merged[key] = toBool(
+                                response.hasOwnProperty(key) ? response[key] : defaultColumnsVisibility[key],
+                                defaultColumnsVisibility[key]
+                            );
+                        });
+
+                        currentColumnsConfig = merged;
+                        applyVisibleColumns(currentColumnsConfig);
+                    },
+                    error: function () {
+                        currentColumnsConfig = {...defaultColumnsVisibility};
+                        applyVisibleColumns(currentColumnsConfig);
+                    }
+                });
+            }
+
+            // --- Инициализация DataTables ---
             const table = $('#users-table').DataTable({
                 processing: true,
                 serverSide: true,
                 pageLength: 20,
                 lengthMenu: [10, 20, 50, 100],
                 ajax: {
-                    url: '/admin/users/data', // <--- прямая строка, как просил
+                    url: '/admin/users/data',
                     type: 'GET',
                     data: function (d) {
                         d.name    = $('#filter-name').val();
@@ -198,7 +318,6 @@
                         data: 'name',
                         name: 'name',
                         render: function (data, type, row) {
-                            // 👉 здесь добавляем атрибуты Bootstrap для модалки
                             return '<a href="javascript:void(0);" ' +
                                 'class="edit-user-link" ' +
                                 'data-id="' + row.id + '" ' +
@@ -208,11 +327,10 @@
                                 '</a>';
                         }
                     },
-                    {
-                        data: 'teams',
-                        name: 'teams',
-                        defaultContent: ''
-                    },
+                    { data: 'teams', name: 'teams', defaultContent: '' },
+                    { data: 'birthday', name: 'birthday', defaultContent: '' },
+                    { data: 'email', name: 'email', defaultContent: '' },
+                    { data: 'phone', name: 'phone', defaultContent: '' },
                     {
                         data: 'status_label',
                         name: 'status_label',
@@ -228,7 +346,6 @@
                         searchable: false,
                         className: 'text-end',
                         render: function (data, type, row) {
-                            // 👉 и тут тоже
                             return '<button type="button" ' +
                                 'class="btn btn-sm btn-outline-primary edit-user-link" ' +
                                 'data-id="' + row.id + '" ' +
@@ -240,12 +357,11 @@
                     }
                 ],
 
-                order: [[1, 'asc']], // сортировка по имени по умолчанию
+                order: [[1, 'asc']],
                 language: {
                     "processing": "Обработка...",
                     "search": "",
                     "searchPlaceholder": "Поиск...",
-
                     "lengthMenu": "Показать _MENU_",
                     "info": "С _START_ до _END_ из _TOTAL_ записей",
                     "infoEmpty": "С 0 до 0 из 0 записей",
@@ -266,9 +382,10 @@
                 }
             });
 
-            // -----------------------------
-            // Фильтры (поиск/сброс)
-            // -----------------------------
+            // после инициализации — подгружаем конфиг из БД
+            loadColumnsConfigFromServer();
+
+            // --- Фильтры ---
             $('#filter-apply').on('click', function () {
                 table.ajax.reload();
             });
@@ -280,79 +397,36 @@
                 table.ajax.reload();
             });
 
-            // По Enter в поле имени
             $('#filter-name').on('keyup', function (e) {
                 if (e.key === 'Enter') {
                     table.ajax.reload();
                 }
             });
 
-            // -----------------------------
-            // Настройка видимости колонок
-            // -----------------------------
-            const defaultColumnsVisibility = {
-                avatar: true,
-                name: true,
-                teams: true,
-                status_label: true,
-                actions: true
-            };
-
-            function loadVisibleColumnsConfig() {
-                const saved = localStorage.getItem(visibleColumnsConfigKey);
-                if (!saved) {
-                    return {...defaultColumnsVisibility};
-                }
-
-                try {
-                    const parsed = JSON.parse(saved);
-                    return {...defaultColumnsVisibility, ...parsed};
-                } catch (e) {
-                    return {...defaultColumnsVisibility};
-                }
-            }
-
-            function applyVisibleColumns(config) {
-                // Маппинг ключей на индексы колонок в DataTables
-                const map = {
-                    avatar: 0,
-                    name: 1,
-                    teams: 2,
-                    status_label: 3,
-                    actions: 4
-                };
-
-                Object.keys(map).forEach(function (key) {
-                    const column = table.column(map[key]);
-                    const isVisible = !!config[key];
-                    column.visible(isVisible);
-
-                    // поддерживаем чекбоксы в dropdown
-                    $('.column-toggle[data-column-key="' + key + '"]')
-                        .prop('checked', isVisible);
-                });
-            }
-
-            let currentColumnsConfig = loadVisibleColumnsConfig();
-
-            // Применяем сохранённую конфигурацию после инициализации таблицы
-            table.on('init', function () {
-                applyVisibleColumns(currentColumnsConfig);
-            });
-
-            // Обработчик чекбоксов в dropdown "Поля списка"
+            // --- Обработчик чекбоксов "Поля списка" ---
             $('.column-toggle').on('change', function () {
                 const key = $(this).data('column-key');
                 const isChecked = $(this).is(':checked');
 
-                currentColumnsConfig[key] = isChecked;
-                localStorage.setItem(visibleColumnsConfigKey, JSON.stringify(currentColumnsConfig));
+                // 👇 Сохраняем как 1 / 0, чтобы Laravel-прослойка `boolean` была довольна
+                currentColumnsConfig[key] = isChecked ? 1 : 0;
+
                 applyVisibleColumns(currentColumnsConfig);
+
+                $.ajax({
+                    url: '/admin/users/columns-settings',
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        columns: currentColumnsConfig
+                    },
+                    success: function () {},
+                    error: function () {
+                        console.error('Не удалось сохранить настройки колонок');
+                    }
+                });
             });
 
-            // -----------------------------
-            // Логи (как у тебя было)
-            // -----------------------------
             showLogModal("{{ route('logs.data.user') }}");
         });
     </script>

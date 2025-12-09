@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+
 //use App\Http\Filters\UserFilter;
 use App\Http\Requests\User\FilterRequest;
 use App\Http\Requests\User\StoreRequest;
@@ -12,10 +13,13 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Models\UserField;
-use Illuminate\Support\Facades\Auth; // Модель для работы с таблицей тегов
+use Illuminate\Support\Facades\Auth;
+
+// Модель для работы с таблицей тегов
 use Illuminate\Support\Facades\DB;
 use App\Models\MyLog;
 use App\Http\Requests\User\UpdateRequest;
+
 //use App\Models\UserField;
 use App\Models\UserFieldValue;
 use Illuminate\Support\Str;
@@ -26,8 +30,9 @@ use Illuminate\Support\Facades\Storage;
 use App\Support\BuildsLogTable;
 
 
-
 use App\Servises\UserService;
+
+use App\Models\UserTableSetting;
 
 
 class UserController extends Controller
@@ -46,11 +51,11 @@ class UserController extends Controller
     public function index(FilterRequest $request)
     {
         // 1) Контекст (БЕЗ ИЗМЕНЕНИЙ)
-        $partnerId     = app('current_partner')->id;
-        $user          = Auth::user();
-        $currentUser   = Auth::user();
-        $userRoleName  = $currentUser->role ?->name;
-        $isSuperadmin  = $userRoleName === 'superadmin';
+        $partnerId = app('current_partner')->id;
+        $user = Auth::user();
+        $currentUser = Auth::user();
+        $userRoleName = $currentUser->role?->name;
+        $isSuperadmin = $userRoleName === 'superadmin';
 
         // 2) Валидация фильтров (есть, но дальше не используем напрямую)
         $data = $request->validated();
@@ -99,111 +104,22 @@ class UserController extends Controller
      * DataTables серверный endpoint для списка пользователей.
      * Возвращает JSON в формате, понятном DataTables.
      */
-    public function data2(Request $request)
-    {
-        $partnerId    = app('current_partner')->id;
-        $currentUser  = Auth::user();
-        $userRoleName = $currentUser->role ?->name;
-        $isSuperadmin = $userRoleName === 'superadmin';
-
-        // Валидация входящих фильтров + служебных параметров DataTables
-        $validated = $request->validate([
-            'id'      => 'nullable|integer',
-            'name'    => 'nullable|string',
-            'team_id' => 'nullable|string',
-            'status'  => 'nullable|string', // active / inactive / null
-
-            'draw'   => 'nullable|integer',
-            'start'  => 'nullable|integer',
-            'length' => 'nullable|integer',
-        ]);
-
-        // Подготавливаем параметры для UserFilter (если он у тебя есть и уже работает)
-        $queryParams = [
-            'id'      => $validated['id'] ?? null,
-            'name'    => $validated['name'] ?? null,
-            'team_id' => $validated['team_id'] ?? null,
-            'status'  => $validated['status'] ?? null,
-        ];
-
-        /** @var UserFilter $filter */
-        $filter = app()->make(UserFilter::class, [
-            'queryParams' => array_filter(
-                $queryParams,
-                fn($value) => $value !== null && $value !== ''
-            ),
-        ]);
-
-        // Базовый запрос по партнёру
-        $baseQuery = User::where('partner_id', $partnerId)
-            ->filter($filter);
-
-        // Дополнительный фильтр по статусу (если вдруг не реализован в UserFilter)
-        if (!empty($validated['status'])) {
-            if ($validated['status'] === 'active') {
-                $baseQuery->where('is_enabled', 1);
-            } elseif ($validated['status'] === 'inactive') {
-                $baseQuery->where('is_enabled', 0);
-            }
-        }
-
-        // Общее количество записей по партнёру (без фильтров)
-        $totalRecords = User::where('partner_id', $partnerId)->count();
-
-        // Количество записей с учетом фильтров
-        $filteredQuery   = clone $baseQuery;
-        $recordsFiltered = $filteredQuery->count();
-
-        // Пагинация DataTables: start/length
-        $start  = $validated['start'] ?? 0;
-        $length = $validated['length'] ?? 20;
-
-        // Сортировка (для простоты — по фамилии, как было)
-        $baseQuery->orderBy('lastname', 'asc');
-
-        // Подтягиваем команды, чтобы не было N+1
-        $users = $baseQuery
-            ->with('teams')
-            ->skip($start)
-            ->take($length)
-            ->get();
-
-        // \Log::debug('Users datatable', ['partner_id' => $partnerId, 'filters' => $queryParams]);
-
-        $data = $users->map(function (User $user) {
-            return [
-                'id'           => $user->id,
-                'avatar'       => $user->avatar_url ?? null, // предполагаю accessor getAvatarUrlAttribute()
-                'name'         => $user->full_name ?: 'Без имени',
-                'teams'        => $user->teams ? $user->teams->pluck('title')->implode(', ') : '',
-                'status_label' => $user->is_enabled ? 'Активен' : 'Неактивен',
-                'is_enabled'   => (int) $user->is_enabled,
-            ];
-        })->toArray();
-
-        return response()->json([
-            'draw'            => (int) ($validated['draw'] ?? 0),
-            'recordsTotal'    => $totalRecords,
-            'recordsFiltered' => $recordsFiltered,
-            'data'            => $data,
-        ]);
-    }
 
     public function data(Request $request)
     {
-        $partnerId    = app('current_partner')->id;
-        $currentUser  = Auth::user();
-        $userRoleName = $currentUser->role ?->name;
+        $partnerId = app('current_partner')->id;
+        $currentUser = Auth::user();
+        $userRoleName = $currentUser->role?->name;
         $isSuperadmin = $userRoleName === 'superadmin';
 
         $validated = $request->validate([
-            'id'      => 'nullable|integer',
-            'name'    => 'nullable|string',
+            'id' => 'nullable|integer',
+            'name' => 'nullable|string',
             'team_id' => 'nullable|string',   // id или 'none'
-            'status'  => 'nullable|string',   // active / inactive
+            'status' => 'nullable|string',   // active / inactive
 
-            'draw'   => 'nullable|integer',
-            'start'  => 'nullable|integer',
+            'draw' => 'nullable|integer',
+            'start' => 'nullable|integer',
             'length' => 'nullable|integer',
         ]);
 
@@ -218,15 +134,32 @@ class UserController extends Controller
         }
 
         // Фильтр по имени
-        if (!empty($validated['name'])) {
-            $name = $validated['name'];
+//        if (!empty($validated['name'])) {
+//            $name = $validated['name'];
+//
+//            $baseQuery->where(function ($q) use ($name) {
+//                // подставь сюда реальные поля: name, firstname, lastname, full_name — как у тебя в БД
+//                $q->where('name', 'like', '%' . $name . '%')
+//                    ->orWhere('lastname', 'like', '%' . $name . '%');
+//            });
+//        }
 
-            $baseQuery->where(function ($q) use ($name) {
-                // подставь сюда реальные поля: name, firstname, lastname, full_name — как у тебя в БД
-                $q->where('name', 'like', '%' . $name . '%')
-                    ->orWhere('lastname', 'like', '%' . $name . '%');
+
+        // Фильтр по имени / email / телефону / дате рождения
+        if (!empty($validated['name'])) {
+            $value = $validated['name'];
+
+            $baseQuery->where(function ($q) use ($value) {
+                $like = '%' . $value . '%';
+
+                $q->where('name', 'like', $like)
+                    ->orWhere('lastname', 'like', $like)
+                    ->orWhere('email', 'like', $like)
+                    ->orWhere('phone', 'like', $like)
+                    ->orWhere('birthday', 'like', $like); // YYYY-MM-DD тоже ищется по подстроке
             });
         }
+
 
         // Фильтр по группе: id / none / пусто
         if ($teamFilter !== null && $teamFilter !== '') {
@@ -250,11 +183,11 @@ class UserController extends Controller
         $totalRecords = User::where('partner_id', $partnerId)->count();
 
         // Количество записей с учётом фильтров
-        $filteredQuery   = clone $baseQuery;
+        $filteredQuery = clone $baseQuery;
         $recordsFiltered = $filteredQuery->count();
 
         // Пагинация DataTables
-        $start  = $validated['start'] ?? 0;
+        $start = $validated['start'] ?? 0;
         $length = $validated['length'] ?? 20;
 
         // Сортировка (как раньше, по фамилии)
@@ -268,23 +201,102 @@ class UserController extends Controller
             ->get();
 
         $data = $users->map(function (User $user) {
+
+            $avatar = $user->image_crop
+                ? asset('storage/avatars/' . $user->image_crop)
+                : asset('img/default-avatar.png');
+
             return [
                 'id'           => $user->id,
-                'avatar'       => $user->avatar_url ?? null,
+                'avatar'       => $avatar,
                 'name'         => $user->full_name ?: 'Без имени',
                 'teams'        => $user->team ? $user->team->title : '',
+                'birthday'     => $user->birthday
+                    ? Carbon::parse($user->birthday)->format('d.m.Y')
+                    : '',
+                'email'        => $user->email,
+                'phone'        => $user->phone,
                 'status_label' => $user->is_enabled ? 'Активен' : 'Неактивен',
                 'is_enabled'   => (int) $user->is_enabled,
             ];
+
         })->toArray();
 
         return response()->json([
-            'draw'            => (int) ($validated['draw'] ?? 0),
-            'recordsTotal'    => $totalRecords,
+            'draw' => (int)($validated['draw'] ?? 0),
+            'recordsTotal' => $totalRecords,
             'recordsFiltered' => $recordsFiltered,
-            'data'            => $data,
+            'data' => $data,
         ]);
     }
+
+    /**
+     * Вернуть настройки колонок для текущего пользователя
+     * для таблицы "users_index".
+     */
+    public function getColumnsSettings()
+    {
+        $userId = Auth::id();
+
+        $settings = UserTableSetting::where('user_id', $userId)
+            ->where('table_key', 'users_index')
+            ->first();
+
+        // 👉 ВАЖНО: возвращаем ЧИСТЫЙ массив columns или пустой объект
+        $columns = $settings?->columns;
+
+        if (!is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    /**
+     * Сохранить настройки колонок для текущего пользователя.
+     * Ожидает в запросе: columns: { avatar: true, name: false, ... }
+     */
+    public function saveColumnsSettings(Request $request)
+    {
+        $userId = Auth::id();
+
+        // валидируем только, что это массив
+        $data = $request->validate([
+            'columns' => 'required|array',
+        ]);
+
+        $rawColumns = $data['columns'];
+
+        // аккуратно нормализуем к boolean
+        $normalized = [];
+
+        foreach ($rawColumns as $key => $value) {
+            // в запрос может прилететь 1/0, "1"/"0", true/false, "true"/"false"
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+            // если вдруг ничего не распознали — считаем false
+            if ($bool === null) {
+                $bool = false;
+            }
+
+            $normalized[$key] = $bool;
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id'   => $userId,
+                'table_key' => 'users_index',
+            ],
+            [
+                'columns' => $normalized,
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+  
 
 
 
@@ -318,7 +330,7 @@ class UserController extends Controller
             $teamTitle = '-';
             if ($teamId) {
                 $team = Team::find($teamId);
-                $teamTitle = $team ?->title ?? '-';
+                $teamTitle = $team?->title ?? '-';
             }
 
             // Роль (обязательна, но подстрахуемся)
@@ -334,9 +346,9 @@ class UserController extends Controller
             MyLog::create([
                 'type' => 2,   // юзер-лог
                 'action' => 21,  // создание учётки
-                'target_type'  => \App\Models\User::class,
-                'target_id'    => $user->id,
-                'user_id'   => $user->id,
+                'target_type' => \App\Models\User::class,
+                'target_id' => $user->id,
+                'user_id' => $user->id,
                 'target_label' => $user->full_name ?: "user#{$user->id}",
                 'description' => sprintf(
                     "Имя: %s\nД.р: %s\nНачало: %s\nГруппа: %s\nEmail: %s\nАктивен: %s\nРоль: %s",
@@ -354,8 +366,8 @@ class UserController extends Controller
         // 3) Ответ для AJAX (без лишних повторных запросов и с безопасными доступами)
         if ($request->ajax()) {
             // Попробуем взять из связи, если есть; если нет — из team_id; иначе дефолт.
-            $teamTitleForResponse = $user->team ?->title
-                ?? ($teamId ? Team::find($teamId) ?->title : '-')
+            $teamTitleForResponse = $user->team?->title
+                ?? ($teamId ? Team::find($teamId)?->title : '-')
                 ?? '-';
 
             $birthdayFormatted = $user->birthday ? Carbon::parse($user->birthday)->format('d.m.Y') : '-';
@@ -384,7 +396,7 @@ class UserController extends Controller
         // 1) Контекст
         $partnerId = app('current_partner')->id;
         $currentUser = auth()->user();
-        $userRoleName = $currentUser->role ?->name;
+        $userRoleName = $currentUser->role?->name;
         $isSuperadmin = $userRoleName === 'superadmin';
 
         // 2) Загружаем UserField вместе их ролями
@@ -393,8 +405,7 @@ class UserController extends Controller
         // Изменение: если не супер-админ, то подгружаем только те поля,
         // права на которые есть у роли текущего пользователя
         if (!$isSuperadmin) {
-            $fieldsQuery->whereHas('roles', fn($q) =>
-            $q->where('role_id', $currentUser->role_id)
+            $fieldsQuery->whereHas('roles', fn($q) => $q->where('role_id', $currentUser->role_id)
             );
         }
         $fields = $fieldsQuery->get();
@@ -418,8 +429,7 @@ class UserController extends Controller
         $systemRoles = Role::where('is_sistem', 1)
             ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
             ->get();
-        $partnerRoles = Role::whereHas('partners', fn($q) =>
-        $q->where('partner_role.partner_id', $partnerId)
+        $partnerRoles = Role::whereHas('partners', fn($q) => $q->where('partner_role.partner_id', $partnerId)
         )
             ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
             ->get();
@@ -463,14 +473,14 @@ class UserController extends Controller
 
         // Снимок старых значений (только то, что потенциально логируем)
         $old = [
-            'name'       => (string) ($user->name ?? ''),
-            'lastname'   => (string) ($user->lastname ?? ''),
-            'email'      => (string) ($user->email ?? ''),
-            'is_enabled' => (bool)   ($user->is_enabled ?? false),
-            'birthday'   => $user->birthday, // Carbon|string|null — отформатируем ниже
-            'team'       => (string) ($user->team?->title ?: '-'),
-            'role'       => (string) ($user->role?->label ?: '-'),
-            'phone'      => (string) ($user->phone ?? ''),
+            'name' => (string)($user->name ?? ''),
+            'lastname' => (string)($user->lastname ?? ''),
+            'email' => (string)($user->email ?? ''),
+            'is_enabled' => (bool)($user->is_enabled ?? false),
+            'birthday' => $user->birthday, // Carbon|string|null — отформатируем ниже
+            'team' => (string)($user->team?->title ?: '-'),
+            'role' => (string)($user->role?->label ?: '-'),
+            'phone' => (string)($user->phone ?? ''),
         ];
 
         // Валидные входные данные
@@ -486,8 +496,8 @@ class UserController extends Controller
         DB::transaction(function () use ($request, $user, $validatedData, $existingCustomValues, $old) {
             // 1) Телефон: менять и логировать только при наличии права
             if (array_key_exists('phone', $validatedData)) {
-                $newPhoneIncoming = (string) $validatedData['phone'];
-                if ($request->user()->can('users-phone-update') && $newPhoneIncoming !== (string) $old['phone']) {
+                $newPhoneIncoming = (string)$validatedData['phone'];
+                if ($request->user()->can('users-phone-update') && $newPhoneIncoming !== (string)$old['phone']) {
                     $user->phone = $newPhoneIncoming;
                     $user->phone_verified_at = null; // сброс верификации при смене номера
                 }
@@ -500,7 +510,7 @@ class UserController extends Controller
             $customChanges = [];
             if (!empty($validatedData['custom']) && is_array($validatedData['custom'])) {
                 $incomingSlugs = array_keys($validatedData['custom']);
-                $fieldsBySlug  = UserField::whereIn('slug', $incomingSlugs)->get()->keyBy('slug');
+                $fieldsBySlug = UserField::whereIn('slug', $incomingSlugs)->get()->keyBy('slug');
 
                 foreach ($validatedData['custom'] as $slug => $newValue) {
                     $field = $fieldsBySlug[$slug] ?? null;
@@ -510,10 +520,10 @@ class UserController extends Controller
                     }
                     $oldValue = $existingCustomValues[$field->id] ?? null;
 
-                    if ((string) $oldValue !== (string) $newValue) {
+                    if ((string)$oldValue !== (string)$newValue) {
                         UserFieldValue::updateOrCreate(
                             ['user_id' => $user->id, 'field_id' => $field->id],
-                            ['value'   => $newValue]
+                            ['value' => $newValue]
                         );
 
                         $oldTxt = ((string)$oldValue === '') ? '-' : (string)$oldValue;
@@ -529,29 +539,40 @@ class UserController extends Controller
             $formatDate = function ($val): string {
                 if (empty($val)) return '-';
                 if ($val instanceof \Carbon\CarbonInterface) return $val->format('d.m.Y');
-                try { return \Carbon\Carbon::parse($val)->format('d.m.Y'); }
-                catch (\Throwable $e) { return '-'; }
+                try {
+                    return \Carbon\Carbon::parse($val)->format('d.m.Y');
+                } catch (\Throwable $e) {
+                    return '-';
+                }
             };
 
             $new = [
-                'name'       => (string) ($user->name ?? ''),
-                'lastname'   => (string) ($user->lastname ?? ''),
-                'email'      => (string) ($user->email ?? ''),
-                'is_enabled' => (bool)   ($user->is_enabled ?? false),
-                'birthday'   => $user->birthday,
-                'team'       => (string) ($user->team?->title ?: '-'),
-                'role'       => (string) ($user->role?->label ?: '-'),
-                'phone'      => (string) ($user->phone ?? ''),
+                'name' => (string)($user->name ?? ''),
+                'lastname' => (string)($user->lastname ?? ''),
+                'email' => (string)($user->email ?? ''),
+                'is_enabled' => (bool)($user->is_enabled ?? false),
+                'birthday' => $user->birthday,
+                'team' => (string)($user->team?->title ?: '-'),
+                'role' => (string)($user->role?->label ?: '-'),
+                'phone' => (string)($user->phone ?? ''),
             ];
 
             $changes = [];
 
-            if ($old['name']       !== $new['name'])       { $changes[] = "Имя: {$old['name']} → {$new['name']}"; }
-            if ($old['lastname']   !== $new['lastname'])   { $changes[] = "Фамилия: {$old['lastname']} → {$new['lastname']}"; }
-            if ($old['email']      !== $new['email'])      { $changes[] = "Email: {$old['email']} → {$new['email']}"; }
-            if ($old['is_enabled'] !== $new['is_enabled']) { $changes[] = "Активен: ".($old['is_enabled']?'Да':'Нет')." → ".($new['is_enabled']?'Да':'Нет'); }
+            if ($old['name'] !== $new['name']) {
+                $changes[] = "Имя: {$old['name']} → {$new['name']}";
+            }
+            if ($old['lastname'] !== $new['lastname']) {
+                $changes[] = "Фамилия: {$old['lastname']} → {$new['lastname']}";
+            }
+            if ($old['email'] !== $new['email']) {
+                $changes[] = "Email: {$old['email']} → {$new['email']}";
+            }
+            if ($old['is_enabled'] !== $new['is_enabled']) {
+                $changes[] = "Активен: " . ($old['is_enabled'] ? 'Да' : 'Нет') . " → " . ($new['is_enabled'] ? 'Да' : 'Нет');
+            }
             if ($formatDate($old['birthday']) !== $formatDate($new['birthday'])) {
-                $changes[] = "Д.р: ".$formatDate($old['birthday'])." → ".$formatDate($new['birthday']);
+                $changes[] = "Д.р: " . $formatDate($old['birthday']) . " → " . $formatDate($new['birthday']);
             }
             if ($old['team'] !== $new['team']) {
                 $changes[] = "Группа: {$old['team']} → {$new['team']}"; // названия, не id
@@ -574,16 +595,16 @@ class UserController extends Controller
             // 5) Пишем ОДИН лог, только если реально есть изменения
             if (!empty($changes)) {
                 // target_label — без аксессора: фамилия + имя (или имя, если фамилии нет)
-                $targetLabel = trim(($user->lastname ? ($user->lastname.' ') : '').($user->name ?? ''));
+                $targetLabel = trim(($user->lastname ? ($user->lastname . ' ') : '') . ($user->name ?? ''));
 
                 MyLog::create([
-                    'type'         => 2,
-                    'action'       => 22, // изменение учётной записи
-                    'user_id'   => $user->id,
-                    'target_type'  => \App\Models\User::class,
-                    'target_id'    => $user->id,
+                    'type' => 2,
+                    'action' => 22, // изменение учётной записи
+                    'user_id' => $user->id,
+                    'target_type' => \App\Models\User::class,
+                    'target_id' => $user->id,
                     'target_label' => $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"),
-                    'description'  => implode("\n", $changes),
+                    'description' => implode("\n", $changes),
                 ]);
             }
 
@@ -607,9 +628,9 @@ class UserController extends Controller
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 24,
-                'user_id'   => $user->id,
-                'target_type'  => \App\Models\User::class,
-                'target_id'    => $user->id,
+                'user_id' => $user->id,
+                'target_type' => \App\Models\User::class,
+                'target_id' => $user->id,
                 'target_label' => $user->full_name ?: "user#{$user->id}",
                 'description' => "Удален пользователь: {$user->name}  ID: {$user->id}.",
                 'created_at' => now(),
@@ -674,13 +695,13 @@ class UserController extends Controller
                 foreach ($fieldsToDelete as $field) {
                     // 🧾 УДАЛЕНИЕ ДОП. ПОЛЯ
                     MyLog::create([
-                        'type'         => 2,
-                        'action'       => 210,
-                        'target_type'  => \App\Models\UserField::class,
-                        'target_id'    => $field->id,
+                        'type' => 2,
+                        'action' => 210,
+                        'target_type' => \App\Models\UserField::class,
+                        'target_id' => $field->id,
                         'target_label' => $field->name,
-                        'description'  => "Удалено поле '{$field->name}' (ID: {$field->id})",
-                        'created_at'   => now(),
+                        'description' => "Удалено поле '{$field->name}' (ID: {$field->id})",
+                        'created_at' => now(),
                     ]);
                 }
             }
@@ -688,9 +709,9 @@ class UserController extends Controller
             // Обрабатываем новые и существующие поля
             foreach ($data['fields'] as $item) {
                 $fieldId = $item['id'] ?? null;
-                $name    = $item['name'];
-                $type    = $item['field_type'];
-                $roles   = $item['roles'] ?? [];
+                $name = $item['name'];
+                $type = $item['field_type'];
+                $roles = $item['roles'] ?? [];
 
                 // Генерируем уникальный slug
                 $slug = $makeUniqueSlug($name, $partnerId, $fieldId);
@@ -713,8 +734,8 @@ class UserController extends Controller
                     // Обновляем основные поля, если есть изменения
                     if ($changes) {
                         $field->update([
-                            'name'       => $name,
-                            'slug'       => $slug,
+                            'name' => $name,
+                            'slug' => $slug,
                             'field_type' => $type,
                         ]);
                     }
@@ -723,18 +744,17 @@ class UserController extends Controller
                     $oldRoleIds = $field->roles()->pluck('roles.id')->all();
                     $field->roles()->sync($roles);
 
-                    $allIds   = array_values(array_unique(array_merge($oldRoleIds, $roles)));
+                    $allIds = array_values(array_unique(array_merge($oldRoleIds, $roles)));
 //                    $nameMap  = Role::whereIn('id', $allIds)->pluck('name', 'id')->toArray();
-                    $nameMap  = Role::whereIn('id', $allIds)->pluck('label', 'id')->toArray(); // <-- изменено
+                    $nameMap = Role::whereIn('id', $allIds)->pluck('label', 'id')->toArray(); // <-- изменено
 
 
                     $oldNames = collect($oldRoleIds)->map(fn($id) => $nameMap[$id] ?? (string)$id)->unique()->sort()->values()->all();
-                    $newNames = collect($roles)     ->map(fn($id) => $nameMap[$id] ?? (string)$id)->unique()->sort()->values()->all();
+                    $newNames = collect($roles)->map(fn($id) => $nameMap[$id] ?? (string)$id)->unique()->sort()->values()->all();
 
                     if ($oldNames !== $newNames) {
                         $changes[] = "Роли: [" . (implode(', ', $oldNames) ?: '-') . "] → [" . (implode(', ', $newNames) ?: '-') . "]";
                     }
-
 
 
                     $description = !empty($changes)
@@ -743,19 +763,19 @@ class UserController extends Controller
 
 //               ИЗМЕНЕНИЯ ДОП ПОЛЯ
                     MyLog::create([
-                        'type'         => 2,
-                        'action'       => 210,
-                        'target_type'  => \App\Models\UserField::class,
-                        'target_id'    => $field->id,
+                        'type' => 2,
+                        'action' => 210,
+                        'target_type' => \App\Models\UserField::class,
+                        'target_id' => $field->id,
                         'target_label' => $field->name,
-                        'description'  => $description,
-                        'created_at'   => now(),
+                        'description' => $description,
+                        'created_at' => now(),
                     ]);
                 } else {
                     // === Создание нового поля ===
                     $field = UserField::create([
-                        'name'       => $name,
-                        'slug'       => $slug,
+                        'name' => $name,
+                        'slug' => $slug,
                         'field_type' => $type,
                         'partner_id' => $partnerId,
                     ]);
@@ -766,15 +786,15 @@ class UserController extends Controller
 
                     //               СОЗДАНИЕ ДОП ПОЛЯ
                     MyLog::create([
-                        'type'         => 2,
-                        'action'       => 210,
-                        'target_type'  => \App\Models\UserField::class,
-                        'target_id'    => $field->id,
+                        'type' => 2,
+                        'action' => 210,
+                        'target_type' => \App\Models\UserField::class,
+                        'target_id' => $field->id,
                         'target_label' => $field->name,
-                        'description'  =>
+                        'description' =>
                             "Создано поле '{$field->name}' (ID: {$field->id})\n" .
                             "Роли: [-] → [" . (implode(', ', $newNames) ?: '-') . "]",
-                        'created_at'   => now(),
+                        'created_at' => now(),
                     ]);
                 }
             }
@@ -802,14 +822,14 @@ class UserController extends Controller
         \DB::transaction(function () use ($user, $newPassword, $request, $partnerId) {
             $user->password = \Hash::make($newPassword);
             $user->save();
-            $targetLabel = trim(($user->lastname ? ($user->lastname.' ') : '').($user->name ?? ''));
+            $targetLabel = trim(($user->lastname ? ($user->lastname . ' ') : '') . ($user->name ?? ''));
 
             \App\Models\MyLog::create([
                 'type' => 2,
                 'action' => 26,
-                'user_id'   => $user->id,
-                'target_type'  => \App\Models\User::class,
-                'target_id'    => $user->id,
+                'user_id' => $user->id,
+                'target_type' => \App\Models\User::class,
+                'target_id' => $user->id,
                 'target_label' => $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"),
 
                 'description' => sprintf('Пароль пользователя "%s" изменён администратором "%s".',
@@ -828,6 +848,7 @@ class UserController extends Controller
         // Своя ролевая модель (role_id/slug) — пример:
         return ($actor->role->name ?? null) === 'superadmin'; // подставьте ваш slug/проверку
     }
+
     //Удаление аватарки юзера в пользователях
     public function destroyUserAvatar($id)
     {
@@ -854,9 +875,9 @@ class UserController extends Controller
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 299, // Лог для обновления учетной записи
-                'target_type'  => \App\Models\User::class,
-                'user_id'   => $user->id,
-                'target_id'    => $user->id,
+                'target_type' => \App\Models\User::class,
+                'user_id' => $user->id,
+                'target_id' => $user->id,
                 'target_label' => $targetLabel,
                 'description' => ("Пользователю " . $targetLabel . " удален аватар."),
                 'created_at' => now(),
@@ -868,6 +889,7 @@ class UserController extends Controller
             'message' => 'Аватар удалён',
         ]);
     }
+
     //Загрузка аватарки юзеру  в пользователях
     public function uploadUserAvatar(Request $request, $id)
     {
@@ -912,11 +934,11 @@ class UserController extends Controller
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
                 'action' => 27, // Лог для обновления учетной записи
-                'user_id'   => $user->id,
-                'target_type'  => \App\Models\User::class,
-                'target_id'    => $user->id,
+                'user_id' => $user->id,
+                'target_type' => \App\Models\User::class,
+                'target_id' => $user->id,
                 'target_label' => $targetLabel,
-                'description'  => "Пользователю {$targetLabel} изменён аватар.",
+                'description' => "Пользователю {$targetLabel} изменён аватар.",
                 'created_at' => now(),
             ]);
             return compact('bigName', 'cropName');
@@ -935,4 +957,8 @@ class UserController extends Controller
     {
         return $this->buildLogDataTable(2);
     }
+
+
+
 }
+
