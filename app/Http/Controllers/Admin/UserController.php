@@ -105,7 +105,7 @@ class UserController extends Controller
      * Возвращает JSON в формате, понятном DataTables.
      */
 
-    public function data(Request $request)
+    public function data2(Request $request)
     {
         $partnerId = app('current_partner')->id;
         $currentUser = Auth::user();
@@ -230,6 +230,174 @@ class UserController extends Controller
         ]);
     }
 
+    public function data(Request $request)
+    {
+        $partnerId   = app('current_partner')->id;
+        $currentUser = Auth::user();
+        $userRoleName = $currentUser->role?->name;
+        $isSuperadmin = $userRoleName === 'superadmin';
+
+        $validated = $request->validate([
+            'id'      => 'nullable|integer',
+            'name'    => 'nullable|string',
+            'team_id' => 'nullable|string',   // id или 'none'
+            'status'  => 'nullable|string',   // active / inactive
+
+            'draw'   => 'nullable|integer',
+            'start'  => 'nullable|integer',
+            'length' => 'nullable|integer',
+        ]);
+
+        $teamFilter = $validated['team_id'] ?? null;
+
+        // Базовый запрос по партнёру
+        $baseQuery = User::query()
+            ->where('users.partner_id', $partnerId);
+
+        // Фильтр по ID
+        if (!empty($validated['id'])) {
+            $baseQuery->where('users.id', $validated['id']);
+        }
+
+        // Фильтр по имени / email / телефону / дате рождения
+        if (!empty($validated['name'])) {
+            $value = $validated['name'];
+            $like  = '%' . $value . '%';
+
+            $baseQuery->where(function ($q) use ($like) {
+                $q->where('users.name', 'like', $like)
+                    ->orWhere('users.lastname', 'like', $like)
+                    ->orWhere('users.email', 'like', $like)
+                    ->orWhere('users.phone', 'like', $like)
+                    ->orWhere('users.birthday', 'like', $like);
+            });
+        }
+
+        // Фильтр по группе: id / none / пусто
+        if ($teamFilter !== null && $teamFilter !== '') {
+            if ($teamFilter === 'none') {
+                $baseQuery->whereNull('users.team_id');
+            } else {
+                $baseQuery->where('users.team_id', $teamFilter);
+            }
+        }
+
+        // Фильтр по статусу
+        if (!empty($validated['status'])) {
+            if ($validated['status'] === 'active') {
+                $baseQuery->where('users.is_enabled', 1);
+            } elseif ($validated['status'] === 'inactive') {
+                $baseQuery->where('users.is_enabled', 0);
+            }
+        }
+
+        // Общее количество записей по партнёру (без фильтров)
+        $totalRecords = User::where('partner_id', $partnerId)->count();
+
+        // Количество записей с учётом фильтров
+        $filteredQuery    = clone $baseQuery;
+        $recordsFiltered  = $filteredQuery->count();
+
+        // --- СОРТИРОВКА ДЛЯ DataTables ---
+
+        // индекс колонки (0..7) и направление asc|desc
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir         = $request->input('order.0.dir', 'asc');
+
+
+        if ($orderColumnIndex !== null) {
+            switch ((int)$orderColumnIndex) {
+                case 0:
+                    // 0 – нумерация, сортировку игнорируем, ставим дефолт
+                    $baseQuery->orderBy('users.lastname', 'asc')
+                        ->orderBy('users.name', 'asc');
+                    break;
+
+                case 1: // avatar -> image_crop
+                    $baseQuery->orderBy('users.image_crop', $orderDir);
+                    break;
+
+                case 2: // name
+                    $baseQuery
+                        ->orderBy('users.lastname', $orderDir)
+                        ->orderBy('users.name', $orderDir);
+                    break;
+
+                case 3: // teams.title
+                    $baseQuery
+                        ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+                        ->select('users.*')
+                        ->orderBy('teams.title', $orderDir);
+                    break;
+
+                case 4: // birthday
+                    $baseQuery->orderBy('users.birthday', $orderDir);
+                    break;
+
+                case 5: // email
+                    $baseQuery->orderBy('users.email', $orderDir);
+                    break;
+
+                case 6: // phone
+                    $baseQuery->orderBy('users.phone', $orderDir);
+                    break;
+
+                case 7: // status_label -> is_enabled
+                    $baseQuery->orderBy('users.is_enabled', $orderDir);
+                    break;
+
+                case 8: // actions — не сортируем, дефолт
+                default:
+                    $baseQuery->orderBy('users.lastname', 'asc')
+                        ->orderBy('users.name', 'asc');
+                    break;
+            }
+        } else {
+            $baseQuery->orderBy('users.lastname', 'asc')
+                ->orderBy('users.name', 'asc');
+        }
+
+
+        // Пагинация DataTables
+        $start  = $validated['start']  ?? 0;
+        $length = $validated['length'] ?? 20;
+
+        // Подтягиваем команду (отдельным запросом, как и раньше)
+        $users = $baseQuery
+            ->with('team')
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $data = $users->map(function (User $user) {
+            $avatar = $user->image_crop
+                ? asset('storage/avatars/' . $user->image_crop)
+                : asset('img/default-avatar.png');
+
+            return [
+                'id'           => $user->id,
+                'avatar'       => $avatar,
+                'name'         => $user->full_name ?: 'Без имени',
+                'teams'        => $user->team ? $user->team->title : '',
+                'birthday'     => $user->birthday
+                    ? Carbon::parse($user->birthday)->format('d.m.Y')
+                    : '',
+                'email'        => $user->email,
+                'phone'        => $user->phone,
+                'status_label' => $user->is_enabled ? 'Активен' : 'Неактивен',
+                'is_enabled'   => (int) $user->is_enabled,
+            ];
+        })->toArray();
+
+        return response()->json([
+            'draw'            => (int)($validated['draw'] ?? 0),
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ]);
+    }
+
+
     /**
      * Вернуть настройки колонок для текущего пользователя
      * для таблицы "users_index".
@@ -296,7 +464,7 @@ class UserController extends Controller
             'success' => true,
         ]);
     }
-  
+
 
 
 
