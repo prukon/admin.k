@@ -25,7 +25,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1 class="h4 m-0">Договор #{{ $contract->id }}</h1>
             <div class="d-flex gap-2">
-                <a class="btn btn-outline-secondary" href="{{ url('/contracts') }}">Назад</a>
+                <a class="btn btn-outline-secondary" href="{{ url('/client-contracts') }}">Назад</a>
             </div>
         </div>
 
@@ -445,7 +445,7 @@
                     //     signer_phone: $('#signerPhone').val()
                     //
                         type: 'POST',
-                        url: '/contracts/' + contractId + '/send',
+                        url: '/client-contracts/' + contractId + '/send',
                         dataType: 'json',
                         headers: {'Accept': 'application/json'},
                         data: {
@@ -506,7 +506,7 @@
 
                 $.ajax({
                     type: 'POST',
-                    url: '/contracts/' + contractId + '/send-email',
+                    url: '/client-contracts/' + contractId + '/send-email',
                     data: {
                         _token: csrf,
                         email: $('#recipientEmail').val(),
@@ -534,7 +534,7 @@
                 var contractId = $(this).data('id');
                 $.ajax({
                     method: 'GET',
-                    url: '/contracts/' + contractId + '/status'
+                    url: '/client-contracts/' + contractId + '/status'
                 }).done(function () {
                     location.reload();
                 }).fail(function (xhr) {

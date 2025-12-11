@@ -282,25 +282,94 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee')->middleware('can:payment-clubfee'); //Оплата клубного взноса
 
     //Договоры
-    Route::middleware('can:contracts-view')->group(function () {
-        // AJAX для Select2 (поиск учеников текущего партнёра)
-        Route::get('/contracts/users-search', [ContractsController::class, 'usersSearch'])->name('contracts.users.search');
-        // AJAX для получения групп ученика
-        Route::get('/contracts/user-group', [ContractsController::class, 'userGroup'])->name('contracts.user.group');
-        Route::get('/contracts', [ContractsController::class, 'index'])->name('contracts.index');
-        Route::get('/contracts/create', [ContractsController::class, 'create'])->name('contracts.create');
-        Route::post('/contracts', [ContractsController::class, 'store'])->name('contracts.store');
-        Route::get('/contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
-        Route::post('/contracts/{contract}/send', [ContractsController::class, 'send'])->name('contracts.send');
-        Route::post('/contracts/{contract}/resend', [ContractsController::class, 'resend'])->name('contracts.resend');
-        Route::post('/contracts/{contract}/revoke', [ContractsController::class, 'revoke'])->name('contracts.revoke');
-        Route::get('/contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
-        Route::post('/contracts/{contract}/send-email', [ContractsController::class, 'sendEmail'])->name('contracts.sendEmail');
-        Route::post('/contracts/check-balance', [ContractsController::class, 'checkBalance']);
-        Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
-        Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
+//    Route::middleware('can:contracts-view')->group(function () {
+//        // AJAX для Select2 (поиск учеников текущего партнёра)
+//        Route::get('/contracts/users-search', [ContractsController::class, 'usersSearch'])->name('contracts.users.search');
+//        // AJAX для получения групп ученика
+//        Route::get('/client-contracts/user-group', [ContractsController::class, 'userGroup'])->name('contracts.user.group');
+//        Route::get('/client-contracts/create', [ContractsController::class, 'create'])->name('contracts.create');
+//        Route::post('/client-contracts', [ContractsController::class, 'store'])->name('contracts.store');
+//        Route::get('/client-contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
+//        Route::post('/client-contracts/{contract}/send', [ContractsController::class, 'send'])->name('contracts.send');
+//        Route::post('/client-contracts/{contract}/resend', [ContractsController::class, 'resend'])->name('contracts.resend');
+//        Route::post('/client-contracts/{contract}/revoke', [ContractsController::class, 'revoke'])->name('contracts.revoke');
+//        Route::get('/client-contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
+//        Route::post('/client-contracts/{contract}/send-email', [ContractsController::class, 'sendEmail'])->name('contracts.sendEmail');
+//        Route::post('/client-contracts/check-balance', [ContractsController::class, 'checkBalance']);
+//        Route::get('/client-contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
+//        Route::get('/client-contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
+//
+//        // список договоров (ТА САМая страница, которую ты уже используешь)
+//        Route::get('/client-contracts', [ContractsController::class, 'index'])->name('contracts.index');
+//// дата для DataTables
+//        Route::get('/client-contracts/data', [ContractsController::class, 'data'])->name('contracts.data');
+//// настройки колонок
+//        Route::get('/client-contracts/columns-settings', [ContractsController::class, 'getColumnsSettings'])->name('contracts.columns-settings.get');
+//        Route::post('/client-contracts/columns-settings', [ContractsController::class, 'saveColumnsSettings'])->name('contracts.columns-settings.save');
+//    });
 
+    Route::middleware('can:contracts-view')->group(function () {
+
+        // AJAX для Select2 (поиск учеников текущего партнёра)
+        Route::get('/client-contracts/users-search', [ContractsController::class, 'usersSearch'])
+            ->name('contracts.users.search');
+
+        // AJAX для получения групп ученика
+        Route::get('/client-contracts/user-group', [ContractsController::class, 'userGroup'])
+            ->name('contracts.user.group');
+
+        // >>> СНАЧАЛА: спец-урлы для таблицы (БЕЗ параметров) <<<
+
+        Route::get('/client-contracts/data', [ContractsController::class, 'data'])
+            ->name('contracts.data');
+
+        Route::get('/client-contracts/columns-settings', [ContractsController::class, 'getColumnsSettings'])
+            ->name('contracts.columns-settings.get');
+
+        Route::post('/client-contracts/columns-settings', [ContractsController::class, 'saveColumnsSettings'])
+            ->name('contracts.columns-settings.save');
+
+        // >>> ПОТОМ обычные CRUD-роуты без параметров <<<
+
+        Route::get('/client-contracts', [ContractsController::class, 'index'])
+            ->name('contracts.index');
+
+        Route::get('/client-contracts/create', [ContractsController::class, 'create'])
+            ->name('contracts.create');
+
+        Route::post('/client-contracts', [ContractsController::class, 'store'])
+            ->name('contracts.store');
+
+        // >>> И УЖЕ ПОТОМ всё, что с {contract} <<<
+
+        Route::get('/client-contracts/{contract}', [ContractsController::class, 'show'])
+            ->name('contracts.show');
+
+        Route::post('/client-contracts/{contract}/send', [ContractsController::class, 'send'])
+            ->name('contracts.send');
+
+        Route::post('/client-contracts/{contract}/resend', [ContractsController::class, 'resend'])
+            ->name('contracts.resend');
+
+        Route::post('/client-contracts/{contract}/revoke', [ContractsController::class, 'revoke'])
+            ->name('contracts.revoke');
+
+        Route::get('/client-contracts/{contract}/status', [ContractsController::class, 'status'])
+            ->name('contracts.status');
+
+        Route::post('/client-contracts/{contract}/send-email', [ContractsController::class, 'sendEmail'])
+            ->name('contracts.sendEmail');
+
+        Route::post('/client-contracts/check-balance', [ContractsController::class, 'checkBalance']);
+
+        Route::get('/client-contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])
+            ->name('contracts.downloadOriginal');
+
+        Route::get('/client-contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])
+            ->name('contracts.downloadSigned');
     });
+
+
 
     //Сообщения (ЧАТ)
     Route::middleware('can:messages-view')->group(function () {

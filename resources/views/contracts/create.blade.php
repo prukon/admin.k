@@ -28,7 +28,7 @@
         <div class="container py-3">
             {{--<h1 class="h4 mb-3">Создать договор (загрузка PDF)</h1>--}}
 
-            <form id="contract-create-form" method="post" action="/contracts" enctype="multipart/form-data">
+            <form id="contract-create-form" method="post" action="/client-contracts" enctype="multipart/form-data">
 
                 @csrf
 
@@ -73,7 +73,7 @@
                     <button id="btn-save" type="button" class="btn btn-primary">Сохранить</button>
 
 
-                    <a href="{{ url('/contracts') }}" class="btn btn-outline-secondary">Отмена</a>
+                    <a href="{{ url('/client-contracts') }}" class="btn btn-outline-secondary">Отмена</a>
                 </div>
             </form>
             <hr>
@@ -405,7 +405,7 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(function () {
-            const USERS_URL = '/contracts/users-search';
+            const USERS_URL = '/client-contracts/users-search';
 
             // Русификация без внешнего ru.js
             $.fn.select2.defaults.set('language', {
@@ -541,7 +541,7 @@
 
             $.ajax({
                 method: 'POST',
-                url: '/contracts/check-balance', // прямой URL роута
+                url: '/client-contracts/check-balance', // прямой URL роута
                 dataType: 'json',
                 headers: { // csrf из meta-тега
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')

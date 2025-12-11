@@ -93,7 +93,7 @@
         {{--Договоры--}}
         @can('contracts-view')
             <li class="nav-item">
-                <a href="/contracts" class="nav-link">
+                <a href="/client-contracts" class="nav-link">
                     <i class="nav-icon fa-solid fa-layer-group"></i>
                     <p>Договоры</p>
                 </a>

@@ -22,10 +22,252 @@ use Illuminate\Support\Str;
 use App\Support\BuildsLogTable;
 
 
+use App\Models\Team;
+use App\Models\UserTableSetting;
 
 class ContractsController extends Controller
 {
     use BuildsLogTable;
+
+    public function index2(Request $request)
+    {
+        $partnerId = $this->partnerId();
+
+
+        $q = \App\Models\Contract::query()
+            ->where('contracts.school_id', $partnerId) // <— критичное ограничение по партнёру
+            ->when($request->status, fn($qq) => $qq->where('contracts.status', $request->status))
+            ->when($request->group_id, fn($qq) => $qq->where('contracts.group_id', $request->group_id))
+            // Подтягиваем имя ученика, телефон, email и название группы
+            ->leftJoin('users', 'users.id', '=', 'contracts.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'contracts.group_id') // group_id = users.team_id
+            ->select([
+                'contracts.*',
+                'users.name  as user_name',
+                'users.lastname  as user_lastname',   // <— добавили
+                'users.phone as user_phone',
+                'users.email as user_email',
+                'teams.title as team_title',
+            ])
+            ->orderByDesc('contracts.id');
+
+        $contracts = $q->paginate(20);
+
+        return view('contracts.index', compact('contracts'));
+    }
+
+    public function index(Request $request)
+    {
+        $partnerId = $this->partnerId();
+
+        // Все группы партнёра для фильтра по группе
+        $allTeams = Team::where('partner_id', $partnerId)
+            ->orderBy('order_by', 'asc')
+            ->get();
+
+        return view('contracts.index', compact('allTeams'));
+    }
+
+    /**
+     * DataTables серверный endpoint для списка договоров.
+     * Возвращает JSON в формате, понятном DataTables.
+     */
+    public function data(Request $request)
+    {
+        $partnerId = $this->partnerId();
+
+        $validated = $request->validate([
+            'status'       => 'nullable|string',
+            'group_id'     => 'nullable|string',   // id или 'none'
+            'search_value' => 'nullable|string',   // строка поиска (имя/фамилия/телефон/email)
+            'draw'         => 'nullable|integer',
+            'start'        => 'nullable|integer',
+            'length'       => 'nullable|integer',
+        ]);
+
+        $statusFilter   = $validated['status'] ?? null;
+        $groupFilter    = $validated['group_id'] ?? null;
+        $searchValue    = $validated['search_value'] ?? null;
+
+        // Базовый запрос по партнёру
+        $baseQuery = Contract::query()
+            ->where('contracts.school_id', $partnerId)
+            // джойним пользователя и группу один раз
+            ->leftJoin('users', 'users.id', '=', 'contracts.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'contracts.group_id')
+            ->select([
+                'contracts.*',
+                'users.name as user_name',
+                'users.lastname as user_lastname',
+                'users.phone as user_phone',
+                'users.email as user_email',
+                'teams.title as team_title',
+            ]);
+
+        // Фильтр по статусу (значения статусов подправишь под свои)
+        if (!empty($statusFilter)) {
+            $baseQuery->where('contracts.status', $statusFilter);
+        }
+
+        // Фильтр по группе: id / none / пусто
+        if ($groupFilter !== null && $groupFilter !== '') {
+            if ($groupFilter === 'none') {
+                $baseQuery->whereNull('contracts.group_id');
+            } else {
+                $baseQuery->where('contracts.group_id', $groupFilter);
+            }
+        }
+
+        // Поиск по имени, фамилии, телефону, email
+        if (!empty($searchValue)) {
+            $like = '%' . $searchValue . '%';
+            $baseQuery->where(function ($q) use ($like) {
+                $q->where('users.name', 'like', $like)
+                    ->orWhere('users.lastname', 'like', $like)
+                    ->orWhere('users.phone', 'like', $like)
+                    ->orWhere('users.email', 'like', $like);
+            });
+        }
+
+        // Общее количество записей по партнёру (без фильтров)
+        $totalRecords = Contract::where('school_id', $partnerId)->count();
+
+        // Количество записей с учётом фильтров
+        $filteredQuery   = clone $baseQuery;
+        $recordsFiltered = $filteredQuery->count();
+
+        // --- СОРТИРОВКА ДЛЯ DataTables ---
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir         = $request->input('order.0.dir', 'asc');
+
+        if ($orderColumnIndex !== null) {
+            switch ((int)$orderColumnIndex) {
+                case 0: // # — нумерация, игнорируем, ставим дефолт
+                    $baseQuery->orderByDesc('contracts.id');
+                    break;
+                case 1: // Имя
+                    $baseQuery->orderBy('users.name', $orderDir);
+                    break;
+                case 2: // Фамилия
+                    $baseQuery->orderBy('users.lastname', $orderDir);
+                    break;
+                case 3: // Группа
+                    $baseQuery->orderBy('teams.title', $orderDir);
+                    break;
+                case 4: // Телефон
+                    $baseQuery->orderBy('users.phone', $orderDir);
+                    break;
+                case 5: // Email
+                    $baseQuery->orderBy('users.email', $orderDir);
+                    break;
+                case 6: // Статус (по contracts.status)
+                    $baseQuery->orderBy('contracts.status', $orderDir);
+                    break;
+                case 7: // Обновлён
+                    $baseQuery->orderBy('contracts.updated_at', $orderDir);
+                    break;
+                case 8: // Действия — игнорируем, ставим дефолт
+                default:
+                    $baseQuery->orderByDesc('contracts.id');
+                    break;
+            }
+        } else {
+            // дефолт — последние договоры первыми
+            $baseQuery->orderByDesc('contracts.id');
+        }
+
+        // Пагинация DataTables
+        $start  = $validated['start'] ?? 0;
+        $length = $validated['length'] ?? 20;
+
+        $contracts = $baseQuery
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $data = $contracts->map(function (Contract $contract) {
+            return [
+                'id'                 => $contract->id,
+                'user_name'          => $contract->user_name ?: '—',
+                'user_lastname'      => $contract->user_lastname ?: '—',
+                'team_title'         => $contract->team_title ?: '—',
+                'user_phone'         => $contract->user_phone ?: '—',
+                'user_email'         => $contract->user_email ?: '—',
+                'status_label'       => $contract->status_ru ?? '',           // аксессоры из модели
+                'status_badge_class' => $contract->status_badge_class ?? '',
+                'updated_at'         => $contract->updated_at
+                    ? $contract->updated_at->format('d.m.Y H:i:s')
+                    : '',
+            ];
+        })->toArray();
+
+        return response()->json([
+            'draw'            => (int)($validated['draw'] ?? 0),
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ]);
+    }
+
+    /**
+     * Вернуть настройки колонок для текущего пользователя
+     * для таблицы "contracts_index".
+     */
+    public function getColumnsSettings()
+    {
+        $userId   = Auth::id();
+        $settings = UserTableSetting::where('user_id', $userId)
+            ->where('table_key', 'contracts_index')
+            ->first();
+
+        $columns = $settings?->columns;
+        if (!is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    /**
+     * Сохранить настройки колонок для текущего пользователя
+     * для таблицы "contracts_index".
+     *
+     * Ожидает в запросе: columns: { user_name: true, ... }
+     */
+    public function saveColumnsSettings(Request $request)
+    {
+        $userId = Auth::id();
+
+        $data = $request->validate([
+            'columns' => 'required|array',
+        ]);
+
+        $rawColumns = $data['columns'];
+        $normalized = [];
+
+        foreach ($rawColumns as $key => $value) {
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool === null) {
+                $bool = false;
+            }
+            $normalized[$key] = $bool;
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id'   => $userId,
+                'table_key' => 'contracts_index',
+            ],
+            [
+                'columns' => $normalized,
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
 
     // единая точка входа
     private function partner(): \App\Models\Partner {
@@ -237,33 +479,6 @@ class ContractsController extends Controller
 
         \Log::debug('[userGroup] done', ['groups_count' => count($groups)]);
         return response()->json(['groups' => $groups]);
-    }
-
-    public function index(Request $request)
-    {
-        $partnerId = $this->partnerId();
-
-
-        $q = \App\Models\Contract::query()
-            ->where('contracts.school_id', $partnerId) // <— критичное ограничение по партнёру
-            ->when($request->status, fn($qq) => $qq->where('contracts.status', $request->status))
-            ->when($request->group_id, fn($qq) => $qq->where('contracts.group_id', $request->group_id))
-            // Подтягиваем имя ученика, телефон, email и название группы
-            ->leftJoin('users', 'users.id', '=', 'contracts.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'contracts.group_id') // group_id = users.team_id
-            ->select([
-                'contracts.*',
-                'users.name  as user_name',
-                'users.lastname  as user_lastname',   // <— добавили
-                'users.phone as user_phone',
-                'users.email as user_email',
-                'teams.title as team_title',
-            ])
-            ->orderByDesc('contracts.id');
-
-        $contracts = $q->paginate(20);
-
-        return view('contracts.index', compact('contracts'));
     }
 
     public function show(Contract $contract)
