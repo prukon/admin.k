@@ -711,7 +711,8 @@ class ContractsController extends Controller
                             'target_type' => 'App\Models\Contract',
                             'target_id' => $contract->id,
                             'target_label' => "Договор № {$contract->id}",
-                            'description' => $changes,
+//                            'description' => $changes,
+                            'description' => implode("\n", $changes),
                             'created_at' => now(),
                         ]);
                     }
@@ -806,6 +807,27 @@ class ContractsController extends Controller
 //                    ]
 //                );
 
+//                MyLog::create([
+//                    'type' => 500,
+//                    'action' => 512,
+//                    'user_id' => $contract->user_id,
+//                    'target_type' => 'App\Models\Contract',
+//                    'target_id' => $contract->id,
+//                    'target_label' => "Договор № {$contract->id}",
+//                    'description' =>
+//                        "Статус запроса: \"{$oldSrStatus}\" → \"{$sr->status}\"\n" .
+//                        "Ошибка: {$e->getMessage()}\n" .
+//                        "Договор: Договор #{$contract->id}",
+//                    'created_at' => now(),
+//                ]);
+//
+//
+
+                $lines = [
+                    'Статус запроса: "' . $oldSrStatus . '" → "' . $sr->status . '"',
+                    'Договор: ' . 'Договор #' . $contract->id,
+                ];
+
                 MyLog::create([
                     'type' => 500,
                     'action' => 512,
@@ -813,10 +835,7 @@ class ContractsController extends Controller
                     'target_type' => 'App\Models\Contract',
                     'target_id' => $contract->id,
                     'target_label' => "Договор № {$contract->id}",
-                    'description' =>
-                        "Статус запроса: \"{$oldSrStatus}\" → \"{$sr->status}\"\n" .
-                        "Ошибка: {$e->getMessage()}\n" .
-                        "Договор: Договор #{$contract->id}",
+                    'description' => implode("\n", $lines),
                     'created_at' => now(),
                 ]);
 
@@ -872,7 +891,8 @@ class ContractsController extends Controller
                         'target_type' => 'App\Models\Contract',
                         'target_id' => $contract->id,
                         'target_label' => "Договор № {$contract->id}",
-                        'description' => $changes,
+//                        'description' => $changes,
+                        'description' => implode("\n", $changes),
                         'created_at' => now(),
                     ]);
 
