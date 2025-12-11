@@ -162,9 +162,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/admin/users/{id}/avatar', [UserController::class, 'uploadUserAvatar']);
 
 
-        // новый роут для DataTables
-        Route::get('/admin/users/data', [UserController::class, 'data'])
-            ->name('admin.users.data');
+        //Данные для datatables
+        Route::get('/admin/users/data', [UserController::class, 'data'])->name('admin.users.data');
 
         Route::get('admin/users/columns-settings', [UserController::class, 'getColumnsSettings']);
         Route::post('admin/users/columns-settings', [UserController::class, 'saveColumnsSettings']);
@@ -180,6 +179,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::patch('admin/team/{id}', [TeamController::class, 'update'])->name('admin.team.update');
         Route::delete('admin/team/{team}', [TeamController::class, 'delete'])->name('admin.team.delete');
         Route::get('admin/teams/logs-data', [TeamController::class, 'log'])->name('logs.data.team');
+
+        // DataTables endpoint
+        Route::get('admin/teams/data', [TeamController::class, 'data'])->name('admin.team.data');
+        // Настройки отображения колонок
+        Route::get('admin/teams/columns-settings', [TeamController::class, 'getColumnsSettings']);
+        Route::post('admin/teams/columns-settings', [TeamController::class, 'saveColumnsSettings']);
+
+
     });
 
     //Партнеры

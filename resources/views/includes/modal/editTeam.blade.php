@@ -1,9 +1,3 @@
-{{--Cropie--}}
-{{--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css">--}}
-{{--<link rel="stylesheet" href="{{ asset('css/croppie.css') }}">--}}
-{{--<script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js"></script>--}}
-
-
 <!-- Модальное окно для редактирования группы -->
 <div class="modal fade" id="editTeamModal" tabindex="-1" aria-labelledby="editTeamModalLabel">
     <div class="modal-dialog">
@@ -50,13 +44,20 @@
                     <hr>
                     <div class="buttons-wrap mb-3">
                         <button type="button" class="btn btn-primary mr-2" id="update-team-btn">Обновить</button>
-                        <button type="button" class="btn btn-danger confirm-delete-modal" id="delete-team-btn" data-bs-toggle="modal" data-bs-target="#deleteConfirmationModal">Удалить</button>
+                        <button type="button"
+                                class="btn btn-danger confirm-delete-modal"
+                                id="delete-team-btn"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteConfirmationModal">
+                            Удалить
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
 <!-- Модальное окно подтверждения удаления -->
 {{--@include('includes.modal.confirmDeleteModal')--}}
 
@@ -67,98 +68,133 @@
 {{--@include('includes.modal.errorModal')--}}
 
 <script>
-
     $(document).ready(function() {
-        console.log('Debug: edit-partner script (jQuery) initialized');
+        console.log('Debug: edit-team script (jQuery) initialized');
 
+        const csrfToken = $('meta[name="csrf-token"]').attr('content');
 
-        $('.edit-team-link').on('click', function() {
+        /**
+         * Открытие модалки редактирования:
+         * используем делегированный обработчик, чтобы работало с динамическими
+         * элементами DataTables (.edit-team-link рендерится через AJAX).
+         */
+        $(document).on('click', '.edit-team-link', function() {
             const teamId = $(this).data('id');
 
-            // AJAX запрос для получения данных группы
             $.ajax({
-                    url: `/admin/team/${teamId}/edit`,
+                url: `/admin/team/${teamId}/edit`,
                 type: 'GET',
                 success: function(response) {
+                    // Основные поля
                     $('#edit-team-id').val(response.id);
                     $('#edit-title').val(response.title);
-                    $('#edit-order_by').val(response.order_by);
+                    $('#edit-order_by').val(response.order_by ?? '');
                     $('#edit-activity').val(response.is_enabled);
 
-                    // Обновляем расписание, создаем чекбоксы для каждого дня недели
+                    // Расписание: чекбоксы дней недели
                     let weekdaysHtml = '';
-                    response.weekdays.forEach(function(weekday) {
-                        const isChecked = response.team_weekdays.some(teamWeekday => teamWeekday.id === weekday.id) ? 'checked' : '';
-                        weekdaysHtml += `
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" id="edit-weekday-${weekday.id}"
-                               name="weekdays[]"
-                               value="${weekday.id}" ${isChecked}>
-                        <label class="form-check-label" for="edit-weekday-${weekday.id}">
-                            ${weekday.title}
-                        </label>
-                    </div>`;
-                    });
+
+                    if (response.weekdays && response.team_weekdays) {
+                        response.weekdays.forEach(function(weekday) {
+                            const isChecked = response.team_weekdays.some(function(teamWeekday) {
+                                return teamWeekday.id === weekday.id;
+                            }) ? 'checked' : '';
+
+                            weekdaysHtml += `
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="edit-weekday-${weekday.id}"
+                                           name="weekdays[]"
+                                           value="${weekday.id}" ${isChecked}>
+                                    <label class="form-check-label" for="edit-weekday-${weekday.id}">
+                                        ${weekday.title}
+                                    </label>
+                                </div>
+                            `;
+                        });
+                    }
+
                     $('#edit-weekdays').html(weekdaysHtml);
 
-                    // Показываем модальное окно
+                    // Открываем модалку
                     $('#editTeamModal').modal('show');
-                }
-            });
-        });
-
-        // Отправка формы обновления через AJAX
-        $('#update-team-btn').on('click', function() {
-            const teamId = $('#edit-team-id').val();
-            const formData = $('#edit-team-form').serialize();
-
-            $.ajax({
-                url: `/admin/team/${teamId}`, // маршрут обновления
-                type: 'PATCH',
-                data: formData,
-                success: function(response) {
-                    showSuccessModal("Редактирование группы", "Группа успешно отредактирована.", 1);
                 },
                 error: function(xhr) {
+                    console.error('Ошибка загрузки данных группы', xhr);
                     $('#errorModal').modal('show');
                 }
             });
         });
 
+        /**
+         * Обновление группы
+         */
+        $('#update-team-btn').on('click', function() {
+            const teamId = $('#edit-team-id').val();
+            const formData = $('#edit-team-form').serialize();
 
-        // Вызов модалки удаления
+            $.ajax({
+                url: `/admin/team/${teamId}`,
+                type: 'PATCH',
+                data: formData,
+                success: function(response) {
+                    showSuccessModal("Редактирование группы", "Группа успешно отредактирована.", 1);
+
+                    // Обновляем таблицу DataTables, если она инициализирована
+                    if ($.fn.DataTable.isDataTable('#teams-table')) {
+                        $('#teams-table').DataTable().ajax.reload(null, false);
+                    }
+                },
+                error: function(xhr) {
+                    // Можно дополнительно разобрать ошибки валидации:
+                    // const errors = xhr.responseJSON?.errors;
+                    $('#errorModal').modal('show');
+                }
+            });
+        });
+
+        /**
+         * Клик по кнопке "Удалить" в модалке редактирования
+         * (кнопка имеет класс .confirm-delete-modal, как и раньше)
+         */
         $(document).on('click', '.confirm-delete-modal', function () {
             deleteTeam();
         });
 
-        //Удаление группы
+        /**
+         * Удаление группы с подтверждением
+         */
         function deleteTeam() {
-            // Показываем модалку с текстом и передаём колбэк, который удалит пользователя
             showConfirmDeleteModal(
                 "Удаление группы",
                 "Вы уверены, что хотите удалить группу?",
                 function() {
-                // ----
                     const teamId = $('#edit-team-id').val();
+
                     $.ajax({
-                        url: `/admin/team/${teamId}`, // маршрут удаления
+                        url: `/admin/team/${teamId}`,
                         type: 'DELETE',
                         data: {
-                            _token: $('input[name="_token"]').val()
+                            _token: csrfToken
                         },
                         success: function(response) {
                             showSuccessModal("Удаление группы", "Группа успешно удалена.", 1);
+
+                            // Обновляем таблицу после удаления
+                            if ($.fn.DataTable.isDataTable('#teams-table')) {
+                                $('#teams-table').DataTable().ajax.reload(null, false);
+                            }
+
+                            $('#editTeamModal').modal('hide');
                         },
                         error: function(xhr) {
+                            console.error('Ошибка удаления группы', xhr);
                             $('#errorModal').modal('show');
                         }
                     });
-                    // ----
                 }
             );
         }
-
     });
 </script>
-
-

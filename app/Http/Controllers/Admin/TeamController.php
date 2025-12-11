@@ -20,6 +20,11 @@ use Yajra\DataTables\DataTables;
 use App\Support\BuildsLogTable;
 
 
+
+use App\Models\UserTableSetting;
+use Illuminate\Support\Facades\Auth;
+
+
 class TeamController extends Controller
 {
     use BuildsLogTable;
@@ -29,25 +34,363 @@ class TeamController extends Controller
         $this->service = $service;
     }
 
-    public function index(FilterRequest $request)
-    {
 
-        $data = $request->validated();
-        $filter = app()->make(TeamFilter::class, ['queryParams'=> array_filter($data)]);
+
+
+
+
+    /**
+     * Страница групп — аналог users.index
+     */
+    public function index()
+    {
         $partnerId = app('current_partner')->id;
 
-// Выбираем группы, у которых partner_id совпадает с выбранным партнёром,
-// применяем дополнительные условия фильтрации, сортировку и пагинацию
-        $allTeams = Team::where('partner_id', $partnerId)
-            ->filter($filter)
-            ->orderBy('order_by', 'asc') // сортировка по полю order_by по возрастанию
-            ->paginate(10);
-
+        // как и раньше: подтягиваем дни недели для модалок
         $weekdays = Weekday::all();
 
-        return view("admin/team", compact("allTeams",
-            'weekdays'));
+        // allTeams больше не нужен, таблицу грузим через DataTables
+        return view('admin.team', compact('weekdays'));
     }
+
+    /**
+     * DataTables серверный endpoint для списка групп
+     */
+    public function data2(Request $request)
+    {
+        $partnerId = app('current_partner')->id;
+
+        // валидация входящих параметров DataTables
+        $validated = $request->validate([
+            'title' => 'nullable|string',
+            'status' => 'nullable|string', // active / inactive
+
+            'draw' => 'nullable|integer',
+            'start' => 'nullable|integer',
+            'length' => 'nullable|integer',
+        ]);
+
+        // базовый запрос
+        $baseQuery = Team::query()
+            ->where('teams.partner_id', $partnerId);
+
+        // фильтр: название
+        if (!empty($validated['title'])) {
+            $value = $validated['title'];
+            $like = '%' . $value . '%';
+            $baseQuery->where('teams.title', 'like', $like);
+        }
+
+        // фильтр: статус
+        if (!empty($validated['status'])) {
+            if ($validated['status'] === 'active') {
+                $baseQuery->where('teams.is_enabled', 1);
+            } elseif ($validated['status'] === 'inactive') {
+                $baseQuery->where('teams.is_enabled', 0);
+            }
+        }
+
+        // количество без фильтров
+        $totalRecords = Team::where('partner_id', $partnerId)->count();
+
+        // количество c фильтрами
+        $recordsFiltered = (clone $baseQuery)->count();
+
+        // сортировка по индексам колонок DataTables
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir = $request->input('order.0.dir', 'asc');
+
+        if ($orderColumnIndex !== null) {
+            switch ((int)$orderColumnIndex) {
+                case 0: // #
+                    $baseQuery->orderBy('teams.order_by', 'asc')
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
+                case 1: // order_by
+                    $baseQuery->orderBy('teams.order_by', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
+                case 2: // title
+                    $baseQuery->orderBy('teams.title', $orderDir);
+                    break;
+
+                case 3: // status_label (is_enabled)
+                    $baseQuery->orderBy('teams.is_enabled', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
+                case 4: // actions
+                default:
+                    $baseQuery->orderBy('teams.order_by', 'asc')
+                        ->orderBy('teams.title', 'asc');
+                    break;
+            }
+        } else {
+            $baseQuery->orderBy('teams.order_by', 'asc')
+                ->orderBy('teams.title', 'asc');
+        }
+
+        // пагинация
+        $start = $validated['start'] ?? 0;
+        $length = $validated['length'] ?? 20;
+
+        $teams = $baseQuery
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        // подготовка данных для таблицы
+        $data = $teams->map(function (Team $team) {
+
+            return [
+                'id' => $team->id,
+                'order_by'     => $team->order_by,
+                'title' => $team->title,
+                'status_label' => $team->is_enabled ? 'Активна' : 'Неактивна',
+                'is_enabled' => (int)$team->is_enabled,
+            ];
+
+        })->toArray();
+
+        return response()->json([
+            'draw' => (int)($validated['draw'] ?? 0),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data,
+        ]);
+    }
+
+    /**
+     * Вернуть настройки колонок для таблицы "teams_index"
+     */
+    public function getColumnsSettings2()
+    {
+        $userId = Auth::id();
+
+        $settings = UserTableSetting::where('user_id', $userId)
+            ->where('table_key', 'teams_index')
+            ->first();
+
+        $columns = $settings?->columns;
+
+        if (!is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    /**
+     * Сохранить настройки колонок
+     */
+    public function saveColumnsSettings2(Request $request)
+    {
+        $userId = Auth::id();
+
+        $data = $request->validate([
+            'columns' => 'required|array',
+        ]);
+
+        $raw = $data['columns'];
+        $normalized = [];
+
+        foreach ($raw as $key => $value) {
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool === null) $bool = false;
+            $normalized[$key] = $bool;
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id' => $userId,
+                'table_key' => 'teams_index',
+            ],
+            [
+                'columns' => $normalized,
+            ]
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+
+    public function data(Request $request)
+    {
+        $partnerId   = app('current_partner')->id;
+
+        // валидация входящих параметров DataTables
+        $validated = $request->validate([
+            'title'  => 'nullable|string',
+            'status' => 'nullable|string', // active / inactive
+
+            'draw'   => 'nullable|integer',
+            'start'  => 'nullable|integer',
+            'length' => 'nullable|integer',
+        ]);
+
+        // базовый запрос
+        $baseQuery = Team::query()
+            ->where('teams.partner_id', $partnerId);
+
+        // фильтр: название
+        if (!empty($validated['title'])) {
+            $value = $validated['title'];
+            $like  = '%' . $value . '%';
+            $baseQuery->where('teams.title', 'like', $like);
+        }
+
+        // фильтр: статус
+        if (!empty($validated['status'])) {
+            if ($validated['status'] === 'active') {
+                $baseQuery->where('teams.is_enabled', 1);
+            } elseif ($validated['status'] === 'inactive') {
+                $baseQuery->where('teams.is_enabled', 0);
+            }
+        }
+
+        // количество без фильтров
+        $totalRecords = Team::where('partner_id', $partnerId)->count();
+
+        // количество c фильтрами
+        $recordsFiltered = (clone $baseQuery)->count();
+
+        // сортировка по индексам колонок DataTables
+        // 0 – #
+        // 1 – order_by
+        // 2 – title
+        // 3 – weekdays_label (НЕ сортируем, orderable: false)
+        // 4 – status_label
+        // 5 – actions
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir         = $request->input('order.0.dir', 'asc');
+
+        if ($orderColumnIndex !== null) {
+            switch ((int)$orderColumnIndex) {
+                case 0: // #
+                    $baseQuery->orderBy('teams.order_by', 'asc')
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
+                case 1: // order_by
+                    $baseQuery->orderBy('teams.order_by', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
+                case 2: // title
+                    $baseQuery->orderBy('teams.title', $orderDir);
+                    break;
+
+                case 4: // status_label (is_enabled)
+                    $baseQuery->orderBy('teams.is_enabled', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
+                case 3: // weekdays_label — игнорируем, оставляем дефолт
+                case 5: // actions
+                default:
+                    $baseQuery->orderBy('teams.order_by', 'asc')
+                        ->orderBy('teams.title', 'asc');
+                    break;
+            }
+        } else {
+            $baseQuery->orderBy('teams.order_by', 'asc')
+                ->orderBy('teams.title', 'asc');
+        }
+
+        // пагинация
+        $start  = $validated['start']  ?? 0;
+        $length = $validated['length'] ?? 20;
+
+        $teams = $baseQuery
+            ->with('weekdays') // чтобы собрать расписание
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $data = $teams->map(function (Team $team) {
+
+            // Собираем список дней недели (title)
+            $weekdaysLabel = '';
+            if ($team->relationLoaded('weekdays')) {
+                $weekdaysLabel = $team->weekdays
+                    ->pluck('title')
+                    ->implode(', ');
+            }
+
+            return [
+                'id'             => $team->id,
+                'order_by'       => $team->order_by,
+                'title'          => $team->title,
+                'weekdays_label' => $weekdaysLabel,
+                'status_label'   => $team->is_enabled ? 'Активна' : 'Неактивна',
+                'is_enabled'     => (int) $team->is_enabled,
+            ];
+        })->toArray();
+
+        return response()->json([
+            'draw'            => (int)($validated['draw'] ?? 0),
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ]);
+    }
+
+    /**
+     * Вернуть настройки колонок для таблицы "teams_index"
+     */
+    public function getColumnsSettings()
+    {
+        $userId = Auth::id();
+
+        $settings = UserTableSetting::where('user_id', $userId)
+            ->where('table_key', 'teams_index')
+            ->first();
+
+        $columns = $settings?->columns;
+
+        if (!is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    /**
+     * Сохранить настройки колонок
+     */
+    public function saveColumnsSettings(Request $request)
+    {
+        $userId = Auth::id();
+
+        $data = $request->validate([
+            'columns' => 'required|array',
+        ]);
+
+        $raw = $data['columns'];
+        $normalized = [];
+
+        foreach ($raw as $key => $value) {
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool === null) $bool = false;
+            $normalized[$key] = $bool;
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id'   => $userId,
+                'table_key' => 'teams_index',
+            ],
+            [
+                'columns' => $normalized,
+            ]
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+
 
     public function store(StoreRequest $request)
     {
@@ -229,13 +572,13 @@ class TeamController extends Controller
             // ✅ Пишем лог только если есть изменения
             if (!empty($changes)) {
                 \App\Models\MyLog::create([
-                    'type'         => 3,                 // Логи по группам
-                    'action'       => 32,               // Обновление группы
-                    'target_type'  => 'App\Models\Team',
-                    'target_id'    => $team->id,
+                    'type' => 3,                 // Логи по группам
+                    'action' => 32,               // Обновление группы
+                    'target_type' => 'App\Models\Team',
+                    'target_id' => $team->id,
                     'target_label' => $team->title,
-                    'description'  => implode("\n", $changes), // Каждое поле — с новой строки
-                    'created_at'   => now(),
+                    'description' => implode("\n", $changes), // Каждое поле — с новой строки
+                    'created_at' => now(),
                 ]);
 
             }
@@ -250,7 +593,7 @@ class TeamController extends Controller
 
         DB::transaction(function () use ($team) {
             // Обновляем пользователей, устанавливая team_id в null
-           User::where('team_id', $team->id)->update(['team_id' => null]);
+            User::where('team_id', $team->id)->update(['team_id' => null]);
 
             // Мягкое удаление группы
             $team->delete();
@@ -260,8 +603,8 @@ class TeamController extends Controller
                 'type' => 3, // Лог для обновления групп
                 'action' => 33,
                 'target_type' => 'App\Models\Team',
-                'target_id'   => $team->id,
-                'target_label'=> $team->title,
+                'target_id' => $team->id,
+                'target_label' => $team->title,
                 'description' => "Группа удалена: {$team->title}. ID: {$team->id}.",
                 'created_at' => now(),
             ]);

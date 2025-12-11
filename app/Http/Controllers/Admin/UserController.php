@@ -105,130 +105,6 @@ class UserController extends Controller
      * Возвращает JSON в формате, понятном DataTables.
      */
 
-    public function data2(Request $request)
-    {
-        $partnerId = app('current_partner')->id;
-        $currentUser = Auth::user();
-        $userRoleName = $currentUser->role?->name;
-        $isSuperadmin = $userRoleName === 'superadmin';
-
-        $validated = $request->validate([
-            'id' => 'nullable|integer',
-            'name' => 'nullable|string',
-            'team_id' => 'nullable|string',   // id или 'none'
-            'status' => 'nullable|string',   // active / inactive
-
-            'draw' => 'nullable|integer',
-            'start' => 'nullable|integer',
-            'length' => 'nullable|integer',
-        ]);
-
-        $teamFilter = $validated['team_id'] ?? null;
-
-        // Базовый запрос по партнёру
-        $baseQuery = User::where('partner_id', $partnerId);
-
-        // Фильтр по ID
-        if (!empty($validated['id'])) {
-            $baseQuery->where('id', $validated['id']);
-        }
-
-        // Фильтр по имени
-//        if (!empty($validated['name'])) {
-//            $name = $validated['name'];
-//
-//            $baseQuery->where(function ($q) use ($name) {
-//                // подставь сюда реальные поля: name, firstname, lastname, full_name — как у тебя в БД
-//                $q->where('name', 'like', '%' . $name . '%')
-//                    ->orWhere('lastname', 'like', '%' . $name . '%');
-//            });
-//        }
-
-
-        // Фильтр по имени / email / телефону / дате рождения
-        if (!empty($validated['name'])) {
-            $value = $validated['name'];
-
-            $baseQuery->where(function ($q) use ($value) {
-                $like = '%' . $value . '%';
-
-                $q->where('name', 'like', $like)
-                    ->orWhere('lastname', 'like', $like)
-                    ->orWhere('email', 'like', $like)
-                    ->orWhere('phone', 'like', $like)
-                    ->orWhere('birthday', 'like', $like); // YYYY-MM-DD тоже ищется по подстроке
-            });
-        }
-
-
-        // Фильтр по группе: id / none / пусто
-        if ($teamFilter !== null && $teamFilter !== '') {
-            if ($teamFilter === 'none') {
-                $baseQuery->whereNull('team_id');
-            } else {
-                $baseQuery->where('team_id', $teamFilter);
-            }
-        }
-
-        // Фильтр по статусу
-        if (!empty($validated['status'])) {
-            if ($validated['status'] === 'active') {
-                $baseQuery->where('is_enabled', 1);
-            } elseif ($validated['status'] === 'inactive') {
-                $baseQuery->where('is_enabled', 0);
-            }
-        }
-
-        // Общее количество записей по партнёру (без фильтров)
-        $totalRecords = User::where('partner_id', $partnerId)->count();
-
-        // Количество записей с учётом фильтров
-        $filteredQuery = clone $baseQuery;
-        $recordsFiltered = $filteredQuery->count();
-
-        // Пагинация DataTables
-        $start = $validated['start'] ?? 0;
-        $length = $validated['length'] ?? 20;
-
-        // Сортировка (как раньше, по фамилии)
-        $baseQuery->orderBy('lastname', 'asc');
-
-        // Подтягиваем ОДНУ команду
-        $users = $baseQuery
-            ->with('team')
-            ->skip($start)
-            ->take($length)
-            ->get();
-
-        $data = $users->map(function (User $user) {
-
-            $avatar = $user->image_crop
-                ? asset('storage/avatars/' . $user->image_crop)
-                : asset('img/default-avatar.png');
-
-            return [
-                'id'           => $user->id,
-                'avatar'       => $avatar,
-                'name'         => $user->full_name ?: 'Без имени',
-                'teams'        => $user->team ? $user->team->title : '',
-                'birthday'     => $user->birthday
-                    ? Carbon::parse($user->birthday)->format('d.m.Y')
-                    : '',
-                'email'        => $user->email,
-                'phone'        => $user->phone,
-                'status_label' => $user->is_enabled ? 'Активен' : 'Неактивен',
-                'is_enabled'   => (int) $user->is_enabled,
-            ];
-
-        })->toArray();
-
-        return response()->json([
-            'draw' => (int)($validated['draw'] ?? 0),
-            'recordsTotal' => $totalRecords,
-            'recordsFiltered' => $recordsFiltered,
-            'data' => $data,
-        ]);
-    }
 
     public function data(Request $request)
     {
@@ -402,7 +278,7 @@ class UserController extends Controller
      * Вернуть настройки колонок для текущего пользователя
      * для таблицы "users_index".
      */
-    public function getColumnsSettings()
+        public function getColumnsSettings()
     {
         $userId = Auth::id();
 
@@ -464,10 +340,6 @@ class UserController extends Controller
             'success' => true,
         ]);
     }
-
-
-
-
 
     public function store(StoreRequest $request)
     {
