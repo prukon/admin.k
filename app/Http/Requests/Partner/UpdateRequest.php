@@ -35,6 +35,8 @@ class UpdateRequest extends FormRequest
                 'min:2',
                 'max:255',
             ],
+            'organization_name' => ['nullable', 'string', 'max:255'],
+
 
             // только цифры, макс 100 символов, + уникальность
             'tax_id' => [
@@ -69,11 +71,17 @@ class UpdateRequest extends FormRequest
             ],
 
             // телефон: только цифры, макс 25 символов
+//            'phone' => [
+//                'nullable',
+//                'regex:/^[0-9]+$/',
+//                'max:25',
+//            ],
             'phone' => [
                 'nullable',
-                'regex:/^[0-9]+$/',
+                'regex:/^[0-9\(\)\-\+\s]+$/',
                 'max:25',
             ],
+
 
             // email: обязательно, формат email, макс 50, + уникальность
             'email' => [
@@ -166,7 +174,7 @@ class UpdateRequest extends FormRequest
             'address.max'    => 'Поле «:attribute» не может превышать :max символов.',
 
             // phone
-            'phone.regex' => 'Поле «:attribute» может содержать только цифры.',
+            'phone.regex' => 'Поле «:attribute» может содержать только цифры, пробелы и символы + ( ) -.',
             'phone.max'   => 'Поле «:attribute» не может превышать :max символов.',
 
             // email

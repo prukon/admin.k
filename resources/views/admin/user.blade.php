@@ -52,7 +52,7 @@
                                 data-bs-target="#createUserModal">
                             Новый пользователь
                         </button>
-                        
+
                         <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#fieldModal">
                             <i class="fa-solid fa-gear settings-icon"></i>
                         </div>

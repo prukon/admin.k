@@ -45,6 +45,17 @@
                     @enderror
                 </div>
 
+                {{-- Юридическое название (для оферт/документов) --}}
+                <div class="mb-3">
+                    <label for="organization_name" class="form-label">Юр. название</label>
+                    <input type="text" class="form-control" id="organization_name" name="organization_name"
+                           value="{{ old('organization_name', $partner->organization_name) }}"
+                           placeholder='Напр. "ИП Иванов Иван Иванович"'>
+                    @error('organization_name')
+                    <p class="text-danger">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 {{-- ИНН --}}
                 <div class="mb-3 " id='tax_id_wrapper'>
                     <label for="tax_id" class="form-label">ИНН</label>
@@ -162,6 +173,9 @@
 
 
 @section('scripts')
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+
+    
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 //Обновление партнера
@@ -254,7 +268,21 @@
             updatePartnerData();
             toggleFields();
         });
+
+
+        $(document).ready(function () {
+
+            // Маска телефона
+            $('#phone').mask('+0 (000) 000-00-00', {
+                placeholder: '+_ (___) ___-__-__'
+            });
+
+        });
+
     </script>
+
+
+
 @endsection
 
 @endcan
