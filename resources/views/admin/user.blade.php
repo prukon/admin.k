@@ -43,24 +43,16 @@
                 </div>
 
                 {{-- ПРАВАЯ ЧАСТЬ: кнопки действий и настройка колонок --}}
-                {{-- ПРАВАЯ ЧАСТЬ: кнопки действий и настройка колонок --}}
                 <div class="col-12 col-md-6 text-start">
                     <div class="d-flex flex-wrap justify-content-md-end gap-2 align-items-center index-user-actions">
 
-                        <button id="new-user"
-                                type="button"
-                                class="btn btn-primary mr-2 new-user width-170">
+
+                        <button id="new-user" type="button" class="btn btn-primary mr-2 new-user width-170"
+                                data-bs-toggle="modal"
+                                data-bs-target="#createUserModal">
                             Новый пользователь
                         </button>
-
-                        {{-- Старая кнопка настроек доп. полей (как было) --}}
-{{--                        <button id="field-modal"--}}
-{{--                                type="button"--}}
-{{--                                class="btn btn-primary mr-2"--}}
-{{--                                data-bs-toggle="modal"--}}
-{{--                                data-bs-target="#fieldModal">--}}
-{{--                            Настройки--}}
-{{--                        </button>--}}
+                        
                         <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#fieldModal">
                             <i class="fa-solid fa-gear settings-icon"></i>
                         </div>
