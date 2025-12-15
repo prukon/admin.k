@@ -72,22 +72,28 @@
         m[i].l=1*new Date();
         for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
         k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=104260294', 'ym');
+    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105845730', 'ym');
 
-    ym(104260294, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
+    ym(105845730, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
 </script>
-<noscript><div><img src="https://mc.yandex.ru/watch/104260294" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<noscript><div><img src="https://mc.yandex.ru/watch/105845730" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
 <!-- /Yandex.Metrika counter -->
-
 <div id="app">
 
     <header class="bg-white shadow-sm">
         <nav class="navbar navbar-expand-md">
             <div class="container">
                 <!-- Лого -->
-                <a class="navbar-brand" href="{{ url('/') }}">
-                    <img src="{{ asset('img/logo3.png') }}" alt="kidscrm.online" height="80">
-                </a>
+{{--                <a class="navbar-brand" href="{{ url('/') }}">--}}
+{{--                    <img src="{{ asset('img/logo3.png') }}" alt="kidscrm.online" height="80">--}}
+{{--                </a>--}}
+
+
+                                <a class="navbar-brand" href="{{ url('/') }}">
+                                    kidscrm.online
+                                </a>
+
+
 
                 <!-- Кнопка‑гамбургер -->
                 <button class="navbar-toggler" type="button"
