@@ -54,6 +54,9 @@ Auth::routes();
 
 //landing Page
 Route::get('/', [\App\Http\Controllers\LandingPageController::class, 'index'])->name('landing.home');
+Route::view('/crm-dlya-futbolnoy-sekcii', 'landing.seo.football')->name('landing.seo.football');
+
+
 Route::post('/contact/send', [\App\Http\Controllers\LandingPageController::class, 'contactSend'])->name('contact.send');
 //Страница Публичная оферта
 Route::view('/oferta', 'landing.oferta')->name('oferta');
