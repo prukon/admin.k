@@ -52,9 +52,17 @@ use App\Http\Controllers\AdminUserController;
 
 Auth::routes();
 
+Route::get('/sitemap.xml', [\App\Http\Controllers\SitemapController::class, 'index'])->name('sitemap');
+
+
 //landing Page
 Route::get('/', [\App\Http\Controllers\LandingPageController::class, 'index'])->name('landing.home');
 Route::view('/crm-dlya-futbolnoy-sekcii', 'landing.seo.football')->name('landing.seo.football');
+Route::view('/crm-dlya-tancevalnoy-studii', 'landing.seo.dance')->name('landing.dance');
+Route::view('/crm-dlya-shkoly-edinoborstv', 'landing.seo.martial-arts')->name('landing.martial-arts');
+Route::view('/crm-dlya-detskogo-razvivayushchego-centra', 'landing.seo.development-centers')->name('landing.seo.development.centers');
+Route::view('/crm-dlya-shkol-gimnastiki-i-akrobatiki', 'landing.seo.gymnastics-acrobatics')->name('landing.seo.gymnastics.acrobatics');
+Route::view('/crm-dlya-detskih-yazykovyh-shkol','landing.seo.language-schools')->name('landing.seo.language.schools');
 
 
 Route::post('/contact/send', [\App\Http\Controllers\LandingPageController::class, 'contactSend'])->name('contact.send');
