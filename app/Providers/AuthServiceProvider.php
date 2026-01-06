@@ -264,6 +264,9 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('payment_method_T-Bank');
         });
 
-
+        // Просмотр всех логов
+        Gate::define('viewing-all-logs', function (User $user) {
+            return $user->hasPermission('viewing_all_logs');
+        });
     }
 }

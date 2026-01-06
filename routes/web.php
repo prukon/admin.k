@@ -222,7 +222,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
 // Без middleware
     Route::get('edit-menu', [SettingController::class, 'editMenu'])->name('editMenu');
-    Route::get('admin/settings/logs-all-data', [SettingController::class, 'logsAllData'])->name('logs.all.data');
+
+    // Просмотр всех логов
+    Route::middleware('can:viewing-all-logs')->group(function () {
+        Route::get('admin/settings/logs-all-data', [SettingController::class, 'logsAllData'])->name('logs.all.data');
+    });
 
     //Страница Настойки- Права
     Route::middleware('can:settings-roles-view')->group(function () {

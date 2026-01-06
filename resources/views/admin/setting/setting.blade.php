@@ -100,14 +100,16 @@
 <div class="table-responsive mt-3">
     <table class="table ">
         <tbody>
-        <tr>
-            <td>Журнал событий</td>
-            <td class="text-center">
-                <button type="button" class="btn btn-primary width-160" id="logs"
-                        data-bs-toggle="modal" data-bs-target="#historyModal">История изменений
-                </button>
-            </td>
-        </tr>
+        @can('viewing-all-logs')
+            <tr>
+                <td>Журнал событий</td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-primary width-160" id="logs"
+                            data-bs-toggle="modal" data-bs-target="#historyModal">История изменений
+                    </button>
+                </td>
+            </tr>
+        @endcan
         <tr>
             <td>Меню в шапке</td>
             <td class="text-center">
@@ -383,8 +385,9 @@
             });
 
 
-
-            showLogModal("{{ route('logs.all.data') }}");
+            @can('viewing-all-logs')
+                showLogModal("{{ route('logs.all.data') }}");
+            @endcan
 
             // Вызов модалки Активность регистрации
             $(document).on('click', '#btnRegistrationActivity', function () {
