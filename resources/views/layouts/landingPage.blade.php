@@ -7,7 +7,7 @@
     <title>@yield('title', config('app.name'))</title>
     <link rel="icon" href="{{ asset('img/landing/favicon.png') }}" type="image/png">
     <link rel="shortcut icon" href="{{ asset('img/landing/favicon.png') }}" type="image/png">
-
+ 
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
@@ -182,6 +182,11 @@
                                     <a class="btn btn-primary me-2" href="{{ route('login') }}">Войти</a>
                                 </li>
                             @endif
+                            @if (Route::has('register'))
+                                <li class="nav-item">
+                                    <a class="btn btn-outline-primary" href="{{ route('register') }}">Регистрация</a>
+                                </li>
+                            @endif
                         @else
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button"
@@ -254,13 +259,13 @@
                     <h5 class="fw-bold mb-3">Соцсети и Email</h5>
                     <ul class="list-unstyled">
                         <li class="mb-2">
-                            <a href="mailto:kidslinkru@yandex.ru"
-                               class="d-flex align-items-center text-dark text-decoration-none">
+                            <a href="mailto:kidscrmonline@gmail.com"
+                                    class="d-flex align-items-center text-dark text-decoration-none">
                                 <img src="{{ asset('img/landing/icons/social/gmail.png') }}"
                                      alt="Email"
                                      class="me-2"
                                      style="width:24px; height:24px; object-fit:contain;">
-                                <span>kruzhok.online@yandex.ru</span>
+                                 <span>kidscrmonline@gmail.com</span>
                             </a>
                         </li>
                         <li class="mb-2">
@@ -337,7 +342,7 @@
                         без лишних забот.
                     </p>
                     <div class="d-flex flex-wrap">
-                        <a href="mailto:kruzhok.online@yandex.ru"
+                        <a href="mailto:kidscrmonline@gmail.com"
                            class="btn btn-primary me-3 mb-2 d-flex align-items-center">
                             <img src="{{ asset('img/landing/icons/social/gmail.png') }}"
                                  alt="Email"

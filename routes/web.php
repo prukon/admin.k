@@ -385,8 +385,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
 //    Тинькоф эквайринг мультирасчеты
-// admin-only (добавь middleware 'can:admin' или свой)
-    Route::middleware(['auth'])->group(function () {
+        Route::middleware('can:partner-view')->group(function () {        
+
         Route::post('/tinkoff/payouts/{deal}/pay-now', [TinkoffPayoutController::class, 'payNow']);
         Route::post('/tinkoff/payouts/{deal}/delay', [TinkoffPayoutController::class, 'delay']);
         Route::post('/tinkoff/deals/{deal}/close', [TinkoffDealController::class, 'close']);
@@ -401,10 +401,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // Карточки (admin-only)
         Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show']);
         Route::get('/admin/tinkoff/partners/{id}', [TinkoffAdminPartnerController::class, 'show']);
-        Route::post('/payments/tinkoff/create', [TinkoffPaymentController::class, 'create'])
-            ->name('payment.tinkoff.pay');
-        Route::get('/tinkoff/debug/state/{paymentId}', [TinkoffDebugController::class, 'state'])
-            ->middleware('auth'); // только под админа, если надо
+        Route::post('/payments/tinkoff/create', [TinkoffPaymentController::class, 'create'])    ->name('payment.tinkoff.pay');
+        Route::get('/tinkoff/debug/state/{paymentId}', [TinkoffDebugController::class, 'state'])->middleware('auth'); // только под админа, если надо
         Route::get('/tinkoff/debug/tpay-status', [TinkoffDebugController::class, 'tpayStatus']);
         Route::post('/payments/tinkoff/qr-init', [TinkoffQrController::class, 'init'])->name('payment.tinkoff.qrInit');
         Route::get('/tinkoff/qr/{paymentId}', [TinkoffQrController::class, 'show'])->name('tinkoff.qr');
@@ -430,8 +428,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/admin/tinkoff/partners/{id}/sm-pull', [TinkoffAdminPartnerController::class, 'smPull'])
             ->name('tinkoff.partners.smPull');
 
+        });
 
-    });
 
 
 //    Route::post('/account/user/{user}/verify-phone', [\App\Http\Controllers\Admin\AccountSettingController::class, 'verifyPhone'])->name('account.user.verifyPhone');
