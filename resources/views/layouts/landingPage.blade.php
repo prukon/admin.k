@@ -182,11 +182,17 @@
                                     <a class="btn btn-primary me-2" href="{{ route('login') }}">Войти</a>
                                 </li>
                             @endif
+                            {{--
+                                Временно скрыто: кнопка регистрации в шапке (по запросу).
+                                При необходимости вернуть — раскомментировать блок ниже.
+                            --}}
+                            {{--
                             @if (Route::has('register'))
                                 <li class="nav-item">
                                     <a class="btn btn-outline-primary" href="{{ route('register') }}">Регистрация</a>
                                 </li>
                             @endif
+                            --}}
                         @else
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button"
