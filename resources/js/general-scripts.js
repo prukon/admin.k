@@ -3,7 +3,6 @@
 // // —— Сначала: стили (порядок не критичен) ——
 // import 'select2/dist/css/select2.min.css';
 // import 'datatables.net-dt/css/dataTables.dataTables.min.css';
-// import 'croppie/croppie.css';
 // import 'daterangepicker/daterangepicker.css';
 //
 // // —— Плагины ——
@@ -16,8 +15,6 @@
 // import 'datatables.net-dt';
 //
 // /* Croppie */
-// import Croppie from 'croppie';
-// window.Croppie = Croppie;
 //
 // /* Moment & DateRangePicker */
 // import moment from 'moment';

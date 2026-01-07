@@ -63,11 +63,6 @@
     <!-- AdminLTE App -->
     <script src="{{ asset('dist/js/adminlte.js') }}"></script>
 
-    {{--Cropie--}}
-    {{--<link rel="stylesheet" href="{{ asset('css/croppie.min.css') }}">--}}
-    {{--<link rel="stylesheet" href="{{ asset('css/croppie.css') }}">--}}
-    {{--    <script src="{{ asset('js/croppie.min.js') }}"></script>--}}
-
     {{--Select2--}}
     <link rel="stylesheet" href="{{ asset('css/select2/select2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('css/select2/select2-bootstrap-5-theme.min.css') }}">

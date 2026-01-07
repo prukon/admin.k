@@ -12,7 +12,6 @@
         "@popperjs/core": "^2.11.6",
         "axios": "^1.10.0",
         "bootstrap": "^5.3.7",
-        "croppie": "^2.6.5",
         "datatables.net": "^2.3.3",
         "datatables.net-bs5": "^2.3.3",
         "datatables.net-responsive": "^3.0.6",
