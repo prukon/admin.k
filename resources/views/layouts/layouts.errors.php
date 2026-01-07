@@ -501,11 +501,6 @@
 {{--<script src="{{ asset('dist/js/pages/dashboard.js') }}"></script>--}}
 @yield('scripts')
 
-{{--Cropie--}}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css">
-<link rel="stylesheet" href="{{ asset('css/croppie.css') }}">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js"></script>
-
 {{--Select2--}}
 <link rel="stylesheet" href="{{ asset('css/select2/select2.min.css') }}">
 <link rel="stylesheet" href="{{ asset('css/select2/select2-bootstrap-5-theme.min.css') }}">

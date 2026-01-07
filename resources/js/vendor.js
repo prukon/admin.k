@@ -1,5 +1,5 @@
 /* ===== Подключения библиотек (локально через Vite) =====
- * Порядок: Bootstrap CSS → (прочие CSS) → jQuery UI → DataTables → Select2 → Croppie → moment+Daterangepicker → FullCalendar (JS)
+ * Порядок: Bootstrap CSS → (прочие CSS) → jQuery UI → DataTables → Select2 → moment+Daterangepicker → FullCalendar (JS)
  * ВАЖНО: jQuery уже подключён инлайн в layout.
  */
 
@@ -15,9 +15,6 @@ import 'datatables.net-responsive-bs5/css/responsive.bootstrap5.css';
 
 /* Select2 */
 import 'select2/dist/css/select2.min.css';
-
-/* Croppie */
-import 'croppie/croppie.css';
 
 /* Daterangepicker */
 import 'daterangepicker/daterangepicker.css';
@@ -35,10 +32,6 @@ import 'datatables.net-responsive-bs5';
 
 /* Select2 (тоже jQuery-плагин) */
 import 'select2';
-
-/* Croppie (чистая JS-либа) */
-import Croppie from 'croppie';
-window.Croppie = Croppie;
 
 /* moment + Daterangepicker (ожидает global moment + jQuery) */
 import moment from 'moment';
