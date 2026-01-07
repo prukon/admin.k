@@ -16,7 +16,7 @@
                     <div class="mb-3">
                         <label for="edit-title" class="form-label">Название группы*</label>
                         <input type="text" name="title" class="form-control" id="edit-title">
-                        <p class="text-danger" id="edit-title-error"></p>
+                        <div class="invalid-feedback" id="edit-title-error"></div>
                     </div>
 
                     <!-- Расписание -->
@@ -134,6 +134,10 @@
             const teamId = $('#edit-team-id').val();
             const formData = $('#edit-team-form').serialize();
 
+            // Сброс ошибок
+            $('#edit-title').removeClass('is-invalid');
+            $('#edit-title-error').text('');
+
             $.ajax({
                 url: `/admin/team/${teamId}`,
                 type: 'PATCH',
@@ -147,8 +151,15 @@
                     }
                 },
                 error: function(xhr) {
-                    // Можно дополнительно разобрать ошибки валидации:
-                    // const errors = xhr.responseJSON?.errors;
+                    if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                        const errors = xhr.responseJSON.errors;
+                        if (errors.title && errors.title.length) {
+                            $('#edit-title').addClass('is-invalid');
+                            $('#edit-title-error').text(errors.title[0]);
+                        }
+                        return;
+                    }
+
                     $('#errorModal').modal('show');
                 }
             });

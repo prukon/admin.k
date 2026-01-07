@@ -29,6 +29,14 @@ class StoreRequest extends FormRequest
         ];
     }
 
+    public function messages(): array
+    {
+        return [
+            'title.required' => 'Введите название',
+            'title.string' => 'Введите название',
+        ];
+    }
+
     /**
      * Modify the validated data before using it.
      */

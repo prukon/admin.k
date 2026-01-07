@@ -22,12 +22,20 @@ class UpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => 'string',
+            'title' => 'required|string',
             'weekdays' => 'nullable|array', // Правило 'array' указывает, что значение должно быть массивом
 //            'description' => 'string',
 //            'image' => '',
             'is_enabled' => 'boolean',
-            'order_by' => 'integer',
+            'order_by' => 'nullable|integer',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'title.required' => 'Введите название',
+            'title.string' => 'Введите название',
         ];
     }
 }

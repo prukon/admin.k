@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use App\Support\BuildsLogTable;
+use Intervention\Image\ImageManager;
 
 
 use App\Servises\UserService;
@@ -935,16 +936,35 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
-        $result = DB::transaction(function () use ($request, $user) {
-            $targetLabel = $user->full_name ?: "user#{$user->id}";
+        // Безопасная валидация: только реальные изображения (по MIME), без SVG/HTML/GIF, с лимитами размера
+        $request->validate([
+            'image_big' => ['required', 'file', 'max:5120', 'mimetypes:image/jpeg,image/png,image/webp'],  // 5MB
+            'image_crop' => ['required', 'file', 'max:4096', 'mimetypes:image/jpeg,image/png,image/webp'], // 4MB
+        ]);
 
-            // проверим файлы
-            if (!$request->hasFile('image_big') || !$request->hasFile('image_crop')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Файлы не загружены',
-                ], 422);
-            }
+        $bigFile = $request->file('image_big');
+        $cropFile = $request->file('image_crop');
+
+        // Перекодируем в JPEG и ограничим размеры, чтобы не хранить "опасные" форматы и огромные картинки
+        try {
+            $manager = ImageManager::gd();
+            $bigImage = $manager->read($bigFile->getRealPath())->scaleDown(1600, 1600);
+            $cropImage = $manager->read($cropFile->getRealPath())->coverDown(300, 300);
+
+            $bigBytes = (string) $bigImage->toJpeg(85);
+            $cropBytes = (string) $cropImage->toJpeg(90);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось обработать изображение.',
+            ], 422);
+        }
+
+        $bigName = Str::uuid()->toString() . '.jpg';
+        $cropName = Str::uuid()->toString() . '.jpg';
+
+        DB::transaction(function () use ($user, $bigName, $cropName, $bigBytes, $cropBytes) {
+            $targetLabel = $user->full_name ?: "user#{$user->id}";
 
             // удаляем старые файлы
             if ($user->image) {
@@ -954,22 +974,15 @@ class UserController extends Controller
                 Storage::disk('public')->delete('avatars/' . $user->image_crop);
             }
 
-            // сохраняем новые
-            $bigFile = $request->file('image_big');
-            $cropFile = $request->file('image_crop');
-
-            $bigName = Str::uuid() . '.' . $bigFile->getClientOriginalExtension();
-            $cropName = Str::uuid() . '.' . $cropFile->getClientOriginalExtension();
-
-            $bigFile->storeAs('avatars', $bigName, 'public');
-            $cropFile->storeAs('avatars', $cropName, 'public');
+            // сохраняем новые (только перекодированные байты)
+            Storage::disk('public')->put('avatars/' . $bigName, $bigBytes);
+            Storage::disk('public')->put('avatars/' . $cropName, $cropBytes);
 
             // обновляем БД
             $user->update([
                 'image' => $bigName,
                 'image_crop' => $cropName,
             ]);
-
 
             MyLog::create([
                 'type' => 2, // Лог для обновления юзеров
@@ -981,15 +994,14 @@ class UserController extends Controller
                 'description' => "Пользователю {$targetLabel} изменён аватар.",
                 'created_at' => now(),
             ]);
-            return compact('bigName', 'cropName');
         });
 
 
         return response()->json([
             'success' => true,
             'message' => 'Аватар обновлён',
-            'image_url' => asset('storage/avatars/' . $result['bigName']),
-            'image_crop_url' => asset('storage/avatars/' . $result['cropName']),
+            'image_url' => asset('storage/avatars/' . $bigName),
+            'image_crop_url' => asset('storage/avatars/' . $cropName),
         ]);
     }
 

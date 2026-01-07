@@ -69,7 +69,7 @@ class PermissionSeeder extends Seeder
             ['name'=>'payment_clubfee','description'=>'Оплата клубного взноса','group_slug'=>'misc','is_visible'=>1,'sort_order'=>175],
             ['name'=>'change_history','description'=>'Просмотр истории изменений','group_slug'=>'misc','is_visible'=>0,'sort_order'=>180],
             ['name'=>'manage_roles','description'=>'Управление ролями','group_slug'=>'misc','is_visible'=>0,'sort_order'=>190],
-            ['name'=>'changing_partner','description'=>'Изменение партнера','group_slug'=>'misc','is_visible'=>0,'sort_order'=>190],
+            // ['name'=>'changing_partner','description'=>'Изменение партнера','group_slug'=>'misc','is_visible'=>0,'sort_order'=>190],
             ['name'=>'setting_payment_systems','description'=>'Настройка платежных систем','group_slug'=>'misc','is_visible'=>0,'sort_order'=>200],
             ['name'=>'payment_method_T-Bank','description'=>'Способ оплаты "Т-Банк','group_slug'=>'misc','is_visible'=>0,'sort_order'=>200],
             ['name'=>'viewing_all_logs','description'=>'Просмотр всех логов','group_slug'=>'misc','is_visible'=>0,'sort_order'=>210],

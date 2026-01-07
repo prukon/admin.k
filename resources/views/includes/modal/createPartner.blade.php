@@ -7,7 +7,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
-                <form id="partnerForm" class="text-start row" action="{{ route('admin.partner.store') }}" method="POST">
+                <form id="partnerForm" class="text-start row" action="{{ route('admin.partner.store') }}" method="POST" novalidate>
                     @csrf
 
                     {{-- Основная информация --}}
@@ -71,7 +71,7 @@
                         {{-- Индекс --}}
                         <div class="mb-3">
                             <label for="zip" class="form-label">Индекс</label>
-                            <input type="text" class="form-control" id="zip" name="zip" maxlength="20" pattern="\d{6}" value="{{ old('zip') }}">
+                            <input type="text" class="form-control" id="zip" name="zip" maxlength="20" value="{{ old('zip') }}">
                             <div class="text-danger error-zip"></div>
                         </div>
 
@@ -188,6 +188,72 @@
     document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('partnerForm');
 
+        // ===== Laravel-style validation errors (422) =====
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function normalizeMessages(msg) {
+            if (Array.isArray(msg)) return msg;
+            if (msg === null || msg === undefined) return [];
+            return [String(msg)];
+        }
+
+        function initLaravelErrorMap(formEl) {
+            const map = new Map();
+            if (!formEl) return map;
+
+            formEl.querySelectorAll('[class*="error-"]').forEach(node => {
+                const token = Array.from(node.classList).find(c => c.startsWith('error-'));
+                if (!token) return;
+                const field = token.slice('error-'.length);
+                if (!field) return;
+                node.dataset.errorFor = field;
+                node.classList.add('invalid-feedback');
+                map.set(field, node);
+            });
+
+            return map;
+        }
+
+        function clearLaravelErrors(formEl, errorMap) {
+            if (!formEl) return;
+            (errorMap ? Array.from(errorMap.values()) : []).forEach(node => {
+                node.innerHTML = '';
+                node.classList.remove('d-block');
+            });
+            formEl.querySelectorAll('.is-invalid').forEach(i => i.classList.remove('is-invalid'));
+        }
+
+        function renderLaravelErrors(formEl, errorMap, errors) {
+            if (!formEl) return;
+            if (!errors || typeof errors !== 'object') return;
+
+            Object.keys(errors).forEach(field => {
+                const messages = normalizeMessages(errors[field]);
+                if (!messages.length) return;
+
+                const input =
+                    formEl.querySelector(`[name="${field}"]`) ||
+                    (field.includes('.') ? formEl.querySelector(`[name="${field.replace(/\.(\w+)/g, '[$1]')}"]`) : null);
+
+                if (input) input.classList.add('is-invalid');
+
+                const node = (errorMap && errorMap.get(field)) ? errorMap.get(field) : null;
+                if (node) {
+                    node.classList.add('d-block');
+                    node.innerHTML = messages.map(m => `<div>${escapeHtml(m)}</div>`).join('');
+                }
+            });
+        }
+
+        const errorMap = initLaravelErrorMap(form);
+
         function findInputByField(field) {
             // Прямое совпадение name="field"
             let el = form.querySelector(`[name="${field}"]`);
@@ -205,8 +271,7 @@
             e.preventDefault();
 
             // очищаем старые ошибки
-            form.querySelectorAll('[class^="text-danger error-"]').forEach(div => div.textContent = '');
-            form.querySelectorAll('.is-invalid').forEach(input => input.classList.remove('is-invalid'));
+            clearLaravelErrors(form, errorMap);
 
             const data = new FormData(form);
 
@@ -219,7 +284,7 @@
                 }
             })
                 .then(res => {
-                    if (res.status === 422) return res.json().then(json => { throw json.errors; });
+                    if (res.status === 422) return res.json().then(json => { throw (json && json.errors) ? json.errors : json; });
                     if (!res.ok) throw { general: ['Ошибка сервера'] };
                     return res.json();
                 })
@@ -232,16 +297,29 @@
                 })
                 .catch(errors => {
                     console.warn('[Partner.store] validation errors:', errors);
-                    Object.keys(errors).forEach(field => {
-                        const input = findInputByField(field);
-                        // блок для текста ошибки
-                        const errDiv = form.querySelector(`.error-${field}`) ||
-                            (field.includes('.') ? form.querySelector(`.error-${field.replace(/\./g,'\\.')}`) : null);
-                        if (input) input.classList.add('is-invalid');
-                        if (errDiv) errDiv.textContent = Array.isArray(errors[field]) ? errors[field].join(' ') : String(errors[field]);
-                    });
+                    renderLaravelErrors(form, errorMap, errors);
+                    if (errors && typeof errors === 'object') {
+                        Object.keys(errors).forEach(field => {
+                            const input = findInputByField(field);
+                            if (input) input.classList.add('is-invalid');
+                        });
+                    }
                     if (errors.general) { $('#errorModal').modal('show'); }
                 });
+        });
+
+        // Clear field error on user input/change
+        form.addEventListener('input', (e) => {
+            const t = e.target;
+            if (!t || !t.name) return;
+            const dotName = t.name.replace(/\[(\w+)\]/g, '.$1');
+            const key = errorMap.has(t.name) ? t.name : dotName;
+            const node = errorMap.get(key);
+            if (node) {
+                node.innerHTML = '';
+                node.classList.remove('d-block');
+            }
+            t.classList.remove('is-invalid');
         });
 
         // переименование лейбла «Наименование» и скрытие реквизитов для ФЛ (если нужно)

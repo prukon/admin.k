@@ -29,6 +29,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Gate;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\ImageManager;
 
 
 //use App\Models\Log;
@@ -572,10 +573,11 @@ class AccountController extends Controller
     public function store(Request $request)
     {
 
-        // Принимаем ДВЕ картинки: big и crop (квадрат), обе — Blob (file)
+        // Принимаем ДВЕ картинки: big и crop (квадрат)
+        // Важно: принимаем только реальные изображения (без SVG/HTML) и перекодируем перед сохранением.
         $request->validate([
-            'image_big' => 'required|file|mimes:jpg,jpeg,png,webp,gif|max:5120',   // 5 МБ
-            'image_crop' => 'required|file|mimes:jpg,jpeg,png,webp,gif|max:4096',   // 4 МБ
+            'image_big' => ['required', 'file', 'max:5120', 'mimetypes:image/jpeg,image/png,image/webp'],  // 5MB
+            'image_crop' => ['required', 'file', 'max:4096', 'mimetypes:image/jpeg,image/png,image/webp'], // 4MB
         ]);
 
         $user = $request->user();
@@ -589,11 +591,22 @@ class AccountController extends Controller
         $cropPath = "avatars/{$cropName}";
 
 
-        DB::transaction(function () use ($user, $request, $bigPath, $cropPath, $bigName, $cropName) {
+        // Перекодируем и ограничим размеры
+        try {
+            $manager = ImageManager::gd();
+            $bigImage = $manager->read($request->file('image_big')->getRealPath())->scaleDown(1600, 1600);
+            $cropImage = $manager->read($request->file('image_crop')->getRealPath())->coverDown(300, 300);
+            $bigBytes = (string) $bigImage->toJpeg(85);
+            $cropBytes = (string) $cropImage->toJpeg(90);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Не удалось обработать изображение.'], 422);
+        }
 
-            // Сохраняем как есть (клиент уже прислал кроп и сжатие)
-            Storage::disk('public')->put($bigPath, file_get_contents($request->file('image_big')->getRealPath()));
-            Storage::disk('public')->put($cropPath, file_get_contents($request->file('image_crop')->getRealPath()));
+        DB::transaction(function () use ($user, $bigPath, $cropPath, $bigName, $cropName, $bigBytes, $cropBytes) {
+
+            // Сохраняем только перекодированные байты
+            Storage::disk('public')->put($bigPath, $bigBytes);
+            Storage::disk('public')->put($cropPath, $cropBytes);
 
             // Удалим старые, если были
             if ($user->image && Storage::disk('public')->exists("avatars/{$user->image}")) {

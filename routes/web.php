@@ -46,6 +46,8 @@ use App\Http\Controllers\ContractsController;
 use App\Http\Controllers\Webhooks\PodpislonWebhookController;
 use App\Http\Controllers\YooKassaWebhookController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\Debug\RequestDebugController;
+use App\Http\Middleware\DebugRequestAccess;
 
 
 
@@ -53,6 +55,25 @@ use App\Http\Controllers\AdminUserController;
 Auth::routes();
 
 Route::get('/sitemap.xml', [\App\Http\Controllers\SitemapController::class, 'index'])->name('sitemap');
+
+// Debug endpoint for proxy/IP/header diagnostics.
+// Access: either X-Debug-Token header (env DEBUG_REQUEST_TOKEN) OR authenticated + 2FA passed + can:viewing-all-logs.
+Route::get('/_debug/request', [RequestDebugController::class, 'show'])
+    ->name('debug.request')
+    ->middleware([DebugRequestAccess::class, 'throttle:30,1'])
+    // не создаём session / XSRF cookies и не тянем "web" middleware, чтобы тест был чище
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+        // кастомные web middleware тоже не нужны для диагностики прокси
+        \App\Http\Middleware\SetPartner::class,
+        \App\Http\Middleware\SetMenuItems::class,
+        \App\Http\Middleware\SetSocialItems::class,
+        \App\Http\Middleware\ShareGlobalStats::class,
+    ]);
 
 
 //landing Page
@@ -389,7 +410,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
 //    Тинькоф эквайринг мультирасчеты
-        Route::middleware('can:partner-view')->group(function () {        
+       
+Route::middleware('can:payment-method-T-Bank')->group(function () {        
 
         Route::post('/tinkoff/payouts/{deal}/pay-now', [TinkoffPayoutController::class, 'payNow']);
         Route::post('/tinkoff/payouts/{deal}/delay', [TinkoffPayoutController::class, 'delay']);
@@ -416,8 +438,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show']);
         Route::post('/tinkoff/debug/verify-token', [TinkoffDebugController::class, 'verifyToken']);
         // регистрация в sm-register (создание PartnerId)
-
-
         Route::post('/admin/tinkoff/partners/{id}/sm-register', [TinkoffAdminPartnerController::class, 'smRegister'])
             ->name('tinkoff.partners.smRegister');
 
@@ -426,7 +446,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
         Route::post('/admin/tinkoff/partners/{id}/sm-refresh', [TinkoffAdminPartnerController::class, 'smRefresh'])
             ->name('tinkoff.partners.smRefresh');
-
 
 // routes/web.php
         Route::post('/admin/tinkoff/partners/{id}/sm-pull', [TinkoffAdminPartnerController::class, 'smPull'])
@@ -479,6 +498,6 @@ Route::get('/payments/tinkoff/{order}/fail', [TinkoffPaymentController::class, '
 Route::post('/webhooks/tinkoff/payments', [TinkoffWebhookController::class, 'payments']);
 
 
-Route::post('/admin/tinkoff/debug/ingest-webhook', [TinkoffDebugController::class, 'ingest'])
-    ->withoutMiddleware([VerifyCsrfToken::class])     // <— убрать CSRF
-    ->middleware('throttle:20,1');
+// Route::post('/admin/tinkoff/debug/ingest-webhook', [TinkoffDebugController::class, 'ingest'])
+//     ->withoutMiddleware([VerifyCsrfToken::class])     // <— убрать CSRF
+//     ->middleware('throttle:20,1');

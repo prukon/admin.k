@@ -44,6 +44,7 @@ class TinkoffAdminPartnerController extends Controller
         $validated = $request->validate([
             'business_type'        => 'required|string|in:individual_entrepreneur,company,physical_person,non_commercial_organization',
             'title'                => 'required|string|max:255',
+            'organization_name'    => 'required|string|max:255',
             'email'                => 'required|email',
             'tax_id'               => 'required|string|max:20',     // ИНН
             'registration_number'  => 'required|string|max:20',     // ОГРН/ОГРНИП
@@ -115,10 +116,11 @@ class TinkoffAdminPartnerController extends Controller
 
         // ---- подготовка данных ----
         $phone   = $normalizePhone($validated['phone'] ?? ($partner->phone ?? null));
+        $legalName = trim((string) $validated['organization_name']);
 
-        // billingDescriptor: из БД; если пусто — сгенерим из title и сохраним
+        // billingDescriptor: из БД; если пусто — сгенерим из юридически значимого имени и сохраним
         $bdFromDb = $partner->sms_name ?: null;
-        $bd       = $bdFromDb ?: $makeDescriptor($validated['title']);
+        $bd       = $bdFromDb ?: $makeDescriptor($legalName);
 
         $city    = preg_match('/^(\s*spb|\s*спб)$/iu', $validated['city']) ? 'Санкт-Петербург' : $validated['city'];
         $street  = $sanitizeStreet($validated['address'], $city);
@@ -143,15 +145,15 @@ class TinkoffAdminPartnerController extends Controller
             $ceoMiddle = $existingCeo['middleName'] ?? null;
             $ceoPhone  = $normalizePhone($existingCeo['phone'] ?? ($validated['phone'] ?? $partner->phone ?? null)) ?: '+70000000000';
         } else {
-            [$ceoFirst, $ceoLast, $ceoMiddle] = $extractCeo($validated['title']);
+            [$ceoFirst, $ceoLast, $ceoMiddle] = $extractCeo($legalName);
             $ceoPhone = $normalizePhone($validated['phone'] ?? ($partner->phone ?? null)) ?: '+70000000000';
         }
 
         // ---- payload ----
         $payload = [
             'billingDescriptor' => $bd,
-            'fullName'          => $validated['title'],
-            'name'              => $validated['title'],
+            'fullName'          => $legalName,
+            'name'              => $legalName,
             'inn'               => (string)$validated['tax_id'],
             'kpp'               => (string)$kpp,
             'ogrn'              => $ogrn,
@@ -217,6 +219,7 @@ class TinkoffAdminPartnerController extends Controller
                 'sm_details_template'           => $validated['sm_details_template'],
                 'bank_details_version'          => (int)($partner->bank_details_version ?? 0) + 1,
                 'bank_details_last_updated_at'  => now(),
+                'organization_name'             => $legalName,
                 'city'                          => $city,
                 'zip'                           => (string)$validated['zip'],
                 'phone'                         => $phone ?: $partner->phone,
@@ -258,6 +261,7 @@ class TinkoffAdminPartnerController extends Controller
         $validated = $request->validate([
             'business_type'        => 'required|string|in:individual_entrepreneur,company,physical_person,non_commercial_organization',
             'title'                => 'required|string|max:255',
+            'organization_name'    => 'required|string|max:255',
             'email'                => 'required|email',
             'tax_id'               => 'required|string|max:20',     // ИНН
             'registration_number'  => 'required|string|max:20',     // ОГРН/ОГРНИП
@@ -301,6 +305,7 @@ class TinkoffAdminPartnerController extends Controller
 
     // подготовка данных (как в регистрации)
     $phone   = $normalizePhone($validated['phone'] ?? $partner->phone);
+    $legalName = trim((string) $validated['organization_name']);
     $city    = preg_match('/^(\s*spb|\s*спб)$/iu', $validated['city']) ? 'Санкт-Петербург' : $validated['city'];
     $street  = $sanitizeStreet($validated['address'], $city);
 
@@ -316,8 +321,8 @@ class TinkoffAdminPartnerController extends Controller
     // формируем широкий PATCH-пейлоад (банк + адрес + базовые поля)
     $payload = [
         // billingDescriptor НЕ меняем из формы — источник истины в БД/регистрации
-        'fullName' => $validated['title'],
-        'name'     => $validated['title'],
+        'fullName' => $legalName,
+        'name'     => $legalName,
         'inn'      => (string)$validated['tax_id'],
         'kpp'      => (string)$kpp,
         'ogrn'     => $ogrn,
@@ -370,6 +375,7 @@ class TinkoffAdminPartnerController extends Controller
         // локально обновляем всё, что есть в форме
         $partner->fill([
             'title'                        => $validated['title'],
+            'organization_name'            => $legalName,
             'tax_id'                       => $validated['tax_id'],
             'registration_number'          => $validated['registration_number'],
             'kpp'                          => $kpp,
@@ -446,12 +452,12 @@ class TinkoffAdminPartnerController extends Controller
             $remote = $sm->getStatus($partner->tinkoff_partner_id);
 
             // ЛОГ 1: сырой ответ
-            \Log::channel('tinkoff')->info(
+            Log::channel('tinkoff')->info(
                 '[admin][smPull][remote_raw] shopCode='.$partner->tinkoff_partner_id.' body='.json_encode($remote, JSON_UNESCAPED_UNICODE)
             );
 
             // Доп. лог ключей на верхнем уровне и в bankAccount
-            \Log::channel('tinkoff')->info(
+            Log::channel('tinkoff')->info(
                 '[admin][smPull][remote_keys] top=' . implode(',', array_keys($remote ?: [])) .
                 ' bankAccount_keys=' . implode(',', array_keys((array) data_get($remote, 'bankAccount', []))) .
                 ' addresses_present=' . (data_get($remote, 'addresses') ? 'yes' : 'no')
@@ -469,7 +475,7 @@ class TinkoffAdminPartnerController extends Controller
 
             // 3) Что собираемся писать (включили sm_details_template)
             $toWrite = [
-                'title'               => (string) data_get($remote, 'fullName', $partner->title),
+                'organization_name'   => (string) data_get($remote, 'fullName', $partner->organization_name),
                 'tax_id'              => (string) data_get($remote, 'inn', $partner->tax_id),
                 'kpp'                 => (string) data_get($remote, 'kpp', $partner->kpp),
                 'registration_number' => (string) data_get($remote, 'ogrn', $partner->registration_number),
@@ -493,8 +499,8 @@ class TinkoffAdminPartnerController extends Controller
             ];
 
             // ЛОГ 2: что планируем писать + отдельно значение details
-            \Log::channel('tinkoff')->info('[admin][smPull][bank.details] "'.$details.'"');
-            \Log::channel('tinkoff')->info('[admin][smPull][to_write] '.json_encode($toWrite, JSON_UNESCAPED_UNICODE));
+            Log::channel('tinkoff')->info('[admin][smPull][bank.details] "'.$details.'"');
+            Log::channel('tinkoff')->info('[admin][smPull][to_write] '.json_encode($toWrite, JSON_UNESCAPED_UNICODE));
 
             // 4) Дифф
             $before = $partner->only(array_keys($toWrite));
@@ -517,7 +523,7 @@ class TinkoffAdminPartnerController extends Controller
                     $changed[$k] = ['from' => $before[$k] ?? null, 'to' => $v];
                 }
             }
-            \Log::channel('tinkoff')->info('[admin][smPull][changed] '.json_encode($changed, JSON_UNESCAPED_UNICODE));
+            Log::channel('tinkoff')->info('[admin][smPull][changed] '.json_encode($changed, JSON_UNESCAPED_UNICODE));
 
             if ($r->ajax()) {
                 return response()->json(['ok' => true, 'changed' => $changed, 'remote' => $remote]);
@@ -525,7 +531,7 @@ class TinkoffAdminPartnerController extends Controller
             return back()->with('ok', 'Реквизиты подтянуты из sm-register');
 
         } catch (\Throwable $e) {
-            \Log::channel('tinkoff')->error('[sm-register][pull] '.$e->getMessage());
+            Log::channel('tinkoff')->error('[sm-register][pull] '.$e->getMessage());
             $msg = 'Ошибка pull: '.$e->getMessage();
             return $r->ajax()
                 ? response()->json(['ok' => false, 'error' => $msg], 422)

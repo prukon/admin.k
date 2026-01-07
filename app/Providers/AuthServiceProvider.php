@@ -120,7 +120,6 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('account.documents.view');
         });
 
-
         // Страница "Сообщения"
         Gate::define('messages-view', function (User $user) {
             return $user->hasPermission('messages.view');

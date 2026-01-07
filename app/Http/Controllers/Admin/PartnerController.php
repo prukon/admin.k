@@ -88,6 +88,7 @@ class PartnerController extends Controller
             $fields = [
                 'business_type' => 'Тип бизнеса',
                 'title' => 'Наименование',
+                'organization_name' => 'Наименование организации',
                 'tax_id' => 'ИНН',
                 'kpp' => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',
@@ -156,6 +157,7 @@ class PartnerController extends Controller
             'id' => $partner->id,
             'business_type' => $partner->business_type,
             'title' => $partner->title,
+            'organization_name' => $partner->organization_name,
             'tax_id' => $partner->tax_id,
             'kpp' => $partner->kpp,
             'registration_number' => $partner->registration_number,
@@ -200,7 +202,7 @@ class PartnerController extends Controller
         \DB::transaction(function () use ($data, $authorId, $partner) {
 
             $old = $partner->only([
-                'business_type', 'title', 'tax_id', 'kpp', 'registration_number',
+                'business_type', 'title', 'organization_name', 'tax_id', 'kpp', 'registration_number',
                 'sms_name', 'city', 'zip', 'address',
                 'phone', 'email', 'website',
                 'bank_name', 'bank_bik', 'bank_account',
@@ -210,7 +212,7 @@ class PartnerController extends Controller
             $partner->update($data);
 
             $new = $partner->only([
-                'business_type', 'title', 'tax_id', 'kpp', 'registration_number',
+                'business_type', 'title', 'organization_name', 'tax_id', 'kpp', 'registration_number',
                 'sms_name', 'city', 'zip', 'address',
                 'phone', 'email', 'website',
                 'bank_name', 'bank_bik', 'bank_account',
@@ -220,6 +222,7 @@ class PartnerController extends Controller
             $fields = [
                 'business_type' => 'Тип бизнеса',
                 'title' => 'Наименование',
+                'organization_name' => 'Наименование организации',
                 'tax_id' => 'ИНН',
                 'kpp' => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',
@@ -330,6 +333,7 @@ class PartnerController extends Controller
         $old = $partner->only([
             'business_type',
             'title',
+            'organization_name',
             'tax_id',
             'kpp',
             'registration_number',
@@ -352,6 +356,7 @@ class PartnerController extends Controller
             $fields = [
                 'business_type' => 'Тип бизнеса',
                 'title' => 'Наименование',
+            'organization_name' => 'Наименование организации',
                 'tax_id' => 'ИНН',
                 'kpp' => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',

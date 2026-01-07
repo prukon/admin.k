@@ -14,10 +14,14 @@
                     @csrf
                     <div class="mb-3">
                         <label for="title" class="form-label">Название группы*</label>
-                        <input type="text" name="title" class="form-control" id="title" value="{{ old('title') }}">
-                        @error('title')
-                        <p class="text-danger">{{ 'Введите название' }}</p>
-                        @enderror
+                        <input type="text"
+                               name="title"
+                               class="form-control @error('title') is-invalid @enderror"
+                               id="title"
+                               value="{{ old('title') }}">
+                        <div id="title-error" class="invalid-feedback">
+                            @error('title'){{ $message }}@enderror
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -91,12 +95,28 @@
                     }
                 })
                     .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`Ошибка HTTP: ${response.status}`);
-                        }
-                        return response.json();
+                        return response.json().then(data => ({ ok: response.ok, status: response.status, data }));
                     })
-                    .then(data => {
+                    .then(({ ok, status, data }) => {
+                        // Сброс ошибок
+                        const titleInput = document.getElementById('title');
+                        const titleError = document.getElementById('title-error');
+                        titleInput.classList.remove('is-invalid');
+                        if (titleError) titleError.textContent = '';
+
+                        if (!ok && status === 422) {
+                            const errors = data?.errors || {};
+                            if (errors.title?.length) {
+                                titleInput.classList.add('is-invalid');
+                                if (titleError) titleError.textContent = errors.title[0];
+                            }
+                            return;
+                        }
+
+                        if (!ok) {
+                            throw new Error(`Ошибка HTTP: ${status}`);
+                        }
+
                         if (data.message) {
                             showSuccessModal("Создание группы", "Группа успешно создана.", 1);
                         } else {

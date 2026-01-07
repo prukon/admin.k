@@ -11,7 +11,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
-                <form id="partnerForm" class="text-start row" action="{{ route('admin.partner.store') }}" method="POST">
+                <form id="partnerForm" class="text-start row" action="{{ route('admin.partner.store') }}" method="POST" novalidate>
                     @csrf
 
                     {{-- Основная информация --}}
@@ -35,6 +35,14 @@
                             <label for="title" class="form-label" id="label-title">Наименование*</label>
                             <input type="text" class="form-control" id="title" name="title" value="{{ old('title') }}">
                             <div class="text-danger error-title"></div>
+                        </div>
+
+                        {{-- Наименование организации --}}
+                        <div class="mb-3" id="organization_name_wrapper">
+                            <label for="organization_name" class="form-label">Наименование организации</label>
+                            <input type="text" class="form-control" id="organization_name" name="organization_name"
+                                   value="{{ old('organization_name') }}">
+                            <div class="text-danger error-organization_name"></div>
                         </div>
 
                         {{-- ИНН --}}
@@ -75,7 +83,7 @@
                         {{-- Индекс --}}
                         <div class="mb-3">
                             <label for="zip" class="form-label">Индекс</label>
-                            <input type="text" class="form-control" id="zip" name="zip" maxlength="20" pattern="\d{6}" value="{{ old('zip') }}">
+                            <input type="text" class="form-control" id="zip" name="zip" maxlength="20" value="{{ old('zip') }}">
                             <div class="text-danger error-zip"></div>
                         </div>
 
@@ -219,20 +227,26 @@
                             <p class="text-danger" id="edit-title-error"></p>
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-3" id="edit-organization_name_wrapper">
+                            <label for="edit-organization_name" class="form-label">Наименование организации</label>
+                            <input type="text" name="organization_name" class="form-control" id="edit-organization_name">
+                            <p class="text-danger" id="edit-organization_name-error"></p>
+                        </div>
+
+                        <div class="mb-3" id="edit-tax_id_wrapper">
                             <label for="edit-tax_id" class="form-label">ИНН</label>
                             <input type="text" name="tax_id" class="form-control" id="edit-tax_id">
                             <p class="text-danger" id="edit-tax_id-error"></p>
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-3" id="edit-kpp_wrapper">
                             <label for="edit-kpp" class="form-label">КПП</label>
                             <input type="text" name="kpp" class="form-control" id="edit-kpp">
                             <p class="text-danger" id="edit-kpp-error"></p>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="edit-registration_number" class="form-label">ОГРН (ОГРНИП)</label>
+                        <div class="mb-3" id="edit-registration_number_wrapper">
+                            <label for="edit-registration_number" class="form-label" id="edit-label-registration_number">ОГРН (ОГРНИП)</label>
                             <input type="text" name="registration_number" class="form-control" id="edit-registration_number">
                             <p class="text-danger" id="edit-registration_number-error"></p>
                         </div>
@@ -251,7 +265,7 @@
 
                         <div class="mb-3">
                             <label for="edit-zip" class="form-label">Индекс</label>
-                            <input type="text" name="zip" class="form-control" id="edit-zip" maxlength="20" pattern="\d{6}">
+                            <input type="text" name="zip" class="form-control" id="edit-zip" maxlength="20">
                             <p class="text-danger" id="edit-zip-error"></p>
                         </div>
 
@@ -282,7 +296,7 @@
 
                     {{-- Реквизиты + Данные руководителя --}}
                     <div class="col-12 col-lg-6 mb-3">
-                        <h4>Реквизиты</h4>
+                        <h4 id="edit-requisites">Реквизиты</h4>
                         <div id="edit-bankFields">
                             <div class="mb-3">
                                 <label for="edit-bank_name" class="form-label">Наименование банка</label>
@@ -360,8 +374,77 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
 
+        // ===== Laravel-style validation errors (422) =====
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function normalizeMessages(msg) {
+            if (Array.isArray(msg)) return msg;
+            if (msg === null || msg === undefined) return [];
+            return [String(msg)];
+        }
+
+        function initLaravelErrorMap(formEl) {
+            const map = new Map();
+            if (!formEl) return map;
+
+            // Any element having a class token like "error-<field>" becomes a feedback node.
+            formEl.querySelectorAll('[class*="error-"]').forEach(node => {
+                const token = Array.from(node.classList).find(c => c.startsWith('error-'));
+                if (!token) return;
+                const field = token.slice('error-'.length);
+                if (!field) return;
+
+                node.dataset.errorFor = field;
+                node.classList.add('invalid-feedback');
+                // Bootstrap shows invalid-feedback only when sibling control has is-invalid.
+                // We also add d-block during render to be extra safe in modal layouts.
+                map.set(field, node);
+            });
+
+            return map;
+        }
+
+        function clearLaravelErrors(formEl, errorMap) {
+            if (!formEl) return;
+            (errorMap ? Array.from(errorMap.values()) : []).forEach(node => {
+                node.innerHTML = '';
+                node.classList.remove('d-block');
+            });
+            formEl.querySelectorAll('.is-invalid').forEach(i => i.classList.remove('is-invalid'));
+        }
+
+        function renderLaravelErrors(formEl, errorMap, errors) {
+            if (!formEl) return;
+            if (!errors || typeof errors !== 'object') return;
+
+            Object.keys(errors).forEach(field => {
+                const messages = normalizeMessages(errors[field]);
+                if (!messages.length) return;
+
+                const input =
+                    formEl.querySelector(`[name="${field}"]`) ||
+                    (field.includes('.') ? formEl.querySelector(`[name="${field.replace(/\.(\w+)/g, '[$1]')}"]`) : null);
+
+                if (input) input.classList.add('is-invalid');
+
+                const node = (errorMap && errorMap.get(field)) ? errorMap.get(field) : null;
+                if (node) {
+                    node.classList.add('d-block');
+                    node.innerHTML = messages.map(m => `<div>${escapeHtml(m)}</div>`).join('');
+                }
+            });
+        }
+
         /* ========== CREATE ========== */
         const createForm = document.getElementById('partnerForm');
+        const createErrorMap = initLaravelErrorMap(createForm);
 
         function findCreateInputByField(field) {
             let el = createForm.querySelector(`[name="${field}"]`);
@@ -379,8 +462,7 @@
                 e.preventDefault();
 
                 // очистка ошибок
-                createForm.querySelectorAll('[class^="text-danger error-"]').forEach(div => div.textContent = '');
-                createForm.querySelectorAll('.is-invalid').forEach(i => i.classList.remove('is-invalid'));
+                clearLaravelErrors(createForm, createErrorMap);
 
                 const data = new FormData(createForm);
 
@@ -393,7 +475,7 @@
                     }
                 })
                     .then(res => {
-                        if (res.status === 422) return res.json().then(j => { throw j.errors; });
+                        if (res.status === 422) return res.json().then(j => { throw (j && j.errors) ? j.errors : j; });
                         if (!res.ok) throw { general: ['Ошибка сервера'] };
                         return res.json();
                     })
@@ -406,20 +488,39 @@
                     })
                     .catch(errors => {
                         console.warn('[Partner.store] validation errors:', errors);
-                        Object.keys(errors).forEach(field => {
-                            const input = findCreateInputByField(field);
-                            const errDiv = createForm.querySelector(`.error-${CSS.escape(field)}`);
-                            if (input) input.classList.add('is-invalid');
-                            if (errDiv) errDiv.textContent = Array.isArray(errors[field]) ? errors[field].join(' ') : String(errors[field]);
-                        });
+                        // Laravel format: { errors: { field: [msg1, msg2] } }
+                        renderLaravelErrors(createForm, createErrorMap, errors);
+
+                        // fallback: if some fields are not mapped by error-* nodes, keep old lookup as best-effort
+                        if (errors && typeof errors === 'object') {
+                            Object.keys(errors).forEach(field => {
+                                const input = findCreateInputByField(field);
+                                if (input) input.classList.add('is-invalid');
+                            });
+                        }
                         if (errors.general) { $('#errorModal').modal('show'); }
                     });
+            });
+
+            // Clear field error on user input/change
+            createForm.addEventListener('input', (e) => {
+                const t = e.target;
+                if (!t || !t.name) return;
+                // convert ceo[lastName] -> ceo.lastName to match server keys
+                const dotName = t.name.replace(/\[(\w+)\]/g, '.$1');
+                const key = createErrorMap.has(t.name) ? t.name : dotName;
+                const node = createErrorMap.get(key);
+                if (node) {
+                    node.innerHTML = '';
+                    node.classList.remove('d-block');
+                }
+                t.classList.remove('is-invalid');
             });
 
             function toggleCreateFields() {
                 const type = createForm.business_type.value;
                 const isPP = type === 'physical_person';
-                ['tax_id_wrapper','kpp_wrapper','registration_number_wrapper','requisites','bankFields']
+                ['organization_name_wrapper','tax_id_wrapper','kpp_wrapper','registration_number_wrapper','requisites','bankFields']
                     .forEach(id => { const node = document.getElementById(id); if (node) node.style.display = isPP ? 'none' : ''; });
                 document.getElementById('label-title').textContent = isPP ? 'ФИО*' : 'Наименование*';
             }
@@ -457,6 +558,7 @@
                     $('#edit-partner-id').val(response.id);
                     $('#edit-business_type').val(response.business_type);
                     $('#edit-title').val(response.title);
+                    $('#edit-organization_name').val(response.organization_name || '');
                     $('#edit-tax_id').val(response.tax_id);
                     $('#edit-kpp').val(response.kpp);
                     $('#edit-registration_number').val(response.registration_number);
@@ -474,9 +576,8 @@
                     $('#edit-order_by').val(response.order_by);
                     $('#edit-is_enabled').val(response.is_enabled ? '1' : '0');
 
-                    $('#edit-title').siblings('label').text(
-                        response.business_type === 'physical_person' ? 'ФИО*' : 'Наименование*'
-                    );
+                    // Скрытие/показ полей по типу бизнеса (как в Create-модалке)
+                    toggleEditFields();
 
                     const ceo = normalizeCeoCamel(response.ceo);
                     $('#edit-ceo_lastName').val(ceo.lastName);
@@ -497,6 +598,31 @@
             });
         });
 
+        function toggleEditFields() {
+            const type = $('#edit-business_type').val();
+            const isPP = type === 'physical_person';
+            const showKpp = type === 'company' || type === 'non_commercial_organization';
+            const isIE = type === 'individual_entrepreneur';
+
+            // Для физлица скрываем юр.поля и реквизиты
+            $('#edit-tax_id_wrapper').toggle(!isPP);
+            $('#edit-organization_name_wrapper').toggle(!isPP);
+            $('#edit-kpp_wrapper').toggle(!isPP && showKpp);
+            $('#edit-registration_number_wrapper').toggle(!isPP);
+
+            $('#edit-requisites').toggle(!isPP);
+            $('#edit-bankFields').toggle(!isPP);
+
+            // Подписи
+            $('#edit-title').siblings('label').text(isPP ? 'ФИО*' : 'Наименование*');
+            $('#edit-label-registration_number').text(isIE ? 'ОГРНИП' : 'ОГРН');
+        }
+
+        // Переключение полей в модалке редактирования при смене типа бизнеса
+        $(document).on('change', '#edit-business_type', function () {
+            toggleEditFields();
+        });
+
         $('#update-partner-btn').on('click', function () {
             const partnerId = $('#edit-partner-id').val();
             const formData = $('#edit-partner-form').serialize();
@@ -514,9 +640,15 @@
                     console.error('[Partner.update] error:', xhr?.responseText || xhr);
                     if (xhr.status === 422) {
                         const errors = xhr.responseJSON.errors || {};
+                        // clear previous
+                        $('#edit-partner-form .is-invalid').removeClass('is-invalid');
+                        // Convert existing <p class="text-danger"> to bootstrap-like feedback on demand
+                        $('#edit-partner-form p.text-danger').each(function () {
+                            $(this).addClass('invalid-feedback d-block').text('');
+                        });
                         $.each(errors, function (field, messages) {
                             const fieldId = field.replace(/\./g, '_'); // ceo.firstName -> ceo_firstName
-                            $('#edit-' + fieldId + '-error').text(messages.join(' '));
+                            $('#edit-' + fieldId + '-error').addClass('invalid-feedback d-block').html(messages.map(m => `<div>${escapeHtml(m)}</div>`).join(''));
                             $('#edit-' + fieldId).addClass('is-invalid');
                         });
                     } else {

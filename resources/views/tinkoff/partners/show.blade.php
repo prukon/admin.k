@@ -33,7 +33,7 @@
                             @csrf
 
                             <div class="row g-3">
-                                <div class="col-md-4">
+                                <div class="col-lg-3 col-md-6">
                                     <label class="form-label">Юр. форма</label>
                                     <select name="business_type" class="form-select" id="business_type" required>
                                         @php $bt = $partner->business_type; @endphp
@@ -45,13 +45,20 @@
                                     <div class="form-text">API: служебно (влияет на обязательность <code>kpp*</code>).</div>
                                 </div>
 
-                                <div class="col-md-4">
+                                <div class="col-lg-3 col-md-6">
                                     <label class="form-label">Наименование</label>
                                     <input name="title" id="title" class="form-control" required value="{{ $partner->title }}">
                                     <div class="form-text">API: <code>fullName*</code> (а также <code>name*</code>).</div>
                                 </div>
 
-                                <div class="col-md-4">
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Наименование организации</label>
+                                    <input name="organization_name" id="organization_name" class="form-control" required
+                                           value="{{ old('organization_name', $partner->organization_name) }}">
+                                    <div class="form-text">Используется для интеграции с банком (SM): <code>fullName</code>/<code>name</code>.</div>
+                                </div>
+
+                                <div class="col-lg-3 col-md-6">
                                     <label class="form-label">E-mail</label>
                                     <input name="email" class="form-control" type="email" required value="{{ $partner->email }}">
                                     <div class="form-text">API: <code>email*</code></div>
@@ -324,7 +331,7 @@
 
                             <div class="row g-3">
                                 {{-- Юр. форма --}}
-                                <div class="col-md-4">
+                                <div class="col-lg-3 col-md-6">
                                     <label class="form-label">Юр. форма</label>
                                     <select name="business_type" class="form-select" id="business_type" required>
                                         @php $bt = $partner->business_type; @endphp
@@ -336,13 +343,21 @@
                                 </div>
 
                                 {{-- Наименование --}}
-                                <div class="col-md-4">
+                                <div class="col-lg-3 col-md-6">
                                     <label class="form-label">Наименование</label>
                                     <input name="title" id="title" class="form-control" required value="{{ $partner->title }}">
                                 </div>
 
+                                {{-- Наименование организации (поле для банка/SM) --}}
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Наименование организации</label>
+                                    <input name="organization_name" id="organization_name" class="form-control" required
+                                           value="{{ old('organization_name', $partner->organization_name) }}">
+                                    <div class="form-text">Используется для интеграции с банком (SM): <code>fullName</code>/<code>name</code>.</div>
+                                </div>
+
                                 {{-- E-mail --}}
-                                <div class="col-md-4">
+                                <div class="col-lg-3 col-md-6">
                                     <label class="form-label">E-mail</label>
                                     <input name="email" class="form-control" type="email" required value="{{ $partner->email }}">
                                 </div>

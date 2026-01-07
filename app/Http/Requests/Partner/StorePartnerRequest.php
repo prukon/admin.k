@@ -35,6 +35,7 @@ class StorePartnerRequest extends FormRequest
         return [
             'business_type'       => 'required|in:company,individual_entrepreneur,non_commercial_organization,physical_person',
             'title'               => 'required|string|max:255',
+            'organization_name'   => 'nullable|string|max:255',
             'tax_id'              => 'nullable|string|max:12',
             'kpp'                 => 'nullable|string|max:9',
             'registration_number' => 'nullable|string|max:20',
@@ -77,6 +78,7 @@ class StorePartnerRequest extends FormRequest
         return [
             'business_type'       => 'Тип бизнеса',
             'title'               => 'Наименование',
+            'organization_name'   => 'Наименование организации',
             'tax_id'              => 'ИНН',
             'kpp'                 => 'КПП',
             'registration_number' => 'ОГРН (ОГРНИП)',
