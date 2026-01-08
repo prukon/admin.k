@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
-use function Illuminate\Http\Client\dump;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 //use function Termwind\dd;
 //use function Termwind\dd;
 use Yajra\DataTables\DataTables;
@@ -57,7 +57,7 @@ class ReportController extends Controller
             }
             return null; // Возвращаем null, если не удалось преобразовать
         } catch (\Exception $e) {
-            \Log::error('Ошибка преобразования даты: ' . $e->getMessage());
+            Log::error('Ошибка преобразования даты: ' . $e->getMessage());
             return null;
         }
     }
@@ -69,9 +69,12 @@ class ReportController extends Controller
 
 
         $totalPaidPrice = DB::table('payments')
-            ->where('user_name',$this->curUser->name) // Сначала фильтрация по user_id
+            ->where('user_id', $this->curUser->id) // Сначала фильтрация по user_id
             ->sum('payments.summ');      // Затем вычисление суммы
 
+
+
+            
 //        dd($totalPaidPrice);
         $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
 
@@ -87,7 +90,7 @@ class ReportController extends Controller
 
         if ($request->ajax()) {
             $payments = Payment::with(['user.team'])
-                ->where('user_name',$this->curUser->name) // Сначала фильтрация по user_id
+                ->where('user_id', $this->curUser->id) // Сначала фильтрация по user_id
                 ->get();
 
 
