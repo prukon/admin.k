@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class ConvertRussianMonths extends Command
@@ -29,6 +30,11 @@ class ConvertRussianMonths extends Command
      */
     public function handle()
     {
+        if (!Schema::hasColumn('users_prices', 'month')) {
+            $this->info('Column users_prices.month does not exist. Nothing to convert.');
+            return 0;
+        }
+
         // Массив для замены русских месяцев на английские
         $months = [
             'Январь' => 'January',
@@ -46,7 +52,9 @@ class ConvertRussianMonths extends Command
         ];
 
         // Получаем все записи из таблицы
-        $usersPrices = DB::table('users_prices')->get();
+        $usersPrices = DB::table('users_prices')
+            ->whereNotNull('month')
+            ->get();
 
         foreach ($usersPrices as $price) {
             foreach ($months as $ru => $en) {
