@@ -4,7 +4,6 @@ namespace App\Listeners;
 
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Request;
-//use App\Models\Log;
 use App\Models\MyLog;
 use Jenssegers\Agent\Agent;
 

@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 
-//use App\Models\Log;
 use App\Models\MyLog;
 use App\Models\MenuItem;
 use App\Models\Partner;
@@ -20,10 +19,10 @@ use App\Models\Weekday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use App\Models\Role;
 use App\Models\Permission;
-use App\Models\Log;
 use App\Support\BuildsLogTable;
 
 class SettingController extends Controller

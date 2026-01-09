@@ -14,10 +14,8 @@ use App\Models\User;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-//use App\Models\Log;
 use App\Models\MyLog;
 
-//use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use function Termwind\dd;
 use Yajra\DataTables\DataTables;

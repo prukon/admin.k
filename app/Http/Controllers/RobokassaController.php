@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-//use App\Models\Log;
 use App\Models\MyLog;
 use App\Models\Payment;
 use App\Models\PaymentSystem;

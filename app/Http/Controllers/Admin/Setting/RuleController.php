@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin\Setting;
 use App\Http\Controllers\Controller;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
-//use App\Models\Log;
 use App\Models\MyLog;
 use App\Models\MenuItem;
 use App\Models\Setting;

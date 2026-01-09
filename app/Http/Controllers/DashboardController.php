@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
-//use App\Models\Log;
 
 use App\Models\MyLog;
 use App\Models\ScheduleUser;

@@ -35,10 +35,6 @@ use App\Models\MyLog;
 
 use App\Support\BuildsLogTable;
 
-//use App\Models\Log;
-//use Illuminate\Support\Facades\Log;
-
-
 //Контроллер для админа
 
 class PartnerController extends Controller

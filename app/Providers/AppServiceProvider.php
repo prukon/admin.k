@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-//use App\Models\Log;
 use App\Models\MenuItem;
 use App\Models\Partner;
 use App\Models\PartnerAccess;

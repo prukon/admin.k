@@ -32,11 +32,7 @@ use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 
 
-//use App\Models\Log;
 use App\Models\MyLog;
-
-//use Illuminate\Support\Facades\Log;
-
 
 class AccountController extends Controller
 {

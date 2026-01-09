@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\Controller;
-use App\Models\Log;
 use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
