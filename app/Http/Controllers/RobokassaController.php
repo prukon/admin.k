@@ -61,11 +61,43 @@ class RobokassaController extends Controller
         $partnerId = (int) $intent->partner_id;
         $payable = $intent->payable;
         if (!$payable) {
-            Log::error('Robokassa result: payable not found for intent', [
-                'InvId' => $invId,
-                'intent_id' => $intent->id,
-            ]);
-            return response("bad invoice\n", 404);
+            // Пытаемся восстановить связь для "исторических" intent-ов, созданных до появления payable_id.
+            $typeGuess = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $intent->payment_date) ? 'monthly_fee' : 'club_fee';
+
+            $q = Payable::query()
+                ->where('partner_id', (int) $intent->partner_id)
+                ->where('user_id', (int) $intent->user_id)
+                ->where('amount', (string) $intent->out_sum)
+                ->where('status', 'pending')
+                ->where('type', $typeGuess);
+
+            if ($typeGuess === 'monthly_fee' && !empty($intent->payment_date)) {
+                $q->whereDate('month', '=', (string) $intent->payment_date);
+            }
+
+            // ограничиваем поиск по времени создания (±30 минут), чтобы не прицепиться к чужой покупке
+            if (!empty($intent->created_at)) {
+                $q->whereBetween('created_at', [$intent->created_at->copy()->subMinutes(30), $intent->created_at->copy()->addMinutes(30)]);
+            }
+
+            $candidates = $q->limit(2)->get();
+            if ($candidates->count() === 1) {
+                $payable = $candidates->first();
+                $intent->payable_id = $payable->id;
+                $intent->save();
+                Log::warning('Robokassa result: payable_id restored for intent', [
+                    'InvId'      => $invId,
+                    'intent_id'  => $intent->id,
+                    'payable_id' => $payable->id,
+                ]);
+            } else {
+                Log::error('Robokassa result: payable not found for intent', [
+                    'InvId'      => $invId,
+                    'intent_id'  => $intent->id,
+                    'candidates' => $candidates->count(),
+                ]);
+                return response("bad invoice\n", 404);
+            }
         }
 
         // Достаём настройки Robokassa именно для партнёра intent-а

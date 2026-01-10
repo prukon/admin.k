@@ -162,6 +162,12 @@ class TransactionController extends Controller
             ], JSON_UNESCAPED_UNICODE),
         ]);
 
+        // На всякий случай (защита от future-regressions с fillable)
+        if (empty($intent->payable_id)) {
+            $intent->payable_id = $payable->id;
+            $intent->save();
+        }
+
         // Внешний InvId для Robokassa: используем большой оффсет, чтобы избежать конфликтов с историческими InvId в кабинете Robokassa.
         // Пример: intent#1 -> InvId=1000000001
         $providerInvId = 1000000000 + (int) $intent->id;

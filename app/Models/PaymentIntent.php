@@ -14,6 +14,7 @@ class PaymentIntent extends Model
     protected $fillable = [
         'partner_id',
         'user_id',
+        'payable_id',
         'provider',
         'provider_inv_id',
         'status',
