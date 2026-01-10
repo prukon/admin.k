@@ -37,6 +37,11 @@ class PaymentIntent extends Model
     {
         return $this->belongsTo(Partner::class, 'partner_id');
     }
+
+    public function payable()
+    {
+        return $this->belongsTo(Payable::class, 'payable_id');
+    }
 }
 
 

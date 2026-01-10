@@ -8,6 +8,7 @@ use App\Models\PartnerPayment;
 
 use App\Models\Payment;
 use App\Models\PaymentIntent;
+use App\Models\Payable;
 use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\User;
@@ -126,10 +127,32 @@ class TransactionController extends Controller
             abort(500, 'Ошибка конфигурации платёжной системы');
         }
 
-        // Создаём intent на стороне нашей системы и используем его ID как InvId для Robokassa.
+        // Создаём Payable (доменная "покупка")
+        $type = $request->filled('formatedPaymentDate') ? 'monthly_fee' : 'club_fee';
+        $month = null;
+        $payableMeta = [];
+        if ($type === 'monthly_fee') {
+            // paymentDate уже в формате YYYY-MM-01
+            $month = $paymentDate;
+            $payableMeta['month'] = $paymentDate;
+        }
+
+        $payable = Payable::create([
+            'partner_id' => $partnerId,
+            'user_id'    => $userId,
+            'type'       => $type,
+            'amount'     => $outSum,
+            'currency'   => 'RUB',
+            'status'     => 'pending',
+            'month'      => $month,
+            'meta'       => $payableMeta,
+        ]);
+
+        // Создаём intent на стороне нашей системы и используем его для сопоставления вебхуков.
         $intent = PaymentIntent::create([
             'partner_id'   => $partnerId,
             'user_id'      => $userId,
+            'payable_id'   => $payable->id,
             'provider'     => 'robokassa',
             'status'       => 'pending',
             'out_sum'      => $outSum,

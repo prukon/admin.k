@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\MyLog;
 use App\Models\Payment;
 use App\Models\PaymentIntent;
+use App\Models\Payable;
 use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\User;
@@ -58,6 +59,14 @@ class RobokassaController extends Controller
         }
 
         $partnerId = (int) $intent->partner_id;
+        $payable = $intent->payable;
+        if (!$payable) {
+            Log::error('Robokassa result: payable not found for intent', [
+                'InvId' => $invId,
+                'intent_id' => $intent->id,
+            ]);
+            return response("bad invoice\n", 404);
+        }
 
         // Достаём настройки Robokassa именно для партнёра intent-а
         $paymentSystem = PaymentSystem::where('partner_id', $partnerId)
@@ -136,7 +145,7 @@ class RobokassaController extends Controller
 
         $intentIdForLock = (int) $intent->id;
 
-        DB::transaction(function () use ($invId, $intentIdForLock, $partnerId, $shpPaymentDate, $shpUserId, $outSumNorm) {
+        DB::transaction(function () use ($invId, $intentIdForLock, $partnerId, $shpPaymentDate, $shpUserId, $outSumNorm, $payable) {
             $lockedIntent = PaymentIntent::whereKey($intentIdForLock)->lockForUpdate()->first();
             if (!$lockedIntent) {
                 throw new \RuntimeException("Intent disappeared: $invId");
@@ -145,18 +154,27 @@ class RobokassaController extends Controller
                 return;
             }
 
-            $isValidDate = preg_match('/^\d{4}-\d{2}-\d{2}$/', $shpPaymentDate) && strtotime($shpPaymentDate);
-            $newMonthValue = $isValidDate ? $shpPaymentDate : null;
-
-            UserPrice::updateOrCreate(
-                [
-                    'user_id'   => $shpUserId,
-                    'new_month' => $newMonthValue,
-                ],
-                [
-                    'is_paid' => 1,
-                ]
-            );
+            // Бизнес-эффект: только monthly_fee влияет на users_prices.
+            if ((string) $payable->type === 'monthly_fee') {
+                $month = $payable->month ? $payable->month->format('Y-m-d') : ($payable->meta['month'] ?? null);
+                if (is_string($month) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $month) && strtotime($month)) {
+                    UserPrice::updateOrCreate(
+                        [
+                            'user_id'   => $shpUserId,
+                            'new_month' => $month,
+                        ],
+                        [
+                            'is_paid' => 1,
+                        ]
+                    );
+                } else {
+                    Log::warning('Robokassa result: monthly_fee without valid month in payable', [
+                        'InvId' => $invId,
+                        'payable_id' => $payable->id,
+                        'month' => $month,
+                    ]);
+                }
+            }
 
             $user = User::find($shpUserId);
             $teamName = $user?->team?->title ?? 'Без команды';
@@ -191,6 +209,11 @@ class RobokassaController extends Controller
             $lockedIntent->status = 'paid';
             $lockedIntent->paid_at = now();
             $lockedIntent->save();
+
+            // Payable: фиксируем оплату
+            $payable->status = 'paid';
+            $payable->paid_at = now();
+            $payable->save();
         });
 
         return response("OK$invId\n", 200);
