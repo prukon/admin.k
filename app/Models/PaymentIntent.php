@@ -15,6 +15,7 @@ class PaymentIntent extends Model
         'partner_id',
         'user_id',
         'provider',
+        'provider_inv_id',
         'status',
         'out_sum',
         'payment_date',

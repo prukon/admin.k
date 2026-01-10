@@ -45,7 +45,13 @@ class RobokassaController extends Controller
         }
 
         $invId = (int) $invIdRaw;
-        $intent = PaymentIntent::find($invId);
+        // Сначала ищем по внешнему InvId провайдера (Robokassa), затем fallback по первичному ключу (на всякий случай).
+        $intent = PaymentIntent::where('provider', 'robokassa')
+            ->where('provider_inv_id', $invId)
+            ->first();
+        if (!$intent) {
+            $intent = PaymentIntent::find($invId);
+        }
         if (!$intent) {
             Log::warning('Robokassa result: intent not found', ['InvId' => $invId]);
             return response("bad invoice\n", 404);
@@ -128,8 +134,10 @@ class RobokassaController extends Controller
             return response("OK$invId\n", 200);
         }
 
-        DB::transaction(function () use ($invId, $partnerId, $shpPaymentDate, $shpUserId, $outSumNorm) {
-            $lockedIntent = PaymentIntent::whereKey($invId)->lockForUpdate()->first();
+        $intentIdForLock = (int) $intent->id;
+
+        DB::transaction(function () use ($invId, $intentIdForLock, $partnerId, $shpPaymentDate, $shpUserId, $outSumNorm) {
+            $lockedIntent = PaymentIntent::whereKey($intentIdForLock)->lockForUpdate()->first();
             if (!$lockedIntent) {
                 throw new \RuntimeException("Intent disappeared: $invId");
             }

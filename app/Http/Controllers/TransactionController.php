@@ -139,8 +139,14 @@ class TransactionController extends Controller
             ], JSON_UNESCAPED_UNICODE),
         ]);
 
-        $invId = (string) $intent->id;
-        $isTest = $settings['test_mode'] ?? true; // можно использовать при генерации URL, если нужно
+        // Внешний InvId для Robokassa: используем большой оффсет, чтобы избежать конфликтов с историческими InvId в кабинете Robokassa.
+        // Пример: intent#1 -> InvId=1000000001
+        $providerInvId = 1000000000 + (int) $intent->id;
+        $intent->provider_inv_id = $providerInvId;
+        $intent->save();
+
+        $invId = (string) $providerInvId;
+        $isTest = !empty($settings['test_mode']); // для Robokassa IsTest
         $receiptJson = [
             'items' => [
                 [
@@ -170,7 +176,7 @@ class TransactionController extends Controller
                 'Shp_userId'       => $userId,
                 'SignatureValue'   => $signature,
                 'Receipt'          => $receipt,
-                // 'IsTest'        => $isTest ? 1 : 0 // если надо явно указывать
+                'IsTest'           => $isTest ? 1 : 0,
             ]);
 
         return redirect()->to($paymentUrl);
