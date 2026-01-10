@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\SettingPricesController;
 use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\PaymentIntentController;
 use App\Http\Controllers\Chat\ChatApiController;
 use App\Http\Controllers\Chat\ChatPageController;
 use App\Http\Controllers\DashboardController;
@@ -247,6 +248,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // Просмотр всех логов
     Route::middleware('can:viewing-all-logs')->group(function () {
         Route::get('admin/settings/logs-all-data', [SettingController::class, 'logsAllData'])->name('logs.all.data');
+        Route::get('admin/payment-intents', [PaymentIntentController::class, 'index'])->name('admin.payment-intents.index');
     });
 
     //Страница Настойки- Права

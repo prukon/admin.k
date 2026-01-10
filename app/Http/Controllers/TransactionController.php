@@ -7,6 +7,7 @@ use App\Models\Partner;
 use App\Models\PartnerPayment;
 
 use App\Models\Payment;
+use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\User;
@@ -65,18 +66,13 @@ class TransactionController extends Controller
     }
 
     //Станица выбора оплат (Юзер)
-    public function index()
+    public function index(Request $request)
     {
-        if ($_POST['paymentDate']) {
-            $paymentDate = $_POST['paymentDate'];
-            $formatedPaymentDate = $this->formatedDate($paymentDate);
+        $paymentDate = (string) $request->input('paymentDate', '');
+        $outSum = (string) $request->input('outSum', '');
+        $formatedPaymentDate = $paymentDate !== '' ? $this->formatedDate($paymentDate) : null;
 
-        }
-        if ($_POST['outSum']) {
-            $outSum = $_POST['outSum'];
-        }
-
-        $partnerId =1;
+        $partnerId = app('current_partner')->id;
 
         // Дополнительная логика, если необходимо
         return view('payment.paymentUser', compact(
@@ -90,20 +86,31 @@ class TransactionController extends Controller
     //Переход со страницы выбора оплат. Формирование ссылки робокасса (Юзер)
     public function pay(Request $request)
     {
-        $userId = $request->userId;
-        $userName = $request->userName;
-        $outSum = $request->outSum;
+        $user = $request->user();
+        $userId = (int) $user->id;
+        $userName = (string) ($user->name ?? '');
 
-        $paymentDate = $request->has('formatedPaymentDate')
-            ? $request->formatedPaymentDate
-            : "Клубный взнос";
+        $outSumRaw = (string) $request->input('outSum', '');
+        $outSum = $this->normalizeOutSum($outSumRaw);
+        if ($outSum === null) {
+            \Log::warning('Robokassa pay: invalid OutSum', ['outSum' => $outSumRaw, 'user_id' => $userId]);
+            abort(422, 'Некорректная сумма');
+        }
+
+        $paymentDate = $request->filled('formatedPaymentDate')
+            ? (string) $request->input('formatedPaymentDate')
+            : 'Клубный взнос';
 
         if (!$request->has('formatedPaymentDate')) {
             \Log::warning('formatedPaymentDate отсутствует в запросе');
         }
 
+        $partnerId = app('current_partner')->id;
+
         // Получаем настройки Робокассы из БД
-        $paymentSystem = PaymentSystem::where('name', 'robokassa')->first();
+        $paymentSystem = PaymentSystem::where('partner_id', $partnerId)
+            ->where('name', 'robokassa')
+            ->first();
 
         if (!$paymentSystem || !$paymentSystem->is_connected) {
             \Log::error('Попытка оплаты, но Робокасса не подключена или не настроена');
@@ -119,14 +126,27 @@ class TransactionController extends Controller
             abort(500, 'Ошибка конфигурации платёжной системы');
         }
 
-        $invId = "";
+        // Создаём intent на стороне нашей системы и используем его ID как InvId для Robokassa.
+        $intent = PaymentIntent::create([
+            'partner_id'   => $partnerId,
+            'user_id'      => $userId,
+            'provider'     => 'robokassa',
+            'status'       => 'pending',
+            'out_sum'      => $outSum,
+            'payment_date' => $paymentDate,
+            'meta'         => json_encode([
+                'user_name' => $userName,
+            ], JSON_UNESCAPED_UNICODE),
+        ]);
+
+        $invId = (string) $intent->id;
         $isTest = $settings['test_mode'] ?? true; // можно использовать при генерации URL, если нужно
         $receiptJson = [
             'items' => [
                 [
                     'name' => 'оплата услуги по занятию футболом',
                     'quantity' => 1,
-                    'sum' => $outSum,
+                    'sum' => (float) $outSum,
                     'tax' => 'none',
                 ],
             ],
@@ -154,6 +174,28 @@ class TransactionController extends Controller
             ]);
 
         return redirect()->to($paymentUrl);
+    }
+
+    /**
+     * Нормализуем сумму для Robokassa.
+     * Разрешаем только формат: 123 или 123.4 или 123.45, возвращаем строку с 2 знаками после точки.
+     */
+    private function normalizeOutSum(string $value): ?string
+    {
+        $v = trim(str_replace(',', '.', $value));
+        if ($v === '') {
+            return null;
+        }
+        if (!preg_match('/^\d+(\.\d{1,2})?$/', $v)) {
+            return null;
+        }
+        // Паддинг до 2 знаков
+        if (str_contains($v, '.')) {
+            [$a, $b] = explode('.', $v, 2);
+            $b = str_pad($b, 2, '0');
+            return $a . '.' . substr($b, 0, 2);
+        }
+        return $v . '.00';
     }
 
 
