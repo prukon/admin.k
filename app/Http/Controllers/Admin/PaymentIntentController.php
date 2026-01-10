@@ -15,7 +15,11 @@ class PaymentIntentController extends Controller
             ->orderByDesc('id');
 
         if ($request->filled('inv_id') && ctype_digit((string) $request->query('inv_id'))) {
-            $q->where('id', (int) $request->query('inv_id'));
+            $inv = (int) $request->query('inv_id');
+            // inv_id может быть как внутренним intent.id, так и внешним provider_inv_id (Robokassa InvId)
+            $q->where(function ($sub) use ($inv) {
+                $sub->where('id', $inv)->orWhere('provider_inv_id', $inv);
+            });
         }
 
         if ($request->filled('status')) {

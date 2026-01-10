@@ -198,7 +198,8 @@ class RobokassaController extends Controller
 
     /**
      * Нормализуем сумму (Robokassa).
-     * Разрешаем только формат: 123 или 123.4 или 123.45, возвращаем строку с 2 знаками после точки.
+     * Robokassa может присылать OutSum с 6 знаками после точки (например 2.000000).
+     * Принимаем до 6 знаков и округляем до 2 для сравнения/записи.
      */
     private function normalizeOutSum(string $value): ?string
     {
@@ -206,15 +207,35 @@ class RobokassaController extends Controller
         if ($v === '') {
             return null;
         }
-        if (!preg_match('/^\d+(\.\d{1,2})?$/', $v)) {
+        if (!preg_match('/^\d+(\.\d{1,6})?$/', $v)) {
             return null;
         }
+
+        $a = $v;
+        $b = '';
         if (str_contains($v, '.')) {
             [$a, $b] = explode('.', $v, 2);
-            $b = str_pad($b, 2, '0');
-            return $a . '.' . substr($b, 0, 2);
         }
-        return $v . '.00';
+
+        $a = ltrim($a, '0');
+        if ($a === '') {
+            $a = '0';
+        }
+
+        $b = str_pad($b, 6, '0');
+        $cents = (int) substr($b, 0, 2);
+        $third = (int) substr($b, 2, 1);
+
+        // округление по 3-ему знаку
+        if ($third >= 5) {
+            $cents++;
+            if ($cents >= 100) {
+                $cents = 0;
+                $a = (string) ((int) $a + 1);
+            }
+        }
+
+        return $a . '.' . str_pad((string) $cents, 2, '0', STR_PAD_LEFT);
     }
 
 }

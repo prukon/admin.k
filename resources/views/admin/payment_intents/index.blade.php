@@ -69,6 +69,7 @@
                 <thead>
                 <tr>
                     <th>InvId</th>
+                    <th>Provider InvId</th>
                     <th>Partner</th>
                     <th>User</th>
                     <th>Provider</th>
@@ -84,6 +85,7 @@
                 @forelse($intents as $intent)
                     <tr>
                         <td>{{ $intent->id }}</td>
+                        <td>{{ $intent->provider_inv_id }}</td>
                         <td>
                             {{ $intent->partner_id }}
                             @if($intent->partner)
@@ -108,7 +110,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="text-muted">Нет данных</td>
+                        <td colspan="11" class="text-muted">Нет данных</td>
                     </tr>
                 @endforelse
                 </tbody>
