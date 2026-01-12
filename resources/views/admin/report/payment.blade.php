@@ -13,9 +13,53 @@
         <th>Сумма платежа</th>
         <th>Оплаченный месяц</th>
         <th>Дата и время платежа</th>
+        <th>Статус возврата</th>
+        <th>Действия</th>
     </tr>
     </thead>
 </table>
+
+<!-- Модальное окно возврата -->
+<div class="modal fade" id="refundModal" tabindex="-1" aria-labelledby="refundModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="refundModalLabel">Возврат платежа (Robokassa)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    После успешного возврата оплата месяца будет отменена (снимется <b>is_paid</b>).
+                </div>
+                <input type="hidden" id="refundPaymentId" value="">
+
+                <div class="mb-2">
+                    <div><b>Ученик:</b> <span id="refundUser"></span></div>
+                    <div><b>Период:</b> <span id="refundMonth"></span></div>
+                    <div><b>Сумма:</b> <span id="refundAmount"></span> руб</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="refundComment" class="form-label">Комментарий (необязательно)</label>
+                    <textarea class="form-control" id="refundComment" rows="3" maxlength="1000"></textarea>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="1" id="refundConfirm">
+                    <label class="form-check-label" for="refundConfirm">
+                        Подтверждаю возврат и отмену оплаты месяца
+                    </label>
+                </div>
+
+                <div class="text-danger mt-2 d-none" id="refundError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="refundSubmitBtn" disabled>Сделать возврат</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section('scripts')
     <script type="text/javascript">
@@ -105,6 +149,19 @@
                             return data;
                         }
                     }
+                    ,
+                    {
+                        data: 'refund_status',
+                        name: 'refund_status',
+                        render: function (data, type, row) {
+                            if (!data) return '';
+                            if (data === 'pending') return '<span class="badge bg-warning text-dark">в обработке</span>';
+                            if (data === 'succeeded') return '<span class="badge bg-success">возвращён</span>';
+                            if (data === 'failed') return '<span class="badge bg-danger">ошибка</span>';
+                            return data;
+                        }
+                    },
+                    {data: 'refund_action', name: 'refund_action', orderable: false, searchable: false}
                 ],
                 order: [[5, 'desc']], // Сортировка по столбцу "Дата" в порядке убывания
 
@@ -136,6 +193,60 @@
                         "sortDescending": ": активировать для сортировки столбца по убыванию"
                     }
                 }
+            });
+
+            // handlers: refund modal
+            var refundModal = new bootstrap.Modal(document.getElementById('refundModal'));
+
+            $(document).on('click', '.js-refund-btn', function () {
+                if ($(this).prop('disabled')) return;
+                var paymentId = $(this).data('payment-id');
+                var amount = $(this).data('amount');
+                var user = $(this).data('user');
+                var month = $(this).data('month');
+
+                $('#refundPaymentId').val(paymentId);
+                $('#refundAmount').text(amount);
+                $('#refundUser').text(user || '');
+                $('#refundMonth').text(month || '');
+                $('#refundComment').val('');
+                $('#refundConfirm').prop('checked', false);
+                $('#refundSubmitBtn').prop('disabled', true).text('Сделать возврат');
+                $('#refundError').addClass('d-none').text('');
+
+                refundModal.show();
+            });
+
+            $('#refundConfirm').on('change', function () {
+                $('#refundSubmitBtn').prop('disabled', !$(this).is(':checked'));
+            });
+
+            $('#refundSubmitBtn').on('click', function () {
+                var btn = $(this);
+                var paymentId = $('#refundPaymentId').val();
+                var comment = $('#refundComment').val();
+
+                btn.prop('disabled', true).text('Отправляем...');
+                $('#refundError').addClass('d-none').text('');
+
+                $.ajax({
+                    url: '/admin/reports/payments/' + paymentId + '/refund',
+                    method: 'POST',
+                    headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+                    data: {comment: comment},
+                    success: function (resp) {
+                        refundModal.hide();
+                        table.ajax.reload(null, false);
+                    },
+                    error: function (xhr) {
+                        var msg = 'Ошибка при создании возврата';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            msg = xhr.responseJSON.message;
+                        }
+                        $('#refundError').removeClass('d-none').text(msg);
+                        btn.prop('disabled', false).text('Сделать возврат');
+                    }
+                });
             });
         });
     </script>

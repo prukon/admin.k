@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\PartnerSettingController;
 use App\Http\Controllers\Admin\Report\DeptReportController;
 use App\Http\Controllers\Admin\Report\LtvReportController;
 use App\Http\Controllers\Admin\Report\PaymentReportController;
+use App\Http\Controllers\Admin\Report\PaymentRefundController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\Setting\PaymentSystemController;
 use App\Http\Controllers\Admin\Setting\RuleController;
@@ -131,6 +132,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware(['can:reports-view'])->group(function () {
         Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
         Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
+        Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])
+            ->name('payments.refund')
+            ->whereNumber('payment');
         Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
         Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
         Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
@@ -248,7 +252,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // Просмотр всех логов
     Route::middleware('can:viewing-all-logs')->group(function () {
         Route::get('admin/settings/logs-all-data', [SettingController::class, 'logsAllData'])->name('logs.all.data');
-        Route::get('admin/payment-intents', [PaymentIntentController::class, 'index'])->name('admin.payment-intents.index');
+        Route::get('admin/payment-intents', [PaymentIntentController::class, 'index'])->name('admin.payment-intents.index'); //просмотр платежных запросов
     });
 
     //Страница Настойки- Права
@@ -320,31 +324,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee')->middleware('can:payment-clubfee'); //Оплата клубного взноса
 
     //Договоры
-//    Route::middleware('can:contracts-view')->group(function () {
-//        // AJAX для Select2 (поиск учеников текущего партнёра)
-//        Route::get('/contracts/users-search', [ContractsController::class, 'usersSearch'])->name('contracts.users.search');
-//        // AJAX для получения групп ученика
-//        Route::get('/client-contracts/user-group', [ContractsController::class, 'userGroup'])->name('contracts.user.group');
-//        Route::get('/client-contracts/create', [ContractsController::class, 'create'])->name('contracts.create');
-//        Route::post('/client-contracts', [ContractsController::class, 'store'])->name('contracts.store');
-//        Route::get('/client-contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
-//        Route::post('/client-contracts/{contract}/send', [ContractsController::class, 'send'])->name('contracts.send');
-//        Route::post('/client-contracts/{contract}/resend', [ContractsController::class, 'resend'])->name('contracts.resend');
-//        Route::post('/client-contracts/{contract}/revoke', [ContractsController::class, 'revoke'])->name('contracts.revoke');
-//        Route::get('/client-contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
-//        Route::post('/client-contracts/{contract}/send-email', [ContractsController::class, 'sendEmail'])->name('contracts.sendEmail');
-//        Route::post('/client-contracts/check-balance', [ContractsController::class, 'checkBalance']);
-//        Route::get('/client-contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
-//        Route::get('/client-contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
-//
-//        // список договоров (ТА САМая страница, которую ты уже используешь)
-//        Route::get('/client-contracts', [ContractsController::class, 'index'])->name('contracts.index');
-//// дата для DataTables
-//        Route::get('/client-contracts/data', [ContractsController::class, 'data'])->name('contracts.data');
-//// настройки колонок
-//        Route::get('/client-contracts/columns-settings', [ContractsController::class, 'getColumnsSettings'])->name('contracts.columns-settings.get');
-//        Route::post('/client-contracts/columns-settings', [ContractsController::class, 'saveColumnsSettings'])->name('contracts.columns-settings.save');
-//    });
+
 
     Route::middleware('can:contracts-view')->group(function () {
 

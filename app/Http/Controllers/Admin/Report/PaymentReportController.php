@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
+use App\Models\PaymentIntent;
+use App\Models\Refund;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -84,7 +86,29 @@ class PaymentReportController extends Controller
             $payments = Payment::with(['user.team'])
                 ->join('users', 'users.id', '=', 'payments.user_id')// связываем payments с users
                 ->where('users.partner_id', $partnerId)// берём только партнёра user
+                ->select('payments.*')
                 ->get();
+
+            $paymentIds = $payments->pluck('id')->filter()->values();
+            $refundByPaymentId = Refund::whereIn('payment_id', $paymentIds)
+                ->orderByDesc('id')
+                ->get()
+                ->groupBy('payment_id')
+                ->map(fn ($g) => $g->first());
+
+            $invIds = $payments->pluck('payment_number')
+                ->filter(fn ($v) => is_string($v) || is_numeric($v))
+                ->map(fn ($v) => (string) $v)
+                ->filter(fn ($v) => ctype_digit($v))
+                ->map(fn ($v) => (int) $v)
+                ->unique()
+                ->values();
+
+            $intentByInvId = PaymentIntent::where('provider', 'robokassa')
+                ->where('partner_id', (int) $partnerId)
+                ->whereIn('provider_inv_id', $invIds)
+                ->get()
+                ->keyBy('provider_inv_id');
 
 
 
@@ -114,6 +138,60 @@ class PaymentReportController extends Controller
                 ->addColumn('operation_date', function ($row) {
                     return $row->operation_date; // Дата операции
                 })
+                ->addColumn('refund_status', function ($row) use ($refundByPaymentId) {
+                    $r = $refundByPaymentId->get($row->id);
+                    return $r ? (string) $r->status : '';
+                })
+                ->addColumn('refund_action', function ($row) use ($refundByPaymentId, $intentByInvId) {
+                    $refund = $refundByPaymentId->get($row->id);
+                    $invId = (is_string($row->payment_number) || is_numeric($row->payment_number)) ? (string) $row->payment_number : '';
+                    $intent = (ctype_digit($invId)) ? $intentByInvId->get((int) $invId) : null;
+
+                    $disabled = false;
+                    $title = '';
+
+                    if (!$intent) {
+                        $disabled = true;
+                        $title = 'Нет данных Robokassa (intent не найден)';
+                    } elseif ((string) $intent->status !== 'paid') {
+                        $disabled = true;
+                        $title = 'Платёж не в статусе paid';
+                    } else {
+                        $paidAt = $intent->paid_at ? \Carbon\Carbon::parse($intent->paid_at) : null;
+                        if (!$paidAt && !empty($row->operation_date)) {
+                            $paidAt = \Carbon\Carbon::parse($row->operation_date);
+                        }
+                        if ($paidAt && $paidAt->copy()->addDays(7)->lt(now())) {
+                            $disabled = true;
+                            $title = 'Прошло больше 7 дней';
+                        }
+                    }
+
+                    if ($refund && in_array((string) $refund->status, ['pending', 'succeeded'], true)) {
+                        $disabled = true;
+                        $title = (string) $refund->status === 'pending' ? 'Возврат уже в обработке' : 'Платёж уже возвращён';
+                    }
+
+                    $amount = (float) $row->summ;
+                    $btnAttrs = [
+                        'type="button"',
+                        'class="btn btn-sm btn-outline-danger js-refund-btn"',
+                        'data-payment-id="' . (int) $row->id . '"',
+                        'data-amount="' . htmlspecialchars((string) $amount, ENT_QUOTES) . '"',
+                        'data-user="' . htmlspecialchars((string) ($row->user_name ?? ''), ENT_QUOTES) . '"',
+                        'data-month="' . htmlspecialchars((string) ($row->payment_month ?? ''), ENT_QUOTES) . '"',
+                    ];
+
+                    if ($disabled) {
+                        $btnAttrs[] = 'disabled';
+                        if ($title !== '') {
+                            $btnAttrs[] = 'title="' . htmlspecialchars($title, ENT_QUOTES) . '"';
+                        }
+                    }
+
+                    return '<button ' . implode(' ', $btnAttrs) . '>Возврат</button>';
+                })
+                ->rawColumns(['refund_action'])
                 ->make(true);
         }
     }

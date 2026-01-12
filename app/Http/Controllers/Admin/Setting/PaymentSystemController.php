@@ -59,6 +59,7 @@ class PaymentSystemController extends Controller
             'merchant_login'   => 'nullable|string',
             'password1'        => 'nullable|string',
             'password2'        => 'nullable|string',
+            'password3'        => 'nullable|string',
             'test_mode'        => 'nullable',
             'tbank_account_id' => 'nullable|string',
             'tbank_key'        => 'nullable|string',
@@ -92,6 +93,8 @@ class PaymentSystemController extends Controller
                 $settings['merchant_login'] = $validated['merchant_login'] ?? null;
                 $settings['password1']      = $validated['password1'] ?? null;
                 $settings['password2']      = $validated['password2'] ?? null;
+                // Password3 нужен для Refund API (JWT, HMAC)
+                $settings['password3']      = $validated['password3'] ?? ($settings['password3'] ?? null);
                 $settings['test_mode']      = !empty($validated['test_mode']);
                 break;
 

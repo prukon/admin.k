@@ -30,6 +30,26 @@ class Refund extends Model
         'processed_at' => 'datetime',
     ];
 
+    public function setMetaAttribute($value): void
+    {
+        if ($value === null || $value === '') {
+            $this->attributes['meta'] = null;
+            return;
+        }
+        $this->attributes['meta'] = is_array($value)
+            ? json_encode($value, JSON_UNESCAPED_UNICODE)
+            : (string) $value;
+    }
+
+    public function getMetaAttribute($value): array
+    {
+        if (empty($value)) {
+            return [];
+        }
+        $arr = json_decode($value, true);
+        return is_array($arr) ? $arr : [];
+    }
+
     public function payable()
     {
         return $this->belongsTo(Payable::class, 'payable_id');

@@ -95,6 +95,14 @@
                         <input type="text" class="form-control" name="password2" id="password2"
                                placeholder="Введите Пароль #2">
                     </div>
+                    <div class="mb-3">
+                        <label for="password3" class="form-label">Пароль #3 (для API возвратов)</label>
+                        <input type="text" class="form-control" name="password3" id="password3"
+                               placeholder="Введите Пароль #3 (нужен только для возвратов)">
+                        <div class="form-text">
+                            Требуется для Robokassa Refund API (JWT). Включается через заявку «Доступ к API возвратов».
+                        </div>
+                    </div>
 
                     <div class="form-check">
                         <input type="hidden" name="test_mode" value="0">
