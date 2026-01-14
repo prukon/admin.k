@@ -105,6 +105,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('settings.paymentSystems.view');
         });
 
+    
+        // Страница "Настройки  -> Настройка комиссий"
+        Gate::define('settings.commission', function (User $user) {
+            return $user->hasPermission('settings.commission');
+        });
+
         // Страница "Учетная запись -> Личные данные"
         Gate::define('account-user-view', function (User $user) {
             return $user->hasPermission('account.user.view');

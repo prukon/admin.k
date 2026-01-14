@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: T‑Bank мультирасчёты (настройки, комиссии, flow)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>T‑Bank (мультирасчёты): настройки, комиссии, workflow</h1>
+  <div class="small">Файл: <code>/docs/documentation/tbank.html</code></div>
+
+  <h2>1) Предпосылки</h2>
+  <ul>
+    <li><b>Плательщик</b>: ученик (физлицо).</li>
+    <li><b>Получатель услуги</b>: партнёр (школа, юрлицо).</li>
+    <li><b>Маркетплейс</b>: kidscrm.online удерживает комиссию платформы.</li>
+  </ul>
+  <div class="note">
+    Все комиссии удерживаются <b>с партнёра</b>. Цель: после удержаний и списания банком комиссия платформы остаётся у платформы.
+  </div>
+
+  <h2>2) ShopCode партнёра</h2>
+  <ul>
+    <li><b>Поле в БД</b>: <code>partners.tinkoff_partner_id</code></li>
+    <li><b>Смысл</b>: ShopCode / PartnerId, полученный при регистрации партнёра через sm-register.</li>
+  </ul>
+
+  <h2>3) Ключи T‑Bank и где они хранятся</h2>
+  <div class="warn">
+    Ключи хранятся в <code>payment_systems.settings</code> в зашифрованном виде.
+  </div>
+  <ul>
+    <li><b>UI</b>: <code>/admin/settings/paymentSystem</code></li>
+    <li><b>Для приёма платежей (eacq)</b>: <code>terminal_key</code>, <code>token_password</code></li>
+    <li><b>Для выплат партнёрам (e2c)</b>: <code>e2c_terminal_key</code>, <code>e2c_token_password</code></li>
+    <li><b>Показ метода оплаты</b>: T‑Bank на витрине оплаты показывается только если ключи заполнены и у партнёра есть <code>tinkoff_partner_id</code>.</li>
+  </ul>
+
+  <h2>4) Комиссии (3 шт.)</h2>
+  <ul>
+    <li><b>UI</b>: <code>/admin/tinkoff/commissions</code></li>
+    <li><b>Таблица</b>: <code>tinkoff_commission_rules</code></li>
+  </ul>
+  <h3>4.1 Поля</h3>
+  <ul>
+    <li><b>Банк: эквайринг</b>: <code>acquiring_percent</code>, <code>acquiring_min_fixed</code></li>
+    <li><b>Банк: выплата партнёру</b>: <code>payout_percent</code>, <code>payout_min_fixed</code></li>
+    <li><b>Платформа</b>: <code>platform_percent</code>, <code>platform_min_fixed</code></li>
+    <li><b>Режим</b>: <code>partner_id</code> (NULL = глобально) и <code>is_enabled</code></li>
+  </ul>
+
+  <h3>4.2 Формула</h3>
+  <pre>bank_acquiring_fee = max(round(gross * acquiring_percent/100), acquiring_min_fixed)
+bank_payout_fee    = max(round(gross * payout_percent/100),    payout_min_fixed)
+platform_fee       = max(round(gross * platform_percent/100),  platform_min_fixed)
+
+net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pre>
+
+  <h2>5) Workflow оплаты (одностадийный)</h2>
+  <ol>
+    <li>Юзер выбирает T‑Bank на странице <code>/payment</code>.</li>
+    <li>Создаём <code>payables</code> и <code>payment_intents</code> (provider=tbank, pending).</li>
+    <li>Вызов T‑Bank <code>/v2/Init</code> (PayType=O). Передаём <code>DATA.month</code> (если monthly).</li>
+    <li>Редирект на форму оплаты.</li>
+    <li>Webhook <code>/webhooks/tinkoff/payments</code>:
+      <ul>
+        <li><code>CONFIRMED</code> → фиксируем оплату: <code>payment_intents.paid</code>, <code>payables.paid</code>, запись в <code>payments</code>.</li>
+        <li>Если <code>payables.type=monthly_fee</code> → отмечаем месяц в <code>users_prices</code>.</li>
+      </ul>
+    </li>
+    <li>После CONFIRMED запускаем выплату партнёру (e2c) на сумму <code>net_to_partner</code>.</li>
+  </ol>
+
+  <div class="note">
+    Источник истины для оплачиваемого месяца: <code>payables.month</code>. Поле <code>DATA.month</code> используется для трассировки и диагностики.
+  </div>
+</div>
+</body>
+</html>
+

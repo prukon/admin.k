@@ -53,6 +53,7 @@
   <ul>
     <li><b>provider</b>: например <code>robokassa</code></li>
     <li><b>provider_inv_id</b>: внешний <code>InvId</code> у провайдера (по нему приходят webhooks)</li>
+    <li><b>tbank_payment_id / tbank_order_id</b> (для <code>provider=tbank</code>): идентификаторы T‑Bank (<code>PaymentId</code>/<code>OrderId</code>) для связывания с уведомлениями</li>
     <li><b>payable_id</b>: ссылка на <code>payables</code> (что именно оплачивается)</li>
     <li><b>status</b>: <code>pending</code> / <code>paid</code> / <code>failed</code></li>
     <li><b>out_sum</b>: ожидаемая сумма</li>
@@ -124,16 +125,68 @@
     <b>Правило, чтобы ничего не затиралось:</b> каждая разовая оплата = новая строка в <code>payables</code> (и новый <code>payment_intent</code>).
   </div>
 
-  <h2>4) Идемпотентность webhooks</h2>
+  <h3>3.3 Оплата через T‑Bank (мультирасчёты) (одностадийная)</h3>
+  <div class="note">
+    <b>Важно про “месяц”:</b> источником истины является <code>payables.month</code> (и <code>payables.type</code>).
+    В T‑Bank дополнительно передаём месяц в <code>DATA.month</code> только для трассировки.
+  </div>
+  <ol>
+    <li>На странице <code>/payment</code> метод T‑Bank показываем только если:
+      <ul>
+        <li>в <code>payment_systems</code> для текущего партнёра есть запись <code>name=tbank</code> и она “подключена” (ключи заполнены)</li>
+        <li>у партнёра есть <code>partners.tinkoff_partner_id</code> (ShopCode/PartnerId из sm-register)</li>
+      </ul>
+    </li>
+    <li>При старте оплаты создаём <code>payables</code> (pending) и <code>payment_intents</code> (pending, <code>provider=tbank</code>).</li>
+    <li>Вызываем T‑Bank <code>/v2/Init</code> (PayType=O), сохраняем <code>PaymentId</code>/<code>OrderId</code> в <code>payment_intents</code>.</li>
+    <li>Webhook T‑Bank <code>/webhooks/tinkoff/payments</code>:
+      <ul>
+        <li>при <code>Status=CONFIRMED</code> в транзакции: <code>payment_intents.status=paid</code>, <code>payables.status=paid</code>, создаём <code>payments</code></li>
+        <li>если <code>payables.type=monthly_fee</code> → <code>users_prices.is_paid=1</code> для <code>(user_id + payables.month)</code></li>
+        <li>при финальном неуспехе (<code>CANCELED</code>/<code>REJECTED</code>/...) → <code>payment_intents.status=failed</code></li>
+      </ul>
+    </li>
+  </ol>
+
+  <h2>4) Настройки провайдеров и комиссии</h2>
   <div class="warn">
-    Robokassa может вызывать ResultURL несколько раз. Поэтому обработчик должен быть идемпотентным:
+    <b>Хранение ключей:</b> ключи платёжных систем хранятся в таблице <code>payment_systems</code> в поле <code>settings</code> в зашифрованном виде.
+  </div>
+  <h3>4.1 T‑Bank ключи (для текущего партнёра)</h3>
+  <ul>
+    <li><b>Где вводим</b>: <code>/admin/settings/paymentSystem</code></li>
+    <li><b>Что нужно заполнить</b> (для “подключено”):
+      <ul>
+        <li><code>terminal_key</code>, <code>token_password</code> — приём платежей (eacq)</li>
+        <li><code>e2c_terminal_key</code>, <code>e2c_token_password</code> — выплаты партнёрам (e2c)</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3>4.2 Комиссии (удерживаются с партнёра)</h3>
+  <div class="note">
+    Комиссии настраиваются на странице <code>/admin/tinkoff/commissions</code> и хранятся в таблице <code>tinkoff_commission_rules</code>.
+  </div>
+  <ul>
+    <li><b>Комиссия банка (эквайринг)</b>: <code>acquiring_percent</code> / <code>acquiring_min_fixed</code> (по умолчанию 2.49% и мин 3.49 ₽)</li>
+    <li><b>Комиссия банка (выплата партнёру)</b>: <code>payout_percent</code> / <code>payout_min_fixed</code> (по умолчанию 0.10%)</li>
+    <li><b>Комиссия платформы</b>: <code>platform_percent</code> / <code>platform_min_fixed</code></li>
+    <li><b>Округление</b>: математическое (<code>round</code>) до копейки</li>
+    <li><b>Формула выплаты партнёру</b>:
+      <pre>net = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pre>
+    </li>
+  </ul>
+
+  <h2>5) Идемпотентность webhooks</h2>
+  <div class="warn">
+    Провайдеры могут вызывать webhooks несколько раз. Поэтому обработчик должен быть идемпотентным:
     <ul>
       <li><code>payment_intents(provider, provider_inv_id)</code> — уникальная пара</li>
       <li>повторный webhook не должен создавать дублей в <code>payments</code>/<code>users_prices</code></li>
     </ul>
   </div>
 
-  <h2>5) Где что смотреть</h2>
+  <h2>6) Где что смотреть</h2>
   <ul>
     <li><b>История покупок/оплат</b>: <code>payables</code></li>
     <li><b>Почему не прошёл webhook</b>: логи + <code>payment_intents</code></li>

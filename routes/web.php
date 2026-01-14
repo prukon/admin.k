@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\Setting\PaymentSystemController;
 use App\Http\Controllers\Admin\Setting\RuleController;
 use App\Http\Controllers\Admin\Setting\SettingController;
+use App\Http\Controllers\Admin\Setting\TbankCommissionsController;
 use App\Http\Controllers\Admin\SettingPricesController;
 use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\TeamController;
@@ -24,7 +25,6 @@ use App\Http\Controllers\PayoutsController;
 use App\Http\Controllers\SmRegisterController;
 use App\Http\Controllers\TinkoffAdminPartnerController;
 use App\Http\Controllers\TinkoffAdminPaymentController;
-use App\Http\Controllers\TinkoffCommissionController;
 use App\Http\Controllers\TinkoffDealController;
 use App\Http\Controllers\TinkoffDebugController;
 use App\Http\Controllers\TinkoffPartnerAdminController;
@@ -34,6 +34,7 @@ use App\Http\Controllers\TinkoffQrController;
 use App\Http\Controllers\TinkoffWebhookController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\User\Report\ReportController;
+use App\Http\Controllers\DocumentationController;
 use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -272,6 +273,25 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('payment-systems/{payment_system}', [PaymentSystemController::class, 'destroy'])->name('payment-systems.destroy');
     });
 
+    // Внутренняя документация проекта (HTML из /docs/documentation)
+    // Только для пользователей с доступом к настройкам.
+    Route::middleware('can:settings-view')->group(function () {
+        Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
+        Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
+            ->whereIn('page', ['payments', 'tbank'])
+            ->name('docs.documentation.show');
+    });
+
+    //Страница Настойки - Комиссии Т-Банк
+    Route::middleware('can:settings.commission')->group(function () {
+        Route::get('admin/settings/tbank-commissions', [TbankCommissionsController::class, 'index'])->name('admin.setting.tbankCommissions');
+        Route::get('admin/settings/tbank-commissions/create', [TbankCommissionsController::class, 'create'])->name('admin.setting.tbankCommissions.create');
+        Route::post('admin/settings/tbank-commissions', [TbankCommissionsController::class, 'store'])->name('admin.setting.tbankCommissions.store');
+        Route::get('admin/settings/tbank-commissions/{id}/edit', [TbankCommissionsController::class, 'edit'])->name('admin.setting.tbankCommissions.edit');
+        Route::put('admin/settings/tbank-commissions/{id}', [TbankCommissionsController::class, 'update'])->name('admin.setting.tbankCommissions.update');
+        Route::delete('admin/settings/tbank-commissions/{id}', [TbankCommissionsController::class, 'destroy'])->name('admin.setting.tbankCommissions.destroy');
+    });
+
     //Учетная запись - вкладка юзер
     Route::middleware('can:account-user-view')->group(function () {
         Route::get('account-settings/users/{user}/edit', [AccountController::class, 'user'])->name('admin.cur.user.edit');
@@ -399,13 +419,6 @@ Route::middleware('can:payment-method-T-Bank')->group(function () {
         Route::post('/tinkoff/payouts/{deal}/delay', [TinkoffPayoutController::class, 'delay']);
         Route::post('/tinkoff/deals/{deal}/close', [TinkoffDealController::class, 'close']);
 
-        // Комиссии
-        Route::get('/admin/tinkoff/commissions', [TinkoffCommissionController::class, 'index']);
-        Route::get('/admin/tinkoff/commissions/create', [TinkoffCommissionController::class, 'create']);
-        Route::post('/admin/tinkoff/commissions', [TinkoffCommissionController::class, 'store']);
-        Route::get('/admin/tinkoff/commissions/{id}/edit', [TinkoffCommissionController::class, 'edit']);
-        Route::put('/admin/tinkoff/commissions/{id}', [TinkoffCommissionController::class, 'update']);
-        Route::delete('/admin/tinkoff/commissions/{id}', [TinkoffCommissionController::class, 'destroy']);
         // Карточки (admin-only)
         Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show']);
         Route::get('/admin/tinkoff/partners/{id}', [TinkoffAdminPartnerController::class, 'show']);

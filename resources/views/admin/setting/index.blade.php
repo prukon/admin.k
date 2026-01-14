@@ -43,6 +43,19 @@
                             </a>
                         </li>
                     @endcan
+
+                    @can('settings.commission')
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeTab == 'tbankCommissions' ? 'active' : '' }}"
+                               href="{{ route('admin.setting.tbankCommissions') }}"
+                               id="tbankCommissions-tab"
+                               role="tab"
+                               aria-controls="tbankCommissions"
+                               aria-selected="{{ $activeTab == 'tbankCommissions' ? 'true' : 'false' }}">
+                                Комиссии Т-Банк
+                            </a>
+                        </li>
+                    @endcan
                 </ul>
                 <div class="tab-content">
                 @if($activeTab === 'setting')
@@ -69,6 +82,13 @@
                         'curUser' => $curUser,
                         'robokassa' => $robokassa,
                         'tbank' => $tbank,
+                        ])
+                    @elseif($activeTab === 'tbankCommissions')
+                        @include('admin.setting.tbankCommissions', [
+                            'mode' => $mode ?? 'list',
+                            'rules' => $rules ?? null,
+                            'partners' => $partners ?? null,
+                            'rule' => $rule ?? null,
                         ])
                     @endif
                 </div>
