@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\Refund;
 use App\Models\Team;
+use App\Models\TinkoffPayout;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -179,7 +180,10 @@ class PaymentReportController extends Controller
                 ->groupBy('payment_id')
                 ->map(fn ($g) => $g->first());
 
-            $invIds = $payments->pluck('payment_number')
+            // ---- Intents: Robokassa ----
+            $robokassaInvIds = $payments
+                ->filter(fn ($p) => empty($p->deal_id) && empty($p->payment_id) && empty($p->payment_status))
+                ->pluck('payment_number')
                 ->filter(fn ($v) => is_string($v) || is_numeric($v))
                 ->map(fn ($v) => (string) $v)
                 ->filter(fn ($v) => ctype_digit($v))
@@ -187,11 +191,55 @@ class PaymentReportController extends Controller
                 ->unique()
                 ->values();
 
-            $intentByInvId = PaymentIntent::where('provider', 'robokassa')
+            $robokassaIntentByInvId = PaymentIntent::where('provider', 'robokassa')
                 ->where('partner_id', (int) $partnerId)
-                ->whereIn('provider_inv_id', $invIds)
+                ->whereIn('provider_inv_id', $robokassaInvIds)
                 ->get()
                 ->keyBy('provider_inv_id');
+
+            // ---- Intents: T-Bank ----
+            $tbankPaymentIds = $payments
+                ->filter(fn ($p) => !empty($p->deal_id) || !empty($p->payment_id) || !empty($p->payment_status))
+                ->map(function ($p) {
+                    $pid = (is_string($p->payment_id) || is_numeric($p->payment_id)) ? (string) $p->payment_id : '';
+                    if ($pid !== '' && ctype_digit($pid)) return (int) $pid;
+                    $pn = (is_string($p->payment_number) || is_numeric($p->payment_number)) ? (string) $p->payment_number : '';
+                    if ($pn !== '' && ctype_digit($pn)) return (int) $pn;
+                    return null;
+                })
+                ->filter()
+                ->unique()
+                ->values();
+
+            $tbankIntentByPaymentId = $tbankPaymentIds->isEmpty()
+                ? collect()
+                : PaymentIntent::query()
+                    ->where('provider', 'tbank')
+                    ->where('partner_id', (int) $partnerId)
+                    ->where(function ($q) use ($tbankPaymentIds) {
+                        $q->whereIn('provider_inv_id', $tbankPaymentIds)
+                          ->orWhereIn('tbank_payment_id', $tbankPaymentIds);
+                    })
+                    ->get()
+                    ->keyBy(function (PaymentIntent $i) {
+                        return (int) ($i->tbank_payment_id ?: $i->provider_inv_id);
+                    });
+
+            // ---- Payouts: запрет возврата, если была выплата партнёру (по deal_id) ----
+            $dealIds = $payments->pluck('deal_id')
+                ->filter(fn ($v) => is_string($v) && $v !== '')
+                ->unique()
+                ->values();
+
+            $payoutByDealId = $dealIds->isEmpty()
+                ? collect()
+                : TinkoffPayout::query()
+                    ->where('partner_id', (int) $partnerId)
+                    ->whereIn('deal_id', $dealIds)
+                    ->orderByDesc('id')
+                    ->get()
+                    ->groupBy('deal_id')
+                    ->map(fn ($g) => $g->first());
 
 
 
@@ -221,25 +269,52 @@ class PaymentReportController extends Controller
                 ->addColumn('operation_date', function ($row) {
                     return $row->operation_date; // Дата операции
                 })
+                ->addColumn('payment_provider', function ($row) {
+                    return (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status)) ? 'tbank' : 'robokassa';
+                })
                 ->addColumn('refund_status', function ($row) use ($refundByPaymentId) {
                     $r = $refundByPaymentId->get($row->id);
                     return $r ? (string) $r->status : '';
                 })
-                ->addColumn('refund_action', function ($row) use ($refundByPaymentId, $intentByInvId) {
+                ->addColumn('refund_action', function ($row) use ($refundByPaymentId, $robokassaIntentByInvId, $tbankIntentByPaymentId, $payoutByDealId) {
                     $refund = $refundByPaymentId->get($row->id);
-                    $invId = (is_string($row->payment_number) || is_numeric($row->payment_number)) ? (string) $row->payment_number : '';
-                    $intent = (ctype_digit($invId)) ? $intentByInvId->get((int) $invId) : null;
+                    // Определяем провайдера максимально надёжно:
+                    // 1) если находим tbank intent по PaymentId (payment_id или payment_number) — это T-Bank
+                    // 2) иначе считаем Robokassa
+                    $robokassaInvIdStr = (is_string($row->payment_number) || is_numeric($row->payment_number)) ? (string) $row->payment_number : '';
+                    $robokassaIntent = (ctype_digit($robokassaInvIdStr)) ? $robokassaIntentByInvId->get((int) $robokassaInvIdStr) : null;
+
+                    $tbankPidStr = (is_string($row->payment_id) || is_numeric($row->payment_id)) ? (string) $row->payment_id : '';
+                    if ($tbankPidStr === '' || !ctype_digit($tbankPidStr)) {
+                        $tbankPidStr = $robokassaInvIdStr; // fallback: иногда PaymentId может лежать в payment_number
+                    }
+                    $tbankIntent = (ctype_digit($tbankPidStr)) ? $tbankIntentByPaymentId->get((int) $tbankPidStr) : null;
+
+                    $provider = $tbankIntent ? 'tbank' : 'robokassa';
+                    $intent = $provider === 'tbank' ? $tbankIntent : $robokassaIntent;
 
                     $disabled = false;
                     $title = '';
 
-                    if (!$intent) {
+                    if ($refund && in_array((string) $refund->status, ['pending', 'succeeded'], true)) {
                         $disabled = true;
-                        $title = 'Нет данных Robokassa (intent не найден)';
-                    } elseif ((string) $intent->status !== 'paid') {
-                        $disabled = true;
-                        $title = 'Платёж не в статусе paid';
-                    } else {
+                        $title = (string) $refund->status === 'pending' ? 'Возврат уже в обработке' : 'Платёж уже возвращён';
+                    }
+
+                    if (!$disabled) {
+                        if (!$intent) {
+                            $disabled = true;
+                            $title = $provider === 'tbank'
+                                ? 'Нет данных T-Bank (intent не найден)'
+                                : 'Нет данных Robokassa (intent не найден)';
+                        } elseif ((string) $intent->status !== 'paid') {
+                            $disabled = true;
+                            $title = 'Платёж не в статусе paid';
+                        }
+                    }
+
+                    // Robokassa: лимит 7 дней (как было)
+                    if (!$disabled && $provider === 'robokassa') {
                         $paidAt = $intent->paid_at ? \Carbon\Carbon::parse($intent->paid_at) : null;
                         if (!$paidAt && !empty($row->operation_date)) {
                             $paidAt = \Carbon\Carbon::parse($row->operation_date);
@@ -250,9 +325,13 @@ class PaymentReportController extends Controller
                         }
                     }
 
-                    if ($refund && in_array((string) $refund->status, ['pending', 'succeeded'], true)) {
-                        $disabled = true;
-                        $title = (string) $refund->status === 'pending' ? 'Возврат уже в обработке' : 'Платёж уже возвращён';
+                    // T-Bank: запретить возврат, если была выплата партнёру (по deal_id)
+                    if (!$disabled && $provider === 'tbank' && !empty($row->deal_id)) {
+                        $payout = $payoutByDealId->get($row->deal_id);
+                        if ($payout && (string) $payout->status !== 'REJECTED') {
+                            $disabled = true;
+                            $title = 'Возврат запрещён: есть выплата партнёру (статус: ' . (string) $payout->status . ')';
+                        }
                     }
 
                     $amount = (float) $row->summ;
@@ -260,6 +339,7 @@ class PaymentReportController extends Controller
                         'type="button"',
                         'class="btn btn-sm btn-outline-danger js-refund-btn"',
                         'data-payment-id="' . (int) $row->id . '"',
+                        'data-provider="' . htmlspecialchars((string) $provider, ENT_QUOTES) . '"',
                         'data-amount="' . htmlspecialchars((string) $amount, ENT_QUOTES) . '"',
                         'data-user="' . htmlspecialchars((string) ($row->user_name ?? ''), ENT_QUOTES) . '"',
                         'data-month="' . htmlspecialchars((string) ($row->payment_month ?? ''), ENT_QUOTES) . '"',
@@ -267,12 +347,18 @@ class PaymentReportController extends Controller
 
                     if ($disabled) {
                         $btnAttrs[] = 'disabled';
-                        if ($title !== '') {
-                            $btnAttrs[] = 'title="' . htmlspecialchars($title, ENT_QUOTES) . '"';
-                        }
                     }
 
-                    return '<button ' . implode(' ', $btnAttrs) . '>Возврат</button>';
+                    $buttonHtml = '<button ' . implode(' ', $btnAttrs) . '>Возврат</button>';
+
+                    // Важно: disabled-кнопки часто не показывают title при ховере.
+                    // Поэтому оборачиваем в <span title="...">, чтобы причина была видна.
+                    if ($disabled) {
+                        $wrapTitle = $title !== '' ? $title : 'Возврат недоступен';
+                        return '<span title="' . htmlspecialchars($wrapTitle, ENT_QUOTES) . '" style="cursor:not-allowed;">' . $buttonHtml . '</span>';
+                    }
+
+                    return $buttonHtml;
                 })
                 ->rawColumns(['refund_action'])
                 ->make(true);

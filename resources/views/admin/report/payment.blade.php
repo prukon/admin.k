@@ -13,6 +13,7 @@
         <th>Сумма платежа</th>
         <th>Оплаченный месяц</th>
         <th>Дата и время платежа</th>
+        <th>Провайдер</th>
         <th>Статус возврата</th>
         <th>Действия</th>
     </tr>
@@ -24,16 +25,18 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="refundModalLabel">Возврат платежа (Robokassa)</h5>
+                <h5 class="modal-title" id="refundModalLabel">Возврат платежа</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning">
                     После успешного возврата оплата месяца будет отменена (снимется <b>is_paid</b>).
                 </div>
+                <div class="alert alert-info py-2 d-none" id="refundProviderNote"></div>
                 <input type="hidden" id="refundPaymentId" value="">
 
                 <div class="mb-2">
+                    <div><b>Провайдер:</b> <span id="refundProvider"></span></div>
                     <div><b>Ученик:</b> <span id="refundUser"></span></div>
                     <div><b>Период:</b> <span id="refundMonth"></span></div>
                     <div><b>Сумма:</b> <span id="refundAmount"></span> руб</div>
@@ -151,6 +154,17 @@
                     }
                     ,
                     {
+                        data: 'payment_provider',
+                        name: 'payment_provider',
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row) {
+                            if (data === 'tbank') return '<span class="badge bg-primary">T-Bank</span>';
+                            if (data === 'robokassa') return '<span class="badge bg-secondary">Robokassa</span>';
+                            return data ? data : '';
+                        }
+                    },
+                    {
                         data: 'refund_status',
                         name: 'refund_status',
                         render: function (data, type, row) {
@@ -198,12 +212,38 @@
             // handlers: refund modal
             var refundModal = new bootstrap.Modal(document.getElementById('refundModal'));
 
+            function applyRefundProviderUi(provider) {
+                var title = 'Возврат платежа';
+                var label = '';
+                var note = '';
+
+                if (provider === 'robokassa') {
+                    title = 'Возврат платежа (Robokassa)';
+                    label = 'Robokassa';
+                    note = 'Ограничение: возврат доступен в течение <b>7 дней</b> после оплаты.';
+                } else if (provider === 'tbank') {
+                    title = 'Возврат платежа (T-Bank мультирасчёты)';
+                    label = 'T-Bank';
+                    note = 'Важно: если по платежу уже была <b>выплата партнёру</b>, возврат запрещён.<br>После успешного возврата месяц будет отмечен как <b>неоплаченный</b>.';
+                }
+
+                $('#refundModalLabel').text(title);
+                $('#refundProvider').text(label);
+
+                if (note) {
+                    $('#refundProviderNote').removeClass('d-none').html(note);
+                } else {
+                    $('#refundProviderNote').addClass('d-none').html('');
+                }
+            }
+
             $(document).on('click', '.js-refund-btn', function () {
                 if ($(this).prop('disabled')) return;
                 var paymentId = $(this).data('payment-id');
                 var amount = $(this).data('amount');
                 var user = $(this).data('user');
                 var month = $(this).data('month');
+                var provider = $(this).data('provider') || '';
 
                 $('#refundPaymentId').val(paymentId);
                 $('#refundAmount').text(amount);
@@ -213,6 +253,8 @@
                 $('#refundConfirm').prop('checked', false);
                 $('#refundSubmitBtn').prop('disabled', true).text('Сделать возврат');
                 $('#refundError').addClass('d-none').text('');
+
+                applyRefundProviderUi(provider);
 
                 refundModal.show();
             });

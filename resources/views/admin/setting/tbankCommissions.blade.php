@@ -30,9 +30,49 @@
     @elseif(($mode ?? 'list') === 'edit')
         @php /** @var \App\Models\TinkoffCommissionRule $rule */ @endphp
         <h2 class="h6 mb-3">Правка правила #{{ $rule->id }}</h2>
+
+        @php
+            $rulePartnerId = (int) ($rule->partner_id ?? 0);
+            $auto = !empty($autoPayoutByPartnerId) ? (bool) ($autoPayoutByPartnerId[$rulePartnerId] ?? false) : false;
+            $conn = !empty($tbankConnectedByPartnerId) ? (bool) ($tbankConnectedByPartnerId[$rulePartnerId] ?? false) : false;
+        @endphp
+
         <form method="post" action="{{ route('admin.setting.tbankCommissions.update', ['id' => $rule->id]) }}">
             @csrf
             @method('put')
+
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="fw-semibold">Автовыплата партнёру после успешной оплаты</div>
+                    <div class="text-muted small">
+                        Настройка сохранится вместе с правилами по кнопке <b>Сохранить</b>.
+                    </div>
+
+                    @if($rulePartnerId <= 0)
+                        <div class="text-warning small mt-2">
+                            Для “глобального” правила partner_id не задан. Сначала выбери партнёра в правиле и сохрани — тогда появится чекбокс автовыплаты.
+                        </div>
+                    @else
+                        @if(!$conn)
+                            <div class="text-warning small mt-2">
+                                T‑Bank у партнёра не считается “подключённым” (проверь ключи eacq/e2c в “Платёжных системах”).
+                            </div>
+                        @endif
+
+                        <div class="form-check form-switch mt-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="autoPayoutEnabled"
+                                   name="auto_payout_enabled"
+                                   value="1"
+                                   {{ $auto ? 'checked' : '' }}>
+                            <label class="form-check-label" for="autoPayoutEnabled">Автовыплата включена</label>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
             @include('tinkoff.commissions._form', ['rule' => $rule, 'partners' => $partners])
             <div class="mt-3">
                 <button class="btn btn-primary">Сохранить</button>
@@ -61,7 +101,29 @@
                 @foreach($rules as $r)
                     <tr>
                         <td>{{ $r->id }}</td>
-                        <td>{{ $r->partner_id ? optional($r->partner)->title ?? ('#'.$r->partner_id) : '— (глобально)' }}</td>
+                        <td>
+                            @if($r->partner_id)
+                                @php
+                                    $pid = (int) $r->partner_id;
+                                    $auto = !empty($autoPayoutByPartnerId) ? (bool) ($autoPayoutByPartnerId[$pid] ?? false) : false;
+                                    $conn = !empty($tbankConnectedByPartnerId) ? (bool) ($tbankConnectedByPartnerId[$pid] ?? false) : false;
+                                @endphp
+                                <div>{{ optional($r->partner)->title ?? ('#'.$pid) }}</div>
+                                <div class="small">
+                                    <span class="text-muted">Автовыплата:</span>
+                                    @if($auto)
+                                        <span class="badge text-bg-success">on</span>
+                                    @else
+                                        <span class="badge text-bg-secondary">off</span>
+                                    @endif
+                                    @if(!$conn)
+                                        <span class="badge text-bg-warning">ключи?</span>
+                                    @endif
+                                </div>
+                            @else
+                                — (глобально)
+                            @endif
+                        </td>
                         <td>{{ $r->method ?? '—' }}</td>
                         <td>
                             {{ number_format($r->acquiring_percent ?? 2.49, 2, ',', ' ') }}%

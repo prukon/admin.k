@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Setting;
 
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
+use App\Models\PaymentSystem;
 use App\Models\TinkoffCommissionRule;
 use Illuminate\Http\Request;
 
@@ -14,11 +15,26 @@ class TbankCommissionsController extends Controller
         $rules = TinkoffCommissionRule::orderByRaw('partner_id IS NULL DESC, method IS NULL DESC')->paginate(30);
         $partners = Partner::orderBy('title')->get(['id', 'title']);
 
+        // Настройка автовыплаты — в разрезе партнёра (sup-admin настраивает для любого партнёра).
+        $paymentSystems = PaymentSystem::query()
+            ->where('name', 'tbank')
+            ->get(['id', 'partner_id', 'name', 'settings', 'test_mode']);
+
+        $autoPayoutByPartnerId = $paymentSystems
+            ->keyBy(fn ($ps) => (int) $ps->partner_id)
+            ->map(fn ($ps) => (bool) ($ps->settings['auto_payout_enabled'] ?? false));
+
+        $tbankConnectedByPartnerId = $paymentSystems
+            ->keyBy(fn ($ps) => (int) $ps->partner_id)
+            ->map(fn ($ps) => (bool) $ps->is_connected);
+
         return view('admin.setting.index', [
             'activeTab' => 'tbankCommissions',
             'mode' => 'list',
             'rules' => $rules,
             'partners' => $partners,
+            'autoPayoutByPartnerId' => $autoPayoutByPartnerId,
+            'tbankConnectedByPartnerId' => $tbankConnectedByPartnerId,
         ]);
     }
 
@@ -62,11 +78,25 @@ class TbankCommissionsController extends Controller
         $rule = TinkoffCommissionRule::findOrFail($id);
         $partners = Partner::orderBy('title')->get(['id', 'title']);
 
+        $paymentSystems = PaymentSystem::query()
+            ->where('name', 'tbank')
+            ->get(['id', 'partner_id', 'name', 'settings', 'test_mode']);
+
+        $autoPayoutByPartnerId = $paymentSystems
+            ->keyBy(fn ($ps) => (int) $ps->partner_id)
+            ->map(fn ($ps) => (bool) ($ps->settings['auto_payout_enabled'] ?? false));
+
+        $tbankConnectedByPartnerId = $paymentSystems
+            ->keyBy(fn ($ps) => (int) $ps->partner_id)
+            ->map(fn ($ps) => (bool) $ps->is_connected);
+
         return view('admin.setting.index', [
             'activeTab' => 'tbankCommissions',
             'mode' => 'edit',
             'rule' => $rule,
             'partners' => $partners,
+            'autoPayoutByPartnerId' => $autoPayoutByPartnerId,
+            'tbankConnectedByPartnerId' => $tbankConnectedByPartnerId,
         ]);
     }
 
@@ -84,10 +114,28 @@ class TbankCommissionsController extends Controller
             'platform_percent' => 'required|numeric|min:0',
             'platform_min_fixed' => 'required|numeric|min:0',
             'is_enabled' => 'sometimes|boolean',
+            'auto_payout_enabled' => 'sometimes|boolean',
         ]);
 
         $data['is_enabled'] = $r->boolean('is_enabled');
         $rule->update($data);
+
+        // Автовыплата: сохраняем как настройку T-Bank в разрезе партнёра правила.
+        // Если partner_id не задан (глобальное правило) — пропускаем.
+        if (!empty($data['partner_id'])) {
+            $partnerId = (int) $data['partner_id'];
+            $enabled = $r->boolean('auto_payout_enabled');
+
+            $ps = PaymentSystem::firstOrCreate(
+                ['partner_id' => $partnerId, 'name' => 'tbank'],
+                ['settings' => [], 'test_mode' => false]
+            );
+
+            $settings = $ps->settings;
+            $settings['auto_payout_enabled'] = $enabled;
+            $ps->settings = $settings;
+            $ps->save();
+        }
 
         return redirect()
             ->route('admin.setting.tbankCommissions')

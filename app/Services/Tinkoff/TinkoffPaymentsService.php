@@ -139,7 +139,19 @@ class TinkoffPaymentsService
             // не падаем: webhook должен быть максимально "мягким", чтобы не блокировать выплаты/повторы
         }
 
+        // Автовыплата партнёру (управляется чекбоксом в /admin/settings/tbank-commissions)
         if ($payment->status === 'CONFIRMED' && $payment->deal_id) {
+            try {
+                $ps = PaymentSystem::where('partner_id', (int) $payment->partner_id)->where('name', 'tbank')->first();
+                $enabled = $ps ? (bool) ($ps->settings['auto_payout_enabled'] ?? false) : false;
+                if (!$enabled) {
+                    return;
+                }
+            } catch (\Throwable $e) {
+                Log::channel('tinkoff')->error('[auto-payout flag read failed] ' . $e->getMessage());
+                return;
+            }
+
             // 1) Обновим назначение платежа (details) перед выплатой
             try {
                 $partner = $payment->partner;

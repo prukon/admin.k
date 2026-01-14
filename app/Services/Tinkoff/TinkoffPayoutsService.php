@@ -31,6 +31,15 @@ class TinkoffPayoutsService
             'when_to_run'=> $delayUntil,
         ]);
 
+        // Если сумма к выплате 0 — не дергаем банк, фиксируем как "отклонено".
+        // Это нормально для тестовых/минимальных сумм, когда комиссии >= суммы.
+        if ((int) $netAmount <= 0) {
+            $payout->status = 'REJECTED';
+            $payout->completed_at = now();
+            $payout->save();
+            return $payout;
+        }
+
         if ($delayUntil && $delayUntil > now()) {
             return $payout; // отложенная
         }
@@ -48,6 +57,9 @@ class TinkoffPayoutsService
             'TerminalKey'  => $cfg['terminal_key'],
             'PartnerId'    => $partner->tinkoff_partner_id,
             'DealId'       => $payout->deal_id,
+            // Важно: банк требует OrderId (иначе ErrorCode=9999 "Поле OrderId не должно быть пустым")
+            // Используем стабильный id для идемпотентности ретраев.
+            'OrderId'      => 'payout-' . (int) $payout->id,
             'Amount'       => $payout->amount,
             'FinalPayout'  => $payout->is_final ? 'true' : 'false',
         ];
@@ -55,6 +67,11 @@ class TinkoffPayoutsService
         $resInit = TinkoffApiClient::post($cfg['base_url'], '/e2c/v2/Init', $init);
         $payout->payload_init = $resInit;
         $payout->tinkoff_payout_payment_id = $resInit['PaymentId'] ?? null;
+        if (empty($resInit['Success'])) {
+            // Init не прошел — считаем выплату отклоненной (чтобы она не блокировала возвраты)
+            $payout->status = 'REJECTED';
+            $payout->completed_at = now();
+        }
         $payout->save();
 
         // e2c/v2/Payment
