@@ -10,6 +10,7 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Carbon\Carbon;
 
@@ -22,7 +23,7 @@ class PaymentReportController extends Controller
     {
         // 1) партнёр
         $partnerId = app('current_partner')->id;
-        \Log::debug('[payments] Partner ID', ['partnerId' => $partnerId]);
+        Log::debug('[payments] Partner ID', ['partnerId' => $partnerId]);
 
         // 2) включаем лог запросов
         DB::enableQueryLog();
@@ -50,20 +51,102 @@ class PaymentReportController extends Controller
             ->where('users.partner_id', $partnerId)
             ->sum('payments.summ');
 
-        \Log::debug('[payments] Raw total', ['totalPaidPriceRaw' => $totalPaidPrice]);
+        Log::debug('[payments] Raw total', ['totalPaidPriceRaw' => $totalPaidPrice]);
 
         // 4) SQL‑лог
-        \Log::debug('[payments] Executed query', DB::getQueryLog()[0] ?? []);
+        Log::debug('[payments] Executed query', DB::getQueryLog()[0] ?? []);
 
         // 5) форматируем сумму
         $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
-        \Log::debug('[payments] Formatted total', ['totalPaidPrice' => $totalPaidPrice]);
+        Log::debug('[payments] Formatted total', ['totalPaidPrice' => $totalPaidPrice]);
 
         // 6) представление
         return view(
             'admin.report.index',
             ['activeTab' => 'payment', 'totalPaidPrice' => $totalPaidPrice]
         );
+    }
+
+    // Отчёт -> "Платежные запросы" (payment_intents)
+    public function paymentIntents(Request $request)
+    {
+        return view('admin.report.index', [
+            'activeTab' => 'payment-intents',
+            'filters' => $request->query(),
+        ]);
+    }
+
+    // Данные для отчёта "Платежные запросы" (DataTables, server-side)
+    public function getPaymentIntents(Request $request)
+    {
+        $q = PaymentIntent::query()
+            ->with(['user', 'partner'])
+            ->select('payment_intents.*');
+
+        // По умолчанию ограничиваем текущим партнёром (если контекст выбран)
+        $currentPartner = app()->bound('current_partner') ? app('current_partner') : null;
+        if ($currentPartner && isset($currentPartner->id)) {
+            $q->where('partner_id', (int) $currentPartner->id);
+        }
+
+        // Доп. фильтры из формы
+        if ($request->filled('inv_id') && ctype_digit((string) $request->query('inv_id'))) {
+            $inv = (int) $request->query('inv_id');
+            // inv_id может быть как внутренним intent.id, так и внешним provider_inv_id
+            $q->where(function ($sub) use ($inv) {
+                $sub->where('id', $inv)->orWhere('provider_inv_id', $inv);
+            });
+        }
+
+        if ($request->filled('status')) {
+            $q->where('status', (string) $request->query('status'));
+        }
+
+        if ($request->filled('provider')) {
+            $q->where('provider', (string) $request->query('provider'));
+        }
+
+        if ($request->filled('partner_id') && ctype_digit((string) $request->query('partner_id'))) {
+            $q->where('partner_id', (int) $request->query('partner_id'));
+        }
+
+        if ($request->filled('user_id') && ctype_digit((string) $request->query('user_id'))) {
+            $q->where('user_id', (int) $request->query('user_id'));
+        }
+
+        if ($request->filled('created_from')) {
+            $q->whereDate('created_at', '>=', (string) $request->query('created_from'));
+        }
+        if ($request->filled('created_to')) {
+            $q->whereDate('created_at', '<=', (string) $request->query('created_to'));
+        }
+
+        if ($request->filled('paid_from')) {
+            $q->whereDate('paid_at', '>=', (string) $request->query('paid_from'));
+        }
+        if ($request->filled('paid_to')) {
+            $q->whereDate('paid_at', '<=', (string) $request->query('paid_to'));
+        }
+
+        // Важно: базовая сортировка по id desc (если DataTables не прислал order)
+        if (!$request->has('order')) {
+            $q->orderByDesc('id');
+        }
+
+        return DataTables::of($q)
+            ->addColumn('partner_title', function (PaymentIntent $intent) {
+                return (string) ($intent->partner->title ?? ($intent->partner->name ?? ''));
+            })
+            ->addColumn('user_name', function (PaymentIntent $intent) {
+                return (string) ($intent->user->full_name ?? ($intent->user->name ?? ''));
+            })
+            ->editColumn('created_at', function (PaymentIntent $intent) {
+                return $intent->created_at ? $intent->created_at->format('Y-m-d H:i:s') : '';
+            })
+            ->editColumn('paid_at', function (PaymentIntent $intent) {
+                return $intent->paid_at ? $intent->paid_at->format('Y-m-d H:i:s') : '';
+            })
+            ->toJson();
     }
 
     //Данные для отчета Платежи
@@ -230,7 +313,7 @@ class PaymentReportController extends Controller
             }
             return null; // Возвращаем null, если не удалось преобразовать
         } catch (\Exception $e) {
-            \Log::error('Ошибка преобразования даты: ' . $e->getMessage());
+            Log::error('Ошибка преобразования даты: ' . $e->getMessage());
             return null;
         }
     }

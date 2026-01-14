@@ -15,7 +15,6 @@ use App\Http\Controllers\Admin\SettingPricesController;
 use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\PaymentIntentController;
 use App\Http\Controllers\Chat\ChatApiController;
 use App\Http\Controllers\Chat\ChatPageController;
 use App\Http\Controllers\DashboardController;
@@ -142,6 +141,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
     });
 
+    // Отчёты -> Платежные запросы
+    Route::middleware(['can:reports-payment-intents-view'])->group(function () {
+        Route::get('/admin/reports/payment-intents', [PaymentReportController::class, 'paymentIntents'])
+            ->name('reports.payment-intents.index');
+        Route::get('/admin/reports/getPaymentIntents', [PaymentReportController::class, 'getPaymentIntents'])
+            ->name('reports.payment-intents.data');
+    });
+
     //Мои платежи
     Route::middleware(['can:myPayments-view'])->group(function () {
         Route::get('/reports/payments', [ReportController::class, 'showUserPayments'])->name('showUserPayments');
@@ -253,7 +260,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // Просмотр всех логов
     Route::middleware('can:viewing-all-logs')->group(function () {
         Route::get('admin/settings/logs-all-data', [SettingController::class, 'logsAllData'])->name('logs.all.data');
-        Route::get('admin/payment-intents', [PaymentIntentController::class, 'index'])->name('admin.payment-intents.index'); //просмотр платежных запросов
     });
 
     //Страница Настойки- Права

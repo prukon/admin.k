@@ -17,6 +17,12 @@
                         <a class="nav-link {{ $activeTab == 'ltv' ? 'active' : '' }}" href="/admin/reports/ltv"
                            role="tab">LTV</a>
                     </li>
+                    @can('reports-payment-intents-view')
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {{ $activeTab == 'payment-intents' ? 'active' : '' }}" href="/admin/reports/payment-intents"
+                               role="tab">Платежные запросы</a>
+                        </li>
+                    @endcan
                 </ul>
 
 
@@ -37,6 +43,11 @@
                         [
                       ]
                         )
+                @elseif($activeTab === 'payment-intents')
+                    <!-- Контент вкладки платежные запросы -->
+                    @include('admin.report.payment_intents', [
+                        'filters' => $filters ?? [],
+                    ])
                     @endif
                 </div>
             </div>

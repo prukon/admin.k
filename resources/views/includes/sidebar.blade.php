@@ -110,15 +110,6 @@
             </li>
         @endcan
 
-        @can('viewing-all-logs')
-<li class="nav-item">
-                <a href="/admin/payment-intents" class="nav-link">
-                    <i class="nav-icon fa-solid fa-credit-card"></i>
-                    <p>Платежные запросы</p>
-                </a>
-            </li>
-        @endcan
-
         {{--Учетная запись--}}
         @can('account-user-view')
         <li class="nav-item">
