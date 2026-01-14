@@ -280,8 +280,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Внутренняя документация проекта (HTML из /docs/documentation)
-    // Только для пользователей с доступом к настройкам.
-    Route::middleware('can:settings-view')->group(function () {
+    Route::middleware('can:documentations-view')->group(function () {
         Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
         Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
             ->whereIn('page', ['payments', 'tbank'])

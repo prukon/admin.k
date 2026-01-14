@@ -437,8 +437,13 @@
     <!-- Футер -->
     <footer class="main-footer">
 
-        <div> Copyright &copy; 2023-2025 <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
+        <div>
+            Copyright &copy; 2023-2025 <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
             Все права защищены.
+            @can('documentations-view')
+                <span class="mx-2">·</span>
+                <a href="{{ route('docs.documentation.index') }}">Документация</a>
+            @endcan
         </div>
         <div class="float-right d-none d-sm-inline-block">
             {{--            <b>Version</b> 3.2.0--}}
