@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: оплаты (payment_intents / payables / payments / users_prices)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Оплаты: как работают таблицы <code>payment_intents</code>, <code>payables</code>, <code>payments</code>, <code>users_prices</code></h1>
+  <div class="small">Файл: <code>/docs/documentation/payments.html</code></div>
+
+  <h2>1) Зачем нужны эти таблицы</h2>
+  <ul>
+    <li><code>payables</code> — <b>что именно оплачивается</b> (покупка/обязательство: месяц, клубный взнос, форма, лагерь).</li>
+    <li><code>payment_intents</code> — <b>технический трек</b> попытки оплаты у провайдера (Robokassa и т.д.).</li>
+    <li><code>payments</code> — <b>финансовый факт</b>: деньги реально поступили (запись для отчётов).</li>
+    <li><code>users_prices</code> — <b>состояние оплат по месяцам</b> (проекция для UI/логики “оплачен ли месяц”).</li>
+  </ul>
+
+  <div class="note">
+    <b>Ключевой принцип:</b> разовые оплаты (<code>club_fee</code>/<code>uniform</code>/<code>camp</code>) <b>не пишем</b> в <code>users_prices</code>.
+    <br>В <code>users_prices</code> отражаются только <b>месячные</b> оплаты (<code>monthly_fee</code>).
+  </div>
+
+  <h2>2) Что хранится в каждой таблице</h2>
+
+  <h3><code>payables</code> (доменная покупка)</h3>
+  <ul>
+    <li><b>type</b>: <code>monthly_fee</code>, <code>club_fee</code>, <code>uniform</code>, <code>camp</code></li>
+    <li><b>amount/currency</b>: сумма и валюта</li>
+    <li><b>status</b>: <code>pending</code> → <code>paid</code> (дальше возможны refund-статусы)</li>
+    <li><b>month</b> (только для <code>monthly_fee</code>): дата <code>YYYY-MM-01</code></li>
+    <li><b>meta</b>: доп. параметры (например <code>{month: "2025-09-01"}</code>, размер формы, смена лагеря…)</li>
+  </ul>
+
+  <h3><code>payment_intents</code> (попытка оплаты у провайдера)</h3>
+  <ul>
+    <li><b>provider</b>: например <code>robokassa</code></li>
+    <li><b>provider_inv_id</b>: внешний <code>InvId</code> у провайдера (по нему приходят webhooks)</li>
+    <li><b>payable_id</b>: ссылка на <code>payables</code> (что именно оплачивается)</li>
+    <li><b>status</b>: <code>pending</code> / <code>paid</code> / <code>failed</code></li>
+    <li><b>out_sum</b>: ожидаемая сумма</li>
+    <li><b>meta</b>: диагностика интеграции</li>
+  </ul>
+
+  <h3><code>payments</code> (финансовый журнал)</h3>
+  <ul>
+    <li><b>Смысл</b>: фиксирует факт поступления денег.</li>
+    <li><b>Типично храним</b>: <code>partner_id</code>, <code>user_id</code>, <code>summ</code>, <code>operation_date</code>, <code>payment_number</code> (обычно = <code>provider_inv_id</code> / InvId).</li>
+    <li><b>Важно</b>: запись в <code>payments</code> появляется <b>только после успешного webhook</b>.</li>
+  </ul>
+
+  <h3><code>users_prices</code> (состояние оплат по месяцам)</h3>
+  <ul>
+    <li><b>user_id</b></li>
+    <li><b>new_month</b>: дата <code>YYYY-MM-01</code></li>
+    <li><b>is_paid</b>: 0/1</li>
+  </ul>
+
+  <h2>3) Основные воркфлоу</h2>
+
+  <h3>3.1 Месячная оплата (<code>type=monthly_fee</code>)</h3>
+  <ol>
+    <li>Создаём <code>payables</code>:
+      <ul>
+        <li><code>type=monthly_fee</code></li>
+        <li><code>month=YYYY-MM-01</code> (+ дублируем в <code>meta.month</code>)</li>
+        <li><code>status=pending</code></li>
+      </ul>
+    </li>
+    <li>Создаём <code>payment_intents</code>:
+      <ul>
+        <li><code>payable_id = payables.id</code></li>
+        <li><code>provider_inv_id = InvId</code> (уходит в Robokassa)</li>
+        <li><code>status=pending</code></li>
+      </ul>
+    </li>
+    <li>Провайдер вызывает ResultURL (webhook) → при успехе в транзакции:
+      <ul>
+        <li><code>payment_intents.status=paid</code></li>
+        <li><code>payables.status=paid</code>, <code>paid_at</code></li>
+        <li><b>пишем <code>payments</code></b></li>
+        <li><b>обновляем <code>users_prices</code></b> для <code>(user_id + month)</code>: <code>is_paid=1</code></li>
+      </ul>
+    </li>
+  </ol>
+
+  <h3>3.2 Разовая оплата (<code>club_fee</code>/<code>uniform</code>/<code>camp</code>)</h3>
+  <ol>
+    <li>Создаём <code>payables</code>:
+      <ul>
+        <li><code>type=club_fee</code> (или <code>uniform</code> / <code>camp</code>)</li>
+        <li><code>status=pending</code></li>
+      </ul>
+    </li>
+    <li>Создаём <code>payment_intents</code> с <code>payable_id</code> и уходим в Robokassa.</li>
+    <li>Webhook ResultURL (успех) → в транзакции:
+      <ul>
+        <li><code>payment_intents.status=paid</code></li>
+        <li><code>payables.status=paid</code></li>
+        <li><b>пишем <code>payments</code></b></li>
+        <li><b>в <code>users_prices</code> ничего не пишем</b></li>
+      </ul>
+    </li>
+  </ol>
+
+  <div class="ok">
+    <b>Правило, чтобы ничего не затиралось:</b> каждая разовая оплата = новая строка в <code>payables</code> (и новый <code>payment_intent</code>).
+  </div>
+
+  <h2>4) Идемпотентность webhooks</h2>
+  <div class="warn">
+    Robokassa может вызывать ResultURL несколько раз. Поэтому обработчик должен быть идемпотентным:
+    <ul>
+      <li><code>payment_intents(provider, provider_inv_id)</code> — уникальная пара</li>
+      <li>повторный webhook не должен создавать дублей в <code>payments</code>/<code>users_prices</code></li>
+    </ul>
+  </div>
+
+  <h2>5) Где что смотреть</h2>
+  <ul>
+    <li><b>История покупок/оплат</b>: <code>payables</code></li>
+    <li><b>Почему не прошёл webhook</b>: логи + <code>payment_intents</code></li>
+    <li><b>Факт денег</b>: <code>payments</code></li>
+    <li><b>Оплата месяца</b>: <code>users_prices</code></li>
+  </ul>
+</div>
+</body>
+</html>
+

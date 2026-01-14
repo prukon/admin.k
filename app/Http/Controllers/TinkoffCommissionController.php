@@ -26,8 +26,13 @@ class TinkoffCommissionController extends Controller
         $data = $r->validate([
             'partner_id' => 'nullable|integer',
             'method'     => 'nullable|in:card,sbp,tpay',
-            'percent'    => 'required|numeric|min:0',
-            'min_fixed'  => 'required|numeric|min:0',
+            // 3 комиссии: банк-эквайринг, банк-выплата, платформа
+            'acquiring_percent'    => 'required|numeric|min:0',
+            'acquiring_min_fixed'  => 'required|numeric|min:0',
+            'payout_percent'       => 'required|numeric|min:0',
+            'payout_min_fixed'     => 'required|numeric|min:0',
+            'platform_percent'     => 'required|numeric|min:0',
+            'platform_min_fixed'   => 'required|numeric|min:0',
             'is_enabled' => 'sometimes|boolean',
         ]);
         $data['is_enabled'] = $r->boolean('is_enabled');
@@ -48,8 +53,12 @@ class TinkoffCommissionController extends Controller
         $data = $r->validate([
             'partner_id' => 'nullable|integer',
             'method'     => 'nullable|in:card,sbp,tpay',
-            'percent'    => 'required|numeric|min:0',
-            'min_fixed'  => 'required|numeric|min:0',
+            'acquiring_percent'    => 'required|numeric|min:0',
+            'acquiring_min_fixed'  => 'required|numeric|min:0',
+            'payout_percent'       => 'required|numeric|min:0',
+            'payout_min_fixed'     => 'required|numeric|min:0',
+            'platform_percent'     => 'required|numeric|min:0',
+            'platform_min_fixed'   => 'required|numeric|min:0',
             'is_enabled' => 'sometimes|boolean',
         ]);
         $data['is_enabled'] = $r->boolean('is_enabled');

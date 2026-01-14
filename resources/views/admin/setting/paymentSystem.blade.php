@@ -35,27 +35,38 @@
         </div>
     </div>
 
-    {{-- Карточка: TБанк --}}
-    {{--<div class="col-sm-3 mb-4">--}}
-        {{--<div class="card shadow h-100">--}}
-            {{--<div class="card-body text-center d-flex flex-column justify-content-center">--}}
-                {{--<img src="{{ asset('img/partners/tbank.png') }}" alt="TБанк" class="mb-3">--}}
-                {{--<h5 class="card-title">TБанк</h5>--}}
+{{-- Карточка: T-Банк --}}
+<div class="col-sm-3 mb-4">
+    <div class="card shadow h-100">
+        <div class="card-body text-center d-flex flex-column justify-content-center">
+            <img src="{{ asset('img/partners/tbank.png') }}" alt="T-Банк" class="mb-3">
+            <h5 class="card-title">T‑Банк (мультирасчёты)</h5>
 
-                {{--@if($tbank && !empty($tbank->settings['tbank_account_id']) && !empty($tbank->settings['tbank_key']))--}}
-                    {{--<button class="btn btn-success mt-3" disabled>Подключено</button>--}}
-                {{--@else--}}
-                    {{--<button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalTbank">--}}
-                        {{--Подключить--}}
-                    {{--</button>--}}
-                {{--@endif--}}
+            @if($tbank && $tbank->is_connected)
+                <button
+                        class="btn btn-success mt-3 toggleable-status-btn"
+                        data-original-text="Подключено"
+                        data-hover-text="Отключить"
+                        data-id="{{ $tbank->id }}"
+                        data-url="{{ route('payment-systems.destroy', ['payment_system' => $tbank->id]) }}">
+                    Подключено
+                </button>
 
-                {{--<div class="mt-3">--}}
-                    {{--<a href="#" data-bs-toggle="modal" data-bs-target="#modalTbankInfo">Подробнее</a>--}}
-                {{--</div>--}}
-            {{--</div>--}}
-        {{--</div>--}}
-    {{--</div>--}}
+                @if($tbank->test_mode)
+                    <div class="mt-2 text-muted small">Тестовый режим</div>
+                @endif
+            @else
+                <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalTbank">
+                    Подключить
+                </button>
+            @endif
+
+            <div class="mt-3">
+                <a href="#" data-bs-toggle="modal" data-bs-target="#modalTbankInfo">Подробнее</a>
+            </div>
+        </div>
+    </div>
+</div>
 
 
 </div>
@@ -106,9 +117,9 @@
 
                     <div class="form-check">
                         <input type="hidden" name="test_mode" value="0">
-                        <input type="checkbox" class="form-check-input" name="test_mode" id="test_mode"
+                        <input type="checkbox" class="form-check-input" name="test_mode" id="robokassa_test_mode"
                                value="1" {{ old('test_mode') ? 'checked' : '' }}>
-                        <label class="form-check-label" for="test_mode">Тестовый режим</label>
+                        <label class="form-check-label" for="robokassa_test_mode">Тестовый режим</label>
                     </div>
 
                     {{-- Скрытое поле name="robokassa" --}}
@@ -158,14 +169,33 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="tbank_account_id" class="form-label">TBank Account ID</label>
-                        <input type="text" class="form-control" name="tbank_account_id" id="tbank_account_id"
-                               placeholder="Введите Account ID">
+                        <label for="terminal_key" class="form-label">TerminalKey (приём платежей)</label>
+                        <input type="text" class="form-control" name="terminal_key" id="terminal_key"
+                               placeholder="Введите TerminalKey">
                     </div>
                     <div class="mb-3">
-                        <label for="tbank_key" class="form-label">Секретный ключ</label>
-                        <input type="text" class="form-control" name="tbank_key" id="tbank_key"
-                               placeholder="Введите Secret Key">
+                        <label for="token_password" class="form-label">Пароль для Token (приём платежей)</label>
+                        <input type="text" class="form-control" name="token_password" id="token_password"
+                               placeholder="Введите пароль для подписи Token">
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <label for="e2c_terminal_key" class="form-label">TerminalKey (выплаты партнёру)</label>
+                        <input type="text" class="form-control" name="e2c_terminal_key" id="e2c_terminal_key"
+                               placeholder="Введите TerminalKey для e2c">
+                    </div>
+                    <div class="mb-3">
+                        <label for="e2c_token_password" class="form-label">Пароль для Token (выплаты партнёру)</label>
+                        <input type="text" class="form-control" name="e2c_token_password" id="e2c_token_password"
+                               placeholder="Введите пароль для подписи Token (e2c)">
+                    </div>
+
+                    <div class="form-check">
+                        <input type="hidden" name="test_mode" value="0">
+                        <input type="checkbox" class="form-check-input" name="test_mode" id="tbank_test_mode" value="1">
+                        <label class="form-check-label" for="tbank_test_mode">Тестовый режим</label>
                     </div>
 
                     <input type="hidden" name="name" value="tbank">
@@ -211,7 +241,7 @@
                 formData[item.name] = item.value;
             });
             // Приводим test_mode к числу 1 или 0 (Laravel это принимает как boolean)
-            formData['test_mode'] = $('#test_mode').is(':checked') ? 1 : 0;
+            formData['test_mode'] = $('#robokassa_test_mode').is(':checked') ? 1 : 0;
             $.ajax({
                 url: '{{ route('payment-systems.store') }}',
                 method: 'POST',
@@ -235,7 +265,7 @@
                 formData[item.name] = item.value;
             });
             // Приводим test_mode к числу 1 или 0 (Laravel это принимает как boolean)
-            formData['test_mode'] = $('#test_mode').is(':checked') ? 1 : 0;
+            formData['test_mode'] = $('#tbank_test_mode').is(':checked') ? 1 : 0;
             $.ajax({
                 url: '{{ route('payment-systems.store') }}',
                 method: 'POST',

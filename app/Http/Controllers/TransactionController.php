@@ -13,12 +13,11 @@ use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
-use function Illuminate\Http\Client\dump;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
-use function Termwind\dd;
+use Illuminate\Support\Facades\Log;
 
 class TransactionController extends Controller
 {
@@ -61,7 +60,7 @@ class TransactionController extends Controller
             }
             return null; // Возвращаем null, если не удалось преобразовать
         } catch (\Exception $e) {
-            \Log::error('Ошибка преобразования даты: ' . $e->getMessage());
+            Log::error('Ошибка преобразования даты: ' . $e->getMessage());
             return null;
         }
     }
@@ -75,12 +74,27 @@ class TransactionController extends Controller
 
         $partnerId = app('current_partner')->id;
 
+        // Показываем способы оплаты только если они реально настроены для текущего партнёра.
+        $robokassaPs = PaymentSystem::where('partner_id', $partnerId)->where('name', 'robokassa')->first();
+        $tbankPs = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
+
+        $robokassaAvailable = (bool) ($robokassaPs && $robokassaPs->is_connected);
+        $tbankAvailable = (bool) ($tbankPs && $tbankPs->is_connected);
+
+        // Для выплат партнёру требуется, чтобы партнёр был зарегистрирован в sm-register (ShopCode / PartnerId).
+        $curPartner = app('current_partner');
+        if ($tbankAvailable && empty($curPartner?->tinkoff_partner_id)) {
+            $tbankAvailable = false;
+        }
+
         // Дополнительная логика, если необходимо
         return view('payment.paymentUser', compact(
             'paymentDate',
             'outSum',
             'formatedPaymentDate',
-            'partnerId'
+            'partnerId',
+            'robokassaAvailable',
+            'tbankAvailable',
         ));
     }
 
@@ -94,7 +108,7 @@ class TransactionController extends Controller
         $outSumRaw = (string) $request->input('outSum', '');
         $outSum = $this->normalizeOutSum($outSumRaw);
         if ($outSum === null) {
-            \Log::warning('Robokassa pay: invalid OutSum', ['outSum' => $outSumRaw, 'user_id' => $userId]);
+            Log::warning('Robokassa pay: invalid OutSum', ['outSum' => $outSumRaw, 'user_id' => $userId]);
             abort(422, 'Некорректная сумма');
         }
 
@@ -103,7 +117,7 @@ class TransactionController extends Controller
             : 'Клубный взнос';
 
         if (!$request->has('formatedPaymentDate')) {
-            \Log::warning('formatedPaymentDate отсутствует в запросе');
+            Log::warning('formatedPaymentDate отсутствует в запросе');
         }
 
         $partnerId = app('current_partner')->id;
@@ -114,7 +128,7 @@ class TransactionController extends Controller
             ->first();
 
         if (!$paymentSystem || !$paymentSystem->is_connected) {
-            \Log::error('Попытка оплаты, но Робокасса не подключена или не настроена');
+            Log::error('Попытка оплаты, но Робокасса не подключена или не настроена');
             abort(500, 'Платёжная система не подключена');
         }
 
@@ -123,7 +137,7 @@ class TransactionController extends Controller
         $mrhPass1 = $settings['password1'] ?? null;
 
         if (!$mrhLogin || !$mrhPass1) {
-            \Log::error('Отсутствуют обязательные параметры для Робокассы');
+            Log::error('Отсутствуют обязательные параметры для Робокассы');
             abort(500, 'Ошибка конфигурации платёжной системы');
         }
 
@@ -261,7 +275,7 @@ class TransactionController extends Controller
 //    Неудачная оплата (для юзеров и партнеров)
     public function fail(Request $request)
     {
-        \Log::error('Переход на страницу неудачной оплаты', $request->all());
+        Log::error('Переход на страницу неудачной оплаты', $request->all());
         return view('payment.fail'); // Предполагается, что у вас есть такой вид
     }
 

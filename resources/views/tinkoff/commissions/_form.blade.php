@@ -18,15 +18,67 @@
             <option value="tpay" @selected($m==='tpay')>Tinkoff Pay</option>
         </select>
     </div>
-    <div class="col-md-2">
-        <label class="form-label">% (моя)</label>
-        <input type="number" step="0.01" min="0" name="percent" class="form-control"
-               value="{{ old('percent', optional($rule)->percent) }}" required>
-    </div>
-    <div class="col-md-2">
-        <label class="form-label">Мин., ₽</label>
-        <input type="number" step="0.01" min="0" name="min_fixed" class="form-control"
-               value="{{ old('min_fixed', optional($rule)->min_fixed) }}" required>
+
+    @php
+        // fallback на legacy-поля для старых записей
+        $acqP = old('acquiring_percent', optional($rule)->acquiring_percent) ?? 2.49;
+        $acqM = old('acquiring_min_fixed', optional($rule)->acquiring_min_fixed) ?? 3.49;
+        $poP  = old('payout_percent', optional($rule)->payout_percent) ?? 0.10;
+        $poM  = old('payout_min_fixed', optional($rule)->payout_min_fixed) ?? 0.00;
+        $plP  = old('platform_percent', optional($rule)->platform_percent) ?? (old('percent', optional($rule)->percent) ?? 0);
+        $plM  = old('platform_min_fixed', optional($rule)->platform_min_fixed) ?? (old('min_fixed', optional($rule)->min_fixed) ?? 0);
+    @endphp
+
+    <div class="col-12">
+        <div class="alert alert-light border mb-0">
+            <div class="fw-semibold mb-2">Комиссии (удерживаются с партнёра)</div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="fw-semibold">Банк: эквайринг</div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">% </label>
+                            <input type="number" step="0.01" min="0" name="acquiring_percent" class="form-control" value="{{ $acqP }}" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Мин., ₽</label>
+                            <input type="number" step="0.01" min="0" name="acquiring_min_fixed" class="form-control" value="{{ $acqM }}" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="fw-semibold">Банк: выплата партнёру</div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">% </label>
+                            <input type="number" step="0.01" min="0" name="payout_percent" class="form-control" value="{{ $poP }}" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Мин., ₽</label>
+                            <input type="number" step="0.01" min="0" name="payout_min_fixed" class="form-control" value="{{ $poM }}" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="fw-semibold">Платформа</div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">% </label>
+                            <input type="number" step="0.01" min="0" name="platform_percent" class="form-control" value="{{ $plP }}" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Мин., ₽</label>
+                            <input type="number" step="0.01" min="0" name="platform_min_fixed" class="form-control" value="{{ $plM }}" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-text mt-2">
+                Все комиссии вычитаются из суммы оплаты при расчёте суммы выплаты партнёру.
+            </div>
+        </div>
     </div>
     <div class="col-md-12">
         <div class="form-check mt-2">

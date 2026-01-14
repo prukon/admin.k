@@ -17,6 +17,8 @@ class PaymentIntent extends Model
         'payable_id',
         'provider',
         'provider_inv_id',
+        'tbank_payment_id',
+        'tbank_order_id',
         'status',
         'out_sum',
         'payment_date',

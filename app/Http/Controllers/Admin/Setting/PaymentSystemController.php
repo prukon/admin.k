@@ -7,6 +7,10 @@ use App\Models\Partner;
 use App\Models\PaymentSystem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 
 
 class PaymentSystemController extends Controller
@@ -40,42 +44,46 @@ class PaymentSystemController extends Controller
 
     public function store(Request $request)
     {
-        \Log::debug('*** REAL PaymentSystemController::store REACHED ***', [
+        Log::debug('*** REAL PaymentSystemController::store REACHED ***', [
             'file'  => __FILE__,
             'class' => __CLASS__,
         ]);
 
-        \Log::debug('HIT store BEFORE validate', [
-            'route'   => \Route::currentRouteName(),
-            'user_id' => optional(\Auth::user())->id,
+        Log::debug('HIT store BEFORE validate', [
+            'route'   => Route::currentRouteName(),
+            'user_id' => optional(Auth::user())->id,
             'all'     => $request->all(),
             'ctype'   => $request->headers->get('content-type'),
             'method'  => $request->method(),
             'csrf_ok' => $request->has('_token'),
         ]);
 
-        $validator = \Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'name'             => 'required|string',
             'merchant_login'   => 'nullable|string',
             'password1'        => 'nullable|string',
             'password2'        => 'nullable|string',
             'password3'        => 'nullable|string',
             'test_mode'        => 'nullable',
-            'tbank_account_id' => 'nullable|string',
-            'tbank_key'        => 'nullable|string',
+            // T-Bank (eacq)
+            'terminal_key'     => 'nullable|string',
+            'token_password'   => 'nullable|string',
+            // T-Bank (e2c payouts)
+            'e2c_terminal_key'   => 'nullable|string',
+            'e2c_token_password' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
-            \Log::warning('payment-systems.store VALIDATION FAILED', $validator->errors()->toArray());
+            Log::warning('payment-systems.store VALIDATION FAILED', $validator->errors()->toArray());
             return back()->withErrors($validator)->withInput();
         }
 
-        \Log::debug('HIT store AFTER validate');
+        Log::debug('HIT store AFTER validate');
 
         $validated = $validator->validated();
         $partnerId = app('current_partner')->id;
 
-        \Log::debug('store payment settings', [
+        Log::debug('store payment settings', [
             'partnerId' => $partnerId,
             'payload'   => $validated,
         ]);
@@ -99,8 +107,13 @@ class PaymentSystemController extends Controller
                 break;
 
             case 'tbank':
-                $settings['tbank_account_id'] = $validated['tbank_account_id'] ?? null;
-                $settings['tbank_key']        = $validated['tbank_key'] ?? null;
+                // Прием платежей (eacq)
+                $settings['terminal_key']   = $validated['terminal_key'] ?? null;
+                $settings['token_password'] = $validated['token_password'] ?? null;
+
+                // Выплаты (e2c)
+                $settings['e2c_terminal_key']   = $validated['e2c_terminal_key'] ?? null;
+                $settings['e2c_token_password'] = $validated['e2c_token_password'] ?? null;
                 break;
         }
 
@@ -108,8 +121,8 @@ class PaymentSystemController extends Controller
         $paymentSystem->test_mode = !empty($validated['test_mode']);
         $paymentSystem->save();
 
-        \Log::debug('DB write check', [
-            'db'  => \DB::getDatabaseName(),
+        Log::debug('DB write check', [
+            'db'  => DB::getDatabaseName(),
             'id'  => $paymentSystem->id,
             'row' => $paymentSystem->toArray(),
         ]);
@@ -153,11 +166,5 @@ class PaymentSystemController extends Controller
         $paymentSystem->delete();
 
         return response()->json(['success' => true]);
-    }
-
-    public function getIsConnectedAttribute()
-    {
-        $s = $this->settings; // уже безопасный массив
-        return !empty($s['merchant_login']) && !empty($s['password1']);
     }
 }

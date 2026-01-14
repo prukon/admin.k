@@ -3,9 +3,11 @@
 namespace App\Services\Tinkoff;
 
 use App\Models\Partner;
+use App\Models\PaymentSystem;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 
 class TinkoffPayoutsService
 {
@@ -39,7 +41,7 @@ class TinkoffPayoutsService
     public function runPayout(TinkoffPayout $payout): TinkoffPayout
     {
         $partner = Partner::findOrFail($payout->partner_id);
-        $cfg = Config::get('tinkoff.e2c');
+        $cfg = $this->resolveE2cConfig($partner->id);
 
         // e2c/v2/Init
         $init = [
@@ -73,7 +75,7 @@ class TinkoffPayoutsService
 
     public function pollState(TinkoffPayout $payout): TinkoffPayout
     {
-        $cfg = Config::get('tinkoff.e2c');
+        $cfg = $this->resolveE2cConfig((int) $payout->partner_id);
         $req = [
             'TerminalKey' => $cfg['terminal_key'],
             'PaymentId'   => $payout->tinkoff_payout_payment_id,
@@ -92,7 +94,7 @@ class TinkoffPayoutsService
             $payout->save();
 
             if ($old !== $payout->status) {
-                \DB::table('tinkoff_payout_status_logs')->insert([
+                DB::table('tinkoff_payout_status_logs')->insert([
                     'payout_id'   => $payout->id,
                     'from_status' => $old,
                     'to_status'   => $payout->status,
@@ -106,49 +108,88 @@ class TinkoffPayoutsService
         return $payout;
     }
 
+    protected function resolveE2cConfig(int $partnerId): array
+    {
+        $ps = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
+        if ($ps && $ps->is_connected) {
+            $s = $ps->settings;
+            $isTest = (bool) $ps->test_mode;
+            return [
+                'terminal_key' => (string) ($s['e2c_terminal_key'] ?? ''),
+                'password'     => (string) ($s['e2c_token_password'] ?? ''),
+                'base_url'     => $isTest ? 'https://rest-api-test.tinkoff.ru' : 'https://securepay.tinkoff.ru',
+            ];
+        }
+
+        // fallback
+        $cfg = Config::get('tinkoff.e2c');
+        return [
+            'terminal_key' => (string) ($cfg['terminal_key'] ?? ''),
+            'password'     => (string) ($cfg['password'] ?? ''),
+            'base_url'     => (string) ($cfg['base_url'] ?? 'https://securepay.tinkoff.ru'),
+        ];
+    }
+
     // Формула: сумма − банковская комиссия − моя комиссия (мат. округление до копейки)
     protected function calcNetAmountForPayout(TinkoffPayment $payment): int
     {
         $gross = $payment->amount; // копейки
 
-        // Банк за прием (2.49% мин 3.49р)
-        $acqCfg = Config::get('tinkoff.tariffs.acquiring');
-        $bankAcceptFee = max(
-            round($gross * ($acqCfg['percent']/100)),
-            (int) round($acqCfg['min_fixed'] * 100)
+        // Все 3 комиссии удерживаем с партнёра (по правилам из БД):
+        // - банк эквайринг (2.49% мин 3.49р по умолчанию)
+        // - банк выплата (0.10% по умолчанию)
+        // - платформа (настраивается)
+        $rule = $this->pickCommissionRule($payment->partner_id, $payment->method);
+
+        $bankAcceptFee = $this->calcFeeCents(
+            $gross,
+            (float) ($rule->acquiring_percent ?? 2.49),
+            (float) ($rule->acquiring_min_fixed ?? 3.49)
         );
 
-        // Банк за выплату (юрик по умолчанию 0.1%) — можно ветвить по типу получателя/методу, если нужно
-        $payoutTariff = Config::get('tinkoff.tariffs.payouts.jur');
-        $bankPayoutFee = max(
-            round($gross * ($payoutTariff['percent']/100)),
-            (int) round($payoutTariff['min_fixed'] * 100)
+        $bankPayoutFee = $this->calcFeeCents(
+            $gross,
+            (float) ($rule->payout_percent ?? 0.10),
+            (float) ($rule->payout_min_fixed ?? 0.00)
         );
 
-        // Твоя комиссия по правилам (пример: ищем самое конкретное правило)
-        $myFee = $this->calcMyCommission($payment->partner_id, $payment->method, $gross);
+        $platformFee = $this->calcFeeCents(
+            $gross,
+            (float) ($rule->platform_percent ?? $rule->percent ?? 0.00),
+            (float) ($rule->platform_min_fixed ?? $rule->min_fixed ?? 0.00)
+        );
 
-        $net = $gross - $bankAcceptFee - $bankPayoutFee - $myFee;
+        $net = $gross - $bankAcceptFee - $bankPayoutFee - $platformFee;
         return max(0, (int)$net);
     }
 
-    protected function calcMyCommission(int $partnerId, ?string $method, int $amountCents): int
+    protected function pickCommissionRule(int $partnerId, ?string $method): \App\Models\TinkoffCommissionRule
     {
-        $q = \App\Models\TinkoffCommissionRule::query()
+        $rules = \App\Models\TinkoffCommissionRule::query()
             ->where('is_enabled', true)
-            ->orderByRaw('partner_id is null, method is null'); // приоритет: конкретный партнер/метод
+            ->orderByRaw('partner_id is null, method is null') // приоритет: конкретный партнер/метод
+            ->get();
 
-        $rules = $q->get();
-        $chosen = $rules->first(function($r) use ($partnerId, $method) {
-            return ($r->partner_id === null || $r->partner_id == $partnerId)
-                && ($r->method === null || $r->method === $method);
+        $chosen = $rules->first(function ($r) use ($partnerId, $method) {
+            return ($r->partner_id === null || (int) $r->partner_id === (int) $partnerId)
+                && ($r->method === null || (string) $r->method === (string) $method);
         });
 
-        if (!$chosen) return 0;
+        // если правил нет вообще — используем "пустое" правило с дефолтами
+        return $chosen ?: new \App\Models\TinkoffCommissionRule([
+            'acquiring_percent'   => 2.49,
+            'acquiring_min_fixed' => 3.49,
+            'payout_percent'      => 0.10,
+            'payout_min_fixed'    => 0.00,
+            'platform_percent'    => 0.00,
+            'platform_min_fixed'  => 0.00,
+        ]);
+    }
 
-        $fee = round($amountCents * ($chosen->percent/100));
-        $min = (int) round($chosen->min_fixed * 100);
-
+    protected function calcFeeCents(int $amountCents, float $percent, float $minFixedRub): int
+    {
+        $fee = (int) round($amountCents * ($percent / 100));
+        $min = (int) round($minFixedRub * 100);
         return max($fee, $min);
     }
 }

@@ -20,8 +20,9 @@
                     <th>#</th>
                     <th>Партнёр</th>
                     <th>Метод</th>
-                    <th>%</th>
-                    <th>Мин. фикс, ₽</th>
+                    <th>Эквайринг банка</th>
+                    <th>Выплата банка</th>
+                    <th>Комиссия платформы</th>
                     <th>Вкл</th>
                     <th></th>
                 </tr>
@@ -32,8 +33,18 @@
                         <td>{{ $r->id }}</td>
                         <td>{{ $r->partner_id ? optional($r->partner)->title ?? ('#'.$r->partner_id) : '— (глобально)' }}</td>
                         <td>{{ $r->method ?? '—' }}</td>
-                        <td>{{ number_format($r->percent, 2, ',', ' ') }}</td>
-                        <td>{{ number_format($r->min_fixed, 2, ',', ' ') }}</td>
+                        <td>
+                            {{ number_format($r->acquiring_percent ?? 2.49, 2, ',', ' ') }}%
+                            <div class="text-muted small">мин {{ number_format($r->acquiring_min_fixed ?? 3.49, 2, ',', ' ') }} ₽</div>
+                        </td>
+                        <td>
+                            {{ number_format($r->payout_percent ?? 0.10, 2, ',', ' ') }}%
+                            <div class="text-muted small">мин {{ number_format($r->payout_min_fixed ?? 0.00, 2, ',', ' ') }} ₽</div>
+                        </td>
+                        <td>
+                            {{ number_format($r->platform_percent ?? $r->percent ?? 0, 2, ',', ' ') }}%
+                            <div class="text-muted small">мин {{ number_format($r->platform_min_fixed ?? $r->min_fixed ?? 0.00, 2, ',', ' ') }} ₽</div>
+                        </td>
                         <td>
                             @if($r->is_enabled)
                                 <span class="badge text-bg-success">on</span>

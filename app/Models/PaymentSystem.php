@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Contracts\Encryption\DecryptException;
 
@@ -64,14 +65,14 @@ class PaymentSystem extends Model
                 return $arr;
             }
 
-            \Log::warning('PaymentSystem settings decrypt failed', [
+            Log::warning('PaymentSystem settings decrypt failed', [
                 'id'         => $this->id,
                 'name'       => $this->name,
                 'partner_id' => $this->partner_id,
                 'msg'        => $e->getMessage(),
             ]);
         } catch (\Throwable $e) {
-            \Log::warning('PaymentSystem settings decrypt throwable', [
+            Log::warning('PaymentSystem settings decrypt throwable', [
                 'id'         => $this->id,
                 'name'       => $this->name,
                 'partner_id' => $this->partner_id,
@@ -89,6 +90,23 @@ class PaymentSystem extends Model
     public function getIsConnectedAttribute()
     {
         $s = $this->settings;
-        return !empty($s['merchant_login']) && !empty($s['password1']);
+
+        // ВАЖНО: критерии "подключено" зависят от конкретного провайдера.
+        // Держим логику здесь, чтобы UI и бизнес-код были консистентны.
+        switch ((string) $this->name) {
+            case 'robokassa':
+                return !empty($s['merchant_login']) && !empty($s['password1']);
+
+            case 'tbank':
+                // Для корректной работы мультирасчётов нам нужны ключи как для приема платежа (eacq),
+                // так и для выплаты партнёру (e2c).
+                return !empty($s['terminal_key'])
+                    && !empty($s['token_password'])
+                    && !empty($s['e2c_terminal_key'])
+                    && !empty($s['e2c_token_password']);
+
+            default:
+                return false;
+        }
     }
 }
