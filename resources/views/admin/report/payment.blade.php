@@ -1,4 +1,96 @@
-<h4 class="pt-3 text-start">Платежи</h4>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
+    <h4 class="text-start mb-0">Платежи</h4>
+
+    {{-- Dropdown "Поля списка" --}}
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle"
+                type="button"
+                id="columnsDropdownPayments"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                title="Поля списка">
+            <i class="fa-solid fa-table-columns"></i>
+        </button>
+
+        <div class="dropdown-menu p-3"
+             aria-labelledby="columnsDropdownPayments"
+             style="min-width: 240px;">
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="user_name"
+                       id="payColUserName"
+                       checked>
+                <label class="form-check-label" for="payColUserName">Имя ученика</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="team_title"
+                       id="payColTeam"
+                       checked>
+                <label class="form-check-label" for="payColTeam">Группа</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="summ"
+                       id="payColSumm"
+                       checked>
+                <label class="form-check-label" for="payColSumm">Сумма платежа</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="payment_month"
+                       id="payColMonth"
+                       checked>
+                <label class="form-check-label" for="payColMonth">Оплаченный месяц</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="operation_date"
+                       id="payColDate"
+                       checked>
+                <label class="form-check-label" for="payColDate">Дата и время платежа</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="payment_provider"
+                       id="payColProvider"
+                       checked>
+                <label class="form-check-label" for="payColProvider">Провайдер</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="refund_status"
+                       id="payColRefundStatus"
+                       checked>
+                <label class="form-check-label" for="payColRefundStatus">Статус возврата</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="refund_action"
+                       id="payColActions"
+                       checked>
+                <label class="form-check-label" for="payColActions">Действия</label>
+            </div>
+
+        </div>
+    </div>
+</div>
 <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
     <span class="fw-bold">Общая сумма платежей:</span>
 
@@ -67,6 +159,105 @@
 @section('scripts')
     <script type="text/javascript">
         $(function () {
+            const defaultColumnsVisibility = {
+                user_name: true,
+                team_title: true,
+                summ: true,
+                payment_month: true,
+                operation_date: true,
+                payment_provider: true,
+                refund_status: true,
+                refund_action: true
+            };
+
+            let currentColumnsConfig = {...defaultColumnsVisibility};
+
+            // Маппинг ключей на индексы колонок DataTables
+            // 0 – № (DT_RowIndex) всегда видна, не настраиваем
+            const columnsMap = {
+                user_name: 1,
+                team_title: 2,
+                summ: 3,
+                payment_month: 4,
+                operation_date: 5,
+                payment_provider: 6,
+                refund_status: 7,
+                refund_action: 8
+            };
+
+            function toBool(val, fallback = true) {
+                if (val === undefined || val === null) return fallback;
+                if (typeof val === 'boolean') return val;
+                if (typeof val === 'number') return val === 1;
+                if (typeof val === 'string') {
+                    const v = val.toLowerCase().trim();
+                    if (v === 'true' || v === '1') return true;
+                    if (v === 'false' || v === '0') return false;
+                }
+                return fallback;
+            }
+
+            function updateFixedColumns() {
+                // Если скрыли "Имя ученика" (колонка 1), лучше фиксировать только № (колонка 0),
+                // иначе FixedColumns может оставить "пустой" фиксированный столбец.
+                try {
+                    const keepLeft = toBool(currentColumnsConfig.user_name, true) ? 2 : 1;
+                    if (table && typeof table.fixedColumns === 'function') {
+                        const fc = table.fixedColumns();
+                        if (fc && typeof fc.leftColumns === 'function') {
+                            fc.leftColumns(keepLeft);
+                        }
+                    }
+                } catch (e) {
+                    // no-op
+                }
+            }
+
+            function applyVisibleColumns(config) {
+                Object.keys(columnsMap).forEach(function (key) {
+                    const colIndex = columnsMap[key];
+                    const column = table.column(colIndex);
+
+                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
+                    column.visible(isVisible);
+
+                    $('.payments-column-toggle[data-column-key="' + key + '"]')
+                        .prop('checked', isVisible);
+                });
+
+                updateFixedColumns();
+
+                try {
+                    table.columns.adjust();
+                } catch (e) {
+                    // no-op
+                }
+            }
+
+            function loadColumnsConfigFromServer() {
+                $.ajax({
+                    url: '/admin/reports/payments/columns-settings',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function (response) {
+                        const merged = {};
+                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
+                            merged[key] = toBool(
+                                response.hasOwnProperty(key) ? response[key] : defaultColumnsVisibility[key],
+                                defaultColumnsVisibility[key]
+                            );
+                        });
+
+                        currentColumnsConfig = merged;
+                        applyVisibleColumns(currentColumnsConfig);
+                    },
+                    error: function () {
+                        currentColumnsConfig = {...defaultColumnsVisibility};
+                        applyVisibleColumns(currentColumnsConfig);
+                    }
+                });
+            }
+
             var table = $('#payments-table').DataTable({
                 processing: true,
                 serverSide: true,
@@ -207,6 +398,34 @@
                         "sortDescending": ": активировать для сортировки столбца по убыванию"
                     }
                 }
+            });
+
+            // после инициализации — подгружаем конфиг из БД
+            loadColumnsConfigFromServer();
+
+            // --- Обработчик чекбоксов "Поля списка" ---
+            $('.payments-column-toggle').on('change', function () {
+                const key = $(this).data('column-key');
+                const isChecked = $(this).is(':checked');
+
+                // как в users: отправляем 1/0
+                currentColumnsConfig[key] = isChecked ? 1 : 0;
+
+                applyVisibleColumns(currentColumnsConfig);
+
+                $.ajax({
+                    url: '/admin/reports/payments/columns-settings',
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        columns: currentColumnsConfig
+                    },
+                    success: function () {
+                    },
+                    error: function () {
+                        console.error('Не удалось сохранить настройки колонок');
+                    }
+                });
             });
 
             // handlers: refund modal

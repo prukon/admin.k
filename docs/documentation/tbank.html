@@ -53,7 +53,7 @@
 
   <h2>4) Комиссии (3 шт.)</h2>
   <ul>
-    <li><b>UI</b>: <code>/admin/tinkoff/commissions</code></li>
+    <li><b>UI</b>: <code>/admin/settings/tbank-commissions</code></li>
     <li><b>Таблица</b>: <code>tinkoff_commission_rules</code></li>
   </ul>
   <h3>4.1 Поля</h3>
@@ -71,7 +71,28 @@ platform_fee       = max(round(gross * platform_percent/100),  platform_min_fixe
 
 net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pre>
 
-  <h2>5) Workflow оплаты (одностадийный)</h2>
+  <h2>5) Автовыплата партнёру (e2c) — управление</h2>
+  <div class="note">
+    Настройка автовыплаты хранится <b>в разрезе партнёра</b> в <code>payment_systems.settings</code> (зашифрованный JSON):
+    <br><code>payment_systems(name=tbank, partner_id=...)</code> → <code>settings.auto_payout_enabled</code>.
+  </div>
+  <ul>
+    <li><b>Где включать/выключать</b>: на странице редактирования правила комиссии
+      <code>/admin/settings/tbank-commissions/{id}/edit</code> чекбокс “Автовыплата включена”.</li>
+    <li><b>Важно</b>: чекбокс применяется к <b>партнёру</b>, указанному в этом правиле (поле <code>partner_id</code>).
+      Для “глобального” правила (partner_id = NULL) чекбокс не применяется — сначала нужно выбрать партнёра и сохранить правило.</li>
+    <li><b>Что делает</b>: если включено — после успешной оплаты (<code>Status=CONFIRMED</code>) автоматически запускаем e2c‑выплату партнёру.</li>
+    <li><b>Если выключено</b>: выплаты запускаются только вручную (админ‑действиями).</li>
+  </ul>
+
+  <h3>5.1 Условия, при которых выплата не уходит в банк</h3>
+  <ul>
+    <li><b>net_to_partner ≤ 0</b>: если комиссии “съели” всю сумму (например, тестовый платёж на 2–3 ₽),
+      выплата помечается как <code>REJECTED</code> и запрос в банк не отправляется.</li>
+    <li><b>Ошибка банка на Init</b> (<code>Success=false</code>): выплата помечается как <code>REJECTED</code>, чтобы не блокировать возвраты.</li>
+  </ul>
+
+  <h2>6) Workflow оплаты (одностадийный)</h2>
   <ol>
     <li>Юзер выбирает T‑Bank на странице <code>/payment</code>.</li>
     <li>Создаём <code>payables</code> и <code>payment_intents</code> (provider=tbank, pending).</li>
@@ -83,7 +104,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
         <li>Если <code>payables.type=monthly_fee</code> → отмечаем месяц в <code>users_prices</code>.</li>
       </ul>
     </li>
-    <li>После CONFIRMED запускаем выплату партнёру (e2c) на сумму <code>net_to_partner</code>.</li>
+    <li>После CONFIRMED запускаем выплату партнёру (e2c) на сумму <code>net_to_partner</code> <b>только если включена автовыплата</b> (см. раздел 5).</li>
   </ol>
 
   <div class="note">

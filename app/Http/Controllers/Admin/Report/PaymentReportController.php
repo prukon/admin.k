@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\Controller;
+use App\Models\UserTableSetting;
 use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\Refund;
@@ -10,6 +11,7 @@ use App\Models\Team;
 use App\Models\TinkoffPayout;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
@@ -363,6 +365,63 @@ class PaymentReportController extends Controller
                 ->rawColumns(['refund_action'])
                 ->make(true);
         }
+    }
+
+    /**
+     * Вернуть настройки колонок для текущего пользователя
+     * для таблицы "reports_payments".
+     */
+    public function getColumnsSettings()
+    {
+        $userId = Auth::id();
+
+        $settings = UserTableSetting::where('user_id', $userId)
+            ->where('table_key', 'reports_payments')
+            ->first();
+
+        $columns = $settings?->columns;
+
+        if (!is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    /**
+     * Сохранить настройки колонок для текущего пользователя.
+     * Ожидает: columns: { user_name: true, team_title: false, ... }
+     */
+    public function saveColumnsSettings(Request $request)
+    {
+        $userId = Auth::id();
+
+        $data = $request->validate([
+            'columns' => 'required|array',
+        ]);
+
+        $rawColumns = $data['columns'];
+        $normalized = [];
+
+        foreach ($rawColumns as $key => $value) {
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool === null) {
+                $bool = false;
+            }
+            $normalized[$key] = $bool;
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id' => $userId,
+                'table_key' => 'reports_payments',
+            ],
+            [
+                'columns' => $normalized,
+            ]
+        );
+
+        return response()->json(['success' => true]);
     }
 
     public function formatedDate($month)

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: отчёт “Платежи” (админка)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Отчёт “Платежи” (админка)</h1>
+  <div class="small">Файл: <code>/docs/documentation/reports-payments.html</code></div>
+
+  <h2>1) Где находится</h2>
+  <ul>
+    <li>Страница: <code>/admin/reports/payments</code></li>
+  </ul>
+
+  <h2>2) Поля списка (управление видимостью колонок)</h2>
+  <div class="note">
+    На странице отчёта доступна кнопка <b>“Поля списка”</b> (иконка колонок).
+    Можно включать/выключать отображение колонок таблицы (включая “Действия”).
+    Настройка сохраняется <b>для текущего пользователя</b>.
+  </div>
+  <ul>
+    <li><b>Где хранится</b>: таблица <code>user_table_settings</code></li>
+    <li><b>Ключ таблицы</b>: <code>table_key = reports_payments</code></li>
+    <li><b>API</b>:
+      <ul>
+        <li><code>GET /admin/reports/payments/columns-settings</code> — получить настройки</li>
+        <li><code>POST /admin/reports/payments/columns-settings</code> — сохранить настройки (<code>columns: {key: true/false}</code>)</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+</body>
+</html>
+

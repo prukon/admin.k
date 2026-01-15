@@ -132,6 +132,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware(['can:reports-view'])->group(function () {
         Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
         Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
+        // Настройки отображения колонок в отчёте "Платежи"
+        Route::get('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'getColumnsSettings']);
+        Route::post('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'saveColumnsSettings']);
         Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])
             ->name('payments.refund')
             ->whereNumber('payment');
@@ -283,7 +286,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:documentations-view')->group(function () {
         Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
         Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
-            ->whereIn('page', ['payments', 'tbank'])
+            ->whereIn('page', ['payments', 'reports-payments', 'tbank'])
             ->name('docs.documentation.show');
     });
 
