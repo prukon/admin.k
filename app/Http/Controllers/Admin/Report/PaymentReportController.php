@@ -8,6 +8,8 @@ use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\Refund;
 use App\Models\Team;
+use App\Models\TinkoffCommissionRule;
+use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -243,6 +245,60 @@ class PaymentReportController extends Controller
                     ->groupBy('deal_id')
                     ->map(fn ($g) => $g->first());
 
+            // ---- Payouts: успешные выплаты (для колонки "Выплата") ----
+            // Показываем сумму только после фактического зачисления денег (Status=COMPLETED).
+            $completedPayoutByDealId = $dealIds->isEmpty()
+                ? collect()
+                : TinkoffPayout::query()
+                    ->where('partner_id', (int) $partnerId)
+                    ->whereIn('deal_id', $dealIds)
+                    ->where('status', 'COMPLETED')
+                    ->orderByDesc('id')
+                    ->get()
+                    ->groupBy('deal_id')
+                    ->map(fn ($g) => $g->first());
+
+            // ---- T-Bank payments: метод оплаты (card/sbp/tpay) для выбора правил комиссии ----
+            $tbankPaymentByDealId = $dealIds->isEmpty()
+                ? collect()
+                : TinkoffPayment::query()
+                    ->where('partner_id', (int) $partnerId)
+                    ->whereIn('deal_id', $dealIds)
+                    ->orderByDesc('id')
+                    ->get()
+                    ->groupBy('deal_id')
+                    ->map(fn ($g) => $g->first());
+
+            // ---- Commission rules (T-Bank): эквайринг + выплата + платформа ----
+            $commissionRules = TinkoffCommissionRule::query()
+                ->where('is_enabled', true)
+                // приоритет: конкретный партнер/метод (как в сервисе)
+                ->orderByRaw('partner_id is null, method is null')
+                ->get();
+
+            $calcFeeCents = static function (int $amountCents, float $percent, float $minFixedRub): int {
+                $fee = (int) round($amountCents * ($percent / 100));
+                $min = (int) round($minFixedRub * 100);
+                return max($fee, $min);
+            };
+
+            $pickCommissionRule = static function (int $pid, ?string $method) use ($commissionRules): TinkoffCommissionRule {
+                $chosen = $commissionRules->first(function (TinkoffCommissionRule $r) use ($pid, $method) {
+                    $partnerOk = ($r->partner_id === null) || ((int) $r->partner_id === (int) $pid);
+                    $methodOk = ($r->method === null) || ((string) $r->method === (string) $method);
+                    return $partnerOk && $methodOk;
+                });
+
+                return $chosen ?: new TinkoffCommissionRule([
+                    'acquiring_percent'   => 2.49,
+                    'acquiring_min_fixed' => 3.49,
+                    'payout_percent'      => 0.10,
+                    'payout_min_fixed'    => 0.00,
+                    'platform_percent'    => 0.00,
+                    'platform_min_fixed'  => 0.00,
+                ]);
+            };
+
 
 
             return DataTables::of($payments)
@@ -273,6 +329,112 @@ class PaymentReportController extends Controller
                 })
                 ->addColumn('payment_provider', function ($row) {
                     return (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status)) ? 'tbank' : 'robokassa';
+                })
+                ->addColumn('payout_amount', function ($row) use ($completedPayoutByDealId) {
+                    // Только для T-Bank. Заполняем только после успешного зачисления денег (COMPLETED).
+                    if (empty($row->deal_id)) {
+                        return null;
+                    }
+
+                    $payout = $completedPayoutByDealId->get($row->deal_id);
+                    if (!$payout) {
+                        return null;
+                    }
+
+                    return round(((int) $payout->amount) / 100, 2);
+                })
+                ->addColumn('bank_commission_total', function ($row) use ($partnerId, $tbankPaymentByDealId, $pickCommissionRule, $calcFeeCents) {
+                    // Только для T-Bank. Заполняем всегда (даже если выплаты ещё не было).
+                    if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+                        return null;
+                    }
+
+                    $grossCents = (int) round(((float) $row->summ) * 100);
+                    $method = null;
+                    if (!empty($row->deal_id)) {
+                        $tp = $tbankPaymentByDealId->get($row->deal_id);
+                        $method = $tp ? (string) ($tp->method ?? null) : null;
+                    }
+                    $rule = $pickCommissionRule((int) $partnerId, $method);
+
+                    $bankAcceptFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->acquiring_percent ?? 2.49),
+                        (float) ($rule->acquiring_min_fixed ?? 3.49)
+                    );
+                    $bankPayoutFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->payout_percent ?? 0.10),
+                        (float) ($rule->payout_min_fixed ?? 0.00)
+                    );
+
+                    return round(($bankAcceptFee + $bankPayoutFee) / 100, 2);
+                })
+                ->addColumn('bank_commission_acquiring', function ($row) use ($partnerId, $tbankPaymentByDealId, $pickCommissionRule, $calcFeeCents) {
+                    // Только для hover-расшифровки. Только для T-Bank.
+                    if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+                        return null;
+                    }
+
+                    $grossCents = (int) round(((float) $row->summ) * 100);
+                    $method = null;
+                    if (!empty($row->deal_id)) {
+                        $tp = $tbankPaymentByDealId->get($row->deal_id);
+                        $method = $tp ? (string) ($tp->method ?? null) : null;
+                    }
+                    $rule = $pickCommissionRule((int) $partnerId, $method);
+
+                    $bankAcceptFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->acquiring_percent ?? 2.49),
+                        (float) ($rule->acquiring_min_fixed ?? 3.49)
+                    );
+
+                    return round($bankAcceptFee / 100, 2);
+                })
+                ->addColumn('bank_commission_payout', function ($row) use ($partnerId, $tbankPaymentByDealId, $pickCommissionRule, $calcFeeCents) {
+                    // Только для hover-расшифровки. Только для T-Bank.
+                    if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+                        return null;
+                    }
+
+                    $grossCents = (int) round(((float) $row->summ) * 100);
+                    $method = null;
+                    if (!empty($row->deal_id)) {
+                        $tp = $tbankPaymentByDealId->get($row->deal_id);
+                        $method = $tp ? (string) ($tp->method ?? null) : null;
+                    }
+                    $rule = $pickCommissionRule((int) $partnerId, $method);
+
+                    $bankPayoutFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->payout_percent ?? 0.10),
+                        (float) ($rule->payout_min_fixed ?? 0.00)
+                    );
+
+                    return round($bankPayoutFee / 100, 2);
+                })
+                ->addColumn('platform_commission', function ($row) use ($partnerId, $tbankPaymentByDealId, $pickCommissionRule, $calcFeeCents) {
+                    // Только для T-Bank. Заполняем всегда (даже если выплаты ещё не было).
+                    if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+                        return null;
+                    }
+
+                    $grossCents = (int) round(((float) $row->summ) * 100);
+                    $method = null;
+                    if (!empty($row->deal_id)) {
+                        $tp = $tbankPaymentByDealId->get($row->deal_id);
+                        $method = $tp ? (string) ($tp->method ?? null) : null;
+                    }
+                    $rule = $pickCommissionRule((int) $partnerId, $method);
+
+                    $platformFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->platform_percent ?? $rule->percent ?? 0.00),
+                        (float) ($rule->platform_min_fixed ?? $rule->min_fixed ?? 0.00)
+                    );
+
+                    return round($platformFee / 100, 2);
                 })
                 ->addColumn('refund_status', function ($row) use ($refundByPaymentId) {
                     $r = $refundByPaymentId->get($row->id);

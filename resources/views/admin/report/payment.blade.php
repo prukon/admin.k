@@ -73,6 +73,33 @@
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
                        type="checkbox"
+                       data-column-key="payout_amount"
+                       id="payColPayout"
+                       checked>
+                <label class="form-check-label" for="payColPayout">Выплата</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="bank_commission_total"
+                       id="payColBankCommission"
+                       checked>
+                <label class="form-check-label" for="payColBankCommission">Комиссия банка</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="platform_commission"
+                       id="payColPlatformCommission"
+                       checked>
+                <label class="form-check-label" for="payColPlatformCommission">Комиссия платформы</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
                        data-column-key="refund_status"
                        id="payColRefundStatus"
                        checked>
@@ -106,6 +133,9 @@
         <th>Оплаченный месяц</th>
         <th>Дата и время платежа</th>
         <th>Провайдер</th>
+        <th>Выплата</th>
+        <th>Комиссия банка</th>
+        <th>Комиссия платформы</th>
         <th>Статус возврата</th>
         <th>Действия</th>
     </tr>
@@ -166,6 +196,9 @@
                 payment_month: true,
                 operation_date: true,
                 payment_provider: true,
+                payout_amount: true,
+                bank_commission_total: true,
+                platform_commission: true,
                 refund_status: true,
                 refund_action: true
             };
@@ -181,8 +214,11 @@
                 payment_month: 4,
                 operation_date: 5,
                 payment_provider: 6,
-                refund_status: 7,
-                refund_action: 8
+                payout_amount: 7,
+                bank_commission_total: 8,
+                platform_commission: 9,
+                refund_status: 10,
+                refund_action: 11
             };
 
             function toBool(val, fallback = true) {
@@ -353,6 +389,48 @@
                             if (data === 'tbank') return '<span class="badge bg-primary">T-Bank</span>';
                             if (data === 'robokassa') return '<span class="badge bg-secondary">Robokassa</span>';
                             return data ? data : '';
+                        }
+                    },
+                    {
+                        data: 'payout_amount',
+                        name: 'payout_amount',
+                        render: function (data, type, row) {
+                            if (data === null || data === undefined || data === '') return '';
+                            if (type !== 'display') return parseFloat(data);
+                            function formatNumber(number) {
+                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                            }
+                            return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
+                        }
+                    },
+                    {
+                        data: 'bank_commission_total',
+                        name: 'bank_commission_total',
+                        render: function (data, type, row) {
+                            if (data === null || data === undefined || data === '') return '';
+                            if (type !== 'display') return parseFloat(data);
+
+                            function formatNumber(number) {
+                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                            }
+
+                            const acq = row.bank_commission_acquiring;
+                            const payout = row.bank_commission_payout;
+                            const title = `Эквайринг: ${acq !== null && acq !== undefined ? formatNumber(parseFloat(acq).toFixed(2)) : ''} руб&#10;Выплата: ${payout !== null && payout !== undefined ? formatNumber(parseFloat(payout).toFixed(2)) : ''} руб`;
+                            const total = formatNumber(parseFloat(data).toFixed(2));
+                            return `<span title="${title}">${total} руб</span>`;
+                        }
+                    },
+                    {
+                        data: 'platform_commission',
+                        name: 'platform_commission',
+                        render: function (data, type, row) {
+                            if (data === null || data === undefined || data === '') return '';
+                            if (type !== 'display') return parseFloat(data);
+                            function formatNumber(number) {
+                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                            }
+                            return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
                         }
                     },
                     {
