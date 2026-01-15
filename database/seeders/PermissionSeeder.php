@@ -22,10 +22,11 @@ class PermissionSeeder extends Seeder
 
         // Полный список прав из permissions.sql, но с привязкой к group_slug. :contentReference[oaicite:3]{index=3}
         $permissions = [
-            // group_slug mainMenu (id=1 в дампе)
+            // group_slug mainMenu (id=1 в дампе)  
             ['name'=>'dashboard.view','description'=>'Страница "Консоль"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>10],
             ['name'=>'reports.view','description'=>'Страница "Отчеты"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>15],
             ['name'=>'reports.payment-intents.view','description'=>'Страница "Платежные запросы"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>16],
+            ['name'=>'reports.additional-value.view','description'=>'Страница "Отчеты (доп. значения)"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>17],
             ['name'=>'myPayments.view','description'=>'Страница "Мои платежи"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>16],
             ['name'=>'myGroup.view','description'=>'Страница "Моя группа"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>17],
             ['name'=>'setPrices.view','description'=>'Страница "Установка цен"','group_slug'=>'mainMenu','is_visible'=>1,'sort_order'=>20],
@@ -45,6 +46,7 @@ class PermissionSeeder extends Seeder
             ['name'=>'servicePayments.view','description'=>'Страница "Оплата сервиса"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>80],
             ['name'=>'partnerWallet.view','description'=>'Страница "Кошелек"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>90],
             ['name'=>'documentations.view','description'=>'Страница "Документация"','group_slug'=>'mainMenu','is_visible'=>0,'sort_order'=>71],
+
 
 
             // account (id=2)

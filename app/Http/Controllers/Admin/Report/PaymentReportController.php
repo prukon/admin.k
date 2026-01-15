@@ -436,6 +436,71 @@ class PaymentReportController extends Controller
 
                     return round($platformFee / 100, 2);
                 })
+                ->addColumn('commission_total', function ($row) use ($partnerId, $tbankPaymentByDealId, $pickCommissionRule, $calcFeeCents) {
+                    // Только для T-Bank. Суммарные удержания: банк(эквайринг+выплата) + платформа.
+                    if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+                        return null;
+                    }
+
+                    $grossCents = (int) round(((float) $row->summ) * 100);
+                    $method = null;
+                    if (!empty($row->deal_id)) {
+                        $tp = $tbankPaymentByDealId->get($row->deal_id);
+                        $method = $tp ? (string) ($tp->method ?? null) : null;
+                    }
+                    $rule = $pickCommissionRule((int) $partnerId, $method);
+
+                    $bankAcceptFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->acquiring_percent ?? 2.49),
+                        (float) ($rule->acquiring_min_fixed ?? 3.49)
+                    );
+                    $bankPayoutFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->payout_percent ?? 0.10),
+                        (float) ($rule->payout_min_fixed ?? 0.00)
+                    );
+                    $platformFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->platform_percent ?? $rule->percent ?? 0.00),
+                        (float) ($rule->platform_min_fixed ?? $rule->min_fixed ?? 0.00)
+                    );
+
+                    return round(($bankAcceptFee + $bankPayoutFee + $platformFee) / 100, 2);
+                })
+                ->addColumn('net_to_partner', function ($row) use ($partnerId, $tbankPaymentByDealId, $pickCommissionRule, $calcFeeCents) {
+                    // Только для T-Bank. "К выплате" = сумма - все удержания (не факт выплаты).
+                    if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+                        return null;
+                    }
+
+                    $grossCents = (int) round(((float) $row->summ) * 100);
+                    $method = null;
+                    if (!empty($row->deal_id)) {
+                        $tp = $tbankPaymentByDealId->get($row->deal_id);
+                        $method = $tp ? (string) ($tp->method ?? null) : null;
+                    }
+                    $rule = $pickCommissionRule((int) $partnerId, $method);
+
+                    $bankAcceptFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->acquiring_percent ?? 2.49),
+                        (float) ($rule->acquiring_min_fixed ?? 3.49)
+                    );
+                    $bankPayoutFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->payout_percent ?? 0.10),
+                        (float) ($rule->payout_min_fixed ?? 0.00)
+                    );
+                    $platformFee = $calcFeeCents(
+                        $grossCents,
+                        (float) ($rule->platform_percent ?? $rule->percent ?? 0.00),
+                        (float) ($rule->platform_min_fixed ?? $rule->min_fixed ?? 0.00)
+                    );
+
+                    $net = $grossCents - $bankAcceptFee - $bankPayoutFee - $platformFee;
+                    return round(max(0, (int) $net) / 100, 2);
+                })
                 ->addColumn('refund_status', function ($row) use ($refundByPaymentId) {
                     $r = $refundByPaymentId->get($row->id);
                     return $r ? (string) $r->status : '';

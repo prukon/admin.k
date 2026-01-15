@@ -15,6 +15,9 @@
         <div class="dropdown-menu p-3"
              aria-labelledby="columnsDropdownPayments"
              style="min-width: 240px;">
+            @php
+                $canAdditional = auth()->user() && auth()->user()->can('reports-additional-value-view');
+            @endphp
 
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
@@ -73,6 +76,46 @@
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
                        type="checkbox"
+                       data-column-key="bank_commission_total"
+                       id="payColBankCommission"
+                       checked
+                       @if(!$canAdditional) disabled @endif
+                       @if(!$canAdditional) title="Доступно по праву reports.additional-value.view" @endif>
+                <label class="form-check-label" for="payColBankCommission">Комиссия банка</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="platform_commission"
+                       id="payColPlatformCommission"
+                       checked
+                       @if(!$canAdditional) disabled @endif
+                       @if(!$canAdditional) title="Доступно по праву reports.additional-value.view" @endif>
+                <label class="form-check-label" for="payColPlatformCommission">Комиссия платформы</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="commission_total"
+                       id="payColCommissionTotal"
+                       checked>
+                <label class="form-check-label" for="payColCommissionTotal">Комиссия</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="net_to_partner"
+                       id="payColNetToPartner"
+                       checked>
+                <label class="form-check-label" for="payColNetToPartner">К выплате</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
                        data-column-key="payout_amount"
                        id="payColPayout"
                        checked>
@@ -82,19 +125,10 @@
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
                        type="checkbox"
-                       data-column-key="bank_commission_total"
-                       id="payColBankCommission"
+                       data-column-key="refund_action"
+                       id="payColActions"
                        checked>
-                <label class="form-check-label" for="payColBankCommission">Комиссия банка</label>
-            </div>
-
-            <div class="form-check">
-                <input class="form-check-input payments-column-toggle"
-                       type="checkbox"
-                       data-column-key="platform_commission"
-                       id="payColPlatformCommission"
-                       checked>
-                <label class="form-check-label" for="payColPlatformCommission">Комиссия платформы</label>
+                <label class="form-check-label" for="payColActions">Действия</label>
             </div>
 
             <div class="form-check">
@@ -104,15 +138,6 @@
                        id="payColRefundStatus"
                        checked>
                 <label class="form-check-label" for="payColRefundStatus">Статус возврата</label>
-            </div>
-
-            <div class="form-check">
-                <input class="form-check-input payments-column-toggle"
-                       type="checkbox"
-                       data-column-key="refund_action"
-                       id="payColActions"
-                       checked>
-                <label class="form-check-label" for="payColActions">Действия</label>
             </div>
 
         </div>
@@ -133,11 +158,13 @@
         <th>Оплаченный месяц</th>
         <th>Дата и время платежа</th>
         <th>Провайдер</th>
-        <th>Выплата</th>
         <th>Комиссия банка</th>
         <th>Комиссия платформы</th>
-        <th>Статус возврата</th>
+        <th>Комиссия</th>
+        <th>К выплате</th>
+        <th>Выплата</th>
         <th>Действия</th>
+        <th>Статус возврата</th>
     </tr>
     </thead>
 </table>
@@ -189,6 +216,8 @@
 @section('scripts')
     <script type="text/javascript">
         $(function () {
+            const canAdditional = @json($canAdditional);
+
             const defaultColumnsVisibility = {
                 user_name: true,
                 team_title: true,
@@ -197,6 +226,8 @@
                 operation_date: true,
                 payment_provider: true,
                 payout_amount: true,
+                net_to_partner: true,
+                commission_total: true,
                 bank_commission_total: true,
                 platform_commission: true,
                 refund_status: true,
@@ -214,11 +245,13 @@
                 payment_month: 4,
                 operation_date: 5,
                 payment_provider: 6,
-                payout_amount: 7,
-                bank_commission_total: 8,
-                platform_commission: 9,
-                refund_status: 10,
-                refund_action: 11
+                bank_commission_total: 7,
+                platform_commission: 8,
+                commission_total: 9,
+                net_to_partner: 10,
+                payout_amount: 11,
+                refund_action: 12,
+                refund_status: 13
             };
 
             function toBool(val, fallback = true) {
@@ -254,11 +287,21 @@
                     const colIndex = columnsMap[key];
                     const column = table.column(colIndex);
 
-                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
+                    let isVisible = toBool(config[key], defaultColumnsVisibility[key]);
+
+                    // Доступ к детальным комиссиям — только по праву.
+                    if (!canAdditional && (key === 'bank_commission_total' || key === 'platform_commission')) {
+                        isVisible = false;
+                    }
+
                     column.visible(isVisible);
 
                     $('.payments-column-toggle[data-column-key="' + key + '"]')
                         .prop('checked', isVisible);
+
+                    if (!canAdditional && (key === 'bank_commission_total' || key === 'platform_commission')) {
+                        $('.payments-column-toggle[data-column-key="' + key + '"]').prop('disabled', true);
+                    }
                 });
 
                 updateFixedColumns();
@@ -392,18 +435,6 @@
                         }
                     },
                     {
-                        data: 'payout_amount',
-                        name: 'payout_amount',
-                        render: function (data, type, row) {
-                            if (data === null || data === undefined || data === '') return '';
-                            if (type !== 'display') return parseFloat(data);
-                            function formatNumber(number) {
-                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                            }
-                            return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
-                        }
-                    },
-                    {
                         data: 'bank_commission_total',
                         name: 'bank_commission_total',
                         render: function (data, type, row) {
@@ -434,6 +465,45 @@
                         }
                     },
                     {
+                        data: 'commission_total',
+                        name: 'commission_total',
+                        render: function (data, type, row) {
+                            if (data === null || data === undefined || data === '') return '';
+                            if (type !== 'display') return parseFloat(data);
+                            function formatNumber(number) {
+                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                            }
+                            const title = 'Суммарные удержания по тарифу и комиссии банка';
+                            const total = formatNumber(parseFloat(data).toFixed(2));
+                            return `<span title="${title}">${total} руб</span>`;
+                        }
+                    },
+                    {
+                        data: 'net_to_partner',
+                        name: 'net_to_partner',
+                        render: function (data, type, row) {
+                            if (data === null || data === undefined || data === '') return '';
+                            if (type !== 'display') return parseFloat(data);
+                            function formatNumber(number) {
+                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                            }
+                            return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
+                        }
+                    },
+                    {
+                        data: 'payout_amount',
+                        name: 'payout_amount',
+                        render: function (data, type, row) {
+                            if (data === null || data === undefined || data === '') return '';
+                            if (type !== 'display') return parseFloat(data);
+                            function formatNumber(number) {
+                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                            }
+                            return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
+                        }
+                    },
+                    {data: 'refund_action', name: 'refund_action', orderable: false, searchable: false},
+                    {
                         data: 'refund_status',
                         name: 'refund_status',
                         render: function (data, type, row) {
@@ -444,7 +514,6 @@
                             return data;
                         }
                     },
-                    {data: 'refund_action', name: 'refund_action', orderable: false, searchable: false}
                 ],
                 order: [[5, 'desc']], // Сортировка по столбцу "Дата" в порядке убывания
 

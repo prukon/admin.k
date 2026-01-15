@@ -48,11 +48,28 @@
     Эти колонки заполняются <b>только для платежей через T‑Bank</b>.
     Для других провайдеров значения будут пустыми.
   </div>
+  <div class="note">
+    <b>Источник расчёта комиссий:</b> правила из таблицы <code>tinkoff_commission_rules</code>.
+    Комиссии удерживаются с партнёра. Округление: математическое (<code>round</code>) до копейки.
+    Формула:
+    <pre>bank_acquiring_fee = max(round(gross * acquiring_percent/100), acquiring_min_fixed)
+bank_payout_fee    = max(round(gross * payout_percent/100),    payout_min_fixed)
+platform_fee       = max(round(gross * platform_percent/100),  platform_min_fixed)
+
+commission_total = bank_acquiring_fee + bank_payout_fee + platform_fee
+net_to_partner   = gross - commission_total</pre>
+  </div>
   <ul>
     <li><b>Выплата</b> (<code>payout_amount</code>):
       фактическая сумма выплаты партнёру.
       Заполняется <b>только после успешного зачисления</b> (статус выплаты <code>COMPLETED</code> в <code>tinkoff_payouts</code>).
       Если выплаты не было — поле пустое.</li>
+    <li><b>К выплате</b> (<code>net_to_partner</code>):
+      расчётная сумма к выплате партнёру (нетто).
+      Заполняется <b>сразу</b> после оплаты по формуле: сумма − (комиссии банка + комиссия платформы).</li>
+    <li><b>Комиссия</b> (<code>commission_total</code>):
+      суммарные удержания по тарифу и комиссии банка (без детализации), заполняется <b>всегда</b>.
+      <br>В <b>hover</b>: “Суммарные удержания по тарифу и комиссии банка”.</li>
     <li><b>Комиссия банка</b> (<code>bank_commission_total</code>):
       сумма <b>комиссии за эквайринг</b> + <b>комиссии за выплату</b>.
       Заполняется <b>всегда</b> (даже если выплаты ещё не было), рассчитывается по правилам <code>tinkoff_commission_rules</code>.
@@ -60,6 +77,27 @@
     <li><b>Комиссия платформы</b> (<code>platform_commission</code>):
       комиссия платформы, заполняется <b>всегда</b>, рассчитывается по правилам <code>tinkoff_commission_rules</code>.</li>
   </ul>
+
+  <div class="note">
+    <b>Права доступа:</b> детальные колонки комиссий (<code>bank_commission_total</code>, <code>platform_commission</code>)
+    показываются только пользователям с правом <code>reports.additional-value.view</code>.
+    Для остальных пользователей детальные колонки скрыты. “К выплате” (<code>net_to_partner</code>) и “Комиссия” (<code>commission_total</code>) доступны всем.
+  </div>
+
+  <div class="note">
+    <b>Порядок колонок (после “Провайдер”):</b>
+    “Комиссия банка” → “Комиссия платформы” → “Комиссия” → “К выплате” → “Выплата”.
+  </div>
+
+  <h2>4) Колонки: возвраты</h2>
+  <div class="note">
+    В таблице есть 2 колонки, связанные с возвратами:
+    <ul>
+      <li><b>Действия</b> (<code>refund_action</code>) — кнопка “Возврат” (может быть недоступна, если возврат запрещён правилами).</li>
+      <li><b>Статус возврата</b> (<code>refund_status</code>) — текущий статус возврата (например, <code>pending</code>/<code>succeeded</code>/<code>failed</code>).</li>
+    </ul>
+    Порядок этих колонок в таблице: <b>“Действия”</b>, затем <b>“Статус возврата”</b>.
+  </div>
 </div>
 </body>
 </html>
