@@ -107,6 +107,92 @@ class TinkoffPaymentController extends Controller
     }
 
     /**
+     * Оплата учеником через T‑Bank СБП (QR).
+     * Flow: Init → показываем QR → ждём CONFIRMED (webhook/проверка статуса) → success.
+     */
+    public function createSbp(Request $r, TinkoffPaymentsService $svc)
+    {
+        $partnerId = (int) app('current_partner')->id;
+
+        // Показываем метод оплаты только если он реально настроен
+        $ps = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
+        if (!$ps || !$ps->is_connected) {
+            return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена для текущего партнёра']);
+        }
+        if (empty(app('current_partner')->tinkoff_partner_id)) {
+            return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
+        }
+
+        $outSumRaw = (string) $r->input('outSum', '0');
+        $outSum = $this->normalizeOutSum($outSumRaw);
+        if ($outSum === null) {
+            return back()->withErrors(['tinkoff' => 'Некорректная сумма']);
+        }
+        $amountCents = (int) round(((float) $outSum) * 100);
+
+        $user = $r->user();
+        $userId = (int) $user->id;
+        $userName = (string) ($user->name ?? '');
+
+        $paymentDate = $r->filled('formatedPaymentDate')
+            ? (string) $r->input('formatedPaymentDate')   // YYYY-MM-01
+            : 'Клубный взнос';
+
+        $type = $r->filled('formatedPaymentDate') ? 'monthly_fee' : 'club_fee';
+        $month = null;
+        $payableMeta = [];
+        if ($type === 'monthly_fee') {
+            $month = $paymentDate;
+            $payableMeta['month'] = $paymentDate;
+        }
+
+        $payable = Payable::create([
+            'partner_id' => $partnerId,
+            'user_id'    => $userId,
+            'type'       => $type,
+            'amount'     => $outSum,
+            'currency'   => 'RUB',
+            'status'     => 'pending',
+            'month'      => $month,
+            'meta'       => $payableMeta,
+        ]);
+
+        $intent = PaymentIntent::create([
+            'partner_id'   => $partnerId,
+            'user_id'      => $userId,
+            'payable_id'   => $payable->id,
+            'provider'     => 'tbank',
+            'status'       => 'pending',
+            'out_sum'      => $outSum,
+            'payment_date' => $paymentDate,
+            'meta'         => json_encode([
+                'user_name' => $userName,
+                'method' => 'sbp',
+            ], JSON_UNESCAPED_UNICODE),
+        ]);
+
+        $payment = $svc->initPayment($partnerId, $amountCents, 'sbp', [
+            'month' => $month ?: null,
+            'payable_id' => (string) $payable->id,
+            'payment_intent_id' => (string) $intent->id,
+            'user_id' => (string) $userId,
+        ]);
+
+        if (empty($payment->tinkoff_payment_id)) {
+            return back()->withErrors(['tinkoff' => 'Не удалось инициализировать оплату T‑Bank (СБП)']);
+        }
+
+        // Связываем intent с T‑Bank
+        $intent->tbank_order_id = (string) $payment->order_id;
+        $intent->tbank_payment_id = (int) $payment->tinkoff_payment_id;
+        $intent->provider_inv_id = (int) $payment->tinkoff_payment_id;
+        $intent->save();
+
+        // Переходим на страницу QR
+        return redirect()->route('tinkoff.qr', $payment->tinkoff_payment_id);
+    }
+
+    /**
      * Нормализуем сумму (рубли) до формата 0.00, округляя до копейки.
      */
     private function normalizeOutSum(string $value): ?string

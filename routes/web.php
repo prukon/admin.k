@@ -431,11 +431,13 @@ Route::middleware('can:payment-method-T-Bank')->group(function () {
         Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show']);
         Route::get('/admin/tinkoff/partners/{id}', [TinkoffAdminPartnerController::class, 'show']);
         Route::post('/payments/tinkoff/create', [TinkoffPaymentController::class, 'create'])    ->name('payment.tinkoff.pay');
+        Route::post('/payments/tinkoff/sbp', [TinkoffPaymentController::class, 'createSbp'])->name('payment.tinkoff.sbp');
         Route::get('/tinkoff/debug/state/{paymentId}', [TinkoffDebugController::class, 'state'])->middleware('auth'); // только под админа, если надо
         Route::get('/tinkoff/debug/tpay-status', [TinkoffDebugController::class, 'tpayStatus']);
         Route::post('/payments/tinkoff/qr-init', [TinkoffQrController::class, 'init'])->name('payment.tinkoff.qrInit');
         Route::get('/tinkoff/qr/{paymentId}', [TinkoffQrController::class, 'show'])->name('tinkoff.qr');
         Route::get('/tinkoff/qr/{paymentId}/json', [TinkoffQrController::class, 'getQr']);
+        Route::get('/tinkoff/qr/{paymentId}/state', [TinkoffQrController::class, 'state'])->name('tinkoff.qr.state');
 //        Список платежей
         Route::get('/admin/tinkoff/payments', [TinkoffAdminPaymentController::class, 'index']);
         Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show']);

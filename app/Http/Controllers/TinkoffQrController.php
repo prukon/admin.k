@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
+use App\Models\PaymentSystem;
 use App\Services\Tinkoff\TinkoffPaymentsService;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Services\Tinkoff\TinkoffSignature;
@@ -29,13 +30,26 @@ class TinkoffQrController extends Controller
     // 2) Страница с QR
     public function show($paymentId)
     {
-        return view('tinkoff.qr', ['paymentId' => $paymentId]);
+        $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
+        $orderId = $tp?->order_id;
+
+        return view('tinkoff.qr', [
+            'paymentId' => $paymentId,
+            'successUrl' => $orderId ? url('/payments/tinkoff/' . $orderId . '/success') : url('/payment/success'),
+            'stateUrl' => url('/tinkoff/qr/' . $paymentId . '/state'),
+            'qrUrl' => url('/tinkoff/qr/' . $paymentId . '/json'),
+        ]);
     }
 
     // 3) AJAX — получить картинку QR
     public function getQr($paymentId)
     {
-        $cfg = Config::get('tinkoff.payment');
+        $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
+        if (!$tp) {
+            return response()->json(['Success' => false, 'Message' => 'Payment not found'], 404);
+        }
+
+        $cfg = $this->resolvePaymentConfig((int) $tp->partner_id);
         $payload = [
             'TerminalKey' => $cfg['terminal_key'],
             'PaymentId'   => $paymentId,
@@ -45,5 +59,46 @@ class TinkoffQrController extends Controller
 
         $res = TinkoffApiClient::post($cfg['base_url'], '/v2/GetQr', $payload);
         return response()->json($res);
+    }
+
+    // 4) AJAX — получить состояние платежа (GetState) для QR-страницы
+    public function state($paymentId)
+    {
+        $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
+        if (!$tp) {
+            return response()->json(['Success' => false, 'Message' => 'Payment not found'], 404);
+        }
+
+        $cfg = $this->resolvePaymentConfig((int) $tp->partner_id);
+        $payload = [
+            'TerminalKey' => $cfg['terminal_key'],
+            'PaymentId'   => $paymentId,
+        ];
+        $payload['Token'] = TinkoffSignature::makeToken($payload, $cfg['password']);
+        $res = TinkoffApiClient::post($cfg['base_url'], '/v2/GetState', $payload);
+
+        return response()->json($res);
+    }
+
+    private function resolvePaymentConfig(int $partnerId): array
+    {
+        $ps = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
+        if ($ps && $ps->is_connected) {
+            $s = $ps->settings;
+            $isTest = (bool) $ps->test_mode;
+
+            return [
+                'terminal_key' => (string) ($s['terminal_key'] ?? ''),
+                'password'     => (string) ($s['token_password'] ?? ''),
+                'base_url'     => $isTest ? 'https://rest-api-test.tinkoff.ru' : 'https://securepay.tinkoff.ru',
+            ];
+        }
+
+        $cfg = Config::get('tinkoff.payment');
+        return [
+            'terminal_key' => (string) ($cfg['terminal_key'] ?? ''),
+            'password'     => (string) ($cfg['password'] ?? ''),
+            'base_url'     => (string) ($cfg['base_url'] ?? 'https://securepay.tinkoff.ru'),
+        ];
     }
 }

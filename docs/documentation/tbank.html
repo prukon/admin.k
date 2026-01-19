@@ -92,6 +92,25 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><b>Ошибка банка на Init</b> (<code>Success=false</code>): выплата помечается как <code>REJECTED</code>, чтобы не блокировать возвраты.</li>
   </ul>
 
+  <h3>5.2 Статусы выплат e2c (важно для диагностики)</h3>
+  <div class="note">
+    Выплаты партнёру выполняются через e2c API:
+    <code>/e2c/v2/Init</code> → <code>/e2c/v2/Payment</code> → (при необходимости) <code>/e2c/v2/GetState</code>.
+    <br>Статусы банка (A2C_V2): <code>NEW</code>, <code>AUTHORIZING</code>, <code>CHECKING</code>, <code>CREDIT_CHECKING</code>, <code>CHECKED</code>, <code>COMPLETING</code>, <code>COMPLETED</code>, <code>REJECTED</code>.
+  </div>
+  <ul>
+    <li><b>CHECKED</b> — успешный финал этапа <code>Init</code>: проверка пройдена, <b>но деньги ещё не зачислены</b>.
+      Для завершения выплаты по карте требуется вызвать <code>Payment</code>.</li>
+    <li><b>COMPLETED</b> — финальный успешный статус выдачи: деньги зачислены.</li>
+    <li><b>REJECTED</b> — финальный неуспешный статус.</li>
+  </ul>
+
+  <h3>5.3 Корректный workflow выплат</h3>
+  <ul>
+    <li><b>Карта / выплата партнёру</b>: <code>Init</code> → <code>Payment</code> → <code>GetState</code> (если нужно) до <code>COMPLETED/REJECTED</code>.</li>
+    <li><b>СБП-выплата</b> (не используется для партнёров-юрлиц в kidscrm): <code>Payment</code> не требуется; выплата происходит в рамках одного <code>Init</code>, при необходимости статус уточняется через <code>GetState</code>.</li>
+  </ul>
+
   <h2>6) Workflow оплаты (одностадийный)</h2>
   <ol>
     <li>Юзер выбирает T‑Bank на странице <code>/payment</code>.</li>

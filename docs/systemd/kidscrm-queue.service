@@ -1,0 +1,26 @@
+[Unit]
+Description=KidsCRM Laravel Queue Worker
+After=network.target
+
+[Service]
+Type=simple
+User=prukon
+Group=prukon
+WorkingDirectory=/home/prukon/web/test.kidscrm.online/public_html
+
+# database-queue worker (QUEUE_CONNECTION=database)
+ExecStart=/usr/bin/php artisan queue:work database --queue=default --sleep=1 --tries=3 --timeout=90 --max-time=0
+
+Restart=always
+RestartSec=2
+Environment=APP_ENV=production
+Environment=LOG_CHANNEL=stack
+
+KillSignal=SIGTERM
+TimeoutStopSec=60
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

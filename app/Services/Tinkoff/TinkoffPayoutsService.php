@@ -85,6 +85,18 @@ class TinkoffPayoutsService
             $payout->payload_payment = $resPay;
             $payout->status = $resPay['Status'] ?? 'CREDIT_CHECKING';
             $payout->save();
+
+            // После Payment часто возвращается промежуточный статус.
+            // Делаем мягкий polling GetState (без ожиданий), чтобы быстрее получить финальный статус.
+            // Не ломает текущий воркфлоу: если банк ещё не обновил статус — останемся в промежуточном,
+            // а планировщик добьёт позже.
+            if (!in_array((string) $payout->status, ['COMPLETED', 'REJECTED'], true)) {
+                try {
+                    $this->pollState($payout);
+                } catch (\Throwable $e) {
+                    // не валим процесс выплаты из-за проблем polling
+                }
+            }
         }
 
         return $payout;
@@ -105,7 +117,9 @@ class TinkoffPayoutsService
         if (!empty($res['Status'])) {
             $old = $payout->status;
             $payout->status = $res['Status'];
-            if (in_array($payout->status, ['COMPLETED','REJECTED','CHECKED'])) {
+            // Финальные статусы выплаты: деньги зачислены / отклонено.
+            // CHECKED — успешный финал этапа Init (проверки пройдены), но НЕ зачисление денег.
+            if (in_array($payout->status, ['COMPLETED', 'REJECTED'], true)) {
                 $payout->completed_at = now();
             }
             $payout->save();

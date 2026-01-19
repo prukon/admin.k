@@ -507,9 +507,10 @@ class PaymentReportController extends Controller
                 })
                 ->addColumn('refund_action', function ($row) use ($refundByPaymentId, $robokassaIntentByInvId, $tbankIntentByPaymentId, $payoutByDealId) {
                     $refund = $refundByPaymentId->get($row->id);
-                    // Определяем провайдера максимально надёжно:
-                    // 1) если находим tbank intent по PaymentId (payment_id или payment_number) — это T-Bank
-                    // 2) иначе считаем Robokassa
+                    // Определяем провайдера по полям платежа (как в колонке "Провайдер" и в PaymentRefundController),
+                    // а не по наличию intent. Иначе возможна ситуация: платёж T-Bank, но intent не найден → показываем Robokassa.
+                    $provider = (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status)) ? 'tbank' : 'robokassa';
+
                     $robokassaInvIdStr = (is_string($row->payment_number) || is_numeric($row->payment_number)) ? (string) $row->payment_number : '';
                     $robokassaIntent = (ctype_digit($robokassaInvIdStr)) ? $robokassaIntentByInvId->get((int) $robokassaInvIdStr) : null;
 
@@ -519,7 +520,6 @@ class PaymentReportController extends Controller
                     }
                     $tbankIntent = (ctype_digit($tbankPidStr)) ? $tbankIntentByPaymentId->get((int) $tbankPidStr) : null;
 
-                    $provider = $tbankIntent ? 'tbank' : 'robokassa';
                     $intent = $provider === 'tbank' ? $tbankIntent : $robokassaIntent;
 
                     $disabled = false;
