@@ -20,6 +20,11 @@ class TinkoffQrController extends Controller
         $amountCents= (int) round($outSumRub * 100);
         $method     = 'sbp'; // для аналитики комиссий у нас
 
+        // Ограничение банка для QR (СБП): сумма от 1 000 коп. (10 ₽) до 100 000 000 коп.
+        if ($amountCents < 1000 || $amountCents > 100000000) {
+            return back()->withErrors(['tinkoff' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']);
+        }
+
         $payment = $svc->initPayment($partnerId, $amountCents, $method);
         if (!$payment->tinkoff_payment_id) {
             return back()->withErrors(['tinkoff' => 'Не удалось инициализировать оплату']);

@@ -87,6 +87,16 @@ class TransactionController extends Controller
             $tbankAvailable = false;
         }
 
+        // СБП (QR) у банка имеет минимальную сумму: 10 ₽ (1000 коп.)
+        $tbankSbpAvailable = false;
+        if ($tbankAvailable) {
+            $norm = $this->normalizeOutSum((string) $outSum);
+            if ($norm !== null) {
+                $amountCents = (int) round(((float) $norm) * 100);
+                $tbankSbpAvailable = $amountCents >= 1000;
+            }
+        }
+
         // Дополнительная логика, если необходимо
         return view('payment.paymentUser', compact(
             'paymentDate',
@@ -95,6 +105,7 @@ class TransactionController extends Controller
             'partnerId',
             'robokassaAvailable',
             'tbankAvailable',
+            'tbankSbpAvailable',
         ));
     }
 

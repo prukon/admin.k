@@ -29,7 +29,8 @@
                     if (j.Success && j.Data) {
                         qrBox.innerHTML = `<img alt="QR" src="data:image/png;base64,${j.Data}" style="max-width:360px">`;
                     } else {
-                        qrBox.innerHTML = 'Не удалось получить QR';
+                        const msg = (j && (j.Message || j.Details)) ? `${j.Message || ''}<br>${j.Details || ''}` : 'Не удалось получить QR';
+                        qrBox.innerHTML = `<div class="text-danger">${msg}</div>`;
                         console.log(j);
                     }
                 } catch(e) {

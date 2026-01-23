@@ -129,6 +129,10 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => 'Некорректная сумма']);
         }
         $amountCents = (int) round(((float) $outSum) * 100);
+        // Ограничение банка для QR (СБП): сумма от 1 000 коп. (10 ₽) до 100 000 000 коп.
+        if ($amountCents < 1000 || $amountCents > 100000000) {
+            return back()->withErrors(['tinkoff' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']);
+        }
 
         $user = $r->user();
         $userId = (int) $user->id;

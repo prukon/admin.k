@@ -36,7 +36,7 @@ class LandingPageController extends Controller
 
     }
 
-
+ 
 
     public function contactSend2(Request $request)
     {

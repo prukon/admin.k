@@ -26,13 +26,19 @@
                     const selectElement = document.getElementById('single-select-date');
                     const startYear = 2024;
                     const startMonth = 8; // Июнь (месяцы в JavaScript считаются с 0: 0 = январь, 1 = февраль и т.д.)
-                    let CountMonths = function () { // fix переписать для автоматизации
-                        let currentYear = new Date().getFullYear();
-                        if (currentYear == 2024) {
-                            return 24;
-                        } else if (currentYear == 2025) {
-                            return 24;
-                        }
+                    // let CountMonths = function () { // fix переписать для автоматизации
+                    //     let currentYear = new Date().getFullYear();
+                    //     if (currentYear == 2024) {
+                    //         return 24;
+                    //     } else if (currentYear == 2025) {
+                    //         return 24;
+                    //     } else if (currentYear == 2026) {
+                    //         return 24;
+                    //     }
+                    // } 
+
+                    let CountMonths = function () {
+                        return 24;
                     }
 
                     function capitalizeFirstLetter(string) {
