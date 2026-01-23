@@ -73,6 +73,8 @@
                 <label class="form-check-label" for="payColProvider">Провайдер</label>
             </div>
 
+         @if($tbankEnabled ?? false)
+
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
                        type="checkbox"
@@ -121,6 +123,8 @@
                        checked>
                 <label class="form-check-label" for="payColPayout">Выплата</label>
             </div>
+@endif
+
 
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
@@ -158,11 +162,14 @@
         <th>Оплаченный месяц</th>
         <th>Дата и время платежа</th>
         <th>Провайдер</th>
+            @if($tbankEnabled ?? false)
         <th>Комиссия банка</th>
         <th>Комиссия платформы</th>
         <th>Комиссия</th>
         <th>К выплате</th>
         <th>Выплата</th>
+            @endif
+
         <th>Действия</th>
         <th>Статус возврата</th>
     </tr>
@@ -217,42 +224,53 @@
     <script type="text/javascript">
         $(function () {
             const canAdditional = @json($canAdditional);
+            const tbankEnabled = @json($tbankEnabled ?? false);
+
 
             const defaultColumnsVisibility = {
-                user_name: true,
-                team_title: true,
-                summ: true,
-                payment_month: true,
-                operation_date: true,
-                payment_provider: true,
-                payout_amount: true,
-                net_to_partner: true,
-                commission_total: true,
-                bank_commission_total: true,
-                platform_commission: true,
-                refund_status: true,
-                refund_action: true
+    user_name: true,
+    team_title: true,
+    summ: true,
+    payment_month: true,
+    operation_date: true,
+    payment_provider: true,
+    payout_amount: tbankEnabled,
+    net_to_partner: tbankEnabled,
+    commission_total: tbankEnabled,
+    bank_commission_total: tbankEnabled,
+    platform_commission: tbankEnabled,
+    refund_status: true,
+    refund_action: true
             };
 
             let currentColumnsConfig = {...defaultColumnsVisibility};
 
             // Маппинг ключей на индексы колонок DataTables
             // 0 – № (DT_RowIndex) всегда видна, не настраиваем
-            const columnsMap = {
-                user_name: 1,
-                team_title: 2,
-                summ: 3,
-                payment_month: 4,
-                operation_date: 5,
-                payment_provider: 6,
-                bank_commission_total: 7,
-                platform_commission: 8,
-                commission_total: 9,
-                net_to_partner: 10,
-                payout_amount: 11,
-                refund_action: 12,
-                refund_status: 13
-            };
+     const columnsMap = tbankEnabled ? {
+    user_name: 1,
+    team_title: 2,
+    summ: 3,
+    payment_month: 4,
+    operation_date: 5,
+    payment_provider: 6,
+    bank_commission_total: 7,
+    platform_commission: 8,
+    commission_total: 9,
+    net_to_partner: 10,
+    payout_amount: 11,
+    refund_action: 12,
+    refund_status: 13
+} : {
+    user_name: 1,
+    team_title: 2,
+    summ: 3,
+    payment_month: 4,
+    operation_date: 5,
+    payment_provider: 6,
+    refund_action: 7,
+    refund_status: 8
+};
 
             function toBool(val, fallback = true) {
                 if (val === undefined || val === null) return fallback;
@@ -337,215 +355,209 @@
                 });
             }
 
-            var table = $('#payments-table').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: "{{ route('payments.getPayments') }}",
-                columns: [
-                    {data: 'DT_RowIndex', name: 'DT_RowIndex'},
-
-                    {
-                        data: null,
-                        name: 'user_name',
-                        render: function (data, type, row) {
-
-                            // Если user_id существует, делаем ссылку
-                            // if (row.user_id) {
-                            //     return '<a href="/admin/users/' + row.user_id + '/edit">' + row.user_name + '</a>';
-                            // } else {
-                            //     // Если user_id нет, просто выводим имя пользователя без ссылки
-                            //     return row.user_name ? row.user_name : 'Без имени';
-                            // }
-                            return row.user_name ? row.user_name : 'Без имени';
-                        }
-                    },
-
-                    {data: 'team_title', name: 'team_title'},
-                    // {data: 'summ', name: 'summ'},
-
-                    {
-                        data: 'summ',
-                        name: 'summ',
-                        render: function (data, type, row) {
-                            if (type === 'display') {
-                                // Функция для форматирования числа с запятыми
-                                function formatNumber(number) {
-                                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                                }
-
-                                const formattedPrice = formatNumber(row.summ);
-                                return `${formattedPrice} руб`; // Отображение значения с символом рубля
-                            }
-                            return parseFloat(row.summ); // Для сортировки возвращаем число
-                        }
-                    },
-
-
-                    {
-                        data: 'payment_month',
-                        name: 'payment_month',
-                        render: function (data, type, row) {
-                            if (data) {
-                                // Проверяем, находится ли дата в формате "2024-11-01"
-                                if (/\d{4}-\d{2}-\d{2}/.test(data)) {
-                                    const date = new Date(data);
-                                    const monthNames = [
-                                        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-                                        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-                                    ];
-                                    const month = monthNames[date.getMonth()];
-                                    const year = date.getFullYear();
-                                    return `${month} ${year}`;
-                                } else {
-                                    // Если строка уже в нужном формате, возвращаем её как есть
-                                    return data;
-                                }
-                            }
-                            return data;
-                        }
-                    },
-
-                    {
-                        data: 'operation_date',
-                        name: 'operation_date',
-                        render: function (data, type, row) {
-                            if (data) {
-                                var date = new Date(data);
-                                var day = ("0" + date.getDate()).slice(-2);
-                                var month = ("0" + (date.getMonth() + 1)).slice(-2);
-                                var year = date.getFullYear();
-                                var hours = ("0" + date.getHours()).slice(-2);
-                                var minutes = ("0" + date.getMinutes()).slice(-2);
-                                var seconds = ("0" + date.getSeconds()).slice(-2);
-                                return day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes + ':' + seconds;
-                            }
-                            return data;
-                        }
-                    }
-                    ,
-                    {
-                        data: 'payment_provider',
-                        name: 'payment_provider',
-                        orderable: false,
-                        searchable: false,
-                        render: function (data, type, row) {
-                            if (data === 'tbank') return '<span class="badge bg-primary">T-Bank</span>';
-                            if (data === 'robokassa') return '<span class="badge bg-secondary">Robokassa</span>';
-                            return data ? data : '';
-                        }
-                    },
-                    {
-                        data: 'bank_commission_total',
-                        name: 'bank_commission_total',
-                        render: function (data, type, row) {
-                            if (data === null || data === undefined || data === '') return '';
-                            if (type !== 'display') return parseFloat(data);
-
-                            function formatNumber(number) {
-                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                            }
-
-                            const acq = row.bank_commission_acquiring;
-                            const payout = row.bank_commission_payout;
-                            const title = `Эквайринг: ${acq !== null && acq !== undefined ? formatNumber(parseFloat(acq).toFixed(2)) : ''} руб&#10;Выплата: ${payout !== null && payout !== undefined ? formatNumber(parseFloat(payout).toFixed(2)) : ''} руб`;
-                            const total = formatNumber(parseFloat(data).toFixed(2));
-                            return `<span title="${title}">${total} руб</span>`;
-                        }
-                    },
-                    {
-                        data: 'platform_commission',
-                        name: 'platform_commission',
-                        render: function (data, type, row) {
-                            if (data === null || data === undefined || data === '') return '';
-                            if (type !== 'display') return parseFloat(data);
-                            function formatNumber(number) {
-                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                            }
-                            return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
-                        }
-                    },
-                    {
-                        data: 'commission_total',
-                        name: 'commission_total',
-                        render: function (data, type, row) {
-                            if (data === null || data === undefined || data === '') return '';
-                            if (type !== 'display') return parseFloat(data);
-                            function formatNumber(number) {
-                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                            }
-                            const title = 'Суммарные удержания по тарифу и комиссии банка';
-                            const total = formatNumber(parseFloat(data).toFixed(2));
-                            return `<span title="${title}">${total} руб</span>`;
-                        }
-                    },
-                    {
-                        data: 'net_to_partner',
-                        name: 'net_to_partner',
-                        render: function (data, type, row) {
-                            if (data === null || data === undefined || data === '') return '';
-                            if (type !== 'display') return parseFloat(data);
-                            function formatNumber(number) {
-                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                            }
-                            return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
-                        }
-                    },
-                    {
-                        data: 'payout_amount',
-                        name: 'payout_amount',
-                        render: function (data, type, row) {
-                            if (data === null || data === undefined || data === '') return '';
-                            if (type !== 'display') return parseFloat(data);
-                            function formatNumber(number) {
-                                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                            }
-                            return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
-                        }
-                    },
-                    {data: 'refund_action', name: 'refund_action', orderable: false, searchable: false},
-                    {
-                        data: 'refund_status',
-                        name: 'refund_status',
-                        render: function (data, type, row) {
-                            if (!data) return '';
-                            if (data === 'pending') return '<span class="badge bg-warning text-dark">в обработке</span>';
-                            if (data === 'succeeded') return '<span class="badge bg-success">возвращён</span>';
-                            if (data === 'failed') return '<span class="badge bg-danger">ошибка</span>';
-                            return data;
-                        }
-                    },
-                ],
-                order: [[5, 'desc']], // Сортировка по столбцу "Дата" в порядке убывания
-
-                scrollX: true,
-
-                fixedColumns: {
-                    leftColumns: 2
-                },
-                language: {
-                    "processing": "Обработка...",
-                    "search": "",
-                    "searchPlaceholder": "Поиск...",
-
-                    "lengthMenu": "Показать _MENU_",
-                    "info": "С _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "С 0 до 0 из 0 записей",
-                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                    "loadingRecords": "Загрузка записей...",
-                    "zeroRecords": "Записи отсутствуют.",
-                    "emptyTable": "В таблице отсутствуют данные",
-                    "paginate": {
-                        "first": "",
-                        "previous": "",
-                        "next": "",
-                        "last": ""
-                    },
-                    "aria": {
-                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
-                        "sortDescending": ": активировать для сортировки столбца по убыванию"
-                    }
+            
+// Формируем массив колонок в зависимости от tbankEnabled
+const columns = [
+    {data: 'DT_RowIndex', name: 'DT_RowIndex'},
+    {
+        data: null,
+        name: 'user_name',
+        render: function (data, type, row) {
+            return row.user_name ? row.user_name : 'Без имени';
+        }
+    },
+    {data: 'team_title', name: 'team_title'},
+    {
+        data: 'summ',
+        name: 'summ',
+        render: function (data, type, row) {
+            if (type === 'display') {
+                function formatNumber(number) {
+                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                 }
-            });
+                const formattedPrice = formatNumber(row.summ);
+                return `${formattedPrice} руб`;
+            }
+            return parseFloat(row.summ);
+        }
+    },
+    {
+        data: 'payment_month',
+        name: 'payment_month',
+        render: function (data, type, row) {
+            if (data) {
+                if (/\d{4}-\d{2}-\d{2}/.test(data)) {
+                    const date = new Date(data);
+                    const monthNames = [
+                        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+                    ];
+                    const month = monthNames[date.getMonth()];
+                    const year = date.getFullYear();
+                    return `${month} ${year}`;
+                } else {
+                    return data;
+                }
+            }
+            return data;
+        }
+    },
+    {
+        data: 'operation_date',
+        name: 'operation_date',
+        render: function (data, type, row) {
+            if (data) {
+                var date = new Date(data);
+                var day = ("0" + date.getDate()).slice(-2);
+                var month = ("0" + (date.getMonth() + 1)).slice(-2);
+                var year = date.getFullYear();
+                var hours = ("0" + date.getHours()).slice(-2);
+                var minutes = ("0" + date.getMinutes()).slice(-2);
+                var seconds = ("0" + date.getSeconds()).slice(-2);
+                return day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes + ':' + seconds;
+            }
+            return data;
+        }
+    },
+    {
+        data: 'payment_provider',
+        name: 'payment_provider',
+        orderable: false,
+        searchable: false,
+        render: function (data, type, row) {
+            if (data === 'tbank') return '<span class="badge bg-primary">T-Bank</span>';
+            if (data === 'robokassa') return '<span class="badge bg-secondary">Robokassa</span>';
+            return data ? data : '';
+        }
+    }
+];
+
+// Добавляем T-Bank колонки только если включен T-Bank
+if (tbankEnabled) {
+    columns.push(
+        {
+            data: 'bank_commission_total',
+            name: 'bank_commission_total',
+            render: function (data, type, row) {
+                if (data === null || data === undefined || data === '') return '';
+                if (type !== 'display') return parseFloat(data);
+
+                function formatNumber(number) {
+                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                }
+
+                const acq = row.bank_commission_acquiring;
+                const payout = row.bank_commission_payout;
+                const title = `Эквайринг: ${acq !== null && acq !== undefined ? formatNumber(parseFloat(acq).toFixed(2)) : ''} руб&#10;Выплата: ${payout !== null && payout !== undefined ? formatNumber(parseFloat(payout).toFixed(2)) : ''} руб`;
+                const total = formatNumber(parseFloat(data).toFixed(2));
+                return `<span title="${title}">${total} руб</span>`;
+            }
+        },
+        {
+            data: 'platform_commission',
+            name: 'platform_commission',
+            render: function (data, type, row) {
+                if (data === null || data === undefined || data === '') return '';
+                if (type !== 'display') return parseFloat(data);
+                function formatNumber(number) {
+                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                }
+                return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
+            }
+        },
+        {
+            data: 'commission_total',
+            name: 'commission_total',
+            render: function (data, type, row) {
+                if (data === null || data === undefined || data === '') return '';
+                if (type !== 'display') return parseFloat(data);
+                function formatNumber(number) {
+                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                }
+                const title = 'Суммарные удержания по тарифу и комиссии банка';
+                const total = formatNumber(parseFloat(data).toFixed(2));
+                return `<span title="${title}">${total} руб</span>`;
+            }
+        },
+        {
+            data: 'net_to_partner',
+            name: 'net_to_partner',
+            render: function (data, type, row) {
+                if (data === null || data === undefined || data === '') return '';
+                if (type !== 'display') return parseFloat(data);
+                function formatNumber(number) {
+                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                }
+                return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
+            }
+        },
+        {
+            data: 'payout_amount',
+            name: 'payout_amount',
+            render: function (data, type, row) {
+                if (data === null || data === undefined || data === '') return '';
+                if (type !== 'display') return parseFloat(data);
+                function formatNumber(number) {
+                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                }
+                return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
+            }
+        }
+    );
+}
+
+columns.push(
+    {data: 'refund_action', name: 'refund_action', orderable: false, searchable: false},
+    {
+        data: 'refund_status',
+        name: 'refund_status',
+        render: function (data, type, row) {
+            if (!data) return '';
+            if (data === 'pending') return '<span class="badge bg-warning text-dark">в обработке</span>';
+            if (data === 'succeeded') return '<span class="badge bg-success">возвращён</span>';
+            if (data === 'failed') return '<span class="badge bg-danger">ошибка</span>';
+            return data;
+        }
+    }
+);
+
+
+            var table = $('#payments-table').DataTable({
+    processing: true,
+    serverSide: true,
+    ajax: "{{ route('payments.getPayments') }}",
+    columns: columns,
+    order: [[5, 'desc']], // Сортировка по столбцу "Дата" в порядке убывания
+
+    scrollX: true,
+
+    fixedColumns: {
+        leftColumns: 2
+    },
+    language: {
+        "processing": "Обработка...",
+        "search": "",
+        "searchPlaceholder": "Поиск...",
+
+        "lengthMenu": "Показать _MENU_",
+        "info": "С _START_ до _END_ из _TOTAL_ записей",
+        "infoEmpty": "С 0 до 0 из 0 записей",
+        "infoFiltered": "(отфильтровано из _MAX_ записей)",
+        "loadingRecords": "Загрузка записей...",
+        "zeroRecords": "Записи отсутствуют.",
+        "emptyTable": "В таблице отсутствуют данные",
+        "paginate": {
+            "first": "",
+            "previous": "",
+            "next": "",
+            "last": ""
+        },
+        "aria": {
+            "sortAscending": ": активировать для сортировки столбца по возрастанию",
+            "sortDescending": ": активировать для сортировки столбца по убыванию"
+        }
+    }
+});
 
             // после инициализации — подгружаем конфиг из БД
             loadColumnsConfigFromServer();

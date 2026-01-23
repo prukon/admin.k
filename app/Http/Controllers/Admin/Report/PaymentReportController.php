@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\UserTableSetting;
 use App\Models\Payment;
 use App\Models\PaymentIntent;
+use App\Models\PaymentSystem;
 use App\Models\Refund;
 use App\Models\Team;
 use App\Models\TinkoffCommissionRule;
@@ -65,11 +66,19 @@ class PaymentReportController extends Controller
         $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
         Log::debug('[payments] Formatted total', ['totalPaidPrice' => $totalPaidPrice]);
 
-        // 6) представление
+        // 6) проверяем, включена ли оплата T-Bank
+        $tbankPs = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
+        $tbankEnabled = $tbankPs ? true : false;
+
+        // 7) представление
         return view(
             'admin.report.index',
-            ['activeTab' => 'payment', 'totalPaidPrice' => $totalPaidPrice]
-        );
+            [
+                'activeTab' => 'payment',
+                'totalPaidPrice' => $totalPaidPrice,
+                'tbankEnabled' => $tbankEnabled
+            ]
+        ); 
     }
 
     // Отчёт -> "Платежные запросы" (payment_intents)
