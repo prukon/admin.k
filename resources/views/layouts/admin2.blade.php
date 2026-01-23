@@ -33,7 +33,7 @@
     {{--<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">--}}
 
 <!-- Ionicons -->
-    {{--<link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">--}}
+    {{--<link rels="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">--}}
 
 
 
@@ -507,6 +507,15 @@
     </div>
 @endif
 
+{{-- снежинки --}}
+
+ @php
+    $month = now()->month; // 1 — январь, 2 — февраль, ..., 12 — декабрь
+@endphp
+@if (in_array($month, [12, 1, 2]))
+    <script src="https://daruse.ru/assets/js/snowfall.js"></script>
+    <script type="text/javascript">$(document).snowfall();</script>
+@endif
 
 
 </body>
