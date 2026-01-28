@@ -34,6 +34,10 @@ use App\Http\Controllers\TinkoffWebhookController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\User\Report\ReportController;
 use App\Http\Controllers\DocumentationController;
+use App\Http\Controllers\LandingPageController;
+
+
+
 use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -85,10 +89,11 @@ Route::view('/crm-dlya-tancevalnoy-studii', 'landing.seo.dance')->name('landing.
 Route::view('/crm-dlya-shkoly-edinoborstv', 'landing.seo.martial-arts')->name('landing.martial-arts');
 Route::view('/crm-dlya-detskogo-razvivayushchego-centra', 'landing.seo.development-centers')->name('landing.seo.development.centers');
 Route::view('/crm-dlya-shkol-gimnastiki-i-akrobatiki', 'landing.seo.gymnastics-acrobatics')->name('landing.seo.gymnastics.acrobatics');
-Route::view('/crm-dlya-detskih-yazykovyh-shkol','landing.seo.language-schools')->name('landing.seo.language.schools');
+Route::view('/crm-dlya-detskih-yazykovyh-shkol', 'landing.seo.language-schools')->name('landing.seo.language.schools');
 
+// Отправка заявки с ленда
+Route::post('/contact/send', [LandingPageController::class, 'contactSend'])->name('contact.send');
 
-Route::post('/contact/send', [\App\Http\Controllers\LandingPageController::class, 'contactSend'])->name('contact.send');
 //Страница Публичная оферта
 Route::view('/oferta', 'landing.oferta')->name('oferta');
 
@@ -119,6 +124,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/security/phone/resend-new', [PhoneChangeController::class, 'resendNew'])->name('security.phone.resend_new');
 });
 
+
+// -----------auth', '2fa-----------
 Route::middleware(['auth', '2fa'])->group(function () {
 
     //Консоль
@@ -154,7 +161,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/getUserPayments', [ReportController::class, 'getUserPayments'])->name('payments.getUserPayments');
     });
 
-//    Моя группа
+    //    Моя группа
     Route::middleware(['can:myGroup-view'])->group(function () {
         Route::get('/my-group', [MyGroupController::class, 'index'])->name('my-group.index');
         Route::get('/my-group/data', [MyGroupController::class, 'data'])->name('my-group.data');
@@ -199,11 +206,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/field/store', [UserController::class, 'storeFields'])->name('admin.field.store');
         Route::get('admin/user/logs-data', [UserController::class, 'log'])->name('logs.data.user');
         Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users-password-update', 'throttle:5,1'])->whereNumber('user');
-        //      Удаление аватарки админом
+        //Удаление аватарки админом
         Route::delete('/admin/users/{id}/avatar', [UserController::class, 'destroyUserAvatar'])->name('admin.users.avatar.destroy');
-//      Обновление аватарки админом
+        //Обновление аватарки админом
         Route::post('/admin/users/{id}/avatar', [UserController::class, 'uploadUserAvatar']);
-
         //Данные для datatables
         Route::get('/admin/users/data', [UserController::class, 'data'])->name('admin.users.data');
         Route::get('admin/users/columns-settings', [UserController::class, 'getColumnsSettings']);
@@ -218,14 +224,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::patch('admin/team/{id}', [TeamController::class, 'update'])->name('admin.team.update');
         Route::delete('admin/team/{team}', [TeamController::class, 'delete'])->name('admin.team.delete');
         Route::get('admin/teams/logs-data', [TeamController::class, 'log'])->name('logs.data.team');
-
         // DataTables endpoint
         Route::get('admin/teams/data', [TeamController::class, 'data'])->name('admin.team.data');
         // Настройки отображения колонок
         Route::get('admin/teams/columns-settings', [TeamController::class, 'getColumnsSettings']);
         Route::post('admin/teams/columns-settings', [TeamController::class, 'saveColumnsSettings']);
-
-
     });
 
     //Партнеры
@@ -247,7 +250,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('settings/save-social-menu-items', [SettingController::class, 'saveSocialItems'])->name('settings.saveSocialItems');
         Route::post('admin/settings/force-2fa-admins', [SettingController::class, 'toggleForce2faAdmins'])->name('settings.force2fa.admins');
     });
-
 
     // Просмотр всех логов
     Route::middleware('can:viewing-all-logs')->group(function () {
@@ -309,13 +311,27 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('account-settings/documents/contracts/{contract}/requests', [ContractsController::class, 'myDocumentRequests']);
         Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
         Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
-
     });
 
-    //    Лиды
+    //Лиды
+    // Route::middleware('can:leads-view')->group(function () {
+    //     Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
+    //     Route::get('/admin/leads/data', [\App\Http\Controllers\LandingPageController::class, 'leadsDataTable'])->name('admin.leads.data');
+    // });
+
+
+ 
     Route::middleware('can:leads-view')->group(function () {
-        Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions')->middleware('can:leads-view');
- });
+        Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
+        // DataTables endpoint
+        Route::get('/admin/leads/data', [LandingPageController::class, 'leadsDataTable'])->name('admin.leads.data');
+        // Обновление статуса/комментария (AJAX)
+        Route::put('/admin/leads/{submission}', [LandingPageController::class, 'updateLead'])->name('admin.leads.update');
+        // Soft delete (AJAX)
+        Route::delete('/admin/leads/{submission}', [LandingPageController::class, 'destroyLead'])->name('admin.leads.destroy');
+    });
+
+
     //Страница оплаты сервиса
     Route::middleware('can:servicePayments-view')->group(function () {
         Route::get('partner-payment/recharge', [PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge');
@@ -333,6 +349,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('payment/pay', [TransactionController::class, 'pay'])->name('payment.pay');
     });
 
+    //Страницы результатов оплат
     Route::get('payment/success', [TransactionController::class, 'success'])->name('payment.success');
     Route::get('payment/fail', [TransactionController::class, 'fail'])->name('payment.fail');
 
@@ -340,8 +357,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:payment-clubfee')->group(function () {
         Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee');
         Route::post('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee');
-
-        });
+    });
 
     //Договоры
     Route::middleware('can:contracts-view')->group(function () {
@@ -376,8 +392,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/client-contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
     });
 
-
-
     //Сообщения (ЧАТ)
     Route::middleware('can:messages-view')->group(function () {
         // Страница чата
@@ -398,7 +412,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::patch('/chat/api/threads/{thread}/read', [ChatApiController::class, 'markRead']);
     });
 
-//    Кошелек партнера
+    //Кошелек партнера
     Route::middleware('can:partnerWallet-view')->group(function () {
         Route::get('/partner-wallet', [PartnerPaymentController::class, 'showWallet'])->name('partner.wallet');
         // Создать платёж на пополнение кошелька
@@ -409,18 +423,15 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/partner-wallet/success', [PartnerPaymentController::class, 'ykWalletSuccess'])->name('partner.wallet.success');
     });
 
-//    Тинькоф эквайринг мультирасчеты
-       
-Route::middleware('can:payment-method-T-Bank')->group(function () {        
-
+    //Тинькоф эквайринг мультирасчеты
+    Route::middleware('can:payment-method-T-Bank')->group(function () {
         Route::post('/tinkoff/payouts/{deal}/pay-now', [TinkoffPayoutController::class, 'payNow']);
         Route::post('/tinkoff/payouts/{deal}/delay', [TinkoffPayoutController::class, 'delay']);
         Route::post('/tinkoff/deals/{deal}/close', [TinkoffDealController::class, 'close']);
-
         // Карточки (admin-only)
         Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show']);
         Route::get('/admin/tinkoff/partners/{id}', [TinkoffAdminPartnerController::class, 'show']);
-        Route::post('/payments/tinkoff/create', [TinkoffPaymentController::class, 'create'])    ->name('payment.tinkoff.pay');
+        Route::post('/payments/tinkoff/create', [TinkoffPaymentController::class, 'create'])->name('payment.tinkoff.pay');
         Route::post('/payments/tinkoff/sbp', [TinkoffPaymentController::class, 'createSbp'])->name('payment.tinkoff.sbp');
         Route::get('/tinkoff/debug/state/{paymentId}', [TinkoffDebugController::class, 'state'])->middleware('auth'); // только под админа, если надо
         Route::get('/tinkoff/debug/tpay-status', [TinkoffDebugController::class, 'tpayStatus']);
@@ -428,29 +439,22 @@ Route::middleware('can:payment-method-T-Bank')->group(function () {
         Route::get('/tinkoff/qr/{paymentId}', [TinkoffQrController::class, 'show'])->name('tinkoff.qr');
         Route::get('/tinkoff/qr/{paymentId}/json', [TinkoffQrController::class, 'getQr']);
         Route::get('/tinkoff/qr/{paymentId}/state', [TinkoffQrController::class, 'state'])->name('tinkoff.qr.state');
-//        Список платежей
+        //Список платежей
         Route::get('/admin/tinkoff/payments', [TinkoffAdminPaymentController::class, 'index']);
         Route::get('/admin/tinkoff/payments/{id}', [TinkoffAdminPaymentController::class, 'show']);
         Route::post('/tinkoff/debug/verify-token', [TinkoffDebugController::class, 'verifyToken']);
         // регистрация в sm-register (создание PartnerId)
         Route::post('/admin/tinkoff/partners/{id}/sm-register', [TinkoffAdminPartnerController::class, 'smRegister'])
             ->name('tinkoff.partners.smRegister');
-
         Route::post('/admin/tinkoff/partners/{id}/sm-patch', [TinkoffAdminPartnerController::class, 'smPatch'])
             ->name('tinkoff.partners.smPatch');
-
         Route::post('/admin/tinkoff/partners/{id}/sm-refresh', [TinkoffAdminPartnerController::class, 'smRefresh'])
             ->name('tinkoff.partners.smRefresh');
-
-// routes/web.php
+        //routes/web.php
         Route::post('/admin/tinkoff/partners/{id}/sm-pull', [TinkoffAdminPartnerController::class, 'smPull'])
             ->name('tinkoff.partners.smPull');
+    });
 
-        });
-
-
-
-//    Route::post('/account/user/{user}/verify-phone', [\App\Http\Controllers\Admin\AccountSettingController::class, 'verifyPhone'])->name('account.user.verifyPhone');
     Route::post('/account/user/{user}/phone/send-code', [\App\Http\Controllers\Admin\AccountController::class, 'phoneSendCode'])->name('account.user.phoneSendCode');
     Route::post('/account/user/{user}/phone/confirm-code', [\App\Http\Controllers\Admin\AccountController::class, 'phoneConfirmCode'])->name('account.user.phoneConfirmCode');
 
@@ -458,22 +462,23 @@ Route::middleware('can:payment-method-T-Bank')->group(function () {
     Route::post('/partner/accept-offer', [\App\Http\Controllers\PartnerOfferController::class, 'acceptOffer'])->name('partner.accept-offer');
 
     //переключение между партнерами
-    Route::post('/switch-partner', [\App\Http\Controllers\PartnerSwitchController::class, 'switch'])->name('partner.switch')->middleware('can:partner.view');
+    Route::middleware(['can:partner.view'])->prefix('admin')->group(function () {
+        Route::post('/switch-partner', [\App\Http\Controllers\PartnerSwitchController::class, 'switch'])->name('partner.switch');
+    });
 
-    // 2FA
+    //2FA
     Route::middleware(['can:admin'])->prefix('admin')->group(function () {
         Route::get('2fa', [TwoFactorController::class, 'show'])->name('admin.2fa.show');
         Route::post('2fa/enable', [TwoFactorController::class, 'enable'])->name('admin.2fa.enable');
         Route::post('2fa/verify', [TwoFactorController::class, 'verify'])->name('admin.2fa.verify');
         Route::post('2fa/disable', [TwoFactorController::class, 'disable'])->name('admin.2fa.disable');
     });
-
-    //настройка таблиц
-
 });
+
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');
 
-// --- ВЕБХУКИ ---
+
+//                              --- ВЕБХУКИ ---
 // Robokassa
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
 
@@ -491,8 +496,3 @@ Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle']
 Route::get('/payments/tinkoff/{order}/success', [TinkoffPaymentController::class, 'success']);
 Route::get('/payments/tinkoff/{order}/fail', [TinkoffPaymentController::class, 'fail']);
 Route::post('/webhooks/tinkoff/payments', [TinkoffWebhookController::class, 'payments']);
-
-
-// Route::post('/admin/tinkoff/debug/ingest-webhook', [TinkoffDebugController::class, 'ingest'])
-//     ->withoutMiddleware([VerifyCsrfToken::class])     // <— убрать CSRF
-//     ->middleware('throttle:20,1');

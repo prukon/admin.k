@@ -2,10 +2,7 @@
 
 namespace App\Http\Controllers;
 
-
-
 use Illuminate\Http\Request;
-
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -15,12 +12,12 @@ use App\Models\ContactMessage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;   // <---- вот это добавь
-
-
 use App\Mail\NewContactSubmission;
-
 use App\Models\ContactSubmission;
-
+// Для DataTables и enum статусов
+use Yajra\DataTables\Facades\DataTables; // Для laravel-datatables, если Yajra DT подключён (иначе вручную)
+use App\Enums\ContactSubmissionStatus;
+// use Throwable;                               // <---- ДОБАВЛЕНО
 
 class LandingPageController extends Controller
 {
@@ -33,232 +30,213 @@ class LandingPageController extends Controller
     {
         $submissions = ContactSubmission::latest()->paginate(20);
         return view('admin.leads', compact('submissions'));
-
     }
 
- 
-
-    public function contactSend2(Request $request)
+    public function leadsDataTable3(Request $request)
     {
-        // Минимальное время "на заполнение" формы (анти-бот), сек.
-        $minFillSeconds = 3;
+        // Базовый запрос: только не удалённые
+        $baseQuery = ContactSubmission::query()->whereNull('deleted_at');
 
-        $validated = $request->validate([
-            'name'            => 'required|string|max:255',
-            'email'           => 'nullable|email|max:255',
-//            'phone'           => 'required|string|max:50',
-            'phone' => ['required','string','max:50','regex:/^[0-9\s\-\+\(\)]+$/'],
-//            'website'         => ['nullable','url','max:255'], // поле "сайт"
-            'website' => [
-                'nullable',
-                'string',
-                'max:255',
-                'regex:/^(https?:\/\/)?([\w.-]+\.[a-z]{2,})(\/.*)?$/i'
-            ],
+        // Общее количество записей БЕЗ учёта фильтров/поиска
+        $recordsTotal = $baseQuery->count();
 
+        // Клон для фильтрации
+        $query = clone $baseQuery;
 
-//            'message'         => 'nullable|string',
-            'message' => ['nullable','string','max:5000','not_regex:/https?:\/\/|www\./i'],
-            // honeypot: должно быть пустым
-            'website_hp'      => 'nullable|size:0',
-            // timestamp из формы
-            'form_started_at' => 'required|date',
-        ],[
-            'website.url'     => 'Укажите корректный URL (например, https://example.com).',
-            'website_hp.size' => 'Похоже, вы бот 🤖.',
+        // ---- ФИЛЬТР ПО СТАТУСУ ----
+        // прилетает из JS как d.status = $('#statusFilter').val()
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        // ---- Поиск DataTables ----
+        if ($request->has('search') && $request->input('search.value')) {
+            $search = $request->input('search.value');
+
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%")
+                    ->orWhere('phone', 'like', "%$search%")
+                    ->orWhere('website', 'like', "%$search%")
+                    ->orWhere('message', 'like', "%$search%")
+                    ->orWhere('comment', 'like', "%$search%")
+                    ->orWhere('status', 'like', "%$search%")
+                    ->orWhereRaw('DATE_FORMAT(created_at, "%d.%m.%Y %H:%i") like ?', ["%$search%"]);
+            });
+        }
+
+        // Количество записей ПОСЛЕ фильтрации (фильтр + поиск)
+        $recordsFiltered = $query->count();
+
+        // ---- Сортировка ----
+        $order   = $request->input('order', []);
+        $columns = $request->input('columns', []);
+
+        if ($order && $columns) {
+            foreach ($order as $ord) {
+                $columnIdx  = $ord['column'];
+                $columnName = $columns[$columnIdx]['data'];
+                $dir        = $ord['dir'] === 'asc' ? 'asc' : 'desc';
+
+                if (in_array($columnName, [
+                    'id',
+                    'name',
+                    'phone',
+                    'email',
+                    'website',
+                    'message',
+                    'status',
+                    'comment',
+                    'created_at',
+                ])) {
+                    $query->orderBy($columnName, $dir);
+                }
+            }
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // ---- Пагинация ----
+        $start  = (int) $request->input('start', 0);
+        $length = (int) $request->input('length', 20);
+
+        $data = $query->skip($start)->take($length)->get();
+
+        // ---- Формирование ответа ----
+        return response()->json([
+            'draw'            => (int) $request->input('draw'),
+            'recordsTotal'    => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data->map(function ($item) {
+                return [
+                    'id'           => $item->id,
+                    'name'         => $item->name,
+                    'phone'        => $item->phone,
+                    'email'        => $item->email,
+                    'website'      => $item->website,
+                    'message'      => $item->message,
+                    'status'       => $item->status?->value ?? null, // 'new' / 'processing' / ...
+                    'status_label' => $item->status
+                        ? ContactSubmissionStatus::label($item->status->value)
+                        : null, // 'Новый', 'Обработка' и т.д.
+                    'comment'      => $item->comment,
+                    'created_at'   => $item->created_at?->format('d.m.Y H:i') ?? null,
+                ];
+            }),
         ]);
-
-        // Анти-бот: проверяем, что форма заполнялась не мгновенно
-        $startedAt = Carbon::parse($validated['form_started_at']);
-        if (now()->diffInSeconds($startedAt) < $minFillSeconds) {
-            return back()
-                ->withErrors(['name' => 'Слишком быстрое отправление формы. Попробуйте ещё раз.'])
-                ->withInput();
-        }
-
-        // Очистка: оставляем только нужные поля
-        $data = collect($validated)->only(['name','email','phone','website','message'])->toArray();
-
-        $submission = ContactSubmission::create($data);
-
-        Mail::to('prukon@gmail.com')->send(new NewContactSubmission($submission));
-
-        if ($request->ajax()) {
-            return response()->json(['message' => 'Заявка отправлена!']);
-        }
-
-        return back()->with('success', 'Сообщение отправлено!');
     }
-    public function contactSend3(Request $request)
+
+
+
+
+
+
+    public function leadsDataTable(Request $request)
     {
-        // 1) Нормализуем website: разрешаем "голые" домены
-        if ($request->filled('website') && !preg_match('/^https?:\/\//i', $request->website)) {
-            $request->merge(['website' => 'https://' . trim($request->website)]);
+        // Базовый запрос: только не удалённые
+        $baseQuery = ContactSubmission::query()->whereNull('deleted_at');
+
+        // Общее количество записей БЕЗ учёта фильтров/поиска
+        $recordsTotal = $baseQuery->count();
+
+        // Клон для фильтрации
+        $query = clone $baseQuery;
+
+        // ---- ФИЛЬТР ПО НЕСКОЛЬКИМ СТАТУСАМ ----
+        // из JS прилетает statuses: ['new', 'processing', ...]
+        if ($request->has('statuses')) {
+            $statuses = (array) $request->input('statuses', []);
+            $statuses = array_filter($statuses); // убираем пустые
+
+            if (!empty($statuses)) {
+                $query->whereIn('status', $statuses);
+            }
         }
 
-        // 2) Валидация через Validator, чтобы вернуть единый JSON
-        $rules = [
-            'name'            => 'required|string|max:255',
-            'email'           => 'nullable|email|max:255',
-            'phone'           => ['required','string','max:50','regex:/^[0-9\s\-\+\(\)]+$/'],
-            'website'         => ['nullable','url','max:255'],
-            'message'         => ['nullable','string','max:5000','not_regex:/https?:\/\/|www\./i'],
-            'website_hp'      => 'nullable|size:0',
-            'form_started_at' => 'required|date',
-        ];
+        // ---- Поиск DataTables ----
+        if ($request->has('search') && $request->input('search.value')) {
+            $search = $request->input('search.value');
 
-        $messages = [
-            'website.url'     => 'Укажите корректный URL (например, https://example.com).',
-            'website_hp.size' => 'Похоже, вы бот 🤖.',
-        ];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%")
+                    ->orWhere('phone', 'like', "%$search%")
+                    ->orWhere('website', 'like', "%$search%")
+                    ->orWhere('message', 'like', "%$search%")
+                    ->orWhere('comment', 'like', "%$search%")
+                    ->orWhere('status', 'like', "%$search%")
+                    ->orWhereRaw('DATE_FORMAT(created_at, "%d.%m.%Y %H:%i") like ?', ["%$search%"]);
+            });
+        }
 
-        $validator = Validator::make($request->all(), $rules, $messages);
 
-        // Доп. проверка: минимум 6 цифр в телефоне
-        $validator->after(function($v) use ($request) {
-            if ($request->filled('phone')) {
-                $digits = preg_replace('/\D+/', '', $request->phone);
-                if (strlen($digits) < 6) {
-                    $v->errors()->add('phone', 'Укажите корректный телефон (минимум 6 цифр).');
+        // Количество записей ПОСЛЕ фильтрации (фильтр + поиск)
+        $recordsFiltered = $query->count();
+
+        // ---- Сортировка ----
+        $order   = $request->input('order', []);
+        $columns = $request->input('columns', []);
+
+        if ($order && $columns) {
+            foreach ($order as $ord) {
+                $columnIdx  = $ord['column'];
+                $columnName = $columns[$columnIdx]['data'];
+                $dir        = $ord['dir'] === 'asc' ? 'asc' : 'desc';
+
+                if (in_array($columnName, [
+                    'id',
+                    'name',
+                    'phone',
+                    'email',
+                    'website',
+                    'message',
+                    'status',
+                    'comment',
+                    'created_at',
+                ])) {
+                    $query->orderBy($columnName, $dir);
                 }
             }
-        });
-
-        if ($validator->fails()) {
-            return response()->json([
-                'ok'     => false,
-                'message'=> 'Исправьте ошибки и отправьте снова.',
-                'errors' => $validator->errors(),
-            ], 422);
+        } else {
+            $query->orderBy('created_at', 'desc');
         }
 
-        // 3) Анти-бот по времени заполнения
-        $minFillSeconds = 3;
-        $startedAt = Carbon::parse($request->input('form_started_at'));
-        if (now()->diffInSeconds($startedAt) < $minFillSeconds) {
-            return response()->json([
-                'ok'     => false,
-                'message'=> 'Слишком быстрое отправление формы. Попробуйте ещё раз.',
-                'errors' => ['name' => ['Слишком быстрое отправление формы. Попробуйте ещё раз.']],
-            ], 422);
-        }
+        // ---- Пагинация ----
+        $start  = (int) $request->input('start', 0);
+        $length = (int) $request->input('length', 20);
 
-        // 4) Тестовая ошибка (для проверки фронта): передай ?test_error=1 или поле test_error=1
-        if ($request->boolean('test_error')) {
-            return response()->json([
-                'ok'      => false,
-                'message' => 'Тестовая ошибка сервера (инициирована параметром test_error).',
-            ], 400);
-        }
+        $data = $query->skip($start)->take($length)->get();
 
-        // 5) Основная логика с защитой от 500-ок
-        try {
-            $data = $request->only(['name','email','phone','website','message']);
-            $submission = ContactSubmission::create($data);
-
-            // если не нужна синхронная отправка — лучше queue()
-            Mail::to('prukon@gmail.com')->send(new NewContactSubmission($submission));
-
-            return response()->json([
-                'ok'      => true,
-                'message' => 'Заявка отправлена!',
-                'id'      => $submission->id,
-            ], 200);
-
-        } catch (Throwable $e) {
-            // Логуем, но пользователю — аккуратный ответ
-            report($e);
-
-            return response()->json([
-                'ok'      => false,
-                'message' => 'На сервере произошла ошибка. Попробуйте позже.',
-                // В разработке можно добавить диагностическое поле:
-                // 'debug' => app()->hasDebugModeEnabled() ? $e->getMessage() : null,
-            ], 500);
-        }
+        // ---- Формирование ответа ----
+        return response()->json([
+            'draw'            => (int) $request->input('draw'),
+            'recordsTotal'    => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data->map(function ($item) {
+                return [
+                    'id'           => $item->id,
+                    'name'         => $item->name,
+                    'phone'        => $item->phone,
+                    'email'        => $item->email,
+                    'website'      => $item->website,
+                    'message'      => $item->message,
+                    'status'       => $item->status?->value ?? null, // 'new', 'processing', ...
+                    'status_label' => $item->status
+                        ? ContactSubmissionStatus::label($item->status->value)
+                        : null,
+                    'comment'      => $item->comment,
+                    'created_at'   => $item->created_at?->format('d.m.Y H:i') ?? null,
+                ];
+            }),
+        ]);
     }
-    public function contactSend4(Request $request)
-    {
-        // Нормализуем website: добавляем https:// если нужно
-        if ($request->filled('website') && !preg_match('/^https?:\/\//i', $request->website)) {
-            $request->merge(['website' => 'https://' . trim($request->website)]);
-        }
 
-        // Валидация
-        $rules = [
-            'name'            => 'required|string|max:255',
-            'email'           => 'nullable|email|max:255',
-            'phone'           => ['required','string','max:50','regex:/^[0-9\s\-\+\(\)]+$/'],
-            'website'         => ['nullable','url','max:255'],
-            'message'         => ['nullable','string','max:5000','not_regex:/https?:\/\/|www\./i'],
-            'website_hp'      => 'nullable|size:0',
-            'form_started_at' => 'required|date',
-        ];
 
-        $messages = [
-            'website.url'     => 'Укажите корректный URL (например, https://example.com).',
-            'website_hp.size' => 'Похоже, вы бот 🤖.',
-        ];
 
-        $validator = Validator::make($request->all(), $rules, $messages);
 
-        // Доп. проверка телефона (хотя regex уже отсекает "13")
-        $validator->after(function($v) use ($request) {
-            if ($request->filled('phone')) {
-                $digits = preg_replace('/\D+/', '', $request->phone);
-                if (strlen($digits) < 6) {
-                    $v->errors()->add('phone', 'Укажите корректный телефон (минимум 6 цифр).');
-                }
-            }
-        });
 
-        if ($validator->fails()) {
-            return response()->json([
-                'ok'      => false,
-                'message' => $validator->errors()->first(), // <-- одна строка с первой ошибкой
-                'errors'  => $validator->errors(),          // <-- полный набор ошибок (если нужно)
-            ], 422);
-        }
 
-        // Анти-бот проверка
-        $minFillSeconds = 3;
-        $startedAt = Carbon::parse($request->input('form_started_at'));
-        if (now()->diffInSeconds($startedAt) < $minFillSeconds) {
-            return response()->json([
-                'ok'      => false,
-                'message' => 'Слишком быстрое отправление формы. Попробуйте ещё раз.',
-            ], 422);
-        }
 
-        // Тестовая ошибка (по параметру)
-        if ($request->boolean('test_error')) {
-            return response()->json([
-                'ok'      => false,
-                'message' => 'Тестовая ошибка сервера.',
-            ], 400);
-        }
-
-        try {
-            $data = $request->only(['name','email','phone','website','message']);
-            $submission = ContactSubmission::create($data);
-
-            Mail::to('prukon@gmail.com')->send(new NewContactSubmission($submission));
-
-            return response()->json([
-                'ok'      => true,
-                'message' => 'Заявка отправлена!',
-                'id'      => $submission->id,
-            ], 200);
-
-        } catch (Throwable $e) {
-            report($e);
-
-            return response()->json([
-                'ok'      => false,
-                'message' => 'На сервере произошла ошибка. Попробуйте позже.',
-            ], 500);
-        }
-    }
     public function contactSend(Request $request)
     {
         // Нормализуем website: разрешаем голые домены
@@ -270,18 +248,16 @@ class LandingPageController extends Controller
         $validator = Validator::make($request->all(), [
             'name'    => 'required|string|max:255',
             'email'   => 'nullable|email|max:255',
-            'phone'   => ['required','string','max:50','regex:/^[0-9\s\-\+\(\)]+$/'],
-            'website' => ['nullable','url','max:255'],
-//            'message' => ['nullable','string','max:5000'],
-
+            'phone'   => ['required', 'string', 'max:50', 'regex:/^[0-9\s\-\+\(\)]+$/'],
+            'website' => ['nullable', 'url', 'max:255'],
             'message' => [
                 'nullable',
                 'string',
                 'max:5000',
-                'not_regex:/https?:\/\/|www\./i', // 🚫 запрещаем ссылки
+                'not_regex:/https?:\/\/|www\./i', //  запрещаем ссылки
             ],
 
-        ],[
+        ], [
             'name.required'   => 'Укажите ваше имя.',
             'email.email'     => 'Укажите корректный email.',
             'phone.required'  => 'Укажите телефон.',
@@ -291,7 +267,7 @@ class LandingPageController extends Controller
         ]);
 
         // Доп. проверка: минимум 6 цифр в телефоне
-        $validator->after(function($v) use ($request) {
+        $validator->after(function ($v) use ($request) {
             if ($request->filled('phone')) {
                 $digits = preg_replace('/\D+/', '', $request->phone);
                 if (strlen($digits) < 6) {
@@ -308,18 +284,16 @@ class LandingPageController extends Controller
         }
 
         try {
-            $data = $request->only(['name','email','phone','website','message']);
+            $data = $request->only(['name', 'email', 'phone', 'website', 'message']);
             $submission = ContactSubmission::create($data);
 
             // Можно заменить на ->queue() при наличии очереди
             Mail::to('prukon@gmail.com')->send(new NewContactSubmission($submission));
-
             return response()->json([
                 'message' => 'Заявка отправлена!',
                 'id'      => $submission->id,
             ], 200);
-
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             report($e);
             return response()->json([
                 'message' => 'На сервере произошла ошибка. Попробуйте позже.',
@@ -327,6 +301,63 @@ class LandingPageController extends Controller
         }
     }
 
+    // ОБНОВЛЕНИЕ статуса и комментария лида (AJAX).
+    public function updateLead(Request $request, ContactSubmission $submission)
+    {
+        $validator = Validator::make($request->all(), [
+            'status' => [
+                'nullable',
+                'string',
+                'in:' . implode(',', ContactSubmissionStatus::values()),
+            ],
+            'comment' => [
+                'nullable',
+                'string',
+                'max:5000',
+            ],
+        ], [
+            'status.in'      => 'Недопустимый статус.',
+            'comment.max'    => 'Комментарий слишком длинный.',
+        ]);
 
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
 
+        $data = $validator->validated();
+
+        if (array_key_exists('status', $data)) {
+            $submission->status = $data['status']
+                ? ContactSubmissionStatus::from($data['status'])
+                : null;
+        }
+
+        if (array_key_exists('comment', $data)) {
+            $submission->comment = $data['comment'];
+        }
+
+        $submission->save();
+
+        return response()->json([
+            'message'      => 'Изменения сохранены.',
+            'status'       => $submission->status?->value,
+            'status_label' => $submission->status
+                ? ContactSubmissionStatus::label($submission->status->value)
+                : null,
+            'comment'      => $submission->comment,
+        ]);
+    }
+
+    // БЕЗОПАСНОЕ УДАЛЕНИЕ (soft delete) лида (AJAX).
+    public function destroyLead(ContactSubmission $submission)
+    {
+        $submission->delete();
+
+        return response()->json([
+            'message' => 'Заявка удалена.',
+        ]);
+    }
 }
