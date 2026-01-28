@@ -79,7 +79,7 @@ Route::get('/_debug/request', [RequestDebugController::class, 'show'])
 
 
 //landing Page
-Route::get('/', [\App\Http\Controllers\LandingPageController::class, 'index'])->name('landing.home');
+Route::view('/', 'landing.index')->name('landing.home');
 Route::view('/crm-dlya-futbolnoy-sekcii', 'landing.seo.football')->name('landing.seo.football');
 Route::view('/crm-dlya-tancevalnoy-studii', 'landing.seo.dance')->name('landing.dance');
 Route::view('/crm-dlya-shkoly-edinoborstv', 'landing.seo.martial-arts')->name('landing.martial-arts');
@@ -128,28 +128,24 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/get-team-details', [DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
     });
 
-    //Отчеты
+    //Отчеты -> вкладка Платежи, задолженности, LTV
     Route::middleware(['can:reports-view'])->group(function () {
         Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
         Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
         // Настройки отображения колонок в отчёте "Платежи"
         Route::get('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'getColumnsSettings']);
         Route::post('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'saveColumnsSettings']);
-        Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])
-            ->name('payments.refund')
-            ->whereNumber('payment');
+        Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])->name('payments.refund')->whereNumber('payment');
         Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
         Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
         Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
         Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
     });
 
-    // Отчёты -> Платежные запросы
+    // Отчёты -> вкладка "Платежные запросы"
     Route::middleware(['can:reports-payment-intents-view'])->group(function () {
-        Route::get('/admin/reports/payment-intents', [PaymentReportController::class, 'paymentIntents'])
-            ->name('reports.payment-intents.index');
-        Route::get('/admin/reports/getPaymentIntents', [PaymentReportController::class, 'getPaymentIntents'])
-            ->name('reports.payment-intents.data');
+        Route::get('/admin/reports/payment-intents', [PaymentReportController::class, 'paymentIntents'])->name('reports.payment-intents.index');
+        Route::get('/admin/reports/getPaymentIntents', [PaymentReportController::class, 'getPaymentIntents'])->name('reports.payment-intents.data');
     });
 
     //Мои платежи
@@ -202,21 +198,16 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('admin/user/{user}', [UserController::class, 'delete'])->name('admin.user.delete');
         Route::post('admin/field/store', [UserController::class, 'storeFields'])->name('admin.field.store');
         Route::get('admin/user/logs-data', [UserController::class, 'log'])->name('logs.data.user');
-        Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users-password-update', 'throttle:5,1'])
-            ->whereNumber('user');
+        Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users-password-update', 'throttle:5,1'])->whereNumber('user');
         //      Удаление аватарки админом
         Route::delete('/admin/users/{id}/avatar', [UserController::class, 'destroyUserAvatar'])->name('admin.users.avatar.destroy');
 //      Обновление аватарки админом
         Route::post('/admin/users/{id}/avatar', [UserController::class, 'uploadUserAvatar']);
 
-
         //Данные для datatables
         Route::get('/admin/users/data', [UserController::class, 'data'])->name('admin.users.data');
-
         Route::get('admin/users/columns-settings', [UserController::class, 'getColumnsSettings']);
         Route::post('admin/users/columns-settings', [UserController::class, 'saveColumnsSettings']);
-
-
     });
 
     //Группы
@@ -257,8 +248,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/settings/force-2fa-admins', [SettingController::class, 'toggleForce2faAdmins'])->name('settings.force2fa.admins');
     });
 
-// Без middleware
-    Route::get('edit-menu', [SettingController::class, 'editMenu'])->name('editMenu');
 
     // Просмотр всех логов
     Route::middleware('can:viewing-all-logs')->group(function () {
@@ -285,9 +274,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // Внутренняя документация проекта (HTML из /docs/documentation)
     Route::middleware('can:documentations-view')->group(function () {
         Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
-        Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
-            ->whereIn('page', ['payments', 'reports-payments', 'tbank'])
-            ->name('docs.documentation.show');
+        Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])->whereIn('page', ['payments', 'reports-payments', 'tbank'])->name('docs.documentation.show');
     });
 
     //Страница Настойки - Комиссии Т-Банк
@@ -326,8 +313,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //    Лиды
-    Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions')->middleware('can:leads-view');
-
+    Route::middleware('can:leads-view')->group(function () {
+        Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions')->middleware('can:leads-view');
+ });
     //Страница оплаты сервиса
     Route::middleware('can:servicePayments-view')->group(function () {
         Route::get('partner-payment/recharge', [PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge');
@@ -349,11 +337,13 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('payment/fail', [TransactionController::class, 'fail'])->name('payment.fail');
 
     //Оплата клубного взноса (робокасса)
-    Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee')->middleware('can:payment-clubfee'); //Оплата клубного взноса
+    Route::middleware('can:payment-clubfee')->group(function () {
+        Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee');
+        Route::post('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee');
+
+        });
 
     //Договоры
-
-
     Route::middleware('can:contracts-view')->group(function () {
 
         // AJAX для Select2 (поиск учеников текущего партнёра)

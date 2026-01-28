@@ -125,6 +125,38 @@
     <b>Правило, чтобы ничего не затиралось:</b> каждая разовая оплата = новая строка в <code>payables</code> (и новый <code>payment_intent</code>).
   </div>
 
+  <h3>3.2.1 Страница оплаты клубного взноса (<code>/payment/clubFee</code>)</h3>
+  <div class="note">
+    <b>Маршрут</b>: <code>GET /payment/clubFee</code> → <code>TransactionController@clubFee</code>
+    <br><b>Шаблон</b>: <code>resources/views/payment/clubFee.blade.php</code>
+  </div>
+  <ul>
+    <li><b>Назначение</b>: отдельная страница для оплаты клубного взноса с произвольной суммой.</li>
+    <li><b>Ввод суммы</b>: пользователь вручную вводит сумму в единственное поле <code>paymentAmount</code>.</li>
+    <li><b>Доступные способы оплаты</b>: отображаются в flex-контейнере в зависимости от настроек партнёра:
+      <ul>
+        <li><b>Робокасса</b> — если <code>$robokassaAvailable</code> (настроено в <code>payment_systems</code>)</li>
+        <li><b>T‑Bank (мультирасчёты)</b> — если <code>$tbankAvailable</code> (ключи заполнены + есть <code>tinkoff_partner_id</code>)</li>
+        <li><b>T‑Bank СБП (QR)</b> — если <code>$tbankSbpAvailable</code> (доступно для сумм >= мин. лимита)</li>
+      </ul>
+    </li>
+    <li><b>Формирование данных для оплаты</b>:
+      <ul>
+        <li><code>paymentDate</code> = "Клубный взнос" (строка, не дата)</li>
+        <li><code>formatedPaymentDate</code> не передаётся (только для месячных оплат)</li>
+        <li><code>outSum</code> берётся из поля ввода при отправке формы</li>
+        <li>JavaScript-валидация <code>validateAndSetAmount()</code> проверяет, что сумма > 0</li>
+      </ul>
+    </li>
+    <li><b>Обработка оплаты</b>:
+      <ul>
+        <li>При отправке формы вызывается тот же роут, что и для месячных оплат (<code>/payment/pay</code>, <code>/payment/tinkoff/pay</code>, <code>/payment/tinkoff/sbp</code>)</li>
+        <li>Создаётся <code>payables</code> с <code>type=club_fee</code></li>
+        <li>В <code>users_prices</code> запись <b>не создаётся</b> (только для <code>monthly_fee</code>)</li>
+      </ul>
+    </li>
+  </ul>
+
   <h3>3.3 Оплата через T‑Bank (мультирасчёты) (одностадийная)</h3>
   <div class="note">
     <b>Важно про “месяц”:</b> источником истины является <code>payables.month</code> (и <code>payables.type</code>).

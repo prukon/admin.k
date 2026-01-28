@@ -69,7 +69,7 @@ class PaymentReportController extends Controller
         // 6) проверяем, включена ли оплата T-Bank
         $tbankPs = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
         $tbankEnabled = $tbankPs ? true : false;
-
+    
         // 7) представление
         return view(
             'admin.report.index',

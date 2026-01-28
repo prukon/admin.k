@@ -18,6 +18,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Services\Payments\PaymentService;
+
 
 class TransactionController extends Controller
 {
@@ -66,38 +68,25 @@ class TransactionController extends Controller
     }
 
     //Станица выбора оплат (Юзер)
-    public function index(Request $request)
+    public function index(Request $request, PaymentService $paymentService)
     {
         $paymentDate = (string) $request->input('paymentDate', '');
         $outSum = (string) $request->input('outSum', '');
         $formatedPaymentDate = $paymentDate !== '' ? $this->formatedDate($paymentDate) : null;
-
+        $curPartner = app('current_partner');
         $partnerId = app('current_partner')->id;
 
-        // Показываем способы оплаты только если они реально настроены для текущего партнёра.
-        $robokassaPs = PaymentSystem::where('partner_id', $partnerId)->where('name', 'robokassa')->first();
-        $tbankPs = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
 
-        $robokassaAvailable = (bool) ($robokassaPs && $robokassaPs->is_connected);
-        $tbankAvailable = (bool) ($tbankPs && $tbankPs->is_connected);
 
-        // Для выплат партнёру требуется, чтобы партнёр был зарегистрирован в sm-register (ShopCode / PartnerId).
-        $curPartner = app('current_partner');
-        if ($tbankAvailable && empty($curPartner?->tinkoff_partner_id)) {
-            $tbankAvailable = false;
-        }
+ 
+        // Доступность платёжных систем
+        $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner);
+        $tbankAvailable     = $paymentService->isTbankAvailable($curPartner);
+        $amountCents = $paymentService->amountToCents($outSum);
+        $tbankSbpAvailable  = $paymentService->isTbankSbpAvailable($curPartner, $amountCents);
 
-        // СБП (QR) у банка имеет минимальную сумму: 10 ₽ (1000 коп.)
-        $tbankSbpAvailable = false;
-        if ($tbankAvailable) {
-            $norm = $this->normalizeOutSum((string) $outSum);
-            if ($norm !== null) {
-                $amountCents = (int) round(((float) $norm) * 100);
-                $tbankSbpAvailable = $amountCents >= 1000;
-            }
-        }
 
-        // Дополнительная логика, если необходимо
+
         return view('payment.paymentUser', compact(
             'paymentDate',
             'outSum',
@@ -240,6 +229,7 @@ class TransactionController extends Controller
      * Нормализуем сумму для Robokassa.
      * Принимаем до 6 знаков после точки и округляем до 2.
      */
+
     private function normalizeOutSum(string $value): ?string
     {
         $v = trim(str_replace(',', '.', $value));
@@ -290,10 +280,26 @@ class TransactionController extends Controller
         return view('payment.fail'); // Предполагается, что у вас есть такой вид
     }
 
-    //Страница Клубный взнос
-    public function clubFee()
+        //Страница Клубный взнос
+    public function clubFee(Request $request, PaymentService $paymentService)
     {
-        return view('payment.clubFee');
+        $curPartner = app('current_partner');
+        $partnerId = app('current_partner')->id;
+        $outSum = (string) $request->input('outSum', '');
+
+        // Доступность платёжных систем
+        $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner);
+        $tbankAvailable     = $paymentService->isTbankAvailable($curPartner);
+        $amountCents = $paymentService->amountToCents($outSum);
+        $tbankSbpAvailable  = $paymentService->isTbankSbpAvailable($curPartner, $amountCents);
+
+        return view('payment.clubFee', compact(
+            'outSum',
+            'partnerId',
+            'robokassaAvailable',
+            'tbankAvailable',
+            'tbankSbpAvailable'
+        ));
     }
 
 }
