@@ -43,7 +43,18 @@ return [
         'key'            => env('PODPISLON_API_KEY'),
         'webhook_secret' => env('PODPISLON_WEBHOOK_SECRET'),
         'http_debug'     => env('PODPISLON_HTTP_DEBUG', false),      // для Guzzle on_stats/debug
-        'upload_strategy'=> env('PODPISLON_UPLOAD_STRATEGY', 'auto'), // auto|multipart|json
+        'upload_strategy' => env('PODPISLON_UPLOAD_STRATEGY', 'auto'), // auto|multipart|json
+    ],
+
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'chat_id'   => env('TELEGRAM_CHAT_ID'),
+    ],
+
+    'recaptcha' => [
+        'site_key' => env('RECAPTCHA_SITE_KEY'),
+        'secret'   => env('RECAPTCHA_SECRET_KEY'),
+        'min_score' => env('RECAPTCHA_MIN_SCORE', 0.5),
     ],
 
 ];

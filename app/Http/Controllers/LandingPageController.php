@@ -19,6 +19,9 @@ use Yajra\DataTables\Facades\DataTables; // Для laravel-datatables, если 
 use App\Enums\ContactSubmissionStatus;
 // use Throwable;                               // <---- ДОБАВЛЕНО
 
+use Illuminate\Support\Facades\Http;
+
+
 class LandingPageController extends Controller
 {
     public function index()
@@ -244,6 +247,49 @@ class LandingPageController extends Controller
             $request->merge(['website' => 'https://' . trim($request->website)]);
         }
 
+        // Проверка reCAPTCHA v3
+        $recaptchaToken = $request->input('recaptcha_token');
+
+        if (!$recaptchaToken) {
+            return response()->json([
+                'message' => 'Не пройдена защита от спама. Обновите страницу и попробуйте ещё раз.',
+            ], 422);
+        }
+
+        try {
+            $response = Http::asForm()->post(
+                'https://www.google.com/recaptcha/api/siteverify',
+                [
+                    'secret'   => config('services.recaptcha.secret'),
+                    'response' => $recaptchaToken,
+                    'remoteip' => $request->ip(),
+                ]
+            );
+
+            $result = $response->json();
+
+            // option: проверяем action, если на фронте указали 'contact'
+            $minScore = (float) config('services.recaptcha.min_score', 0.5);
+
+            if (
+                empty($result['success']) ||
+                ($result['score'] ?? 0) < $minScore
+                // || ($result['action'] ?? null) !== 'contact'   // если используешь action
+            ) {
+                return response()->json([
+                    'message' => 'Проверка на спам не пройдена.',
+                ], 422);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            // на случай падения гугла можно либо заблокировать, либо наоборот пропустить:
+            return response()->json([
+                'message' => 'Ошибка проверки защиты от спама. Попробуйте позже.',
+            ], 500);
+        }
+
+
+
         // Валидация (только сервер)
         $validator = Validator::make($request->all(), [
             'name'    => 'required|string|max:255',
@@ -286,6 +332,10 @@ class LandingPageController extends Controller
         try {
             $data = $request->only(['name', 'email', 'phone', 'website', 'message']);
             $submission = ContactSubmission::create($data);
+
+            // Телега
+            $this->notifyTelegram($submission);
+
 
             // Можно заменить на ->queue() при наличии очереди
             Mail::to('prukon@gmail.com')->send(new NewContactSubmission($submission));
@@ -359,5 +409,49 @@ class LandingPageController extends Controller
         return response()->json([
             'message' => 'Заявка удалена.',
         ]);
+    }
+
+    protected function notifyTelegram(ContactSubmission $submission): void
+    {
+        $token = config('services.telegram.bot_token');
+        $chatId = config('services.telegram.chat_id');
+
+        if (!$token || !$chatId) {
+            return;
+        }
+
+        $lines = [
+            "📩 Новая заявка с сайта",
+            "",
+            "👤 Имя: {$submission->name}",
+            "📞 Телефон: {$submission->phone}",
+        ];
+
+        if ($submission->email) {
+            $lines[] = "✉ Email: {$submission->email}";
+        }
+        if ($submission->website) {
+            $lines[] = "🌐 Сайт: {$submission->website}";
+        }
+        if ($submission->message) {
+            $lines[] = "";
+            $lines[] = "💬 Сообщение:";
+            $lines[] = mb_substr($submission->message, 0, 1000);
+        }
+
+        $text = implode("\n", $lines);
+
+        try {
+            Http::asForm()->post(
+                "https://api.telegram.org/bot{$token}/sendMessage",
+                [
+                    'chat_id' => $chatId,
+                    'text'    => $text,
+                    'parse_mode' => 'HTML', // можно убрать, если не нужно
+                ]
+            );
+        } catch (\Throwable $e) {
+            report($e); // чтобы падение телеги не ломало заявку
+        }
     }
 }
