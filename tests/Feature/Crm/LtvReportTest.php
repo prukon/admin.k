@@ -24,25 +24,28 @@ class LtvReportTest extends TestCase
     {
         parent::setUp();
 
-        // Подменяем проверку ability reports-view через Gate::before
+        // Подменяем проверку ability reports-view через Gate::before.
+        // Это изолировано в рамках этого тестового класса и не требует знания
+        // твоей реальной системы ролей/прав.
         Gate::before(function ($user, string $ability) {
             if ($ability === 'reports-view' && $this->reportsViewUserId !== null) {
-                // Разрешаем только одному конкретному пользователю, всем остальным — запрет
                 return $user->id === $this->reportsViewUserId;
             }
 
-            return null; // дальше пойдёт стандартная логика, если есть
+            return null;
         });
     }
 
-    
+    /**
+     * Имитация выбора текущего партнёра так же, как это делает суперюзер через селект:
+     * в сессию пишется current_partner, а AppServiceProvider уже биндит app('current_partner').
+     */
     protected function setCurrentPartner(Partner $partner): void
     {
-        // как на бою — кладём ID партнёра в сессию
+        // как в реальном приложении — сохраняем ID партнёра в сессии
         $this->session(['current_partner' => $partner->id]);
 
-        // если где-то в приложении используется app('current_partner'),
-        // дублируем туда объект
+        // дополнительно кладём сам объект в контейнер, если он где-то используется напрямую
         app()->instance('current_partner', $partner);
     }
 

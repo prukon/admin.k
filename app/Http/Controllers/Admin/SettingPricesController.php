@@ -60,7 +60,7 @@ class SettingPricesController extends Controller
 }
 
     // AJAX ПОДРОБНО. Получение списка пользователей
-    public function getTeamPrice(Request $request)
+    public function getTeamPrice2(Request $request)
     {
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
@@ -71,6 +71,7 @@ class SettingPricesController extends Controller
             ->orderBy('lastname', 'asc')   // сначала по фамилии
             ->orderBy('name', 'asc')       // затем по имени
             ->get();
+
         $usersPrice = [];
         $selectedDate = $this->formatedDate($selectedDate);
         foreach ($usersTeam as $user) {
@@ -103,6 +104,73 @@ class SettingPricesController extends Controller
         } else {
             return response()->json(['success' => false]);
         }
+    }
+
+
+    public function getTeamPrice(Request $request)
+    {
+        // 1) Разбираем вход
+        $data         = json_decode($request->getContent(), true);
+        $selectedDate = $data['selectedDate'] ?? null;
+        $teamId       = $data['teamId']       ?? null;
+
+        // 2) Текущий партнёр
+        $partnerId = app('current_partner')->id;
+
+        // 3) Проверяем, что команда принадлежит текущему партнёру
+        $team = Team::where('id', $teamId)
+            ->where('partner_id', $partnerId)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (!$team) {
+            // Чужая или удалённая команда — 404
+            return response()->json([
+                'success' => false,
+                'message' => 'Team not found',
+            ], 404);
+        }
+
+        // 4) Берём только активных пользователей этой команды
+        $usersTeam = User::where('team_id', $team->id)
+            ->where('is_enabled', true)
+            ->orderBy('lastname', 'asc')   // сначала по фамилии
+            ->orderBy('name', 'asc')       // затем по имени
+            ->get();
+
+        $usersPrice   = [];
+        $selectedDate = $this->formatedDate($selectedDate);
+
+        foreach ($usersTeam as $user) {
+            $userPrice = UserPrice::firstOrCreate(
+                [
+                    'new_month' => $selectedDate,
+                    'user_id'   => $user->id,
+                ],
+                [
+                    'price' => 0,
+                ]
+            );
+
+            $userPrice->name = $user->name;
+            $userPrice->refresh();
+            $userPrice->load('user');
+            $usersPrice[] = $userPrice;
+        }
+
+        \Log::info('$usersPrice:', array_map(function ($item) {
+            return $item->toArray();
+        }, $usersPrice));
+
+        if ($usersTeam->count() > 0) {
+            return response()->json([
+                'success'    => true,
+                'usersTeam'  => $usersTeam,
+                'usersPrice' => $usersPrice,
+            ]);
+        }
+
+        return response()->json(['success' => false]);
     }
 
     // AJAX SELECT DATE. Обработчик изменения даты
@@ -166,7 +234,7 @@ class SettingPricesController extends Controller
     }
 
     //AJAX Кнопка ОК. Установка цен группе и юзерам.
-    public function setTeamPrice(Request $request)
+    public function setTeamPrice2(Request $request)
     {
         $partnerId = app('current_partner')->id;
         // Получаем данные из тела запроса
@@ -242,6 +310,91 @@ class SettingPricesController extends Controller
             'teamPrice' => $teamPrice,
             'selectedDate' => $selectedDate,
             'teamId' => $teamId,
+        ]);
+    }
+
+    public function setTeamPrice(Request $request)
+    {
+        $partnerId = app('current_partner')->id;
+
+        // 1) Разбираем вход
+        $data         = json_decode($request->getContent(), true);
+        $teamPrice    = $data['teamPrice']    ?? null;
+        $teamId       = $data['teamId']       ?? null;
+        $selectedDate = $data['selectedDate'] ?? null;
+
+        // 2) Проверяем, что команда принадлежит текущему партнёру
+        $team = Team::where('id', $teamId)
+            ->where('partner_id', $partnerId)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (!$team) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Team not found',
+            ], 404);
+        }
+
+        $authorId           = auth()->id();
+        $teamTitle          = $team->title;
+        $selectedDateString = $selectedDate;
+        $selectedDate       = $this->formatedDate($selectedDate);
+
+        DB::transaction(function () use ($team, $selectedDate, $teamPrice, $authorId, $teamTitle, $selectedDateString, $partnerId) {
+
+            TeamPrice::updateOrCreate(
+                [
+                    'team_id'   => $team->id,
+                    'new_month' => $selectedDate,
+                ],
+                [
+                    'price' => $teamPrice,
+                ]
+            );
+
+            MyLog::create([
+                'type'         => 1,
+                'action'       => 13, // Изменение цен в одной группе
+                'description'  => "Обновлена цена: {$teamPrice} руб. Период: {$selectedDateString}.",
+                'target_type'  => 'App\Models\UserPrice',
+                'target_id'    => $team->id,
+                'target_label' => $teamTitle,
+                'created_at'   => now(),
+            ]);
+
+            // Обновляем цены только для активных пользователей этой команды
+            $users = User::where('team_id', $team->id)
+                ->where('is_enabled', 1)
+                ->get();
+
+            foreach ($users as $user) {
+                $userPrice = UserPrice::where('user_id', $user['id'])
+                    ->where('new_month', $selectedDate)
+                    ->first();
+
+                if ($userPrice) {
+                    if (!$userPrice->is_paid) {
+                        $userPrice->update([
+                            'price' => $teamPrice,
+                        ]);
+                    }
+                } else {
+                    UserPrice::create([
+                        'user_id'   => $user['id'],
+                        'new_month' => $selectedDate,
+                        'price'     => $teamPrice,
+                        'is_paid'   => false,
+                    ]);
+                }
+            }
+        });
+
+        return response()->json([
+            'success'      => true,
+            'teamPrice'    => $teamPrice,
+            'selectedDate' => $selectedDate,
+            'teamId'       => $team->id,
         ]);
     }
 

@@ -136,7 +136,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/get-team-details', [DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
     });
 
-        //Отчеты -> вкладка Платежи, задолженности, LTV
+        //Отчеты -> вкладка Платежи, задолженности, LTV (feature test +)
         Route::middleware(['can:reports-view'])->group(function () {
             //Отчеты -> Платежи
             Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
@@ -159,7 +159,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/getPaymentIntents', [PaymentIntentReportController::class, 'getPaymentIntents'])->name('reports.payment-intents.data');
     });
 
-    //Мои платежи
+    //Мои платежи (feature test +)
     Route::middleware(['can:myPayments-view'])->group(function () {
         Route::get('/reports/payments', [ReportController::class, 'showUserPayments'])->name('showUserPayments');
         Route::get('/getUserPayments', [ReportController::class, 'getUserPayments'])->name('payments.getUserPayments');
