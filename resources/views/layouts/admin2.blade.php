@@ -32,12 +32,12 @@
     <!-- Google Font: Source Sans Pro -->
     {{--<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">--}}
 
-<!-- Ionicons -->
+    <!-- Ionicons -->
     {{--<link rels="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">--}}
 
 
 
-<!-- iCheck -->
+    <!-- iCheck -->
     <link rel="stylesheet" href="{{ asset('plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
 
     <!-- JQVMap -->
@@ -104,7 +104,7 @@
         }
 
         .content-wrapper {
-            height: auto!important;
+            height: auto !important;
         }
     </style>
 
@@ -150,29 +150,44 @@
 
     <!-- Yandex.Metrika counter -->
     <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){
-            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-            m[i].l=1*new Date();
-            for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105845730', 'ym');
+        (function (m, e, t, r, i, k, a) {
+            m[i] = m[i] || function () {
+                (m[i].a = m[i].a || []).push(arguments)
+            };
+            m[i].l = 1 * new Date();
+            for (var j = 0; j < document.scripts.length; j++) {
+                if (document.scripts[j].src === r) {
+                    return;
+                }
+            }
+            k = e.createElement(t), a = e.getElementsByTagName(t)[0], k.async = 1, k.src = r, a.parentNode.insertBefore(k, a)
+        })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js?id=105845730', 'ym');
 
-        ym(105845730, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
+        ym(105845730, 'init', {
+            ssr: true,
+            webvisor: true,
+            clickmap: true,
+            ecommerce: "dataLayer",
+            accurateTrackBounce: true,
+            trackLinks: true
+        });
     </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/105845730" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+    <noscript>
+        <div><img src="https://mc.yandex.ru/watch/105845730" style="position:absolute; left:-9999px;" alt=""/></div>
+    </noscript>
     <!-- /Yandex.Metrika counter -->
-    
+
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
 <div class="wrapper">
 
     <!-- Preloader -->
-{{--<div class="preloader flex-column justify-content-center align-items-center">--}}
-{{--<img class="animation__shake" src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="AdminLTELogo" height="60"--}}
-{{--width="60">--}}
-{{--</div>--}}
+    {{--<div class="preloader flex-column justify-content-center align-items-center">--}}
+    {{--<img class="animation__shake" src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="AdminLTELogo" height="60"--}}
+    {{--width="60">--}}
+    {{--</div>--}}
 
-<!-- Navbar -->
+    <!-- Navbar -->
     @php
         $user = auth()->user();
     @endphp
@@ -184,13 +199,16 @@
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
 
+            @isset($menuItems)
 
-            @foreach($menuItems as $item)
-                <li class="nav-item d-none d-sm-inline-block">
-                    <a target="{{ $item->target_blank ? '_blank' : '_self' }}" href="{{ $item->link }}"
-                       class="nav-link">{{ $item->name }}</a>
-                </li>
-            @endforeach
+                @foreach($menuItems as $item)
+                    <li class="nav-item d-none d-sm-inline-block">
+                        <a target="{{ $item->target_blank ? '_blank' : '_self' }}" href="{{ $item->link }}"
+                           class="nav-link">{{ $item->name }}</a>
+                    </li>
+                @endforeach
+            @endisset
+
         </ul>
 
         <!-- Форма переключения партнёров -->
@@ -207,65 +225,65 @@
                     </select>
                 </form>
             </div>
-    @endcan
+        @endcan
 
 
 
-    <!-- Right navbar links -->
+        <!-- Right navbar links -->
         <ul class="navbar-nav ml-auto social-menu mr-3">
             <!-- Navbar Search -->
 
+            @isset($socialItems)
+                @foreach($socialItems as $social)
+                    <li class="nav-item {{ $loop->first ? '' : 'ml-2' }}">
+                        <a target="_blank" class="d-flex justify-content-center align-items-center"
+                           href="{{ $social->link }}">
+                            @if($social->name === 'vk.com' && $social->link != '')
+                                <i class="fa-brands fa-vk" aria-hidden="true"></i>
+                            @elseif($social->name === 'YouTube.com' && $social->link != '')
+                                <i class="fa-brands fa-youtube" aria-hidden="true"></i>
+                            @elseif($social->name === 'RuTube.ru' && $social->link != '')
+                                <i class="fa-brands fa-rutube" aria-hidden="true"></i>
+                            @elseif($social->name === 'facebook.com' && $social->link != '')
+                                <i class="fa-brands fa-facebook" aria-hidden="true"></i>
+                            @elseif($social->name === 'Instagram.com' && $social->link != '')
+                                <i class="fa-brands fa-instagram" aria-hidden="true"></i>
+                            @elseif($social->name === 'Twitter.com' && $social->link != '')
+                                <i class="fa-brands fa-twitter" aria-hidden="true"></i>
+                            @elseif($social->name === 'LinkedIn.com' && $social->link != '')
+                                <i class="fa-brands fa-linkedin" aria-hidden="true"></i>
+                            @elseif($social->name === 'Telegram.org' && $social->link != '')
+                                <i class="fa-brands fa-telegram" aria-hidden="true"></i>
+                            @elseif($social->name === 'Pinterest.com' && $social->link != '')
+                                <i class="fa-brands fa-pinterest" aria-hidden="true"></i>
+                            @elseif($social->name === 'TikTok.com' && $social->link != '')
+                                <i class="fa-brands fa-tiktok" aria-hidden="true"></i>
+                            @elseif($social->name === 'Reddit.com' && $social->link != '')
+                                <i class="fa-brands fa-reddit" aria-hidden="true"></i>
+                            @elseif($social->name === 'Snapchat.com' && $social->link != '')
+                                <i class="fa-brands fa-snapchat" aria-hidden="true"></i>
+                            @elseif($social->name === 'WhatsApp.com' && $social->link != '')
+                                <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+                            @elseif($social->name === 'Discord.com' && $social->link != '')
+                                <i class="fa-brands fa-discord" aria-hidden="true"></i>
+                            @elseif($social->name === 'Tumblr.com' && $social->link != '')
+                                <i class="fa-brands fa-tumblr" aria-hidden="true"></i>
+                            @elseif($social->name === 'Dribbble.com' && $social->link != '')
+                                <i class="fa-brands fa-dribbble" aria-hidden="true"></i>
+                            @elseif($social->name === 'GitHub.com' && $social->link != '')
+                                <i class="fa-brands fa-github" aria-hidden="true"></i>
+                            @elseif($social->name === 'Vimeo.com' && $social->link != '')
+                                <i class="fa-brands fa-vimeo" aria-hidden="true"></i>
+                            @elseif($social->name === 'Slack.com' && $social->link != '')
+                                <i class="fa-brands fa-slack" aria-hidden="true"></i>
+                            @elseif($social->name === 'Dropbox.com' && $social->link != '')
+                                <i class="fa-brands fa-dropbox" aria-hidden="true"></i>
+                            @endif
+                        </a>
 
-            @foreach($socialItems as $social)
-                <li class="nav-item {{ $loop->first ? '' : 'ml-2' }}">
-                    <a target="_blank" class="d-flex justify-content-center align-items-center"
-                       href="{{ $social->link }}">
-                        @if($social->name === 'vk.com' && $social->link != '')
-                            <i class="fa-brands fa-vk" aria-hidden="true"></i>
-                        @elseif($social->name === 'YouTube.com' && $social->link != '')
-                            <i class="fa-brands fa-youtube" aria-hidden="true"></i>
-                        @elseif($social->name === 'RuTube.ru' && $social->link != '')
-                            <i class="fa-brands fa-rutube" aria-hidden="true"></i>
-                        @elseif($social->name === 'facebook.com' && $social->link != '')
-                            <i class="fa-brands fa-facebook" aria-hidden="true"></i>
-                        @elseif($social->name === 'Instagram.com' && $social->link != '')
-                            <i class="fa-brands fa-instagram" aria-hidden="true"></i>
-                        @elseif($social->name === 'Twitter.com' && $social->link != '')
-                            <i class="fa-brands fa-twitter" aria-hidden="true"></i>
-                        @elseif($social->name === 'LinkedIn.com' && $social->link != '')
-                            <i class="fa-brands fa-linkedin" aria-hidden="true"></i>
-                        @elseif($social->name === 'Telegram.org' && $social->link != '')
-                            <i class="fa-brands fa-telegram" aria-hidden="true"></i>
-                        @elseif($social->name === 'Pinterest.com' && $social->link != '')
-                            <i class="fa-brands fa-pinterest" aria-hidden="true"></i>
-                        @elseif($social->name === 'TikTok.com' && $social->link != '')
-                            <i class="fa-brands fa-tiktok" aria-hidden="true"></i>
-                        @elseif($social->name === 'Reddit.com' && $social->link != '')
-                            <i class="fa-brands fa-reddit" aria-hidden="true"></i>
-                        @elseif($social->name === 'Snapchat.com' && $social->link != '')
-                            <i class="fa-brands fa-snapchat" aria-hidden="true"></i>
-                        @elseif($social->name === 'WhatsApp.com' && $social->link != '')
-                            <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
-                        @elseif($social->name === 'Discord.com' && $social->link != '')
-                            <i class="fa-brands fa-discord" aria-hidden="true"></i>
-                        @elseif($social->name === 'Tumblr.com' && $social->link != '')
-                            <i class="fa-brands fa-tumblr" aria-hidden="true"></i>
-                        @elseif($social->name === 'Dribbble.com' && $social->link != '')
-                            <i class="fa-brands fa-dribbble" aria-hidden="true"></i>
-                        @elseif($social->name === 'GitHub.com' && $social->link != '')
-                            <i class="fa-brands fa-github" aria-hidden="true"></i>
-                        @elseif($social->name === 'Vimeo.com' && $social->link != '')
-                            <i class="fa-brands fa-vimeo" aria-hidden="true"></i>
-                        @elseif($social->name === 'Slack.com' && $social->link != '')
-                            <i class="fa-brands fa-slack" aria-hidden="true"></i>
-                        @elseif($social->name === 'Dropbox.com' && $social->link != '')
-                            <i class="fa-brands fa-dropbox" aria-hidden="true"></i>
-                        @endif
-                    </a>
-
-                </li>
-            @endforeach
-
+                    </li>
+                @endforeach
+            @endisset
 
             <li class="nav-item d-flex align-items-center">
                 <button type="button" class="btn btn-primary logout confirm-logout-modal" data-bs-toggle="modal"
@@ -349,7 +367,9 @@
                     <h6> Имя: {{auth()->user()->name}}</h6>
                     {{--                    <h6> Id: {{auth()->user()->id}}</h6>--}}
                     <h6> Почта: {{auth()->user()->email}}</h6>
-                    <h6> Роль: {{auth()->user()->role->label}}</h6>
+                    {{--                    <h6> Роль: {{auth()->user()->role->label}}</h6>--}}
+                    Роль: {{ optional(auth()->user()->role)->label ?? 'Не указана' }}
+
 
                     @can('servicePayments-view')
 
@@ -372,8 +392,8 @@
 
 
                     {{--@can('partnerWallet-view')--}}
-                        {{--<h6> Баланс: {{ number_format((float)($partnerWalletBalance ?? 0), 0, ',', ' ') }} руб.--}}
-                            {{--<a href="/partner-wallet">(пополнить)</a></h6>--}}
+                    {{--<h6> Баланс: {{ number_format((float)($partnerWalletBalance ?? 0), 0, ',', ' ') }} руб.--}}
+                    {{--<a href="/partner-wallet">(пополнить)</a></h6>--}}
                     {{--@endcan--}}
 
 
@@ -401,21 +421,21 @@
 
 
             <!-- SidebarSearch Form -->
-        {{--                    <div class="form-inline">--}}
-        {{--                        <div class="input-group" data-widget="sidebar-search">--}}
-        {{--                            <input class="form-control form-control-sidebar" type="search" placeholder="Search"--}}
-        {{--                                   aria-label="Search">--}}
-        {{--                            <div class="input-group-append">--}}
-        {{--                                <button class="btn btn-sidebar">--}}
-        {{--                                    <i class="fas fa-search fa-fw"></i>--}}
-        {{--                                </button>--}}
-        {{--                            </div>--}}
-        {{--                        </div>--}}
-        {{--                    </div>--}}
+            {{--                    <div class="form-inline">--}}
+            {{--                        <div class="input-group" data-widget="sidebar-search">--}}
+            {{--                            <input class="form-control form-control-sidebar" type="search" placeholder="Search"--}}
+            {{--                                   aria-label="Search">--}}
+            {{--                            <div class="input-group-append">--}}
+            {{--                                <button class="btn btn-sidebar">--}}
+            {{--                                    <i class="fas fa-search fa-fw"></i>--}}
+            {{--                                </button>--}}
+            {{--                            </div>--}}
+            {{--                        </div>--}}
+            {{--                    </div>--}}
 
-        <!-- Sidebar Menu -->
-        @include('includes.sidebar')
-        <!-- /.sidebar-menu -->
+            <!-- Sidebar Menu -->
+            @include('includes.sidebar')
+            <!-- /.sidebar-menu -->
         </div>
         <!-- /.sidebar -->
     </aside>
@@ -499,7 +519,9 @@
         <div class="toast show align-items-center text-bg-danger border-0">
             <div class="d-flex">
                 <div class="toast-body">
-                    @foreach ($errors->all() as $e) <div>{{ $e }}</div> @endforeach
+                    @foreach ($errors->all() as $e)
+                        <div>{{ $e }}</div>
+                    @endforeach
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
@@ -509,7 +531,7 @@
 
 {{-- снежинки --}}
 
- @php
+@php
     $month = now()->month; // 1 — январь, 2 — февраль, ..., 12 — декабрь
 @endphp
 @if (in_array($month, [12, 1, 2]))

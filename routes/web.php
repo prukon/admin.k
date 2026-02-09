@@ -54,6 +54,7 @@ use App\Http\Controllers\YooKassaWebhookController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\Debug\RequestDebugController;
 use App\Http\Middleware\DebugRequestAccess;
+use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
 
 
 
@@ -91,7 +92,7 @@ Route::view('/crm-dlya-detskogo-razvivayushchego-centra', 'landing.seo.developme
 Route::view('/crm-dlya-shkol-gimnastiki-i-akrobatiki', 'landing.seo.gymnastics-acrobatics')->name('landing.seo.gymnastics.acrobatics');
 Route::view('/crm-dlya-detskih-yazykovyh-shkol', 'landing.seo.language-schools')->name('landing.seo.language.schools');
 
-// Отправка заявки с ленда
+// Отправка заявки с ленда (feature test +)
 Route::post('/contact/send', [LandingPageController::class, 'contactSend'])->name('contact.send');
 
 //Страница Публичная оферта
@@ -128,31 +129,34 @@ Route::middleware('auth')->group(function () {
 // -----------auth', '2fa-----------
 Route::middleware(['auth', '2fa'])->group(function () {
 
-    //Консоль
+    //Консоль (feature test +)
     Route::middleware(['can:dashboard-view'])->group(function () {
         Route::match(['get', 'post'], '/cabinet', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/get-user-details', [DashboardController::class, 'getUserDetails'])->name('getUserDetails');
         Route::get('/get-team-details', [DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
     });
 
-    //Отчеты -> вкладка Платежи, задолженности, LTV
-    Route::middleware(['can:reports-view'])->group(function () {
-        Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
-        Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
-        // Настройки отображения колонок в отчёте "Платежи"
-        Route::get('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'getColumnsSettings']);
-        Route::post('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'saveColumnsSettings']);
-        Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])->name('payments.refund')->whereNumber('payment');
-        Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
-        Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
-        Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
-        Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
-    });
+        //Отчеты -> вкладка Платежи, задолженности, LTV
+        Route::middleware(['can:reports-view'])->group(function () {
+            //Отчеты -> Платежи
+            Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
+            Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
+            Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])->name('payments.refund')->whereNumber('payment');
+            // Настройки отображения колонок в отчёте "Платежи"
+            Route::get('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'getColumnsSettings']);
+            Route::post('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'saveColumnsSettings']);
+            //Отчеты -> Задолженности
+            Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
+            Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
+            //Отчеты -> LTV
+            Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
+            Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
+        });
 
-    // Отчёты -> вкладка "Платежные запросы"
+    // Отчёты -> "Платежные запросы"
     Route::middleware(['can:reports-payment-intents-view'])->group(function () {
-        Route::get('/admin/reports/payment-intents', [PaymentReportController::class, 'paymentIntents'])->name('reports.payment-intents.index');
-        Route::get('/admin/reports/getPaymentIntents', [PaymentReportController::class, 'getPaymentIntents'])->name('reports.payment-intents.data');
+        Route::get('/admin/reports/payment-intents', [PaymentIntentReportController::class, 'paymentIntents'])->name('reports.payment-intents.index');
+        Route::get('/admin/reports/getPaymentIntents', [PaymentIntentReportController::class, 'getPaymentIntents'])->name('reports.payment-intents.data');
     });
 
     //Мои платежи
@@ -320,7 +324,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // });
 
 
- 
+    
     Route::middleware('can:leads-view')->group(function () {
         Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
         // DataTables endpoint

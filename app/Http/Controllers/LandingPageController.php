@@ -35,105 +35,6 @@ class LandingPageController extends Controller
         return view('admin.leads', compact('submissions'));
     }
 
-    public function leadsDataTable3(Request $request)
-    {
-        // Базовый запрос: только не удалённые
-        $baseQuery = ContactSubmission::query()->whereNull('deleted_at');
-
-        // Общее количество записей БЕЗ учёта фильтров/поиска
-        $recordsTotal = $baseQuery->count();
-
-        // Клон для фильтрации
-        $query = clone $baseQuery;
-
-        // ---- ФИЛЬТР ПО СТАТУСУ ----
-        // прилетает из JS как d.status = $('#statusFilter').val()
-        if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
-        }
-
-        // ---- Поиск DataTables ----
-        if ($request->has('search') && $request->input('search.value')) {
-            $search = $request->input('search.value');
-
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                    ->orWhere('email', 'like', "%$search%")
-                    ->orWhere('phone', 'like', "%$search%")
-                    ->orWhere('website', 'like', "%$search%")
-                    ->orWhere('message', 'like', "%$search%")
-                    ->orWhere('comment', 'like', "%$search%")
-                    ->orWhere('status', 'like', "%$search%")
-                    ->orWhereRaw('DATE_FORMAT(created_at, "%d.%m.%Y %H:%i") like ?', ["%$search%"]);
-            });
-        }
-
-        // Количество записей ПОСЛЕ фильтрации (фильтр + поиск)
-        $recordsFiltered = $query->count();
-
-        // ---- Сортировка ----
-        $order   = $request->input('order', []);
-        $columns = $request->input('columns', []);
-
-        if ($order && $columns) {
-            foreach ($order as $ord) {
-                $columnIdx  = $ord['column'];
-                $columnName = $columns[$columnIdx]['data'];
-                $dir        = $ord['dir'] === 'asc' ? 'asc' : 'desc';
-
-                if (in_array($columnName, [
-                    'id',
-                    'name',
-                    'phone',
-                    'email',
-                    'website',
-                    'message',
-                    'status',
-                    'comment',
-                    'created_at',
-                ])) {
-                    $query->orderBy($columnName, $dir);
-                }
-            }
-        } else {
-            $query->orderBy('created_at', 'desc');
-        }
-
-        // ---- Пагинация ----
-        $start  = (int) $request->input('start', 0);
-        $length = (int) $request->input('length', 20);
-
-        $data = $query->skip($start)->take($length)->get();
-
-        // ---- Формирование ответа ----
-        return response()->json([
-            'draw'            => (int) $request->input('draw'),
-            'recordsTotal'    => $recordsTotal,
-            'recordsFiltered' => $recordsFiltered,
-            'data'            => $data->map(function ($item) {
-                return [
-                    'id'           => $item->id,
-                    'name'         => $item->name,
-                    'phone'        => $item->phone,
-                    'email'        => $item->email,
-                    'website'      => $item->website,
-                    'message'      => $item->message,
-                    'status'       => $item->status?->value ?? null, // 'new' / 'processing' / ...
-                    'status_label' => $item->status
-                        ? ContactSubmissionStatus::label($item->status->value)
-                        : null, // 'Новый', 'Обработка' и т.д.
-                    'comment'      => $item->comment,
-                    'created_at'   => $item->created_at?->format('d.m.Y H:i') ?? null,
-                ];
-            }),
-        ]);
-    }
-
-
-
-
-
-
     public function leadsDataTable(Request $request)
     {
         // Базовый запрос: только не удалённые
@@ -233,11 +134,6 @@ class LandingPageController extends Controller
             }),
         ]);
     }
-
-
-
-
-
 
 
     public function contactSend(Request $request)

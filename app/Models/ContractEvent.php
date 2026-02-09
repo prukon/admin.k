@@ -7,12 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ContractEvent extends Model
 {
-    protected $fillable = [
-        'contract_id',
-        'type',
-        'payload_json',
-        'author_id'        // ← добавили
-    ];
+    protected $guarded = [];
 
     // ContractEvent.php
 public static array $TYPE_RU = [

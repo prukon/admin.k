@@ -17,15 +17,10 @@ use Illuminate\Support\Facades\View;
 use App\Services\Signatures\SignatureProvider;
 use App\Services\Signatures\Providers\PodpislonProvider;
 
-
 use Illuminate\Support\Facades\Cache;
-
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Observers\UserObserver;
-
-
-
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -44,11 +39,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-
         if (app()->environment(['local','development','testing'])) {
 
 //            DB::listen(function ($query) {
-//                Log::debug('SQL', [
+//                \Log::debug('SQL', [
 //                    'sql'      => $query->sql,
 //                    'bindings' => $query->bindings,
 //                    'time_ms'  => $query->time,
@@ -58,17 +52,17 @@ class AppServiceProvider extends ServiceProvider
 
         Paginator::useBootstrap();
 
-        //Получаем срок оплаты сервиса
+        // Получаем срок оплаты сервиса
         View::composer('*', function ($view) {
             $latestEndDate = PartnerAccess::where('is_active', 1)->max('end_date');
             $view->with('latestEndDate', $latestEndDate);
         });
 
-
-        //Баланс партнера
+        // Баланс партнера
         View::composer('layouts.admin2', function ($view) {
 
             $balance = 0.0;
+
             if (Auth::check()) {
                 $partnerId = auth()->user()->partner_id ?? session('partner_id'); // замени на свою логику
                 if ($partnerId) {
@@ -79,18 +73,34 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with([
-
                 'partnerWalletBalance' => $balance,
             ]);
         });
 
-        //Каунтеры юзеров и групп
+        /**
+         * ИЗМЕНЁННЫЙ БЛОК: счётчики юзеров и групп
+         * Теперь считаем в разрезе текущего партнёра (partner_id),
+         * а если партнёр не определён — fallback на глобальные значения.
+         */
         View::composer('includes.sidebar', function ($view) {
+
+            $partnerId = session('current_partner')
+                ?? auth()->user()?->partner_id
+                ?? null;
+
+            if ($partnerId) {
+                $teamsCount = Team::where('partner_id', $partnerId)->count();
+                $usersCount = User::where('partner_id', $partnerId)->count();
+            } else {
+                // fallback (например, супер-админ)
+                $teamsCount = Team::count();
+                $usersCount = User::count();
+            }
+
             $view->with([
-                'allTeamsCount'  =>  $allTeamsCount = Team::count(),
-                'allUsersCount'  => $allUsersCount = User::count(),
+                'allTeamsCount' => $teamsCount,
+                'allUsersCount' => $usersCount,
             ]);
         });
-
     }
 }

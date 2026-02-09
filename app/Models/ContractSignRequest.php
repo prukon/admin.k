@@ -7,28 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ContractSignRequest extends Model
 {
-    protected $fillable = [
-        'contract_id',
-        'signer_name',
-        'signer_lastname',
-        'signer_firstname',
-        'signer_middlename',
-        'signer_phone',
-        'ttl_hours',
-        'provider_request_id',
-        'status',
-        'meta',
-    ];
 
+    protected $guarded = [];
     protected $casts = [
         'meta' => 'array',
     ];
-
-
-
-
-
-
 
 public static array $STATUS_RU = [
 'created' => 'Создана',

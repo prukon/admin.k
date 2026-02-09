@@ -110,15 +110,15 @@ class   User extends Authenticatable
         return $this->belongsTo(Partner::class, 'partner_id');
     }
 
-    public function roles()
-    {
-        return $this->belongsToMany(
-            Role::class,
-            'role_user',   // имя pivot‑таблицы
-            'user_id',     // FK User
-            'role_id'      // FK Role
-        )->withTimestamps();
-    }
+    // public function roles()
+    // {
+    //     return $this->belongsToMany(
+    //         Role::class,
+    //         'role_user',   // имя pivot‑таблицы
+    //         'user_id',     // FK User
+    //         'role_id'      // FK Role
+    //     )->withTimestamps();
+    // }
 
     public function hasRole(string $roleName): bool
     {
@@ -163,10 +163,10 @@ class   User extends Authenticatable
         $this->save();
     }
 
-    public function getFullNameAttributeOld(): string
-    {
-        return trim(($this->lastname ?? '').' '.($this->name ?? ''));
-    }
+    // public function getFullNameAttributeOld(): string
+    // {
+    //     return trim(($this->lastname ?? '').' '.($this->name ?? ''));
+    // }
 
     public function getFullNameAttribute(): string
     {
@@ -174,9 +174,6 @@ class   User extends Authenticatable
         return trim(collect([$this->lastname, $this->name])->filter()->implode(' '));
     }
 
-
-
-    // use Illuminate\Database\Eloquent\Casts\Attribute;  // сверху
 
     private function toE164(?string $v): ?string {
         if (!$v) return null;
@@ -196,6 +193,8 @@ class   User extends Authenticatable
         $this->attributes['two_factor_phone_pending'] = $this->toE164($v);
     }
 
+
+    
 
 }
 

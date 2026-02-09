@@ -6,13 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use App\Models\Traits\Filterable;
-
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Partner extends Model
 {
     use SoftDeletes;
     use Notifiable;
     use Filterable;
+    use HasFactory;
 
 
     protected $table = 'partners';
