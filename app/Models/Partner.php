@@ -15,20 +15,10 @@ class Partner extends Model
     use Filterable;
     use HasFactory;
 
-
     protected $table = 'partners';
-
     protected $primaryKey = 'id';
-
-    /**
-     * Атрибуты, которые можно массово назначать.
-     */
     protected $guarded = []; //разрешение на изменение данных в таблице}
 
-
-    /**
-     * Типы кастинга атрибутов.
-     */
     protected $casts = [
         'business_type' => 'string',
         'wallet_balance' => 'decimal:2',
@@ -40,7 +30,6 @@ class Partner extends Model
         'bank_details_last_updated_at' => 'datetime',
 
     ];
-
 
 
     /**

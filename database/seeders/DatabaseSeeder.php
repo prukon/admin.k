@@ -21,7 +21,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // всегда
+
+
+
+        // тест+прод
         $this->call(WeekdaysSeeder::class);         //ДНИ НЕДЕЛИ
         $this->call(RolesSeeder::class);            //СИСТЕМНЫЕ РОЛИ
         $this->call(PermissionGroupsSeeder::class); //ГРУППЫ ПРАВ

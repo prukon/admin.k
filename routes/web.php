@@ -15,6 +15,8 @@ use App\Http\Controllers\Admin\SettingPricesController;
 use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\UserFieldController;
+use App\Http\Controllers\Admin\UserTableSettingsController;
 use App\Http\Controllers\Chat\ChatApiController;
 use App\Http\Controllers\Chat\ChatPageController;
 use App\Http\Controllers\DashboardController;
@@ -55,6 +57,7 @@ use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\Debug\RequestDebugController;
 use App\Http\Middleware\DebugRequestAccess;
 use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
+use App\Http\Controllers\Admin\UserAvatarController;
 
 
 
@@ -171,7 +174,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/my-group/data', [MyGroupController::class, 'data'])->name('my-group.data');
     });
 
-    //Установка цен
+    //Установка цен (feature test +)
     Route::middleware('can:setPrices-view')->group(function () {
         Route::get('admin/setting-prices', [SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
         Route::post('admin/setting-prices/get-team-price', [SettingPricesController::class, 'getTeamPrice'])->name('getTeamPrice');
@@ -200,24 +203,31 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/schedule/statuses/{id}', [StatusController::class, 'destroy'])->name('statuses.destroy');
     });
 
-    //Пользователи
+    //Пользователи (feature test +)
     Route::middleware('can:users-view')->group(function () {
         Route::get('admin/users', [UserController::class, 'index'])->name('admin.user1');
         Route::post('admin/users', [UserController::class, 'store'])->name('admin.user.store');
         Route::get('admin/users/{user}/edit', [UserController::class, 'edit'])->name('admin.user.edit');
         Route::patch('admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
         Route::delete('admin/user/{user}', [UserController::class, 'delete'])->name('admin.user.delete');
-        Route::post('admin/field/store', [UserController::class, 'storeFields'])->name('admin.field.store');
         Route::get('admin/user/logs-data', [UserController::class, 'log'])->name('logs.data.user');
+        //Изменение пароля
         Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users-password-update', 'throttle:5,1'])->whereNumber('user');
-        //Удаление аватарки админом
-        Route::delete('/admin/users/{id}/avatar', [UserController::class, 'destroyUserAvatar'])->name('admin.users.avatar.destroy');
-        //Обновление аватарки админом
-        Route::post('/admin/users/{id}/avatar', [UserController::class, 'uploadUserAvatar']);
         //Данные для datatables
         Route::get('/admin/users/data', [UserController::class, 'data'])->name('admin.users.data');
-        Route::get('admin/users/columns-settings', [UserController::class, 'getColumnsSettings']);
-        Route::post('admin/users/columns-settings', [UserController::class, 'saveColumnsSettings']);
+
+        //Удаление аватарки админом
+        Route::delete('/admin/users/{id}/avatar', [UserAvatarController::class, 'destroyUserAvatar']);
+        //Обновление аватарки админом
+        Route::post('/admin/users/{id}/avatar', [UserAvatarController::class, 'uploadUserAvatar']);
+
+        //Настройка таблицы
+        Route::get('admin/users/columns-settings', [UserTableSettingsController::class, 'getColumnsSettings'])->name('admin.users.table-settings.get');
+        Route::post('admin/users/columns-settings', [UserTableSettingsController::class, 'saveColumnsSettings'])->name('admin.users.table-settings.save');
+
+        //Доп. поля
+        Route::post('/admin/users/fields', [UserFieldController::class, 'storeFields'])->name('admin.field.store');
+
     });
 
     //Группы

@@ -13,11 +13,8 @@ class Permission extends Model
 
     protected $table = 'permissions';
 
-    protected $fillable = [
-        'name',
-        'description',
-        'sort_order'
-    ];
+    protected $guarded = [];
+
 
     protected $casts = [
         'is_visible' => 'boolean',

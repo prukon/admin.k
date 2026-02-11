@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\SocialItem;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\PartnerContext;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +33,17 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SignatureProvider::class, function () {
             return new PodpislonProvider();
         });
+
+        // Контекст партнёра — один на запрос
+        $this->app->singleton(PartnerContext::class, function () {
+            return new PartnerContext();
+        });
+
+        // Чтобы не ломать существующий app('current_partner')->id
+        $this->app->singleton('current_partner', function () {
+            return app(PartnerContext::class)->partner();
+        });
+
     }
 
     /**

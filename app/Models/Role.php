@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany; // <- вот это
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Role extends Model
 {
@@ -12,16 +12,7 @@ class Role extends Model
 
     protected $table = 'roles';
 
-    protected $fillable = [
-        'name',
-        'label',
-        'is_sistem',
-        'order_by',
-        'is_visible',
-        'partner_id', // Добавлено: теперь можно массово заполнять поле partner_id
-
-
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'is_sistem' => 'boolean',
@@ -124,9 +115,6 @@ class Role extends Model
             ->orderBy('sort_order');
     }
 
-
-
-
     public function permissionsForPartner(int $partnerId)
     {
         return $this->belongsToMany(Permission::class, 'permission_role')
@@ -154,8 +142,5 @@ class Role extends Model
             ->where('partner_id', $partnerId)
             ->delete();
     }
-
-
-
 
 }
