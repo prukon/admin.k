@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\Setting\SettingController;
 use App\Http\Controllers\Admin\Setting\TbankCommissionsController;
 use App\Http\Controllers\Admin\SettingPricesController;
 use App\Http\Controllers\Admin\StatusController;
+use App\Http\Controllers\Admin\TeamColumnsSettingsController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserFieldController;
@@ -39,7 +40,6 @@ use App\Http\Controllers\DocumentationController;
 use App\Http\Controllers\LandingPageController;
 
 
-
 use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -58,8 +58,6 @@ use App\Http\Controllers\Debug\RequestDebugController;
 use App\Http\Middleware\DebugRequestAccess;
 use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
 use App\Http\Controllers\Admin\UserAvatarController;
-
-
 
 
 Auth::routes();
@@ -139,22 +137,22 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/get-team-details', [DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
     });
 
-        //Отчеты -> вкладка Платежи, задолженности, LTV (feature test +)
-        Route::middleware(['can:reports-view'])->group(function () {
-            //Отчеты -> Платежи
-            Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
-            Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
-            Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])->name('payments.refund')->whereNumber('payment');
-            // Настройки отображения колонок в отчёте "Платежи"
-            Route::get('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'getColumnsSettings']);
-            Route::post('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'saveColumnsSettings']);
-            //Отчеты -> Задолженности
-            Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
-            Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
-            //Отчеты -> LTV
-            Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
-            Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
-        });
+    //Отчеты -> вкладка Платежи, задолженности, LTV (feature test +)
+    Route::middleware(['can:reports-view'])->group(function () {
+        //Отчеты -> Платежи
+        Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
+        Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
+        Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])->name('payments.refund')->whereNumber('payment');
+        // Настройки отображения колонок в отчёте "Платежи"
+        Route::get('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'getColumnsSettings']);
+        Route::post('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'saveColumnsSettings']);
+        //Отчеты -> Задолженности
+        Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
+        Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
+        //Отчеты -> LTV
+        Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
+        Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
+    });
 
     // Отчёты -> "Платежные запросы"
     Route::middleware(['can:reports-payment-intents-view'])->group(function () {
@@ -232,7 +230,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     //Группы
     Route::middleware('can:groups-view')->group(function () {
-        Route::get('admin/teams', [TeamController::class, 'index'])->name('admin.team1');
+//        Route::get('admin/teams', [TeamController::class, 'index'])->name('admin.team1');
+        Route::get('admin/teams', [TeamController::class, 'index'])->name('admin.team.index');
         Route::post('admin/teams', [TeamController::class, 'store'])->name('admin.team.store');
         Route::get('admin/team/{id}/edit', [TeamController::class, 'edit'])->name('admin.team.edit');
         Route::patch('admin/team/{id}', [TeamController::class, 'update'])->name('admin.team.update');
@@ -240,9 +239,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/teams/logs-data', [TeamController::class, 'log'])->name('logs.data.team');
         // DataTables endpoint
         Route::get('admin/teams/data', [TeamController::class, 'data'])->name('admin.team.data');
+    });
+    Route::middleware('can:groups-view')->group(function () {
         // Настройки отображения колонок
-        Route::get('admin/teams/columns-settings', [TeamController::class, 'getColumnsSettings']);
-        Route::post('admin/teams/columns-settings', [TeamController::class, 'saveColumnsSettings']);
+        Route::get('admin/teams/columns-settings', [TeamColumnsSettingsController::class, 'getColumnsSettings']);
+        Route::post('admin/teams/columns-settings', [TeamColumnsSettingsController::class, 'saveColumnsSettings']);
     });
 
     //Партнеры
@@ -334,7 +335,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // });
 
 
-    
     Route::middleware('can:leads-view')->group(function () {
         Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
         // DataTables endpoint
