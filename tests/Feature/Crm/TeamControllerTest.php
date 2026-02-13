@@ -484,7 +484,7 @@ class TeamControllerTest extends CrmTestCase
         $response->assertJsonFragment([
             'message' => 'Доступ запрещён.',
         ]);
- 
+
 
         // Группа не должна быть помечена удалённой
         $this->assertDatabaseHas('teams', [

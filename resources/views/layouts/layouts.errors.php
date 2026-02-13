@@ -438,7 +438,8 @@
     <!-- /.content-wrapper -->
     <footer class="main-footer">
 
-        <div> Copyright &copy; 2023-2025 <a target="_blank" href="https://kidslink.ru/">Kidslink.ru</a>.
+        <div> Copyright &copy; 2023-{{ date('Y') }}
+            <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
             Все права защищены.
         </div>
         <div class="float-right d-none d-sm-inline-block">

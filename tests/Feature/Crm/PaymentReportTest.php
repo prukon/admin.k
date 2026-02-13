@@ -57,7 +57,7 @@ class PaymentReportTest extends CrmTestCase
         // Платежи текущего партнёра
         $payment1 = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ'    => 1000,
+            'summ' => 1000,
         ]);
 
         $userSamePartner = User::factory()->create([
@@ -66,7 +66,7 @@ class PaymentReportTest extends CrmTestCase
 
         $payment2 = Payment::factory()->create([
             'user_id' => $userSamePartner->id,
-            'summ'    => 2000,
+            'summ' => 2000,
         ]);
 
         // Платёж другого партнёра (не должен попасть в сумму)
@@ -77,10 +77,10 @@ class PaymentReportTest extends CrmTestCase
 
         Payment::factory()->create([
             'user_id' => $otherUser->id,
-            'summ'    => 5000,
+            'summ' => 5000,
         ]);
 
-        $expectedTotal     = $payment1->summ + $payment2->summ;
+        $expectedTotal = $payment1->summ + $payment2->summ;
         $expectedFormatted = number_format($expectedTotal, 0, '', ' ');
 
         $response = $this->get(route('payments'));
@@ -106,7 +106,7 @@ class PaymentReportTest extends CrmTestCase
         // 2) Когда есть PaymentSystem с name = 'tbank' для текущего партнёра
         $ps = new PaymentSystem();
         $ps->partner_id = $this->partner->id;
-        $ps->name       = 'tbank';
+        $ps->name = 'tbank';
         $ps->save();
 
         $response = $this->get(route('payments'));
@@ -148,7 +148,7 @@ class PaymentReportTest extends CrmTestCase
         $payableCurrent = Payable::factory()
             ->state([
                 'partner_id' => $this->partner->id,
-                'user_id'    => $this->user->id,
+                'user_id' => $this->user->id,
             ])
             ->paidMonthlyWithAllRelations()
             ->create();
@@ -158,14 +158,14 @@ class PaymentReportTest extends CrmTestCase
 
         // Платёж другого партнёра
         $otherPartner = Partner::factory()->create();
-        $otherUser    = User::factory()->create([
+        $otherUser = User::factory()->create([
             'partner_id' => $otherPartner->id,
         ]);
 
         $payableOther = Payable::factory()
             ->state([
                 'partner_id' => $otherPartner->id,
-                'user_id'    => $otherUser->id,
+                'user_id' => $otherUser->id,
             ])
             ->paidMonthlyWithAllRelations()
             ->create();
@@ -182,13 +182,13 @@ class PaymentReportTest extends CrmTestCase
 
         // В выборке должен быть платёж текущего партнёра
         $this->assertTrue(
-            $data->contains(fn ($row) => (int)($row['id'] ?? 0) === $paymentForCurrentPartner->id),
+            $data->contains(fn($row) => (int)($row['id'] ?? 0) === $paymentForCurrentPartner->id),
             'Ожидался платёж текущего партнёра в выдаче getPayments.'
         );
 
         // И не должно быть платежа другого партнёра
         $this->assertFalse(
-            $data->contains(fn ($row) => (int)($row['id'] ?? 0) === $paymentForOtherPartner->id),
+            $data->contains(fn($row) => (int)($row['id'] ?? 0) === $paymentForOtherPartner->id),
             'Платёж другого партнёра не должен попадать в выдачу getPayments.'
         );
     }
@@ -204,43 +204,43 @@ class PaymentReportTest extends CrmTestCase
 
         // Сценарий 1: есть payments.user_name
         $paymentWithCustomName = Payment::factory()->create([
-            'user_id'   => $this->user->id,
+            'user_id' => $this->user->id,
             'user_name' => 'Custom Payment Name',
-            'summ'      => 1000,
+            'summ' => 1000,
         ]);
 
         // Сценарий 2: user_name пустой, есть user с ФИО и командой
         $teamUser = User::factory()->create([
             'partner_id' => $this->partner->id,
-            'lastname'   => 'Иванов',
-            'name'       => 'Пётр',
+            'lastname' => 'Иванов',
+            'name' => 'Пётр',
         ]);
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
-            'title'      => 'Команда А',
+            'title' => 'Команда А',
         ]);
         $teamUser->team_id = $team->id;
         $teamUser->save();
 
         $paymentWithUser = Payment::factory()->create([
-            'user_id'   => $teamUser->id,
+            'user_id' => $teamUser->id,
             'user_name' => null,
-            'summ'      => 2000,
+            'summ' => 2000,
         ]);
 
         // Сценарий 3: пользователь есть, но без ФИО и без команды
         $userNoData = User::factory()->create([
             'partner_id' => $this->partner->id,
-            'lastname'   => '',
-            'name'       => '',
-            'team_id'    => null,
+            'lastname' => '',
+            'name' => '',
+            'team_id' => null,
         ]);
 
         $paymentNoData = Payment::factory()->create([
-            'user_id'   => $userNoData->id,
+            'user_id' => $userNoData->id,
             'user_name' => null,
-            'summ'      => 500,
+            'summ' => 500,
         ]);
 
         $response = $this
@@ -251,8 +251,8 @@ class PaymentReportTest extends CrmTestCase
         $data = collect($response->json('data') ?? []);
 
         $rowWithCustomName = $data->firstWhere('id', $paymentWithCustomName->id);
-        $rowWithUser       = $data->firstWhere('id', $paymentWithUser->id);
-        $rowNoData         = $data->firstWhere('id', $paymentNoData->id);
+        $rowWithUser = $data->firstWhere('id', $paymentWithUser->id);
+        $rowNoData = $data->firstWhere('id', $paymentNoData->id);
 
         // 1) user_name из payments.user_name
         $this->assertNotNull($rowWithCustomName);
@@ -282,21 +282,21 @@ class PaymentReportTest extends CrmTestCase
 
         // Robokassa-платёж (все T-Bank поля пустые)
         $robokassaPayment = Payment::factory()->create([
-            'user_id'        => $this->user->id,
-            'summ'           => 1500.50,
+            'user_id' => $this->user->id,
+            'summ' => 1500.50,
             'operation_date' => now()->toDateTimeString(),
-            'deal_id'        => null,
-            'payment_id'     => null,
+            'deal_id' => null,
+            'payment_id' => null,
             'payment_status' => null,
         ]);
 
         // T-Bank платёж (хотя бы одно из полей заполнено)
         $tbankPayment = Payment::factory()->create([
-            'user_id'        => $this->user->id,
-            'summ'           => 2500.00,
+            'user_id' => $this->user->id,
+            'summ' => 2500.00,
             'operation_date' => now()->subDay()->toDateTimeString(),
-            'deal_id'        => '12345',
-            'payment_id'     => null,
+            'deal_id' => '12345',
+            'payment_id' => null,
             'payment_status' => null,
         ]);
 
@@ -308,7 +308,7 @@ class PaymentReportTest extends CrmTestCase
         $data = collect($response->json('data') ?? []);
 
         $robokassaRow = $data->firstWhere('id', $robokassaPayment->id);
-        $tbankRow     = $data->firstWhere('id', $tbankPayment->id);
+        $tbankRow = $data->firstWhere('id', $tbankPayment->id);
 
         $this->assertNotNull($robokassaRow);
         $this->assertEquals((float)$robokassaPayment->summ, (float)$robokassaRow['summ']);
@@ -332,48 +332,49 @@ class PaymentReportTest extends CrmTestCase
 
         // Создаём правило комиссий для текущего партнёра
         $rule = new TinkoffCommissionRule();
-        $rule->partner_id          = $this->partner->id;
-        $rule->method              = null;
-        $rule->is_enabled          = true;
-        $rule->acquiring_percent   = 2.5;
+        $rule->partner_id = $this->partner->id;
+        $rule->method = null;
+        $rule->is_enabled = true;
+        $rule->acquiring_percent = 2.5;
         $rule->acquiring_min_fixed = 3.5;
-        $rule->payout_percent      = 1.0;
-        $rule->payout_min_fixed    = 0.0;
-        $rule->platform_percent    = 5.0;
-        $rule->platform_min_fixed  = 1.0;
-        // старые обязательные поля, чтобы не падать на БД
-        $rule->percent             = 0.0;
-        $rule->min_fixed           = 0.0;
+        $rule->payout_percent = 1.0;
+        $rule->payout_min_fixed = 0.0;
+        $rule->platform_percent = 5.0;
+        $rule->platform_min_fixed = 1.0;
+
+        // min_fixed пока ещё существует в БД — заполняем, чтобы не падать, если поле NOT NULL
+        $rule->min_fixed = 0.0;
+
         $rule->save();
 
         // T-Bank платёж
         $payment = Payment::factory()->create([
-            'user_id'        => $this->user->id,
-            'summ'           => 1000.00, // руб
-            'deal_id'        => '999',
-            'payment_id'     => null,
+            'user_id' => $this->user->id,
+            'summ' => 1000.00, // руб
+            'deal_id' => '999',
+            'payment_id' => null,
             'payment_status' => null,
         ]);
 
         // Ожидаемые комиссии по формуле контроллера
-        $grossCents = (int) round($payment->summ * 100);
+        $grossCents = (int)round($payment->summ * 100);
 
         $bankAcceptFee = max(
-            (int) round($grossCents * ($rule->acquiring_percent / 100)),
-            (int) round($rule->acquiring_min_fixed * 100)
+            (int)round($grossCents * ($rule->acquiring_percent / 100)),
+            (int)round($rule->acquiring_min_fixed * 100)
         );
         $bankPayoutFee = max(
-            (int) round($grossCents * ($rule->payout_percent / 100)),
-            (int) round($rule->payout_min_fixed * 100)
+            (int)round($grossCents * ($rule->payout_percent / 100)),
+            (int)round($rule->payout_min_fixed * 100)
         );
         $platformFee = max(
-            (int) round($grossCents * ($rule->platform_percent / 100)),
-            (int) round($rule->platform_min_fixed * 100)
+            (int)round($grossCents * ($rule->platform_percent / 100)),
+            (int)round($rule->platform_min_fixed * 100)
         );
 
-        $expectedBankTotal     = round(($bankAcceptFee + $bankPayoutFee) / 100, 2);
+        $expectedBankTotal = round(($bankAcceptFee + $bankPayoutFee) / 100, 2);
         $expectedCommissionAll = round(($bankAcceptFee + $bankPayoutFee + $platformFee) / 100, 2);
-        $expectedNet           = round(max(0, $grossCents - $bankAcceptFee - $bankPayoutFee - $platformFee) / 100, 2);
+        $expectedNet = round(max(0, $grossCents - $bankAcceptFee - $bankPayoutFee - $platformFee) / 100, 2);
 
         $response = $this
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
@@ -391,10 +392,10 @@ class PaymentReportTest extends CrmTestCase
 
         // Для Robokassa комиссий быть не должно
         $robokassaPayment = Payment::factory()->create([
-            'user_id'        => $this->user->id,
-            'summ'           => 500.0,
-            'deal_id'        => null,
-            'payment_id'     => null,
+            'user_id' => $this->user->id,
+            'summ' => 500.0,
+            'deal_id' => null,
+            'payment_id' => null,
             'payment_status' => null,
         ]);
 
@@ -456,17 +457,17 @@ class PaymentReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
         ]);
 
-        $otherSetting            = new UserTableSetting();
-        $otherSetting->user_id   = $anotherUser->id;
+        $otherSetting = new UserTableSetting();
+        $otherSetting->user_id = $anotherUser->id;
         $otherSetting->table_key = 'reports_payments';
-        $otherSetting->columns   = ['user_name' => false];
+        $otherSetting->columns = ['user_name' => false];
         $otherSetting->save();
 
         // Настройки текущего пользователя
-        $mySetting            = new UserTableSetting();
-        $mySetting->user_id   = $this->user->id;
+        $mySetting = new UserTableSetting();
+        $mySetting->user_id = $this->user->id;
         $mySetting->table_key = 'reports_payments';
-        $mySetting->columns   = ['user_name' => true, 'team_title' => false];
+        $mySetting->columns = ['user_name' => true, 'team_title' => false];
         $mySetting->save();
 
         $response = $this->get('/admin/reports/payments/columns-settings');
@@ -489,7 +490,7 @@ class PaymentReportTest extends CrmTestCase
         // Валидный запрос
         $payload = [
             'columns' => [
-                'user_name'  => true,
+                'user_name' => true,
                 'team_title' => false,
             ],
         ];
@@ -517,14 +518,14 @@ class PaymentReportTest extends CrmTestCase
 
         $payload = [
             'columns' => [
-                'col_true_string'  => 'true',
+                'col_true_string' => 'true',
                 'col_false_string' => 'false',
-                'col_one'          => '1',
-                'col_zero'         => '0',
-                'col_int_one'      => 1,
-                'col_int_zero'     => 0,
-                'col_null'         => null,
-                'col_garbage'      => 'foobar',
+                'col_one' => '1',
+                'col_zero' => '0',
+                'col_int_one' => 1,
+                'col_int_zero' => 0,
+                'col_null' => null,
+                'col_garbage' => 'foobar',
             ],
         ];
 
@@ -539,14 +540,14 @@ class PaymentReportTest extends CrmTestCase
 
         $this->assertSame(
             [
-                'col_true_string'  => true,
+                'col_true_string' => true,
                 'col_false_string' => false,
-                'col_one'          => true,
-                'col_zero'         => false,
-                'col_int_one'      => true,
-                'col_int_zero'     => false,
-                'col_null'         => false,
-                'col_garbage'      => false,
+                'col_one' => true,
+                'col_zero' => false,
+                'col_int_one' => true,
+                'col_int_zero' => false,
+                'col_null' => false,
+                'col_garbage' => false,
             ],
             $setting->columns
         );

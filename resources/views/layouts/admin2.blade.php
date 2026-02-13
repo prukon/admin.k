@@ -458,7 +458,8 @@
     <footer class="main-footer">
 
         <div>
-            Copyright &copy; 2023-2025 <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
+            Copyright &copy; 2023-{{ date('Y') }}
+            <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
             Все права защищены.
             @can('documentations-view')
                 <span class="mx-2">·</span>

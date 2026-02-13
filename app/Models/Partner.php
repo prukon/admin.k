@@ -17,7 +17,7 @@ class Partner extends Model
 
     protected $table = 'partners';
     protected $primaryKey = 'id';
-    protected $guarded = []; //разрешение на изменение данных в таблице}
+    protected $guarded = [];
 
     protected $casts = [
         'business_type' => 'string',

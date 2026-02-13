@@ -1,3 +1,4 @@
+{{--Страница авторизации (логин--}}
 <!doctype html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
@@ -34,7 +35,8 @@
             <div class="container">
                 <!-- Лого -->
                 <a class="navbar-brand" href="{{ url('/') }}">
-                    <img src="{{ asset('img/logo3.png') }}" alt="kidscrm.online" height="80">
+{{--                    <img src="{{ asset('img/logo3.png') }}" alt="kidscrm.online" height="80">--}}
+               kidscrm.online
                 </a>
 
                 <!-- Кнопка‑гамбургер -->

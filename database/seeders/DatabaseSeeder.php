@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\PaymentSystem;
 use App\Models\SocialItem;
 use App\Models\Team;
 use App\Models\TeamWeekday;
@@ -37,6 +38,8 @@ class DatabaseSeeder extends Seeder
             $this->call(UserRoleBasePermissionsSeeder::class); //ПРАВА ЮЗЕРУ
             $this->call(AdminRoleBasePermissionsSeeder::class); //ПРАВА АДМИНУ
             $this->call(IstokMenuSeeder::class);
+
+
         }
 
     }

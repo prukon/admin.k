@@ -33,61 +33,61 @@ class RuleController extends Controller
         // 1) Контекст партнёра и текущая роль
         $partnerId    = app('current_partner')->id;
         $userRoleName = auth()->user()?->role?->name;
-    $isSuperadmin = $userRoleName === 'superadmin';
+        $isSuperadmin = $userRoleName === 'superadmin';
 
-    // 2) Роли с правами для текущего партнёра
-    $roles = Role::with([
-        'permissions' => function ($q) use ($partnerId) {
-            $q->wherePivot('partner_id', $partnerId);
-        }
-    ])
-        ->where(function ($q) use ($partnerId) {
-            $q->where('is_sistem', 1)
-                ->orWhereHas('partners', fn($q2) => $q2->where('partner_role.partner_id', $partnerId));
-        })
-        ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
-        ->orderBy('order_by')
-        ->get();
-
-    // 3) Все права (для подсчётов/поиска) + их группы
-    $permissions = Permission::with('group')
-        ->orderBy('sort_order')
-        ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
-        ->get();
-
-    // 4) Явные группы с подгруженными правами
-    $groups = PermissionGroup::with([
-        'permissions' => function ($q) use ($isSuperadmin) {
-            $q->orderBy('sort_order')
-                ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1));
+        // 2) Роли с правами для текущего партнёра
+        $roles = Role::with([
+            'permissions' => function ($q) use ($partnerId) {
+                $q->wherePivot('partner_id', $partnerId);
             }
-    ])
-        ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
-        ->orderBy('sort_order')
-        ->get();
+        ])
+            ->where(function ($q) use ($partnerId) {
+                $q->where('is_sistem', 1)
+                    ->orWhereHas('partners', fn($q2) => $q2->where('partner_role.partner_id', $partnerId));
+            })
+            ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
+            ->orderBy('order_by')
+            ->get();
 
-    // 5) «Прочее» — права без группы
-    $ungrouped = $permissions->whereNull('permission_group_id');
-    if ($ungrouped->isNotEmpty()) {
-        $misc = new PermissionGroup([
-            'id'          => 0,
-            'slug'        => 'misc',
-            'name'        => 'Прочее',
-            'description' => null,
-            'is_visible'  => true,
-            'sort_order'  => 999,
+        // 3) Все права (для подсчётов/поиска) + их группы
+        $permissions = Permission::with('group')
+            ->orderBy('sort_order')
+            ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
+            ->get();
+
+        // 4) Явные группы с подгруженными правами
+        $groups = PermissionGroup::with([
+            'permissions' => function ($q) use ($isSuperadmin) {
+                $q->orderBy('sort_order')
+                    ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1));
+            }
+        ])
+            ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
+            ->orderBy('sort_order')
+            ->get();
+
+        // 5) «Прочее» — права без группы
+        $ungrouped = $permissions->whereNull('permission_group_id');
+        if ($ungrouped->isNotEmpty()) {
+            $misc = new PermissionGroup([
+                'id'          => 0,
+                'slug'        => 'misc',
+                'name'        => 'Прочее',
+                'description' => null,
+                'is_visible'  => true,
+                'sort_order'  => 999,
+            ]);
+            $misc->setRelation('permissions', $ungrouped->values());
+            $groups->push($misc);
+        }
+
+        return view('admin.setting.index', [
+            'activeTab'   => 'rule',
+            'roles'       => $roles,
+            'permissions' => $permissions,
+            'groups'      => $groups, // ← добавили группы
         ]);
-        $misc->setRelation('permissions', $ungrouped->values());
-        $groups->push($misc);
     }
-
-    return view('admin.setting.index', [
-        'activeTab'   => 'rule',
-        'roles'       => $roles,
-        'permissions' => $permissions,
-        'groups'      => $groups, // ← добавили группы
-    ]);
-}
 
     //Изменение прав пользователей
 
@@ -209,7 +209,7 @@ class RuleController extends Controller
         $role = new Role([
             'name'       => $machineName,
             'label'      => $label,
-            'description'=> null,
+//            'description'=> null,
             'is_sistem'  => $data['is_sistem'] ?? 0,
             'is_visible' => $data['is_visible'] ?? true,
             'order_by'   => $maxOrderBy + 10,

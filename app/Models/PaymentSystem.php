@@ -13,16 +13,17 @@ class PaymentSystem extends Model
     use HasFactory;
 
     protected $table = 'payment_systems';
+    protected $guarded = [];
 
-    protected $fillable = [
-        'partner_id',
-        'name',
-        'settings',
-        'test_mode',
-    ];
+
+//    protected $casts = [
+//        'test_mode' => 'boolean',
+//    ];
 
     protected $casts = [
+//        'settings' => 'array',
         'test_mode' => 'boolean',
+        'is_enabled' => 'boolean',
     ];
 
     /**

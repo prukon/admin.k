@@ -228,9 +228,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     });
 
-    //Группы
+    //Группы  (feature test +)
     Route::middleware('can:groups-view')->group(function () {
-//        Route::get('admin/teams', [TeamController::class, 'index'])->name('admin.team1');
         Route::get('admin/teams', [TeamController::class, 'index'])->name('admin.team.index');
         Route::post('admin/teams', [TeamController::class, 'store'])->name('admin.team.store');
         Route::get('admin/team/{id}/edit', [TeamController::class, 'edit'])->name('admin.team.edit');
@@ -240,6 +239,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // DataTables endpoint
         Route::get('admin/teams/data', [TeamController::class, 'data'])->name('admin.team.data');
     });
+
+    //Группы. Колонки (feature test +)
     Route::middleware('can:groups-view')->group(function () {
         // Настройки отображения колонок
         Route::get('admin/teams/columns-settings', [TeamColumnsSettingsController::class, 'getColumnsSettings']);
@@ -271,7 +272,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/settings/logs-all-data', [SettingController::class, 'logsAllData'])->name('logs.all.data');
     });
 
-    //Страница Настойки- Права
+    //Страница Настойки- Права (feature test +)
     Route::middleware('can:settings-roles-view')->group(function () {
         Route::get('admin/settings/rules', [RuleController::class, 'showRules'])->name('admin.setting.rule');
         Route::post('admin/setting/rule/toggle', [RuleController::class, 'togglePermission'])->name('admin.setting.rule.toggle');
@@ -280,7 +281,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('admin/setting/role/delete', [RuleController::class, 'deleteRole'])->name('admin.setting.role.delete');
     });
 
-    //Страница Настойки - Платежные системы
+    //Страница Настойки - Платежные системы (feature test +)
     Route::middleware('can:settings-paymentSystems-view')->group(function () {
         Route::get('admin/settings/paymentSystem', [PaymentSystemController::class, 'index'])->name('admin.setting.paymentSystem');
         Route::post('payment-systems/store', [PaymentSystemController::class, 'store'])->name('payment-systems.store');
@@ -294,7 +295,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])->whereIn('page', ['payments', 'reports-payments', 'tbank'])->name('docs.documentation.show');
     });
 
-    //Страница Настойки - Комиссии Т-Банк
+    //Страница Настойки - Комиссии Т-Банк (feature test +)
     Route::middleware('can:settings.commission')->group(function () {
         Route::get('admin/settings/tbank-commissions', [TbankCommissionsController::class, 'index'])->name('admin.setting.tbankCommissions');
         Route::get('admin/settings/tbank-commissions/create', [TbankCommissionsController::class, 'create'])->name('admin.setting.tbankCommissions.create');
@@ -329,12 +330,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Лиды
-    // Route::middleware('can:leads-view')->group(function () {
-    //     Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
-    //     Route::get('/admin/leads/data', [\App\Http\Controllers\LandingPageController::class, 'leadsDataTable'])->name('admin.leads.data');
-    // });
-
-
     Route::middleware('can:leads-view')->group(function () {
         Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
         // DataTables endpoint
@@ -464,7 +459,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('tinkoff.partners.smPatch');
         Route::post('/admin/tinkoff/partners/{id}/sm-refresh', [TinkoffAdminPartnerController::class, 'smRefresh'])
             ->name('tinkoff.partners.smRefresh');
-        //routes/web.php
         Route::post('/admin/tinkoff/partners/{id}/sm-pull', [TinkoffAdminPartnerController::class, 'smPull'])
             ->name('tinkoff.partners.smPull');
     });

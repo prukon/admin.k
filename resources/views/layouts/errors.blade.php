@@ -8,7 +8,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {{--    <title>{{ config('app.name', 'Laravel') }}</title>--}}
-    <title>Kidslink.ru - сервис учета для детских садов, тематических школ и секций</title>
+    <title>kidscrm.online - сервис учета для детских садов, тематических школ и секций</title>
 
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">

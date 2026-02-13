@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\PaymentSystem;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
 use App\Models\User;
@@ -79,7 +80,6 @@ class DevFakeDataSeeder extends Seeder
         });
 
 
-
         // 7. Создание установленных цен
         // 7.1. Сначала создаём оплаченные месяцы (0–6 месяцев назад)
 //        Payable::factory()->count(100000)->paidMonthlyWithAllRelations()->create();
@@ -108,14 +108,13 @@ class DevFakeDataSeeder extends Seeder
                     ->format('Y-m-01');
 
                 return [
-                    'user_id'   => $user->id,
+                    'user_id' => $user->id,
                     'new_month' => $month,
                     // Ровные суммы, без копеек
-                    'price'     => (string) rand(500, 10000),
+                    'price' => (string)rand(500, 10000),
                 ];
             })
             ->create();
-    }
 
 
         // клубный взнос
@@ -125,8 +124,19 @@ class DevFakeDataSeeder extends Seeder
 //            ->count(100)
 //            ->create();
 
-// форму/лагерь можешь добить по аналогии
 
+//8. Создание платежных систем
+        $randomPartnerId = $partnerIds[array_rand($partnerIds)];
+
+        PaymentSystem::factory()->robokassa()->create([
+            'partner_id' => $randomPartnerId,
+        ]);
+
+        PaymentSystem::factory()->tbank()->testMode()->create([
+            'partner_id' => $randomPartnerId,
+        ]);
+
+    }
 
     //Привязка случайных дней недели к командам.
     protected function attachWeekdaysToTeams(): void

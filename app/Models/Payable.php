@@ -11,17 +11,8 @@ class Payable extends Model
 
     protected $table = 'payables';
 
-    protected $fillable = [
-        'partner_id',
-        'user_id',
-        'type',
-        'amount',
-        'currency',
-        'status',
-        'month',
-        'meta',
-        'paid_at',
-    ];
+    protected $guarded = [];
+
 
     protected $casts = [
         'amount' => 'decimal:2',
