@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Report;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Jobs\RobokassaProcessRefundJob;
 use App\Jobs\TinkoffProcessRefundJob;
 use App\Models\Payment;
@@ -12,16 +12,22 @@ use App\Models\TinkoffPayout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Services\PartnerContext;
 
-class PaymentRefundController extends Controller
+class PaymentRefundController extends AdminBaseController
 {
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     public function store(Request $request, Payment $payment)
     {
         $request->validate([
             'comment' => 'nullable|string|max:1000',
         ]);
 
-        $partnerId = (int) app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
         if ((int) $payment->partner_id !== $partnerId) {
             abort(403);
         }

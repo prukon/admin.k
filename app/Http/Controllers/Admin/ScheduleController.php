@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 
 use App\Models\MyLog;
+use App\Http\Requests\Team\FilterRequest;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\ScheduleUser;
@@ -16,16 +17,22 @@ use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Support\BuildsLogTable;
+use App\Services\PartnerContext;
 
 
-class ScheduleController extends Controller
+class ScheduleController extends AdminBaseController
 {
     use BuildsLogTable;
+
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
 
     public function index(Request $request)
     {
         // 1) Текущий партнер
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // 2) Доступные статусы: свои + системные
         //    ИЗМЕНЕНИЕ #1: вместо фильтра только по partner_id делаем OR с is_system = 1
@@ -114,7 +121,7 @@ class ScheduleController extends Controller
         // Авторизованный пользователь
         $authorId  = auth()->id();
         // ИЗМЕНЕНИЕ #1: получаем partner_id из контекста (не из $request->user())
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // 1) Валидация входящих данных
         $data = $request->validate([
@@ -197,7 +204,7 @@ class ScheduleController extends Controller
     public function getUserInfo(User $user)
     {
         // ИЗМЕНЕНИЕ #1: ограничиваем доступ – работаем только с пользователями своего партнёра
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
         if ($user->partner_id !== $partnerId) {
             abort(404); // или return response()->json(['error'=>'Not found'], 404);
         }
@@ -233,7 +240,7 @@ class ScheduleController extends Controller
     public function getUserScheduleInfo(User $user)
     {
         // ИЗМЕНЕНИЕ #1: получаем текущего партнёра из контекста
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // ИЗМЕНЕНИЕ #2: убеждаемся, что пользователь принадлежит этому партнёру
         if ($user->partner_id !== $partnerId) {
@@ -281,7 +288,7 @@ class ScheduleController extends Controller
     public function setUserGroup(Request $request, User $user)
     {
         // ИЗМЕНЕНИЕ #1: получаем текущего партнёра из контекста
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // ИЗМЕНЕНИЕ #2: проверяем, что пользователь принадлежит этому партнёру
         if ($user->partner_id !== $partnerId) {
@@ -335,7 +342,7 @@ class ScheduleController extends Controller
     public function updateUserScheduleRange(Request $request, User $user)
     {
         // 1) Контекст
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // 2) Проверяем, что пользователь именно нашего партнёра
         if ($user->partner_id !== $partnerId) {

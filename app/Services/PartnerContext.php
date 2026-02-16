@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Auth;
 class PartnerContext
 {
     protected ?Partner $cachedPartner = null;
+    protected bool $cachedPartnerInitialized = false;
+    protected ?int $cachedKeyUserId = null;
+    protected ?int $cachedKeyPartnerId = null;
 
     /**
      * Текущий пользователь (или null, если гость).
@@ -35,11 +38,10 @@ class PartnerContext
      */
     public function partner(): ?Partner
     {
-        if ($this->cachedPartner !== null) {
-            return $this->cachedPartner;
-        }
-
         $user = $this->user();
+
+        $keyUserId = $user?->id ? (int) $user->id : null;
+        $resolvedPartnerId = null;
 
         // Супер-админ может переключать партнёра через сессию,
         // остальные пользователи — только в пределах своего partner_id.
@@ -47,18 +49,32 @@ class PartnerContext
             $currentPartnerId = session('current_partner');
 
             if ($currentPartnerId) {
-                $this->cachedPartner = Partner::find($currentPartnerId);
-                return $this->cachedPartner;
+                $resolvedPartnerId = (int) $currentPartnerId;
+            }
+        } else {
+            // иначе — партнёр текущего пользователя
+            if ($user?->partner_id) {
+                $resolvedPartnerId = (int) $user->partner_id;
             }
         }
 
-        // иначе — партнёр текущего пользователя
-        if ($user?->partner_id) {
-            $this->cachedPartner = Partner::find($user->partner_id);
+        // ВАЖНО: PartnerContext зарегистрирован как singleton.
+        // В тестах/консоли один и тот же инстанс может жить дольше одного HTTP-запроса,
+        // поэтому кэш должен инвалидироваться при смене пользователя/партнёра.
+        if (
+            $this->cachedPartnerInitialized
+            && $this->cachedKeyUserId === $keyUserId
+            && $this->cachedKeyPartnerId === $resolvedPartnerId
+        ) {
             return $this->cachedPartner;
         }
 
-        return null;
+        $this->cachedPartnerInitialized = true;
+        $this->cachedKeyUserId = $keyUserId;
+        $this->cachedKeyPartnerId = $resolvedPartnerId;
+
+        $this->cachedPartner = $resolvedPartnerId ? Partner::find($resolvedPartnerId) : null;
+        return $this->cachedPartner;
     }
 
   

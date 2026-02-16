@@ -292,7 +292,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // Внутренняя документация проекта (HTML из /docs/documentation)
     Route::middleware('can:documentations-view')->group(function () {
         Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
-        Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])->whereIn('page', ['payments', 'reports-payments', 'tbank'])->name('docs.documentation.show');
+        Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
+            ->whereIn('page', ['payments', 'reports-payments', 'tbank', 'tests-standards'])
+            ->name('docs.documentation.show');
     });
 
     //Страница Настойки - Комиссии Т-Банк (feature test +)

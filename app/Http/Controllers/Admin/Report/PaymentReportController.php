@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Report;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Models\UserTableSetting;
 use App\Models\Payment;
 use App\Models\PaymentIntent;
@@ -19,15 +19,21 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Carbon\Carbon;
+use App\Services\PartnerContext;
 
 
-class PaymentReportController extends Controller
+class PaymentReportController extends AdminBaseController
 {
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     //Отчет Платежи
     public function payments()
     {
         // 1) партнёр
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
         Log::debug('[payments] Partner ID', ['partnerId' => $partnerId]);
 
         // 2) включаем лог запросов
@@ -71,7 +77,7 @@ class PaymentReportController extends Controller
             abort(404);
         }
 
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // Базовый запрос: только нужный партнёр, без get()
         $paymentsQuery = Payment::query()

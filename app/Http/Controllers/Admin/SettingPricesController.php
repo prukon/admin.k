@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\Partner;
@@ -17,19 +17,25 @@ use Illuminate\Support\Carbon;
 use App\Models\MyLog;
 
 use Illuminate\Support\Facades\DB;
-use function Termwind\dd;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Str;
 use App\Support\BuildsLogTable;
+use App\Services\PartnerContext;
 
 
-class SettingPricesController extends Controller
+class SettingPricesController extends AdminBaseController
 {
     use BuildsLogTable;
 
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     public function index(FilterRequest $request)
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // 1) Команды партнёра, сразу в нужном порядке
         $allTeams = Team::where('partner_id', $partnerId)
@@ -91,7 +97,7 @@ class SettingPricesController extends Controller
         }
 
         // Преобразуем каждую модель UserPrice в массив
-        \Log::info('$usersPrice:', array_map(function ($item) {
+        Log::info('$usersPrice:', array_map(function ($item) {
             return $item->toArray();
         }, $usersPrice));
 
@@ -115,7 +121,7 @@ class SettingPricesController extends Controller
         $teamId       = $data['teamId']       ?? null;
 
         // 2) Текущий партнёр
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // 3) Проверяем, что команда принадлежит текущему партнёру
         $team = Team::where('id', $teamId)
@@ -158,7 +164,7 @@ class SettingPricesController extends Controller
             $usersPrice[] = $userPrice;
         }
 
-        \Log::info('$usersPrice:', array_map(function ($item) {
+        Log::info('$usersPrice:', array_map(function ($item) {
             return $item->toArray();
         }, $usersPrice));
 
@@ -189,7 +195,7 @@ class SettingPricesController extends Controller
         $formatedMonth = $this->formatedDate($month);
 
         // 4) Получаем команды, принадлежащие текущему партнёру
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
         $teams = Team::where('partner_id', $partnerId)
             ->whereNull('deleted_at')
             ->get();
@@ -236,7 +242,7 @@ class SettingPricesController extends Controller
     //AJAX Кнопка ОК. Установка цен группе и юзерам.
     public function setTeamPrice2(Request $request)
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
         $teamPrice = $data['teamPrice'] ?? null;
@@ -315,7 +321,7 @@ class SettingPricesController extends Controller
 
     public function setTeamPrice(Request $request)
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // 1) Разбираем вход
         $data         = json_decode($request->getContent(), true);
@@ -425,7 +431,7 @@ class SettingPricesController extends Controller
                 $team = \App\Models\Team::select('id', 'title')->find($teamId);
 
                 if (!$team) {
-                    \Log::warning('setPriceAllTeams: команда не найдена по teamId', ['teamId' => $teamId]);
+                    Log::warning('setPriceAllTeams: команда не найдена по teamId', ['teamId' => $teamId]);
                     continue;
                 }
 

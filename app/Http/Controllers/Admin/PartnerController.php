@@ -51,7 +51,6 @@ class PartnerController extends Controller
 
         $data = $request->validated();
         $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
-        $partnerId = app('current_partner')->id;
 
 
         $allPartners = Partner::filter($filter)

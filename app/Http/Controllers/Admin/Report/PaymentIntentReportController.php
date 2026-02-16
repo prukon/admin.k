@@ -2,13 +2,19 @@
 
 namespace App\Http\Controllers\Admin\Report;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Models\PaymentIntent;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
+use App\Services\PartnerContext;
 
-class PaymentIntentReportController extends Controller
+class PaymentIntentReportController extends AdminBaseController
 {
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     // Отчёт -> "Платежные запросы" (payment_intents)
     public function paymentIntents(Request $request)
     {
@@ -26,9 +32,9 @@ class PaymentIntentReportController extends Controller
             ->select('payment_intents.*');
 
         // По умолчанию ограничиваем текущим партнёром (если контекст выбран)
-        $currentPartner = app()->bound('current_partner') ? app('current_partner') : null;
-        if ($currentPartner && isset($currentPartner->id)) {
-            $q->where('partner_id', (int) $currentPartner->id);
+        $partnerId = $this->partnerId();
+        if ($partnerId) {
+            $q->where('partner_id', (int) $partnerId);
         }
 
         // Доп. фильтры из формы

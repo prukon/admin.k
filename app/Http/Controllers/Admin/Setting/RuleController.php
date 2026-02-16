@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Setting;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\MyLog;
@@ -22,18 +22,23 @@ use App\Models\Role;
 use App\Models\Permission;
 use Illuminate\Support\Str;               // ← вот это
 use App\Models\PermissionGroup;
+use App\Services\PartnerContext;
 
 
-class RuleController extends Controller
+class RuleController extends AdminBaseController
 {
     //ВКЛАДКА РОЛИ
+
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
 
     public function showRules()
     {
         // 1) Контекст партнёра и текущая роль
-        $partnerId    = app('current_partner')->id;
-        $userRoleName = auth()->user()?->role?->name;
-        $isSuperadmin = $userRoleName === 'superadmin';
+        $partnerId    = $this->requirePartnerId();
+        $isSuperadmin = $this->isSuperAdmin();
 
         // 2) Роли с правами для текущего партнёра
         $roles = Role::with([
@@ -102,7 +107,7 @@ class RuleController extends Controller
         $attach    = $data['value'] === 'true';
         $roleId    = (int) $data['role_id'];
         $permId    = (int) $data['permission_id'];
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
         $authorId  = auth()->id();
 
         DB::transaction(function () use ($roleId, $permId, $partnerId, $attach, $authorId) {
@@ -188,7 +193,7 @@ class RuleController extends Controller
         ]);
 
         // 2) Контекст партнёра
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // 3) Сформируем поле label ровно из того, что ввёл пользователь
         $label = $data['name'];
@@ -239,7 +244,7 @@ class RuleController extends Controller
     //* Метод для удаления  роли (AJAX).
     public function deleteRole(Request $request)
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         $request->validate([
             'role_id' => 'required|integer|exists:roles,id',
@@ -297,7 +302,7 @@ class RuleController extends Controller
     //Журнал логов на вкладке права
     public function logRules(FilterRequest $request)
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         $logs = MyLog::with('author')
             ->where('type', 700) // Настройки логи

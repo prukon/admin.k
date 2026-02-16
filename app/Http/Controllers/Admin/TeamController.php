@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\Team;
@@ -19,38 +19,19 @@ use Yajra\DataTables\DataTables;
 use App\Support\BuildsLogTable;
 use App\Models\UserTableSetting;
 use Illuminate\Support\Facades\Auth;
-use App\Services\PartnerContext; // ✅ НОВОЕ
+use App\Services\PartnerContext;
 
-class TeamController extends Controller
+class TeamController extends AdminBaseController
 {
     use BuildsLogTable;
 
     /** @var TeamService */
     protected TeamService $service;           // ✅ НОВОЕ явное свойство
 
-    /** @var PartnerContext */
-    protected PartnerContext $partnerContext; // ✅ НОВОЕ
-
-    // ✅ ИЗМЕНЕНО: добавлен PartnerContext
     public function __construct(TeamService $service, PartnerContext $partnerContext)
     {
+        parent::__construct($partnerContext);
         $this->service = $service;
-        $this->partnerContext = $partnerContext;
-    }
-
-    /**
-     * ✅ НОВОЕ: обязательное наличие текущего партнёра.
-     * Отдаём 400 (как в других контроллерах), если партнёр не определён.
-     */
-    protected function requirePartnerId(): int
-    {
-        $partnerId = $this->partnerContext->partnerId();
-
-        if (!$partnerId) {
-            abort(400, 'Текущий партнёр не определён');
-        }
-
-        return (int) $partnerId;
     }
 
     /**
@@ -74,7 +55,6 @@ class TeamController extends Controller
 
     public function data(Request $request)
     {
-        // ✅ ЗАМЕНА app('current_partner') → PartnerContext
         $partnerId = $this->requirePartnerId();
 
         // валидация входящих параметров DataTables

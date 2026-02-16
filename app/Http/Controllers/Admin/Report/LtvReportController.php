@@ -2,14 +2,21 @@
 
 namespace App\Http\Controllers\Admin\Report;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Carbon\Carbon;
+use App\Services\PartnerContext;
 
-class LtvReportController extends Controller
+class LtvReportController extends AdminBaseController
 {
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     // Отчёт LTV
     public function ltv()
     {
@@ -23,7 +30,7 @@ class LtvReportController extends Controller
             abort(404);
         }
 
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // LTV по финальным платежам: таблица payments
         $usersWithTotalPaid = DB::table('payments')
@@ -95,7 +102,7 @@ class LtvReportController extends Controller
             }
             return null;
         } catch (\Exception $e) {
-            \Log::error('Ошибка преобразования даты: ' . $e->getMessage());
+            Log::error('Ошибка преобразования даты: ' . $e->getMessage());
             return null;
         }
     }

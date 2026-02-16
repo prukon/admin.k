@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Models\Role;
 use App\Models\UserField;
 use App\Models\MyLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Services\PartnerContext;
 
-class UserFieldController extends Controller
+class UserFieldController extends AdminBaseController
 {
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     /**
      * Создание/обновление/удаление доп. полей пользователя для текущего партнёра.
      *
@@ -39,7 +45,7 @@ class UserFieldController extends Controller
             'fields.*.roles.*' => 'integer|exists:roles,id',
         ]);
 
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // ХЕЛПЕР для генерации уникального slug
         $makeUniqueSlug = function (string $baseName, int $partnerId, ?int $ignoreId = null): string {

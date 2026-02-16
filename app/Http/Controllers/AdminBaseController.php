@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Partner;
 use App\Models\User;
 use App\Services\PartnerContext;
 
@@ -30,6 +31,35 @@ abstract class AdminBaseController extends Controller
     protected function partnerId(): ?int
     {
         return $this->partnerContext->partnerId();
+    }
+
+    /**
+     * Обязательное наличие текущего партнёра для partner-scoped страниц.
+     * Возвращает ID или прерывает запрос 400 (если партнёр не определён).
+     */
+    protected function requirePartnerId(): int
+    {
+        $partnerId = $this->partnerId();
+
+        if (!$partnerId) {
+            abort(400, 'Текущий партнёр не определён');
+        }
+
+        return (int) $partnerId;
+    }
+
+    /**
+     * Обязательное наличие текущего партнёра (объект Partner).
+     */
+    protected function requirePartner(): Partner
+    {
+        $partner = $this->partnerContext->partner();
+
+        if (!$partner) {
+            abort(400, 'Текущий партнёр не определён');
+        }
+
+        return $partner;
     }
 
     /**

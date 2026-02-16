@@ -2,21 +2,26 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Models\MyLog;
 use Illuminate\Support\Facades\Log;
 use App\Models\Status;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\PartnerContext;
 
-class StatusController extends Controller
+class StatusController extends AdminBaseController
 {
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     // Список статусов (для модалки "Настройки")
     // Выбираем только is_deleted = false, чтобы пользователь не видел удалённые
     public function index2(Request $request)
     {
-        // Предположим, что мы можем получить текущего партнёра (или пользователя) и определить partner_id
-        $partnerId = $request->user()->partner_id ?? null;
+        $partnerId = $this->partnerId();
 
 
         $statuses = Status::where('partner_id', $partnerId)
@@ -33,11 +38,10 @@ class StatusController extends Controller
     {
         // Получаем текущего партнёра из контекста приложения
         // (ранее брали из $request->user(), теперь — из app('current_partner'))
-        $partnerId    = app('current_partner')->id;  // ← изменение #1
+        $partnerId    = $this->requirePartnerId();  // ← изменение #1
 
         // Проверяем, суперадмин ли текущий пользователь
-        $currentUser  = auth()->user();              // ← изменение #2
-        $isSuperadmin = $currentUser->role?->name === 'superadmin'; // ← изменение #2
+        $isSuperadmin = $this->isSuperAdmin();
 
     // Строим запрос по статусам для данного партнёра
     $statusesQuery = Status::where('partner_id', $partnerId); // ← изменение #1
@@ -112,7 +116,7 @@ class StatusController extends Controller
         ]);
 
         // ИЗМЕНЕНИЕ #1: получаем partner_id не из $request->user(), а из контекста текущего партнёра
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // переменная для результата
         $status = null;
@@ -208,7 +212,7 @@ class StatusController extends Controller
     public function update(Request $request, $id)
     {
         $authorId  = auth()->id();
-        $partnerId = app('current_partner')->id; // ← ИЗМЕНЕНИЕ #1: получаем текущего партнёра
+        $partnerId = $this->requirePartnerId(); // ← ИЗМЕНЕНИЕ #1: получаем текущего партнёра
 
         // ИЗМЕНЕНИЕ #2: ищем статус только в пределах этого партнёра
         $status = Status::where('id', $id)
@@ -302,7 +306,7 @@ class StatusController extends Controller
     public function destroy($id)
     {
         $authorId  = auth()->id();
-        $partnerId = app('current_partner')->id; // ← ИЗМЕНЕНИЕ #1: получаем partner_id из контекста
+        $partnerId = $this->requirePartnerId(); // ← ИЗМЕНЕНИЕ #1: получаем partner_id из контекста
 
         // ИЗМЕНЕНИЕ #2: ищем статус только в рамках этого партнёра
         $status = Status::where('id', $id)

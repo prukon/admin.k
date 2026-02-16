@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Setting;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 
@@ -20,20 +20,27 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\DataTables;
 use App\Models\Role;
 use App\Models\Permission;
 use App\Support\BuildsLogTable;
+use App\Services\PartnerContext;
 
-class SettingController extends Controller
+class SettingController extends AdminBaseController
 {
     use BuildsLogTable;
+
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
 
     //ВКЛАДКА НАСТРОЙКИ
     //Страница Настройки
     public function showSettings()
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         $setting = Setting::where('name', 'textForUsers')
             ->where('partner_id', $partnerId)
@@ -69,7 +76,7 @@ class SettingController extends Controller
     //AJAX Активность регистрации
     public function registrationActivity(Request $request)
     {
-        $partner = app('current_partner');
+        $partner = $this->requirePartner();
 
         $isRegistrationActivity = $request->query('isRegistrationActivity');
         $authorId = auth()->id(); // Авторизованный пользователь
@@ -118,7 +125,7 @@ class SettingController extends Controller
     //AJAX Текст сообщения для юзеров
     public function textForUsers(Request $request)
     {
-        $partner = app('current_partner');
+        $partner = $this->requirePartner();
 
         // Получаем данные из тела запроса
         $data = json_decode($request->getContent(), true);
@@ -160,14 +167,14 @@ class SettingController extends Controller
     //Сохранение меню в шапке
     public function saveMenuItems(Request $request)
     {
-        $partner = app('current_partner');
+        $partner = $this->requirePartner();
         $errors = [];
         $validatedData = [];
         $authorId = auth()->id();
 
         // Валидация входящих пунктов
         foreach ($request->input('menu_items', []) as $key => $data) {
-            $validator = \Validator::make($data, [
+            $validator = Validator::make($data, [
                 'name' => ['required', 'max:20', 'regex:/^[\pL\pN\s]+$/u'],
                 'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
             ], [
@@ -296,14 +303,14 @@ class SettingController extends Controller
     //Сохранение соц. меню в шапке
     public function saveSocialItems(Request $request)
     {
-        $partner = app('current_partner');
+        $partner = $this->requirePartner();
         $authorId = auth()->id();
         $errors = [];
         $validatedData = [];
 
         // Валидация каждого social_item
         foreach ($request->input('social_items', []) as $key => $data) {
-            $validator = \Validator::make($data, [
+            $validator = Validator::make($data, [
                 'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
                 'name' => ['required', 'string'],
             ], [

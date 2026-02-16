@@ -3,7 +3,7 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\User\AccountUpdateRequest;
 use App\Http\Requests\User\UpdateRequest;
 
@@ -16,12 +16,12 @@ use App\Models\UserField;
 use App\Models\UserFieldValue;
 use App\Servises\UserService;
 use Carbon\Carbon;
-use function Illuminate\Http\Client\dump;
 use Illuminate\Http\Request;
 use App\Models\Event;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Yajra\DataTables\DataTables;
 
@@ -33,13 +33,15 @@ use Intervention\Image\ImageManager;
 use App\Models\Role;
 
 use App\Models\MyLog;
+use App\Services\PartnerContext;
 
-class AccountController extends Controller
+class AccountController extends AdminBaseController
 {
     protected UserService $service;
 
-    public function __construct(UserService $service)
+    public function __construct(UserService $service, PartnerContext $partnerContext)
     {
+        parent::__construct($partnerContext);
         $this->service = $service;
     }
 
@@ -49,7 +51,7 @@ class AccountController extends Controller
 
     public function user()
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
         $allTeams = Team::all();
 
         $user = Auth::user();
@@ -94,7 +96,7 @@ class AccountController extends Controller
 
 
         // ✅ Изоляция по партнёру (не даём править чужого)
-        $currentPartnerId = (int) app('current_partner')->id;
+        $currentPartnerId = $this->requirePartnerId();
         if ((int)$user->partner_id !== $currentPartnerId) {
             abort(404);
         }
@@ -185,7 +187,7 @@ class AccountController extends Controller
             // - 2FA включена + телефон подтверждён -> запрещаем удаление
             // - 2FA принудительная -> запрещаем удаление
             if ($twoFaEnabled === 1 && ($forcedForThisUser || $isPhoneVerified)) {
-                \Log::info('User update: phone delete blocked (2FA ON + verified/forced)', [
+                Log::info('User update: phone delete blocked (2FA ON + verified/forced)', [
                     'user_id'        => $user->id,
                     'forced_two_fa'  => $forcedForThisUser,
                     'phone_verified' => $isPhoneVerified,
@@ -205,7 +207,7 @@ class AccountController extends Controller
                 $validated['two_factor_code']       = null;
                 $validated['two_factor_expires_at'] = null;
 
-                \Log::info('User update: phone cleared (2FA ON but phone unverified -> 2FA forced OFF)', [
+                Log::info('User update: phone cleared (2FA ON but phone unverified -> 2FA forced OFF)', [
                     'user_id' => $user->id,
                 ]);
             }
@@ -218,13 +220,13 @@ class AccountController extends Controller
             $validated['phone_change_old_code']       = null;
             $validated['phone_change_old_expires_at'] = null;
 
-            \Log::info('User update: phone cleared by request', ['user_id' => $user->id]);
+            Log::info('User update: phone cleared by request', ['user_id' => $user->id]);
         }
         elseif ($incomingPhone !== null && $incomingPhone !== $currentPhone) {
             $isVerified = !is_null($user->phone_verified_at);
 
             if ($isVerified) {
-                \Log::info('User update: phone change blocked (verified)', [
+                Log::info('User update: phone change blocked (verified)', [
                     'user_id' => $user->id,
                     'from'    => $currentPhone,
                     'to'      => $incomingPhone,
@@ -242,7 +244,7 @@ class AccountController extends Controller
                 $validated['phone_change_old_code']       = null;
                 $validated['phone_change_old_expires_at'] = null;
 
-                \Log::info('User update: phone changed (unverified -> new value saved)', [
+                Log::info('User update: phone changed (unverified -> new value saved)', [
                     'user_id' => $user->id,
                     'from'    => $currentPhone,
                     'to'      => $incomingPhone,
@@ -254,7 +256,7 @@ class AccountController extends Controller
         if ($twoFaEnabled === 1) {
             $phoneFor2fa = $normalize($validated['phone'] ?? $user->phone);
             if (!$phoneFor2fa || !preg_match('/^7\d{10}$/', $phoneFor2fa)) {
-                \Log::info('User update: phone required because 2FA ON', [
+                Log::info('User update: phone required because 2FA ON', [
                     'user_id' => $user->id,
                     'phone'   => $phoneFor2fa,
                 ]);
@@ -267,7 +269,7 @@ class AccountController extends Controller
 
         // --- ДОП. ПАРАМЕТРЫ: custom[slug] = value
         $custom = (array) $request->input('custom', []);
-        \Log::info('Полученные кастомные поля', $custom);
+        Log::info('Полученные кастомные поля', $custom);
 
         $editorRoleId = (int) auth()->user()->role_id;
 
@@ -299,13 +301,13 @@ class AccountController extends Controller
             foreach ($custom as $slug => $newValue) {
                 $field = \App\Models\UserField::query()->where('slug', $slug)->first();
                 if (!$field) {
-                    \Log::warning("Неизвестное поле custom[{$slug}] — пропускаем");
+                    Log::warning("Неизвестное поле custom[{$slug}] — пропускаем");
                     continue;
                 }
 
                 $fieldNameById[$field->id] = $field->name;
 
-                $allowedRoleIds = \DB::table('user_field_role')
+                $allowedRoleIds = DB::table('user_field_role')
                     ->where('user_field_id', $field->id)
                     ->pluck('role_id')
                     ->map(fn($v) => (int)$v)
@@ -314,7 +316,7 @@ class AccountController extends Controller
                 $isEditable = empty($allowedRoleIds) || in_array($editorRoleId, $allowedRoleIds, true);
 
                 if (!$isEditable) {
-                    \Log::warning("Пользователь {$authorId} не может редактировать поле {$slug} ");
+                    Log::warning("Пользователь {$authorId} не может редактировать поле {$slug} ");
                     continue;
                 }
 
@@ -457,9 +459,9 @@ class AccountController extends Controller
     public function phoneSendCode(Request $request, User $user)
     {
         // Права: сам себе или админ/супер
-        $res = \Gate::inspect('verify-phone', $user);
+        $res = Gate::inspect('verify-phone', $user);
         if ($res->denied()) {
-            \Log::warning('phoneSendCode: denied', ['actor_id' => \Auth::id(), 'target_id' => $user->id]);
+            Log::warning('phoneSendCode: denied', ['actor_id' => Auth::id(), 'target_id' => $user->id]);
             abort(403, $res->message() ?: 'Недостаточно прав.');
         }
 
@@ -485,14 +487,14 @@ class AccountController extends Controller
 
         // ✅ Храним pending в E.164 (+7…)
         $user->two_factor_phone_pending = '+' . $digits;
-        $user->phone_change_new_code = \Hash::make($code);
+        $user->phone_change_new_code = Hash::make($code);
         $user->phone_change_new_expires_at = $expires;
         // Чистим старый шаг на всякий случай
         $user->phone_change_old_code = null;
         $user->phone_change_old_expires_at = null;
         $user->save();
 
-        \Log::debug('phoneSendCode: saved pending', [
+        Log::debug('phoneSendCode: saved pending', [
             'user_id'   => $user->id,
             'pending'   => $user->two_factor_phone_pending,
             'digits'    => $digits,
@@ -503,7 +505,7 @@ class AccountController extends Controller
         try {
             app(\App\Servises\SmsRuService::class)->send($digits, "Код подтверждения: {$code}");
         } catch (\Throwable $e) {
-            \Log::error('phoneSendCode: sms send failed', ['err' => $e->getMessage()]);
+            Log::error('phoneSendCode: sms send failed', ['err' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => 'Не удалось отправить SMS. Попробуйте позже.'], 500);
         }
 
@@ -511,9 +513,9 @@ class AccountController extends Controller
     }
     public function phoneConfirmCode(Request $request, User $user)
     {
-        $res = \Gate::inspect('verify-phone', $user);
+        $res = Gate::inspect('verify-phone', $user);
         if ($res->denied()) {
-            \Log::warning('phoneConfirmCode: denied', ['actor_id' => \Auth::id(), 'target_id' => $user->id]);
+            Log::warning('phoneConfirmCode: denied', ['actor_id' => Auth::id(), 'target_id' => $user->id]);
             abort(403, $res->message() ?: 'Недостаточно прав.');
         }
 
@@ -532,7 +534,7 @@ class AccountController extends Controller
         // ✅ Сравниваем pending по цифрам (в БД он теперь хранится как +7…)
         $pendingDigits = preg_replace('/\D+/', '', (string)$user->two_factor_phone_pending);
 
-        \Log::debug('phoneConfirmCode: compare', [
+        Log::debug('phoneConfirmCode: compare', [
             'user_id'       => $user->id,
             'pending_raw'   => $user->two_factor_phone_pending,
             'pendingDigits' => $pendingDigits,
@@ -549,7 +551,7 @@ class AccountController extends Controller
         if (now()->greaterThan($user->phone_change_new_expires_at)) {
             return response()->json(['success' => false, 'message' => 'Код истёк. Запросите новый.'], 422);
         }
-        if (!\Hash::check($code, $user->phone_change_new_code)) {
+        if (!Hash::check($code, $user->phone_change_new_code)) {
             return response()->json(['success' => false, 'message' => 'Неверный код.'], 422);
         }
 
@@ -562,12 +564,12 @@ class AccountController extends Controller
         $user->two_factor_phone_changed_at = now();
         $user->save();
 
-        \Log::info('phoneConfirmCode: success', [
+        Log::info('phoneConfirmCode: success', [
             'target_id' => $user->id,
             'phone'     => $user->phone,
         ]);
 
-        if (\Auth::id() === $user->id) {
+        if (Auth::id() === $user->id) {
             session(['2fa:passed' => true]);
             session()->forget(['2fa:last_sent_at']);
         }

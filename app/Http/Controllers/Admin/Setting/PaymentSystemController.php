@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Setting;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Models\Partner;
 use App\Models\PaymentSystem;
 use Illuminate\Http\Request;
@@ -11,13 +11,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Validator;
+use App\Services\PartnerContext;
 
 
-class PaymentSystemController extends Controller
+class PaymentSystemController extends AdminBaseController
 {
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     public function index()
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         // Все платёжные системы текущего партнёра
         $paymentSystems = PaymentSystem::where('partner_id', $partnerId)->get();
@@ -81,7 +87,7 @@ class PaymentSystemController extends Controller
         Log::debug('HIT store AFTER validate');
 
         $validated = $validator->validated();
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         Log::debug('store payment settings', [
             'partnerId' => $partnerId,
@@ -135,7 +141,7 @@ class PaymentSystemController extends Controller
 
     public function show(Request $request, string $name)
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         $paymentSystem = PaymentSystem::where([
             ['partner_id', '=', $partnerId],
@@ -155,7 +161,7 @@ class PaymentSystemController extends Controller
 
     public function destroy(int $id)
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         $paymentSystem = PaymentSystem::findOrFail($id);
 

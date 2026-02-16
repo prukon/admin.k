@@ -2,21 +2,28 @@
 
 namespace App\Http\Controllers\Admin\Report;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Carbon\Carbon;
+use App\Services\PartnerContext;
 
-class DeptReportController extends Controller
+class DeptReportController extends AdminBaseController
 {
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     //Отчет Задолженности
     public function debts()
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
@@ -40,7 +47,7 @@ class DeptReportController extends Controller
     //Данные для отчета Задолженности
     public function getDebts(Request $request)
     {
-        $partnerId = app('current_partner')->id;
+        $partnerId = $this->requirePartnerId();
 
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
@@ -131,7 +138,7 @@ class DeptReportController extends Controller
             }
             return null; // Возвращаем null, если не удалось преобразовать
         } catch (\Exception $e) {
-            \Log::error('Ошибка преобразования даты: ' . $e->getMessage());
+            Log::error('Ошибка преобразования даты: ' . $e->getMessage());
             return null;
         }
     }

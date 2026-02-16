@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Требования к единообразию Feature-тестов (партнёр, авторизация, права)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Требования к единообразию Feature-тестов (партнёр, авторизация, права)</h1>
+  <div class="small">Файл: <code>/docs/documentation/tests-standards.html</code></div>
+
+  <div class="note">
+    Эта страница фиксирует <b>канонические правила</b> для Feature-тестов проекта.
+    Цель: чтобы тесты проверяли <b>реальное поведение приложения</b> (партнёр-контекст, авторизация, права),
+    не “подменяя” его заглушками.
+  </div>
+
+  <h2>1) Партнёр-контекст (Partner)</h2>
+  <ol>
+    <li><b>Источник истины по партнёру</b> — сервис <code>App\Services\PartnerContext</code>.
+      <div class="small">В тестах нельзя изобретать “третий способ” определения партнёра.</div>
+    </li>
+    <li><b>Feature-тесты должны проверять использование <code>PartnerContext</code> через реальный HTTP-путь</b>:
+      session (<code>current_partner</code>) → middleware → <code>PartnerContext</code> → Gate/permissions → контроллер → ответ.
+      <div class="small">Т.е. тесты не “дергают” <code>PartnerContext</code> вручную, а проверяют эффект/изоляцию на уровне запросов.</div>
+    </li>
+    <li><b>Единый способ задать текущего партнёра</b> — только через session:
+      <code>withSession(['current_partner' =&gt; $partnerId])</code> (или то, что делает <code>CrmTestCase</code>).
+    </li>
+    <li><b>Запрещено</b> использовать <code>app()-&gt;instance('current_partner', ...)</code> в тестах.
+      <div class="small">Это маскирует реальную механику <code>SetPartner</code>/<code>PartnerContext</code> и ломает безопасность/изоляцию.</div>
+    </li>
+    <li><b>Anti-leak правило обязательно</b>: переключать <code>current_partner</code> через session может только <b>superadmin</b>.
+      Для всех остальных текущий партнёр должен быть равен <code>user-&gt;partner_id</code>.
+      <div class="small">Это должно быть зафиксировано отдельным тестом “нельзя переключить партнёра не-superadmin’у”.</div>
+    </li>
+    <li><b>Изоляция партнёров</b>: для списков/CRUD/отчётов обязательно есть проверки, что данные чужого партнёра не “просвечивают”
+      (ожидаемый результат: <code>404</code>/<code>403</code>/пусто — в зависимости от контрактов контроллера).
+    </li>
+    <li><b>Middleware <code>SetPartner</code> — обязательная часть контракта админки/CRM</b>:
+      пользователь без <code>partner_id</code> (и/или без корректного выбора партнёра) должен быть заблокирован.
+      <div class="small">В тестах должна быть минимум 1 проверка этого поведения для ключевых разделов (settings/reports/users и т.п.).</div>
+    </li>
+  </ol>
+
+  <h2>2) Авторизация пользователя (Actor)</h2>
+  <ol>
+    <li><b>Базовый сетап — только через</b> <code>tests/Feature/Crm/CrmTestCase.php</code>.
+      <div class="small">Тесты не дублируют seed + создание партнёра/пользователя/сессии, а используют уже созданные сущности.</div>
+    </li>
+    <li><b>Переключение акторов</b> — через хелперы <code>CrmTestCase</code> (например <code>asAdmin()</code>, <code>asSuperadmin()</code>, <code>asForeignUser()</code>).
+      <div class="small">Не создавать “ручных” пользователей без причины, чтобы не терять связь с реальными правами/seed’ами.</div>
+    </li>
+    <li><b>Тесты должны явно показывать</b>, кто актор и в каком контексте он действует:
+      роль/права, текущий партнёр в session, и ожидаемый статус ответа.
+    </li>
+  </ol>
+
+  <h2>3) Реальные права (Permissions / Roles)</h2>
+  <ol>
+    <li><b>Права — только настоящие</b>: <code>permissions</code> + <code>permission_role</code> + правила из <code>AuthServiceProvider</code>.
+      <div class="small">Например: permission <code>setPrices.view</code> соответствует ability <code>setPrices-view</code>.</div>
+    </li>
+    <li><b>Запрещены заглушки авторизации</b> для бизнес-прав:
+      <code>Gate::define()</code>/<code>Gate::before()</code> нельзя использовать, чтобы “дать доступ”.
+      <div class="small">Исключение — тесты, которые проверяют сам механизм Gate как отдельную тему, но это должно быть обосновано.</div>
+    </li>
+    <li><b>Запрещены “магические id”</b>: нельзя писать <code>role_id = 1</code>, <code>?? 1</code>, “если не нашли — возьмём 1”.
+      Роли/права должны извлекаться строго (например через <code>firstOrFail()</code> или через хелперы <code>CrmTestCase</code>).
+    </li>
+    <li><b>Если нужен пользователь без права</b> — создавать его через общий хелпер
+      вроде <code>createUserWithoutPermission('users.view')</code>, который гарантирует отсутствие записи в <code>permission_role</code> именно для текущего партнёра.</li>
+  </ol>
+
+  <h2>4) Маршруты и стабильность тестов</h2>
+  <ol>
+    <li><b>Предпочитать</b> <code>route('...')</code> вместо хардкода URL (<code>'/admin/...'</code>), если роут именован.</li>
+    <li><b>Отключение middleware</b> (<code>withoutMiddleware()</code>) допускается только точечно для проверки конкретного поведения,
+      а не как способ “всё разрешить”.</li>
+    <li><b>Статусы ответов</b> должны соответствовать реальному контракту контроллера/мидлварей.
+      Если контракт меняется — тесты обновляются, а не “подгоняются” заглушками.</li>
+  </ol>
+
+  <div class="ok">
+    <b>Итог:</b> тест считается “каноничным”, если он повторяет реальный путь приложения:
+    session → middleware → <code>PartnerContext</code> → Gate/permissions → контроллер,
+    и проверяет отсутствие утечек данных между партнёрами.
+  </div>
+
+</div>
+</body>
+</html>
+

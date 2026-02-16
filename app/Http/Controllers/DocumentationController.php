@@ -17,6 +17,7 @@ class DocumentationController extends Controller
             ['slug' => 'payments', 'title' => 'Оплаты (payables/payment_intents/payments/users_prices)'],
             ['slug' => 'reports-payments', 'title' => 'Отчёт “Платежи” (админка): таблица и “Поля списка”'],
             ['slug' => 'tbank', 'title' => 'T‑Bank (мультирасчёты): настройки/комиссии/flow'],
+            ['slug' => 'tests-standards', 'title' => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)'],
         ];
 
         $html = '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -43,6 +44,7 @@ class DocumentationController extends Controller
             'payments' => base_path('docs/documentation/payments.html'),
             'reports-payments' => base_path('docs/documentation/reports-payments.html'),
             'tbank' => base_path('docs/documentation/tbank.html'),
+            'tests-standards' => base_path('docs/documentation/tests-standards.html'),
         ];
 
         if (!isset($map[$page])) {
