@@ -8,7 +8,6 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 
 class RuleControllerTest extends CrmTestCase
 {
@@ -16,8 +15,8 @@ class RuleControllerTest extends CrmTestCase
     {
         parent::setUp();
 
-        // Обходим can:settings-roles-view (и любые другие can:* на роутинге)
-        Gate::before(fn () => true);
+        // Реальные права: суперадмин проходит любые can:* (Gate::before в AuthServiceProvider)
+        $this->asSuperadmin();
 
         // Стабильно фиксируем текущего партнёра (SetPartner обычно делает то же)
         $this->withSession(['current_partner' => $this->partner->id]);
@@ -25,11 +24,7 @@ class RuleControllerTest extends CrmTestCase
 
     private function makeSuperadmin(): void
     {
-        $super = Role::where('name', 'superadmin')->first();
-        if ($super) {
-            $this->user->role_id = $super->id;
-            $this->user->save();
-        }
+        $this->asSuperadmin();
     }
 
     private function createUserWithoutPartner(): User

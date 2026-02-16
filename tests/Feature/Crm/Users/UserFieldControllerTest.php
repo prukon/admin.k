@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Users;
 
 use App\Models\MyLog;
 use App\Models\Partner;
@@ -9,23 +9,16 @@ use App\Models\User;
 use App\Models\UserField;
 use Illuminate\Support\Facades\Gate;
 use Tests\Feature\Crm\CrmTestCase;
+use Illuminate\Support\Facades\DB;
 
 class UserFieldControllerTest extends CrmTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // Пробрасываем текущего партнёра в контейнер, чтобы app('current_partner')->id отрабатывал
-        app()->instance('current_partner', $this->partner);
-    }
-
     /**
      * Хелпер: супер-админ текущего партнёра.
      */
     protected function createSuperAdminForCurrentPartner(): User
     {
-        $roleId = Role::where('name', 'superadmin')->value('id') ?? 1;
+        $roleId = Role::where('name', 'superadmin')->firstOrFail()->id;
 
         return User::factory()->create([
             'partner_id' => $this->partner->id,
@@ -37,9 +30,35 @@ class UserFieldControllerTest extends CrmTestCase
      * Хелпер: пользователь без права users-view.
      * Если вдруг у выбранной роли есть это право, тест упадёт — это будет сигналом, что сидеры/права настроены криво.
      */
+
     protected function createUserWithoutUsersViewPermission(): User
     {
-        $roleWithoutView = Role::where('name', '!=', 'superadmin')->firstOrFail();
+        $permId = DB::table('permissions')->where('name', 'users.view')->value('id');
+
+        // Если в базе вообще нет такого permission — это тоже проблема сидеров,
+        // но тогда "users-view" (Gate) нигде не работает.
+        $this->assertNotNull($permId, "Permission 'users.view' не найден в таблице permissions");
+
+        // Ищем роль, у которой НЕТ users-view
+        $roleWithoutView = Role::query()
+            ->where('name', '!=', 'superadmin')
+            ->whereNotExists(function ($q) use ($permId) {
+                $q->select(DB::raw(1))
+                    ->from('permission_role')
+                    ->whereColumn('permission_role.role_id', 'roles.id')
+                    ->where('permission_role.permission_id', $permId);
+            })
+            ->first();
+
+        // Если такой роли нет — создаём тестовую роль без прав
+        if (!$roleWithoutView) {
+            $roleWithoutView = Role::create([
+                'name'       => 'test_no_users_view',
+                'label'      => 'Test No Users View',
+                'is_sistem'  => 0,
+                'is_visible' => 0,
+            ]);
+        }
 
         $user = User::factory()->create([
             'partner_id' => $this->partner->id,
@@ -48,7 +67,7 @@ class UserFieldControllerTest extends CrmTestCase
 
         $this->assertFalse(
             Gate::forUser($user)->allows('users-view'),
-            "Подобранная роль неожиданно имеет право 'users-view'"
+            "Роль '{$roleWithoutView->name}' неожиданно имеет право 'users-view'"
         );
 
         return $user;
@@ -70,7 +89,7 @@ class UserFieldControllerTest extends CrmTestCase
             ],
         ];
 
-        $response = $this->postJson('/admin/users/fields', $payload, [
+        $response = $this->postJson(route('admin.field.store'), $payload, [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -96,7 +115,7 @@ class UserFieldControllerTest extends CrmTestCase
             ],
         ];
 
-        $response = $this->postJson('/admin/users/fields', $payload, [
+        $response = $this->postJson(route('admin.field.store'), $payload, [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -156,7 +175,7 @@ class UserFieldControllerTest extends CrmTestCase
             ],
         ];
 
-        $response = $this->postJson('/admin/users/fields', $payload, [
+        $response = $this->postJson(route('admin.field.store'), $payload, [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -216,7 +235,7 @@ class UserFieldControllerTest extends CrmTestCase
             ],
         ];
 
-        $response = $this->postJson('/admin/users/fields', $payload, [
+        $response = $this->postJson(route('admin.field.store'), $payload, [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -275,7 +294,7 @@ class UserFieldControllerTest extends CrmTestCase
             ],
         ];
 
-        $response = $this->postJson('/admin/users/fields', $payload, [
+        $response = $this->postJson(route('admin.field.store'), $payload, [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -344,7 +363,7 @@ class UserFieldControllerTest extends CrmTestCase
             ],
         ];
 
-        $response = $this->postJson('/admin/users/fields', $payload, [
+        $response = $this->postJson(route('admin.field.store'), $payload, [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -390,7 +409,7 @@ class UserFieldControllerTest extends CrmTestCase
             ],
         ];
 
-        $response = $this->postJson('/admin/users/fields', $payload, [
+        $response = $this->postJson(route('admin.field.store'), $payload, [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -410,7 +429,7 @@ class UserFieldControllerTest extends CrmTestCase
         $admin = $this->createSuperAdminForCurrentPartner();
         $this->actingAs($admin);
 
-        $response = $this->postJson('/admin/users/fields', [], [
+        $response = $this->postJson(route('admin.field.store'), [], [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -437,7 +456,7 @@ class UserFieldControllerTest extends CrmTestCase
             ],
         ];
 
-        $response = $this->postJson('/admin/users/fields', $payload, [
+        $response = $this->postJson(route('admin.field.store'), $payload, [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -467,7 +486,7 @@ class UserFieldControllerTest extends CrmTestCase
             ],
         ];
 
-        $response = $this->postJson('/admin/users/fields', $payload, [
+        $response = $this->postJson(route('admin.field.store'), $payload, [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -499,7 +518,7 @@ class UserFieldControllerTest extends CrmTestCase
             ],
         ];
 
-        $response = $this->postJson('/admin/users/fields', $payload, [
+        $response = $this->postJson(route('admin.field.store'), $payload, [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -510,5 +529,48 @@ class UserFieldControllerTest extends CrmTestCase
         $fields = UserField::orderBy('id')->get();
 
         $this->assertNotEquals($fields[0]->slug, $fields[1]->slug);
+    }
+
+    /** @test */
+    public function non_superadmin_cannot_switch_current_partner_via_session(): void
+    {
+        // Админ (не superadmin) должен быть ограничен своим partner_id
+        $this->asAdmin();
+
+        // Пытаемся подменить текущего партнёра в сессии на чужого
+        $this->withSession(['current_partner' => $this->foreignPartner->id]);
+
+        $foreignField = UserField::create([
+            'name'       => 'Чужое поле',
+            'slug'       => 'foreign-' . $this->foreignPartner->id,
+            'field_type' => 'string',
+            'partner_id' => $this->foreignPartner->id,
+        ]);
+
+        $payload = [
+            'fields' => [
+                [
+                    'id'         => $foreignField->id,
+                    'name'       => 'Попытка изменить',
+                    'field_type' => 'text',
+                    'roles'      => [],
+                ],
+            ],
+        ];
+
+        $response = $this->postJson(route('admin.field.store'), $payload, [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        // Корректное поведение: текущий партнёр должен быть принудительно = partner_id юзера (и тогда будет 404).
+        $response->assertStatus(404);
+
+        $this->assertSame($this->partner->id, session('current_partner'));
+
+        $foreignField->refresh();
+        $this->assertEquals('Чужое поле', $foreignField->name);
+        $this->assertEquals('string', $foreignField->field_type);
+
+        $this->assertSame(0, MyLog::count(), 'При неуспешной попытке изменений логов быть не должно');
     }
 }

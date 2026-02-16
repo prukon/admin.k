@@ -1,34 +1,24 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Reports;
 
 use App\Models\Partner;
 use App\Models\Payable;
 use App\Models\Payment;
 use App\Models\PaymentSystem;
+use App\Models\Team;
 use App\Models\TinkoffCommissionRule;
 use App\Models\User;
 use App\Models\UserTableSetting;
-use App\Models\Team;
-use Illuminate\Support\Facades\Gate;
+use Tests\Feature\Crm\CrmTestCase;
 
 class PaymentReportTest extends CrmTestCase
 {
-    /**
-     * Флаг, определяющий, есть ли у текущего пользователя право reports-view.
-     * Управляем им из тестов.
-     */
-    protected static bool $canReportsView = false;
-
     protected function setUp(): void
     {
         parent::setUp();
-
-        // Определяем способность reports-view один раз на класс:
-        // она просто читает статический флаг.
-        Gate::define('reports-view', function (?User $user = null) {
-            return self::$canReportsView;
-        });
+        session(['current_partner' => $this->partner->id]);
+        $this->asAdmin(); // реальные права reports.view
     }
 
     /**
@@ -38,8 +28,8 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_payments_page_requires_reports_view_permission(): void
     {
-        // Права нет
-        self::$canReportsView = false;
+        $actor = $this->createUserWithoutPermission('reports.view', $this->partner);
+        $this->actingAs($actor);
 
         $response = $this->get(route('payments'));
 
@@ -52,8 +42,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_payments_page_totalPaidPrice_uses_only_current_partner_payments_and_is_formatted(): void
     {
-        self::$canReportsView = true;
-
         // Платежи текущего партнёра
         $payment1 = Payment::factory()->create([
             'user_id' => $this->user->id,
@@ -95,8 +83,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_payments_page_tbankEnabled_depends_on_payment_system_settings(): void
     {
-        self::$canReportsView = true;
-
         // 1) Когда настройки tbank отсутствуют
         $response = $this->get(route('payments'));
         $response
@@ -120,8 +106,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_getPayments_requires_ajax_request(): void
     {
-        self::$canReportsView = true;
-
         // Не-AJAX запрос -> 404
         $response = $this->get(route('payments.getPayments'));
         $response->assertNotFound();
@@ -142,8 +126,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_getPayments_returns_only_current_partner_payments(): void
     {
-        self::$canReportsView = true;
-
         // Платёж текущего партнёра
         $payableCurrent = Payable::factory()
             ->state([
@@ -200,8 +182,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_getPayments_user_related_columns_are_filled_in_priority_order(): void
     {
-        self::$canReportsView = true;
-
         // Сценарий 1: есть payments.user_name
         $paymentWithCustomName = Payment::factory()->create([
             'user_id' => $this->user->id,
@@ -278,8 +258,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_getPayments_basic_payment_columns_and_provider_are_returned_correctly(): void
     {
-        self::$canReportsView = true;
-
         // Robokassa-платёж (все T-Bank поля пустые)
         $robokassaPayment = Payment::factory()->create([
             'user_id' => $this->user->id,
@@ -328,8 +306,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_getPayments_commissions_and_net_to_partner_are_calculated_for_tbank_payments(): void
     {
-        self::$canReportsView = true;
-
         // Создаём правило комиссий для текущего партнёра
         $rule = new TinkoffCommissionRule();
         $rule->partner_id = $this->partner->id;
@@ -420,8 +396,8 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_columns_settings_endpoints_require_reports_view_permission(): void
     {
-        // Права нет
-        self::$canReportsView = false;
+        $actor = $this->createUserWithoutPermission('reports.view', $this->partner);
+        $this->actingAs($actor);
 
         $getResponse = $this->get('/admin/reports/payments/columns-settings');
         $getResponse->assertForbidden();
@@ -437,8 +413,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_getColumnsSettings_returns_empty_array_by_default(): void
     {
-        self::$canReportsView = true;
-
         $response = $this->get('/admin/reports/payments/columns-settings');
 
         $response->assertOk();
@@ -450,8 +424,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_getColumnsSettings_returns_saved_settings_for_current_user_only(): void
     {
-        self::$canReportsView = true;
-
         // Настройки другого пользователя
         $anotherUser = User::factory()->create([
             'partner_id' => $this->partner->id,
@@ -481,8 +453,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_saveColumnsSettings_validates_and_stores_columns_array(): void
     {
-        self::$canReportsView = true;
-
         // Невалидный запрос (нет columns) -> 422
         $invalid = $this->postJson('/admin/reports/payments/columns-settings', []);
         $invalid->assertStatus(422);
@@ -514,8 +484,6 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_saveColumnsSettings_normalizes_column_values_to_boolean(): void
     {
-        self::$canReportsView = true;
-
         $payload = [
             'columns' => [
                 'col_true_string' => 'true',

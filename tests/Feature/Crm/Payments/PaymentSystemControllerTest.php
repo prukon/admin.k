@@ -1,33 +1,28 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Payments;
 
 use App\Models\Partner;
 use App\Models\PaymentSystem;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Tests\Feature\Crm\CrmTestCase;
 
 class PaymentSystemControllerTest extends CrmTestCase
 {
-    private const ABILITY_VIEW = 'settings-paymentSystems-view';
     private const PERM_VIEW    = 'settings.paymentSystems.view';
 
-    protected User $user;
+    protected User $actor;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // НЕ role_id=1, иначе Gate::before всё разрешит.
-        $role = $this->createRole();
-
-        $this->user = User::factory()->create([
-            'partner_id' => $this->partner->id,
-            'role_id'    => $role->id,
-        ]);
-
-        $this->actingAs($this->user);
+        // По умолчанию заходим пользователем БЕЗ права PERM_VIEW, чтобы P0 тесты были честными.
+        $this->actor = $this->createUserWithoutPermission(self::PERM_VIEW, $this->partner);
+        $this->actingAs($this->actor);
+        $this->withSession(['current_partner' => $this->partner->id]);
     }
 
     /* ============================================================
@@ -45,36 +40,13 @@ class PaymentSystemControllerTest extends CrmTestCase
         ]);
     }
 
-    protected function permissionIdByName(string $permissionName): int
-    {
-        $id = DB::table('permissions')->where('name', $permissionName)->value('id');
-        $this->assertNotNull(
-            $id,
-            "Permission [{$permissionName}] не найден в таблице permissions. Проверь, что PermissionSeeder запускается в тестах."
-        );
-
-        return (int) $id;
-    }
-
     protected function grantPermissionToRoleForPartner(int $roleId, int $partnerId, string $permissionName): void
     {
-        $permissionId = $this->permissionIdByName($permissionName);
-
-        $exists = DB::table('permission_role')->where([
+        DB::table('permission_role')->insertOrIgnore([
             'partner_id'    => $partnerId,
             'role_id'       => $roleId,
-            'permission_id' => $permissionId,
-        ])->exists();
-
-        if (!$exists) {
-            DB::table('permission_role')->insert([
-                'partner_id'    => $partnerId,
-                'role_id'       => $roleId,
-                'permission_id' => $permissionId,
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ]);
-        }
+            'permission_id' => $this->permissionId($permissionName),
+        ]);
     }
 
     /* ============================================================
@@ -116,7 +88,7 @@ class PaymentSystemControllerTest extends CrmTestCase
 
     public function test_index_returns_only_current_partner_payment_systems(): void
     {
-        $this->grantPermissionToRoleForPartner($this->user->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
 
         $otherPartner = Partner::factory()->create();
 
@@ -140,7 +112,7 @@ class PaymentSystemControllerTest extends CrmTestCase
 
     public function test_show_returns_404_for_other_partner_even_with_permission(): void
     {
-        $this->grantPermissionToRoleForPartner($this->user->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
 
         $otherPartner = Partner::factory()->create();
 
@@ -157,7 +129,7 @@ class PaymentSystemControllerTest extends CrmTestCase
 
     public function test_destroy_forbidden_for_other_partner_even_with_permission(): void
     {
-        $this->grantPermissionToRoleForPartner($this->user->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
 
         $otherPartner = Partner::factory()->create();
 
@@ -178,7 +150,7 @@ class PaymentSystemControllerTest extends CrmTestCase
 
     public function test_store_creates_robokassa_settings(): void
     {
-        $this->grantPermissionToRoleForPartner($this->user->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
 
         $payload = [
             'name'           => 'robokassa',
@@ -202,7 +174,7 @@ class PaymentSystemControllerTest extends CrmTestCase
 
     public function test_store_updates_existing_record_not_duplicate(): void
     {
-        $this->grantPermissionToRoleForPartner($this->user->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
 
         PaymentSystem::factory()->create([
             'partner_id' => $this->partner->id,
@@ -225,7 +197,7 @@ class PaymentSystemControllerTest extends CrmTestCase
 
     public function test_store_keeps_old_password3_if_not_provided(): void
     {
-        $this->grantPermissionToRoleForPartner($this->user->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
 
         $ps = PaymentSystem::factory()->create([
             'partner_id' => $this->partner->id,
@@ -244,7 +216,7 @@ class PaymentSystemControllerTest extends CrmTestCase
 
     public function test_store_saves_tbank_eacq_and_e2c_settings(): void
     {
-        $this->grantPermissionToRoleForPartner($this->user->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
 
         $payload = [
             'name'               => 'tbank',
@@ -271,7 +243,7 @@ class PaymentSystemControllerTest extends CrmTestCase
 
     public function test_store_validation_fails_without_name(): void
     {
-        $this->grantPermissionToRoleForPartner($this->user->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
 
         $this->post(route('payment-systems.store'), [])
             ->assertStatus(302)
@@ -289,6 +261,7 @@ class PaymentSystemControllerTest extends CrmTestCase
         ]);
 
         $this->actingAs($userWithoutPartner);
+        $this->withSession([]);
 
         $resp = $this->get(route('admin.setting.paymentSystem'));
 

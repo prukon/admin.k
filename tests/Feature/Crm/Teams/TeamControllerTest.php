@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Teams;
 
 use App\Http\Middleware\SetPartner;
 use App\Models\MyLog;
@@ -8,7 +8,7 @@ use App\Models\Partner;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\Weekday;
-use Illuminate\Support\Facades\Gate;
+use Tests\Feature\Crm\CrmTestCase;
 
 class TeamControllerTest extends CrmTestCase
 {
@@ -16,11 +16,11 @@ class TeamControllerTest extends CrmTestCase
     {
         parent::setUp();
 
-        // Разрешаем доступ к роутам с middleware('can:groups-view') по умолчанию
-        Gate::define('groups-view', fn ($user = null) => true);
-
         // Приоритет определения партнёра через current_partner
         session(['current_partner' => $this->partner->id]);
+
+        // Реальные права: доступ к groups-view есть у admin
+        $this->asAdmin();
     }
 
     /* ============================================================
@@ -39,8 +39,8 @@ class TeamControllerTest extends CrmTestCase
 
     public function test_index_forbidden_without_groups_view_permission()
     {
-        // Перепределяем ability на запрет
-        Gate::define('groups-view', fn ($user = null) => false);
+        $actor = $this->createUserWithoutPermission('groups.view', $this->partner);
+        $this->actingAs($actor);
 
         $response = $this->get('/admin/teams');
 
@@ -508,6 +508,10 @@ class TeamControllerTest extends CrmTestCase
 
         $this->user->partner_id = null;
         $this->user->save();
+
+        // can:groups-view должен пропустить запрос, иначе до requirePartnerId не дойдём.
+        // Реальные права: суперадмин проходит Gate::before без проверки партнёра.
+        $this->asSuperadmin();
 
         $response = $this->get('/admin/teams');
 

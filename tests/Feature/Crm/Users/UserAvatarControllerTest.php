@@ -1,12 +1,14 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Users;
 
-use App\Models\User;
-use App\Models\Partner;
 use App\Models\MyLog;
+use App\Models\Partner;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\Feature\Crm\CrmTestCase;
 
 class UserAvatarControllerTest extends CrmTestCase
@@ -15,7 +17,12 @@ class UserAvatarControllerTest extends CrmTestCase
     {
         parent::setUp();
 
-        // Фейкаем public-диск, чтобы не трогать реальные файлы
+        // В этом окружении `storage/framework/testing` может быть не writable для пользователя, который гоняет тесты.
+        // Поэтому переопределяем storage path на temp, и только затем фейкаем диск.
+        $tmpStorage = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'kidscrm-storage' . DIRECTORY_SEPARATOR . (string) Str::uuid();
+        File::ensureDirectoryExists($tmpStorage);
+        $this->app->useStoragePath($tmpStorage);
+
         Storage::fake('public');
     }
 
@@ -24,11 +31,7 @@ class UserAvatarControllerTest extends CrmTestCase
      */
     protected function createAdminForCurrentPartner(): User
     {
-        return User::factory()->create([
-            'partner_id' => $this->partner->id,
-            // если у тебя другая модель прав — поменяй это место
-            'role_id'    => 1, // superadmin
-        ]);
+        return $this->createUserWithRole('admin', $this->partner);
     }
 
     /**
@@ -36,11 +39,8 @@ class UserAvatarControllerTest extends CrmTestCase
      */
     protected function createUserWithoutAdminRights(): User
     {
-        return User::factory()->create([
-            'partner_id' => $this->partner->id,
-            // любой не-superadmin
-            'role_id'    => 2,
-        ]);
+        // Должен быть пользователь без permission users.view (а значит без Gate ability users-view)
+        return $this->createUserWithoutPermission('users.view', $this->partner);
     }
 
     /**
@@ -50,14 +50,10 @@ class UserAvatarControllerTest extends CrmTestCase
     {
         $otherPartner = Partner::factory()->create();
 
-        $actor = User::factory()->create([
-            'partner_id' => $this->partner->id,
-            'role_id'    => 1,
-        ]);
+        $actor = $this->createUserWithRole('superadmin', $this->partner);
 
         $foreignUser = User::factory()->create([
             'partner_id' => $otherPartner->id,
-            'role_id'    => 2,
         ]);
 
         return [$actor, $foreignUser];

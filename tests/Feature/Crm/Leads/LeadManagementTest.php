@@ -9,6 +9,15 @@ use Tests\Feature\Crm\CrmTestCase;
 
 class LeadManagementTest extends CrmTestCase
 {
+
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->asSuperadmin();
+    }
+
+
     /**
      * Успешное обновление статуса и комментария лида.
      */

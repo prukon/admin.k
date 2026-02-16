@@ -1,57 +1,18 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Reports;
 
-use Tests\TestCase;
-use App\Models\User;
 use App\Models\Partner;
 use App\Models\Payment;
+use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Gate;
+use Tests\Feature\Crm\CrmTestCase;
 
-class LtvReportTest extends TestCase
+class LtvReportTest extends CrmTestCase
 {
-    use RefreshDatabase;
-
-    /**
-     * ID пользователя, которому разрешён доступ к reports-view.
-     * Управляется из тестов.
-     */
-    protected ?int $reportsViewUserId = null;
-
     protected function setUp(): void
     {
         parent::setUp();
-
-        // Подменяем проверку ability reports-view через Gate::before.
-        // Это изолировано в рамках этого тестового класса и не требует знания
-        // твоей реальной системы ролей/прав.
-        Gate::before(function ($user, string $ability) {
-            if ($ability === 'reports-view' && $this->reportsViewUserId !== null) {
-                return $user->id === $this->reportsViewUserId;
-            }
-
-            return null;
-        });
-    }
-
-    /**
-     * Имитация выбора текущего партнёра так же, как это делает суперюзер через селект:
-     * в сессию пишется current_partner, а AppServiceProvider уже биндит app('current_partner').
-     */
-    protected function setCurrentPartner(Partner $partner): void
-    {
-        // как в реальном приложении — сохраняем ID партнёра в сессии
-        $this->session(['current_partner' => $partner->id]);
-
-        // дополнительно кладём сам объект в контейнер, если он где-то используется напрямую
-        app()->instance('current_partner', $partner);
-    }
-
-    protected function giveReportsViewPermission(User $user): void
-    {
-        $this->reportsViewUserId = $user->id;
     }
 
     /**
@@ -59,34 +20,22 @@ class LtvReportTest extends TestCase
      */
     public function test_ltv_routes_require_reports_view_permission(): void
     {
-        $partner = Partner::factory()->create();
-        $this->setCurrentPartner($partner);
-
-        // Пользователь без разрешения
-        $userWithout = User::factory()->create([
-            'partner_id' => $partner->id,
-        ]);
-
-        $this->reportsViewUserId = null; // никому не даём доступ
-        $this->actingAs($userWithout);
+        // Пользователь без разрешения (роль user из CrmTestCase)
+        $this->actingAs($this->user);
+        $this->withSession(['current_partner' => $this->partner->id]);
 
         $this->get(route('ltv'))->assertForbidden();
-
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('ltv.getLtv'))
             ->assertForbidden();
 
-        // Пользователь с разрешением
-        $userWith = User::factory()->create([
-            'partner_id' => $partner->id,
-        ]);
-        $this->giveReportsViewPermission($userWith);
-        $this->actingAs($userWith);
+        // Суперадмин — доступ есть (Gate::before в AuthServiceProvider)
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
 
         $this->get(route('ltv'))->assertOk();
-
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv'))
+            ->get(route('ltv.getLtv', ['draw' => 1]))
             ->assertOk();
     }
 
@@ -98,12 +47,9 @@ class LtvReportTest extends TestCase
         $partnerA = Partner::factory()->create();
         $partnerB = Partner::factory()->create();
 
-        // Пользователь с правом, привяжем к партнёру A (это не влияет на фильтрацию отчёта)
-        $userWith = User::factory()->create([
-            'partner_id' => $partnerA->id,
-        ]);
-        $this->giveReportsViewPermission($userWith);
-        $this->actingAs($userWith);
+        // Переключать current_partner может только superadmin
+        $actor = $this->createUserWithRole('superadmin', $partnerA);
+        $this->actingAs($actor);
 
         // Юзеры разных партнёров
         $userA = User::factory()->create([
@@ -128,9 +74,8 @@ class LtvReportTest extends TestCase
         ]);
 
         // current_partner = A → в отчёте только userA
-        $this->setCurrentPartner($partnerA);
-
-        $responseA = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+        $responseA = $this->withSession(['current_partner' => $partnerA->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('ltv.getLtv', ['draw' => 1]))
             ->assertOk()
             ->json();
@@ -141,9 +86,8 @@ class LtvReportTest extends TestCase
         $this->assertNotContains($userB->id, $userIdsA);
 
         // current_partner = B → в отчёте только userB
-        $this->setCurrentPartner($partnerB);
-
-        $responseB = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+        $responseB = $this->withSession(['current_partner' => $partnerB->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('ltv.getLtv', ['draw' => 2]))
             ->assertOk()
             ->json();
@@ -160,11 +104,8 @@ class LtvReportTest extends TestCase
     public function test_ltv_includes_only_positive_payments(): void
     {
         $partner = Partner::factory()->create();
-        $this->setCurrentPartner($partner);
-
-        $userWith = User::factory()->create(['partner_id' => $partner->id]);
-        $this->giveReportsViewPermission($userWith);
-        $this->actingAs($userWith);
+        $actor = $this->createUserWithRole('superadmin', $partner);
+        $this->actingAs($actor);
 
         $user = User::factory()->create([
             'partner_id' => $partner->id,
@@ -189,7 +130,8 @@ class LtvReportTest extends TestCase
             'operation_date' => Carbon::now()->subDay(),
         ]);
 
-        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+        $response = $this->withSession(['current_partner' => $partner->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('ltv.getLtv', ['draw' => 1]))
             ->assertOk()
             ->json();
@@ -206,11 +148,8 @@ class LtvReportTest extends TestCase
     public function test_ltv_aggregates_sum_and_payment_count_per_user(): void
     {
         $partner = Partner::factory()->create();
-        $this->setCurrentPartner($partner);
-
-        $userWith = User::factory()->create(['partner_id' => $partner->id]);
-        $this->giveReportsViewPermission($userWith);
-        $this->actingAs($userWith);
+        $actor = $this->createUserWithRole('superadmin', $partner);
+        $this->actingAs($actor);
 
         $user = User::factory()->create([
             'partner_id' => $partner->id,
@@ -233,7 +172,8 @@ class LtvReportTest extends TestCase
             'operation_date' => Carbon::parse('2025-01-20'),
         ]);
 
-        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+        $response = $this->withSession(['current_partner' => $partner->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('ltv.getLtv', ['draw' => 1]))
             ->assertOk()
             ->json();
@@ -250,11 +190,8 @@ class LtvReportTest extends TestCase
     public function test_ltv_first_and_last_payment_dates_are_correct(): void
     {
         $partner = Partner::factory()->create();
-        $this->setCurrentPartner($partner);
-
-        $userWith = User::factory()->create(['partner_id' => $partner->id]);
-        $this->giveReportsViewPermission($userWith);
-        $this->actingAs($userWith);
+        $actor = $this->createUserWithRole('superadmin', $partner);
+        $this->actingAs($actor);
 
         $user = User::factory()->create([
             'partner_id' => $partner->id,
@@ -274,7 +211,8 @@ class LtvReportTest extends TestCase
             ]);
         }
 
-        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+        $response = $this->withSession(['current_partner' => $partner->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('ltv.getLtv', ['draw' => 1]))
             ->assertOk()
             ->json();
@@ -299,17 +237,15 @@ class LtvReportTest extends TestCase
     public function test_ltv_empty_report_returns_correct_datatables_structure(): void
     {
         $partner = Partner::factory()->create();
-        $this->setCurrentPartner($partner);
-
-        $userWith = User::factory()->create(['partner_id' => $partner->id]);
-        $this->giveReportsViewPermission($userWith);
-        $this->actingAs($userWith);
+        $actor = $this->createUserWithRole('superadmin', $partner);
+        $this->actingAs($actor);
 
         // Платежей для партнёра нет
 
         $draw = 3;
 
-        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+        $response = $this->withSession(['current_partner' => $partner->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('ltv.getLtv', ['draw' => $draw]))
             ->assertOk()
             ->json();
@@ -327,11 +263,8 @@ class LtvReportTest extends TestCase
     public function test_ltv_user_name_format_and_fallback(): void
     {
         $partner = Partner::factory()->create();
-        $this->setCurrentPartner($partner);
-
-        $userWith = User::factory()->create(['partner_id' => $partner->id]);
-        $this->giveReportsViewPermission($userWith);
-        $this->actingAs($userWith);
+        $actor = $this->createUserWithRole('superadmin', $partner);
+        $this->actingAs($actor);
 
         $userFull = User::factory()->create([
             'partner_id' => $partner->id,
@@ -359,7 +292,8 @@ class LtvReportTest extends TestCase
             ]);
         }
 
-        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+        $response = $this->withSession(['current_partner' => $partner->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('ltv.getLtv', ['draw' => 1]))
             ->assertOk()
             ->json();
@@ -377,11 +311,8 @@ class LtvReportTest extends TestCase
     public function test_ltv_datatables_json_structure(): void
     {
         $partner = Partner::factory()->create();
-        $this->setCurrentPartner($partner);
-
-        $userWith = User::factory()->create(['partner_id' => $partner->id]);
-        $this->giveReportsViewPermission($userWith);
-        $this->actingAs($userWith);
+        $actor = $this->createUserWithRole('superadmin', $partner);
+        $this->actingAs($actor);
 
         $user = User::factory()->create([
             'partner_id' => $partner->id,
@@ -397,7 +328,8 @@ class LtvReportTest extends TestCase
 
         $draw = 5;
 
-        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+        $response = $this->withSession(['current_partner' => $partner->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('ltv.getLtv', ['draw' => $draw]))
             ->assertOk()
             ->json();
@@ -432,18 +364,17 @@ class LtvReportTest extends TestCase
     public function test_ltv_getltv_available_only_via_ajax(): void
     {
         $partner = Partner::factory()->create();
-        $this->setCurrentPartner($partner);
-
-        $userWith = User::factory()->create(['partner_id' => $partner->id]);
-        $this->giveReportsViewPermission($userWith);
-        $this->actingAs($userWith);
+        $actor = $this->createUserWithRole('superadmin', $partner);
+        $this->actingAs($actor);
 
         // Без AJAX-заголовка — 404
-        $this->get(route('ltv.getLtv'))
+        $this->withSession(['current_partner' => $partner->id])
+            ->get(route('ltv.getLtv'))
             ->assertStatus(404);
 
         // С AJAX-заголовком — 200
-        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+        $this->withSession(['current_partner' => $partner->id])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('ltv.getLtv', ['draw' => 1]))
             ->assertOk();
     }

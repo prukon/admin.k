@@ -1,21 +1,16 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Payments\TBankCommissions;
 
-use App\Models\Partner;
 use App\Models\TinkoffCommissionRule;
-use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Tests\Feature\Crm\CrmTestCase;
 
 class TbankCommissionsControllerCrudTest extends CrmTestCase
 {
-    protected static bool $canSettingsCommission = true;
-
     protected function setUp(): void
     {
         parent::setUp();
-
-        Gate::define('settings.commission', fn (?User $user = null) => self::$canSettingsCommission);
+        $this->asSuperadmin();
     }
 
     private function validPayload(array $overrides = []): array
@@ -39,8 +34,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_index_opens_and_has_expected_view_data(): void
     {
-        self::$canSettingsCommission = true;
-
         $resp = $this->get(route('admin.setting.tbankCommissions'));
         $resp->assertStatus(200);
 
@@ -56,8 +49,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_create_opens(): void
     {
-        self::$canSettingsCommission = true;
-
         $resp = $this->get(route('admin.setting.tbankCommissions.create'));
         $resp->assertStatus(200);
 
@@ -70,8 +61,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_store_creates_rule_and_redirects_with_status(): void
     {
-        self::$canSettingsCommission = true;
-
         $payload = $this->validPayload([
             'partner_id' => $this->partner->id,
             'method' => 'sbp',
@@ -92,8 +81,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_store_sets_is_enabled_false_when_checkbox_missing(): void
     {
-        self::$canSettingsCommission = true;
-
         $payload = $this->validPayload();
         unset($payload['is_enabled']);
 
@@ -108,8 +95,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_store_sets_min_fixed_default_zero_when_missing(): void
     {
-        self::$canSettingsCommission = true;
-
         $payload = $this->validPayload();
         unset($payload['min_fixed']);
 
@@ -124,8 +109,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_store_validation_required_fields(): void
     {
-        self::$canSettingsCommission = true;
-
         $payload = $this->validPayload();
         unset($payload['acquiring_percent']);
 
@@ -136,8 +119,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_store_validation_method_enum(): void
     {
-        self::$canSettingsCommission = true;
-
         $payload = $this->validPayload([
             'method' => 'bad',
         ]);
@@ -149,8 +130,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_edit_opens_for_existing_rule(): void
     {
-        self::$canSettingsCommission = true;
-
         $rule = TinkoffCommissionRule::create($this->validPayload([
             'partner_id' => $this->partner->id,
             'method' => 'card',
@@ -170,8 +149,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_update_updates_rule_when_partner_id_null_and_does_not_require_auto_payout_field(): void
     {
-        self::$canSettingsCommission = true;
-
         $rule = TinkoffCommissionRule::create($this->validPayload([
             'partner_id' => $this->partner->id,
             'method' => 'card',
@@ -202,8 +179,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_destroy_deletes_rule(): void
     {
-        self::$canSettingsCommission = true;
-
         $rule = TinkoffCommissionRule::create($this->validPayload([
             'partner_id' => $this->partner->id,
             'method' => 'card',
@@ -220,8 +195,6 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
 
     public function test_edit_update_destroy_missing_id_returns_404(): void
     {
-        self::$canSettingsCommission = true;
-
         $this->get(route('admin.setting.tbankCommissions.edit', ['id' => 999999]))->assertStatus(404);
 
         $payload = $this->validPayload(['partner_id' => null]);

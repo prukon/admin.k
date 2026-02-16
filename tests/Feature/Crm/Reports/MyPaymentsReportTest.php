@@ -1,24 +1,14 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Reports;
 
 use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Tests\Feature\Crm\CrmTestCase;
 
 class MyPaymentsReportTest extends CrmTestCase
 {
-    /**
-     * Хелпер: разрешить доступ к "моим платежам" только для конкретного пользователя.
-     */
-    protected function allowMyPaymentsViewForUser(User $allowedUser): void
-    {
-        Gate::define('myPayments-view', function (User $user) use ($allowedUser) {
-            return $user->id === $allowedUser->id;
-        });
-    }
-
     /**
      * [P1] Доступ к вкладке только с правом myPayments-view.
      * - другой пользователь без права → 403
@@ -26,13 +16,8 @@ class MyPaymentsReportTest extends CrmTestCase
      */
     public function test_my_payments_routes_require_myPayments_view_permission(): void
     {
-        // Разрешаем доступ только для $this->user
-        $this->allowMyPaymentsViewForUser($this->user);
-
         // Пользователь без права (другой)
-        $otherUser = User::factory()->create([
-            'partner_id' => $this->partner->id,
-        ]);
+        $otherUser = $this->createUserWithoutPermission('myPayments.view', $this->partner);
         $this->actingAs($otherUser);
 
         $this->get(route('showUserPayments'))->assertForbidden();
@@ -56,8 +41,6 @@ class MyPaymentsReportTest extends CrmTestCase
      */
     public function test_show_user_payments_counts_only_current_user_payments(): void
     {
-        $this->allowMyPaymentsViewForUser($this->user);
-
         // Платежи текущего пользователя
         Payment::factory()->create([
             'user_id' => $this->user->id,
@@ -94,8 +77,6 @@ class MyPaymentsReportTest extends CrmTestCase
      */
     public function test_show_user_payments_returns_zero_when_user_has_no_payments(): void
     {
-        $this->allowMyPaymentsViewForUser($this->user);
-
         // Платежей для текущего пользователя нет
         $response = $this->get(route('showUserPayments'));
 
@@ -111,8 +92,6 @@ class MyPaymentsReportTest extends CrmTestCase
      */
     public function test_get_user_payments_returns_only_current_user_payments(): void
     {
-        $this->allowMyPaymentsViewForUser($this->user);
-
         // Платежи текущего пользователя
         Payment::factory()->count(2)->create([
             'user_id' => $this->user->id,
@@ -150,8 +129,6 @@ class MyPaymentsReportTest extends CrmTestCase
      */
     public function test_get_user_payments_returns_valid_datatables_json_structure(): void
     {
-        $this->allowMyPaymentsViewForUser($this->user);
-
         Payment::factory()->create([
             'user_id' => $this->user->id,
             'summ'    => 1_500,
@@ -187,8 +164,6 @@ class MyPaymentsReportTest extends CrmTestCase
      */
     public function test_get_user_payments_user_name_prefers_payments_column_over_user_relation(): void
     {
-        $this->allowMyPaymentsViewForUser($this->user);
-
         // У пользователя есть имя в модели
         $this->user->name = 'Имя из User';
         $this->user->save();
@@ -235,8 +210,6 @@ class MyPaymentsReportTest extends CrmTestCase
      */
     public function test_get_user_payments_user_name_is_fallback_when_no_related_user(): void
     {
-        $this->allowMyPaymentsViewForUser($this->user);
-
         // user_name = null => пойдём в ветку с $row->user или "Без пользователя"
         $payment = Payment::factory()->create([
             'user_id'   => $this->user->id,
@@ -269,8 +242,6 @@ class MyPaymentsReportTest extends CrmTestCase
      */
     public function test_get_user_payments_team_title_from_user_team_or_default_when_absent(): void
     {
-        $this->allowMyPaymentsViewForUser($this->user);
-
         // Создаём команду и привязываем к текущему пользователю
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -303,8 +274,6 @@ class MyPaymentsReportTest extends CrmTestCase
      */
     public function test_get_user_payments_returns_empty_data_array_when_no_payments(): void
     {
-        $this->allowMyPaymentsViewForUser($this->user);
-
         // Платежей нет
         $response = $this
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
@@ -326,8 +295,6 @@ class MyPaymentsReportTest extends CrmTestCase
      */
     public function test_get_user_payments_non_ajax_request_current_behavior_is_preserved(): void
     {
-        $this->allowMyPaymentsViewForUser($this->user);
-
         $response = $this->get(route('payments.getUserPayments'));
 
         $response->assertStatus(200);

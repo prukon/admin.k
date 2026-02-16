@@ -1,17 +1,17 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Users;
 
-use App\Models\User;
+use App\Models\MyLog;
 use App\Models\Partner;
 use App\Models\Role;
 use App\Models\Team;
+use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserFieldValue;
-use App\Models\MyLog;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Tests\Feature\Crm\CrmTestCase;
 
 class UserControllerTest extends CrmTestCase
 {
@@ -22,19 +22,9 @@ class UserControllerTest extends CrmTestCase
         // Контекст текущего партнёра
         session(['current_partner' => $this->partner->id]);
 
-        // Разрешаем ВСЕ права, кроме users-phone-update
-        Gate::before(function ($user, string $ability = null) {
-            if ($ability === 'users-phone-update') {
-                // для этого права отдельно задаём поведение ниже
-                return null;
-            }
-
-            // все остальные права считаем разрешёнными
-            return true;
-        });
-
-        // По умолчанию телефон менять нельзя (в отдельных тестах переопределяем)
-        Gate::define('users-phone-update', fn() => false);
+        // Используем реальные права из сидеров (AuthServiceProvider + permission_role).
+        // Для большинства сценариев достаточно роли admin.
+        $this->asAdmin();
     }
 
 
@@ -50,6 +40,13 @@ class UserControllerTest extends CrmTestCase
         $adminRole->is_sistem = 0;
         $adminRole->is_visible = 1;
         $adminRole->save();
+
+        // Реальные права: чтобы пройти middleware can:users-view
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => $this->partner->id,
+            'role_id'       => $adminRole->id,
+            'permission_id' => $this->permissionId('users.view'),
+        ]);
 
         $this->user->role()->associate($adminRole);
         $this->user->save();
@@ -770,6 +767,13 @@ class UserControllerTest extends CrmTestCase
         $adminRole->is_visible = 1;
         $adminRole->save();
 
+        // Реальные права: чтобы пройти middleware can:users-view
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => $this->partner->id,
+            'role_id'       => $adminRole->id,
+            'permission_id' => $this->permissionId('users.view'),
+        ]);
+
         $this->user->role()->associate($adminRole);
         $this->user->save();
 
@@ -986,8 +990,7 @@ class UserControllerTest extends CrmTestCase
         // актор — админ партнёра
         $actor = $this->user;
 
-        // включаем право users-phone-update
-        \Illuminate\Support\Facades\Gate::define('users-phone-update', fn () => true);
+        $this->assertTrue(\Gate::forUser($actor)->allows('users-phone-update'));
 
         // пользователь, которому меняем телефон
         $user = User::factory()->create([
@@ -1043,7 +1046,15 @@ class UserControllerTest extends CrmTestCase
      */
     public function test_update_does_not_change_phone_without_permission(): void
     {
-        Gate::define('users-phone-update', fn () => false);
+        // Реально забираем у роли админа permission users.phone.update для текущего партнёра
+        $permId = $this->permissionId('users.phone.update');
+        DB::table('permission_role')
+            ->where('partner_id', $this->partner->id)
+            ->where('role_id', $this->user->role_id)
+            ->where('permission_id', $permId)
+            ->delete();
+
+        $this->assertFalse(\Gate::forUser($this->user)->allows('users-phone-update'));
 
         $user = User::factory()->create([
             'partner_id'        => $this->partner->id,

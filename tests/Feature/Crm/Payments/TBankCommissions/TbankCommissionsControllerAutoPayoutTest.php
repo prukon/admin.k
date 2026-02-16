@@ -1,22 +1,20 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Payments\TBankCommissions;
 
 use App\Models\Partner;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffCommissionRule;
-use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Tests\Feature\Crm\CrmTestCase;
 
 class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
 {
-    protected static bool $canSettingsCommission = true;
-
     protected function setUp(): void
     {
         parent::setUp();
-
-        Gate::define('settings.commission', fn (?User $user = null) => self::$canSettingsCommission);
+        // В проекте доступ к настройке "Комиссии Т-Банк" защищён can:settings.commission.
+        // Используем реальные права: суперадмин имеет доступ ко всем ability (Gate::before).
+        $this->asSuperadmin();
     }
 
     private function payloadForUpdate(array $overrides = []): array
@@ -47,8 +45,6 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
 
     public function test_update_with_partner_id_creates_payment_system_and_sets_auto_payout_true(): void
     {
-        self::$canSettingsCommission = true;
-
         $rule = $this->makeRule();
         $partner = Partner::factory()->create();
 
@@ -73,8 +69,6 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
 
     public function test_update_auto_payout_checkbox_missing_means_false(): void
     {
-        self::$canSettingsCommission = true;
-
         $rule = $this->makeRule();
         $partner = Partner::factory()->create();
 
@@ -111,8 +105,6 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
 
     public function test_update_does_not_overwrite_other_settings_keys(): void
     {
-        self::$canSettingsCommission = true;
-
         $rule = $this->makeRule();
         $partner = Partner::factory()->create();
 
@@ -146,8 +138,6 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
 
     public function test_update_partner_id_change_sets_auto_payout_for_new_partner(): void
     {
-        self::$canSettingsCommission = true;
-
         $rule = $this->makeRule();
 
         $partnerA = Partner::factory()->create();
@@ -176,8 +166,6 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
 
     public function test_update_partner_id_zero_does_not_touch_payment_system_block(): void
     {
-        self::$canSettingsCommission = true;
-
         $rule = $this->makeRule();
 
         $payload = $this->payloadForUpdate([

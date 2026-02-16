@@ -5,121 +5,177 @@ namespace Tests\Feature\Crm;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Partner;
+use Database\Seeders\AdminRoleBasePermissionsSeeder;
+use Database\Seeders\DevAdminsSeeder;
+use Database\Seeders\DevPartnersSeeder;
 use Database\Seeders\PermissionGroupsSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolesSeeder;
+use Database\Seeders\UserRoleBasePermissionsSeeder;
 use Database\Seeders\WeekdaysSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 abstract class CrmTestCase extends TestCase
 {
     use RefreshDatabase;
 
-    protected User $user;
     protected Partner $partner;
+    protected User $user;
+
+    /**
+     * Второй партнёр/юзер — для тестов изоляции (anti-leak).
+     */
+    protected Partner $foreignPartner;
+    protected User $foreignUser;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        /**
-         * 1. Системные сидеры
-         * (они будут выполняться перед КАЖДЫМ тестом, но в рамках транзакции это ок)
-         */
-        $this->seed(WeekdaysSeeder::class);          // ДНИ НЕДЕЛИ
-        $this->seed(RolesSeeder::class);             // СИСТЕМНЫЕ РОЛИ
-        $this->seed(PermissionGroupsSeeder::class);  // ГРУППЫ ПРАВ
-        $this->seed(PermissionSeeder::class);        // ПРАВА (НАИМЕНОВАНИЯ)
+        // 1) Референсы
+        $this->seed(WeekdaysSeeder::class);
+        $this->seed(RolesSeeder::class);
+        $this->seed(PermissionGroupsSeeder::class);
+        $this->seed(PermissionSeeder::class);
 
-        /**
-         * 2. Системные пользователи (если нужны именно в тестах)
-         * Если env-переменные не заданы — метод сам тихо выйдет.
-         */
-        $this->createSystemUser(
-            'SYSTEM_USER_EMAIL',
-            'SYSTEM_USER_PASSWORD',
-            'user',
-            'User',
-            'System'
-        );
-
-        $this->createSystemUser(
-            'SYSTEM_ADMIN_EMAIL',
-            'SYSTEM_ADMIN_PASSWORD',
-            'admin',
-            'Admin',
-            'System'
-        );
-
-        $this->createSystemUser(
-            'SYSTEM_SUPERADMIN_EMAIL',
-            'SYSTEM_SUPERADMIN_PASSWORD',
-            'superadmin',
-            'Superadmin',
-            'System'
-        );
-
-        /**
-         * 3. Партнёр и текущий пользователь для теста
-         */
+        // Создаём партнёра
         $this->partner = Partner::factory()->create();
 
+        // Создаем роль
+        $userRoleId = Role::where('name', 'user')->value('id');
+
+        // Создаем юзера
         $this->user = User::factory()->create([
             'partner_id' => $this->partner->id,
+            'role_id' => $userRoleId,
         ]);
 
-        // Авторизация
+        // Создаём чужого партнёра
+        $this->foreignPartner = Partner::factory()->create();
+
+        // Создаём чужого юзера
+        $this->foreignUser = User::factory()->create([
+            'partner_id' => $this->foreignPartner->id,
+            'role_id' => $userRoleId,
+        ]);
+
+        // 4) Сидим права
+        $this->seed(UserRoleBasePermissionsSeeder::class);
+        $this->seed(AdminRoleBasePermissionsSeeder::class);
+
+        // 5) Авторизация
         $this->actingAs($this->user);
 
-        // Базовые permissions (мокаем Gate, чтобы не завязываться на реальные права)
-        Gate::define('leads-view', fn () => true);
-        Gate::define('dashboard-view', fn () => true);
+        // 6)current_partner в session
+        $this->withSession(['current_partner' => $this->partner->id]);
+    }
+
+    //Авторизация admin
+    protected function asAdmin(): self
+    {
+        $adminRoleId = Role::where('name', 'admin')->value('id');
+
+        $this->user->role_id = $adminRoleId;
+        $this->user->save();
+
+        $this->actingAs($this->user);
+
+        return $this;
+    }
+
+    //Авторизация superadmin
+    protected function asSuperadmin(): self
+    {
+        $adminRoleId = Role::where('name', 'superadmin')->value('id');
+
+        $this->user->role_id = $adminRoleId;
+        $this->user->save();
+
+        $this->actingAs($this->user);
+
+        return $this;
     }
 
     /**
-     * Хелпер для создания системного пользователя по env-переменным.
-     *
-     * ВАЖНО: здесь остаётся твоя логика partner_id = 1, team_id = 1,
-     * чтобы не плодить зависимостей от $this->partner.
+     * Быстро переключиться на “чужого” пользователя.
      */
-    protected function createSystemUser(
-        string $emailEnv,
-        string $passwordEnv,
-        string $roleName,
-        string $name,
-        string $lastname
-    ): void {
-        $email = env($emailEnv);
-        $password = env($passwordEnv);
+    protected function asForeignUser(): self
+    {
+        $this->actingAs($this->foreignUser);
+        $this->withSession(['current_partner' => $this->foreignPartner->id]);
 
-        if (!$email || !$password) {
-            return;
+        return $this;
+    }
+
+    protected function roleId(string $name): int
+    {
+        return (int) Role::query()->where('name', $name)->firstOrFail()->id;
+    }
+
+    protected function permissionId(string $name): int
+    {
+        $id = DB::table('permissions')->where('name', $name)->value('id');
+        $this->assertNotNull($id, "Permission '{$name}' не найден в таблице permissions");
+        return (int) $id;
+    }
+
+    protected function createUserWithRole(string $roleName, ?Partner $partner = null, array $attributes = []): User
+    {
+        $partner ??= $this->partner;
+
+        return User::factory()->create(array_merge([
+            'partner_id' => $partner->id,
+            'role_id'    => $this->roleId($roleName),
+        ], $attributes));
+    }
+
+    /**
+     * Создаёт пользователя текущего партнёра с ролью, у которой НЕТ указанного permission (по pivot permission_role).
+     *
+     * Важно: учитывает partner_id в permission_role.
+     */
+    protected function createUserWithoutPermission(string $permissionName, ?Partner $partner = null, array $attributes = []): User
+    {
+        $partner ??= $this->partner;
+
+        $permId = $this->permissionId($permissionName);
+
+        $role = Role::query()
+            ->where('name', '!=', 'superadmin')
+            ->whereNotExists(function ($q) use ($permId, $partner) {
+                $q->select(DB::raw(1))
+                    ->from('permission_role')
+                    ->whereColumn('permission_role.role_id', 'roles.id')
+                    ->where('permission_role.permission_id', $permId)
+                    ->where('permission_role.partner_id', $partner->id);
+            })
+            ->first();
+
+        // Если подходящей роли нет — создаём тестовую роль без прав
+        if (!$role) {
+            $now = now();
+            $roleId = DB::table('roles')->insertGetId([
+                'name'       => 'test_no_' . str_replace('.', '_', $permissionName) . '_' . Str::lower(Str::random(6)),
+                'label'      => 'Test No ' . $permissionName,
+                'is_sistem'  => 0,
+                'order_by'   => 0,
+                // is_visible появилось миграцией 2025_04_10..., поэтому на старых схемах игнорируется
+                'is_visible' => 0,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            $role = Role::query()->findOrFail($roleId);
         }
 
-        /** @var \App\Models\User $user */
-        $user = User::updateOrCreate(
-            ['email' => $email],
-            [
-                'name'       => $name,
-                'lastname'   => $lastname,
-                'password'   => Hash::make($password),
-                'is_enabled' => 1,
-                'partner_id' => 1,
-                'team_id'    => 1,
-            ]
-        );
+        $user = User::factory()->create(array_merge([
+            'partner_id' => $partner->id,
+            'role_id'    => $role->id,
+        ], $attributes));
 
-        $role = Role::where('name', $roleName)->first();
-
-        if ($role) {
-            $user->role_id = $role->id;
-            $user->save();
-        } else {
-            Log::warning("System user: роль '{$roleName}' не найдена");
-        }
+        return $user;
     }
 }

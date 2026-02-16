@@ -312,7 +312,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('user/update-password', [AccountController::class, 'updatePassword']);
         Route::post('/profile/avatar', [AccountController::class, 'store']);        // добалвение/замена
         Route::delete('/profile/avatar', [AccountController::class, 'destroy']);    // удаление
-
     });
 
     //Учетная запись - вкладка "организация"
@@ -329,7 +328,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
     });
 
-    //Лиды
+    //Лиды (feature test +)
     Route::middleware('can:leads-view')->group(function () {
         Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
         // DataTables endpoint

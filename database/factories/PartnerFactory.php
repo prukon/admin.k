@@ -4,10 +4,8 @@ namespace Database\Factories;
 
 use App\Models\Partner;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
-/**
- * @extends Factory<\App\Models\Partner>
- */
 class PartnerFactory extends Factory
 {
     protected $model = Partner::class;
@@ -21,45 +19,92 @@ class PartnerFactory extends Factory
             'non_commercial_organization',
         ];
 
+        $title = $this->faker->company();
+
         return [
-            'order_by'   => 0,
-            'is_enabled' => 1,
+            'order_by' => 0,
+            'is_enabled' => true,
 
             'business_type' => $this->faker->randomElement($businessTypes),
 
-            'title'            => $this->faker->company(),           // NOT NULL
-            'organization_name'=> $this->faker->optional()->company(),
+            'title' => $title,
+            'organization_name' => $title,
 
-            // UNIQUE, пусть всегда будут заполнены
-            'tax_id'             => $this->faker->unique()->numerify('##############'),
-            'kpp'                => $this->faker->numerify('#########'),
-            'registration_number'=> $this->faker->unique()->numerify('##############'),
+            'tax_id' => $this->faker->boolean(60)
+                ? $this->faker->unique()->numerify('##########')
+                : null,
 
-            'address'        => $this->faker->optional()->address(),
-            'phone'          => $this->faker->optional()->phoneNumber(),
-            'email'          => $this->faker->unique()->safeEmail(), // NOT NULL + UNIQUE
+            'kpp' => $this->faker->boolean(40)
+                ? $this->faker->numerify('#########')
+                : null,
 
-            'city'           => $this->faker->optional()->city(),
-            'zip'            => $this->faker->optional()->postcode(),
+            'registration_number' => $this->faker->boolean(40)
+                ? $this->faker->unique()->numerify('#############')
+                : null,
 
-            'ceo'            => $this->faker->optional()->name(),
+            'address' => $this->faker->boolean(70)
+                ? $this->faker->address()
+                : null,
 
-            'wallet_balance' => 0.00, // NOT NULL, default 0.00
+            'phone' => $this->faker->boolean(70)
+                ? $this->faker->phoneNumber()
+                : null,
 
-            'website'        => $this->faker->optional()->url(),
-            'sms_name'       => $this->faker->optional()->lexify('????????'),
+            'email' => $this->faker->unique()->safeEmail(),
 
-            'bank_name'      => $this->faker->optional()->company(),
-            'bank_bik'       => $this->faker->optional()->numerify('#########'),
-            'bank_account'   => $this->faker->optional()->numerify('####################'), // до 20 символов
+            'city' => $this->faker->boolean(60)
+                ? $this->faker->city()
+                : null,
 
-            'activity_start_date' => $this->faker->optional()->date(),
+            'zip' => $this->faker->boolean(60)
+                ? $this->faker->postcode()
+                : null,
 
-            'tinkoff_partner_id'           => null, // UNIQUE, но пусть будет пусто в демо
-            'sm_register_status'           => null,
-            'bank_details_version'         => null,
+            // В модели ceo кастится как array
+            'ceo' => $this->faker->boolean(50)
+                ? [
+                    'name' => $this->faker->name(),
+                    'position' => 'CEO',
+                ]
+                : null,
+
+            'wallet_balance' => 0.00,
+
+            'website' => $this->faker->boolean(40)
+                ? $this->faker->url()
+                : null,
+
+            'sms_name' => $this->faker->boolean(30)
+                ? Str::upper($this->faker->lexify('??????????????'))
+                : null,
+
+            'bank_name' => $this->faker->boolean(30)
+                ? $this->faker->company()
+                : null,
+
+            'bank_bik' => $this->faker->boolean(30)
+                ? $this->faker->numerify('#########')
+                : null,
+
+            'bank_account' => $this->faker->boolean(30)
+                ? $this->faker->numerify('####################')
+                : null,
+
+            'activity_start_date' => $this->faker->boolean(50)
+                ? $this->faker->date()
+                : null,
+
+            'tinkoff_partner_id' => $this->faker->boolean(20)
+                ? $this->faker->unique()->uuid()
+                : null,
+
+            'sm_register_status' => null,
+            'registered_at' => null,
+
+            'bank_details_version' => 1,
             'bank_details_last_updated_at' => null,
-            'sm_details_template'          => null,
+
+            'sm_details_template' => null,
         ];
     }
 }

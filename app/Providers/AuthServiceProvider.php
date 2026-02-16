@@ -4,12 +4,11 @@ namespace App\Providers;
 
 // use Illuminate\Support\Facades\Gate;
 use App\Models\User;
+use App\Models\Role;
 use App\Policies\AdminPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
-
 use Illuminate\Support\Facades\Gate;
-
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -29,13 +28,41 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        Gate::define('verify-phone', function (User $actor, User $target) {
-            return $actor->id === $target->id || in_array((int)$actor->role_id, [1, 10], true);
+        /**
+         * ✅ role_id -> roles.name (кеш в пределах запроса)
+         * Нужен, чтобы убрать хардкод по ID в Gate'ах.
+         */
+        $roleNameById = static function (?int $roleId): ?string {
+            static $cache = [];
+
+            if (!$roleId) {
+                return null;
+            }
+
+            if (!array_key_exists($roleId, $cache)) {
+                $cache[$roleId] = Role::query()
+                    ->whereKey($roleId)
+                    ->value('name'); // string|null
+            }
+
+            return $cache[$roleId];
+        };
+
+        Gate::define('verify-phone', function (User $actor, User $target) use ($roleNameById) {
+            // Сам себе — всегда можно
+            if ($actor->id === $target->id) {
+                return true;
+            }
+
+            // Админ/суперадмин — по roles.name (без хардкода ID)
+            $roleName = $roleNameById((int)$actor->role_id);
+
+            return in_array($roleName, ['superadmin', 'admin'], true);
         });
 
-        // Всё подряд разрешаем суперадмину (role_id = 1)
-        Gate::before(function (User $user, string $ability) {
-            return $user->role_id === 1 ? true : null;
+        // Всё подряд разрешаем суперадмину (role.name = superadmin)
+        Gate::before(function (User $user, string $ability) use ($roleNameById) {
+            return $roleNameById((int)$user->role_id) === 'superadmin' ? true : null;
         });
 
 ////////////////////////ГЛАВНОЕ МЕНЮ//////////////////////
@@ -95,7 +122,7 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('partner.view');
         });
 
-             // Страница "Договоры"
+        // Страница "Договоры"
         Gate::define('contracts-view', function (User $user) {
             return $user->hasPermission('contracts.view');
         });
@@ -120,7 +147,7 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('documentations.view');
         });
 
-    
+
         // Страница "Настройки  -> Настройка комиссий"
         Gate::define('settings.commission', function (User $user) {
             return $user->hasPermission('settings.commission');

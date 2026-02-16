@@ -1,36 +1,20 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Users;
 
 use App\Models\User;
 use App\Models\UserTableSetting;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
+use Tests\Feature\Crm\CrmTestCase;
 
 class UserTableSettingsControllerTest extends CrmTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // В этом тестовом классе не хотим упираться в настоящую систему прав,
-        // поэтому users-view разрешаем любому АВТОРИЗОВАННОМУ пользователю.
-        Gate::before(function ($user, string $ability) {
-            if ($ability === 'users-view' && $user) {
-                return true;
-            }
-        });
-    }
-
     /**
      * Хелпер: создаём пользователя текущего партнёра и логиним.
      */
     protected function actingAsPartnerUser(): User
     {
-        /** @var \App\Models\User $user */
-        $user = User::factory()->create([
-            'partner_id' => $this->partner->id,
-        ]);
+        $user = $this->createUserWithRole('admin', $this->partner);
 
         $this->actingAs($user);
 

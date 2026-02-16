@@ -6,9 +6,14 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Partner;
+use App\Services\PartnerContext;
 
 class SetPartner
 {
+    public function __construct(
+        protected PartnerContext $partnerContext
+    ) {}
+
     public function handle(Request $request, Closure $next)
     {
 
@@ -17,9 +22,17 @@ class SetPartner
             return $next($request);
         }
 
+        $user = Auth::user();
+
+        // Для не-superadmin запрещаем переключение партнёра через session.
+        // Всегда фиксируем current_partner = user->partner_id.
+        if (!$this->partnerContext->isSuperAdmin($user)) {
+            session(['current_partner' => $user?->partner_id]);
+        }
+
         // Если пользователь авторизован и в сессии ещё не установлен партнёр, устанавливаем его из данных пользователя
-        if (Auth::check() && !session()->has('current_partner')) {
-            session(['current_partner' => Auth::user()->partner_id]);
+        if (!session()->has('current_partner')) {
+            session(['current_partner' => $user?->partner_id]);
         }
 
         // Проверяем наличие партнёра в сессии

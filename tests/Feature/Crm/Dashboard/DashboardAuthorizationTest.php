@@ -1,9 +1,9 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Dashboard;
 
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
+use Tests\Feature\Crm\CrmTestCase;
 
 class DashboardAuthorizationTest extends CrmTestCase
 {
@@ -60,8 +60,8 @@ class DashboardAuthorizationTest extends CrmTestCase
      */
     public function test_user_without_dashboard_view_permission_gets_403_for_ajax_routes(): void
     {
-        // Переопределяем gate на запрет
-        Gate::define('dashboard-view', fn () => false);
+        $actor = $this->createUserWithoutPermission('dashboard.view', $this->partner);
+        $this->actingAs($actor);
 
         // /get-user-details
         $this->getJson(route('getUserDetails', ['userId' => $this->user->id]))
@@ -70,4 +70,5 @@ class DashboardAuthorizationTest extends CrmTestCase
         // /get-team-details
         $this->getJson(route('getTeamDetails', ['teamId' => 1, 'teamName' => 'test']))
             ->assertStatus(403);
-    }}
+    }
+}

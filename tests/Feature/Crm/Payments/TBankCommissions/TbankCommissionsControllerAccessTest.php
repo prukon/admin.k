@@ -1,19 +1,15 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Payments\TBankCommissions;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Tests\Feature\Crm\CrmTestCase;
 
 class TbankCommissionsControllerAccessTest extends CrmTestCase
 {
-    protected static bool $canSettingsCommission = true;
-
     protected function setUp(): void
     {
         parent::setUp();
-
-        Gate::define('settings.commission', fn (?User $user = null) => self::$canSettingsCommission);
     }
 
     public function test_guest_cannot_access_routes(): void
@@ -37,16 +33,15 @@ class TbankCommissionsControllerAccessTest extends CrmTestCase
 
     public function test_user_without_permission_gets_403(): void
     {
-        self::$canSettingsCommission = false;
-
-        $resp = $this->get(route('admin.setting.tbankCommissions'));
+        // Не superadmin без permission settings.commission должен получить 403
+        $this->asAdmin();
+        $resp = $this->withSession(['current_partner' => $this->partner->id])
+            ->get(route('admin.setting.tbankCommissions'));
         $resp->assertStatus(403);
     }
 
     public function test_setpartner_blocks_user_without_partner_id(): void
     {
-        self::$canSettingsCommission = true;
-
         $u = User::factory()->create(['partner_id' => null]);
         $this->actingAs($u);
 
@@ -61,7 +56,8 @@ class TbankCommissionsControllerAccessTest extends CrmTestCase
 
     public function test_setpartner_blocks_when_session_current_partner_points_to_missing_partner(): void
     {
-        self::$canSettingsCommission = true;
+        // Переключение current_partner через session разрешено только superadmin
+        $this->asSuperadmin();
 
         // В сессии ставим несуществующего партнёра
         $resp = $this->withSession(['current_partner' => 999999])

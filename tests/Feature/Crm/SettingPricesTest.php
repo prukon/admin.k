@@ -8,7 +8,6 @@ use App\Models\Team;
 use App\Models\TeamPrice;
 use App\Models\User;
 use App\Models\UserPrice;
-use Illuminate\Auth\Middleware\Authorize;
 use Illuminate\Support\Carbon;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -60,8 +59,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function routes_work_with_set_prices_permission_smoke_for_all_ajax()
     {
-        // Отключаем авторизацию can:* для смоук-теста
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -140,7 +138,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function index_shows_only_current_partner_teams_and_initializes_team_prices()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         // Команды текущего партнёра
         $team1 = Team::factory()->create([
@@ -193,7 +191,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function update_date_changes_month_and_initializes_team_prices_for_current_partner()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $team1 = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -240,7 +238,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function update_date_parses_russian_month_name_correctly()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -260,7 +258,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function get_team_price_returns_active_users_and_creates_user_prices()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -333,7 +331,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function get_team_price_cannot_access_foreign_partner_team()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $otherPartner = Partner::factory()->create();
         $foreignTeam  = Team::factory()->create([
@@ -360,7 +358,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function set_team_price_updates_team_and_unpaid_active_users_only()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -455,7 +453,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function set_team_price_does_not_touch_other_months_and_teams()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $teamX = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -511,7 +509,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function set_team_price_cannot_update_foreign_partner_team()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $otherPartner = Partner::factory()->create();
         $foreignTeam  = Team::factory()->create([
@@ -529,7 +527,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function set_price_all_teams_updates_listed_teams_and_users()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $teamA = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -639,7 +637,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function set_price_all_teams_ignores_teams_not_in_payload()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $teamA = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -701,7 +699,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function set_price_all_teams_returns_400_on_invalid_teams_data()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         // teamsData = null
         $this->postJson(route('setPriceAllTeams'), [
@@ -725,7 +723,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function set_price_all_users_updates_only_changed_unpaid_prices()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $user1 = User::factory()->create([
             'partner_id' => $this->partner->id,
@@ -832,7 +830,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function set_price_all_users_does_not_create_new_records_or_touch_absent_users()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $user1 = User::factory()->create([
             'partner_id' => $this->partner->id,
@@ -917,7 +915,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function set_price_all_users_returns_400_on_invalid_payload()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         // usersPrice = null
         $this->postJson(route('setPriceAllUsers'), [
@@ -941,7 +939,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function logs_are_written_correctly_for_three_operations()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -1011,7 +1009,7 @@ class SettingPricesTest extends CrmTestCase
     /** @test */
     public function get_logs_data_returns_datatables_response_with_type_one_logs()
     {
-        $this->withoutMiddleware(Authorize::class);
+        $this->asAdmin();
 
         // Лог типа 1
         MyLog::forceCreate([

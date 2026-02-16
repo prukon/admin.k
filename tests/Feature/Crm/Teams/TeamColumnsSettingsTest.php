@@ -1,12 +1,12 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Teams;
 
 use App\Models\User;
 use App\Models\UserTableSetting;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
+use Tests\Feature\Crm\CrmTestCase;
 
 class TeamColumnsSettingsTest extends CrmTestCase
 {
@@ -15,15 +15,15 @@ class TeamColumnsSettingsTest extends CrmTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        // По умолчанию в этих тестах считаем, что доступ есть.
-        Gate::define('groups-view', fn () => true);
+        session(['current_partner' => $this->partner->id]);
+        $this->asAdmin();
     }
 
     /** @test */
     public function get_forbidden_without_groups_view_permission(): void
     {
-        Gate::define('groups-view', fn () => false);
+        $actor = $this->createUserWithoutPermission('groups.view', $this->partner);
+        $this->actingAs($actor);
 
         $this->getJson($this->url)->assertStatus(403);
     }
@@ -31,7 +31,8 @@ class TeamColumnsSettingsTest extends CrmTestCase
     /** @test */
     public function post_forbidden_without_groups_view_permission(): void
     {
-        Gate::define('groups-view', fn () => false);
+        $actor = $this->createUserWithoutPermission('groups.view', $this->partner);
+        $this->actingAs($actor);
 
         $this->postJson($this->url, ['columns' => ['title' => true]])
             ->assertStatus(403);

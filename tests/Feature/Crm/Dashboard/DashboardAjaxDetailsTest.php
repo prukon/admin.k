@@ -1,14 +1,11 @@
 <?php
 
-namespace Tests\Feature\Crm;
-
+namespace Tests\Feature\Crm\Dashboard;
 use App\Models\Partner;
-use App\Models\ScheduleUser;
 use App\Models\Team;
 use App\Models\User;
-use App\Models\UserField;
-use App\Models\UserPrice;
 use App\Models\Weekday;
+use Tests\Feature\Crm\CrmTestCase;
 
 class DashboardAjaxDetailsTest extends CrmTestCase
 {

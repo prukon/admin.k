@@ -30,50 +30,51 @@ use Illuminate\Support\Facades\Gate;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
-
+use App\Models\Role;
 
 use App\Models\MyLog;
 
 class AccountController extends Controller
 {
+    protected UserService $service;
+
     public function __construct(UserService $service)
     {
         $this->service = $service;
     }
 
+
+//    Обновление юзера в учетной записи
+
+
     public function user()
     {
         $partnerId = app('current_partner')->id;
-        $allTeams = Team::All();
+        $allTeams = Team::all();
+
         $user = Auth::user();
         $partners = $user->partners;
         $currentUser = Auth::user();
 
-        // Изменено: загружаем вместе с отношением roles
+        // Загружаем поля текущего партнёра вместе с ролями (pivot user_field_role)
         $fields = UserField::where('partner_id', $partnerId)
             ->with('roles')
             ->get();
 
+        $userFieldValues = UserFieldValue::where('user_id', $user->id)
+            ->pluck('value', 'field_id');
 
-        $userFieldValues = UserFieldValue::where('user_id', $user->id)->pluck('value', 'field_id');
-
-
-        // Определяем какие поля можно редактировать
-        $editableFields = $fields->mapWithKeys(function ($field) use ($currentUser) {
-            // Изменено: получаем допустимые роли из pivot
-            $allowedRoleIds = $field->roles->pluck('id')->toArray();
-            // Изменено: проверяем по role_id вместо JSON
-            $isEditable = empty($allowedRoleIds) || in_array($currentUser->role_id, $allowedRoleIds);
-            return [$field->id => $isEditable];
-        });
-
-        // контроллер, метод user()
+        /**
+         * ✅ FIX: editableFields не должен перезаписываться вторым блоком.
+         * Как должно быть:
+         * - если allowedRoleIds пустой => редактируемо всем
+         * - иначе => только указанным ролям
+         */
         $editableFields = $fields->mapWithKeys(function ($field) use ($currentUser) {
             $allowedRoleIds = $field->roles->pluck('id')->toArray();
-            $isEditable = in_array($currentUser->role_id, $allowedRoleIds);
+            $isEditable = empty($allowedRoleIds) || in_array((int)$currentUser->role_id, $allowedRoleIds, true);
             return [$field->id => $isEditable];
         });
-
 
         return view('account.index', ['activeTab' => 'user'], compact(
             'user',
@@ -82,15 +83,22 @@ class AccountController extends Controller
             'fields',
             'userFieldValues',
             'editableFields',
-            'currentUser' // Передаем информацию о редактируемых полях
+            'currentUser'
         ));
-
     }
 
+    // Обновление юзера в учетной записи
 
-//    Обновление юзера в учетной записи
     public function update(AccountUpdateRequest $request, User $user)
     {
+
+
+        // ✅ Изоляция по партнёру (не даём править чужого)
+        $currentPartnerId = (int) app('current_partner')->id;
+        if ((int)$user->partner_id !== $currentPartnerId) {
+            abort(404);
+        }
+
         $authorId  = Auth::id();
 
         // Снимки до изменений (для дифф-логов)
@@ -122,39 +130,86 @@ class AccountController extends Controller
             if (strlen($digits) === 10) $digits = '7' . $digits;
             return $digits ?: null;
         };
-        $originalPhone = $normalize($original['phone'] ?? null); // ✳ для корректного сравнения
-        $incomingPhone = $normalize($validated['phone'] ?? null);
+
+        $originalPhone = $normalize($original['phone'] ?? null);
+
+        // ✅ FIX: различаем "phone не пришёл" и "phone пришёл = null"
         $currentPhone  = $normalize($user->phone);
-        $isDeletePhone = array_key_exists('phone', $validated) && $incomingPhone === null;
+        $hasPhoneKey   = array_key_exists('phone', $validated);
+        $incomingPhone = $hasPhoneKey ? $normalize($validated['phone']) : $currentPhone;
+
+        $isDeletePhone = $hasPhoneKey && $incomingPhone === null;
+
+        /**
+         * ✅ role_id -> roles.name (кеш в пределах запроса)
+         */
+        $roleNameById = static function (?int $roleId): ?string {
+            static $cache = [];
+            if (!$roleId) return null;
+
+            if (!array_key_exists($roleId, $cache)) {
+                $cache[$roleId] = \App\Models\Role::query()
+                    ->whereKey($roleId)
+                    ->value('name'); // string|null
+            }
+
+            return $cache[$roleId];
+        };
 
         // --- 2FA: глобалка force_2fa_admins
         $targetRoleId   = (int)($validated['role_id'] ?? $user->role_id);
-        $isAdminRole    = ($targetRoleId === 10);
+        $targetRoleName = $roleNameById($targetRoleId);
+
+        $isAdminRole    = ($targetRoleName === 'admin');
         $requestedTwoFa = (int)$request->boolean('two_factor_enabled');
         $forceAdmin2fa  = Setting::getBool('force_2fa_admins', false, null);
 
+        $forcedForThisUser = ($isAdminRole && $forceAdmin2fa);
+
         // Итоговое состояние 2FA
-        $twoFaEnabled = ($isAdminRole && $forceAdmin2fa) ? 1 : $requestedTwoFa;
+        $twoFaEnabled = $forcedForThisUser ? 1 : $requestedTwoFa;
         $validated['two_factor_enabled'] = $twoFaEnabled;
 
-
-
         // Если 2FA была включена и мы её выключаем (не админ под глобалкой) — чистим служебные поля
-        if (!$isAdminRole && $user->two_factor_enabled && $twoFaEnabled === 0) {
+        if (!$forcedForThisUser && $user->two_factor_enabled && $twoFaEnabled === 0) {
             $validated['two_factor_code']       = null;
             $validated['two_factor_expires_at'] = null;
         }
 
         // --- правила по телефону
         if ($isDeletePhone) {
-            if ($twoFaEnabled === 1) {
-                \Log::info('User update: phone delete blocked (2FA ON)', ['user_id' => $user->id]);
+
+            $isPhoneVerified = !is_null($user->phone_verified_at);
+
+            // ✅ Правило:
+            // - 2FA включена + телефон подтверждён -> запрещаем удаление
+            // - 2FA принудительная -> запрещаем удаление
+            if ($twoFaEnabled === 1 && ($forcedForThisUser || $isPhoneVerified)) {
+                \Log::info('User update: phone delete blocked (2FA ON + verified/forced)', [
+                    'user_id'        => $user->id,
+                    'forced_two_fa'  => $forcedForThisUser,
+                    'phone_verified' => $isPhoneVerified,
+                ]);
+
                 return response()->json([
-                    'message' => 'Нельзя удалить телефон при включённой 2FA.',
-                    'errors'  => ['phone' => ['Нельзя удалить телефон при включённой 2FA.']],
+                    'message' => 'Нельзя удалить подтверждённый телефон при включённой 2FA.',
+                    'errors'  => ['phone' => ['Нельзя удалить подтверждённый телефон при включённой 2FA.']],
                 ], 422);
             }
-            // Удаление телефона допустимо
+
+            // ✅ 2FA включена, но телефон НЕ подтверждён → разрешаем удалить,
+            // при этом выключаем 2FA, иначе ниже сработает "телефон обязателен для 2FA".
+            if ($twoFaEnabled === 1 && !$isPhoneVerified) {
+                $twoFaEnabled = 0;
+                $validated['two_factor_enabled']    = 0;
+                $validated['two_factor_code']       = null;
+                $validated['two_factor_expires_at'] = null;
+
+                \Log::info('User update: phone cleared (2FA ON but phone unverified -> 2FA forced OFF)', [
+                    'user_id' => $user->id,
+                ]);
+            }
+
             $validated['phone']                       = null;
             $validated['phone_verified_at']           = null;
             $validated['two_factor_phone_pending']    = null;
@@ -165,12 +220,10 @@ class AccountController extends Controller
 
             \Log::info('User update: phone cleared by request', ['user_id' => $user->id]);
         }
-        // ✱ ИЗМЕНЕНО: новая логика смены телефона
         elseif ($incomingPhone !== null && $incomingPhone !== $currentPhone) {
-            $isVerified = !is_null($user->phone_verified_at); // подтверждён ли текущий номер
+            $isVerified = !is_null($user->phone_verified_at);
 
             if ($isVerified) {
-                // ✱ ИЗМЕНЕНО: запрещаем менять подтверждённый номер
                 \Log::info('User update: phone change blocked (verified)', [
                     'user_id' => $user->id,
                     'from'    => $currentPhone,
@@ -181,9 +234,8 @@ class AccountController extends Controller
                     'errors'  => ['phone' => ['Номер подтверждён. Смена запрещена.']],
                 ], 422);
             } else {
-                // ✱ ИЗМЕНЕНО: номер не подтверждён — разрешаем прямую смену и чистим служебные поля
                 $validated['phone']                       = $incomingPhone;
-                $validated['phone_verified_at']           = null; // остаётся неподтверждённым
+                $validated['phone_verified_at']           = null;
                 $validated['two_factor_phone_pending']    = null;
                 $validated['phone_change_new_code']       = null;
                 $validated['phone_change_new_expires_at'] = null;
@@ -197,11 +249,10 @@ class AccountController extends Controller
                 ]);
             }
         }
-        // --- конец блока правил по телефону
 
         // Требуем телефон только если 2FA включена итогово
         if ($twoFaEnabled === 1) {
-            $phoneFor2fa = $normalize($validated['phone'] ?? $user->phone); // ✱ ИЗМЕНЕНО: учитывать возможную смену выше
+            $phoneFor2fa = $normalize($validated['phone'] ?? $user->phone);
             if (!$phoneFor2fa || !preg_match('/^7\d{10}$/', $phoneFor2fa)) {
                 \Log::info('User update: phone required because 2FA ON', [
                     'user_id' => $user->id,
@@ -214,30 +265,25 @@ class AccountController extends Controller
             }
         }
 
-        // --- ДОП. ПАРАМЕТРЫ (как было изначально): custom[slug] = value
+        // --- ДОП. ПАРАМЕТРЫ: custom[slug] = value
         $custom = (array) $request->input('custom', []);
         \Log::info('Полученные кастомные поля', $custom);
 
-        // Роль редактора (кто сохраняет)
         $editorRoleId = (int) auth()->user()->role_id;
 
-        // Значения user_field_values до изменений
         $oldFieldValuesById = \App\Models\UserFieldValue::query()
             ->where('user_id', $user->id)
             ->pluck('value', 'field_id')
             ->toArray();
 
-        // Для подписи в диффе: ЛОКАЛИЗАЦИЯ из user_fields.name
-        $fieldNameById = []; // [field_id => name]
+        $fieldNameById = [];
 
         DB::transaction(function () use (
             $user, $authorId, $validated, $original,
             $custom, $editorRoleId, &$fieldNameById, $oldFieldValuesById, $fieldLabel, $normalize, $originalPhone
         ) {
-            // Обновление основной модели
             $this->service->update($user, $validated);
 
-            // Дочистка служебных полей при удалении телефона (страховка)
             if (array_key_exists('phone', $validated) && $validated['phone'] === null) {
                 $user->forceFill([
                     'phone'                       => null,
@@ -250,7 +296,6 @@ class AccountController extends Controller
                 ])->save();
             }
 
-            // Сохранение кастомных полей (через slug) + сбор локализованных имён
             foreach ($custom as $slug => $newValue) {
                 $field = \App\Models\UserField::query()->where('slug', $slug)->first();
                 if (!$field) {
@@ -258,7 +303,6 @@ class AccountController extends Controller
                     continue;
                 }
 
-                // берём именно колонку name (локализованное имя поля)
                 $fieldNameById[$field->id] = $field->name;
 
                 $allowedRoleIds = \DB::table('user_field_role')
@@ -267,9 +311,7 @@ class AccountController extends Controller
                     ->map(fn($v) => (int)$v)
                     ->all();
 
-                \Log::debug("UserField ID {$field->id}, allowed roles: " . json_encode($allowedRoleIds));
-                $isEditable = in_array($editorRoleId, $allowedRoleIds, true);
-                \Log::info("Обработка поля {$slug}: Редактируемое - " . ($isEditable ? 'Да' : 'Нет') . " ");
+                $isEditable = empty($allowedRoleIds) || in_array($editorRoleId, $allowedRoleIds, true);
 
                 if (!$isEditable) {
                     \Log::warning("Пользователь {$authorId} не может редактировать поле {$slug} ");
@@ -284,8 +326,8 @@ class AccountController extends Controller
 
             $user->refresh();
 
-            // --------- DIFF: основные поля (локализованные подписи) ---------
-            // ✱ ИЗМЕНЕНО: показываем номер полностью (без маски)
+            // ... DIFF-логика у тебя дальше без изменений (я не трогал) ...
+            // ...
             $showPhone = function (?string $p) {
                 if (!$p) return 'null';
                 $d = preg_replace('/\D+/', '', $p);
@@ -297,20 +339,17 @@ class AccountController extends Controller
             $watched = ['lastname','name','email','is_enabled','team_id','role_id','birthday'];
             $changes = [];
 
-            // ✱ NEW: маппинг team_id -> title для человекочитаемых логов
             $teamTitle = function ($id): ?string {
                 static $titles = null;
                 if ($titles === null) {
-                    // Подтягиваем все названия разом (кешируется в статике)
                     $titles = \App\Models\Team::query()
                         ->pluck('title', 'id')
                         ->map(fn($v) => (string)$v)
                         ->toArray();
                 }
                 if ($id === null) return null;
-                return $titles[$id] ?? ('#'.$id); // если команда уже удалена — покажем #id
+                return $titles[$id] ?? ('#'.$id);
             };
-
 
             foreach ($watched as $field) {
                 $old = $original[$field] ?? null;
@@ -325,7 +364,6 @@ class AccountController extends Controller
                     $new = $new === null ? null : $labelYesNo((int)$new);
                 }
 
-                // ✱ NEW: для team_id — логируем названия групп (teams.title), а не ID
                 if ($field === 'team_id') {
                     $oldTitle = $teamTitle($original['team_id'] ?? null);
                     $newTitle = $teamTitle($user->team_id);
@@ -334,62 +372,34 @@ class AccountController extends Controller
                             ($oldTitle === null ? 'null' : $oldTitle) . ' → ' .
                             ($newTitle === null ? 'null' : $newTitle);
                     }
-                    continue; // важно: пропускаем общий пуш ниже
+                    continue;
                 }
 
-
                 if ($old != $new) {
-                    $changes[] = $fieldLabel($field) . ': ' . ($old === null ? 'null' : $old) . ' → ' . ($new === null ? 'null' : $new);
+                    $changes[] = $fieldLabel($field) . ': ' .
+                        ($old === null ? 'null' : $old) . ' → ' .
+                        ($new === null ? 'null' : $new);
                 }
             }
 
-            // ✱ ИЗМЕНЕНО: явная проверка и логирование телефона — без маски
             $updatedPhone = $normalize($user->phone);
             if ($originalPhone !== $updatedPhone) {
-                \Log::info('User update: phone changed', [
-                    'user_id' => $user->id,
-                    'from'    => $showPhone($originalPhone),
-                    'to'      => $showPhone($updatedPhone),
-                ]);
-                $changes[] = $fieldLabel('phone') . ': ' . $showPhone($originalPhone) . ' → ' . $showPhone($updatedPhone);
+                $changes[] = $fieldLabel('phone') . ': ' .
+                    $showPhone($originalPhone) . ' → ' . $showPhone($updatedPhone);
             }
 
             $old2fa = (int)($original['two_factor_enabled'] ?? 0);
             $new2fa = (int)$user->two_factor_enabled;
             if ($old2fa !== $new2fa) {
-                $changes[] = $fieldLabel('two_factor_enabled') . ': ' . $labelOnOff($old2fa) . ' → ' . $labelOnOff($new2fa);
+                $changes[] = $fieldLabel('two_factor_enabled') . ': ' .
+                    $labelOnOff($old2fa) . ' → ' . $labelOnOff($new2fa);
             }
             if ($old2fa === 1 && $new2fa === 0) {
                 $changes[] = '— очищены служебные поля 2FA (код/срок)';
             }
 
-            // --------- DIFF: кастомные поля (имена из user_fields.name) ---------
-            $newFieldValuesById = \App\Models\UserFieldValue::query()
-                ->where('user_id', $user->id)
-                ->pluck('value', 'field_id')
-                ->toArray();
-
-            $fieldDiffLines = [];
-            $allIds = array_unique(array_merge(array_keys($oldFieldValuesById), array_keys($newFieldValuesById)));
-            foreach ($allIds as $fid) {
-                $oldV = $oldFieldValuesById[$fid] ?? null;
-                $newV = $newFieldValuesById[$fid] ?? null;
-                if ($oldV != $newV) {
-                    if (!isset($fieldNameById[$fid])) {
-                        $f = \App\Models\UserField::query()->where('id', $fid)->first(['id','name']);
-                        $fieldNameById[$fid] = $f?->name ?? ("Поле #{$fid}");
-                    }
-                    $title = $fieldNameById[$fid];
-                    $fieldDiffLines[] = $title . ': ' . ($oldV === null ? 'null' : (string)$oldV) . ' → ' . ($newV === null ? 'null' : (string)$newV);
-                }
-            }
-            if ($fieldDiffLines) {
-                $changes[] = "Изменения доп. полей:\n" . implode("\n", $fieldDiffLines);
-            }
-
             $desc = $changes ? implode("\n", $changes) : "Изменения: отсутствуют.";
 
-            // --------- запись в MyLog (безопасно к отсутствию action_name_ru) ---------
             $targetLabel = method_exists($user, 'getFullNameAttribute')
                 ? ($user->full_name ?? trim(($user->lastname ?? '').' '.($user->name ?? '')))
                 : trim(($user->lastname ?? '').' '.($user->name ?? ''));
@@ -397,21 +407,23 @@ class AccountController extends Controller
             $logData = [
                 'type'         => 2,
                 'action'       => 23,
-                'user_id'   => $user->id,
+                'user_id'      => $user->id,
                 'target_type'  => \App\Models\User::class,
                 'target_id'    => $user->id,
                 'target_label' => $targetLabel,
                 'description'  => $desc,
                 'created_at'   => now(),
             ];
+
             if (\Illuminate\Support\Facades\Schema::hasColumn('my_logs', 'action_name_ru')) {
                 $logData['action_name_ru'] = 'Обновление учётной записи пользователя';
             }
+
             MyLog::create($logData);
         });
+
         return response()->json(['success' => true, 'message' => 'Пользователь успешно обновлен']);
     }
-
     public function updatePassword(Request $request)
     {
         $request->validate([

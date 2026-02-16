@@ -41,12 +41,15 @@ class PartnerContext
 
         $user = $this->user();
 
-        // если супер-админ переключил партнёра — берём из сессии
-        $currentPartnerId = session('current_partner');
+        // Супер-админ может переключать партнёра через сессию,
+        // остальные пользователи — только в пределах своего partner_id.
+        if ($this->isSuperAdmin($user)) {
+            $currentPartnerId = session('current_partner');
 
-        if ($currentPartnerId) {
-            $this->cachedPartner = Partner::find($currentPartnerId);
-            return $this->cachedPartner;
+            if ($currentPartnerId) {
+                $this->cachedPartner = Partner::find($currentPartnerId);
+                return $this->cachedPartner;
+            }
         }
 
         // иначе — партнёр текущего пользователя
@@ -58,34 +61,7 @@ class PartnerContext
         return null;
     }
 
-    public function partner3(): ?Partner
-    {
-        if ($this->cachedPartner !== null) {
-            return $this->cachedPartner;
-        }
-
-        $user = $this->user();
-
-        $currentPartnerId = session('current_partner');
-
-        if ($currentPartnerId) {
-            $this->cachedPartner = Partner::find($currentPartnerId);
-            return $this->cachedPartner;
-        }
-
-        if ($user) {
-            if ($user->partner_id) {
-                $this->cachedPartner = Partner::find($user->partner_id);
-                return $this->cachedPartner;
-            }
-
-            // вот тут можно логировать/кидать исключение
-            \Log::error('User has no partner_id', ['user_id' => $user->id]);
-            // throw new \LogicException('User has no partner assigned');
-        }
-
-        return null;
-    }
+  
 
     /**
      * ID партнёра или null.

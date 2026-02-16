@@ -1,12 +1,12 @@
 <?php
 
-namespace Tests\Feature\Crm;
+namespace Tests\Feature\Crm\Reports;
 
 use App\Http\Controllers\Admin\Report\DeptReportController;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
+use Tests\Feature\Crm\CrmTestCase;
 
 class DeptReportTest extends CrmTestCase
 {
@@ -14,22 +14,8 @@ class DeptReportTest extends CrmTestCase
     {
         parent::setUp();
 
-        // Явно подставляем текущего партнёра в контейнер,
-        // чтобы app('current_partner') в контроллере всегда работал в тестах.
-        app()->instance('current_partner', $this->partner);
-
-        // Глобальная настройка доступа к отчётам:
-        // право reports-view определяется флагом на пользователе.
-        Gate::before(function ($user, string $ability) {
-            if ($ability === 'reports-view') {
-                return $user->reports_view_allowed ?? false;
-            }
-
-            return null;
-        });
-
-        // По умолчанию пользователь из CrmTestCase имеет доступ к отчётам
-        $this->user->reports_view_allowed = true;
+        session(['current_partner' => $this->partner->id]);
+        $this->asAdmin(); // реальные права reports.view
     }
 
     /**
