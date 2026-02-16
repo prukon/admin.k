@@ -142,21 +142,24 @@ class IstokMenuSeeder extends Seeder
 
         //3. Сссылки соц сетей
 
-        // Список соц сетей
-        DB::table('social_items')->upsert(
-            [
-                ['id' => 1,  'name' => 'vk.com',        'link' => null, 'created_at' => $now, 'updated_at' => $now],
-                ['id' => 2,  'name' => 'YouTube.com',   'link' => null, 'created_at' => $now, 'updated_at' => $now],
-                ['id' => 4,  'name' => 'facebook.com',  'link' => null, 'created_at' => $now, 'updated_at' => $now],
-                ['id' => 5,  'name' => 'Instagram.com', 'link' => null, 'created_at' => $now, 'updated_at' => $now],
-                ['id' => 8,  'name' => 'Telegram.org',  'link' => null, 'created_at' => $now, 'updated_at' => $now],
-                ['id' => 9, 'name' => 'TikTok.com',    'link' => null, 'created_at' => $now, 'updated_at' => $now],
-                ['id' => 10, 'name' => 'WhatsApp.com',  'link' => null, 'created_at' => $now, 'updated_at' => $now],
-                ['id' => 11, 'name' => 'Vimeo.com',     'link' => null, 'created_at' => $now, 'updated_at' => $now],
-            ],
-            ['id'],
-            ['name', 'link', 'updated_at']
-        );
+        // Ссылки соцсетей для партнёра #1 (по умолчанию пустые).
+        // Используем новую схему: social_networks + partner_social_links.
+        $networks = DB::table('social_networks')
+            ->where('is_enabled', 1)
+            ->orderBy('sort')
+            ->get(['id', 'sort']);
+
+        foreach ($networks as $sn) {
+            DB::table('partner_social_links')->insertOrIgnore([
+                'partner_id' => 1,
+                'social_network_id' => $sn->id,
+                'url' => null,
+                'is_enabled' => 1,
+                'sort' => (int)($sn->sort ?? 0),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
 
 
     }

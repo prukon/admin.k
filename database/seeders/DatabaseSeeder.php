@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             RolesSeeder::class,
             PermissionGroupsSeeder::class,
             PermissionSeeder::class,
+            SocialNetworksSeeder::class,
         ]);
 
         if (env('SEED_DEV_DATA', false)) {
@@ -32,5 +33,5 @@ class DatabaseSeeder extends Seeder
                 IstokMenuSeeder::class,
             ]);
         }
-    }
+    } 
 }

@@ -9,8 +9,9 @@ use App\Http\Requests\Team\FilterRequest;
 use App\Models\MyLog;
 use App\Models\MenuItem;
 use App\Models\Partner;
+use App\Models\PartnerSocialLink;
 use App\Models\Setting;
-use App\Models\SocialItem;
+use App\Models\SocialNetwork;
 use App\Models\Team;
 use App\Models\TeamPrice;
 use App\Models\UserPrice;
@@ -40,7 +41,8 @@ class SettingController extends AdminBaseController
     //Страница Настройки
     public function showSettings()
     {
-        $partnerId = $this->requirePartnerId();
+        $partner = $this->requirePartner();
+        $partnerId = $partner->id;
 
         $setting = Setting::where('name', 'textForUsers')
             ->where('partner_id', $partnerId)
@@ -61,6 +63,34 @@ class SettingController extends AdminBaseController
 //статус 2Fa для админов
         $force2faAdmins = Setting::getBool('force_2fa_admins', false, null);
 
+        // Соцсети партнёра для модалки настроек:
+        // - показываем только глобально включённые соцсети
+        // - создаём недостающие строки для партнёра (не в middleware, а только на странице настроек)
+        $socialNetworks = SocialNetwork::query()
+            ->where('is_enabled', 1)
+            ->orderBy('sort')
+            ->get(['id', 'sort']);
+
+        DB::transaction(function () use ($socialNetworks, $partnerId) {
+            foreach ($socialNetworks as $sn) {
+                PartnerSocialLink::firstOrCreate(
+                    ['partner_id' => $partnerId, 'social_network_id' => $sn->id],
+                    [
+                        'url' => null,
+                        'is_enabled' => 1,
+                        'sort' => (int)($sn->sort ?? 0),
+                    ]
+                );
+            }
+        });
+
+        $socialSettingsItems = PartnerSocialLink::query()
+            ->where('partner_id', $partnerId)
+            ->whereHas('socialNetwork', fn($q) => $q->where('is_enabled', 1))
+            ->with(['socialNetwork:id,code,title,domain,icon,sort,is_enabled'])
+            ->orderBy('sort')
+            ->get();
+
 
         return view('admin.setting.index',
             ['activeTab' => 'setting'],
@@ -68,7 +98,8 @@ class SettingController extends AdminBaseController
                 "textForUsers",
                 'partnerId',
                 'isRegistrationActive',
-                'force2faAdmins'
+                'force2faAdmins',
+                'socialSettingsItems'
             )
         );
     }
@@ -78,7 +109,7 @@ class SettingController extends AdminBaseController
     {
         $partner = $this->requirePartner();
 
-        $isRegistrationActivity = $request->query('isRegistrationActivity');
+        $isRegistrationActivity = $request->input('isRegistrationActivity');
         $authorId = auth()->id(); // Авторизованный пользователь
 
         DB::transaction(function () use ($isRegistrationActivity, $authorId, $partner) {
@@ -308,21 +339,28 @@ class SettingController extends AdminBaseController
         $errors = [];
         $validatedData = [];
 
-        // Валидация каждого social_item
-        foreach ($request->input('social_items', []) as $key => $data) {
+        // Валидация каждого partner_social_link
+        foreach ($request->input('partner_social_links', []) as $key => $data) {
+            if (!is_numeric($key)) {
+                continue;
+            }
+
             $validator = Validator::make($data, [
-                'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
-                'name' => ['required', 'string'],
+                'url' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
+                'is_enabled' => ['nullable'],
+                'sort' => ['nullable', 'integer', 'min:0', 'max:65535'],
             ], [
-                'link.regex' => 'Введите корректный URL.',
+                'url.regex' => 'Введите корректный URL.',
             ]);
 
             if ($validator->fails()) {
                 foreach ($validator->errors()->messages() as $field => $messages) {
-                    $errors["social_items[$key][$field]"] = $messages;
+                    $errors["partner_social_links[$key][$field]"] = $messages;
                 }
             } else {
-                $validatedData[] = $data;
+                $data['is_enabled'] = !empty($data['is_enabled']) ? 1 : 0;
+                $data['sort'] = isset($data['sort']) ? (int)$data['sort'] : 0;
+                $validatedData[(int)$key] = $data;
             }
         }
 
@@ -330,36 +368,45 @@ class SettingController extends AdminBaseController
             return response()->json(['success' => false, 'errors' => $errors], 422);
         }
 
+        $ids = array_keys($validatedData);
+        $linksById = PartnerSocialLink::query()
+            ->where('partner_id', $partner->id)
+            ->whereIn('id', $ids)
+            ->with('socialNetwork:id,title')
+            ->get()
+            ->keyBy('id');
+
+        if ($linksById->count() !== count($ids)) {
+            // строго: чужое/несуществующее — 404 (в JSON, чтобы фронт не падал на response.json()).
+            return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        }
+
         DB::transaction(function () use ($authorId, $validatedData, $partner) {
             $oldItems = [];
             $newItems = [];
 
-            foreach ($validatedData as $data) {
-                // пытаемся найти существующую запись партнёра по названию соцсети
-                $item = SocialItem::where('partner_id', $partner->id)
-                    ->where('name', $data['name'])
-                    ->first();
+            // Перечитаем модели в рамках транзакции, но без N+1
+            $ids = array_keys($validatedData);
+            $linksById = PartnerSocialLink::query()
+                ->where('partner_id', $partner->id)
+                ->whereIn('id', $ids)
+                ->with('socialNetwork:id,title')
+                ->get()
+                ->keyBy('id');
 
-                // старое значение (если есть)
-                $oldLink = $item ? $item->link : '';
+            foreach ($validatedData as $id => $data) {
+                $link = $linksById->get($id);
+                $label = $link?->socialNetwork?->title ?? ('#' . ($link?->social_network_id ?? $id));
 
-                if ($item) {
-                    // обновляем ссылку
-                    $item->update([
-                        'link' => $data['link'] ?: '',
-                    ]);
-                } else {
-                    // создаём новую запись для этого партнёра
-                    $item = SocialItem::create([
-                        'partner_id' => $partner->id,
-                        'name' => $data['name'],
-                        'link' => $data['link'] ?: '',
-                    ]);
-                }
+                $oldItems[] = "\"{$label}\": url=\"{$link->url}\", enabled=" . ($link->is_enabled ? '1' : '0') . ", sort={$link->sort}";
 
-                // логируем старое и новое
-                $oldItems[] = "\"{$item->name}\", \"{$oldLink}\"";
-                $newItems[] = "\"{$item->name}\", \"{$item->link}\"";
+                $link->update([
+                    'url' => $data['url'] ?? null,
+                    'is_enabled' => (int)$data['is_enabled'],
+                    'sort' => (int)$data['sort'],
+                ]);
+
+                $newItems[] = "\"{$label}\": url=\"{$link->url}\", enabled=" . ($link->is_enabled ? '1' : '0') . ", sort={$link->sort}";
             }
 
             // формируем читаемое описание изменений
@@ -386,8 +433,8 @@ class SettingController extends AdminBaseController
         return response()->json(['success' => true]);
     }
 
-    //Журнал логов
-    public function logsAllData(FilterRequest $request)
+    //Журнал логов (все типы) текущего партнёра
+    public function logsData(FilterRequest $request)
     {
         return $this->buildLogDataTable(null);
     }

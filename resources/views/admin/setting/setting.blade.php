@@ -217,53 +217,43 @@
                             <th>Иконка</th>
                             <th>Название</th>
                             <th>Ссылка</th>
+                            <th class="text-center">Вкл.</th>
+                            <th class="text-center">Порядок</th>
                         </tr>
                         </thead>
                         <tbody>
-                        @foreach ($socialItems as $item)
+                        @foreach ($socialSettingsItems as $item)
                             <tr data-id="{{ $item->id }}">
                                 <td>
-                                    @switch($item->name)
-                                        @case('vk.com')
-                                        <i class="fa-brands fa-vk"></i>
-                                        @break
-                                        @case('YouTube.com')
-                                        <i class="fa-brands fa-youtube"></i>
-                                        @break
-                                        @case('facebook.com')
-                                        <i class="fa-brands fa-facebook"></i>
-                                        @break
-                                        @case('Instagram.com')
-                                        <i class="fa-brands fa-instagram"></i>
-                                        @break
-                                        @case('Telegram.org')
-                                        <i class="fa-brands fa-telegram"></i>
-                                        @break
-                                        @case('TikTok.com')
-                                        <i class="fa-brands fa-tiktok"></i>
-                                        @break
-                                        @case('WhatsApp.com')
-                                        <i class="fa-brands fa-whatsapp"></i>
-                                        @break
-                                        @case('Vimeo.com')
-                                        <i class="fa-brands fa-vimeo"></i>
-                                        @break
-
-                                        @break
-                                        @default
-                                        <i class="fa fa-globe"></i>
-                                    @endswitch
+                                    <i class="{{ $item->socialNetwork?->icon ?: 'fa fa-globe' }}"></i>
                                 </td>
                                 <td>
-                                    <input type="text" name="social_items[{{ $item->id }}][name]"
+                                    <div class="d-flex flex-column">
+                                        <span class="fw-semibold">{{ $item->socialNetwork?->title ?? '—' }}</span>
+                                        @if(!empty($item->socialNetwork?->domain))
+                                            <small class="text-muted">{{ $item->socialNetwork->domain }}</small>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" name="partner_social_links[{{ $item->id }}][url]"
                                            class="form-control"
-                                           value="{{ $item->name }}" readonly>
+                                           value="{{ $item->url }}">
                                     <div class="text-danger error-message"></div>
                                 </td>
-                                <td>
-                                    <input type="text" name="social_items[{{ $item->id }}][link]"
-                                           class="form-control"
-                                           value="{{ $item->link }}">
+                                <td class="text-center">
+                                    <input type="checkbox"
+                                           name="partner_social_links[{{ $item->id }}][is_enabled]"
+                                           value="1" {{ $item->is_enabled ? 'checked' : '' }}>
+                                    <div class="text-danger error-message"></div>
+                                </td>
+                                <td class="text-center">
+                                    <input type="number"
+                                           name="partner_social_links[{{ $item->id }}][sort]"
+                                           class="form-control text-center"
+                                           style="max-width: 100px; margin: 0 auto;"
+                                           value="{{ (int)$item->sort }}"
+                                           min="0" max="65535">
                                     <div class="text-danger error-message"></div>
                                 </td>
                             </tr>
@@ -386,7 +376,7 @@
 
 
             @can('viewing-all-logs')
-                showLogModal("{{ route('logs.all.data') }}");
+                showLogModal("{{ route('settings.logs.data') }}");
             @endcan
 
             // Вызов модалки Активность регистрации
@@ -401,7 +391,8 @@
                         if (1 == 1) {
                             $.ajax({
                                 url: '/admin/settings/registration-activity',
-                                type: 'GET',
+                                type: 'PATCH',
+                                headers: {'X-CSRF-TOKEN': token},
                                 data: {
                                     isRegistrationActivity: isRegistrationActivity,
                                 },
@@ -572,13 +563,15 @@
 
                     document.querySelectorAll('#socialTable tbody tr').forEach((row) => {
                         const id = row.getAttribute('data-id');
-                        const nameInput = row.querySelector(`input[name*="[name]"]`);
-                        const linkInput = row.querySelector(`input[name*="[link]"]`);
+                        const urlInput = row.querySelector(`input[name*="[url]"]`);
+                        const enabledInput = row.querySelector(`input[name*="[is_enabled]"]`);
+                        const sortInput = row.querySelector(`input[name*="[sort]"]`);
 
-                        if (nameInput && linkInput) {
-                            const baseKey = `social_items[${id}]`;
-                            formData.append(`${baseKey}[name]`, nameInput.value);
-                            formData.append(`${baseKey}[link]`, linkInput.value);
+                        if (urlInput && enabledInput && sortInput) {
+                            const baseKey = `partner_social_links[${id}]`;
+                            formData.append(`${baseKey}[url]`, urlInput.value);
+                            formData.append(`${baseKey}[is_enabled]`, enabledInput.checked ? 1 : 0);
+                            formData.append(`${baseKey}[sort]`, sortInput.value);
                         }
                     });
 
@@ -589,28 +582,34 @@
                         },
                         body: formData,
                     })
-                        .then(response => {
+                        .then(async response => {
+                            const data = await response.json().catch(() => ({}));
                             if (!response.ok) {
-                                return response.json().then(data => {
-                                    throw new Error(JSON.stringify(data.errors));
-                                });
+                                throw {status: response.status, data};
                             }
-                            return response.json();
+                            return data;
                         })
                         .then(response => {
                             if (response.success) {
                                 showSuccessModal("Обновление меню", "Меню  соц. сетей обновлено.", 1);
                             }
                         })
-                        .catch(error => {
-                            const errors = JSON.parse(error.message);
-                            Object.keys(errors).forEach((key) => {
-                                const inputWithError = document.querySelector(`input[name="${key}"]`);
-                                if (inputWithError) {
-                                    const errorContainer = inputWithError.nextElementSibling;
-                                    errorContainer.textContent = errors[key][0];
-                                }
-                            });
+                        .catch(err => {
+                            const errors = err?.data?.errors;
+                            if (errors) {
+                                Object.keys(errors).forEach((key) => {
+                                    const inputWithError = document.querySelector(`input[name="${key}"]`);
+                                    if (inputWithError) {
+                                        const errorContainer = inputWithError.nextElementSibling;
+                                        errorContainer.textContent = errors[key][0];
+                                    }
+                                });
+                                return;
+                            }
+
+                            const msg = err?.data?.message || 'Ошибка сохранения меню соц. сетей.';
+                            if (typeof showErrorModal === 'function') showErrorModal('Ошибка', msg);
+                            else alert(msg);
                         });
                 });
             }

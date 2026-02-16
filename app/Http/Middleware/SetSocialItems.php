@@ -4,7 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Support\Facades\View;
-use App\Models\SocialItem;
+use App\Models\PartnerSocialLink;
 
 class SetSocialItems
 {
@@ -15,29 +15,25 @@ class SetSocialItems
             ?? optional(auth()->user())->partner_id;
 
         if ($partnerId) {
-            // 2) Инициализируем (если ещё нет) стандартный набор соцсетей
-            $defaultNames = [
-                'vk.com',
-                'YouTube.com',
-                'facebook.com',
-                'Instagram.com',
-                'Telegram.org',
-                'TikTok.com',
-                'WhatsApp.com',
-                'Vimeo.com',
-            ];
-
-            foreach ($defaultNames as $name) {
-                SocialItem::firstOrCreate(
-                    ['partner_id' => $partnerId, 'name' => $name],
-                    ['link'       => ''] // по умолчанию пустая ссылка
-                );
-            }
-
-            // 3) Подгружаем уже инициализированные записи
-            $socialItems = SocialItem::where('partner_id', $partnerId)
-                ->orderBy('name')
-                ->get();
+            // 2) Источник: справочник + ссылки партнёра
+            // Показываем только включённые и только с заполненным URL (по требованию "скрываем").
+            $socialItems = PartnerSocialLink::query()
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', 1)
+                ->whereNotNull('url')
+                ->where('url', '!=', '')
+                ->whereHas('socialNetwork', fn($q) => $q->where('is_enabled', 1))
+                ->with(['socialNetwork:id,code,title,icon,sort,is_enabled'])
+                ->orderBy('sort')
+                ->get()
+                ->map(function (PartnerSocialLink $link) {
+                    return (object)[
+                        'link'  => $link->url,
+                        'title' => $link->socialNetwork?->title,
+                        'code'  => $link->socialNetwork?->code,
+                        'icon'  => $link->socialNetwork?->icon,
+                    ];
+                });
         } else {
             // Если партнёр не определён — пустая коллекция
             $socialItems = collect();

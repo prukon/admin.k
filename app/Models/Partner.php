@@ -69,6 +69,11 @@ class Partner extends Model
         return $this->belongsToMany(User::class, 'partner_user');
     }
 
+    public function socialLinks()
+    {
+        return $this->hasMany(PartnerSocialLink::class, 'partner_id', 'id');
+    }
+
     /**
      * Пример метода создания/обновления партнёра.
      * Можно вызывать, например, Partner::store($data).

@@ -84,7 +84,7 @@ Route::get('/_debug/request', [RequestDebugController::class, 'show'])
     ]);
 
 
-//landing Page
+//landing Page 
 Route::view('/', 'landing.index')->name('landing.home');
 Route::view('/crm-dlya-futbolnoy-sekcii', 'landing.seo.football')->name('landing.seo.football');
 Route::view('/crm-dlya-tancevalnoy-studii', 'landing.seo.dance')->name('landing.dance');
@@ -247,7 +247,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/teams/columns-settings', [TeamColumnsSettingsController::class, 'saveColumnsSettings']);
     });
 
-    //Партнеры
+    //Партнеры (feature test +)
     Route::middleware(['can:partner-view'])->group(function () {
         Route::get('admin/partners', [PartnerController::class, 'index'])->name('admin.partner.index');
         Route::post('admin/partners', [PartnerController::class, 'store'])->name('admin.partner.store');
@@ -260,16 +260,16 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Страница Настойки - Общие
     Route::middleware('can:settings-view')->group(function () {
         Route::get('admin/settings', [SettingController::class, 'showSettings'])->name('admin.setting.setting');
-        Route::get('admin/settings/registration-activity', [SettingController::class, 'registrationActivity'])->name('registrationActivity');
+        Route::patch('admin/settings/registration-activity', [SettingController::class, 'registrationActivity'])->name('registrationActivity');
         Route::post('admin/settings/text-for-users', [SettingController::class, 'textForUsers'])->name('textForUsers');
         Route::post('settings/save-menu-items', [SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems');
         Route::post('settings/save-social-menu-items', [SettingController::class, 'saveSocialItems'])->name('settings.saveSocialItems');
         Route::post('admin/settings/force-2fa-admins', [SettingController::class, 'toggleForce2faAdmins'])->name('settings.force2fa.admins');
     });
 
-    // Просмотр всех логов
+    // Логи текущего партнёра (все типы)
     Route::middleware('can:viewing-all-logs')->group(function () {
-        Route::get('admin/settings/logs-all-data', [SettingController::class, 'logsAllData'])->name('logs.all.data');
+        Route::get('admin/settings/logs-data', [SettingController::class, 'logsData'])->name('settings.logs.data');
     });
 
     //Страница Настойки- Права (feature test +)
@@ -402,7 +402,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/client-contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
     });
 
-    //Сообщения (ЧАТ)
+    //Сообщения (ЧАТ)  (feature test -)
     Route::middleware('can:messages-view')->group(function () {
         // Страница чата
         Route::get('/chat', [ChatPageController::class, 'index'])->name('chat.index');
