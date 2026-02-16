@@ -3,7 +3,7 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 
@@ -20,7 +20,6 @@ use App\Models\Weekday;
 use App\Servises\TeamService;
 use App\Servises\UserService;
 use Carbon\Carbon;
-use function Illuminate\Http\Client\dump;
 
 //use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -34,15 +33,19 @@ use Illuminate\Support\Facades\Log;
 use App\Models\MyLog;
 
 use App\Support\BuildsLogTable;
+use App\Services\PartnerContext;
 
 //Контроллер для админа
 
-class PartnerController extends Controller
+class PartnerController extends AdminBaseController
 {
     use BuildsLogTable;
 
-    public function __construct(TeamService $service)
+    protected TeamService $service;
+
+    public function __construct(TeamService $service, PartnerContext $partnerContext)
     {
+        parent::__construct($partnerContext);
         $this->service = $service;
     }
 
@@ -64,6 +67,7 @@ class PartnerController extends Controller
 
     public function store(StorePartnerRequest $request)
     {
+        $partnerId = $this->requirePartnerId();
         $authorId = auth()->id();
         $data = $request->validated();
 
@@ -77,7 +81,7 @@ class PartnerController extends Controller
 
         $partner = null;
 
-        DB::transaction(function () use ($data, $authorId, &$partner) {
+        DB::transaction(function () use ($data, $authorId, $partnerId, &$partner) {
             $partner = Partner::create($data);
 
             $fields = [
@@ -117,6 +121,8 @@ class PartnerController extends Controller
             MyLog::create([
                 'type' => 80,
                 'action' => 81,
+                'partner_id' => $partnerId,
+                'author_id' => $authorId,
                 'target_type' => 'App\Models\Partner',
                 'target_id' => $partner->id,
                 'target_label' => $partner->title,
@@ -134,7 +140,7 @@ class PartnerController extends Controller
     public function edit(Partner $partner)
     {
         // что реально в БД (на случай смешанных версий)
-        $raw = \DB::table('partners')->where('id', $partner->id)->value('ceo');
+        $raw = DB::table('partners')->where('id', $partner->id)->value('ceo');
 
         // cast модели (array|null)
         $cast = $partner->ceo;
@@ -171,7 +177,7 @@ class PartnerController extends Controller
             'ceo' => $ceo,
         ];
 
-        \Log::info('[Partner.edit] payload', [
+        Log::info('[Partner.edit] payload', [
             'partner_id' => $partner->id,
             'raw_ceo' => $raw,
             'cast_ceo' => $cast,
@@ -183,6 +189,7 @@ class PartnerController extends Controller
 
     public function update(UpdatePartnerRequest $request, Partner $partner)
     {
+        $partnerId = $this->requirePartnerId();
         $authorId = auth()->id();
         $data = $request->validated();
 
@@ -194,7 +201,7 @@ class PartnerController extends Controller
             'phone' => $data['ceo']['phone'] ?? '',
         ];
 
-        \DB::transaction(function () use ($data, $authorId, $partner) {
+        DB::transaction(function () use ($data, $authorId, $partnerId, $partner) {
 
             $old = $partner->only([
                 'business_type', 'title', 'organization_name', 'tax_id', 'kpp', 'registration_number',
@@ -300,6 +307,8 @@ class PartnerController extends Controller
                 MyLog::create([
                     'type' => 80,
                     'action' => 82,
+                    'partner_id' => $partnerId,
+                    'author_id' => $authorId,
                     'target_type' => 'App\Models\Partner',
                     'target_id' => $partner->id,
                     'target_label' => $partner->title,
@@ -308,7 +317,7 @@ class PartnerController extends Controller
                 ]);
             }
 
-            \Log::info('[Partner.update] updated', [
+            Log::info('[Partner.update] updated', [
                 'partner_id' => $partner->id,
                 'after' => $new,
             ]);
@@ -322,6 +331,7 @@ class PartnerController extends Controller
 
     public function destroy(Partner $partner)
     {
+        $partnerId = $this->requirePartnerId();
         $authorId = auth()->id();
 
         // Собираем данные партнёра перед удалением
@@ -343,7 +353,7 @@ class PartnerController extends Controller
             'is_enabled',
         ]);
 
-        DB::transaction(function () use ($partner, $old, $authorId) {
+        DB::transaction(function () use ($partner, $old, $authorId, $partnerId) {
             // Удаляем партнёра
             $partner->delete();
 
@@ -379,6 +389,8 @@ class PartnerController extends Controller
             MyLog::create([
                 'type' => 80,      // ваш код типа лога
                 'action' => 83,      // ваш код действия «удаление партнёра»
+                'partner_id' => $partnerId,
+                'author_id' => $authorId,
                 'target_type' => 'App\Models\Partner',
                 'target_id' => $partner->id,
                 'target_label' => $partner->title,

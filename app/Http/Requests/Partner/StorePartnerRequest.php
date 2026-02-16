@@ -8,7 +8,7 @@ class StorePartnerRequest extends FormRequest
 {
     public function authorize()
     {
-        return $this->user()->can('manage-groups');
+        return $this->user()?->can('partner-view') === true;
     }
 
     protected function prepareForValidation()

@@ -6,6 +6,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdatePartnerRequest extends FormRequest
 {
+    public function authorize()
+    {
+        return $this->user()?->can('partner-view') === true;
+    }
+
     protected function prepareForValidation()
     {
         if ($this->filled('website') && !preg_match('#^https?://#i', $this->website)) {
