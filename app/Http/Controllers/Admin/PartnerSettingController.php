@@ -10,7 +10,6 @@ use App\Models\Team;
 use App\Models\User;
 use App\Servises\UserService;
 use Carbon\Carbon;
-use function Illuminate\Http\Client\dump;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +24,8 @@ use App\Models\MyLog;
 
 class PartnerSettingController extends Controller
 {
+    protected UserService $service;
+
     public function __construct(UserService $service)
     {
         $this->service = $service;
@@ -34,7 +35,7 @@ class PartnerSettingController extends Controller
     {
         $allTeams = Team::All();
         $user = Auth::user();
-        $partners = $user->partners;
+        $partners = $user->partner ? collect([$user->partner]) : collect();
 
         return view('admin.editCurUser',  ['activeTab' => 'user'], compact(
             'user',
@@ -48,11 +49,17 @@ class PartnerSettingController extends Controller
         $allTeams = Team::All();
         $user = Auth::user();
 
-        $partners = $user->partners;
+        // В проекте один user -> один partner (users.partner_id)
+        $partner = $user->partner;
+        if (!$partner) {
+            abort(404);
+        }
+        $partners = collect([$partner]);
 
         return view('account.index',  ['activeTab' => 'partner'], compact(
             'user',
             'partners',
+            'partner',
             'allTeams'
         ));
     }
@@ -158,6 +165,11 @@ class PartnerSettingController extends Controller
 
     public function updatePartner(UpdateRequest $request, Partner $partner)
     {
+        $currentPartner = app('current_partner');
+        if (!$currentPartner || (int)$currentPartner->id !== (int)$partner->id) {
+            abort(403);
+        }
+
         $authorId = auth()->id(); // Авторизованный пользователь
         $authorName = User::where('id', $authorId)->value('name');
 

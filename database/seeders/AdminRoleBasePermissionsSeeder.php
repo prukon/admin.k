@@ -43,6 +43,7 @@ class AdminRoleBasePermissionsSeeder extends Seeder
             'settings.paymentSystems.view',
             'account.user.view',
             'account.partner.view',
+            'account.partner.update',
             'account.documents.view',
             'servicePayments.view',
             'partnerWallet.view',

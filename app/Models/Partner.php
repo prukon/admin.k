@@ -66,37 +66,13 @@ class Partner extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class, 'partner_user');
+        // 1 школа (partner) -> много сотрудников (users)
+        return $this->hasMany(User::class, 'partner_id');
     }
 
     public function socialLinks()
     {
         return $this->hasMany(PartnerSocialLink::class, 'partner_id', 'id');
-    }
-
-    /**
-     * Пример метода создания/обновления партнёра.
-     * Можно вызывать, например, Partner::store($data).
-     */
-    public static function store(array $data)
-    {
-        return self::create($data);
-    }
-
-    /**
-     * Пример метода для назначения (привязки) нескольких пользователей к партнёру.
-     */
-    public function attachUsers(array $userIds)
-    {
-        return $this->users()->attach($userIds);
-    }
-
-    /**
-     * Пример метода для синхронизации пользователей (удалит «лишние» связи).
-     */
-    public function syncUsers(array $userIds)
-    {
-        return $this->users()->sync($userIds);
     }
 
     public function walletTransactions() {

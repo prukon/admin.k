@@ -46,8 +46,9 @@ class PartnerFactory extends Factory
                 ? $this->faker->address()
                 : null,
 
+            // phone должен проходить валидацию: /^[0-9\(\)\-\+\s]+$/
             'phone' => $this->faker->boolean(70)
-                ? $this->faker->phoneNumber()
+                ? ('+7 (' . $this->faker->numerify('###') . ') ' . $this->faker->numerify('###-##-##'))
                 : null,
 
             'email' => $this->faker->unique()->safeEmail(),

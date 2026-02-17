@@ -51,6 +51,7 @@ use App\Http\Controllers\Admin\PartnerController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Security\PhoneChangeController;
 use App\Http\Controllers\ContractsController;
+use App\Http\Controllers\AccountDocumentsController;
 use App\Http\Controllers\Webhooks\PodpislonWebhookController;
 use App\Http\Controllers\YooKassaWebhookController;
 use App\Http\Controllers\AdminUserController;
@@ -320,18 +321,22 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('account-settings/user/avatar', [AccountController::class, 'destroy'])->name('avatar.destroy');   // удаление
     });
 
-    //Учетная запись - вкладка "организация"
+    // Учетная запись - вкладка "организация" (текущий пользователь)  (feature test +)
     Route::middleware('can:account-partner-view')->group(function () {
-        Route::get('account-settings/partner/{user}/edit', [PartnerSettingController::class, 'partner'])->name('admin.cur.company.edit');
+        Route::get('account-settings/partner/edit', [PartnerSettingController::class, 'partner'])->name('admin.cur.company.edit');
+    });
+
+    // Учетная запись - вкладка "организация" ред. (текущий пользователь)  (feature test +)
+    Route::middleware('can:account-partner-update')->group(function () {
         Route::patch('account-settings/partner/{partner}', [PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
     });
  
     //Учетная запись - вкладка "Мои договоры"
     Route::middleware('can:account-documents-view')->group(function () {
-        Route::get('account-settings/documents', [ContractsController::class, 'myDocuments']);
-        Route::get('account-settings/documents/contracts/{contract}/requests', [ContractsController::class, 'myDocumentRequests']);
-        Route::get('/contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
-        Route::get('/contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
+        Route::get('account-settings/documents', [AccountDocumentsController::class, 'index'])->name('account.documents.index');
+        Route::get('account-settings/documents/contracts/{contract}/requests', [AccountDocumentsController::class, 'requests'])->name('account.documents.requests');
+        Route::get('account-settings/documents/contracts/{contract}/download-original', [AccountDocumentsController::class, 'downloadOriginal'])->name('account.documents.downloadOriginal');
+        Route::get('account-settings/documents/contracts/{contract}/download-signed', [AccountDocumentsController::class, 'downloadSigned'])->name('account.documents.downloadSigned');
     });
 
     //Лиды (feature test +)

@@ -85,13 +85,13 @@
 
                                         @if($c->signed_pdf_path)
                                             <a class="btn btn-sm btn-primary"
-                                               href="{{ url('/contracts/'.$c->id.'/download-signed') }}">
+                                               href="{{ route('account.documents.downloadSigned', $c) }}">
                                                 Скачать
                                             </a>
                                         @else
 
                                             <a class="btn btn-sm btn-outline-primary"
-                                               href="{{ url('/contracts/'.$c->id.'/download-original') }}">
+                                               href="{{ route('account.documents.downloadOriginal', $c) }}">
                                                 Скачать
                                             </a>
 

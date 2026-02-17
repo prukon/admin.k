@@ -313,7 +313,7 @@ class ContractsController extends Controller
         // комиссия за создание договора
         $fee = $this->createContractFee(); // 70.00 по умолчанию
         try {
-            $contract = \DB::transaction(function () use ($request, $partnerId, $student, $fee) {
+            $contract = DB::transaction(function () use ($request, $partnerId, $student, $fee) {
                 // 1) Блокируем строку партнёра до конца транзакции
                 /** @var Partner $partner */
                 $partner = app('current_partner');
@@ -335,7 +335,7 @@ class ContractsController extends Controller
                 $groupId = $student->team_id; // может быть null — это ок
 
                 $path = $request->file('pdf')->store('documents/' . date('Y/m'));
-                $sha = hash_file('sha256', \Storage::path($path));
+                $sha = hash_file('sha256', Storage::path($path));
 
                 // 4) Создаём договор
                 $contract = Contract::create([
@@ -457,7 +457,7 @@ class ContractsController extends Controller
             ->first();
 
         if (!$student) {
-            \Log::warning('[userGroup] student not found or disabled', ['userId' => $userId]);
+            Log::warning('[userGroup] student not found or disabled', ['userId' => $userId]);
             return response()->json(['groups' => []]);
         }
 
@@ -477,7 +477,7 @@ class ContractsController extends Controller
                 ->all();
         }
 
-        \Log::debug('[userGroup] done', ['groups_count' => count($groups)]);
+        Log::debug('[userGroup] done', ['groups_count' => count($groups)]);
         return response()->json(['groups' => $groups]);
     }
 
@@ -494,7 +494,7 @@ class ContractsController extends Controller
 
         $teamTitle = null;
         if ($student && $student->team_id) {
-            $teamTitle = \Illuminate\Support\Facades\DB::table('teams')
+            $teamTitle = DB::table('teams')
                 ->where('id', $student->team_id)
                 ->value('title');
         }
@@ -518,7 +518,7 @@ class ContractsController extends Controller
 
         // [LOGGING] вспомогательный замыкатель для MyLog
         $partnerId = app('current_partner')->id ?? null;
-        $authorId  = \Auth::id();
+        $authorId  = Auth::id();
         $userFullName = $contract->student_full_name ?? 'Неизвестный пользователь';
 //        $writeMyLog = function ( $action, $targetType, $targetId, $targetLabel, $lines) use ($partnerId, $authorId, $userFullName) {
 //            try {
@@ -719,7 +719,7 @@ class ContractsController extends Controller
 
                     \App\Models\ContractEvent::create([
                         'contract_id'  => $contract->id,
-                        'author_id'    => \Auth::id(),
+                        'author_id'    => Auth::id(),
                         'type'         => 'resend',
                         'payload_json' => json_encode(['res' => $res, 'doc' => $doc], JSON_UNESCAPED_UNICODE),
                     ]);
@@ -739,7 +739,7 @@ class ContractsController extends Controller
                 $links = $signingLinks();
                 \App\Models\ContractEvent::create([
                     'contract_id'  => $contract->id,
-                    'author_id'    => \Auth::id(),
+                    'author_id'    => Auth::id(),
                     'type'         => 'resend_failed',
                     'payload_json' => json_encode(['res' => $res, 'links' => $links], JSON_UNESCAPED_UNICODE),
                 ]);
@@ -789,7 +789,7 @@ class ContractsController extends Controller
                 $links = $signingLinks();
                 \App\Models\ContractEvent::create([
                     'contract_id'  => $contract->id,
-                    'author_id'    => \Auth::id(),
+                    'author_id'    => Auth::id(),
                     'type'         => 'resend_failed',
                     'payload_json' => json_encode(['error' => $e->getMessage(), 'links' => $links], JSON_UNESCAPED_UNICODE),
                 ]);
@@ -918,7 +918,7 @@ class ContractsController extends Controller
             $links = $signingLinks();
             \App\Models\ContractEvent::create([
                 'contract_id'  => $contract->id,
-                'author_id'    => \Auth::id(),
+                'author_id'    => Auth::id(),
                 'type'         => 'failed',
                 'payload_json' => json_encode(['res' => $res, 'links' => $links], JSON_UNESCAPED_UNICODE),
             ]);
@@ -967,7 +967,7 @@ class ContractsController extends Controller
 
             \App\Models\ContractEvent::create([
                 'contract_id'  => $contract->id,
-                'author_id'    => \Auth::id(),
+                'author_id'    => Auth::id(),
                 'type'         => 'failed',
                 'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
             ]);
@@ -1002,7 +1002,7 @@ class ContractsController extends Controller
 
 
 
-            \Log::error('[contracts.send] fail', [
+            Log::error('[contracts.send] fail', [
                 'contract_id' => $contract->id,
                 'error'       => $e->getMessage(),
             ]);
@@ -1255,68 +1255,5 @@ class ContractsController extends Controller
             'balance' => (float)$balance,
             'fee' => $fee,
         ], 422);
-    }
-//    Юзер
-    public function myDocuments(Request $request)
-    {
-        $user = Auth::user();
-        $partners = $user->partners ?? collect();
-
-        // фильтр по статусу (опционально: ?status=signed и т.п.)
-        $status = $request->string('status')->toString();
-
-//        $contracts = Contract::query()
-//            ->where('user_id', $user->id)
-//            ->when($status, fn($q) => $q->where('status', $status))
-//            ->orderByDesc('id')
-//            ->paginate(12);
-
-        $contracts = Contract::query()
-            ->where('user_id', $user->id)
-            ->with(['user', 'team', 'lastSignRequest'])
-            ->when($status, fn($q) => $q->where('status', $status))
-            ->orderByDesc('id')
-            ->paginate(12);
-
-
-
-        // для удобного рендера бейджей
-        $statusMap = [
-            'draft'   => ['label' => 'Черновик',        'class' => 'secondary'],
-            'sent'    => ['label' => 'Отправлено',      'class' => 'info'],
-            'opened'  => ['label' => 'Открыт',          'class' => 'warning'],
-            'signed'  => ['label' => 'Подписан',        'class' => 'success'],
-            'expired' => ['label' => 'Истёк срок',      'class' => 'dark'],
-            'revoked' => ['label' => 'Отозван',         'class' => 'dark'],
-            'failed'  => ['label' => 'Ошибка',          'class' => 'danger'],
-        ];
-
-        return view('account.index', [
-            'activeTab' => 'myDocuments',
-            'user'      => $user,
-            'partners'  => $partners,
-            'contracts' => $contracts,
-            'statusMap' => $statusMap,
-            'currentStatus' => $status,
-        ]);
-    }
-    public function myDocumentRequests(int $contractId)
-    {
-        $contract = Contract::query()
-            ->where('id', $contractId)
-            ->where('user_id', Auth::id())
-            ->with(['signRequests' => fn($q) => $q->orderByDesc('id')])
-            ->firstOrFail();
-
-        return response()->json([
-            'requests' => $contract->signRequests->map(fn($r) => [
-                'id'        => $r->id,
-                'signer'    => $r->signer_name,
-                'phone'     => $r->signer_phone,
-                'status'    => $r->status_ru,
-                'badge'     => $r->status_badge_class,
-                'created'   => $r->created_at?->format('d.m.Y H:i'),
-            ]),
-        ]);
     }
 }

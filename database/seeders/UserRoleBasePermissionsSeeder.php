@@ -35,6 +35,7 @@ class UserRoleBasePermissionsSeeder extends Seeder
             'myGroup.view',
             'account.user.view',
             'account.partner.view',
+            'account.partner.update',
             'account.documents.view',
             'account.user.birthdate.update',
             'changing_user_email',

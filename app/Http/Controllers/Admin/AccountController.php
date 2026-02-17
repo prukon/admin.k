@@ -55,7 +55,7 @@ class AccountController extends AdminBaseController
         $allTeams = Team::all();
 
         $user = Auth::user();
-        $partners = $user->partners;
+        $partners = $user->partner ? collect([$user->partner]) : collect();
         $currentUser = Auth::user();
 
         // Загружаем поля текущего партнёра вместе с ролями (pivot user_field_role)

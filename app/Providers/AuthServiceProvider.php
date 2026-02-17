@@ -169,6 +169,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('account.partner.view');
         });
 
+        // Изменение данных организации (учетная запись)
+        Gate::define('account-partner-update', function (User $user) {
+            return $user->hasPermission('account.partner.update');
+        });
+
         // Страница "Учетная запись -> Документы"
         Gate::define('account-documents-view', function (User $user) {
             return $user->hasPermission('account.documents.view');

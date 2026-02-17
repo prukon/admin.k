@@ -21,21 +21,19 @@
                 </li>
                 <!-- Вкладки для всех партнёров пользователя -->
                 @can('account-partner-view')
-                    @foreach ($partners as $partner)
-                        <li class="nav-item" role="presentation">
-                            <a class="nav-link {{ $activeTab == 'partner' ? 'active' : '' }}"
-                               href="/account-settings/partner/{{ $partner->id }}/edit"
-                               role="tab"> Организация
-                            </a>
-                        </li>
-                    @endforeach
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {{ $activeTab == 'partner' ? 'active' : '' }}"
+                           href="{{ route('admin.cur.company.edit') }}"
+                           role="tab"> Организация
+                        </a>
+                    </li>
                 @endcan
 
                 <!-- Вкладки Мои документы (для юзеров) -->
                 @can('account-documents-view')
                         <li class="nav-item" role="presentation">
                             <a class="nav-link {{ $activeTab == 'myDocuments' ? 'active' : '' }}"
-                               href="/account-settings/documents"
+                               href="{{ route('account.documents.index') }}"
                                role="tab"> Мои документы
                             </a>
                         </li>

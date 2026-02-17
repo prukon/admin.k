@@ -9,9 +9,8 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
-use Illuminate\Support\Facades\DB;
 
-class   User extends Authenticatable
+class User extends Authenticatable
 
 {
     use HasApiTokens, HasFactory, Notifiable;
@@ -41,20 +40,9 @@ class   User extends Authenticatable
 
     public $timestamps = true;
 
-//    public function users()
-//    {
-//        // pivot: role_user (user_id, role_id)
-//        return $this->belongsToMany(User::class, 'role_user', 'role_id', 'user_id');
-//    }
-
     public function getBirthdayForFormAttribute(): ?string
     {
         return $this->birthday ?->format('Y-m-d');
-    }
-
-    public function team2()
-    {
-        return $this->belongsTo(Team::class);
     }
 
     public function team()
@@ -87,38 +75,10 @@ class   User extends Authenticatable
         $this->notify(new ResetPasswordNotification($token));
     }
 
-    //Связь многие-ко-многим с партнёрами.
-    public function partners()
-    {
-        return $this->belongsToMany(Partner::class, 'partner_user');
-    }
-
-    //Пример метода для удобного добавления партнёра к пользователю.
-    public function attachPartner($partnerId)
-    {
-        return $this->partners()->attach($partnerId);
-    }
-
-    //Пример метода для синхронизации партнёров (заменяет текущие связи новыми).
-    public function syncPartners(array $partnerIds)
-    {
-        return $this->partners()->sync($partnerIds);
-    }
-
     public function partner()
     {
         return $this->belongsTo(Partner::class, 'partner_id');
     }
-
-    // public function roles()
-    // {
-    //     return $this->belongsToMany(
-    //         Role::class,
-    //         'role_user',   // имя pivot‑таблицы
-    //         'user_id',     // FK User
-    //         'role_id'      // FK Role
-    //     )->withTimestamps();
-    // }
 
     public function hasRole(string $roleName): bool
     {
@@ -163,11 +123,6 @@ class   User extends Authenticatable
         $this->save();
     }
 
-    // public function getFullNameAttributeOld(): string
-    // {
-    //     return trim(($this->lastname ?? '').' '.($this->name ?? ''));
-    // }
-
     public function getFullNameAttribute(): string
     {
         // Склеиваем фамилию и имя с пробелом, убираем лишние
@@ -192,9 +147,6 @@ class   User extends Authenticatable
     {
         $this->attributes['two_factor_phone_pending'] = $this->toE164($v);
     }
-
-
-    
 
 }
 

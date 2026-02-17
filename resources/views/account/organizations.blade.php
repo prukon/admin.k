@@ -1,11 +1,12 @@
 {{--ВКЛАДКА ОРГАНИЗАЦИЯ--}}
 @can('account-partner-view')
-    <form id="partnerUpdateForm"
-          action="{{ route('admin.cur.partner.update', $partner->id) }}"
-          method="POST">
-        @csrf
-        @method('PATCH')
-        <div class="row text-start partner-form-wrap">
+    @can('account-partner-update')
+        <form id="partnerUpdateForm"
+              action="{{ route('admin.cur.partner.update', $partner->id) }}"
+              method="POST">
+            @csrf
+            @method('PATCH')
+            <div class="row text-start partner-form-wrap">
             {{--Основные данные организации--}}
             <div class="col-12 col-lg-5 user-data-wrap mb-3">
                 <h4>Основная информация</h4>
@@ -164,14 +165,20 @@
             <hr>
 
 
-            <div class="col-12 col-lg-5 user-data-wrap mb-3">
-                <button type="submit" class="btn btn-primary width-170 mb-3">Обновить данные</button>
+                <div class="col-12 col-lg-5 user-data-wrap mb-3">
+                    <button type="submit" class="btn btn-primary width-170 mb-3">Обновить данные</button>
+                </div>
             </div>
+        </form>
+    @else
+        <div class="alert alert-warning">
+            У вас нет прав на изменение данных организации.
         </div>
-    </form>
+    @endcan
 
 
 
+@can('account-partner-update')
 @section('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
 
@@ -283,5 +290,7 @@
 
 
 @endsection
+@endcan
+
 
 @endcan

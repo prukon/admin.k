@@ -78,6 +78,24 @@
     <li><b>Права — только настоящие</b>: <code>permissions</code> + <code>permission_role</code> + правила из <code>AuthServiceProvider</code>.
       <div class="small">Например: permission <code>setPrices.view</code> соответствует ability <code>setPrices-view</code>.</div>
     </li>
+    <li>
+      <b>Глобальный bypass для суперадмина</b> (обходит все permissions):
+      <div class="small">
+        В проекте суперадмин (роль <code>roles.name = superadmin</code>) проходит <b>любой</b> ability
+        через <code>Gate::before(...)</code>. Это влияет на всё: middleware <code>can:*</code>, вызовы <code>Gate::allows()</code>,
+        директивы <code>@can</code> и т.п.
+      </div>
+      <div class="small">Код: <code>/app/Providers/AuthServiceProvider.php</code></div>
+      <pre><code>// Всё подряд разрешаем суперадмину (role.name = superadmin)
+Gate::before(function (User $user, string $ability) use ($roleNameById) {
+    return $roleNameById((int)$user->role_id) === 'superadmin' ? true : null;
+});</code></pre>
+      <div class="warn">
+        <b>Важно для тестов:</b> если в тесте используется <code>asSuperadmin()</code>, то проверки “нет permission → 403”
+        становятся нерелевантны (суперадмин всё равно пройдёт). Для тестирования запретов используйте акторов
+        без superadmin-роли.
+      </div>
+    </li>
     <li><b>Запрещены заглушки авторизации</b> для бизнес-прав:
       <code>Gate::define()</code>/<code>Gate::before()</code> нельзя использовать, чтобы “дать доступ”.
       <div class="small">Исключение — тесты, которые проверяют сам механизм Gate как отдельную тему, но это должно быть обосновано.</div>
