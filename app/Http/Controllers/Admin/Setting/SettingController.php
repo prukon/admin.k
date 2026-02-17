@@ -3,34 +3,50 @@
 namespace App\Http\Controllers\Admin\Setting;
 
 use App\Http\Controllers\AdminBaseController;
-use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
-
 use App\Models\MyLog;
 use App\Models\MenuItem;
-use App\Models\Partner;
 use App\Models\PartnerSocialLink;
 use App\Models\Setting;
 use App\Models\SocialNetwork;
-use App\Models\Team;
-use App\Models\TeamPrice;
-use App\Models\UserPrice;
-use App\Models\User;
-use App\Models\Weekday;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
-use Yajra\DataTables\DataTables;
-use App\Models\Role;
-use App\Models\Permission;
+use Illuminate\Validation\ValidationException;
 use App\Support\BuildsLogTable;
 use App\Services\PartnerContext;
 
 class SettingController extends AdminBaseController
 {
     use BuildsLogTable;
+
+    private const URL_REGEX = '/^(\/[\\S]*|https?:\\/\\/[^\s]+)$/';
+    private const MENU_ITEM_NAME_REGEX = '/^[\pL\pN\s]+$/u';
+
+    /**
+     * Приводим ключи ошибок в формат name="" инпутов (с квадратными скобками),
+     * чтобы фронт мог подсветить поля без сложной логики.
+     *
+     * Пример: menu_items.123.name -> menu_items[123][name]
+     */
+    private function bracketizeValidationErrors(array $errors): array
+    {
+        $out = [];
+        foreach ($errors as $key => $messages) {
+            $parts = explode('.', (string)$key);
+            if (count($parts) >= 3) {
+                $root = array_shift($parts);
+                $bracket = $root;
+                foreach ($parts as $p) {
+                    $bracket .= '[' . $p . ']';
+                }
+                $out[$bracket] = $messages;
+            } else {
+                $out[$key] = $messages;
+            }
+        }
+        return $out;
+    }
 
     public function __construct(PartnerContext $partnerContext)
     {
@@ -71,18 +87,34 @@ class SettingController extends AdminBaseController
             ->orderBy('sort')
             ->get(['id', 'sort']);
 
-        DB::transaction(function () use ($socialNetworks, $partnerId) {
+        // Оптимизация: пачечная инициализация недостающих связей
+        $networkIds = $socialNetworks->pluck('id')->all();
+        if (!empty($networkIds)) {
+            $existingNetworkIds = PartnerSocialLink::query()
+                ->where('partner_id', $partnerId)
+                ->whereIn('social_network_id', $networkIds)
+                ->pluck('social_network_id')
+                ->all();
+
+            $existingSet = array_flip($existingNetworkIds);
+            $now = now();
+            $toInsert = [];
             foreach ($socialNetworks as $sn) {
-                PartnerSocialLink::firstOrCreate(
-                    ['partner_id' => $partnerId, 'social_network_id' => $sn->id],
-                    [
-                        'url' => null,
-                        'is_enabled' => 1,
-                        'sort' => (int)($sn->sort ?? 0),
-                    ]
-                );
+                if (isset($existingSet[$sn->id])) continue;
+                $toInsert[] = [
+                    'partner_id' => $partnerId,
+                    'social_network_id' => $sn->id,
+                    'url' => null,
+                    'is_enabled' => 1,
+                    'sort' => (int)($sn->sort ?? 0),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
             }
-        });
+            if (!empty($toInsert)) {
+                PartnerSocialLink::query()->insert($toInsert);
+            }
+        }
 
         $socialSettingsItems = PartnerSocialLink::query()
             ->where('partner_id', $partnerId)
@@ -158,9 +190,16 @@ class SettingController extends AdminBaseController
     {
         $partner = $this->requirePartner();
 
-        // Получаем данные из тела запроса
-        $data = json_decode($request->getContent(), true);
-        $textForUsers = $data['textForUsers'] ?? null;
+        try {
+            $validated = $request->validate([
+                'textForUsers' => ['nullable', 'string'],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $this->bracketizeValidationErrors($e->errors())], 422);
+        }
+
+        // Laravel корректно читает и JSON body, и form-data через input()
+        $textForUsers = $validated['textForUsers'] ?? null;
         $authorId = auth()->id(); // Авторизованный пользователь
 
         DB::transaction(function () use ($textForUsers, $authorId, $partner) {
@@ -199,35 +238,49 @@ class SettingController extends AdminBaseController
     public function saveMenuItems(Request $request)
     {
         $partner = $this->requirePartner();
-        $errors = [];
-        $validatedData = [];
         $authorId = auth()->id();
 
-        // Валидация входящих пунктов
-        foreach ($request->input('menu_items', []) as $key => $data) {
-            $validator = Validator::make($data, [
-                'name' => ['required', 'max:20', 'regex:/^[\pL\pN\s]+$/u'],
-                'link' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
+        try {
+            $validated = $request->validate([
+                'menu_items' => ['nullable', 'array'],
+                'menu_items.*.name' => ['required', 'max:20', 'regex:' . self::MENU_ITEM_NAME_REGEX],
+                'menu_items.*.link' => ['nullable', 'regex:' . self::URL_REGEX],
+                'menu_items.*.target_blank' => ['nullable', 'boolean'],
+                'deleted_items' => ['nullable', 'array'],
+                'deleted_items.*' => ['integer'],
             ], [
-                'name.required' => 'Заполните название.',
-                'name.max' => 'Название не может быть длиннее 20 символов.',
-                'name.regex' => 'Название не может содержать спецсимволы.',
-                'link.regex' => 'Введите корректный URL.',
+                'menu_items.*.name.required' => 'Заполните название.',
+                'menu_items.*.name.max' => 'Название не может быть длиннее 20 символов.',
+                'menu_items.*.name.regex' => 'Название не может содержать спецсимволы.',
+                'menu_items.*.link.regex' => 'Введите корректный URL.',
             ]);
-
-            if ($validator->fails()) {
-                foreach ($validator->errors()->messages() as $field => $messages) {
-                    $errors["menu_items[$key][$field]"] = $messages;
-                }
-
-            } else {
-                $data['target_blank'] = !empty($data['target_blank']) ? 1 : 0;
-                $validatedData[$key] = $data;
-            }
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $this->bracketizeValidationErrors($e->errors())], 422);
         }
 
-        if (!empty($errors)) {
-            return response()->json(['success' => false, 'errors' => $errors], 422);
+        $validatedData = $validated['menu_items'] ?? [];
+
+        // Строго: если пришли числовые ключи (id) — это UPDATE существующих записей.
+        // Если какой-то id не найден у текущего партнёра (в т.ч. "чужой") — 404 и НЕ создаём новую запись.
+        $updateIds = [];
+        foreach ($validatedData as $key => $_) {
+            if (is_numeric($key)) {
+                $updateIds[] = (int)$key;
+            }
+        }
+        $updateIds = array_values(array_unique($updateIds));
+
+        $existingById = collect();
+        if (!empty($updateIds)) {
+            $existingById = MenuItem::query()
+                ->where('partner_id', $partner->id)
+                ->whereIn('id', $updateIds)
+                ->get()
+                ->keyBy('id');
+
+            if ($existingById->count() !== count($updateIds)) {
+                return response()->json(['success' => false, 'message' => 'Not found'], 404);
+            }
         }
 
         // ИНИЦИАЛИЗАЦИЯ массивов для логирования изменений
@@ -244,39 +297,24 @@ class SettingController extends AdminBaseController
         ) {
 
             foreach ($validatedData as $key => $data) {
+                $data['target_blank'] = !empty($data['target_blank']) ? 1 : 0;
                 if (is_numeric($key)) {
-                    // ИЗМЕНЕНО: ищем только свои записи
-                    $menuItem = MenuItem::where('partner_id', $partner->id)->find($key);
+                    // строго: до транзакции уже проверили, что id существует у партнёра
+                    $menuItem = MenuItem::where('partner_id', $partner->id)->find((int)$key);
 
-                    if ($menuItem) {
-                        $oldItems[] = "\"{$menuItem->name}, {$menuItem->link}"
-                            . ($menuItem->target_blank ? ", открывать в новой вкладке" : "")
-                            . "\"";
+                    $oldItems[] = "\"{$menuItem->name}, {$menuItem->link}"
+                        . ($menuItem->target_blank ? ", открывать в новой вкладке" : "")
+                        . "\"";
 
-                        $menuItem->update([
-                            'name' => $data['name'],
-                            'link' => $data['link'] ?: '',
-                            'target_blank' => $data['target_blank'],
-                            // partner_id оставляем прежним
-                        ]);
+                    $menuItem->update([
+                        'name' => $data['name'],
+                        'link' => $data['link'] ?: '',
+                        'target_blank' => $data['target_blank'],
+                    ]);
 
-                        $newItems[] = "\"{$data['name']}, {$data['link']}"
-                            . ($data['target_blank'] ? ", открывать в новой вкладке" : "")
-                            . "\"";
-                    } else {
-                        // ИЗМЕНЕНО: при попытке обновить чужую или несуществующую — создаём новую
-
-                        $new = MenuItem::create([
-                            'name' => $data['name'],
-                            'link' => $data['link'] ?: '',
-                            'target_blank' => $data['target_blank'],
-                            'partner_id' => $partner->id,
-                        ]);
-
-                        $newItems[] = "\"{$data['name']}, {$data['link']}"
-                            . ($data['target_blank'] ? ", открывать в новой вкладке" : "")
-                            . "\"";
-                    }
+                    $newItems[] = "\"{$data['name']}, {$data['link']}"
+                        . ($data['target_blank'] ? ", открывать в новой вкладке" : "")
+                        . "\"";
                 } else {
                     // ИЗМЕНЕНО: обычное создание для новых ключей
                     $created = MenuItem::create([
@@ -293,7 +331,7 @@ class SettingController extends AdminBaseController
             }
 
             if ($request->has('deleted_items')) {
-                $toDelete = $request->input('deleted_items');
+                $toDelete = $validated['deleted_items'] ?? $request->input('deleted_items');
                 // ИЗМЕНЕНО: удаляем только свои
                 MenuItem::where('partner_id', $partner->id)
                     ->whereIn('id', $toDelete)
@@ -336,36 +374,26 @@ class SettingController extends AdminBaseController
     {
         $partner = $this->requirePartner();
         $authorId = auth()->id();
-        $errors = [];
-        $validatedData = [];
 
-        // Валидация каждого partner_social_link
-        foreach ($request->input('partner_social_links', []) as $key => $data) {
-            if (!is_numeric($key)) {
-                continue;
-            }
-
-            $validator = Validator::make($data, [
-                'url' => ['nullable', 'regex:/^(\/[\S]*|https?:\/\/[^\s]+)$/'],
-                'is_enabled' => ['nullable'],
-                'sort' => ['nullable', 'integer', 'min:0', 'max:65535'],
+        try {
+            $validated = $request->validate([
+                'partner_social_links' => ['nullable', 'array'],
+                'partner_social_links.*.url' => ['nullable', 'regex:' . self::URL_REGEX],
+                'partner_social_links.*.is_enabled' => ['nullable', 'boolean'],
+                'partner_social_links.*.sort' => ['nullable', 'integer', 'min:0', 'max:65535'],
             ], [
-                'url.regex' => 'Введите корректный URL.',
+                'partner_social_links.*.url.regex' => 'Введите корректный URL.',
             ]);
-
-            if ($validator->fails()) {
-                foreach ($validator->errors()->messages() as $field => $messages) {
-                    $errors["partner_social_links[$key][$field]"] = $messages;
-                }
-            } else {
-                $data['is_enabled'] = !empty($data['is_enabled']) ? 1 : 0;
-                $data['sort'] = isset($data['sort']) ? (int)$data['sort'] : 0;
-                $validatedData[(int)$key] = $data;
-            }
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $this->bracketizeValidationErrors($e->errors())], 422);
         }
 
-        if (!empty($errors)) {
-            return response()->json(['success' => false, 'errors' => $errors], 422);
+        $validatedData = [];
+        foreach (($validated['partner_social_links'] ?? []) as $key => $data) {
+            if (!is_numeric($key)) continue;
+            $data['is_enabled'] = !empty($data['is_enabled']) ? 1 : 0;
+            $data['sort'] = isset($data['sort']) ? (int)$data['sort'] : 0;
+            $validatedData[(int)$key] = $data;
         }
 
         $ids = array_keys($validatedData);
@@ -446,56 +474,27 @@ class SettingController extends AdminBaseController
     {
         $user = $request->user();
 
-        Log::info('toggleForce2faAdmins: request IN', [
-            'user_id' => $user?->id,
-            'role_id' => $user?->role_id,
-            'payload' => $request->all(),
-            'headers' => [
-                'X-Requested-With' => $request->header('X-Requested-With'),
-                'Content-Type' => $request->header('Content-Type'),
-            ],
-        ]);
-
-        if ((int)$user->role_id !== 1) {
-            Log::warning('toggleForce2faAdmins: forbidden (not superadmin)', [
-                'user_id' => $user?->id,
-                'role_id' => $user?->role_id,
-            ]);
-            return response()->json(['success' => false, 'message' => 'Доступ только для суперадмина'], 403);
-        }
-
         // принимаем 0/1, true/false, "on" и т.д.
         $active = filter_var($request->input('force2faAdmins'), FILTER_VALIDATE_BOOLEAN);
-        Log::info('toggleForce2faAdmins: parsed value', ['active' => $active, 'raw' => $request->input('force2faAdmins')]);
 
         try {
-            // Пишем НАПРЯМУЮ в таблицу settings (без модели), глобальная запись partner_id = NULL
-            $ok = DB::table('settings')->updateOrInsert(
-                ['name' => 'force_2fa_admins', 'partner_id' => null],
-                [
-                    'status' => $active ? 1 : 0,
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                    'text' => DB::raw('COALESCE(text, "Обязательная 2FA для роли 10 (админ). 0/1.")'),
-                ]
-            );
+            // Глобальная запись partner_id = NULL
+            $ok = Setting::setBool('force_2fa_admins', (bool)$active, null);
+            if (!$ok) {
+                return response()->json(['success' => false, 'message' => 'DB error'], 500);
+            }
 
-            Log::info('toggleForce2faAdmins: DB updateOrInsert result', ['ok' => $ok]);
-
-            // перечитаем для контроля
-            $row = DB::table('settings')->whereNull('partner_id')->where('name', 'force_2fa_admins')->first();
-            Log::info('toggleForce2faAdmins: row after save', [
-                'exists' => (bool)$row,
-                'status' => $row->status ?? null,
-                'id' => $row->id ?? null,
+            $value = Setting::getBool('force_2fa_admins', false, null);
+            Log::info('toggleForce2faAdmins: saved', [
+                'user_id' => $user?->id,
+                'active' => $value,
             ]);
 
-            return response()->json(['success' => true, 'value' => (bool)($row->status ?? 0)]);
+            return response()->json(['success' => true, 'value' => $value]);
         } catch (\Throwable $e) {
             Log::error('toggleForce2faAdmins: FAILED', [
                 'error' => $e->getMessage(),
                 'class' => get_class($e),
-                'trace' => $e->getTraceAsString(),
             ]);
             return response()->json(['success' => false, 'message' => 'DB error: ' . $e->getMessage()], 500);
         }

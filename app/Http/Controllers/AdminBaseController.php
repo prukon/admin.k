@@ -35,14 +35,15 @@ abstract class AdminBaseController extends Controller
 
     /**
      * Обязательное наличие текущего партнёра для partner-scoped страниц.
-     * Возвращает ID или прерывает запрос 400 (если партнёр не определён).
+     * Возвращает ID. Пользовательский флоу "партнёр не выбран" должен обрабатываться middleware `SetPartner`.
+     * Если метод вызван вне web-middleware конвейера — это ошибка конфигурации/вызова.
      */
     protected function requirePartnerId(): int
     {
         $partnerId = $this->partnerId();
 
         if (!$partnerId) {
-            abort(400, 'Текущий партнёр не определён');
+            throw new \RuntimeException('Текущий партнёр не определён. Ожидается, что middleware SetPartner установит current_partner.');
         }
 
         return (int) $partnerId;
@@ -56,7 +57,7 @@ abstract class AdminBaseController extends Controller
         $partner = $this->partnerContext->partner();
 
         if (!$partner) {
-            abort(400, 'Текущий партнёр не определён');
+            throw new \RuntimeException('Текущий партнёр не определён. Ожидается, что middleware SetPartner установит current_partner.');
         }
 
         return $partner;

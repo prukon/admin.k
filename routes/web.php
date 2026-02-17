@@ -264,7 +264,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/settings/text-for-users', [SettingController::class, 'textForUsers'])->name('textForUsers');
         Route::post('settings/save-menu-items', [SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems');
         Route::post('settings/save-social-menu-items', [SettingController::class, 'saveSocialItems'])->name('settings.saveSocialItems');
-        Route::post('admin/settings/force-2fa-admins', [SettingController::class, 'toggleForce2faAdmins'])->name('settings.force2fa.admins');
+        Route::post('admin/settings/force-2fa-admins', [SettingController::class, 'toggleForce2faAdmins'])
+            ->middleware('can:settings-force2fa-admins')
+            ->name('settings.force2fa.admins');
     });
 
     // Логи текущего партнёра (все типы)

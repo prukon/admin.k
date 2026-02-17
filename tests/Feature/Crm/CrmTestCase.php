@@ -35,6 +35,14 @@ abstract class CrmTestCase extends TestCase
     {
         parent::setUp();
 
+        // В некоторых окружениях storage/ может быть недоступен для записи тестовым процессом.
+        // Переносим compiled Blade views в системный tmp (writable).
+        $compiled = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'kidscrm_compiled_views';
+        if (!is_dir($compiled)) {
+            @mkdir($compiled, 0777, true);
+        }
+        config(['view.compiled' => $compiled]);
+
         // 1) Референсы
         $this->seed(WeekdaysSeeder::class);
         $this->seed(RolesSeeder::class);

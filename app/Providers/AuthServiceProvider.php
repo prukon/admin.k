@@ -153,6 +153,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('settings.commission');
         });
 
+        // Управление обязательной 2FA для админов (глобальная настройка)
+        // По умолчанию доступно суперадмину (role_id=1), плюс можно выдать отдельное permission.
+        Gate::define('settings-force2fa-admins', function (User $user) {
+            return (int)$user->role_id === 1 || $user->hasPermission('settings.force2fa.admins');
+        });
+
         // Страница "Учетная запись -> Личные данные"
         Gate::define('account-user-view', function (User $user) {
             return $user->hasPermission('account.user.view');

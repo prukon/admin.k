@@ -494,31 +494,24 @@ class TeamControllerTest extends CrmTestCase
     }
 
     /* ============================================================
-     * F. Страховочный кейс: requirePartnerId без current_partner
+     * F. Страховочный кейс: партнёр не выбран → отваливаемся на middleware SetPartner
      * ============================================================
      */
 
-    public function test_require_partner_id_aborts_with_400_when_partner_is_missing()
+    public function test_partner_missing_is_blocked_by_set_partner_middleware(): void
     {
-        // Middleware SetPartner нам не нужен в этом кейсе
-        $this->withoutMiddleware(SetPartner::class);
-
         // Убираем current_partner и partner_id у пользователя
         session()->forget('current_partner');
-
         $this->user->partner_id = null;
         $this->user->save();
 
-        // can:groups-view должен пропустить запрос, иначе до requirePartnerId не дойдём.
-        // Реальные права: суперадмин проходит Gate::before без проверки партнёра.
+        // Права/роль тут не важны: SetPartner отработает раньше.
         $this->asSuperadmin();
 
-        $response = $this->get('/admin/teams');
+        $res = $this->from('/admin')->get('/admin/teams');
 
-        $response->assertStatus(400);
-        $this->assertStringContainsString(
-            'Текущий партнёр не определён',
-            (string) $response->getContent()
-        );
+        // По SetPartner: redirect()->back() + session errors
+        $res->assertStatus(302);
+        $res->assertSessionHasErrors(['partner']);
     }
 }

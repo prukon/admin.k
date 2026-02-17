@@ -25,21 +25,11 @@ class Setting extends Model
 
         $row = $q->first(['id','name','status','partner_id']);
 
-        Log::info('Setting::getBool()', [
-            'name'       => $name,
-            'partner_id' => $partnerId,
-            'found'      => (bool)$row,
-            'status'     => $row->status ?? null,
-            'row_id'     => $row->id ?? null,
-        ]);
-
         if (!$row || $row->status === null) {
-            Log::info('Setting::getBool() -> default used', ['default' => $default]);
             return $default;
         }
 
         $bool = (bool)(is_string($row->status) ? (int)$row->status : $row->status);
-        Log::info('Setting::getBool() -> result', ['bool' => $bool]);
 
         return $bool;
     }
@@ -52,13 +42,6 @@ class Setting extends Model
                 ['status' => $value ? 1 : 0, 'updated_at' => now(), 'created_at' => now()]
             );
 
-            Log::info('Setting::setBool()', [
-                'name'       => $name,
-                'partner_id' => $partnerId,
-                'value'      => $value,
-                'ok'         => $ok,
-            ]);
-
             return true;
         } catch (\Throwable $e) {
             Log::error('Setting::setBool() FAILED', [
@@ -66,7 +49,6 @@ class Setting extends Model
                 'partner_id' => $partnerId,
                 'value'      => $value,
                 'error'      => $e->getMessage(),
-                'trace'      => $e->getTraceAsString(),
             ]);
             return false;
         }

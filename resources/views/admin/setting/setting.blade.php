@@ -58,7 +58,7 @@
         </tr>
 
         {{-- НОВОЕ: Обязательная 2FA для администраторов --}}
-        @if(auth()->user()->role_id == 1)
+        @can('settings-force2fa-admins')
             <tr id="rowForce2faAdmins">
                 <td>Обязательная 2FA для администраторов</td>
                 <td>
@@ -78,7 +78,7 @@
                     <button id="btnForce2faAdmins" class="btn btn-primary">Применить</button>
                 </td>
             </tr>
-        @endif
+        @endcan
 
         <tr>
             <td class="col-4">Текст уведомления у пользователей</td>
@@ -455,20 +455,21 @@
             function addMenuItem() {
                 document.getElementById('addMenuItem').addEventListener('click', function () {
                     const newRow = document.createElement('tr');
+                    const tempKey = `new_${newItemIndex}`;
                     newRow.innerHTML = `
                 <td>${newItemIndex}</td>
 
 <td>
-    <input type="text" name="menu_items[{{ $item->id }}][name]" class="form-control w-100" value="{{ $item->name }}" data-key="menu_items[{{ $item->id }}][name]">
+    <input type="text" name="menu_items[${tempKey}][name]" class="form-control w-100" value="">
     <div class="text-danger error-message"></div>
 </td>
 <td>
-    <input type="text" name="menu_items[{{ $item->id }}][link]" class="form-control w-100" value="{{ $item->link }}">
+    <input type="text" name="menu_items[${tempKey}][link]" class="form-control w-100" value="">
     <div class="text-danger error-message"></div>
 </td>
 
                 <td class="text-center">
-                    <input type="checkbox" name="menu_items[new_${newItemIndex}][target_blank]" value="1">
+                    <input type="checkbox" name="menu_items[${tempKey}][target_blank]" value="1">
                 </td>
                 <td><button type="button" class="btn btn-danger btn-sm deleteRow">Удалить</button></td>
             `;
@@ -528,27 +529,37 @@
                         },
                         body: formData,
                     })
-                        .then(response => {
+                        .then(async response => {
+                            const data = await response.json().catch(() => ({}));
                             if (response.status === 422) {
-                                return response.json().then(data => {
-                                    throw data.errors;
-                                });
+                                throw {status: 422, data};
                             }
-                            return response.json();
+                            if (!response.ok) {
+                                throw {status: response.status, data};
+                            }
+                            return data;
                         })
                         .then(response => {
                             if (response.success) {
                                 showSuccessModal("Обновление меню", "Главное меню в шапке сайта обновлено.", 1);
                             }
                         })
-                        .catch(errors => {
-                            Object.keys(errors).forEach((key) => {
-                                const inputWithError = document.querySelector(`input[name="${key}"]`);
-                                if (inputWithError) {
-                                    const errorContainer = inputWithError.nextElementSibling;
-                                    errorContainer.textContent = errors[key][0]; // Отображаем первую ошибку для данного поля
-                                }
-                            });
+                        .catch(err => {
+                            const errors = err?.data?.errors;
+                            if (errors) {
+                                Object.keys(errors).forEach((key) => {
+                                    const inputWithError = document.querySelector(`input[name="${key}"]`);
+                                    if (inputWithError) {
+                                        const errorContainer = inputWithError.nextElementSibling;
+                                        errorContainer.textContent = errors[key][0];
+                                    }
+                                });
+                                return;
+                            }
+
+                            const msg = err?.data?.message || 'Ошибка сохранения меню.';
+                            if (typeof showErrorModal === 'function') showErrorModal('Ошибка', msg);
+                            else alert(msg);
                         });
                 });
 

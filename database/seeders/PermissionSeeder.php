@@ -75,6 +75,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'payment_method_T-Bank',          'description' => 'Способ оплаты "Т-Банк',                          'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 200],
             ['name' => 'viewing_all_logs',               'description' => 'Просмотр всех логов',                            'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 210],
             ['name' => 'settings.commission',            'description' => 'Настройка комиссий',                             'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 220],
+            ['name' => 'settings.force2fa.admins',       'description' => 'Управление обязательной 2FA для админов',         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 221],
         ];
 
         // Готовим данные для upsert: name как уникальный ключ, created_at задаём только "на создание"
