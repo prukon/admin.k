@@ -50,7 +50,10 @@ use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\Admin\PartnerController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Security\PhoneChangeController;
-use App\Http\Controllers\ContractsController;
+use App\Http\Controllers\Contracts\ContractsController;
+use App\Http\Controllers\Contracts\ContractLookupsController;
+use App\Http\Controllers\Contracts\ContractSigningController;
+use App\Http\Controllers\Contracts\ContractTableController;
 use App\Http\Controllers\AccountDocumentsController;
 use App\Http\Controllers\Webhooks\PodpislonWebhookController;
 use App\Http\Controllers\YooKassaWebhookController;
@@ -331,7 +334,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::patch('account-settings/partner/{partner}', [PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
     });
  
-    //Учетная запись - вкладка "Мои договоры"
+    //Учетная запись - вкладка "Мои договоры"  (feature test +)
     Route::middleware('can:account-documents-view')->group(function () {
         Route::get('account-settings/documents', [AccountDocumentsController::class, 'index'])->name('account.documents.index');
         Route::get('account-settings/documents/contracts/{contract}/requests', [AccountDocumentsController::class, 'requests'])->name('account.documents.requests');
@@ -382,33 +385,35 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:contracts-view')->group(function () {
 
         // AJAX для Select2 (поиск учеников текущего партнёра)
-        Route::get('/client-contracts/users-search', [ContractsController::class, 'usersSearch'])->name('contracts.users.search');
+        Route::get('/client-contracts/users-search', [ContractLookupsController::class, 'usersSearch'])->name('contracts.users.search');
 
         // AJAX для получения групп ученика
-        Route::get('/client-contracts/user-group', [ContractsController::class, 'userGroup'])->name('contracts.user.group');
+        Route::get('/client-contracts/user-group', [ContractLookupsController::class, 'userGroup'])->name('contracts.user.group');
 
         // >>> СНАЧАЛА: спец-урлы для таблицы (БЕЗ параметров) <<<
 
-        Route::get('/client-contracts/data', [ContractsController::class, 'data'])->name('contracts.data');
-        Route::get('/client-contracts/columns-settings', [ContractsController::class, 'getColumnsSettings'])->name('contracts.columns-settings.get');
-        Route::post('/client-contracts/columns-settings', [ContractsController::class, 'saveColumnsSettings'])->name('contracts.columns-settings.save');
+        Route::get('/client-contracts/data', [ContractTableController::class, 'data'])->name('contracts.data');
+        Route::get('/client-contracts/columns-settings', [ContractTableController::class, 'getColumnsSettings'])->name('contracts.columns-settings.get');
+        Route::post('/client-contracts/columns-settings', [ContractTableController::class, 'saveColumnsSettings'])->name('contracts.columns-settings.save');
 
         // >>> ПОТОМ обычные CRUD-роуты без параметров <<<
 
         Route::get('/client-contracts', [ContractsController::class, 'index'])->name('contracts.index');
         Route::get('/client-contracts/create', [ContractsController::class, 'create'])->name('contracts.create');
-        Route::post('/client-contracts', [ContractsController::class, 'store'])
-            ->name('contracts.store');
-
-        Route::get('/client-contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
-        Route::post('/client-contracts/{contract}/send', [ContractsController::class, 'send'])->name('contracts.send');
-        Route::post('/client-contracts/{contract}/resend', [ContractsController::class, 'resend'])->name('contracts.resend');
-        Route::post('/client-contracts/{contract}/revoke', [ContractsController::class, 'revoke'])->name('contracts.revoke');
-        Route::get('/client-contracts/{contract}/status', [ContractsController::class, 'status'])->name('contracts.status');
-        Route::post('/client-contracts/{contract}/send-email', [ContractsController::class, 'sendEmail'])->name('contracts.sendEmail');
+        Route::post('/client-contracts', [ContractsController::class, 'store'])->name('contracts.store');
         Route::post('/client-contracts/check-balance', [ContractsController::class, 'checkBalance']);
-        Route::get('/client-contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
-        Route::get('/client-contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
+
+        // Все маршруты с {contract} дополнительно ограничиваем текущим партнёром (multi-tenant safety)
+        Route::middleware('contract.partner')->group(function () {
+            Route::get('/client-contracts/{contract}', [ContractsController::class, 'show'])->name('contracts.show');
+            Route::post('/client-contracts/{contract}/send', [ContractSigningController::class, 'send'])->name('contracts.send');
+            Route::post('/client-contracts/{contract}/resend', [ContractSigningController::class, 'resend'])->name('contracts.resend');
+            Route::post('/client-contracts/{contract}/revoke', [ContractSigningController::class, 'revoke'])->name('contracts.revoke');
+            Route::get('/client-contracts/{contract}/status', [ContractSigningController::class, 'status'])->name('contracts.status');
+            Route::post('/client-contracts/{contract}/send-email', [ContractSigningController::class, 'sendEmail'])->name('contracts.sendEmail');
+            Route::get('/client-contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
+            Route::get('/client-contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');
+        });
     });
 
     //Сообщения (ЧАТ)  (feature test -)
