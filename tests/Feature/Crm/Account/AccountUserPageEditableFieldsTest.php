@@ -61,7 +61,7 @@ class AccountUserPageEditableFieldsTest extends CrmTestCase
         // pivot не заполняем
 
         $resp = $this->withSession(['current_partner' => $this->partner->id])
-            ->get(route('admin.cur.user.edit', $this->actorAdmin));
+            ->get(route('account.user.edit'));
 
         $resp->assertStatus(200);
 

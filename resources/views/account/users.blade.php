@@ -418,8 +418,8 @@
                         errorMessage.style.display = 'none';
                     }
 
-                    fetch(`/user/update-password`, {
-                        method: 'POST',
+                    fetch(`{{ route('account.user.password.update') }}`, {
+                        method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': token,
@@ -474,7 +474,7 @@
                         $form.find('.invalid-feedback').remove();
 
                         $.ajax({
-                            url: "{{ route('account.user.update', $user->id) }}",
+                            url: "{{ route('account.user.update') }}",
                             type: 'PATCH',
                             data: formData,
                             headers: {'Accept': 'application/json'},

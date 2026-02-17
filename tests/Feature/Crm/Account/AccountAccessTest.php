@@ -13,7 +13,7 @@ class AccountAccessTest extends CrmTestCase
         // Важно: в сессии нет current_partner
         $this->withSession([]);
 
-        $resp = $this->get(route('admin.cur.user.edit', $this->user));
+        $resp = $this->get(route('account.user.edit'));
         $resp->assertStatus(200);
 
         $this->assertSame(
@@ -28,23 +28,29 @@ class AccountAccessTest extends CrmTestCase
         $this->actingAs($this->user);
 
         $resp = $this->withSession(['current_partner' => $this->partner->id])
-            ->get(route('admin.cur.user.edit', $this->user));
+            ->get(route('account.user.edit'));
 
         $resp->assertStatus(200);
     }
 
-    public function test_cannot_update_foreign_partner_user(): void
+    public function test_update_ignores_foreign_current_partner_for_regular_user(): void
     {
         $this->actingAs($this->user);
 
         $payload = [
-            'name'     => 'NewName',
-            'lastname' => 'NewLast',
+            // Передаём текущее имя/фамилию, чтобы не зависеть от прав name-editing.
+            'name'     => $this->user->name,
+            'lastname' => $this->user->lastname,
         ];
 
-        $resp = $this->withSession(['current_partner' => $this->partner->id])
-            ->patchJson(route('account.user.update', $this->foreignUser), $payload);
+        $resp = $this->withSession([
+                'current_partner' => $this->foreignPartner->id,
+                '2fa:passed'      => true,
+            ])
+            ->patchJson(route('account.user.update'), $payload);
 
-        $resp->assertStatus(404);
+        // Для обычного пользователя PartnerContext берёт partner_id из пользователя и игнорирует session('current_partner').
+        $resp->assertStatus(200);
+        $resp->assertJsonPath('success', true);
     }
 }

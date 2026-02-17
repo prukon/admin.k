@@ -773,8 +773,8 @@
                         errorMessage.style.display = 'none'; // Скрываем сообщение об ошибке
                     }
 
-                    fetch(`/user/update-password`, {
-                        method: 'POST',
+                    fetch(`{{ route('account.user.password.update') }}`, {
+                        method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': token,
@@ -831,7 +831,7 @@
                     // AJAX-запрос
                     $.ajax({
                         // url: $(this).attr('action'),   // Используем URL из атрибута action
-                        url: "{{ route('account.user.update', $user->id) }}", // Явно указанный URL
+                        url: "{{ route('account.user.update') }}", // Явно указанный URL
 
                         type: 'PATCH',                 // Метод PATCH (Laravel примет, т.к. есть _method=patch)
                         data: formData,
@@ -859,7 +859,7 @@
                         $form.find('.invalid-feedback').remove();
 
                         $.ajax({
-                            url: "{{ route('account.user.update', $user->id) }}",
+                            url: "{{ route('account.user.update') }}",
                             type: 'PATCH',
                             data: formData,
                             headers: { 'Accept': 'application/json' }, // важно для 422 в JSON

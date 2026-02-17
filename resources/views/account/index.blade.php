@@ -15,7 +15,7 @@
             <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <a class="nav-link {{ $activeTab == 'user' ? 'active' : '' }}"
-                       href="/account-settings/users/{{ $user->id }}/edit"
+                       href="{{ route('account.user.edit') }}"
                        role="tab"> {{auth()->user()->role->label}}
                     </a>
                 </li>

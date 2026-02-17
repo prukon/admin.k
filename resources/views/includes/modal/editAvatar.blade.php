@@ -395,7 +395,7 @@
         /* ----------------- УДАЛЕНИЕ АВАТАРКИ (своей/чужой) ----------------- */
         $(document).off('click', '.js-delete-photo').on('click', '.js-delete-photo', function () {
             const userId = $(this).data('id');  // если есть — удаляем у этого юзера
-            const url = userId ? `/admin/users/${userId}/avatar` : `/profile/avatar`;
+            const url = userId ? `/admin/users/${userId}/avatar` : `/account-settings/user/avatar`;
 
             showConfirmDeleteModal(
                 "Удаление пользователя",
@@ -463,7 +463,7 @@
 
             // ВАЖНО: берём id именно с нажатой кнопки, а не с заранее сохранённой переменной
             const userId = $(this).data('id');
-            const url = userId ? `/admin/users/${userId}/avatar` : `/profile/avatar`;
+            const url = userId ? `/admin/users/${userId}/avatar` : `/account-settings/user/avatar`;
 
             const bigCanvas  = cropper.getCroppedCanvas({width: 1024, height: 1024});
             const cropCanvas = cropper.getCroppedCanvas({width: 256, height: 256});

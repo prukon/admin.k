@@ -66,7 +66,7 @@ class AccountUpdateUserTest extends CrmTestCase
                 'Accept'             => 'application/json',
                 'X-Requested-With'   => 'XMLHttpRequest',
             ])
-            ->patchJson(route('account.user.update', $this->actorUser), $payload);
+            ->patchJson(route('account.user.update'), $payload);
 
         $resp->assertStatus(422);
         $resp->assertJsonPath(
@@ -105,7 +105,7 @@ class AccountUpdateUserTest extends CrmTestCase
                 'Accept'             => 'application/json',
                 'X-Requested-With'   => 'XMLHttpRequest',
             ])
-            ->patchJson(route('account.user.update', $this->actorUser), $payload);
+            ->patchJson(route('account.user.update'), $payload);
 
         $resp->assertStatus(200);
         $resp->assertJsonPath('success', true);
@@ -151,7 +151,7 @@ class AccountUpdateUserTest extends CrmTestCase
                 'Accept'             => 'application/json',
                 'X-Requested-With'   => 'XMLHttpRequest',
             ])
-            ->patchJson(route('account.user.update', $this->actorAdmin), $payload);
+            ->patchJson(route('account.user.update'), $payload);
 
         $resp->assertStatus(200);
         $resp->assertJsonPath('success', true);
@@ -195,7 +195,7 @@ class AccountUpdateUserTest extends CrmTestCase
                 'Accept'             => 'application/json',
                 'X-Requested-With'   => 'XMLHttpRequest',
             ])
-            ->patchJson(route('account.user.update', $this->actorUser), $payload);
+            ->patchJson(route('account.user.update'), $payload);
 
         $resp->assertStatus(200);
         $resp->assertJsonPath('success', true);
@@ -237,7 +237,7 @@ class AccountUpdateUserTest extends CrmTestCase
                 'Accept'             => 'application/json',
                 'X-Requested-With'   => 'XMLHttpRequest',
             ])
-            ->patchJson(route('account.user.update', $this->actorUser), $payload);
+            ->patchJson(route('account.user.update'), $payload);
 
         $resp->assertStatus(200);
         $resp->assertJsonPath('success', true);

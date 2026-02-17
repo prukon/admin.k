@@ -29,7 +29,7 @@ class AccountAvatarTest extends CrmTestCase
     public function test_store_avatar_requires_files(): void
     {
         $resp = $this->withSession(['current_partner' => $this->partner->id])
-            ->postJson('/profile/avatar', []);
+            ->postJson('/account-settings/user/avatar', []);
 
         $resp->assertStatus(422);
     }
@@ -43,7 +43,7 @@ class AccountAvatarTest extends CrmTestCase
         $crop = UploadedFile::fake()->image('crop.jpg', 600, 600);
 
         $resp = $this->withSession(['current_partner' => $this->partner->id])
-            ->postJson('/profile/avatar', [
+            ->postJson('/account-settings/user/avatar', [
                 'image_big' => $big,
                 'image_crop' => $crop,
             ]);
@@ -93,7 +93,7 @@ class AccountAvatarTest extends CrmTestCase
         $crop = UploadedFile::fake()->image('crop.jpg', 600, 600);
 
         $resp = $this->withSession(['current_partner' => $this->partner->id])
-            ->postJson('/profile/avatar', [
+            ->postJson('/account-settings/user/avatar', [
                 'image_big' => $big,
                 'image_crop' => $crop,
             ]);
@@ -124,7 +124,7 @@ class AccountAvatarTest extends CrmTestCase
         $this->user->save();
 
         $resp = $this->withSession(['current_partner' => $this->partner->id])
-            ->deleteJson('/profile/avatar');
+            ->deleteJson('/account-settings/user/avatar');
 
         $resp->assertOk();
         $resp->assertJsonPath('message', 'Фото удалено');

@@ -91,9 +91,9 @@ class AccountController extends AdminBaseController
 
     // Обновление юзера в учетной записи
 
-    public function update(AccountUpdateRequest $request, User $user)
+    public function update(AccountUpdateRequest $request)
     {
-
+        $user = $request->user();
 
         // ✅ Изоляция по партнёру (не даём править чужого)
         $currentPartnerId = $this->requirePartnerId();
@@ -431,8 +431,8 @@ class AccountController extends AdminBaseController
         $request->validate([
             'password' => 'required|min:8',
         ]);
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $user = User::findOrFail($authorId);
+        $user = $request->user(); // текущий пользователь
+        $authorId = (int) $user->id;
 
         DB::transaction(function () use ($user, $authorId, $request) {
 

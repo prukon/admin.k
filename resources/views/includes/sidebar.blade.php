@@ -113,7 +113,7 @@
         {{--Учетная запись--}}
         @can('account-user-view')
         <li class="nav-item">
-            <a href="/account-settings/users/{{ Auth::user()->id }}/edit" class="nav-link">
+            <a href="{{ route('account.user.edit') }}" class="nav-link">
                 <i class="nav-icon fa-solid fa-user"></i>
                 <p>Учетная запись</p>
             </a>

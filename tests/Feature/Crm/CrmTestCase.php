@@ -37,10 +37,17 @@ abstract class CrmTestCase extends TestCase
 
         // В некоторых окружениях storage/ может быть недоступен для записи тестовым процессом.
         // Переносим compiled Blade views в системный tmp (writable).
-        $compiled = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'kidscrm_compiled_views';
+        // Важно: используем уникальную папку на каждый прогон, чтобы не упираться в чужие права на /tmp/kidscrm_compiled_views.
+        $compiled = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . 'kidscrm_compiled_views_'
+            . (string) Str::uuid();
+
         if (!is_dir($compiled)) {
             @mkdir($compiled, 0777, true);
         }
+        // На случай если mkdir создал с "жёсткими" правами (umask) — пробуем расширить.
+        @chmod($compiled, 0777);
         config(['view.compiled' => $compiled]);
 
         // 1) Референсы

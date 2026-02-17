@@ -225,7 +225,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
         //Доп. поля
         Route::post('/admin/users/fields', [UserFieldController::class, 'storeFields'])->name('admin.field.store');
-
     });
 
     //Группы  (feature test +)
@@ -257,7 +256,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/partner/logs-data', [PartnerController::class, 'log'])->name('logs.data.partner');
     });
 
-    //Страница Настойки - Общие
+    //Страница Настойки - Общие  (feature test +)
     Route::middleware('can:settings-view')->group(function () {
         Route::get('admin/settings', [SettingController::class, 'showSettings'])->name('admin.setting.setting');
         Route::patch('admin/settings/registration-activity', [SettingController::class, 'registrationActivity'])->name('registrationActivity');
@@ -309,13 +308,16 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('admin/settings/tbank-commissions/{id}', [TbankCommissionsController::class, 'destroy'])->name('admin.setting.tbankCommissions.destroy');
     });
 
-    //Учетная запись - вкладка юзер
-    Route::middleware('can:account-user-view')->group(function () {
-        Route::get('account-settings/users/{user}/edit', [AccountController::class, 'user'])->name('admin.cur.user.edit');
-        Route::patch('account-settings/users/{user}', [AccountController::class, 'update'])->name('account.user.update');
-        Route::post('user/update-password', [AccountController::class, 'updatePassword']);
-        Route::post('/profile/avatar', [AccountController::class, 'store']);        // добалвение/замена
-        Route::delete('/profile/avatar', [AccountController::class, 'destroy']);    // удаление
+    // Учетная запись (текущий пользователь) (feature test +)
+    Route::middleware('can:account-user-view')->name('account.user.')->group(function () {
+        // Вкладка "пользователь"
+        Route::get('account-settings/user/edit', [AccountController::class, 'user'])->name('edit');
+        Route::patch('account-settings/user', [AccountController::class, 'update'])->name('update');
+        // Пароль
+        Route::put('account-settings/user/password', [AccountController::class, 'updatePassword'])->name('password.update');
+        // Аватар
+        Route::post('account-settings/user/avatar', [AccountController::class, 'store'])->name('avatar.store');         // добавление/замена
+        Route::delete('account-settings/user/avatar', [AccountController::class, 'destroy'])->name('avatar.destroy');   // удаление
     });
 
     //Учетная запись - вкладка "организация"
@@ -323,7 +325,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('account-settings/partner/{user}/edit', [PartnerSettingController::class, 'partner'])->name('admin.cur.company.edit');
         Route::patch('account-settings/partner/{partner}', [PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
     });
-
+ 
     //Учетная запись - вкладка "Мои договоры"
     Route::middleware('can:account-documents-view')->group(function () {
         Route::get('account-settings/documents', [ContractsController::class, 'myDocuments']);

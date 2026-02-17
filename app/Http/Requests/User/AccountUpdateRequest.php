@@ -28,7 +28,10 @@ class AccountUpdateRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $targetUser       = $this->route('user'); // редактируемый пользователь (Model Binding)
+        // Редактируемый пользователь.
+        // Исторически он приходил через route('user') (Model Binding),
+        // но для self-service страницы параметра в URL может не быть.
+        $targetUser = $this->route('user') ?: $this->user();
         $incomingHasTfa   = $this->has('two_factor_enabled');
 
         $resolvedTwoFactorEnabled = $incomingHasTfa
@@ -49,7 +52,7 @@ class AccountUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        $targetUser = $this->route('user');
+        $targetUser = $this->route('user') ?: $this->user();
         $targetUserId = is_object($targetUser) && method_exists($targetUser, 'getKey')
             ? $targetUser->getKey()
             : (int) $targetUser;
@@ -103,7 +106,7 @@ class AccountUpdateRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($afterValidator) {
-            $targetUser = $this->route('user');
+            $targetUser = $this->route('user') ?: $this->user();
             if (!$targetUser) {
                 return;
             }
