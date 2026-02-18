@@ -526,7 +526,7 @@ Route::post('/partner-wallet/webhook', [PartnerPaymentController::class, 'ykWall
 Route::post('/webhook/yookassa', [YooKassaWebhookController::class, 'handle']);
 
 // Podpislon
-Route::post('/webhooks/podpislon2', [PodpislonWebhookController::class, 'handle'])->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon');
+Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle'])->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon');
 
 
 
@@ -539,12 +539,6 @@ Route::post('/webhooks/podpislon2', [PodpislonWebhookController::class, 'handle'
 
     
  
-// Podpislon (temporary ping/validation endpoint): always 200 OK
-Route::any('/webhooks/podpislon', function () {
-    return response()->json(['ok' => true], 200);
-})->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon2');
-
-
 
 //Тиньков мультирасчеты
 Route::get('/payments/tinkoff/{order}/success', [TinkoffPaymentController::class, 'success']);
