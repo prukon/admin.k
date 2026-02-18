@@ -533,7 +533,7 @@ Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle']
 
 
 // Podpislon (temporary ping/validation endpoint): always 200 OK
-Route::any('/webhooks/podpislon2', function () {
+Route::any('/webhooks/podpislon?token=ZEoz26MkzuYK1NzPNpLDOjFJfwuTqo3', function () {
     return response()->json(['ok' => true], 200);
 })->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon2');
 
