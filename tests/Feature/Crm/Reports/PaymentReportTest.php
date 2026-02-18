@@ -14,6 +14,26 @@ use Tests\Feature\Crm\CrmTestCase;
 
 class PaymentReportTest extends CrmTestCase
 {
+    private function dataTablesBaseParams(int $length = 50): array
+    {
+        // Индексы/имена колонок должны соответствовать DataTables-конфигу на странице отчёта.
+        // Нам важно, чтобы name совпадал с тем, что мы переопределяем через orderColumn() в контроллере.
+        return [
+            'draw' => 1,
+            'start' => 0,
+            'length' => $length,
+            'columns' => [
+                ['data' => 'DT_RowIndex', 'name' => 'DT_RowIndex', 'searchable' => 'false', 'orderable' => 'false'],
+                ['data' => 'user_name', 'name' => 'user_name', 'searchable' => 'true', 'orderable' => 'true'],
+                ['data' => 'team_title', 'name' => 'team_title', 'searchable' => 'true', 'orderable' => 'true'],
+                ['data' => 'summ', 'name' => 'summ', 'searchable' => 'true', 'orderable' => 'true'],
+                ['data' => 'payment_month', 'name' => 'payment_month', 'searchable' => 'true', 'orderable' => 'true'],
+                ['data' => 'operation_date', 'name' => 'operation_date', 'searchable' => 'true', 'orderable' => 'true'],
+                ['data' => 'payment_provider', 'name' => 'payment_provider', 'searchable' => 'false', 'orderable' => 'false'],
+            ],
+        ];
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -182,7 +202,7 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_getPayments_user_related_columns_are_filled_in_priority_order(): void
     {
-        // Сценарий 1: есть payments.user_name
+        // Сценарий 1: есть payments.user_name, но приоритет у ФИО пользователя (lastname+name)
         $paymentWithCustomName = Payment::factory()->create([
             'user_id' => $this->user->id,
             'user_name' => 'Custom Payment Name',
@@ -234,9 +254,11 @@ class PaymentReportTest extends CrmTestCase
         $rowWithUser = $data->firstWhere('id', $paymentWithUser->id);
         $rowNoData = $data->firstWhere('id', $paymentNoData->id);
 
-        // 1) user_name из payments.user_name
+        // 1) user_name из ФИО пользователя (если заполнено), иначе из payments.user_name
         $this->assertNotNull($rowWithCustomName);
-        $this->assertEquals('Custom Payment Name', $rowWithCustomName['user_name']);
+        $expectedUserFio = trim(($this->user->lastname ?? '') . ' ' . ($this->user->name ?? ''));
+        $this->assertNotSame('', $expectedUserFio);
+        $this->assertEquals($expectedUserFio, $rowWithCustomName['user_name']);
         $this->assertEquals($this->user->id, $rowWithCustomName['user_id']);
 
         // 2) user_name из ФИО пользователя, team_title из команды
@@ -297,6 +319,127 @@ class PaymentReportTest extends CrmTestCase
         $this->assertEquals((float)$tbankPayment->summ, (float)$tbankRow['summ']);
         $this->assertEquals($tbankPayment->operation_date, $tbankRow['operation_date']);
         $this->assertEquals('tbank', $tbankRow['payment_provider']);
+    }
+
+    /**
+     * (P0) По умолчанию выдача отсортирована по operation_date ASC
+     * (ближайшая оплата сверху), если order не передан.
+     */
+    public function test_getPayments_default_sort_is_operation_date_ascending_when_no_order_param(): void
+    {
+        $p1 = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'summ' => 100,
+            'operation_date' => '2026-01-03 10:00:00',
+        ]);
+        $p2 = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'summ' => 200,
+            'operation_date' => '2026-01-01 10:00:00',
+        ]);
+        $p3 = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'summ' => 300,
+            'operation_date' => '2026-01-02 10:00:00',
+        ]);
+
+        $params = $this->dataTablesBaseParams();
+        unset($params['order']);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments', $params));
+
+        $response->assertOk();
+        $data = collect($response->json('data') ?? []);
+
+        $ids = $data->pluck('id')->map(fn($v) => (int) $v)->values()->all();
+
+        // Ожидаем: 2026-01-01, 2026-01-02, 2026-01-03
+        $this->assertSame([$p2->id, $p3->id, $p1->id], array_slice($ids, 0, 3));
+    }
+
+    /**
+     * (P0) Явная сортировка работает (пример: summ ASC).
+     */
+    public function test_getPayments_sorting_works_for_summ_column(): void
+    {
+        $low = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'summ' => 100,
+            'operation_date' => '2026-01-01 10:00:00',
+        ]);
+        $high = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'summ' => 999,
+            'operation_date' => '2026-01-01 10:00:01',
+        ]);
+
+        $params = $this->dataTablesBaseParams();
+        $params['order'] = [
+            ['column' => 3, 'dir' => 'asc'], // summ
+        ];
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments', $params));
+
+        $response->assertOk();
+        $data = collect($response->json('data') ?? []);
+
+        $ids = $data->pluck('id')->map(fn($v) => (int) $v)->values()->all();
+        $this->assertSame($low->id, $ids[0] ?? null);
+        $this->assertSame($high->id, $ids[1] ?? null);
+    }
+
+    /**
+     * (P0) Явная сортировка работает для ФИО (user_name ASC).
+     *
+     * В проекте ФИО формируется из users.lastname + users.name с приоритетом
+     * перед payments.user_name.
+     */
+    public function test_getPayments_sorting_works_for_user_name_column(): void
+    {
+        $uA = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Adams',
+            'name' => 'Bob',
+        ]);
+        $uZ = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Zimmer',
+            'name' => 'Anna',
+        ]);
+
+        // Специально задаём payments.user_name, чтобы проверить приоритет ФИО из users
+        $pA = Payment::factory()->create([
+            'user_id' => $uA->id,
+            'user_name' => 'ZZZ Payment Name',
+            'summ' => 100,
+            'operation_date' => '2026-01-01 10:00:00',
+        ]);
+        $pZ = Payment::factory()->create([
+            'user_id' => $uZ->id,
+            'user_name' => 'AAA Payment Name',
+            'summ' => 200,
+            'operation_date' => '2026-01-01 10:00:00',
+        ]);
+
+        $params = $this->dataTablesBaseParams();
+        $params['order'] = [
+            ['column' => 1, 'dir' => 'asc'], // user_name (ФИО)
+        ];
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments', $params));
+
+        $response->assertOk();
+        $data = collect($response->json('data') ?? []);
+
+        $ids = $data->pluck('id')->map(fn($v) => (int) $v)->values()->all();
+        $this->assertSame($pA->id, $ids[0] ?? null);
+        $this->assertSame($pZ->id, $ids[1] ?? null);
     }
 
     /**

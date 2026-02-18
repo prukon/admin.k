@@ -79,12 +79,20 @@ class PaymentReportController extends AdminBaseController
 
         $partnerId = $this->requirePartnerId();
 
+        $hasOrder = is_array($request->input('order')) && count($request->input('order')) > 0;
+
         // Базовый запрос: только нужный партнёр, без get()
         $paymentsQuery = Payment::query()
             ->with(['user.team'])
             ->join('users', 'users.id', '=', 'payments.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId)
             ->select('payments.*');
+
+        // Дефолтная сортировка, если фронт не передал order (например, после кастомизаций таблицы)
+        if (! $hasOrder) {
+            $paymentsQuery->orderBy('payments.operation_date', 'asc');
+        }
 
         // Общие правила комиссий (не зависят от конкретного платежа)
         $commissionRules = TinkoffCommissionRule::query()
@@ -119,14 +127,16 @@ class PaymentReportController extends AdminBaseController
         return DataTables::of($paymentsQuery)
             ->addIndexColumn()
             ->addColumn('user_name', function (Payment $row) {
-                if (!empty($row->user_name)) {
-                    return $row->user_name;
-                }
-
                 $user = $row->user;
                 if ($user) {
                     $full = trim(($user->lastname ?? '') . ' ' . ($user->name ?? ''));
-                    return $full !== '' ? $full : 'Без пользователя';
+                    if ($full !== '') {
+                        return $full;
+                    }
+                }
+
+                if (! empty($row->user_name)) {
+                    return (string) $row->user_name;
                 }
 
                 return 'Без пользователя';
@@ -149,6 +159,34 @@ class PaymentReportController extends AdminBaseController
                 return (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status))
                     ? 'tbank'
                     : 'robokassa';
+            })
+            ->orderColumn('summ', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderBy('payments.summ', $dir);
+            })
+            ->orderColumn('operation_date', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderBy('payments.operation_date', $dir);
+            })
+            ->orderColumn('team_title', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+
+                // "Без команды" (NULL/empty) в конце при ASC и при DESC (стабильно)
+                $query->orderByRaw(
+                    "CASE WHEN teams.title IS NULL OR teams.title = '' THEN 1 ELSE 0 END asc"
+                );
+                $query->orderBy('teams.title', $dir);
+            })
+            ->orderColumn('user_name', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+
+                // Приоритет сортировки: Фамилия+Имя (users) -> затем payments.user_name
+                // Пустые значения в конец (стабильно)
+                $expr = "NULLIF(TRIM(CONCAT_WS(' ', users.lastname, users.name)), '')";
+                $expr2 = "NULLIF(TRIM(payments.user_name), '')";
+
+                $query->orderByRaw("CASE WHEN COALESCE($expr, $expr2) IS NULL THEN 1 ELSE 0 END asc");
+                $query->orderByRaw("COALESCE($expr, $expr2) $dir");
             })
             ->addColumn('payout_amount', function (Payment $row) use ($partnerId) {
                 // Только T-Bank, только после успешной выплаты (COMPLETED)

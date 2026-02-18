@@ -25,7 +25,7 @@
                        data-column-key="user_name"
                        id="payColUserName"
                        checked>
-                <label class="form-check-label" for="payColUserName">Имя ученика</label>
+                <label class="form-check-label" for="payColUserName">ФИО</label>
             </div>
 
             <div class="form-check">
@@ -156,7 +156,7 @@
     <thead>
     <tr>
         <th>№</th>
-        <th>Имя ученика</th>
+        <th>ФИО</th>
         <th>Группа</th>
         <th>Сумма платежа</th>
         <th>Оплаченный месяц</th>
@@ -358,7 +358,7 @@
             
 // Формируем массив колонок в зависимости от tbankEnabled
 const columns = [
-    {data: 'DT_RowIndex', name: 'DT_RowIndex'},
+    {data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false},
     {
         data: null,
         name: 'user_name',
@@ -527,7 +527,7 @@ columns.push(
     serverSide: true,
     ajax: "{{ route('payments.getPayments') }}",
     columns: columns,
-    order: [[5, 'desc']], // Сортировка по столбцу "Дата" в порядке убывания
+    order: [[5, 'asc']], // По умолчанию: ближайшая оплата сверху (по дате)
 
     scrollX: true,
 
