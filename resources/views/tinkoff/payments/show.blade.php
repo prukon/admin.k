@@ -63,7 +63,7 @@
                         </div>
                         <div class="row text-nowrap">
                             <div class="col">Моя комиссия</div>
-                            <div class="col text-end">− {{ roubles($breakdown['myFee']) }} ₽</div>
+                            <div class="col text-end">− {{ roubles($breakdown['platformFee']) }} ₽</div>
                         </div>
                         <div class="row fw-bold text-nowrap">
                             <div class="col">К перечислению партнёру</div>
