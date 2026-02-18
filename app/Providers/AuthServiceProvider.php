@@ -322,6 +322,16 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('payment_method_T-Bank');
         });
 
+        // Управление интеграцией T-Bank (админские действия: sm-register, payouts, debug, админ-карточки)
+        Gate::define('manage-payment-method-T-Bank', function (User $user) {
+            return $user->hasPermission('manage_payment_method_T-Bank');
+        });
+
+        // Управление выплатами T-Bank (роль "бухгалтер" и суперадмин)
+        Gate::define('tbank-payouts-manage', function (User $user) {
+            return $user->hasPermission('tbank.payouts.manage');
+        });
+
         // Просмотр всех логов
         Gate::define('viewing-all-logs', function (User $user) {
             return $user->hasPermission('viewing_all_logs');

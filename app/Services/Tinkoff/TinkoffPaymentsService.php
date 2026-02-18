@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Config;
+use App\Services\Tinkoff\SmRegisterClient;
 
 class TinkoffPaymentsService
 {
@@ -157,10 +158,9 @@ class TinkoffPaymentsService
                 $partner = $payment->partner;
                 if (!empty($partner->tinkoff_partner_id)) {
                     $details = \App\Helpers\TinkoffDetailsHelper::makeDetailsForPeriod($payment);
-                    app(\App\Services\Tinkoff\TinkoffSmRegisterService::class)
-                        ->patchPartner($partner->tinkoff_partner_id, [
-                            'bankAccount' => ['details' => $details],
-                        ]);
+                    app(SmRegisterClient::class)->patch($partner->tinkoff_partner_id, [
+                        'bankAccount' => ['details' => $details],
+                    ]);
                 }
             } catch (\Throwable $e) {
                 Log::channel('tinkoff')->error('[sm-register PATCH failed] ' . $e->getMessage());

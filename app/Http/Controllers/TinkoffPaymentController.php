@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Tinkoff\CreatePaymentRequest;
+use App\Http\Requests\Tinkoff\CreateSbpPaymentRequest;
 use Illuminate\Http\Request;
 use App\Models\PaymentIntent;
 use App\Models\Payable;
@@ -24,7 +26,7 @@ class TinkoffPaymentController extends Controller
         return back()->with('error', 'Не удалось инициализировать оплату');
     }
 
-    public function create(Request $r, TinkoffPaymentsService $svc)
+    public function create(CreatePaymentRequest $r, TinkoffPaymentsService $svc)
     {
         $partnerId = (int) app('current_partner')->id;
 
@@ -110,7 +112,7 @@ class TinkoffPaymentController extends Controller
      * Оплата учеником через T‑Bank СБП (QR).
      * Flow: Init → показываем QR → ждём CONFIRMED (webhook/проверка статуса) → success.
      */
-    public function createSbp(Request $r, TinkoffPaymentsService $svc)
+    public function createSbp(CreateSbpPaymentRequest $r, TinkoffPaymentsService $svc)
     {
         $partnerId = (int) app('current_partner')->id;
 

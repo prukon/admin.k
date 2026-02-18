@@ -4,15 +4,46 @@ namespace Tests\Feature;
 
 use App\Models\Contract;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Monolog\Handler\NullHandler;
 use Tests\TestCase;
 
 class PodpislonWebhookTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // В тестовой среде может не быть прав на запись в storage/logs,
+        // поэтому глушим канал podpislon, чтобы контроллер не падал на логировании.
+        config([
+            'logging.channels.podpislon' => [
+                'driver'  => 'monolog',
+                'handler' => NullHandler::class,
+            ],
+        ]);
+    }
+
     private function webhookUrl(): string
     {
         return route('webhooks.podpislon');
+    }
+
+    /**
+     * Хелпер: отправить raw x-www-form-urlencoded тело (важно для подписи)
+     */
+    private function postRawForm(string $url, string $rawBody)
+    {
+        return $this->call(
+            'POST',
+            $url,
+            [],   // parameters
+            [],   // cookies
+            [],   // files
+            ['CONTENT_TYPE' => 'application/x-www-form-urlencoded'],
+            $rawBody
+        );
     }
 
     /**
@@ -35,7 +66,8 @@ class PodpislonWebhookTest extends TestCase
     public function test_requires_signature_when_secret_configured(): void
     {
         config([
-            'services.podpislon.webhook_secret' => 'testsecret',
+            // подпись теперь не зависит от секрета, но поле SIGNATURE обязательно
+            'services.podpislon.webhook_secret' => 'anything',
         ]);
 
         $payload = [
@@ -58,7 +90,7 @@ class PodpislonWebhookTest extends TestCase
     public function test_rejects_invalid_signature_when_secret_configured(): void
     {
         config([
-            'services.podpislon.webhook_secret' => 'testsecret',
+            'services.podpislon.webhook_secret' => 'anything',
         ]);
 
         $payload = [
@@ -81,27 +113,22 @@ class PodpislonWebhookTest extends TestCase
     public function test_accepts_valid_signature_and_updates_contract(): void
     {
         config([
-            'services.podpislon.webhook_secret' => 'testsecret',
+            'services.podpislon.webhook_secret' => 'anything',
+            'services.podpislon.webhook_token'  => 'tok',
         ]);
 
         // создаём контракт
         $contract = $this->createContractForWebhook('123');
 
-        $secret    = config('services.podpislon.webhook_secret');
         $fileId    = 123;
         $companyId = 456;
 
-        // вариант №2: FILE_ID + COMPANY_ID + SECRET
-        $signature = md5($fileId . $companyId . $secret);
+        // подпись Подпислона: md5(raw-body без SIGNATURE)
+        $rawNoSig  = 'EVENT=DOCUMENT_OPENED&FILE_ID=' . $fileId . '&COMPANY_ID=' . $companyId;
+        $signature = md5($rawNoSig);
+        $rawBody   = $rawNoSig . '&SIGNATURE=' . $signature;
 
-        $payload = [
-            'EVENT'      => 'DOCUMENT_OPENED',
-            'FILE_ID'    => $fileId,
-            'COMPANY_ID' => $companyId,
-            'SIGNATURE'  => $signature,
-        ];
-
-        $response = $this->postJson($this->webhookUrl(), $payload);
+        $response = $this->postRawForm($this->webhookUrl() . '?token=tok', $rawBody);
 
         $response
             ->assertStatus(200)
@@ -136,14 +163,34 @@ class PodpislonWebhookTest extends TestCase
         $response = $this->postJson($this->webhookUrl(), $payload);
 
         $response
-            ->assertStatus(200)
+            ->assertStatus(403)
             ->assertJson([
-                'ok' => true,
+                'ok'    => false,
+                'error' => 'signature_required',
             ]);
 
-        $this->assertDatabaseHas('contract_events', [
+        $this->assertDatabaseMissing('contract_events', [
             'contract_id' => $contract->id,
             'type'        => 'webhook_document_opened',
         ]);
+    }
+
+    public function test_requires_token_when_token_configured(): void
+    {
+        config([
+            'services.podpislon.webhook_token' => 'tok',
+        ]);
+
+        $rawNoSig  = 'EVENT=DOCUMENT_OPENED&FILE_ID=1&COMPANY_ID=2';
+        $rawBody   = $rawNoSig . '&SIGNATURE=' . md5($rawNoSig);
+
+        $response = $this->postRawForm($this->webhookUrl(), $rawBody);
+
+        $response
+            ->assertStatus(403)
+            ->assertJson([
+                'ok'    => false,
+                'error' => 'token_required',
+            ]);
     }
 }

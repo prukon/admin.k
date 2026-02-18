@@ -69,7 +69,7 @@ class PartnerFactory extends Factory
                 ]
                 : null,
 
-            'wallet_balance' => 0.00,
+            'wallet_balance' => $this->faker->randomFloat(2, 1000, 2000),
 
             'website' => $this->faker->boolean(40)
                 ? $this->faker->url()

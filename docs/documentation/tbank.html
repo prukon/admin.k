@@ -129,6 +129,114 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <div class="note">
     Источник истины для оплачиваемого месяца: <code>payables.month</code>. Поле <code>DATA.month</code> используется для трассировки и диагностики.
   </div>
+
+  <h2 id="tests">7) Тесты</h2>
+  <div class="note">
+    Все feature‑тесты по мультирасчётам T‑Bank собраны в одной папке:
+    <code>/tests/Feature/Crm/Payments/TBank</code>.
+    <br>Запуск: <code>php artisan test --testsuite=Feature</code>.
+  </div>
+
+  <h3>7.1 Права/доступы (важно для безопасности)</h3>
+  <ul>
+    <li><b>Оплата для клиентов</b>: роуты витрины и QR находятся под <code>can:payment-method-T-Bank</code>.</li>
+    <li><b>Выплаты для бухгалтера</b>: роуты <code>/tinkoff/payouts/*</code> находятся под <code>can:tbank-payouts-manage</code> (permission <code>tbank.payouts.manage</code>).</li>
+    <li><b>Полный админ‑доступ</b> (sm-register/debug/карточки/close deal): под <code>can:manage-payment-method-T-Bank</code> (только владелец/superadmin).</li>
+  </ul>
+
+  <h3>7.2 Security (P0)</h3>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankQrSecurityTest.php</code>
+      <ul>
+        <li><b>QR-init partner spoof</b>: подложенный <code>partner_id</code> игнорируется, используется только <code>current_partner</code>.</li>
+        <li><b>QR enumeration</b>: доступ к <code>/tinkoff/qr/{paymentId}</code>, <code>/json</code>, <code>/state</code> для чужого партнёра → <b>404</b>.</li>
+      </ul>
+    </li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Security/TbankAdminSecurityTest.php</code>
+      <ul>
+        <li><b>Разделение прав</b>: пользователь с одним правом выплат (<code>tbank.payouts.manage</code>) не может дергать sm-register/debug.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3>7.3 Webhooks (подпись, доменные эффекты, идемпотентность)</h3>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankWebhookPaymentsTest.php</code>
+      <ul>
+        <li><b>Подпись</b>: неверная подпись → 200 OK, но без изменений в БД.</li>
+        <li><b>CONFIRMED</b>: обновляет <code>tinkoff_payments</code> и применяет доменные эффекты (<code>payment_intents/payables/payments</code>).</li>
+        <li><b>Идемпотентность</b>: повторный webhook не создаёт дублей.</li>
+        <li><b>REJECTED</b>: intent становится <code>failed</code>, запись <code>payments</code> не создаётся.</li>
+      </ul>
+    </li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Webhooks/TbankWebhookEdgeCasesTest.php</code>
+      <ul>
+        <li><b>Краевые кейсы</b>: нет <code>OrderId</code> → webhook игнорируется, но возвращает 200 OK.</li>
+        <li><b>Не финальный статус</b>: например <code>AUTHORIZED</code> → доменные эффекты не применяются.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3>7.4 Выплаты (e2c): ручные/авто/поллинг</h3>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankAutoPayoutOnWebhookTest.php</code>
+      <ul>
+        <li><b>Автовыплата</b>: после webhook <code>CONFIRMED</code> при <code>auto_payout_enabled=true</code> запускается e2c‑выплата и доводится до <code>COMPLETED</code>.</li>
+      </ul>
+    </li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankPollPayoutStatesJobTest.php</code>
+      <ul>
+        <li><b>Polling</b>: <code>TinkoffPollPayoutStatesJob</code> переводит выплату из промежуточного статуса в <code>COMPLETED</code> через <code>GetState</code>.</li>
+      </ul>
+    </li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutManualTest.php</code>
+      <ul>
+        <li><b>Ручная выплата</b> (<code>pay-now</code>): happy‑path, ошибки банка, защита при <code>net_to_partner ≤ 0</code> (банк не вызывается).</li>
+        <li><b>Отложенная выплата</b> (<code>delay</code>): создаётся payout с <code>when_to_run</code>, валидация <code>run_at</code>.</li>
+        <li><b>Партнёр‑скоуп</b>: не‑superadmin не может управлять выплатой чужого партнёра по <code>deal_id</code>.</li>
+        <li><b>Superadmin</b>: может управлять выплатой по <code>deal_id</code> любого партнёра (как владелец сервиса).</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3>7.5 CloseSpDeal</h3>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/TBank/Deals/TbankDealCloseTest.php</code>
+      <ul>
+        <li><b>CloseSpDeal</b>: success/fail сценарии, запись результата в <code>tinkoff_payments.payload.deal_close</code> для всех платежей сделки.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3>7.6 Sm-register (регистрация/обновление партнёра)</h3>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/TBank/SmRegister/TbankSmRegisterAdminFlowTest.php</code>
+      <ul>
+        <li><b>sm-register</b>: success + сохранение <code>partners.tinkoff_partner_id</code> и банковских реквизитов.</li>
+        <li><b>Валидация</b>: обязательные поля → ошибки в сессии.</li>
+        <li><b>Ошибки клиента</b>: AJAX‑ошибка sm-register → 422 JSON.</li>
+        <li><b>sm-patch/sm-refresh</b>: требуют наличия <code>PartnerId</code>.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3>7.7 Комиссии (CRUD + приоритеты правил)</h3>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAccessTest.php</code> — доступы/SetPartner к настройке комиссий.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerCrudTest.php</code> — CRUD правил комиссий + валидация.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAutoPayoutTest.php</code> — флаг <code>auto_payout_enabled</code> в <code>payment_systems.settings</code> и его корректное сохранение.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionRulePriorityTest.php</code> — дефолт 2% и приоритет выбора правила (global → partner → partner+method).</li>
+  </ul>
+
+  <h3>7.8 Возвраты (ограничения при выплатах)</h3>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/TBank/Refunds/TbankRefundRestrictionsTest.php</code>
+      <ul>
+        <li><b>Запрет возврата</b>: если по <code>deal_id</code> есть выплата партнёру и статус не <code>REJECTED</code>.</li>
+        <li><b>Разрешение возврата</b>: если выплата <code>REJECTED</code>, создаётся refund и ставится job.</li>
+      </ul>
+    </li>
+  </ul>
 </div>
 </body>
 </html>

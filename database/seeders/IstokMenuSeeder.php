@@ -30,7 +30,7 @@ class IstokMenuSeeder extends Seeder
                 'city' => null,
                 'zip' => null,
                 'ceo' => null,
-                'wallet_balance' => 0,
+                'wallet_balance' => random_int(100000, 200000) / 100,
                 'website' => null,
                 'sms_name' => null,
                 'bank_name' => null,

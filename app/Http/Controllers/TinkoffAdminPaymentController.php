@@ -37,8 +37,8 @@ class TinkoffAdminPaymentController extends Controller
     {
         $payment = TinkoffPayment::with(['partner','payout'])->findOrFail($id);
 
-        // Калькуляция (поступило/банк/ты/партнёру)
-        $breakdown = $this->calcBreakdown($payment, $svc);
+        // Калькуляция (поступило/банк/платформа/партнёру)
+        $breakdown = $svc->breakdownForPayment($payment);
 
         // Окно возврата 48ч (если CONFIRMED)
         $refundUntil = null;
@@ -47,26 +47,5 @@ class TinkoffAdminPaymentController extends Controller
         }
 
         return view('tinkoff.payments.show', compact('payment','breakdown','refundUntil'));
-    }
-
-    protected function calcBreakdown(TinkoffPayment $payment, TinkoffPayoutsService $svc): array
-    {
-        $gross = $payment->amount;
-        // Вытянем приватные методы из сервиса: сделаем простой proxy-калькулятор
-        $ref = new \ReflectionClass($svc);
-        $calcMy = $ref->getMethod('calcMyCommission'); $calcMy->setAccessible(true);
-
-        // Банк за прием
-        $acq = config('tinkoff.tariffs.acquiring');
-        $bankAccept = max(round($gross * ($acq['percent']/100)), (int) round($acq['min_fixed']*100));
-
-        // Банк за выплату (юрик по умолчанию)
-        $ptf = config('tinkoff.tariffs.payouts.jur');
-        $bankPayout = max(round($gross * ($ptf['percent']/100)), (int) round($ptf['min_fixed']*100));
-
-        $myFee = $calcMy->invoke($svc, $payment->partner_id, $payment->method, $gross);
-        $net = max(0, $gross - $bankAccept - $bankPayout - $myFee);
-
-        return compact('gross','bankAccept','bankPayout','myFee','net');
     }
 }

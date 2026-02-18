@@ -50,6 +50,28 @@ class PodpislonWebhookController extends Controller
             }
         }
 
+        // Иногда (особенно в тестах/проксах) form-urlencoded body не попадает в $request->all().
+        // Если raw содержит SIGNATURE, добираем поля через parse_str и ДОПОЛНЯЕМ $parsed.
+        if (
+            is_string($raw) && $raw !== ''
+            && str_contains($raw, 'SIGNATURE=')
+            && (!is_array($parsed) || empty($parsed) || (!array_key_exists('SIGNATURE', $parsed) && !array_key_exists('signature', $parsed)))
+        ) {
+            $qs = [];
+            parse_str($raw, $qs);
+            if (!empty($qs)) {
+                if (!is_array($parsed)) {
+                    $parsed = [];
+                }
+
+                foreach ($qs as $k => $v) {
+                    if (!array_key_exists($k, $parsed)) {
+                        $parsed[$k] = $v;
+                    }
+                }
+            }
+        }
+
         // нормализуем ключи в UPPER_SNAKE
         if (!empty($parsed)) {
             $norm = [];
@@ -65,81 +87,104 @@ class PodpislonWebhookController extends Controller
             'parsed' => $parsed,
         ]);
 
-        // --- подпись (если секрет задан)
+        // --- подпись (как у Подпислона): SIGNATURE == md5(raw-body без SIGNATURE)
+        // NOTE: у реальных вебхуков подпись не зависит от секрета, поэтому для защиты ниже добавляем token.
         $provided = strtolower((string) ($parsed['SIGNATURE'] ?? ''));
-        $secret   = (string) config('services.podpislon.webhook_secret');
         $sigOk    = null;
         $sigAlgo  = null;
 
-        if ($secret !== '' && $provided !== '') {
-            $fileId    = (string) ($parsed['FILE_ID']    ?? ($parsed['ID'] ?? ''));
-            $companyId = (string) ($parsed['COMPANY_ID'] ?? '');
-            $contact   = (string) ($parsed['CONTACT']    ?? ''); // пусто для SIGNED
-            $event     = (string) ($parsed['EVENT']      ?? '');
+        if ($provided === '') {
+            $log->warning('Webhook signature missing', [
+                'rid' => $rid,
+            ]);
 
-            // кандидаты в порядке вероятности (у Подпислона часто именно так)
-            $bases = [
-                // 1) самая частая: FILE_ID + COMPANY_ID + CONTACT + SECRET (OPENED)
-                $fileId . $companyId . $contact . $secret,
-                // 2) без CONTACT (SIGNED)
-                $fileId . $companyId . $secret,
-                // 3) на всякий — с EVENT
-                $fileId . $companyId . $event . $secret,
-                // 4) строгая form-строка без SIGNATURE + SECRET (иногда так делают)
-                // ВАЖНО: порядок ключей как прислали, не сортируем
-                function () use ($parsed, $secret) {
-                    $p = $parsed;
-                    unset($p['SIGNATURE']);
-                    return http_build_query($p) . $secret;
-                },
-            ];
-
-            foreach ($bases as $i => $base) {
-                $baseStr = is_callable($base) ? $base() : $base;
-                $calc    = md5($baseStr);
-
-                if (hash_equals($provided, strtolower($calc))) {
-                    $sigOk   = true;
-                    $sigAlgo = 'md5#' . ($i + 1);
-                    break;
-                }
-            }
-
-            $sigOk = $sigOk ?? false;
-
-            $log->{ $sigOk ? 'info' : 'warning' }(
-                'Webhook signature ' . ($sigOk ? 'matched' : 'mismatch'),
-                [
-                    'rid'  => $rid,
-                    'algo' => $sigAlgo,
-                ]
-            );
+            return response()->json([
+                'ok'    => false,
+                'rid'   => $rid,
+                'error' => 'signature_required',
+            ], 403);
         }
 
-        // *** CHANGE: если секрет задан — подпись обязательна, иначе 403
-        if ($secret !== '') {
-            if ($provided === '') {
-                $log->warning('Webhook signature missing while secret configured', [
+        $candidates = [];
+
+        if (is_string($raw) && $raw !== '') {
+            // вырезаем SIGNATURE из "application/x-www-form-urlencoded"
+            $rawNoSig = preg_replace('~(^|&)SIGNATURE=[^&]*(&|$)~', '$1', $raw);
+            $rawNoSig = trim((string) $rawNoSig, '&');
+
+            if ($rawNoSig !== '') {
+                $candidates['md5(raw_without_signature)'] = md5($rawNoSig);
+                // на всякий (если где-то закодировали иначе)
+                $candidates['md5(urldecode(raw_without_signature))'] = md5(urldecode($rawNoSig));
+            }
+        }
+
+        // Фолбэк: соберем строку из распарсенных полей (в текущем порядке массива) и тоже попробуем
+        $p = $parsed;
+        unset($p['SIGNATURE']);
+        if (!empty($p)) {
+            // RFC1738 ближе к стандартному form-urlencoded
+            $candidates['md5(http_build_query_rfc1738)'] = md5(http_build_query($p, '', '&', PHP_QUERY_RFC1738));
+            // RFC3986 иногда встречается
+            $candidates['md5(http_build_query_rfc3986)'] = md5(http_build_query($p, '', '&', PHP_QUERY_RFC3986));
+        }
+
+        foreach ($candidates as $algo => $calc) {
+            if (hash_equals($provided, strtolower((string) $calc))) {
+                $sigOk   = true;
+                $sigAlgo = $algo;
+                break;
+            }
+        }
+
+        $sigOk = $sigOk ?? false;
+
+        $log->{ $sigOk ? 'info' : 'warning' }('Webhook signature ' . ($sigOk ? 'matched' : 'mismatch'), [
+            'rid'  => $rid,
+            'algo' => $sigAlgo,
+        ]);
+
+        if ($sigOk === false) {
+            return response()->json([
+                'ok'    => false,
+                'rid'   => $rid,
+                'error' => 'invalid_signature',
+            ], 403);
+        }
+
+        // --- токен (рекомендуемая защита): /webhooks/podpislon?token=...
+        // Можно также передавать заголовком X-Podpislon-Token / X-Webhook-Token.
+        $tokenConfigured = (string) config('services.podpislon.webhook_token', '');
+        if ($tokenConfigured !== '') {
+            $tokenProvided = (string) ($request->query('token')
+                ?? $request->header('X-Podpislon-Token')
+                ?? $request->header('X-Webhook-Token')
+                ?? '');
+
+            if ($tokenProvided === '') {
+                $log->warning('Webhook token missing while configured', [
                     'rid' => $rid,
                 ]);
 
                 return response()->json([
                     'ok'    => false,
                     'rid'   => $rid,
-                    'error' => 'signature_required',
+                    'error' => 'token_required',
                 ], 403);
             }
 
-            if ($sigOk === false) {
-                // тут уже есть warning выше с деталями сравнения
+            if (!hash_equals($tokenConfigured, $tokenProvided)) {
+                $log->warning('Webhook token mismatch', [
+                    'rid' => $rid,
+                ]);
+
                 return response()->json([
                     'ok'    => false,
                     'rid'   => $rid,
-                    'error' => 'invalid_signature',
+                    'error' => 'invalid_token',
                 ], 403);
             }
         }
-        // *** END CHANGE
 
         $log->info('Webhook parsed fields', [
             'rid'             => $rid,

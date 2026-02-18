@@ -4,7 +4,7 @@
     <img class="img-fluid d-block mx-auto" src="{{ asset('/img/partners/tinkoff.png') }}" alt="Tinkoff">
     <form class="mb-3 mt-3" action="{{ route('payment.tinkoff.qrInit') }}" method="POST">
         @csrf
-        <input type="hidden" name="partner_id" value="{{ $partnerId }}">
+        {{-- partner_id не передаём: контроллер берёт app('current_partner')->id (безопасность) --}}
         <input type="hidden" name="outSum" value="{{ $outSum }}">
         <button type="submit" class="btn btn-bd-primary pay-btn">Оплатить через СБП</button>
     </form>

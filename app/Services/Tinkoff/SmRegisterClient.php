@@ -12,12 +12,16 @@ class SmRegisterClient
     /** Базовая заготовка HTTP-клиента с mTLS */
     protected function base(): PendingRequest
     {
+        $cfg = config('tinkoff.sm_register', []);
+        $baseUrl = (string) ($cfg['base_url'] ?? 'https://acqapi.tinkoff.ru');
+
         $options = [
             'timeout'     => 20,
             'http_errors' => false,
-            'verify'      => true,
-            'cert'        => env('TCS_MTLS_CERT'),
-            'ssl_key'     => env('TCS_MTLS_KEY'),
+            'verify'      => $cfg['mtls']['ca'] ?? true,
+            // Совместимость: исторически были env TCS_MTLS_*, а в config/tinkoff.php - TINKOFF_MTLS_*
+            'cert'        => env('TCS_MTLS_CERT') ?: ($cfg['mtls']['cert'] ?? null),
+            'ssl_key'     => env('TCS_MTLS_KEY') ?: ($cfg['mtls']['key'] ?? null),
         ];
 
         if (!is_string($options['cert']) || !file_exists($options['cert'])) {
@@ -28,7 +32,7 @@ class SmRegisterClient
         }
 
         return Http::withOptions($options)
-            ->baseUrl('https://acqapi.tinkoff.ru')
+            ->baseUrl($baseUrl)
             ->acceptJson();
     }
 

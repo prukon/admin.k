@@ -6,6 +6,8 @@ use App\Models\Partner;
 use App\Models\TinkoffPayout;
 use App\Models\TinkoffPayment;
 use App\Services\Tinkoff\SmRegisterClient;
+use App\Http\Requests\Tinkoff\SmRegisterRequest;
+use App\Http\Requests\Tinkoff\SmPatchRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -37,30 +39,11 @@ class TinkoffAdminPartnerController extends Controller
         return view('tinkoff.partners.show', compact('partner', 'waiting', 'latestPayments'));
     }
 
-    public function smRegister($id, Request $request, SmRegisterClient $sm)
+    public function smRegister($id, SmRegisterRequest $request, SmRegisterClient $sm)
     {
         $partner = Partner::findOrFail($id);
 
-        $validated = $request->validate([
-            'business_type'        => 'required|string|in:individual_entrepreneur,company,physical_person,non_commercial_organization',
-            'title'                => 'required|string|max:255',
-            'organization_name'    => 'required|string|max:255',
-            'email'                => 'required|email',
-            'tax_id'               => 'required|string|max:20',     // ИНН
-            'registration_number'  => 'required|string|max:20',     // ОГРН/ОГРНИП
-            'address'              => 'required|string|max:255',    // свободная строка улицы — мы почистим
-            'city'                 => 'required|string|max:100',
-            'zip'                  => 'required|string|max:20',
-
-            'bank_name'            => 'required|string|max:255',
-            'bank_bik'             => 'required|string|max:20',
-            'bank_account'         => 'required|string|max:32',
-            'sm_details_template'  => 'required|string|max:500',
-
-            'phone'                => 'nullable|string|max:32',
-            'website'              => 'nullable|url|max:255',       // сайт теперь из partners.website
-            'kpp'                  => 'nullable|string|max:12',
-        ]);
+        $validated = $request->validated();
 
         // ---- helpers ----
         $normalizePhone = function (?string $raw): ?string {
@@ -248,7 +231,7 @@ class TinkoffAdminPartnerController extends Controller
         }
     }
 
-    public function smPatch($id, Request $request, SmRegisterClient $sm)
+    public function smPatch($id, SmPatchRequest $request, SmRegisterClient $sm)
     {
         $partner = Partner::findOrFail($id);
         if (!$partner->tinkoff_partner_id) {
@@ -257,27 +240,7 @@ class TinkoffAdminPartnerController extends Controller
                 : back()->withErrors(['sm'=>'Сначала зарегистрируйте партнёра (нет PartnerId)']);
         }
 
-        // те же поля, что и в регистрации
-        $validated = $request->validate([
-            'business_type'        => 'required|string|in:individual_entrepreneur,company,physical_person,non_commercial_organization',
-            'title'                => 'required|string|max:255',
-            'organization_name'    => 'required|string|max:255',
-            'email'                => 'required|email',
-            'tax_id'               => 'required|string|max:20',     // ИНН
-            'registration_number'  => 'required|string|max:20',     // ОГРН/ОГРНИП
-            'address'              => 'required|string|max:255',
-            'city'                 => 'required|string|max:100',
-            'zip'                  => 'required|string|max:20',
-
-            'bank_name'            => 'required|string|max:255',
-            'bank_bik'             => 'required|string|max:20',
-            'bank_account'         => 'required|string|max:32',
-            'sm_details_template'  => 'required|string|max:500',
-
-            'phone'                => 'nullable|string|max:32',
-            'website'              => 'nullable|url|max:255',
-            'kpp'                  => 'nullable|string|max:12',
-        ]);
+        $validated = $request->validated();
 
         // helpers (короткие версии)
         $normalizePhone = fn (?string $raw) =>

@@ -8,9 +8,68 @@ use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class TinkoffPayoutsService
 {
+    /**
+     * Раскладка по комиссиям для UI/диагностики.
+     *
+     * Важно: комиссии считаем так же, как для net-выплаты:
+     * gross - bank acquiring fee - bank payout fee - platform fee.
+     */
+    public function breakdownForPayment(TinkoffPayment $payment): array
+    {
+        $gross = (int) $payment->amount; // копейки
+        $rule = $this->pickCommissionRule((int) $payment->partner_id, $payment->method);
+
+        $bankAcceptFee = $this->calcFeeCents(
+            $gross,
+            (float) ($rule->acquiring_percent ?? 2.49),
+            (float) ($rule->acquiring_min_fixed ?? 3.49)
+        );
+
+        $bankPayoutFee = $this->calcFeeCents(
+            $gross,
+            (float) ($rule->payout_percent ?? 0.10),
+            (float) ($rule->payout_min_fixed ?? 0.00)
+        );
+
+        $platformFee = $this->calcFeeCents(
+            $gross,
+            (float) ($rule->platform_percent ?? $rule->percent ?? 2.00),
+            (float) ($rule->platform_min_fixed ?? $rule->min_fixed ?? 0.00)
+        );
+
+        $net = max(0, $gross - $bankAcceptFee - $bankPayoutFee - $platformFee);
+
+        return [
+            'gross' => $gross,
+            'bankAccept' => $bankAcceptFee,
+            'bankPayout' => $bankPayoutFee,
+            'platformFee' => $platformFee,
+            'net' => $net,
+            'rule' => $rule,
+        ];
+    }
+
+    public function closeSpDeal(string $dealId, int $partnerId): array
+    {
+        $dealId = trim($dealId);
+        if ($dealId === '') {
+            throw new \InvalidArgumentException('DealId is empty');
+        }
+
+        $cfg = $this->resolveE2cConfig($partnerId);
+        $payload = [
+            'TerminalKey' => $cfg['terminal_key'],
+            'DealId'      => $dealId,
+        ];
+        $payload['Token'] = TinkoffSignature::makeToken($payload, $cfg['password']);
+
+        return TinkoffApiClient::post($cfg['base_url'], '/e2c/v2/CloseSpDeal', $payload);
+    }
+
     public function createAndRunPayout(TinkoffPayment $payment, bool $isFinal = true, ?\DateTimeInterface $delayUntil = null): TinkoffPayout
     {
         $partner = Partner::findOrFail($payment->partner_id);
@@ -125,14 +184,17 @@ class TinkoffPayoutsService
             $payout->save();
 
             if ($old !== $payout->status) {
-                DB::table('tinkoff_payout_status_logs')->insert([
-                    'payout_id'   => $payout->id,
-                    'from_status' => $old,
-                    'to_status'   => $payout->status,
-                    'payload'     => json_encode($res, JSON_UNESCAPED_UNICODE),
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ]);
+                // Логи статусов — диагностическая таблица. Если миграция ещё не применена, не валим выплаты.
+                if (Schema::hasTable('tinkoff_payout_status_logs')) {
+                    DB::table('tinkoff_payout_status_logs')->insert([
+                        'payout_id'   => $payout->id,
+                        'from_status' => $old,
+                        'to_status'   => $payout->status,
+                        'payload'     => json_encode($res, JSON_UNESCAPED_UNICODE),
+                        'created_at'  => now(),
+                        'updated_at'  => now(),
+                    ]);
+                }
             }
         }
 
@@ -186,7 +248,8 @@ class TinkoffPayoutsService
 
         $platformFee = $this->calcFeeCents(
             $gross,
-            (float) ($rule->platform_percent ?? $rule->percent ?? 0.00),
+            // Приоритет: правило из БД; если не задано — дефолт платформы 2%
+            (float) ($rule->platform_percent ?? $rule->percent ?? 2.00),
             (float) ($rule->platform_min_fixed ?? $rule->min_fixed ?? 0.00)
         );
 
@@ -212,7 +275,7 @@ class TinkoffPayoutsService
             'acquiring_min_fixed' => 3.49,
             'payout_percent'      => 0.10,
             'payout_min_fixed'    => 0.00,
-            'platform_percent'    => 0.00,
+            'platform_percent'    => 2.00,
             'platform_min_fixed'  => 0.00,
         ]);
     }

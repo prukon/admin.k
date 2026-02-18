@@ -23,8 +23,10 @@ class TinkoffDebugController extends Controller
 
     public function tpayStatus()
     {
-        $tk = config('tinkoff.payment.terminal_key');
-        $url = "https://rest-api-test.tinkoff.ru/v2/TinkoffPay/terminals/{$tk}/status";
+        $tk = (string) config('tinkoff.payment.terminal_key');
+        $base = (string) config('tinkoff.payment.base_url', 'https://securepay.tinkoff.ru');
+        $base = rtrim($base, '/');
+        $url = "{$base}/v2/TinkoffPay/terminals/{$tk}/status";
         $res = \App\Services\Tinkoff\TinkoffApiClient::get($url);
         return response()->json($res);
     }

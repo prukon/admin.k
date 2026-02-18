@@ -65,6 +65,7 @@ class AdminRoleBasePermissionsSeeder extends Seeder
             'payment_clubfee',
             'change_history',
             'manage_roles',
+            // 'manage_payment_method_T-Bank',
         ];
 
         $permissionNames = array_values(array_unique(array_map('trim', $permissionNames)));

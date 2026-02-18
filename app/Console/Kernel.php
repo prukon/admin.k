@@ -20,13 +20,16 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
 
-
-        // Europe/Riga 03:30 — добиваем статусы и выполняем отложенные
+        // T-Bank payouts:
+        // - запускаем отложенные выплаты
+        // - часто добиваем статусы, т.к. e2c не присылает webhook-уведомления
         $schedule->job(new \App\Jobs\TinkoffRunScheduledPayoutsJob)
-            ->timezone('Europe/Riga')->dailyAt('03:30');
+            ->timezone('Europe/Riga')
+            ->everyTenMinutes();
 
         $schedule->job(new \App\Jobs\TinkoffPollPayoutStatesJob)
-            ->timezone('Europe/Riga')->dailyAt('03:40');
+            ->timezone('Europe/Riga')
+            ->everyTenMinutes();
 
 
     }

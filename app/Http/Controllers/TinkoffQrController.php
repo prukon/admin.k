@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Tinkoff\QrInitRequest;
 use Illuminate\Support\Facades\Config;
 use App\Models\PaymentSystem;
 use App\Services\Tinkoff\TinkoffPaymentsService;
@@ -13,9 +13,10 @@ use App\Models\TinkoffPayment;
 class TinkoffQrController extends Controller
 {
     // 1) Инициализация платежа и редирект на QR-страницу
-    public function init(Request $r, TinkoffPaymentsService $svc)
+    public function init(QrInitRequest $r, TinkoffPaymentsService $svc)
     {
-        $partnerId  = (int) $r->input('partner_id');
+        // Безопасность: partner_id только из текущего партнёра (не из запроса — иначе подмена на чужого)
+        $partnerId  = (int) app('current_partner')->id;
         $outSumRub  = (float) str_replace(',', '.', $r->input('outSum', 0));
         $amountCents= (int) round($outSumRub * 100);
         $method     = 'sbp'; // для аналитики комиссий у нас
@@ -36,7 +37,10 @@ class TinkoffQrController extends Controller
     public function show($paymentId)
     {
         $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
-        $orderId = $tp?->order_id;
+        if (!$tp || (int) $tp->partner_id !== (int) app('current_partner')->id) {
+            abort(404);
+        }
+        $orderId = $tp->order_id;
 
         return view('tinkoff.qr', [
             'paymentId' => $paymentId,
@@ -50,7 +54,7 @@ class TinkoffQrController extends Controller
     public function getQr($paymentId)
     {
         $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
-        if (!$tp) {
+        if (!$tp || (int) $tp->partner_id !== (int) app('current_partner')->id) {
             return response()->json(['Success' => false, 'Message' => 'Payment not found'], 404);
         }
 
@@ -70,7 +74,7 @@ class TinkoffQrController extends Controller
     public function state($paymentId)
     {
         $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
-        if (!$tp) {
+        if (!$tp || (int) $tp->partner_id !== (int) app('current_partner')->id) {
             return response()->json(['Success' => false, 'Message' => 'Payment not found'], 404);
         }
 
