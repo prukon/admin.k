@@ -4,7 +4,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
-use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 
 //use App\Http\Requests\Partner\UpdateRequest;
@@ -53,10 +52,15 @@ class PartnerController extends AdminBaseController
     {
 
         $data = $request->validated();
-        $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
+        $title = isset($data['title']) ? trim((string)$data['title']) : null;
 
+        $partnersQuery = Partner::query();
 
-        $allPartners = Partner::filter($filter)
+        if (!empty($title)) {
+            $partnersQuery->where('title', 'like', '%' . $title . '%');
+        }
+
+        $allPartners = $partnersQuery
             ->orderBy('order_by', 'asc') // сортировка по полю order_by по возрастанию
             ->paginate(10);
 

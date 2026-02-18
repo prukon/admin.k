@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Filters\TeamFilter;
 use App\Http\Requests\Team\FilterRequest;
 
 use App\Models\MyLog;
@@ -30,14 +29,21 @@ class DashboardController extends Controller
     {
         $partnerId = app('current_partner')->id;
         $data = $request->validated();
-        $filter = app()->make(TeamFilter::class, ['queryParams' => array_filter($data)]);
+        $title = isset($data['title']) ? trim((string)$data['title']) : null;
+
         $allUsersSelect = User::where('is_enabled', true)
             ->where('partner_id', $partnerId)
             ->orderBy('lastname', 'asc')->get();
 
-        $allTeams = Team::where('is_enabled', true)
+        $teamsQuery = Team::where('is_enabled', true)
             ->where('partner_id', $partnerId)
-            ->orderBy('order_by', 'asc')->filter($filter)->get();
+            ->orderBy('order_by', 'asc');
+
+        if (!empty($title)) {
+            $teamsQuery->where('title', 'like', '%' . $title . '%');
+        }
+
+        $allTeams = $teamsQuery->get();
 
         $weekdays = Weekday::all();
         $curUser = auth()->user();
