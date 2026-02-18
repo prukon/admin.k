@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use App\Models\UserField;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\MyLog;
 use App\Http\Requests\User\UpdateRequest;
 use App\Models\UserFieldValue;
@@ -24,7 +25,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use App\Support\BuildsLogTable;
 use Intervention\Image\ImageManager;
-use App\Servises\UserService;
+use App\Services\UserService;
 
 class UserController extends AdminBaseController
 {
@@ -481,7 +482,7 @@ class UserController extends AdminBaseController
                     /** @var UserField|null $field */
                     $field = $fieldsBySlug[$slug] ?? null;
                     if (!$field) {
-                        \Log::warning("User update: UserField not found by slug '{$slug}'");
+                        Log::warning("User update: UserField not found by slug '{$slug}'");
                         continue;
                     }
 

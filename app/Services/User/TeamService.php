@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Servises\Team;
+namespace App\Services\User;
 
 use App\Models\Team;
 
-class Service
+class TeamService
 {
     public function store($data)
     {

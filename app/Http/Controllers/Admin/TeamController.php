@@ -8,7 +8,7 @@ use App\Http\Requests\Team\FilterRequest;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\Weekday;
-use App\Servises\TeamService;
+use App\Services\TeamService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Models\MyLog;

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
-use App\Servises\SmsRuService;
+use App\Services\SmsRuService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -73,7 +73,7 @@ class TwoFactorController extends Controller
         if (!$hasActiveCode && $cooldownSec === 0) {
             $code = (string) random_int(100000, 999999);
             $user->forceFill([
-                'two_factor_code'       => \Hash::make($code),
+                'two_factor_code'       => Hash::make($code),
                 'two_factor_expires_at' => now()->addMinutes(10),
             ])->save();
 
@@ -202,7 +202,7 @@ class TwoFactorController extends Controller
         // Генерим и отправляем код
         $code = (string) random_int(100000, 999999);
         $user->forceFill([
-            'two_factor_code'       => \Hash::make($code),
+            'two_factor_code'       => Hash::make($code),
             'two_factor_expires_at' => now()->addMinutes(10),
         ])->save();
 

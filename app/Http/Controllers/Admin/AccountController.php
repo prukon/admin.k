@@ -14,7 +14,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserFieldValue;
-use App\Servises\UserService;
+use App\Services\UserService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\Event;
@@ -503,7 +503,7 @@ class AccountController extends AdminBaseController
 
         // Отправка SMS — шлюзу отдаем цифры (79…)
         try {
-            app(\App\Servises\SmsRuService::class)->send($digits, "Код подтверждения: {$code}");
+            app(\App\Services\SmsRuService::class)->send($digits, "Код подтверждения: {$code}");
         } catch (\Throwable $e) {
             Log::error('phoneSendCode: sms send failed', ['err' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => 'Не удалось отправить SMS. Попробуйте позже.'], 500);

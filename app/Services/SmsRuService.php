@@ -1,7 +1,7 @@
 <?php
-// app/Servises/SmsRuService.php  <-- как у вас сейчас (лучше исправить на Services)
+// app/Services/SmsRuService.php
 
-namespace App\Servises;
+namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;

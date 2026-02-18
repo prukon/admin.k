@@ -17,8 +17,8 @@ use App\Models\Partner;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\Weekday;
-use App\Servises\TeamService;
-use App\Servises\UserService;
+use App\Services\TeamService;
+use App\Services\UserService;
 use Carbon\Carbon;
 
 //use Illuminate\Http\Request;

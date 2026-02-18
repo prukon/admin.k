@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Security;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
-use App\Servises\SmsRuService;
+use App\Services\SmsRuService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
@@ -158,7 +159,7 @@ class PhoneChangeController extends Controller
             'pending_prop'  => $u->two_factor_phone_pending,                             // что вернёт аксессор/каст (если есть)
         ]);
 
-        $directDbPending = \DB::table('users')->where('id', $u->id)->value('two_factor_phone_pending');
+        $directDbPending = DB::table('users')->where('id', $u->id)->value('two_factor_phone_pending');
         Log::debug('PC.start: after-save (db readback)', [
             'user_id'      => $u->id,
             'db_pending'   => $directDbPending,
@@ -292,7 +293,7 @@ class PhoneChangeController extends Controller
             'pending_prop'  => $u->two_factor_phone_pending,                             // что вернёт аксессор/каст (если есть)
         ]);
 
-        $directDbPending = \DB::table('users')->where('id', $u->id)->value('two_factor_phone_pending');
+        $directDbPending = DB::table('users')->where('id', $u->id)->value('two_factor_phone_pending');
         Log::debug('PC.start: after-save (db readback)', [
             'user_id'      => $u->id,
             'db_pending'   => $directDbPending,

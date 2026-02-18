@@ -6,7 +6,21 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
 
-    <title>Kidslink.ru - сервис учета для детских садов, тематических школ и секций</title>
+
+    <title>Ошибка 404 — Страница не найдена | KidsCRM</title>
+    <description>Страница не найдена. Кажется, вы зашли не туда.</description>
+    <keywords>ошибка 404, страница не найдена, kidscrm</keywords>
+    <author>KidsCRM</author>
+    <robots>noindex, nofollow</robots>
+    <googlebot>noindex, nofollow</googlebot>
+    <bingbot>noindex, nofollow</bingbot>
+    <yandexbot>noindex, nofollow</yandexbot>
+    <sitemap>https://kidscrm.online/sitemap.xml</sitemap>
+    <sitemap>https://kidscrm.online/sitemap-index.xml</sitemap-index>
+
+     
+    
+    
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
     {{--JQuery--}}
     <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
@@ -296,7 +310,7 @@
         <a href="/" class="brand-link ml-3">
 {{--                        <img src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="Kidslink Logo"--}}
 {{--                             class="brand-image img-circle elevation-3" style="opacity: .8">--}}
-            <span class="brand-text font-weight-light">Kidslink.ru</span>
+            <span class="brand-text font-weight-light">kidscrm.online</span>
         </a>
 
         <!-- Sidebar -->

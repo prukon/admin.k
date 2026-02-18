@@ -8,7 +8,7 @@ use App\Http\Requests\Partner\UpdateRequest;
 use App\Models\Partner;
 use App\Models\Team;
 use App\Models\User;
-use App\Servises\UserService;
+use App\Services\UserService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Servises;
+namespace App\Services;
 
 use App\Models\Setting;
 use App\Models\User;
@@ -28,9 +28,9 @@ class UserService
         try {
             // Проверяем, что данные пришли
             if (!empty($data['custom']) && is_array($data['custom'])) {
-                \Log::info('Полученные кастомные поля:', $data['custom']);
+                Log::info('Полученные кастомные поля:', $data['custom']);
             } else {
-                \Log::warning('Данные custom отсутствуют или не являются массивом.');
+                Log::warning('Данные custom отсутствуют или не являются массивом.');
             }
 
             // Исключаем 'custom' из основного массива
@@ -56,7 +56,7 @@ class UserService
             try {
                 $forceAdmin2fa = method_exists(Setting::class, 'getBool')
                     ? Setting::getBool('force_2fa_admins', false, null)
-                    : (bool) \DB::table('settings')
+                    : (bool) DB::table('settings')
                         ->where('name', 'force_2fa_admins')
                         ->whereNull('partner_id')
                         ->value('status');
@@ -68,7 +68,7 @@ class UserService
                     // Нельзя выключить 2FA у админа, если глобалка включена
                     $userData['two_factor_enabled'] = 1;
 
-                    \Log::info('UserService: force two_factor_enabled=1 for admin due to global setting', [
+                    Log::info('UserService: force two_factor_enabled=1 for admin due to global setting', [
                         'user_id' => $user->id,
                         'role_name' => $userRoleName,
                     ]);
@@ -79,7 +79,7 @@ class UserService
                     }
                 }
             } catch (\Throwable $e) {
-                \Log::error('UserService: failed to enforce admin 2FA policy', ['error' => $e->getMessage()]);
+                Log::error('UserService: failed to enforce admin 2FA policy', ['error' => $e->getMessage()]);
             }
 
             // Обновляем основные поля пользователя
@@ -96,11 +96,11 @@ class UserService
                             ->pluck('role_id')
                             ->toArray();
 
-                        \Log::debug("UserField ID {$userField->id}, allowed roles:", $allowedRoleIds);
+                        Log::debug("UserField ID {$userField->id}, allowed roles:", $allowedRoleIds);
 
                         $isEditable = in_array($currentUser->role_id, $allowedRoleIds);
 
-                        \Log::info("Обработка поля {$slug}: Редактируемое - " . ($isEditable ? 'Да' : 'Нет'));
+                        Log::info("Обработка поля {$slug}: Редактируемое - " . ($isEditable ? 'Да' : 'Нет'));
 
                         if ($isEditable) {
                             UserFieldValue::updateOrCreate(
@@ -111,19 +111,19 @@ class UserService
                                 ['value' => $value]
                             );
 
-                            \Log::info("Обновлено поле {$slug} (ID: {$userField->id}) для пользователя {$user->id}: {$value}");
+                            Log::info("Обновлено поле {$slug} (ID: {$userField->id}) для пользователя {$user->id}: {$value}");
                         } else {
-                            \Log::warning("Пользователь {$currentUser->id} не может редактировать поле {$slug}");
+                            Log::warning("Пользователь {$currentUser->id} не может редактировать поле {$slug}");
                         }
                     } else {
-                        \Log::warning("Поле с slug {$slug} не найдено в базе.");
+                        Log::warning("Поле с slug {$slug} не найдено в базе.");
                     }
                 }
             } else {
-                \Log::warning('Поле custom отсутствует или не является массивом.');
+                Log::warning('Поле custom отсутствует или не является массивом.');
             }
         } catch (\Exception $e) {
-            \Log::error('Ошибка при обновлении пользователя:', [
+            Log::error('Ошибка при обновлении пользователя:', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -137,9 +137,9 @@ class UserService
 
         try {
             if (!empty($data['custom']) && is_array($data['custom'])) {
-                \Log::info('Полученные кастомные поля:', $data['custom']);
+                Log::info('Полученные кастомные поля:', $data['custom']);
             } else {
-                \Log::warning('Данные custom отсутствуют или не являются массивом.');
+                Log::warning('Данные custom отсутствуют или не являются массивом.');
             }
 
             // Исключаем 'custom' из основного массива
@@ -164,7 +164,7 @@ class UserService
             try {
                 $forceAdmin2fa = method_exists(Setting::class, 'getBool')
                     ? Setting::getBool('force_2fa_admins', false, null)
-                    : (bool) \DB::table('settings')
+                    : (bool) DB::table('settings')
                         ->where('name','force_2fa_admins')
                         ->whereNull('partner_id')
                         ->value('status');
@@ -175,7 +175,7 @@ class UserService
                 if ($isAdminRole && $forceAdmin2fa) {
                     $userData['two_factor_enabled'] = 1;
 
-                    \Log::info('UserService: force two_factor_enabled=1 for admin due to global setting', [
+                    Log::info('UserService: force two_factor_enabled=1 for admin due to global setting', [
                         'user_id' => $user->id,
                         'role_name' => $userRoleName,
                     ]);
@@ -185,7 +185,7 @@ class UserService
                     }
                 }
             } catch (\Throwable $e) {
-                \Log::error('UserService: failed to enforce admin 2FA policy', ['error' => $e->getMessage()]);
+                Log::error('UserService: failed to enforce admin 2FA policy', ['error' => $e->getMessage()]);
             }
 
             // Обновляем основные поля пользователя
@@ -202,11 +202,11 @@ class UserService
                             ->pluck('role_id')
                             ->toArray();
 
-                        \Log::debug("UserField ID {$userField->id}, allowed roles:", $allowedRoleIds);
+                        Log::debug("UserField ID {$userField->id}, allowed roles:", $allowedRoleIds);
 
                         $isEditable = in_array($currentUser->role_id, $allowedRoleIds);
 
-                        \Log::info("Обработка поля {$slug}: Редактируемое - " . ($isEditable ? 'Да' : 'Нет'));
+                        Log::info("Обработка поля {$slug}: Редактируемое - " . ($isEditable ? 'Да' : 'Нет'));
 
                         if ($isEditable) {
                             UserFieldValue::updateOrCreate(
@@ -217,20 +217,20 @@ class UserService
                                 ['value' => $value]
                             );
 
-                            \Log::info("Обновлено поле {$slug} (ID: {$userField->id}) для пользователя {$user->id}: {$value}");
+                            Log::info("Обновлено поле {$slug} (ID: {$userField->id}) для пользователя {$user->id}: {$value}");
                         } else {
-                            \Log::warning("Пользователь {$currentUser->id} не может редактировать поле {$slug}");
+                            Log::warning("Пользователь {$currentUser->id} не может редактировать поле {$slug}");
                         }
                     } else {
-                        \Log::warning("Поле с slug {$slug} не найдено в базе.");
+                        Log::warning("Поле с slug {$slug} не найдено в базе.");
                     }
                 }
             } else {
-                \Log::warning('Поле custom отсутствует или не является массивом.');
+                Log::warning('Поле custom отсутствует или не является массивом.');
             }
 
         } catch (\Exception $e) {
-            \Log::error('Ошибка при обновлении пользователя:', [
+            Log::error('Ошибка при обновлении пользователя:', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
