@@ -322,10 +322,10 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
-     * (P0) По умолчанию выдача отсортирована по operation_date ASC
-     * (ближайшая оплата сверху), если order не передан.
+     * (P0) По умолчанию выдача отсортирована по operation_date DESC
+     * (ближайшие платежи сверху), если order не передан.
      */
-    public function test_getPayments_default_sort_is_operation_date_ascending_when_no_order_param(): void
+    public function test_getPayments_default_sort_is_operation_date_descending_when_no_order_param(): void
     {
         $p1 = Payment::factory()->create([
             'user_id' => $this->user->id,
@@ -355,8 +355,8 @@ class PaymentReportTest extends CrmTestCase
 
         $ids = $data->pluck('id')->map(fn($v) => (int) $v)->values()->all();
 
-        // Ожидаем: 2026-01-01, 2026-01-02, 2026-01-03
-        $this->assertSame([$p2->id, $p3->id, $p1->id], array_slice($ids, 0, 3));
+        // Ожидаем: 2026-01-03, 2026-01-02, 2026-01-01
+        $this->assertSame([$p1->id, $p3->id, $p2->id], array_slice($ids, 0, 3));
     }
 
     /**

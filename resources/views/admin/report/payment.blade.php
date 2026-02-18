@@ -527,7 +527,7 @@ columns.push(
     serverSide: true,
     ajax: "{{ route('payments.getPayments') }}",
     columns: columns,
-    order: [[5, 'asc']], // По умолчанию: ближайшая оплата сверху (по дате)
+    order: [[5, 'desc']], // По умолчанию: ближайшие платежи сверху (по дате)
 
     scrollX: true,
 

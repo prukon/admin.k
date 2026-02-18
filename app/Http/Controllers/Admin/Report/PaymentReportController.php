@@ -91,7 +91,7 @@ class PaymentReportController extends AdminBaseController
 
         // Дефолтная сортировка, если фронт не передал order (например, после кастомизаций таблицы)
         if (! $hasOrder) {
-            $paymentsQuery->orderBy('payments.operation_date', 'asc');
+            $paymentsQuery->orderBy('payments.operation_date', 'desc');
         }
 
         // Общие правила комиссий (не зависят от конкретного платежа)
