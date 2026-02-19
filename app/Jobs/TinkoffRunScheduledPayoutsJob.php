@@ -19,6 +19,8 @@ class TinkoffRunScheduledPayoutsJob implements ShouldQueue
         $toRun = TinkoffPayout::whereNull('tinkoff_payout_payment_id')
             ->whereNotNull('when_to_run')
             ->where('when_to_run', '<=', now())
+            ->where('status', 'INITIATED')
+            ->whereNull('completed_at')
             ->orderBy('when_to_run')
             ->limit(100)
             ->get();

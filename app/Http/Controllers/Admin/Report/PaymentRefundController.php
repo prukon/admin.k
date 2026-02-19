@@ -68,7 +68,29 @@ class PaymentRefundController extends AdminBaseController
                         ->orderByDesc('id')
                         ->first();
                     if ($payout && (string) $payout->status !== 'REJECTED') {
-                        return ['error' => true, 'message' => 'payout_exists'];
+                        // Если выплата уже ушла в банк — возврат запрещён.
+                        if (!empty($payout->tinkoff_payout_payment_id)) {
+                            return ['error' => true, 'message' => 'payout_exists'];
+                        }
+
+                        // Если выплата только запланирована и ещё не запущена — отменяем её и разрешаем refund.
+                        if ($payout->when_to_run && $payout->when_to_run->gt(now())) {
+                            $payload = $payout->payload_state ?? [];
+                            $payload['cancelled_by_refund'] = [
+                                'at' => now()->toIso8601String(),
+                                'actor_id' => $actorId,
+                                'refund_payment_id' => (int) $lockedPayment->id,
+                            ];
+
+                            $payout->status = 'REJECTED';
+                            $payout->completed_at = now();
+                            $payout->when_to_run = null;
+                            $payout->payload_state = $payload;
+                            $payout->save();
+                        } else {
+                            // Выплата не запланирована "в будущем" (т.е. могла быть ручной/уже на исполнении) — запрещаем.
+                            return ['error' => true, 'message' => 'payout_exists'];
+                        }
                     }
                 }
 

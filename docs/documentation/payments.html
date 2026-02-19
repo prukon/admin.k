@@ -161,6 +161,8 @@
   <div class="note">
     <b>Важно про “месяц”:</b> источником истины является <code>payables.month</code> (и <code>payables.type</code>).
     В T‑Bank дополнительно передаём месяц в <code>DATA.month</code> только для трассировки.
+    <br><b>Важно для надёжности webhooks:</b> в <code>DATA</code> также передаём <code>payment_intent_id</code>/<code>payable_id</code>/<code>user_id</code>,
+    чтобы обработчик мог связать webhook с нашей БД даже при гонке (webhook пришёл раньше сохранения <code>tbank_payment_id</code>/<code>tbank_order_id</code> в <code>payment_intents</code>).
   </div>
   <ol>
     <li>На странице <code>/payment</code> метод T‑Bank показываем только если:

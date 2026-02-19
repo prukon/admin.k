@@ -115,7 +115,9 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <ol>
     <li>Юзер выбирает T‑Bank на странице <code>/payment</code>.</li>
     <li>Создаём <code>payables</code> и <code>payment_intents</code> (provider=tbank, pending).</li>
-    <li>Вызов T‑Bank <code>/v2/Init</code> (PayType=O). Передаём <code>DATA.month</code> (если monthly).</li>
+    <li>Вызов T‑Bank <code>/v2/Init</code> (PayType=O).
+      Передаём <code>DATA.month</code> (если monthly) и внутренние идентификаторы:
+      <code>DATA.payment_intent_id</code>/<code>DATA.payable_id</code>/<code>DATA.user_id</code> для надёжной связки webhook → наша БД.</li>
     <li>Редирект на форму оплаты.</li>
     <li>Webhook <code>/webhooks/tinkoff/payments</code>:
       <ul>
@@ -128,6 +130,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <div class="note">
     Источник истины для оплачиваемого месяца: <code>payables.month</code>. Поле <code>DATA.month</code> используется для трассировки и диагностики.
+    <br>Для устойчивости к гонкам webhook’ов обработчик также использует <code>Data.payment_intent_id</code>, если webhook пришёл раньше сохранения <code>tbank_payment_id</code>/<code>tbank_order_id</code> в <code>payment_intents</code>.
   </div>
 
   <h2 id="tests">7) Тесты</h2>

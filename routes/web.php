@@ -32,6 +32,7 @@ use App\Http\Controllers\TinkoffDebugController;
 use App\Http\Controllers\TinkoffPartnerAdminController;
 use App\Http\Controllers\TinkoffPaymentController;
 use App\Http\Controllers\TinkoffPayoutController;
+use App\Http\Controllers\TinkoffAdminPayoutController;
 use App\Http\Controllers\TinkoffQrController;
 use App\Http\Controllers\TinkoffWebhookController;
 use App\Http\Controllers\TransactionController;
@@ -62,6 +63,7 @@ use App\Http\Controllers\Debug\RequestDebugController;
 use App\Http\Middleware\DebugRequestAccess;
 use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
 use App\Http\Controllers\Admin\UserAvatarController;
+use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
 
 
 Auth::routes();
@@ -464,6 +466,17 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:tbank-payouts-manage')->group(function () {
         Route::post('/tinkoff/payouts/{deal}/pay-now', [TinkoffPayoutController::class, 'payNow']);
         Route::post('/tinkoff/payouts/{deal}/delay', [TinkoffPayoutController::class, 'delay']);
+
+        // Админка: список выплат + карточка (DataTables)
+        Route::get('/admin/tinkoff/payouts', [TinkoffAdminPayoutController::class, 'index']);
+        Route::get('/admin/tinkoff/payouts/data', [TinkoffAdminPayoutController::class, 'data']);
+
+        // Настройки отображения колонок
+        Route::get('/admin/tinkoff/payouts/columns-settings', [TinkoffPayoutTableSettingsController::class, 'getColumnsSettings']);
+        Route::post('/admin/tinkoff/payouts/columns-settings', [TinkoffPayoutTableSettingsController::class, 'saveColumnsSettings']);
+
+        // Карточка выплаты
+        Route::get('/admin/tinkoff/payouts/{id}', [TinkoffAdminPayoutController::class, 'show'])->whereNumber('id');
     });
 
     // Админские операции по T-Bank (sm-register, debug, карточки, close deal) — только владелец (superadmin)  (feature test +)

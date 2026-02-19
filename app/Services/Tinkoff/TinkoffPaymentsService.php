@@ -166,12 +166,16 @@ class TinkoffPaymentsService
                 Log::channel('tinkoff')->error('[sm-register PATCH failed] ' . $e->getMessage());
             }
 
-            // 2) Стартуем автоваыплату (FinalPayout = true)
+            // 2) Создаём выплату с задержкой 48 часов после CONFIRMED.
+            // Важно: e2c не присылает webhook, поэтому статус доведёт polling job.
             try {
+                $runAt = ($payment->confirmed_at ?? now())->clone()->addHours(48);
                 app(\App\Services\Tinkoff\TinkoffPayoutsService::class)
-                    ->createAndRunPayout($payment, true, null);
-                Log::channel('tinkoff')->info('[auto-payout started]', [
-                    'deal_id' => $payment->deal_id, 'payment_id' => $payment->id
+                    ->createAndRunPayout($payment, true, $runAt, 'auto', null);
+                Log::channel('tinkoff')->info('[auto-payout scheduled]', [
+                    'deal_id' => $payment->deal_id,
+                    'payment_id' => $payment->id,
+                    'run_at' => $runAt->format('c'),
                 ]);
             } catch (\Throwable $e) {
                 Log::channel('tinkoff')->error('[auto-payout failed] ' . $e->getMessage());
@@ -227,15 +231,39 @@ class TinkoffPaymentsService
             return;
         }
 
-        // Ищем intent
-        $intent = PaymentIntent::query()
-            ->where('provider', 'tbank')
-            ->where(function ($q) use ($paymentId, $orderId) {
-                $q->where('provider_inv_id', (int) $paymentId)
-                  ->orWhere('tbank_payment_id', (int) $paymentId)
-                  ->orWhere('tbank_order_id', (string) $orderId);
-            })
-            ->first();
+        // Ищем intent.
+        // Важно: webhook может прийти раньше, чем мы успели сохранить tbank_payment_id/tbank_order_id в payment_intents.
+        // Поэтому используем "внутреннюю" связку через Data.payment_intent_id (мы передаём её в Init в поле DATA).
+        $intent = null;
+
+        $data = $webhook['Data'] ?? ($webhook['DATA'] ?? null);
+        if (is_string($data) && $data !== '') {
+            $decoded = json_decode($data, true);
+            if (is_array($decoded)) {
+                $data = $decoded;
+            }
+        }
+
+        $intentIdFromData = is_array($data) ? (int) ($data['payment_intent_id'] ?? 0) : 0;
+        if ($intentIdFromData > 0) {
+            $intent = PaymentIntent::query()
+                ->whereKey($intentIdFromData)
+                ->where('provider', 'tbank')
+                ->where('partner_id', (int) $payment->partner_id)
+                ->first();
+        }
+
+        if (!$intent) {
+            $intent = PaymentIntent::query()
+                ->where('provider', 'tbank')
+                ->where('partner_id', (int) $payment->partner_id)
+                ->where(function ($q) use ($paymentId, $orderId) {
+                    $q->where('provider_inv_id', (int) $paymentId)
+                      ->orWhere('tbank_payment_id', (int) $paymentId)
+                      ->orWhere('tbank_order_id', (string) $orderId);
+                })
+                ->first();
+        }
 
         if (!$intent) {
             return;

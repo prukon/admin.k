@@ -20,7 +20,8 @@ class TinkoffPayoutController extends Controller
         if (!$isSuperadmin && (int) $payment->partner_id !== (int) app('current_partner')->id) {
             abort(404);
         }
-        $payout = $svc->createAndRunPayout($payment, true, null);
+        $actorId = (int) auth()->id();
+        $payout = $svc->createAndRunPayout($payment, true, null, 'manual', $actorId ?: null);
         return back()->with('status', 'Выплата запущена');
     }
 
@@ -33,7 +34,8 @@ class TinkoffPayoutController extends Controller
         if (!$isSuperadmin && (int) $payment->partner_id !== (int) app('current_partner')->id) {
             abort(404);
         }
-        $svc->createAndRunPayout($payment, true, $ts);
+        $actorId = (int) auth()->id();
+        $svc->createAndRunPayout($payment, true, $ts, 'delayed', $actorId ?: null);
         return back()->with('status', 'Выплата отложена');
     }
 }

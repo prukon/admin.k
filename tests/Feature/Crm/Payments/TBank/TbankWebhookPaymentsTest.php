@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffPayment;
+use App\Models\UserPrice;
 use App\Services\Tinkoff\TinkoffSignature;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
@@ -231,6 +232,73 @@ class TbankWebhookPaymentsTest extends CrmTestCase
         $this->assertDatabaseMissing('payments', [
             'partner_id' => $this->partner->id,
             'payment_number' => '12345',
+        ]);
+    }
+
+    public function test_webhook_confirmed_monthly_fee_marks_user_price_paid_and_writes_payment_month_even_if_tbank_fields_not_saved_yet(): void
+    {
+        $this->setupTbankKeysForPartner('TERM', 'PWD');
+
+        TinkoffPayment::create([
+            'order_id' => 'order-m1',
+            'partner_id' => $this->partner->id,
+            'amount' => 1500,
+            'method' => 'card',
+            'status' => 'FORM',
+        ]);
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'monthly_fee',
+            'amount' => '15.00',
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'month' => '2024-09-01',
+        ]);
+
+        // ВАЖНО: намеренно НЕ сохраняем tbank_order_id/tbank_payment_id в intent — имитируем гонку.
+        $intent = PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'status' => 'pending',
+            'out_sum' => '15.00',
+            'payment_date' => '2024-09-01',
+        ]);
+
+        $payload = $this->makeWebhookPayload([
+            'TerminalKey' => 'TERM',
+            'OrderId' => 'order-m1',
+            'PaymentId' => 55555,
+            'Status' => 'CONFIRMED',
+            // Банк возвращает DATA в webhook в параметре Data
+            'Data' => [
+                'payment_intent_id' => (string) $intent->id,
+                'payable_id' => (string) $payable->id,
+                'user_id' => (string) $this->user->id,
+                'month' => '2024-09-01',
+            ],
+        ], 'PWD');
+
+        $this->post('/webhooks/tinkoff/payments', $payload)->assertOk();
+
+        $intent->refresh();
+        $payable->refresh();
+        $this->assertSame('paid', (string) $intent->status);
+        $this->assertSame('paid', (string) $payable->status);
+
+        $this->assertDatabaseHas('users_prices', [
+            'user_id' => $this->user->id,
+            'new_month' => '2024-09-01',
+            'is_paid' => 1,
+        ]);
+
+        $this->assertDatabaseHas('payments', [
+            'partner_id' => $this->partner->id,
+            'payment_number' => '55555',
+            'payment_month' => '2024-09-01',
         ]);
     }
 }

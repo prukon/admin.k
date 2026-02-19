@@ -3,6 +3,7 @@
 namespace App\Services\Tinkoff;
 
 use App\Models\Partner;
+use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
@@ -70,40 +71,109 @@ class TinkoffPayoutsService
         return TinkoffApiClient::post($cfg['base_url'], '/e2c/v2/CloseSpDeal', $payload);
     }
 
-    public function createAndRunPayout(TinkoffPayment $payment, bool $isFinal = true, ?\DateTimeInterface $delayUntil = null): TinkoffPayout
+    public function createAndRunPayout(
+        TinkoffPayment $payment,
+        bool $isFinal = true,
+        ?\DateTimeInterface $delayUntil = null,
+        string $source = 'manual',
+        ?int $initiatedByUserId = null
+    ): TinkoffPayout
     {
-        $partner = Partner::findOrFail($payment->partner_id);
-        if (!$partner->tinkoff_partner_id || !$payment->deal_id) {
-            throw new \RuntimeException('Missing PartnerId or DealId');
-        }
+        return DB::transaction(function () use ($payment, $isFinal, $delayUntil, $source, $initiatedByUserId) {
+            // Идемпотентность: не создаём дубль выплаты по одному payment_id.
+            $existing = TinkoffPayout::query()
+                ->where('payment_id', (int) $payment->id)
+                ->lockForUpdate()
+                ->orderByDesc('id')
+                ->first();
+            if ($existing && (string) $existing->status !== 'REJECTED') {
+                // Ручной override: если была запланирована выплата, а сейчас жмём "выплатить сейчас" —
+                // запускаем её немедленно и фиксируем инициатора.
+                $canRunNow = empty($existing->tinkoff_payout_payment_id)
+                    && $existing->when_to_run
+                    && $existing->when_to_run->gt(now())
+                    && $delayUntil === null;
 
-        // Расчет суммы к выплате: сумма − банковская комиссия − моя комиссия
-        $netAmount = $this->calcNetAmountForPayout($payment);
+                if ($canRunNow) {
+                    $existing->when_to_run = null;
+                    $existing->source = $source ?: ($existing->source ?? 'manual');
+                    if ($initiatedByUserId) {
+                        $existing->initiated_by_user_id = $initiatedByUserId;
+                    }
+                    $existing->save();
+                    return $this->runPayout($existing);
+                }
 
-        $payout = TinkoffPayout::create([
-            'payment_id' => $payment->id,
-            'partner_id' => $partner->id,
-            'deal_id'    => $payment->deal_id,
-            'amount'     => $netAmount,
-            'is_final'   => $isFinal,
-            'status'     => $delayUntil ? 'INITIATED' : 'INITIATED',
-            'when_to_run'=> $delayUntil,
-        ]);
+                // Ручная перенастройка: если есть выплата, но пользователь жмёт "отложить" —
+                // обновляем when_to_run (только если она ещё не ушла в банк).
+                $canReschedule = empty($existing->tinkoff_payout_payment_id)
+                    && $delayUntil
+                    && ($delayUntil > now());
 
-        // Если сумма к выплате 0 — не дергаем банк, фиксируем как "отклонено".
-        // Это нормально для тестовых/минимальных сумм, когда комиссии >= суммы.
-        if ((int) $netAmount <= 0) {
-            $payout->status = 'REJECTED';
-            $payout->completed_at = now();
-            $payout->save();
-            return $payout;
-        }
+                if ($canReschedule) {
+                    $existing->when_to_run = $delayUntil;
+                    $existing->source = $source ?: ($existing->source ?? 'delayed');
+                    if ($initiatedByUserId) {
+                        $existing->initiated_by_user_id = $initiatedByUserId;
+                    }
+                    $existing->save();
+                }
 
-        if ($delayUntil && $delayUntil > now()) {
-            return $payout; // отложенная
-        }
+                return $existing;
+            }
 
-        return $this->runPayout($payout);
+            $partner = Partner::findOrFail($payment->partner_id);
+            if (!$partner->tinkoff_partner_id || !$payment->deal_id) {
+                throw new \RuntimeException('Missing PartnerId or DealId');
+            }
+
+            $breakdown = $this->breakdownForPayment($payment);
+            $netAmount = (int) ($breakdown['net'] ?? 0);
+            $payerUserId = $this->resolvePayerUserId($payment);
+
+            $payout = TinkoffPayout::create([
+                'payment_id' => (int) $payment->id,
+                'partner_id' => (int) $partner->id,
+                'deal_id'    => (string) $payment->deal_id,
+
+                // amount (как было) — сумма к выплате (net, копейки)
+                'amount'     => $netAmount,
+                'is_final'   => (bool) $isFinal,
+                'status'     => 'INITIATED',
+                'when_to_run'=> $delayUntil,
+
+                // audit
+                'source'              => $source,
+                'initiated_by_user_id'=> $initiatedByUserId,
+                'payer_user_id'       => $payerUserId,
+
+                // snapshot breakdown
+                'gross_amount'   => (int) ($breakdown['gross'] ?? 0),
+                'bank_accept_fee'=> (int) ($breakdown['bankAccept'] ?? 0),
+                'bank_payout_fee'=> (int) ($breakdown['bankPayout'] ?? 0),
+                'platform_fee'   => (int) ($breakdown['platformFee'] ?? 0),
+                'net_amount'     => $netAmount,
+            ]);
+
+            // Если сумма к выплате 0 — не дергаем банк, фиксируем как "отклонено".
+            // Это нормально для тестовых/минимальных сумм, когда комиссии >= суммы.
+            if ((int) $netAmount <= 0) {
+                $payout->status = 'REJECTED';
+                $payout->completed_at = now();
+                $payout->payload_state = array_merge($payout->payload_state ?? [], [
+                    'rejected_reason' => 'net_amount_zero',
+                ]);
+                $payout->save();
+                return $payout;
+            }
+
+            if ($delayUntil && $delayUntil > now()) {
+                return $payout; // отложенная
+            }
+
+            // Запуск в банк сразу
+            return $this->runPayout($payout);
+        });
     }
 
     public function runPayout(TinkoffPayout $payout): TinkoffPayout
@@ -199,6 +269,39 @@ class TinkoffPayoutsService
         }
 
         return $payout;
+    }
+
+    protected function resolvePayerUserId(TinkoffPayment $payment): ?int
+    {
+        // 1) Надёжная связка: PaymentIntent.tbank_order_id == TinkoffPayment.order_id
+        $uid = PaymentIntent::query()
+            ->where('provider', 'tbank')
+            ->where('partner_id', (int) $payment->partner_id)
+            ->where('tbank_order_id', (string) $payment->order_id)
+            ->value('user_id');
+        if (!empty($uid)) {
+            return (int) $uid;
+        }
+
+        // 2) Fallback: user_id в Data/DATA вебхука (если уже есть)
+        $pl = $payment->payload ?? [];
+        $wh = $pl['last_webhook'] ?? null;
+        if (!is_array($wh)) {
+            return null;
+        }
+
+        $data = $wh['Data'] ?? ($wh['DATA'] ?? null);
+        if (is_string($data) && $data !== '') {
+            $decoded = json_decode($data, true);
+            if (is_array($decoded)) {
+                $data = $decoded;
+            }
+        }
+        if (is_array($data) && !empty($data['user_id']) && ctype_digit((string) $data['user_id'])) {
+            return (int) $data['user_id'];
+        }
+
+        return null;
     }
 
     protected function resolveE2cConfig(int $partnerId): array
