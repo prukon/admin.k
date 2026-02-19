@@ -298,7 +298,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:documentations-view')->group(function () {
         Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
         Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
-            ->whereIn('page', ['payments', 'reports-payments', 'tbank', 'tests-standards'])
+            ->whereIn('page', ['payments', 'partners-permissions', 'reports-payments', 'tbank', 'tests-standards'])
             ->name('docs.documentation.show');
     });
 
@@ -447,7 +447,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/partner-wallet/success', [PartnerPaymentController::class, 'ykWalletSuccess'])->name('partner.wallet.success');
     });
 
-    //Тинькоф эквайринг мультирасчеты
+    //Тинькоф эквайринг мультирасчеты (feature test +)
     Route::middleware('can:payment-method-T-Bank')->group(function () {
         // витрина оплаты
         Route::post('/payments/tinkoff/create', [TinkoffPaymentController::class, 'create'])->name('payment.tinkoff.pay');
@@ -460,13 +460,13 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/tinkoff/qr/{paymentId}/state', [TinkoffQrController::class, 'state'])->name('tinkoff.qr.state');
     });
 
-    // Выплаты T-Bank (роль "бухгалтер" + суперадмин)
+    // Выплаты T-Bank (роль "бухгалтер" + суперадмин)  (feature test +)
     Route::middleware('can:tbank-payouts-manage')->group(function () {
         Route::post('/tinkoff/payouts/{deal}/pay-now', [TinkoffPayoutController::class, 'payNow']);
         Route::post('/tinkoff/payouts/{deal}/delay', [TinkoffPayoutController::class, 'delay']);
     });
 
-    // Админские операции по T-Bank (sm-register, debug, карточки, close deal) — только владелец (superadmin)
+    // Админские операции по T-Bank (sm-register, debug, карточки, close deal) — только владелец (superadmin)  (feature test +)
     Route::middleware('can:manage-payment-method-T-Bank')->group(function () {
         Route::post('/tinkoff/deals/{deal}/close', [TinkoffDealController::class, 'close']);
 
@@ -525,20 +525,9 @@ Route::post('/partner-wallet/webhook', [PartnerPaymentController::class, 'ykWall
 // YooKassa webhook единый (без CSRF)
 Route::post('/webhook/yookassa', [YooKassaWebhookController::class, 'handle']);
 
+
 // Podpislon
 Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle'])->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon');
-
-
-
-
-
-// Podpislon (temporary ping/validation endpoint): always 200 OK
-// Route::any('/webhooks/podpislon?token=ZEoz26MkzuYK1NzPNpLDOjFJfwuTqo3', function () {
-//     return response()->json(['ok' => true], 200);
-// })->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon2');
-
-    
- 
 
 //Тиньков мультирасчеты
 Route::get('/payments/tinkoff/{order}/success', [TinkoffPaymentController::class, 'success']);

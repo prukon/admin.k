@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class AdminRoleBasePermissionsSeeder extends Seeder
 {
@@ -28,46 +29,9 @@ class AdminRoleBasePermissionsSeeder extends Seeder
             return;
         }
 
-        // 3) Набор базовых прав администратора
-        // (убрал дубль users.view, плюс тримим на всякий случай)
-        $permissionNames = [
-            'dashboard.view',
-            'reports.view',
-            'setPrices.view',
-            'schedule.view',
-            'users.view',
-            'groups.view',
-            'contracts.view',
-            'settings.view',
-            'settings.roles.view',
-            'settings.paymentSystems.view',
-            'account.user.view',
-            'account.partner.view',
-            'account.partner.update',
-            'account.documents.view',
-            'servicePayments.view',
-            'partnerWallet.view',
-            'name_editing',
-            'account.user.birthdate.update',
-            'changing_your_group',
-            'account.user.startDate.update',
-            'changing_user_email',
-            'account.user.phone.update',
-            'users.name.update',
-            'users.birthdate.update',
-            'users.group.update',
-            'users.startDate.update',
-            'users.email.update',
-            'users.activity.update',
-            'users.role.update',
-            'users.password.update',
-            'users.phone.update',
-            'payment_clubfee',
-            'change_history',
-            'manage_roles',
-            // 'manage_payment_method_T-Bank',
-        ];
-
+        // 3) Набор базовых прав администратора берём из конфига (единый источник правды)
+        $permissionNames = config('role_base_permissions.roles.admin', []);
+        $permissionNames = is_array($permissionNames) ? $permissionNames : [];
         $permissionNames = array_values(array_unique(array_map('trim', $permissionNames)));
 
         // 4) Находим permissions по именам
@@ -76,10 +40,7 @@ class AdminRoleBasePermissionsSeeder extends Seeder
             ->get(['id', 'name']);
 
         if ($permissions->isEmpty()) {
-            Log::warning('[Seeder] Admin permissions not found for provided names', [
-                'names' => $permissionNames,
-            ]);
-            return;
+            throw new RuntimeException('[Seeder] Admin permissions not found for provided names: ' . implode(', ', $permissionNames));
         }
 
         // 5) Логируем отсутствующие permissions (ловит опечатки и "разъехавшиеся" нейминги)
@@ -87,9 +48,7 @@ class AdminRoleBasePermissionsSeeder extends Seeder
         $missingNames = array_values(array_diff($permissionNames, $foundNames));
 
         if (!empty($missingNames)) {
-            Log::warning('[Seeder] Some admin permissions were not found', [
-                'missing' => $missingNames,
-            ]);
+            throw new RuntimeException('[Seeder] Some admin permissions were not found: ' . implode(', ', $missingNames));
         }
 
         // 6) Формируем пачку вставок для ВСЕХ партнёров

@@ -15,6 +15,7 @@ class DocumentationController extends Controller
     {
         $items = [
             ['slug' => 'payments', 'title' => 'Оплаты (payables/payment_intents/payments/users_prices)'],
+            ['slug' => 'partners-permissions', 'title' => 'Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)'],
             ['slug' => 'reports-payments', 'title' => 'Отчёт “Платежи” (админка): таблица и “Поля списка”'],
             ['slug' => 'tbank', 'title' => 'T‑Bank (мультирасчёты): настройки/комиссии/flow'],
             ['slug' => 'tests-standards', 'title' => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)'],
@@ -42,6 +43,7 @@ class DocumentationController extends Controller
     {
         $map = [
             'payments' => base_path('docs/documentation/payments.html'),
+            'partners-permissions' => base_path('docs/documentation/partners-permissions.html'),
             'reports-payments' => base_path('docs/documentation/reports-payments.html'),
             'tbank' => base_path('docs/documentation/tbank.html'),
             'tests-standards' => base_path('docs/documentation/tests-standards.html'),

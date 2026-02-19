@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class UserRoleBasePermissionsSeeder extends Seeder
 {
@@ -28,23 +29,9 @@ class UserRoleBasePermissionsSeeder extends Seeder
             return;
         }
 
-        // 3) Список прав (ВАЖНО: убрал пробел в конце у paying_classes)
-        $permissionNames = [
-            'dashboard.view',
-            'myPayments.view',
-            'myGroup.view',
-            'account.user.view',
-            'account.partner.view',
-            'account.partner.update',
-            'account.documents.view',
-            'account.user.birthdate.update',
-            'changing_user_email',
-            'account.user.phone.update',
-            'paying_classes',
-            'payment_clubfee',
-        ];
-
-        // На всякий случай тримим, чтобы подобные ошибки больше не ломали
+        // 3) Список прав берём из конфига (единый источник правды)
+        $permissionNames = config('role_base_permissions.roles.user', []);
+        $permissionNames = is_array($permissionNames) ? $permissionNames : [];
         $permissionNames = array_values(array_unique(array_map('trim', $permissionNames)));
 
         // 4) Находим permissions по именам
@@ -53,10 +40,7 @@ class UserRoleBasePermissionsSeeder extends Seeder
             ->get(['id', 'name']);
 
         if ($permissions->isEmpty()) {
-            Log::warning('[Seeder] Permissions not found for provided names', [
-                'names' => $permissionNames,
-            ]);
-            return;
+            throw new RuntimeException('[Seeder] Permissions not found for provided names: ' . implode(', ', $permissionNames));
         }
 
         // 5) Логируем отсутствующие permissions (очень помогает ловить опечатки)
@@ -64,9 +48,7 @@ class UserRoleBasePermissionsSeeder extends Seeder
         $missingNames = array_values(array_diff($permissionNames, $foundNames));
 
         if (!empty($missingNames)) {
-            Log::warning('[Seeder] Some permissions were not found', [
-                'missing' => $missingNames,
-            ]);
+            throw new RuntimeException('[Seeder] Some permissions were not found: ' . implode(', ', $missingNames));
         }
 
         // 6) Готовим пачку вставок для ВСЕХ партнёров

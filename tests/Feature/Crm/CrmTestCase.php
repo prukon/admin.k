@@ -6,8 +6,6 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\Partner;
 use Database\Seeders\AdminRoleBasePermissionsSeeder;
-use Database\Seeders\DevAdminsSeeder;
-use Database\Seeders\DevPartnersSeeder;
 use Database\Seeders\PermissionGroupsSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolesSeeder;
@@ -16,11 +14,18 @@ use Database\Seeders\WeekdaysSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\TestCase;
 
 abstract class CrmTestCase extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Разрешённая БД для тестов (жёсткий предохранитель).
+     * Поставь сюда ТОЛЬКО тестовую БД, которую ты готов без сожаления снести migrate:fresh.
+     */
+    private const ALLOWED_TEST_DATABASE = 'prukon_test.kidcrm.testing';
 
     protected Partner $partner;
     protected User $user;
@@ -35,9 +40,16 @@ abstract class CrmTestCase extends TestCase
     {
         parent::setUp();
 
+        /**
+         * SAFETY GUARD
+         * Запрещаем запуск тестов, если окружение не testing
+         * или если подключение смотрит не в строго разрешённую тестовую БД.
+         */
+        $this->assertSafeTestingEnvironment();
+
         // В некоторых окружениях storage/ может быть недоступен для записи тестовым процессом.
         // Переносим compiled Blade views в системный tmp (writable).
-        // Важно: используем уникальную папку на каждый прогон, чтобы не упираться в чужие права на /tmp/kidscrm_compiled_views.
+        // Важно: используем уникальную папку на каждый прогон.
         $compiled = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
             . DIRECTORY_SEPARATOR
             . 'kidscrm_compiled_views_'
@@ -46,7 +58,6 @@ abstract class CrmTestCase extends TestCase
         if (!is_dir($compiled)) {
             @mkdir($compiled, 0777, true);
         }
-        // На случай если mkdir создал с "жёсткими" правами (umask) — пробуем расширить.
         @chmod($compiled, 0777);
         config(['view.compiled' => $compiled]);
 
@@ -84,11 +95,45 @@ abstract class CrmTestCase extends TestCase
         // 5) Авторизация
         $this->actingAs($this->user);
 
-        // 6)current_partner в session
+        // 6) current_partner в session
         $this->withSession(['current_partner' => $this->partner->id]);
     }
 
-    //Авторизация admin
+    /**
+     * Предохранитель от случайного запуска тестов в production/staging
+     * и/или на боевой БД.
+     */
+    protected function assertSafeTestingEnvironment(): void
+    {
+        // 1) Окружение обязано быть testing
+        if (!app()->environment('testing')) {
+            throw new RuntimeException(
+                "SAFETY GUARD: Тесты можно запускать только в окружении 'testing'. " .
+                "Сейчас: '" . app()->environment() . "'. " .
+                "Запускай: php artisan test --env=testing"
+            );
+        }
+
+        // 2) Имя базы обязано быть строго тем, что мы разрешили
+        $dbName = DB::connection()->getDatabaseName();
+
+        if (!is_string($dbName) || $dbName === '') {
+            throw new RuntimeException(
+                "SAFETY GUARD: Не удалось определить имя базы данных для текущего подключения."
+            );
+        }
+
+        if ($dbName !== self::ALLOWED_TEST_DATABASE) {
+            throw new RuntimeException(
+                "SAFETY GUARD: Подключение указывает на НЕразрешённую БД: '{$dbName}'. " .
+                "Разрешена ТОЛЬКО: '" . self::ALLOWED_TEST_DATABASE . "'. " .
+                "Проверь, что ты запускаешь тесты так: php artisan test --env=testing " .
+                "и что в .env.testing указана правильная DB_DATABASE."
+            );
+        }
+    }
+
+    // Авторизация admin
     protected function asAdmin(): self
     {
         $adminRoleId = Role::where('name', 'admin')->value('id');
@@ -101,7 +146,7 @@ abstract class CrmTestCase extends TestCase
         return $this;
     }
 
-    //Авторизация superadmin
+    // Авторизация superadmin
     protected function asSuperadmin(): self
     {
         $adminRoleId = Role::where('name', 'superadmin')->value('id');
@@ -186,11 +231,9 @@ abstract class CrmTestCase extends TestCase
             $role = Role::query()->findOrFail($roleId);
         }
 
-        $user = User::factory()->create(array_merge([
+        return User::factory()->create(array_merge([
             'partner_id' => $partner->id,
             'role_id'    => $role->id,
         ], $attributes));
-
-        return $user;
     }
 }

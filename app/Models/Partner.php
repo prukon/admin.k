@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use App\Models\Traits\Filterable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class Partner extends Model
 {
@@ -40,6 +42,116 @@ class Partner extends Model
         'updated_at',
         'deleted_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Partner $partner) {
+            $missing = self::missingBasePermissionNames();
+            if (!empty($missing)) {
+                throw new RuntimeException(
+                    'Missing required permissions for base roles (check permissions seeding): ' . implode(', ', $missing)
+                );
+            }
+        });
+
+        static::created(function (Partner $partner) {
+            self::assignBasePermissionsForPartner((int) $partner->id);
+        });
+    }
+
+    private static function basePermissionNamesForRole(string $roleName): array
+    {
+        $names = config("role_base_permissions.roles.{$roleName}", []);
+        $names = is_array($names) ? $names : [];
+
+        return array_values(array_unique(array_map('trim', $names)));
+    }
+
+    private static function basePermissionNamesAll(): array
+    {
+        return array_values(array_unique(array_merge(
+            self::basePermissionNamesForRole('user'),
+            self::basePermissionNamesForRole('admin'),
+        )));
+    }
+
+    private static function missingBasePermissionNames(): array
+    {
+        $names = self::basePermissionNamesAll();
+        if (empty($names)) {
+            return [];
+        }
+
+        $found = DB::table('permissions')
+            ->whereIn('name', $names)
+            ->pluck('name')
+            ->all();
+
+        $found = array_map('strval', $found);
+
+        return array_values(array_diff($names, $found));
+    }
+
+    private static function assignBasePermissionsForPartner(int $partnerId): void
+    {
+        $roleIdsByName = DB::table('roles')
+            ->whereIn('name', ['user', 'admin'])
+            ->pluck('id', 'name')
+            ->all();
+
+        foreach (['user', 'admin'] as $roleName) {
+            if (!isset($roleIdsByName[$roleName])) {
+                throw new RuntimeException("Required role '{$roleName}' not found in roles table");
+            }
+        }
+
+        $permissionNamesByRole = [
+            'user' => self::basePermissionNamesForRole('user'),
+            'admin' => self::basePermissionNamesForRole('admin'),
+        ];
+
+        $allPermissionNames = array_values(array_unique(array_merge(
+            $permissionNamesByRole['user'],
+            $permissionNamesByRole['admin'],
+        )));
+
+        if (empty($allPermissionNames)) {
+            return;
+        }
+
+        $permissionIdByName = DB::table('permissions')
+            ->whereIn('name', $allPermissionNames)
+            ->pluck('id', 'name')
+            ->all();
+
+        $missing = array_values(array_diff($allPermissionNames, array_keys($permissionIdByName)));
+        if (!empty($missing)) {
+            throw new RuntimeException(
+                'Missing required permissions for base roles (check permissions seeding): ' . implode(', ', $missing)
+            );
+        }
+
+        $now = now();
+        $rows = [];
+
+        foreach ($permissionNamesByRole as $roleName => $permissionNames) {
+            $roleId = (int) $roleIdsByName[$roleName];
+
+            foreach ($permissionNames as $permissionName) {
+                $rows[] = [
+                    'partner_id' => $partnerId,
+                    'role_id' => $roleId,
+                    'permission_id' => (int) $permissionIdByName[$permissionName],
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        foreach (array_chunk($rows, 1000) as $chunk) {
+            DB::table('permission_role')->insertOrIgnore($chunk);
+        }
+    }
 
     /**
      * Отношения с другими моделями.
