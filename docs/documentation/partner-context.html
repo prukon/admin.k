@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Партнёр‑контекст и SetPartner</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+    th, td { border: 1px solid #e5e7eb; padding: 10px; vertical-align: top; text-align: left; }
+    th { background: #f9fafb; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Партнёр‑контекст и middleware SetPartner</h1>
+  <div class="small">Файл: <code>/docs/documentation/partner-context.html</code></div>
+
+  <div class="note">
+    Эта страница описывает <b>каноническое</b> поведение партнёр‑контекста (школы/организации) в CRM,
+    а также <b>ожидаемое поведение</b> middleware <code>App\Http\Middleware\SetPartner</code>.
+  </div>
+
+  <h2>1) Бизнес‑логика: зачем нужен партнёр‑контекст</h2>
+  <ul>
+    <li><b>Изоляция данных</b>: каждый партнёр (школа) — отдельное юр. лицо, данные не должны “протекать” между партнёрами.</li>
+    <li><b>Права в разрезе партнёра</b>: многие permissions назначаются на роль <b>в рамках партнёра</b> (через <code>permission_role.partner_id</code>).</li>
+    <li><b>Безопасность</b>: пользователь не должен иметь возможность “подменить” партнёра, передав чужой <code>partner_id</code> в запросе/форме.</li>
+  </ul>
+
+  <h2>2) Термины и источники истины</h2>
+  <ul>
+    <li><b>Текущий партнёр</b> — это значение <code>session('current_partner')</code>.</li>
+    <li><b>Партнёр объекта запроса</b> — это экземпляр модели <code>Partner</code>, зарегистрированный в контейнере как <code>app('current_partner')</code>.</li>
+    <li><b>Источник истины по доступам и роли супер‑админа</b> — сервис <code>App\Services\PartnerContext</code> (в т.ч. определение superadmin).</li>
+  </ul>
+
+  <div class="warn">
+    <b>Anti‑leak правило:</b> переключать <code>current_partner</code> через session может только <b>superadmin</b>.
+    Для всех остальных текущий партнёр всегда фиксируется как <code>user-&gt;partner_id</code>.
+  </div>
+
+  <h2>3) Где включено</h2>
+  <ul>
+    <li>Middleware <code>SetPartner</code> подключён в группе middleware <code>web</code> (глобально для web‑запросов).</li>
+    <li>Файл: <code>/app/Http/Kernel.php</code> → <code>$middlewareGroups['web']</code>.</li>
+  </ul>
+
+  <h2>4) Поведение SetPartner (ожидаемые сценарии)</h2>
+  <div class="note">
+    Ключевая идея: если контекст партнёра не может быть установлен корректно, пользователь не должен оставаться в админке/CRM.
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Сценарий</th>
+        <th>Кто актор</th>
+        <th>Ожидаемое поведение</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Пользователь не авторизован</td>
+        <td>guest</td>
+        <td>Middleware ничего не делает и пропускает запрос дальше (<code>return $next($request)</code>).</td>
+      </tr>
+      <tr>
+        <td>Нет <code>current_partner</code> и у пользователя нет <code>partner_id</code></td>
+        <td>non‑superadmin</td>
+        <td>
+          <ul>
+            <li>Принудительный <b>logout</b> + <b>invalidate session</b> + regenerate CSRF token.</li>
+            <li>Redirect на <code>route('login')</code>.</li>
+            <li>Ошибка в сессии: <code>withErrors(['email' =&gt; 'Ваша организация недоступна.'])</code>.</li>
+          </ul>
+          <div class="small">
+            Почему ключ <code>email</code>: форма логина отображает ошибку под полем Email (Blade использует <code>@error('email')</code>).
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td><code>current_partner</code> указывает на несуществующего партнёра</td>
+        <td>non‑superadmin</td>
+        <td>
+          <ul>
+            <li>То же поведение, что и выше: <b>logout</b> + redirect на логин.</li>
+            <li>Ошибка: <code>email</code> → “Ваша организация недоступна.”</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <td>Суперадмин без выбранного партнёра</td>
+        <td>superadmin</td>
+        <td>
+          <ul>
+            <li>Есть allow‑list роутов, которые можно открыть без контекста: список партнёров, переключение партнёра, 2FA‑роуты, logout.</li>
+            <li>Для остальных страниц: redirect на <code>route('admin.partner.index')</code> и ошибка
+              <code>withErrors(['partner' =&gt; 'Партнёр не выбран.'])</code>.</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <td>Суперадмин с битым <code>current_partner</code> (партнёр удалён/не найден)</td>
+        <td>superadmin</td>
+        <td>
+          <ul>
+            <li><code>session()->forget('current_partner')</code> (сбрасываем битый контекст).</li>
+            <li>Redirect на <code>route('admin.partner.index')</code>.</li>
+            <li>Ошибка: <code>partner</code> → “Текущий партнёр недоступен. Выберите другого.”</li>
+          </ul>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>5) Пост‑условие: доступ к <code>current_partner</code> в коде</h2>
+  <div class="ok">
+    Если партнёр найден, middleware регистрирует его в контейнере приложения:
+    <br><code>app()->instance('current_partner', $partner)</code>
+    <br>После этого код (контроллеры/сервисы) может безопасно использовать <code>app('current_partner')</code>.
+  </div>
+
+  <h2>6) Тестируемость и контракт тестов</h2>
+  <ul>
+    <li><b>Нельзя</b> подменять <code>app('current_partner')</code> вручную в тестах (это маскирует реальную механику).</li>
+    <li><b>Правильный путь</b>: задавать <code>current_partner</code> через session и проверять эффекты middleware.</li>
+    <li>Канонические ожидания для кейса “non‑superadmin без партнёра”:
+      <pre><code>$resp-&gt;assertStatus(302);
+$this-&gt;assertGuest();
+$resp-&gt;assertSessionHasErrors(['email' =&gt; 'Ваша организация недоступна.']);</code></pre>
+    </li>
+  </ul>
+
+  <h2>7) Связанные файлы</h2>
+  <ul>
+    <li><code>/app/Http/Middleware/SetPartner.php</code> — реализация middleware</li>
+    <li><code>/app/Services/PartnerContext.php</code> — определение superadmin и работа с контекстом</li>
+    <li><code>/resources/views/auth/login.blade.php</code> — вывод ошибок по ключу <code>email</code></li>
+    <li><code>/tests/Feature/Crm/*</code> — feature‑тесты, фиксирующие контракт</li>
+  </ul>
+</div>
+</body>
+</html>
+

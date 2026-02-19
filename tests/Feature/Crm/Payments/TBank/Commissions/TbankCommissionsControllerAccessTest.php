@@ -51,7 +51,10 @@ class TbankCommissionsControllerAccessTest extends CrmTestCase
         $resp = $this->get(route('admin.setting.tbankCommissions'));
 
         $resp->assertStatus(302);
-        $resp->assertSessionHasErrors(['partner']);
+        $this->assertGuest();
+        $resp->assertSessionHasErrors([
+            'email' => 'Ваша организация недоступна.',
+        ]);
     }
 
     public function test_setpartner_blocks_when_session_current_partner_points_to_missing_partner(): void

@@ -298,7 +298,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:documentations-view')->group(function () {
         Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
         Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
-            ->whereIn('page', ['payments', 'partners-permissions', 'reports-payments', 'tbank', 'tests-standards'])
+            ->whereIn('page', ['payments', 'partner-context', 'partners-permissions', 'reports-payments', 'tbank', 'tests-standards'])
             ->name('docs.documentation.show');
     });
 
@@ -498,7 +498,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::post('/partner/accept-offer', [\App\Http\Controllers\PartnerOfferController::class, 'acceptOffer'])->name('partner.accept-offer');
 
     //переключение между партнерами
-    Route::middleware(['can:partner.view'])->prefix('admin')->group(function () {
+    Route::middleware(['can:partner-view'])->prefix('admin')->group(function () {
         Route::post('/switch-partner', [\App\Http\Controllers\PartnerSwitchController::class, 'switch'])->name('partner.switch');
     });
 

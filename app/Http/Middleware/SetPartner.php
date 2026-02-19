@@ -23,10 +23,11 @@ class SetPartner
         }
 
         $user = Auth::user();
+        $isSuperAdmin = $this->partnerContext->isSuperAdmin($user);
 
         // Для не-superadmin запрещаем переключение партнёра через session.
         // Всегда фиксируем current_partner = user->partner_id.
-        if (!$this->partnerContext->isSuperAdmin($user)) {
+        if (!$isSuperAdmin) {
             session(['current_partner' => $user?->partner_id]);
         }
 
@@ -35,17 +36,50 @@ class SetPartner
             session(['current_partner' => $user?->partner_id]);
         }
 
-        // Проверяем наличие партнёра в сессии
-        if (!session()->has('current_partner')) {
-            return redirect()->back()->withErrors(['partner' => 'Партнёр не выбран.']);
+        $partnerId = session('current_partner');
+
+        // Супер-админ должен иметь возможность открыть список партнёров даже без выбранного контекста.
+        if (!$partnerId) {
+            if ($isSuperAdmin) {
+                // allow-list: супер-админу нужно уметь выбрать партнёра, пройти 2FA и выйти,
+                // даже если текущий партнёр ещё не выбран (или был сброшен).
+                if ($request->routeIs('admin.partner.index', 'partner.switch', 'two-factor.*', 'logout')) {
+                    return $next($request);
+                }
+
+                return redirect()
+                    ->route('admin.partner.index')
+                    ->withErrors(['partner' => 'Партнёр не выбран.']);
+            }
+
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()
+                ->route('login')
+                ->withErrors(['email' => 'Ваша организация недоступна.']);
         }
 
-        $partnerId = session('current_partner');
         $partner = Partner::find($partnerId);
 
         // Если партнёра с таким ID не найден, возвращаем редирект с ошибкой
         if (!$partner) {
-            return redirect()->back()->withErrors(['partner' => 'Партнёр не выбран.']);
+            if ($isSuperAdmin) {
+                session()->forget('current_partner');
+
+                return redirect()
+                    ->route('admin.partner.index')
+                    ->withErrors(['partner' => 'Текущий партнёр недоступен. Выберите другого.']);
+            }
+
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()
+                ->route('login')
+                ->withErrors(['email' => 'Ваша организация недоступна.']);
         }
 
         // Регистрируем объект партнёра в контейнере приложения для дальнейшего удобного доступа

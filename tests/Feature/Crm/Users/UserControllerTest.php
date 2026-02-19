@@ -744,9 +744,10 @@ class UserControllerTest extends CrmTestCase
         // 1) Middleware должен нас завернуть с редиректом
         $response->assertStatus(302);
 
-        // 2) В сессии должны быть ошибки по ключу 'partner' с текстом "Партнёр не выбран."
+        // 2) Middleware должен разлогинить и положить ошибку на логин-форму.
+        $this->assertGuest();
         $response->assertSessionHasErrors([
-            'partner' => 'Партнёр не выбран.',
+            'email' => 'Ваша организация недоступна.',
         ]);
 
         // 3) Пользователь с таким email не должен быть создан

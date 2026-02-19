@@ -100,7 +100,10 @@ class PartnerControllerTest extends CrmTestCase
         $res = $this->from('/admin')->get(route('admin.partner.index'));
 
         $res->assertStatus(302);
-        $res->assertSessionHasErrors(['partner']);
+        $this->assertGuest();
+        $res->assertSessionHasErrors([
+            'email' => 'Ваша организация недоступна.',
+        ]);
     }
 
     public function test_setpartner_blocks_when_session_current_partner_points_to_missing_partner_for_superadmin(): void

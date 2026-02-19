@@ -68,7 +68,10 @@ class SettingsControllerTest extends CrmTestCase
 
         $res = $this->from('/admin')->get(route('admin.setting.setting'));
         $res->assertStatus(302);
-        $res->assertSessionHasErrors(['partner']);
+        $this->assertGuest();
+        $res->assertSessionHasErrors([
+            'email' => 'Ваша организация недоступна.',
+        ]);
     }
 
     public function test_settings_page_renders_and_initializes_partner_social_links_for_enabled_networks(): void

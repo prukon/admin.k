@@ -59,9 +59,11 @@ class RuleControllerTest extends CrmTestCase
 
         $res = $this->from('/admin')->get(route('admin.setting.rule'));
 
-        // По твоему SetPartner: redirect()->back() + session errors
         $res->assertStatus(302);
-        $res->assertSessionHasErrors(['partner']);
+        $this->assertGuest();
+        $res->assertSessionHasErrors([
+            'email' => 'Ваша организация недоступна.',
+        ]);
     }
 
     public function test_toggle_permission_attaches_with_current_partner_id_and_logs_once_and_is_idempotent(): void

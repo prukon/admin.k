@@ -57,6 +57,13 @@
     <li><b>Middleware <code>SetPartner</code> — обязательная часть контракта админки/CRM</b>:
       пользователь без <code>partner_id</code> (и/или без корректного выбора партнёра) должен быть заблокирован.
       <div class="small">В тестах должна быть минимум 1 проверка этого поведения для ключевых разделов (settings/reports/users и т.п.).</div>
+      <div class="small">
+        Каноническое ожидаемое поведение для <b>non‑superadmin</b> без партнёра: <code>302</code>, актор становится <b>guest</b>,
+        и в сессии присутствует ошибка под ключом <code>email</code> с текстом “Ваша организация недоступна.” (чтобы вывести её под полем Email на логине).
+      </div>
+      <pre><code>$resp-&gt;assertStatus(302);
+$this-&gt;assertGuest();
+$resp-&gt;assertSessionHasErrors(['email' =&gt; 'Ваша организация недоступна.']);</code></pre>
     </li>
   </ol>
 
