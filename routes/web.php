@@ -498,7 +498,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::post('/partner/accept-offer', [\App\Http\Controllers\PartnerOfferController::class, 'acceptOffer'])->name('partner.accept-offer');
 
     //переключение между партнерами
-    Route::middleware(['can:partner-view'])->prefix('admin')->group(function () {
+    Route::middleware(['can:partner-switch'])->prefix('admin')->group(function () {
         Route::post('/switch-partner', [\App\Http\Controllers\PartnerSwitchController::class, 'switch'])->name('partner.switch');
     });
 

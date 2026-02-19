@@ -122,6 +122,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('partner.view');
         });
 
+        // Переключение партнёра (контекст) — строго superadmin (anti-leak)
+        Gate::define('partner-switch', function (User $user) use ($roleNameById) {
+            $roleName = $roleNameById((int) $user->role_id);
+            return $roleName === 'superadmin';
+        });
+
         // Страница "Договоры"
         Gate::define('contracts-view', function (User $user) {
             return $user->hasPermission('contracts.view');

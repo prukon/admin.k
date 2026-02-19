@@ -35,6 +35,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'groups.view',                    'description' => 'Страница "Группы"',                             'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 50],
             ['name' => 'contracts.view',                 'description' => 'Страница "Договоры"',                           'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 51],
             ['name' => 'partner.view',                   'description' => 'Страница "Партнеры"',                           'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 55],
+            ['name' => 'partner.switch',                 'description' => 'Переключение партнёра (контекст)',              'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 56],
             ['name' => 'settings.view',                  'description' => 'Страница "Настройки"',                          'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 60],
             ['name' => 'settings.roles.view',            'description' => 'Страница "Настройки  -> Права и роли"',         'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 61],
             ['name' => 'settings.paymentSystems.view',   'description' => 'Страница "Настройки  -> Платежные системы"',    'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 62],

@@ -212,17 +212,22 @@
         </ul>
 
         <!-- Форма переключения партнёров -->
-        @can('partner-view')
+        @can('partner-switch')
             <div class="collapse navbar-collapse mr-3">
                 <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
                     @csrf
-                    <select name="partner_id" class="form-select" onchange="this.form.submit()">
-                        @foreach(App\Models\Partner::all() as $partner)
+                    <div>
+                        <select name="partner_id" class="form-select @error('partner_id') is-invalid @enderror" onchange="this.form.submit()">
+                        @foreach(App\Models\Partner::query()->orderBy('title')->get(['id', 'title']) as $partner)
                             <option value="{{ $partner->id }}" {{ session('current_partner') == $partner->id ? 'selected' : '' }}>
                                 {{ $partner->title }}
                             </option>
                         @endforeach
-                    </select>
+                        </select>
+                        @error('partner_id')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
                 </form>
             </div>
         @endcan
