@@ -47,6 +47,10 @@ abstract class CrmTestCase extends TestCase
          */
         $this->assertSafeTestingEnvironment();
 
+        // В тестах не должны зависеть от writable storage/ (file cache).
+        // Переключаем cache на in-memory store.
+        config(['cache.default' => 'array']);
+
         // В некоторых окружениях storage/ может быть недоступен для записи тестовым процессом.
         // Переносим compiled Blade views в системный tmp (writable).
         // Важно: используем уникальную папку на каждый прогон.

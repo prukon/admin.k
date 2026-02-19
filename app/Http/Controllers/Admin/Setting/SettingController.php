@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin\Setting;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Team\FilterRequest;
+use App\Http\Requests\Setting\SaveMenuItemsRequest;
+use App\Http\Requests\Setting\SaveSocialItemsRequest;
 use App\Models\MyLog;
 use App\Models\MenuItem;
 use App\Models\PartnerSocialLink;
@@ -22,31 +24,6 @@ class SettingController extends AdminBaseController
 
     private const URL_REGEX = '/^(\/[\\S]*|https?:\\/\\/[^\s]+)$/';
     private const MENU_ITEM_NAME_REGEX = '/^[\pL\pN\s]+$/u';
-
-    /**
-     * Приводим ключи ошибок в формат name="" инпутов (с квадратными скобками),
-     * чтобы фронт мог подсветить поля без сложной логики.
-     *
-     * Пример: menu_items.123.name -> menu_items[123][name]
-     */
-    private function bracketizeValidationErrors(array $errors): array
-    {
-        $out = [];
-        foreach ($errors as $key => $messages) {
-            $parts = explode('.', (string)$key);
-            if (count($parts) >= 3) {
-                $root = array_shift($parts);
-                $bracket = $root;
-                foreach ($parts as $p) {
-                    $bracket .= '[' . $p . ']';
-                }
-                $out[$bracket] = $messages;
-            } else {
-                $out[$key] = $messages;
-            }
-        }
-        return $out;
-    }
 
     public function __construct(PartnerContext $partnerContext)
     {
@@ -195,7 +172,8 @@ class SettingController extends AdminBaseController
                 'textForUsers' => ['nullable', 'string'],
             ]);
         } catch (ValidationException $e) {
-            return response()->json(['success' => false, 'errors' => $this->bracketizeValidationErrors($e->errors())], 422);
+            // здесь простой текстовый textarea; оставляем формат { errors } для фронта
+            return response()->json(['success' => false, 'errors' => $e->errors()], 422);
         }
 
         // Laravel корректно читает и JSON body, и form-data через input()
@@ -235,30 +213,14 @@ class SettingController extends AdminBaseController
     }
 
     //Сохранение меню в шапке
-    public function saveMenuItems(Request $request)
+    public function saveMenuItems(SaveMenuItemsRequest $request)
     {
         $partner = $this->requirePartner();
         $authorId = auth()->id();
 
-        try {
-            $validated = $request->validate([
-                'menu_items' => ['nullable', 'array'],
-                'menu_items.*.name' => ['required', 'max:20', 'regex:' . self::MENU_ITEM_NAME_REGEX],
-                'menu_items.*.link' => ['nullable', 'regex:' . self::URL_REGEX],
-                'menu_items.*.target_blank' => ['nullable', 'boolean'],
-                'deleted_items' => ['nullable', 'array'],
-                'deleted_items.*' => ['integer'],
-            ], [
-                'menu_items.*.name.required' => 'Заполните название.',
-                'menu_items.*.name.max' => 'Название не может быть длиннее 20 символов.',
-                'menu_items.*.name.regex' => 'Название не может содержать спецсимволы.',
-                'menu_items.*.link.regex' => 'Введите корректный URL.',
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json(['success' => false, 'errors' => $this->bracketizeValidationErrors($e->errors())], 422);
-        }
-
+        $validated = $request->validated();
         $validatedData = $validated['menu_items'] ?? [];
+        $deletedIds = $validated['deleted_items'] ?? [];
 
         // Строго: если пришли числовые ключи (id) — это UPDATE существующих записей.
         // Если какой-то id не найден у текущего партнёра (в т.ч. "чужой") — 404 и НЕ создаём новую запись.
@@ -289,6 +251,7 @@ class SettingController extends AdminBaseController
 
         DB::transaction(function () use (
             $validatedData,
+            $deletedIds,
             $authorId,
             $request,
             $partner,
@@ -308,7 +271,7 @@ class SettingController extends AdminBaseController
 
                     $menuItem->update([
                         'name' => $data['name'],
-                        'link' => $data['link'] ?: '',
+                        'link' => $data['link'],
                         'target_blank' => $data['target_blank'],
                     ]);
 
@@ -319,7 +282,7 @@ class SettingController extends AdminBaseController
                     // ИЗМЕНЕНО: обычное создание для новых ключей
                     $created = MenuItem::create([
                         'name' => $data['name'],
-                        'link' => $data['link'] ?: '',
+                        'link' => $data['link'],
                         'target_blank' => $data['target_blank'],
                         'partner_id' => $partner->id,
                     ]);
@@ -330,14 +293,13 @@ class SettingController extends AdminBaseController
                 }
             }
 
-            if ($request->has('deleted_items')) {
-                $toDelete = $validated['deleted_items'] ?? $request->input('deleted_items');
-                // ИЗМЕНЕНО: удаляем только свои
+            if (!empty($deletedIds)) {
+                // удаляем только свои
                 MenuItem::where('partner_id', $partner->id)
-                    ->whereIn('id', $toDelete)
+                    ->whereIn('id', $deletedIds)
                     ->delete();
 
-                foreach ($toDelete as $id) {
+                foreach ($deletedIds as $id) {
                     $oldItems[] = "Удалён пункт меню с ID: {$id}";
                 }
             }
@@ -370,23 +332,12 @@ class SettingController extends AdminBaseController
     }
 
     //Сохранение соц. меню в шапке
-    public function saveSocialItems(Request $request)
+    public function saveSocialItems(SaveSocialItemsRequest $request)
     {
         $partner = $this->requirePartner();
         $authorId = auth()->id();
 
-        try {
-            $validated = $request->validate([
-                'partner_social_links' => ['nullable', 'array'],
-                'partner_social_links.*.url' => ['nullable', 'regex:' . self::URL_REGEX],
-                'partner_social_links.*.is_enabled' => ['nullable', 'boolean'],
-                'partner_social_links.*.sort' => ['nullable', 'integer', 'min:0', 'max:65535'],
-            ], [
-                'partner_social_links.*.url.regex' => 'Введите корректный URL.',
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json(['success' => false, 'errors' => $this->bracketizeValidationErrors($e->errors())], 422);
-        }
+        $validated = $request->validated();
 
         $validatedData = [];
         foreach (($validated['partner_social_links'] ?? []) as $key => $data) {

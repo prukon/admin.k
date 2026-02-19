@@ -6,16 +6,12 @@ use App\Jobs\TinkoffRunScheduledPayoutsJob;
 use App\Models\Partner;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffPayout;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Tests\TestCase;
 
-class TinkoffRunScheduledPayoutsJobQueueTest extends TestCase
+class TinkoffRunScheduledPayoutsJobQueueTest extends JobsTestCase
 {
-    use RefreshDatabase;
-
     private function workQueueUntilEmpty(int $maxIterations = 20): void
     {
         for ($i = 0; $i < $maxIterations; $i++) {

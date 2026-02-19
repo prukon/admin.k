@@ -10,16 +10,12 @@ use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\Refund;
 use App\Models\UserPrice;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Tests\TestCase;
 
-class RobokassaProcessRefundJobQueueTest extends TestCase
+class RobokassaProcessRefundJobQueueTest extends JobsTestCase
 {
-    use RefreshDatabase;
-
     private function workQueueUntilEmpty(int $maxIterations = 20): void
     {
         for ($i = 0; $i < $maxIterations; $i++) {

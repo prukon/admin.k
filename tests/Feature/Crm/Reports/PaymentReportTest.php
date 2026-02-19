@@ -258,7 +258,13 @@ class PaymentReportTest extends CrmTestCase
         $this->assertNotNull($rowWithCustomName);
         $expectedUserFio = trim(($this->user->lastname ?? '') . ' ' . ($this->user->name ?? ''));
         $this->assertNotSame('', $expectedUserFio);
-        $this->assertEquals($expectedUserFio, $rowWithCustomName['user_name']);
+        // DataTables по умолчанию HTML-экранирует все колонки (XSS-защита).
+        $actualUserName = html_entity_decode(
+            (string) ($rowWithCustomName['user_name'] ?? ''),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+        $this->assertEquals($expectedUserFio, $actualUserName);
         $this->assertEquals($this->user->id, $rowWithCustomName['user_id']);
 
         // 2) user_name из ФИО пользователя, team_title из команды

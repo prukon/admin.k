@@ -507,18 +507,18 @@
 
                     // Собираем данные из таблицы
                     menuTable.querySelectorAll('tr').forEach((row) => {
-                        const id = row.getAttribute('data-id');
-                        const nameInput = row.querySelector(`input[name*="[name]"]`);
-                        const linkInput = row.querySelector(`input[name*="[link]"]`);
-                        const targetBlankInput = row.querySelector(`input[name*="[target_blank]"]`);
+                        const nameInput = row.querySelector(`input[name^="menu_items["][name$="[name]"]`);
+                        const linkInput = row.querySelector(`input[name^="menu_items["][name$="[link]"]`);
+                        const targetBlankInput = row.querySelector(`input[name^="menu_items["][name$="[target_blank]"]`);
 
-                        if (nameInput && linkInput) {
-                            const baseKey = id ? `menu_items[${id}]` : `menu_items[new_${newItemIndex}]`;
-                            formData.append(`${baseKey}[name]`, nameInput.value);
-                            formData.append(`${baseKey}[link]`, linkInput.value);
-                            formData.append(`${baseKey}[target_blank]`, targetBlankInput.checked ? 1 : 0);
-
-                            if (!id) newItemIndex++;
+                        if (nameInput) {
+                            formData.append(nameInput.name, nameInput.value);
+                        }
+                        if (linkInput) {
+                            formData.append(linkInput.name, linkInput.value);
+                        }
+                        if (targetBlankInput) {
+                            formData.append(targetBlankInput.name, targetBlankInput.checked ? 1 : 0);
                         }
                     });
 
@@ -573,16 +573,18 @@
                     document.querySelectorAll('.error-message').forEach((el) => el.textContent = '');
 
                     document.querySelectorAll('#socialTable tbody tr').forEach((row) => {
-                        const id = row.getAttribute('data-id');
-                        const urlInput = row.querySelector(`input[name*="[url]"]`);
-                        const enabledInput = row.querySelector(`input[name*="[is_enabled]"]`);
-                        const sortInput = row.querySelector(`input[name*="[sort]"]`);
+                        const urlInput = row.querySelector(`input[name^="partner_social_links["][name$="[url]"]`);
+                        const enabledInput = row.querySelector(`input[name^="partner_social_links["][name$="[is_enabled]"]`);
+                        const sortInput = row.querySelector(`input[name^="partner_social_links["][name$="[sort]"]`);
 
-                        if (urlInput && enabledInput && sortInput) {
-                            const baseKey = `partner_social_links[${id}]`;
-                            formData.append(`${baseKey}[url]`, urlInput.value);
-                            formData.append(`${baseKey}[is_enabled]`, enabledInput.checked ? 1 : 0);
-                            formData.append(`${baseKey}[sort]`, sortInput.value);
+                        if (urlInput) {
+                            formData.append(urlInput.name, urlInput.value);
+                        }
+                        if (enabledInput) {
+                            formData.append(enabledInput.name, enabledInput.checked ? 1 : 0);
+                        }
+                        if (sortInput) {
+                            formData.append(sortInput.name, sortInput.value);
                         }
                     });
 

@@ -3,17 +3,13 @@
 namespace Tests\Feature\Jobs;
 
 use App\Jobs\QueueSmokeTestJob;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Tests\TestCase;
 
-class QueueSmokeTestJobTest extends TestCase
+class QueueSmokeTestJobTest extends JobsTestCase
 {
-    use RefreshDatabase;
-
     private function workQueueUntilEmpty(int $maxIterations = 10): void
     {
         for ($i = 0; $i < $maxIterations; $i++) {
