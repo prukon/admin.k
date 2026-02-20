@@ -12,6 +12,7 @@ use App\Models\MyLog;
 use App\Models\TinkoffPayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Config;
 use App\Services\Tinkoff\SmRegisterClient;
@@ -106,6 +107,8 @@ class TinkoffPaymentsService
             }
         }
 
+        $fromStatus = (string) ($payment->status ?? '');
+
         // В нотификациях прилетает SpAccumulationId — берем как deal_id
         if (isset($data['SpAccumulationId']) && !$payment->deal_id) {
             $payment->deal_id = (string)$data['SpAccumulationId'];
@@ -126,6 +129,28 @@ class TinkoffPaymentsService
         $payment->payload = $pl;
 
         $payment->save();
+
+        // История статусов (пишем ВСЕ валидные webhooks, даже повторные)
+        try {
+            if (Schema::hasTable('tinkoff_payment_status_logs')) {
+                DB::table('tinkoff_payment_status_logs')->insert([
+                    'tinkoff_payment_id' => (int) $payment->id,
+                    'partner_id'         => (int) $payment->partner_id,
+                    'event_source'       => 'webhook',
+                    'from_status'        => $fromStatus !== '' ? $fromStatus : null,
+                    'to_status'          => (string) ($payment->status ?? null),
+                    'bank_status'        => is_string($status) ? $status : (is_null($status) ? null : (string) $status),
+                    'bank_payment_id'    => isset($data['PaymentId']) ? (string) $data['PaymentId'] : null,
+                    'order_id'           => (string) ($payment->order_id ?? $orderId),
+                    'payload'            => json_encode($data, JSON_UNESCAPED_UNICODE),
+                    'created_at'         => now(),
+                    'updated_at'         => now(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Не роняем webhook из-за истории (она диагностическая)
+            Log::channel('tinkoff')->warning('[payment-status-log failed] ' . $e->getMessage());
+        }
 
         // ...после $payment->save();
 

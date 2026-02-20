@@ -552,15 +552,178 @@ class PaymentReportController extends AdminBaseController
 
                 $buttonHtml = '<button ' . implode(' ', $btnAttrs) . '>Возврат</button>';
 
-                if ($disabled) {
-                    $wrapTitle = $title !== '' ? $title : 'Возврат недоступен';
-                    return '<span title="' . e($wrapTitle) . '" style="cursor:not-allowed;">' . $buttonHtml . '</span>';
+                $historyButtonHtml = '';
+                if ($provider === 'tbank') {
+                    $historyButtonHtml =
+                        '<button type="button" class="btn btn-sm btn-outline-secondary ms-1 js-tbank-history-btn" ' .
+                        'data-payment-id="' . (int) $row->id . '" ' .
+                        'data-deal-id="' . e((string) ($row->deal_id ?? '')) . '" ' .
+                        'data-bank-payment-id="' . e((string) ($row->payment_id ?? $row->payment_number ?? '')) . '"' .
+                        '>История</button>';
                 }
 
-                return $buttonHtml;
+                if ($disabled) {
+                    $wrapTitle = $title !== '' ? $title : 'Возврат недоступен';
+                    return '<span title="' . e($wrapTitle) . '" style="cursor:not-allowed;">' . $buttonHtml . '</span>' . $historyButtonHtml;
+                }
+
+                return $buttonHtml . $historyButtonHtml;
             })
             ->rawColumns(['refund_action'])
             ->make(true);
+    }
+
+    /**
+     * История статусов T‑Bank по платежу из отчёта "Платежи".
+     *
+     * Возвращает объединённый таймлайн:
+     * - tinkoff_payment_status_logs (webhook/прочие источники)
+     * - tinkoff_payout_status_logs (история выплат по deal_id)
+     */
+    public function tbankHistory(Request $request, Payment $payment)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        // Жёсткий tenant-scope: платёж обязан принадлежать текущему партнёру.
+        if ((int) ($payment->partner_id ?? 0) !== (int) $partnerId) {
+            abort(403);
+        }
+
+        $provider = (!empty($payment->deal_id) || !empty($payment->payment_id) || !empty($payment->payment_status))
+            ? 'tbank'
+            : 'robokassa';
+
+        if ($provider !== 'tbank') {
+            abort(404);
+        }
+
+        $events = [];
+
+        // ---- Payment status logs ----
+        $bankPaymentIdStr = null;
+        $candidate = (is_string($payment->payment_id) || is_numeric($payment->payment_id))
+            ? (string) $payment->payment_id
+            : '';
+
+        if ($candidate !== '' && ctype_digit($candidate)) {
+            $bankPaymentIdStr = $candidate;
+        } else {
+            $candidate = (is_string($payment->payment_number) || is_numeric($payment->payment_number))
+                ? (string) $payment->payment_number
+                : '';
+            if ($candidate !== '' && ctype_digit($candidate)) {
+                $bankPaymentIdStr = $candidate;
+            }
+        }
+
+        $payLogQuery = DB::table('tinkoff_payment_status_logs')
+            ->where('partner_id', (int) $partnerId);
+
+        if ($bankPaymentIdStr !== null) {
+            $payLogQuery->where('bank_payment_id', $bankPaymentIdStr);
+        } else {
+            // fallback: по deal_id -> tinkoff_payments -> logs by tinkoff_payment_id/order_id
+            $tpIds = [];
+            $tpOrderIds = [];
+            if (!empty($payment->deal_id)) {
+                $tps = TinkoffPayment::query()
+                    ->where('partner_id', (int) $partnerId)
+                    ->where('deal_id', (string) $payment->deal_id)
+                    ->get(['id', 'order_id']);
+
+                $tpIds = $tps->pluck('id')->filter()->values()->all();
+                $tpOrderIds = $tps->pluck('order_id')->filter()->values()->all();
+            }
+
+            $payLogQuery->where(function ($q) use ($tpIds, $tpOrderIds) {
+                if (!empty($tpIds)) {
+                    $q->whereIn('tinkoff_payment_id', $tpIds);
+                }
+                if (!empty($tpOrderIds)) {
+                    $q->orWhereIn('order_id', $tpOrderIds);
+                }
+                if (empty($tpIds) && empty($tpOrderIds)) {
+                    // чтобы не утекли чужие логи при пустом фильтре — гарантированно пустая выборка
+                    $q->whereRaw('1=0');
+                }
+            });
+        }
+
+        $payLogs = $payLogQuery
+            ->orderBy('created_at')
+            ->get();
+
+        foreach ($payLogs as $l) {
+            $events[] = [
+                'at' => (string) ($l->created_at ?? ''),
+                'kind' => 'payment',
+                'source' => (string) ($l->event_source ?? 'webhook'),
+                'from_status' => $l->from_status !== null ? (string) $l->from_status : null,
+                'to_status' => $l->to_status !== null ? (string) $l->to_status : null,
+                'bank_status' => $l->bank_status !== null ? (string) $l->bank_status : null,
+                'bank_payment_id' => $l->bank_payment_id !== null ? (string) $l->bank_payment_id : null,
+                'order_id' => $l->order_id !== null ? (string) $l->order_id : null,
+                'payload' => $l->payload ? json_decode((string) $l->payload, true) : null,
+            ];
+        }
+
+        // ---- Payout status logs ----
+        $payouts = collect();
+        if (!empty($payment->deal_id)) {
+            $payouts = TinkoffPayout::query()
+                ->where('partner_id', (int) $partnerId)
+                ->where('deal_id', (string) $payment->deal_id)
+                ->orderBy('id')
+                ->get();
+        }
+
+        $payoutIds = $payouts->pluck('id')->filter()->values()->all();
+        if (!empty($payoutIds)) {
+            $payoutLogs = DB::table('tinkoff_payout_status_logs')
+                ->whereIn('payout_id', $payoutIds)
+                ->orderBy('created_at')
+                ->get();
+
+            foreach ($payoutLogs as $l) {
+                $events[] = [
+                    'at' => (string) ($l->created_at ?? ''),
+                    'kind' => 'payout',
+                    'source' => 'poll',
+                    'from_status' => $l->from_status !== null ? (string) $l->from_status : null,
+                    'to_status' => $l->to_status !== null ? (string) $l->to_status : null,
+                    'bank_status' => null,
+                    'bank_payment_id' => null,
+                    'order_id' => null,
+                    'payload' => $l->payload ? json_decode((string) $l->payload, true) : null,
+                    'payout_id' => (int) ($l->payout_id ?? 0),
+                ];
+            }
+        }
+
+        usort($events, static function (array $a, array $b): int {
+            return strcmp((string) ($a['at'] ?? ''), (string) ($b['at'] ?? ''));
+        });
+
+        return response()->json([
+            'payment' => [
+                'id' => (int) $payment->id,
+                'summ' => (float) ($payment->summ ?? 0),
+                'operation_date' => $payment->operation_date,
+                'deal_id' => $payment->deal_id,
+                'bank_payment_id' => $bankPaymentIdStr,
+            ],
+            'events' => $events,
+            'payouts' => $payouts->map(function (TinkoffPayout $p) {
+                return [
+                    'id' => (int) $p->id,
+                    'status' => (string) ($p->status ?? ''),
+                    'amount' => (int) ($p->amount ?? 0),
+                    'when_to_run' => $p->when_to_run,
+                    'created_at' => $p->created_at,
+                    'updated_at' => $p->updated_at,
+                ];
+            })->values(),
+        ]);
     }
 
     /**

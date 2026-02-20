@@ -14,7 +14,7 @@ use Tests\Feature\Crm\CrmTestCase;
 
 class TbankAutoPayoutOnWebhookTest extends CrmTestCase
 {
-    public function test_confirmed_webhook_creates_and_runs_payout_when_auto_payout_enabled(): void
+    public function test_confirmed_webhook_schedules_payout_after_48_hours_when_auto_payout_enabled(): void
     {
         // Важно: в проде SmRegisterClient требует сертификаты. В тестах подменяем на заглушку.
         $this->app->instance(SmRegisterClient::class, new class {
@@ -75,34 +75,8 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
             'tbank_order_id' => 'order-1',
         ]);
 
-        // Мокаем e2c цепочку: Init -> Payment -> GetState
-        Http::fake(function ($request) {
-            $url = $request->url();
-
-            if (str_contains($url, '/e2c/v2/Init')) {
-                return Http::response([
-                    'Success' => true,
-                    'PaymentId' => 5001,
-                ], 200);
-            }
-
-            if (str_contains($url, '/e2c/v2/Payment')) {
-                return Http::response([
-                    'Success' => true,
-                    'Status' => 'CREDIT_CHECKING',
-                ], 200);
-            }
-
-            if (str_contains($url, '/e2c/v2/GetState')) {
-                return Http::response([
-                    'Success' => true,
-                    'Status' => 'COMPLETED',
-                ], 200);
-            }
-
-            // webhook оплаты сюда не ходит
-            return Http::response(['Success' => true], 200);
-        });
+        // Автовыплата создаётся с задержкой +48 часов, поэтому e2c вызовов быть не должно
+        Http::fake();
 
         // webhook оплаты с валидной подписью по payment token_password
         $payload = [
@@ -125,9 +99,18 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
 
         $payout = TinkoffPayout::where('payment_id', $tp->id)->first();
         $this->assertNotNull($payout);
-        $this->assertSame('COMPLETED', (string) $payout->status);
-        $this->assertNotNull($payout->tinkoff_payout_payment_id);
-        $this->assertNotNull($payout->completed_at);
+        $this->assertSame('INITIATED', (string) $payout->status);
+        $this->assertNotNull($payout->when_to_run);
+        $this->assertNull($payout->tinkoff_payout_payment_id);
+        $this->assertNull($payout->completed_at);
+
+        // run_at ≈ confirmed_at + 48h
+        $this->assertSame(
+            $tp->fresh()->confirmed_at?->clone()->addHours(48)->format('Y-m-d H:i'),
+            $payout->when_to_run?->format('Y-m-d H:i')
+        );
+
+        Http::assertNothingSent();
     }
 }
 

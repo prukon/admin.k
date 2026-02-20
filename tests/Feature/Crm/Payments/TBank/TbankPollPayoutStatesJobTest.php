@@ -5,7 +5,6 @@ namespace Tests\Feature\Crm\Payments\TBank;
 use App\Jobs\TinkoffPollPayoutStatesJob;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffPayout;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -54,13 +53,10 @@ class TbankPollPayoutStatesJobTest extends CrmTestCase
         $this->assertSame('COMPLETED', (string) $p->status);
         $this->assertNotNull($p->completed_at);
 
-        // Таблица логов может отсутствовать в некоторых инсталляциях/окружениях.
-        if (Schema::hasTable('tinkoff_payout_status_logs')) {
-            $this->assertDatabaseHas('tinkoff_payout_status_logs', [
-                'payout_id' => $p->id,
-                'to_status' => 'COMPLETED',
-            ]);
-        }
+        $this->assertDatabaseHas('tinkoff_payout_status_logs', [
+            'payout_id' => $p->id,
+            'to_status' => 'COMPLETED',
+        ]);
     }
 }
 

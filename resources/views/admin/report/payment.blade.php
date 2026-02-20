@@ -220,6 +220,49 @@
     </div>
 </div>
 
+<!-- Модальное окно "История" (T‑Bank) -->
+<div class="modal fade" id="tbankHistoryModal" tabindex="-1" aria-labelledby="tbankHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tbankHistoryModalLabel">История платежа (T‑Bank)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex flex-wrap gap-3 mb-2">
+                    <div><b>Платёж:</b> <span id="tbankHistoryPaymentId"></span></div>
+                    <div><b>Deal:</b> <span id="tbankHistoryDealId"></span></div>
+                    <div><b>BankPaymentId:</b> <span id="tbankHistoryBankPaymentId"></span></div>
+                </div>
+
+                <div class="alert alert-secondary py-2 d-none" id="tbankHistoryEmpty">
+                    История для этого платежа пока отсутствует.
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle" id="tbankHistoryTable">
+                        <thead>
+                        <tr>
+                            <th style="width: 170px;">Время</th>
+                            <th style="width: 90px;">Тип</th>
+                            <th style="width: 110px;">Источник</th>
+                            <th>Статус</th>
+                            <th style="width: 160px;">Детали</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="d-none" id="tbankHistoryError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section('scripts')
     <script type="text/javascript">
         $(function () {
@@ -589,6 +632,7 @@ columns.push(
 
             // handlers: refund modal
             var refundModal = new bootstrap.Modal(document.getElementById('refundModal'));
+            var tbankHistoryModal = new bootstrap.Modal(document.getElementById('tbankHistoryModal'));
 
             function applyRefundProviderUi(provider) {
                 var title = 'Возврат платежа';
@@ -665,6 +709,96 @@ columns.push(
                         }
                         $('#refundError').removeClass('d-none').text(msg);
                         btn.prop('disabled', false).text('Сделать возврат');
+                    }
+                });
+            });
+
+            // handlers: tbank history modal
+            function escapeHtml(str) {
+                return String(str ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function renderHistoryRow(ev) {
+                var at = escapeHtml(ev.at || '');
+                var kind = escapeHtml(ev.kind || '');
+                var source = escapeHtml(ev.source || '');
+                var status = escapeHtml(ev.to_status || ev.bank_status || '');
+                var from = ev.from_status ? (' ← ' + escapeHtml(ev.from_status)) : '';
+                var details = '';
+
+                if (ev.kind === 'payment') {
+                    if (ev.bank_payment_id) details += 'PaymentId: ' + escapeHtml(ev.bank_payment_id) + '<br>';
+                    if (ev.order_id) details += 'OrderId: ' + escapeHtml(ev.order_id) + '<br>';
+                    if (ev.bank_status && ev.to_status && ev.bank_status !== ev.to_status) {
+                        details += 'BankStatus: ' + escapeHtml(ev.bank_status) + '<br>';
+                    }
+                } else if (ev.kind === 'payout') {
+                    if (ev.payout_id) details += 'PayoutId: ' + escapeHtml(ev.payout_id) + '<br>';
+                }
+
+                var payloadBtn = '';
+                if (ev.payload) {
+                    var payloadId = 'payload-' + Math.random().toString(36).slice(2);
+                    payloadBtn =
+                        '<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#' + payloadId + '">payload</button>' +
+                        '<div class="collapse mt-2" id="' + payloadId + '"><pre class="mb-0 small bg-light p-2 rounded" style="max-height:240px; overflow:auto;">' +
+                        escapeHtml(JSON.stringify(ev.payload, null, 2)) +
+                        '</pre></div>';
+                }
+
+                return '<tr>' +
+                    '<td class="text-nowrap">' + at + '</td>' +
+                    '<td class="text-nowrap">' + kind + '</td>' +
+                    '<td class="text-nowrap">' + source + '</td>' +
+                    '<td>' + status + from + '</td>' +
+                    '<td>' + (details || '') + payloadBtn + '</td>' +
+                    '</tr>';
+            }
+
+            $(document).on('click', '.js-tbank-history-btn', function () {
+                var paymentId = $(this).data('payment-id');
+                var dealId = $(this).data('deal-id') || '';
+                var bankPaymentId = $(this).data('bank-payment-id') || '';
+
+                $('#tbankHistoryPaymentId').text(paymentId);
+                $('#tbankHistoryDealId').text(dealId);
+                $('#tbankHistoryBankPaymentId').text(bankPaymentId);
+                $('#tbankHistoryError').addClass('d-none').removeClass('alert alert-danger').text('');
+                $('#tbankHistoryEmpty').addClass('d-none');
+                $('#tbankHistoryTable tbody').html('<tr><td colspan="5">Загрузка...</td></tr>');
+
+                tbankHistoryModal.show();
+
+                $.ajax({
+                    url: '/admin/reports/payments/' + paymentId + '/tbank-history',
+                    method: 'GET',
+                    headers: {'X-Requested-With': 'XMLHttpRequest'},
+                    success: function (resp) {
+                        var events = Array.isArray(resp && resp.events) ? resp.events : [];
+                        if (events.length === 0) {
+                            $('#tbankHistoryTable tbody').html('');
+                            $('#tbankHistoryEmpty').removeClass('d-none');
+                            return;
+                        }
+
+                        var html = '';
+                        events.forEach(function (ev) {
+                            html += renderHistoryRow(ev);
+                        });
+                        $('#tbankHistoryTable tbody').html(html);
+                    },
+                    error: function (xhr) {
+                        $('#tbankHistoryTable tbody').html('');
+                        var msg = 'Не удалось загрузить историю';
+                        if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                            msg = xhr.responseJSON.message;
+                        }
+                        $('#tbankHistoryError').removeClass('d-none').addClass('alert alert-danger').text(msg);
                     }
                 });
             });

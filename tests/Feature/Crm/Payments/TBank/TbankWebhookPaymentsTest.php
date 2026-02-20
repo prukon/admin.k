@@ -186,6 +186,15 @@ class TbankWebhookPaymentsTest extends CrmTestCase
                 ->where('action', 50)
                 ->count()
         );
+
+        // Историю webhook'ов пишем всегда (даже повторные)
+        $this->assertSame(
+            2,
+            DB::table('tinkoff_payment_status_logs')
+                ->where('partner_id', $this->partner->id)
+                ->where('order_id', 'order-1')
+                ->count()
+        );
     }
 
     public function test_webhook_failed_marks_intent_failed_and_does_not_create_payment_record(): void

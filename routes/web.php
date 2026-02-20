@@ -149,6 +149,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
         Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
         Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])->name('payments.refund')->whereNumber('payment');
+        Route::get('/admin/reports/payments/{payment}/tbank-history', [PaymentReportController::class, 'tbankHistory'])->name('payments.tbankHistory')->whereNumber('payment');
         // Настройки отображения колонок в отчёте "Платежи"
         Route::get('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'getColumnsSettings']);
         Route::post('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'saveColumnsSettings']);

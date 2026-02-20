@@ -81,7 +81,8 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
       <code>/admin/settings/tbank-commissions/{id}/edit</code> чекбокс “Автовыплата включена”.</li>
     <li><b>Важно</b>: чекбокс применяется к <b>партнёру</b>, указанному в этом правиле (поле <code>partner_id</code>).
       Для “глобального” правила (partner_id = NULL) чекбокс не применяется — сначала нужно выбрать партнёра и сохранить правило.</li>
-    <li><b>Что делает</b>: если включено — после успешной оплаты (<code>Status=CONFIRMED</code>) автоматически запускаем e2c‑выплату партнёру.</li>
+    <li><b>Что делает</b>: если включено — после успешной оплаты (<code>Status=CONFIRMED</code>) автоматически создаём выплату партнёру (e2c) с задержкой <b>+48 часов</b>.
+      Дальше фактический статус доводится polling’ом (<code>GetState</code>) до <code>COMPLETED/REJECTED</code>.</li>
     <li><b>Если выключено</b>: выплаты запускаются только вручную (админ‑действиями).</li>
   </ul>
 
@@ -164,6 +165,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>7.3 Webhooks (подпись, доменные эффекты, идемпотентность)</h3>
   <ul>
+    <li><b>История</b>: каждый принятый (валидный) webhook по оплате записывается в <code>tinkoff_payment_status_logs</code> (включая повторные).</li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankWebhookPaymentsTest.php</code>
       <ul>
         <li><b>Подпись</b>: неверная подпись → 200 OK, но без изменений в БД.</li>
