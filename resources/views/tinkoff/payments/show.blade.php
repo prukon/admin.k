@@ -2,6 +2,11 @@
 
 @php
     function roubles($cents){ return number_format($cents/100,2,',',' '); }
+    function pretty_json($v){
+        if ($v === null) return '';
+        if (is_string($v)) return $v;
+        return json_encode($v, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
+    }
     $badge = [
       'NEW' => 'secondary','FORM'=>'info','CONFIRMED'=>'success',
       'REJECTED'=>'danger','CANCELED'=>'warning'
@@ -94,6 +99,80 @@
                     </div>
                 </div>
 
+                <div class="card shadow-sm mt-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-2">История статусов</h6>
+                            <div class="small text-muted">
+                                {{ count($historyEvents ?? []) }} событий
+                            </div>
+                        </div>
+
+                        @if(empty($historyEvents))
+                            <div class="text-muted">История пока отсутствует.</div>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th style="width: 170px;">Время</th>
+                                        <th style="width: 90px;">Тип</th>
+                                        <th style="width: 110px;">Источник</th>
+                                        <th>Статус</th>
+                                        <th style="width: 220px;">Детали</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @foreach($historyEvents as $ev)
+                                        <tr>
+                                            <td class="text-nowrap">
+                                                {{ $ev['at'] ? $ev['at']->format('d.m.Y H:i:s') : '—' }}
+                                            </td>
+                                            <td class="text-nowrap">{{ $ev['kind'] ?? '—' }}</td>
+                                            <td class="text-nowrap">{{ $ev['source'] ?? '—' }}</td>
+                                            <td>
+                                                @php
+                                                    $to = $ev['to_status'] ?? ($ev['bank_status'] ?? '');
+                                                    $from = $ev['from_status'] ?? null;
+                                                @endphp
+                                                <div><b>{{ $to !== '' ? $to : '—' }}</b></div>
+                                                @if($from)
+                                                    <div class="small text-muted">← {{ $from }}</div>
+                                                @endif
+                                                @if(!empty($ev['bank_status']) && ($ev['bank_status'] !== ($ev['to_status'] ?? null)))
+                                                    <div class="small text-muted">BankStatus: {{ $ev['bank_status'] }}</div>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if(($ev['kind'] ?? '') === 'payment')
+                                                    @if(!empty($ev['bank_payment_id']))
+                                                        <div class="small">PaymentId: <span class="text-muted">{{ $ev['bank_payment_id'] }}</span></div>
+                                                    @endif
+                                                    @if(!empty($ev['order_id']))
+                                                        <div class="small">OrderId: <span class="text-muted">{{ $ev['order_id'] }}</span></div>
+                                                    @endif
+                                                @elseif(($ev['kind'] ?? '') === 'payout')
+                                                    @if(!empty($ev['payout_id']))
+                                                        <div class="small">PayoutId: <span class="text-muted">{{ $ev['payout_id'] }}</span></div>
+                                                    @endif
+                                                @endif
+
+                                                @if(!empty($ev['payload']))
+                                                    <details class="mt-1">
+                                                        <summary class="small">payload</summary>
+                                                        <pre class="small mb-0 bg-light p-2 rounded" style="max-height:240px; overflow:auto;">{{ pretty_json($ev['payload']) }}</pre>
+                                                    </details>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
                 <!-- Modal Отложить -->
                 <div class="modal fade" id="delayModal" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog">
@@ -126,6 +205,42 @@
                         <div class="small text-muted">Отменён: {{ $payment->canceled_at?->format('d.m.Y H:i') ?? '—' }}</div>
                     </div>
                 </div>
+
+                @if(!empty($payouts) && count($payouts) > 0)
+                    <div class="card shadow-sm mt-3">
+                        <div class="card-body">
+                            <h6 class="mb-2">Выплаты по deal_id</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th style="width:70px;">ID</th>
+                                        <th style="width:110px;">Статус</th>
+                                        <th>Сумма</th>
+                                        <th style="width:170px;">Когда</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @foreach($payouts as $po)
+                                        <tr>
+                                            <td class="text-nowrap">{{ $po->id }}</td>
+                                            <td class="text-nowrap">{{ $po->status }}</td>
+                                            <td class="text-nowrap">{{ roubles((int) $po->amount) }} ₽</td>
+                                            <td class="text-nowrap">
+                                                @if($po->when_to_run)
+                                                    {{ $po->when_to_run->format('d.m.Y H:i') }}
+                                                @else
+                                                    —
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                @endif
 
                 <div class="card shadow-sm mt-3">
                     <div class="card-body">
