@@ -114,6 +114,11 @@ Route::view('/privacy-policy', 'landing.policy')->name('privacy.policy');
 //Страница Пользовательское соглашение
 Route::get('/terms', [\App\Http\Controllers\AboutController::class, 'terms'])->name('terms');
 
+// Blog (публичный)
+Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/category/{slug}', [\App\Http\Controllers\BlogController::class, 'category'])->name('blog.category');
+Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show'])->name('blog.show');
+
 
 Route::middleware('auth')->group(function () {
     // 2FA challenge
@@ -516,12 +521,32 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/switch-partner', [\App\Http\Controllers\PartnerSwitchController::class, 'switch'])->name('partner.switch');
     });
 
-    //2FA
+    //2FA (управление обязательной 2FA)
     Route::middleware(['can:admin'])->prefix('admin')->group(function () {
         Route::get('2fa', [TwoFactorController::class, 'show'])->name('admin.2fa.show');
         Route::post('2fa/enable', [TwoFactorController::class, 'enable'])->name('admin.2fa.enable');
         Route::post('2fa/verify', [TwoFactorController::class, 'verify'])->name('admin.2fa.verify');
         Route::post('2fa/disable', [TwoFactorController::class, 'disable'])->name('admin.2fa.disable');
+    });
+
+    // Blog (админка)
+    Route::middleware(['can:blog-view'])->prefix('admin')->group(function () {
+        Route::get('blog/categories', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'index'])->name('admin.blog.categories.index');
+        Route::get('blog/categories/create', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'create'])->name('admin.blog.categories.create');
+        Route::post('blog/categories', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'store'])->name('admin.blog.categories.store');
+        Route::get('blog/categories/{category}/edit', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'edit'])->name('admin.blog.categories.edit');
+        Route::put('blog/categories/{category}', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'update'])->name('admin.blog.categories.update');
+        Route::delete('blog/categories/{category}', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'destroy'])->name('admin.blog.categories.destroy');
+
+        Route::get('blog/posts', [\App\Http\Controllers\Admin\BlogPostController::class, 'index'])->name('admin.blog.posts.index');
+        Route::get('blog/posts/create', [\App\Http\Controllers\Admin\BlogPostController::class, 'create'])->name('admin.blog.posts.create');
+        Route::post('blog/posts', [\App\Http\Controllers\Admin\BlogPostController::class, 'store'])->name('admin.blog.posts.store');
+        Route::get('blog/posts/{post}/edit', [\App\Http\Controllers\Admin\BlogPostController::class, 'edit'])->name('admin.blog.posts.edit');
+        Route::put('blog/posts/{post}', [\App\Http\Controllers\Admin\BlogPostController::class, 'update'])->name('admin.blog.posts.update');
+        Route::delete('blog/posts/{post}', [\App\Http\Controllers\Admin\BlogPostController::class, 'destroy'])->name('admin.blog.posts.destroy');
+
+        Route::get('blog/settings', [\App\Http\Controllers\Admin\BlogSettingsController::class, 'edit'])->name('admin.blog.settings.edit');
+        Route::post('blog/settings', [\App\Http\Controllers\Admin\BlogSettingsController::class, 'update'])->name('admin.blog.settings.update');
     });
 });
 

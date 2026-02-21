@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Schema;
 
 class SitemapController extends Controller
 {
@@ -84,6 +85,47 @@ class SitemapController extends Controller
             'priority' => '0.3',
             'lastmod' => now()->toAtomString(),
         ];
+
+        // Blog
+        if (Schema::hasTable('blog_posts') && Schema::hasTable('blog_categories')) {
+            $urls[] = [
+                'loc' => url('/blog'),
+                'changefreq' => 'weekly',
+                'priority' => '0.7',
+                'lastmod' => now()->toAtomString(),
+            ];
+
+            try {
+                $categories = \App\Models\BlogCategory::query()
+                    ->orderBy('id')
+                    ->get(['id', 'slug', 'updated_at']);
+
+                foreach ($categories as $category) {
+                    $urls[] = [
+                        'loc' => url('/blog/category/' . $category->slug),
+                        'changefreq' => 'weekly',
+                        'priority' => '0.5',
+                        'lastmod' => optional($category->updated_at)->toAtomString() ?: now()->toAtomString(),
+                    ];
+                }
+
+                $posts = \App\Models\BlogPost::query()
+                    ->published()
+                    ->orderByDesc('published_at')
+                    ->get(['id', 'slug', 'updated_at']);
+
+                foreach ($posts as $post) {
+                    $urls[] = [
+                        'loc' => url('/blog/' . $post->slug),
+                        'changefreq' => 'monthly',
+                        'priority' => '0.6',
+                        'lastmod' => optional($post->updated_at)->toAtomString() ?: now()->toAtomString(),
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // если миграции ещё не применены или БД недоступна — просто не добавляем блог в sitemap
+            }
+        }
 
         // В sitemap осознанно НЕ добавляем:
         // - /contact/send (POST, служебный маршрут формы)

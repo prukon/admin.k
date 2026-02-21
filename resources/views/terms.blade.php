@@ -1,8 +1,11 @@
 {{--@extends('layouts.main2')--}}
-@extends('layouts.admin2')
+@extends('layouts.landingPage')
+@section('title', 'kidscrm.online — Пользовательское соглашение')
+@section('meta_robots', 'noindex,follow')
+@section('meta_description', 'Пользовательское соглашение kidscrm.online: условия использования сервиса.')
 @section('content')
-    <div class="main-content text-start">
-        <h4 class="pt-3 pb-3 ">Пользовательское соглашение</h4>
+    <div class="container py-4 text-start">
+        <h1 class="mb-4">Пользовательское соглашение</h1>
         <!-- Текст пользовательского соглашения -->
         <div class="terms-content">
             <!-- Здесь вы можете разместить текст вашего пользовательского соглашения -->

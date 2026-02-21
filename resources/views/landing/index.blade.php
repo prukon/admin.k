@@ -1,6 +1,9 @@
 @extends('layouts.landingPage')
-@section('title', 'kidscrm.online — Управление спортом онлайн')
+@section('title', 'CRM для детских секций и кружков — меньше рутины, больше времени на развитие | kidscrm.online')
+@section('meta_description', 'kidscrm.online — CRM для детских секций и кружков: учет учеников, расписание, оплаты, долги и онлайн-договоры. Экономьте до 30% времени. Без абонплаты, комиссия 2% с успешных оплат.')
 @section('content')
+
+
 
 
     <!-- Hero -->
@@ -378,7 +381,7 @@
                              alt="Иконка комиссии"
                              class="mx-auto mb-3"
                              style="width:48px; height:48px; object-fit:contain;">
-                        <h5 class="fw-bold"><span class="alert-color"> 1,5% комиссия</span> только с транзакций</h5>
+                        <h5 class="fw-bold"><span class="alert-color"> 2% комиссия</span> только с транзакций</h5>
                         <p class="text-muted fs-6">
                             Оплата сервиса — небольшой процент от каждой успешной оплаты занятий через
                             онлайн-эквайринг. Никаких скрытых сборов и дополнительных платежей.

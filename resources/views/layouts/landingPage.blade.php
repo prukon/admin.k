@@ -4,7 +4,50 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', config('app.name'))</title>
+    @php
+        $pageTitle = trim($__env->yieldContent('title', config('app.name')));
+        $pageDescription = trim($__env->yieldContent(
+            'meta_description',
+            'kidscrm.online — современная CRM для детских спортивных и творческих секций, кружков и студий. Автоматизируйте учет учеников, расписание, оплаты, долги и онлайн-договоры. Попробуйте бесплатно!'
+        ));
+        $pageCanonical = trim($__env->yieldContent('canonical', url()->current()));
+        $pageRobots = trim($__env->yieldContent('meta_robots', 'index,follow'));
+
+        $pageOgType = trim($__env->yieldContent('og_type', 'website'));
+        $pageOgImage = trim($__env->yieldContent('og_image', asset('img/landing/dashboard.png')));
+        $pageOgTitle = trim($__env->yieldContent('og_title', $pageTitle));
+        $pageOgDescription = trim($__env->yieldContent('og_description', $pageDescription));
+        $pageOgUrl = trim($__env->yieldContent('og_url', $pageCanonical));
+
+        $pageTwitterCard = trim($__env->yieldContent('twitter_card', 'summary_large_image'));
+        $pageTwitterTitle = trim($__env->yieldContent('twitter_title', $pageTitle));
+        $pageTwitterDescription = trim($__env->yieldContent('twitter_description', $pageDescription));
+        $pageTwitterImage = trim($__env->yieldContent('twitter_image', $pageOgImage));
+    @endphp
+
+    <title>{{ $pageTitle }}</title>
+
+    <meta name="description" content="{{ $pageDescription }}">
+    @hasSection('meta_keywords')
+        <meta name="keywords" content="@yield('meta_keywords')">
+    @endif
+    <meta name="robots" content="{{ $pageRobots }}">
+    <link rel="canonical" href="{{ $pageCanonical }}">
+
+    <meta property="og:site_name" content="kidscrm.online" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:title" content="{{ $pageOgTitle }}" />
+    <meta property="og:description" content="{{ $pageOgDescription }}" />
+    <meta property="og:url" content="{{ $pageOgUrl }}" />
+    <meta property="og:type" content="{{ $pageOgType }}" />
+    <meta property="og:image" content="{{ $pageOgImage }}" />
+
+    <meta name="twitter:card" content="{{ $pageTwitterCard }}" />
+    <meta name="twitter:title" content="{{ $pageTwitterTitle }}" />
+    <meta name="twitter:description" content="{{ $pageTwitterDescription }}" />
+    <meta name="twitter:image" content="{{ $pageTwitterImage }}" />
+
+    @stack('head')
     <link rel="icon" href="{{ asset('img/landing/favicon.png') }}" type="image/png">
     <link rel="shortcut icon" href="{{ asset('img/landing/favicon.png') }}" type="image/png">
  
@@ -64,19 +107,9 @@
 </head>
 <body>
 
-<!-- Yandex.Metrika counter -->
-<script type="text/javascript">
-    (function(m,e,t,r,i,k,a){
-        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105845730', 'ym');
+@include('includes.metrika')
+@include('includes.gtm')
 
-    ym(105845730, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/105845730" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-<!-- /Yandex.Metrika counter -->
 <div id="app">
 
     <header class="bg-white shadow-sm">
@@ -106,13 +139,13 @@
                     <!-- Центрированное меню -->
                     <ul class="navbar-nav mx-auto mb-2 mb-md-0">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" href="#how-it-works">Как это работает</a>
+                            <a class="nav-link text-dark" href="{{ request()->routeIs('blog.*') ? url('/#how-it-works') : '#how-it-works' }}">Как это работает</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" href="#features">Функционал</a>
+                            <a class="nav-link text-dark" href="{{ request()->routeIs('blog.*') ? url('/#features') : '#features' }}">Функционал</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" href="#advantages">Преимущества</a>
+                            <a class="nav-link text-dark" href="{{ request()->routeIs('blog.*') ? url('/#advantages') : '#advantages' }}">Преимущества</a>
                         </li>
 
                         {{-- ▼▼ ДОБАВЛЕНО: выпадающее меню со ссылками на SEO-лендинги ▼▼ --}}
@@ -167,10 +200,14 @@
                         {{-- ▲▲ КОНЕЦ ДОБАВЛЕННОГО БЛОКА ▲▲ --}}
 
                         <li class="nav-item">
-                            <a class="nav-link text-dark" href="#pricing">Цены</a>
+                            <a class="nav-link text-dark {{ request()->routeIs('blog.*') ? 'fw-bold' : '' }}" href="{{ route('blog.index') }}">Блог</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" href="{{ request()->routeIs('blog.*') ? url('/#pricing') : '#pricing' }}">Цены</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" href="#contacts">Контакты</a>
+                            <a class="nav-link text-dark" href="{{ request()->routeIs('blog.*') ? url('/#contacts') : '#contacts' }}">Контакты</a>
                         </li>
                     </ul>
 

@@ -130,6 +130,16 @@
             </li>
         @endcan
 
+        {{--Блог--}}
+        @can('blog-view')
+            <li class="nav-item">
+                <a href="{{ route('admin.blog.posts.index') }}" class="nav-link">
+                    <i class="nav-icon fa-solid fa-blog"></i>
+                    <p>Блог</p>
+                </a>
+            </li>
+        @endcan
+
 
 
         <hr class="sidebar-separator">

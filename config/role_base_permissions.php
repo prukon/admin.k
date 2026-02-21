@@ -33,6 +33,7 @@ return [
             'account.documents.view',
             'servicePayments.view',
             'partnerWallet.view',
+            'blog.view',
             'name_editing',
             'account.user.birthdate.update',
             'changing_your_group',

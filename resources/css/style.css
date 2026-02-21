@@ -1449,7 +1449,7 @@ a.disabled {
 
 /*fc-istok*/
 .btn-primary {
-    background-color: white;!important;
+    background-color: white !important;
     border-color: #f3a12b!important;
     color: black;
     font-size: small;

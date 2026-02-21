@@ -59,6 +59,8 @@ return [
 
     'asset_url' => env('ASSET_URL'),
 
+    'noindex' => (bool) env('APP_NOINDEX', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
