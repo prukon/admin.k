@@ -1457,8 +1457,9 @@ a.disabled {
 }
 
 .btn-primary:hover {
-    background-color: #f3a12b;
-    border-color: white;
+    background-color: #f3a12b !important;
+    border-color: white !important;
+    color: white !important;
 }
 
 .btn-istok {
