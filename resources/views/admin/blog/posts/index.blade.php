@@ -64,6 +64,7 @@
                     <th>ID</th>
                     <th>Заголовок</th>
                     <th>Категория</th>
+                    <th>Кол-во символов</th>
                     <th>Статус</th>
                     <th>Дата</th>
                     <th class="text-end">Действия</th>
@@ -78,6 +79,7 @@
                             <div class="text-muted small"><code>{{ $post->slug }}</code></div>
                         </td>
                         <td>{{ $post->category?->name }}</td>
+                        <td class="text-muted small">{{ $post->visible_chars_count }}</td>
                         <td>
                             @if($post->is_published)
                                 <span class="badge bg-success">Опубликовано</span>
@@ -102,7 +104,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="text-muted">Статей пока нет.</td>
+                        <td colspan="7" class="text-muted">Статей пока нет.</td>
                     </tr>
                 @endforelse
                 </tbody>
@@ -113,5 +115,7 @@
             {{ $posts->withQueryString()->links() }}
         </div>
     </div>
+
+    @include('admin.blog.posts._ai_modal', ['categories' => $categories])
 @endsection
 

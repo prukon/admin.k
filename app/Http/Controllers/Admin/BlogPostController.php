@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Blog\Admin\StoreBlogPostRequest;
 use App\Http\Requests\Blog\Admin\UpdateBlogPostRequest;
+use App\Models\BlogAiGeneratedImage;
 use App\Models\BlogCategory;
 use App\Models\BlogPost;
 use Illuminate\Http\RedirectResponse;
@@ -93,6 +94,11 @@ class BlogPostController extends Controller
             $data['cover_image_path'] = $request->file('cover_image')->store('blog/covers', 'public');
         }
 
+        // Если статья создаётся как черновик и дата не указана — проставим её автоматически.
+        if (empty($data['published_at']) && empty($data['is_published'])) {
+            $data['published_at'] = now('Europe/Moscow');
+        }
+
         BlogPost::create($data);
 
         return redirect()
@@ -105,6 +111,11 @@ class BlogPostController extends Controller
         return view('admin.blog.posts.edit', [
             'post' => $post,
             'categories' => BlogCategory::query()->orderBy('name')->get(),
+            'aiImages' => BlogAiGeneratedImage::query()
+                ->where('blog_post_id', $post->id)
+                ->orderByDesc('id')
+                ->limit(50)
+                ->get(),
         ]);
     }
 
@@ -126,6 +137,18 @@ class BlogPostController extends Controller
                 Storage::disk('public')->delete($post->cover_image_path);
             }
             $data['cover_image_path'] = $request->file('cover_image')->store('blog/covers', 'public');
+        }
+
+        // Не затираем published_at в NULL при сохранении черновика.
+        // Если значение не пришло, оставляем то, что было; если его не было — проставим автоматически.
+        if (empty($data['is_published'])) {
+            if (empty($data['published_at'])) {
+                if ($post->published_at) {
+                    unset($data['published_at']);
+                } else {
+                    $data['published_at'] = now('Europe/Moscow');
+                }
+            }
         }
 
         $post->update($data);
@@ -150,7 +173,7 @@ class BlogPostController extends Controller
         $slug = $base !== '' ? $base : 'post';
 
         $i = 1;
-        while (BlogPost::query()
+        while (BlogPost::withTrashed()
             ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
             ->where('slug', $slug)
             ->exists()

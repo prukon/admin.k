@@ -545,6 +545,13 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::put('blog/posts/{post}', [\App\Http\Controllers\Admin\BlogPostController::class, 'update'])->name('admin.blog.posts.update');
         Route::delete('blog/posts/{post}', [\App\Http\Controllers\Admin\BlogPostController::class, 'destroy'])->name('admin.blog.posts.destroy');
 
+        // Blog AI
+        Route::post('blog/posts/ai', [\App\Http\Controllers\Admin\BlogPostAiController::class, 'start'])->name('admin.blog.posts.ai.start');
+        Route::post('blog/posts/{post}/ai', [\App\Http\Controllers\Admin\BlogPostAiController::class, 'startForPost'])->name('admin.blog.posts.ai.post.start');
+        Route::get('blog/posts/ai/{generation}', [\App\Http\Controllers\Admin\BlogPostAiController::class, 'status'])->name('admin.blog.posts.ai.status');
+        Route::post('blog/posts/{post}/ai/images/{image}/regenerate', [\App\Http\Controllers\Admin\BlogPostAiImageController::class, 'regenerate'])
+            ->name('admin.blog.posts.ai.images.regenerate');
+
         Route::get('blog/settings', [\App\Http\Controllers\Admin\BlogSettingsController::class, 'edit'])->name('admin.blog.settings.edit');
         Route::post('blog/settings', [\App\Http\Controllers\Admin\BlogSettingsController::class, 'update'])->name('admin.blog.settings.update');
     });

@@ -60,4 +60,10 @@ return [
         'min_score' => env('RECAPTCHA_MIN_SCORE', 0.5),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'organization' => env('OPENAI_ORG_ID'),
+        'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+    ],
+
 ];

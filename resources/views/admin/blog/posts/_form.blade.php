@@ -82,6 +82,13 @@
         <label class="form-label">Текст статьи</label>
         <textarea id="content" name="content" rows="12" class="form-control @error('content') is-invalid @enderror">{{ old('content', $post?->content) }}</textarea>
         @error('content')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        @php
+            $contentForCount = old('content', $post?->content ?? '');
+            $visibleCharsCount = \App\Models\BlogPost::visibleCharsCountFromHtml($contentForCount);
+        @endphp
+        <div class="text-muted small mt-1">
+            Символов в тексте: <span id="contentCharsCount">{{ $visibleCharsCount }}</span>
+        </div>
         <div class="text-muted small mt-1">Совет: используйте H2/H3 (не H1) внутри текста.</div>
     </div>
 

@@ -22,6 +22,13 @@
 
     <div class="d-flex flex-wrap align-items-center gap-2">
         <a href="{{ route('admin.blog.posts.create') }}" class="btn btn-sm btn-success">+ Статья</a>
+        @if(($active ?? 'posts') === 'posts')
+            <button type="button"
+                    class="btn btn-sm btn-outline-success"
+                    onclick="window.openBlogAiModal && window.openBlogAiModal();">
+                + Статья (ИИ)
+            </button>
+        @endif
         <a href="{{ route('admin.blog.categories.create') }}" class="btn btn-sm btn-outline-success">+ Категория</a>
 
         <a href="{{ route('blog.index') }}" target="_blank" class="btn btn-sm btn-outline-secondary">Открыть блог</a>
