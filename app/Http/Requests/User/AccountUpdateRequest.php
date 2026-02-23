@@ -69,26 +69,26 @@ class AccountUpdateRequest extends FormRequest
             $rules['lastname'] = ['required','string','max:30'];
         }
 
-        if ($this->user()->can('account-user-birthdate-update')) {
+        if ($this->user()->can('account.user.birthdate.update')) {
             $rules['birthday'] = ['nullable','date','before_or_equal:today'];
         }
 
-        if ($this->user()->can('changing-your-group')) {
+        if ($this->user()->can('changing.your.group')) {
             $rules['team_id'] = ['sometimes','nullable','integer','exists:teams,id'];
         }
 
-        if ($this->user()->can('account-user-startDate-update')) {
+        if ($this->user()->can('account.user.startDate.update')) {
             $rules['start_date'] =  ['nullable','date','before_or_equal:today'];
         }
 
 
-        if ($this->user()->can('changing-user-email')) {
+        if ($this->user()->can('changing.user.email')) {
             $rules['email'] = ['sometimes', 'required', 'string', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($targetUserId),
             ];
         }
 
-        if ($this->user()->can('account-user-phone-update')) {
+        if ($this->user()->can('account.user.phone.update')) {
             $rules['phone'] = ['sometimes','nullable','string','max:32'];
         }
 

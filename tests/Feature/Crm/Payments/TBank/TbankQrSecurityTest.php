@@ -12,7 +12,7 @@ class TbankQrSecurityTest extends CrmTestCase
 {
     private function grantTbankPaymentPermissionForCurrentUser(): void
     {
-        $permId = $this->permissionId('payment_method_T-Bank');
+        $permId = $this->permissionId('payment.method.tbank');
 
         DB::table('permission_role')->insertOrIgnore([
             'partner_id'    => $this->partner->id,
@@ -25,7 +25,7 @@ class TbankQrSecurityTest extends CrmTestCase
 
     private function grantTbankPaymentPermissionForForeignUser(): void
     {
-        $permId = $this->permissionId('payment_method_T-Bank');
+        $permId = $this->permissionId('payment.method.tbank');
 
         DB::table('permission_role')->insertOrIgnore([
             'partner_id'    => $this->foreignPartner->id,

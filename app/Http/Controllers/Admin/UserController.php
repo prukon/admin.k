@@ -458,7 +458,7 @@ class UserController extends AdminBaseController
 
                 if (
                     $actor
-                    && $actor->can('users-phone-update')
+                    && $actor->can('users.phone.update')
                     && $newPhoneIncoming !== (string) $old['phone']
                 ) {
                     $user->phone = $newPhoneIncoming;
@@ -561,7 +561,7 @@ class UserController extends AdminBaseController
             if (
                 $old['phone'] !== $new['phone']
                 && $actor
-                && $actor->can('users-phone-update')
+                && $actor->can('users.phone.update')
             ) {
                 $oldPhone = $old['phone'] !== '' ? $old['phone'] : '-';
                 $newPhone = $new['phone'] !== '' ? $new['phone'] : '-';

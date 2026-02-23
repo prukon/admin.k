@@ -221,13 +221,13 @@ class AuthServiceProvider extends ServiceProvider
         });
  
         // Изменение своей даты рождения
-        Gate::define('account-user-birthdate-update', function (User $user) {
+        Gate::define('account.user.birthdate.update', function (User $user) {
             return $user->hasPermission('account.user.birthdate.update');
         });
 
         // Изменение своей группы
-        Gate::define('changing-your-group', function (User $user) {
-            return $user->hasPermission('changing_your_group');
+        Gate::define('changing.your.group', function (User $user) {
+            return $user->hasPermission('changing.your.group');
         });
 
         // Изменение даты своего начала занятий
@@ -236,117 +236,117 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         // Изменение своего email
-        Gate::define('changing-user-email', function (User $user) {
-            return $user->hasPermission('changing_user_email');
+        Gate::define('changing.user.email', function (User $user) {
+            return $user->hasPermission('changing.user.email');
         });
 
         // Изменение своего телефона
-        Gate::define('account-user-phone-update', function (User $user) {
+        Gate::define('account.user.phone.update', function (User $user) {
             return $user->hasPermission('account.user.phone.update');
         });
 
 //////////////////////// Управление пользователями //////////////////////
 
         // Изменение имени
-        Gate::define('users-name-update', function (User $user) {
+        Gate::define('users.name.update', function (User $user) {
             return $user->hasPermission('users.name.update');
         });
 
         // Изменение даты рождения
-        Gate::define('users-birthdate-update', function (User $user) {
+        Gate::define('users.birthdate.update', function (User $user) {
             return $user->hasPermission('users.birthdate.update');
         });
 
         // Изменение группы
-        Gate::define('users-group-update', function (User $user) {
+        Gate::define('users.group.update', function (User $user) {
             return $user->hasPermission('users.group.update');
         });
 
         // Изменение даты начала занятий
-        Gate::define('users-startDate-update', function (User $user) {
+        Gate::define('users.startDate.update', function (User $user) {
             return $user->hasPermission('users.startDate.update');
         });
 
         // Изменение email
-        Gate::define('users-email-update', function (User $user) {
+        Gate::define('users.email.update', function (User $user) {
             return $user->hasPermission('users.email.update');
         });
 
         // Изменение телефона
-        Gate::define('users-phone-update', function (User $user) {
+        Gate::define('users.phone.update', function (User $user) {
             return $user->hasPermission('users.phone.update');
         });
 
         // Изменение роли (прав)
-        Gate::define('users-role-update', function (User $user) {
+        Gate::define('users.role.update', function (User $user) {
             return $user->hasPermission('users.role.update');
         });
 
         // Изменение роли (прав)
-        Gate::define('users-activity-update', function (User $user) {
+        Gate::define('users.activity.update', function (User $user) {
             return $user->hasPermission('users.activity.update');
         });
 
         // Изменение пароля
-        Gate::define('users-password-update', function (User $user) {
+        Gate::define('users.password.update', function (User $user) {
             return $user->hasPermission('users.password.update');
         });
 
 //////////////////////// Разное  //////////////////////
 
         // Пример: Gate для доступа в админку
-        Gate::define('access-admin-panel', function (User $user) {
-            return $user->hasPermission('access_admin_panel');
-        });
+        // Gate::define('access-admin-panel', function (User $user) {
+        //     return $user->hasPermission('access_admin_panel');
+        // });
 
-        // Создание пользователей
-        Gate::define('create-users', function (User $user) {
-            return $user->hasPermission('create_users');
-        });
+        // Создание пользователей (пустышка для Gate)
+        // Gate::define('users.create', function (User $user) {
+        //     return $user->hasPermission('users.create');
+        // });
 
-        // Удаление пользователей
-        Gate::define('delete-users', function (User $user) {
-            return $user->hasPermission('delete_users');
-        });
+        // Удаление пользователей (пустышка для Gate)
+        // Gate::define('users.delete', function (User $user) {
+        //     return $user->hasPermission('users.delete');
+        // });
 
-        // История изменений
-        Gate::define('change-history', function (User $user) {
-            return $user->hasPermission('change_history');
-        });
+        // История изменений (пустышка для Gate)
+        // Gate::define('change.history', function (User $user) {
+        //     return $user->hasPermission('change.history');
+        // });
 
         // Оплата занятий
-        Gate::define('paying-classes', function (User $user) {
-            return $user->hasPermission('paying_classes');
+        Gate::define('paying.classes', function (User $user) {
+            return $user->hasPermission('paying.classes');
         });
 
-        // Оплата клубного взноса
-        Gate::define('payment-clubfee', function (User $user) {
-            return $user->hasPermission('payment_clubfee');
+        // Оплата клубного взноса 
+        Gate::define('payment.clubfee', function (User $user) {
+            return $user->hasPermission('payment.clubfee');
         });
+
+        // Настройка платежных систем (пустышка для Gate)
+        // Gate::define('setting-payment-systems', function (User $user) {
+        //     return $user->hasPermission('setting_payment_systems');
+        // });
 
         // Настройка платежных систем
-        Gate::define('setting-payment-systems', function (User $user) {
-            return $user->hasPermission('setting_payment_systems');
-        });
-
-        // Настройка платежных систем
-        Gate::define('payment-method-T-Bank', function (User $user) {
-            return $user->hasPermission('payment_method_T-Bank');
+        Gate::define('payment.method.tbank', function (User $user) {
+            return $user->hasPermission('payment.method.tbank');
         });
 
         // Управление интеграцией T-Bank (админские действия: sm-register, payouts, debug, админ-карточки)
-        Gate::define('manage-payment-method-T-Bank', function (User $user) {
-            return $user->hasPermission('manage_payment_method_T-Bank');
+        Gate::define('manage.payment.method.tbank', function (User $user) {
+            return $user->hasPermission('manage.payment.method.tbank');
         });
 
         // Управление выплатами T-Bank (роль "бухгалтер" и суперадмин)
-        Gate::define('tbank-payouts-manage', function (User $user) {
+        Gate::define('tbank.payouts.manage', function (User $user) {
             return $user->hasPermission('tbank.payouts.manage');
         });
 
         // Просмотр всех логов
-        Gate::define('viewing-all-logs', function (User $user) {
-            return $user->hasPermission('viewing_all_logs');
+        Gate::define('viewing.all.logs', function (User $user) {
+            return $user->hasPermission('viewing.all.logs');
         });
     }
 }

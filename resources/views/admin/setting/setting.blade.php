@@ -100,7 +100,7 @@
 <div class="table-responsive mt-3">
     <table class="table ">
         <tbody>
-        @can('viewing-all-logs')
+        @can('viewing.all.logs')
             <tr>
                 <td>Журнал событий</td>
                 <td class="text-center">
@@ -375,7 +375,7 @@
             });
 
 
-            @can('viewing-all-logs')
+            @can('viewing.all.logs')
                 showLogModal("{{ route('settings.logs.data') }}");
             @endcan
 

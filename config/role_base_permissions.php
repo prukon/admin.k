@@ -14,7 +14,7 @@ return [
             'changing_user_email',
             'account.user.phone.update',
             'paying_classes',
-            'payment_clubfee',
+            'payment.clubfee',
         ],
         'admin' => [
             'dashboard.view',
@@ -49,10 +49,10 @@ return [
             'users.role.update',
             'users.password.update',
             'users.phone.update',
-            'payment_clubfee',
-            'change_history',
+            'payment.clubfee',
+            // 'change_history',
             'manage_roles',
-            // 'manage_payment_method_T-Bank',
+            // 'manage.payment.method.tbank',
         ],
     ],
 ];

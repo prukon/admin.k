@@ -54,7 +54,7 @@ class UpdateRequest extends FormRequest
 
 
         // Нормализация телефона (только если поле пришло и у редактора есть право)
-        if ($this->user() ?->can('users-phone-update') && $this->has('phone')) {
+        if ($this->user() ?->can('users.phone.update') && $this->has('phone')) {
         $normalized = $this->normalizeRuPhone($this->input('phone'));
         $this->merge([
             'phone' => $normalized, // либо null, если номер пуст/некорректен
@@ -80,37 +80,37 @@ class UpdateRequest extends FormRequest
             'two_factor_enabled' => ['nullable', 'boolean'],
         ];
 
-        if ($this->user()->can('users-name-update')) {
+        if ($this->user()->can('users.name.update')) {
             $rules['name'] = ['required', 'string', 'max:30'];
             $rules['lastname'] = ['required', 'string', 'max:30'];
         }
 
-        if ($this->user()->can('users-birthdate-update')) {
+        if ($this->user()->can('users.birthdate.update')) {
             $rules['birthday'] = ['nullable', 'date', 'before_or_equal:today'];
         }
 
-        if ($this->user()->can('users-group-update')) {
+        if ($this->user()->can('users.group.update')) {
             $rules['team_id'] = ['sometimes', 'nullable', 'integer', 'exists:teams,id'];
         }
 
-        if ($this->user()->can('users-startDate-update')) {
+        if ($this->user()->can('users.startDate.update')) {
             $rules['start_date'] = ['nullable', 'date'];
         }
 
-        if ($this->user()->can('users-email-update')) {
+        if ($this->user()->can('users.email.update')) {
             $rules['email'] = ['sometimes', 'required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($targetUserId),];
         }
 
-        if ($this->user()->can('users-phone-update')) {
+        if ($this->user()->can('users.phone.update')) {
             $rules['phone'] = ['sometimes','nullable','regex:/^\+7\d{10}$/'];
 
         }
 
-        if ($this->user()->can('users-activity-update')) {
+        if ($this->user()->can('users.activity.update')) {
             $rules['is_enabled'] = ['sometimes', 'boolean'];
         }
 
-        if ($this->user()->can('users-role-update')) {
+        if ($this->user()->can('users.role.update')) {
             $rules['role_id'] = ['sometimes', 'required', 'integer', 'exists:roles,id'];
         }
 

@@ -71,7 +71,7 @@ Auth::routes();
 Route::get('/sitemap.xml', [\App\Http\Controllers\SitemapController::class, 'index'])->name('sitemap');
 
 // Debug endpoint for proxy/IP/header diagnostics.
-// Access: either X-Debug-Token header (env DEBUG_REQUEST_TOKEN) OR authenticated + 2FA passed + can:viewing-all-logs.
+// Access: either X-Debug-Token header (env DEBUG_REQUEST_TOKEN) OR authenticated + 2FA passed + can:viewing.all.logs.
 Route::get('/_debug/request', [RequestDebugController::class, 'show'])
     ->name('debug.request')
     ->middleware([DebugRequestAccess::class, 'throttle:30,1'])
@@ -222,7 +222,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('admin/user/{user}', [UserController::class, 'delete'])->name('admin.user.delete');
         Route::get('admin/user/logs-data', [UserController::class, 'log'])->name('logs.data.user');
         //Изменение пароля
-        Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users-password-update', 'throttle:5,1'])->whereNumber('user');
+        Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users.password.update', 'throttle:5,1'])->whereNumber('user');
         //Данные для datatables
         Route::get('/admin/users/data', [UserController::class, 'data'])->name('admin.users.data');
 
@@ -281,7 +281,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Логи текущего партнёра (все типы)
-    Route::middleware('can:viewing-all-logs')->group(function () {
+    Route::middleware('can:viewing.all.logs')->group(function () {
         Route::get('admin/settings/logs-data', [SettingController::class, 'logsData'])->name('settings.logs.data');
     });
 
@@ -374,7 +374,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('/about', [\App\Http\Controllers\AboutController::class, 'index'])->name('about');
 
     //Страница оплаты робокассы
-    Route::middleware('can:paying-classes')->group(function () {
+    Route::middleware('can:paying.classes')->group(function () {
         Route::post('payment', [TransactionController::class, 'index'])->name('payment');
         Route::post('payment/pay', [TransactionController::class, 'pay'])->name('payment.pay');
     });
@@ -384,7 +384,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::get('payment/fail', [TransactionController::class, 'fail'])->name('payment.fail');
 
     //Оплата клубного взноса (робокасса)
-    Route::middleware('can:payment-clubfee')->group(function () {
+    Route::middleware('can:payment.clubfee')->group(function () {
         Route::get('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee');
         Route::post('/payment/club-fee', [\App\Http\Controllers\TransactionController::class, 'clubFee'])->name('clubFee');
     });
@@ -469,7 +469,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Выплаты T-Bank (роль "бухгалтер" + суперадмин)  (feature test +)
-    Route::middleware('can:tbank-payouts-manage')->group(function () {
+    Route::middleware('can:tbank.payouts.manage')->group(function () {
         Route::post('/tinkoff/payouts/{deal}/pay-now', [TinkoffPayoutController::class, 'payNow']);
         Route::post('/tinkoff/payouts/{deal}/delay', [TinkoffPayoutController::class, 'delay']);
 

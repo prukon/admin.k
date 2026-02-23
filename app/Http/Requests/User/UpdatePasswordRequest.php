@@ -11,7 +11,7 @@ class UpdatePasswordRequest extends FormRequest
     public function authorize(): bool
     {
         // дублируем проверку права на уровне запроса
-//        return $this->user()?->can('users-password-update') === true;
+//        return $this->user()?->can('users.password.update') === true;
         return true;
     }
 

@@ -88,11 +88,11 @@
                 <input type="date" id="birthday" name="birthday"
                        class="form-control @error('birthday') is-invalid @enderror"
                        value="{{ old('birthday', $user->birthday_for_form) }}"
-                       @cannot('account-user-birthdate-update') disabled aria-disabled="true" @endcannot>
+                       @cannot('account.user.birthdate.update') disabled aria-disabled="true" @endcannot>
                 @error('birthday')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
-                @cannot('account-user-birthdate-update')
+                @cannot('account.user.birthdate.update')
                     <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
                         даты рождения
                     </div>
@@ -109,12 +109,12 @@
                         class="form-control @error('email') is-invalid @enderror"
                         placeholder="name@example.com"
                         value="{{ old('email', $user->email) }}"
-                        @cannot('changing-user-email') disabled aria-disabled="true" @endcannot
+                        @cannot('changing.user.email') disabled aria-disabled="true" @endcannot
                 >
                 @error('email')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
-                @cannot('changing-user-email')
+                @cannot('changing.user.email')
                     <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
                         email
                     </div>
@@ -123,7 +123,7 @@
 
             {{-- Поле "Телефон" --}}
             @php
-                $canPhone    = auth()->user()->can('account-user-phone-update');
+                $canPhone    = auth()->user()->can('account.user.phone.update');
                 $verifiedAt  = $user->phone_verified_at ? \Carbon\Carbon::parse($user->phone_verified_at) : null;
                 $isVerified  = (bool) $verifiedAt;
             @endphp
@@ -233,7 +233,7 @@
             <div class="mb-3">
                 <label for="team" class="form-label">Группа</label>
                 <select id="team" name="team_id" class="form-select @error('team_id') is-invalid @enderror"
-                        @cannot('changing-your-group') disabled aria-disabled="true" @endcannot>
+                        @cannot('changing.your.group') disabled aria-disabled="true" @endcannot>
                     <option value="" {{ old('team_id', $user->team_id) == null ? 'selected' : '' }}>Без группы</option>
                     @foreach($allTeams as $team)
                         <option value="{{ $team->id }}" {{ old('team_id', $user->team_id) == $team->id ? 'selected' : '' }}>{{ $team->title }}</option>
@@ -242,7 +242,7 @@
                 @error('team_id')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
-                @cannot('changing-your-group')
+                @cannot('changing.your.group')
                     <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
                         группы
                     </div>
@@ -259,12 +259,12 @@
                         class="form-control @error('start_date') is-invalid @enderror"
                         value="{{ old('start_date', $user->start_date) }}"
                         max="{{ date('2030-01-01') }}"
-                        @cannot('account-user-startDate-update') disabled aria-disabled="true" @endcannot
+                        @cannot('account.user.startDate.update') disabled aria-disabled="true" @endcannot
                 >
                 @error('start_date')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
-                @cannot('account-user-startDate-update')
+                @cannot('account.user.startDate.update')
                     <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
                         даты начала занятий
                     </div>

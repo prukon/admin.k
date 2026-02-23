@@ -981,17 +981,17 @@ class UserControllerTest extends CrmTestCase
     }
 
     /**
-     * [P1] Обновление телефона при наличии права users-phone-update
+     * [P1] Обновление телефона при наличии права users.phone.update
      */
     /**
-     * [P1] Обновление телефона при наличии права users-phone-update
+     * [P1] Обновление телефона при наличии права users.phone.update
      */
     public function test_update_changes_phone_and_resets_verification_if_actor_has_permission(): void
     {
         // актор — админ партнёра
         $actor = $this->user;
 
-        $this->assertTrue(\Gate::forUser($actor)->allows('users-phone-update'));
+        $this->assertTrue(\Gate::forUser($actor)->allows('users.phone.update'));
 
         // пользователь, которому меняем телефон
         $user = User::factory()->create([
@@ -1037,13 +1037,13 @@ class UserControllerTest extends CrmTestCase
     }
 
     /**
-     * [P1] Попытка смены телефона без права users-phone-update
+     * [P1] Попытка смены телефона без права users.phone.update
      */
     /**
-     * [P1] Попытка смены телефона без права users-phone-update
+     * [P1] Попытка смены телефона без права users.phone.update
      */
     /**
-     * [P1] Попытка смены телефона без права users-phone-update
+     * [P1] Попытка смены телефона без права users.phone.update
      */
     public function test_update_does_not_change_phone_without_permission(): void
     {
@@ -1055,7 +1055,7 @@ class UserControllerTest extends CrmTestCase
             ->where('permission_id', $permId)
             ->delete();
 
-        $this->assertFalse(\Gate::forUser($this->user)->allows('users-phone-update'));
+        $this->assertFalse(\Gate::forUser($this->user)->allows('users.phone.update'));
 
         $user = User::factory()->create([
             'partner_id'        => $this->partner->id,

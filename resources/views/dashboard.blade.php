@@ -117,7 +117,7 @@
                     {{--<div class="display-none count-training">Количество тренировок: <span--}}
                     {{--class="count-training-value">223</span></div>--}}
                 </div>
-                @can('payment-clubfee')
+                @can('payment.clubfee')
 
                     <div class="mt-3">
                         <a href="/payment/club-fee">
@@ -127,7 +127,7 @@
                 @endcan
             </div>
 
-            @can('paying-classes')
+            @can('paying.classes')
                 <div class="col-12 col-lg-4 mt-3 mb-3 credit-notice  align-items-center justify-content-center text-center">
                     <i class="close fa-solid fa-circle-xmark"></i>
                     У вас образовалась задолженность в размере <span class="summ"></span> руб.
@@ -365,7 +365,7 @@
             }
 
             function disabledPaymentForm(role) {
-                @cannot('paying-classes')
+                @cannot('paying.classes')
 
                 // Получаем все формы на странице
                 const forms = document.querySelectorAll('.seasons form');

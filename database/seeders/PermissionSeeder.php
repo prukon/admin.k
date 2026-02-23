@@ -71,12 +71,12 @@ class PermissionSeeder extends Seeder
 
             // misc
             ['name' => 'paying_classes',                 'description' => 'Оплата учебных занятий',                         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 100],
-            ['name' => 'payment_clubfee',                'description' => 'Оплата клубного взноса',                         'group_slug' => 'misc',     'is_visible' => 1, 'sort_order' => 175],
-            ['name' => 'change_history',                 'description' => 'Просмотр истории изменений',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 180],
+            ['name' => 'payment.clubfee',                'description' => 'Оплата клубного взноса',                         'group_slug' => 'misc',     'is_visible' => 1, 'sort_order' => 175],
+            // ['name' => 'change_history',                 'description' => 'Просмотр истории изменений',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 180],
             ['name' => 'manage_roles',                   'description' => 'Управление ролями',                              'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 190],
-            ['name' => 'setting_payment_systems',        'description' => 'Настройка платежных систем',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 200],
-            ['name' => 'payment_method_T-Bank',          'description' => 'Способ оплаты "Т-Банк',                          'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 200],
-            ['name' => 'manage_payment_method_T-Bank',   'description' => 'Управление интеграцией оплаты "Т-Банк" (админ)', 'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 201],
+            // ['name' => 'setting_payment_systems',        'description' => 'Настройка платежных систем',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 200],
+            ['name' => 'payment.method.tbank',          'description' => 'Способ оплаты "Т-Банк',                          'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 200],
+            ['name' => 'manage.payment.method.tbank',   'description' => 'Управление интеграцией оплаты "Т-Банк" (админ)', 'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 201],
             ['name' => 'tbank.payouts.manage',           'description' => 'Управление выплатами T‑Bank (бухгалтер)',        'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 202],
             ['name' => 'viewing_all_logs',               'description' => 'Просмотр всех логов',                            'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 210],
             ['name' => 'settings.commission',            'description' => 'Настройка комиссий',                             'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 220],

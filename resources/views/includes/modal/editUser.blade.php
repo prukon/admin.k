@@ -59,7 +59,7 @@
                                        name="name"
                                        class="form-control"
                                        id="edit-name"
-                                       @cannot('users-name-update') disabled aria-disabled="true" @endcannot>
+                                       @cannot('users.name.update') disabled aria-disabled="true" @endcannot>
                             </div>
                         </div>
 
@@ -71,7 +71,7 @@
                                        name="lastname"
                                        class="form-control"
                                        id="edit-lastname"
-                                       @cannot('users-name-update') disabled aria-disabled="true" @endcannot>
+                                       @cannot('users.name.update') disabled aria-disabled="true" @endcannot>
                             </div>
                         </div>
 
@@ -85,9 +85,9 @@
                                         name="birthday"
                                         id="edit-birthday"
                                         class="form-control"
-                                        @cannot('users-birthdate-update') disabled aria-disabled="true" @endcannot
+                                        @cannot('users.birthdate.update') disabled aria-disabled="true" @endcannot
                                 >
-                                @cannot('users-birthdate-update')
+                                @cannot('users.birthdate.update')
                                     <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
                                         изменение
                                         даты рождения
@@ -104,7 +104,7 @@
                                         id="edit-team"
                                         name="team_id"
                                         class="form-select"
-                                        @cannot('users-group-update') disabled aria-disabled="true" @endcannot
+                                        @cannot('users.group.update') disabled aria-disabled="true" @endcannot
                                 >
                                     <option value="">Без группы</option>
                                     @foreach($allTeams as $team)
@@ -112,7 +112,7 @@
                                     @endforeach
                                 </select>
 
-                                @cannot('users-group-update')
+                                @cannot('users.group.update')
                                     <div class="form-text text-muted">
                                         <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение группы
                                     </div>
@@ -129,9 +129,9 @@
                                         id="edit-start_date"
                                         name="start_date"
                                         class="form-control"
-                                        @cannot('users-startDate-update') disabled aria-disabled="true" @endcannot
+                                        @cannot('users.startDate.update') disabled aria-disabled="true" @endcannot
                                 >
-                                @cannot('users-startDate-update')
+                                @cannot('users.startDate.update')
                                     <div class="form-text text-muted">
                                         <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение даты начала
                                     </div>
@@ -150,9 +150,9 @@
                                         name="email"
                                         class="form-control"
                                         required
-                                        @cannot('users-email-update') disabled aria-disabled="true" @endcannot
+                                        @cannot('users.email.update') disabled aria-disabled="true" @endcannot
                                 >
-                                @cannot('users-email-update')
+                                @cannot('users.email.update')
                                     <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
                                         изменение
                                         email
@@ -163,7 +163,7 @@
 
                         {{-- Поле "Телефон" --}}
                         <div class="col-12 col-md-6">
-                            @php $canPhone = auth()->user()->can('users-phone-update'); @endphp
+                            @php $canPhone = auth()->user()->can('users.phone.update'); @endphp
                             <div class="mb-3">
                                 <label for="edit-phone" class="form-label">Телефон</label>
 
@@ -223,12 +223,12 @@
                                         id="edit-activity"
                                         name="is_enabled"
                                         class="form-select"
-                                        @cannot('users-activity-update') disabled aria-disabled="true" @endcannot
+                                        @cannot('users.activity.update') disabled aria-disabled="true" @endcannot
                                 >
                                     <option value="0">Неактивен</option>
                                     <option value="1">Активен</option>
                                 </select>
-                                @cannot('users-activity-update')
+                                @cannot('users.activity.update')
                                     <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
                                         изменение
                                         активности
@@ -244,7 +244,7 @@
                                         id="role_id"
                                         name="role_id"
                                         class="form-select"
-                                        @cannot('users-role-update') disabled aria-disabled="true" @endcannot
+                                        @cannot('users.role.update') disabled aria-disabled="true" @endcannot
                                 >
                                     @foreach($roles as $role)
                                         <option value="{{ $role->id }}"
@@ -253,7 +253,7 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                @cannot('users-role-update')
+                                @cannot('users.role.update')
                                     <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
                                         изменение
                                         роли
@@ -318,7 +318,7 @@
                             </div>
                         </div>
 
-                        @php $canChange = auth()->user()->can('users-password-update'); @endphp
+                        @php $canChange = auth()->user()->can('users.password.update'); @endphp
 
                         <div class="button-group buttons-wrap mt-3">
                             <button type="button"

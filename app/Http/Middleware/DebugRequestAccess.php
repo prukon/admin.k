@@ -23,7 +23,7 @@ class DebugRequestAccess
         // 2) Allow for authenticated users who passed 2FA and have permission
         if (Auth::check()) {
             $passed2fa = (bool) session('2fa:passed');
-            if ($passed2fa && Gate::allows('viewing-all-logs')) {
+            if ($passed2fa && Gate::allows('viewing.all.logs')) {
                 return $next($request);
             }
         }

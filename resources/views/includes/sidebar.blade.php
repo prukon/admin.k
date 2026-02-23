@@ -197,7 +197,7 @@
             @endcan
 
             {{-- T‑Bank: выплаты --}}
-            @can('tbank-payouts-manage')
+            @can('tbank.payouts.manage')
                 <li class="nav-item">
                     <a href="/admin/tinkoff/payouts" class="nav-link">
                         <i class="nav-icon fa-solid fa-money-bill-transfer"></i>

@@ -24,10 +24,10 @@ class TbankAdminSecurityTest extends CrmTestCase
     {
         $this->grantPayoutsManagePermissionForCurrentUser();
 
-        // debug (под manage-payment-method-T-Bank)
+        // debug (под manage.payment.method.tbank)
         $this->get('/tinkoff/debug/tpay-status')->assertStatus(403);
 
-        // sm-register (под manage-payment-method-T-Bank)
+        // sm-register (под manage.payment.method.tbank)
         $this->post(route('tinkoff.partners.smRegister', ['id' => $this->partner->id]), [])->assertStatus(403);
     }
 }
