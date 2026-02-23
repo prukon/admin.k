@@ -427,12 +427,12 @@ class SettingsControllerTest extends CrmTestCase
 
     public function test_logs_data_requires_viewing_all_logs_permission(): void
     {
-        $this->asUserWithoutPermission('viewing_all_logs');
+        $this->asUserWithoutPermission('viewing.all.logs');
         $this->get(route('settings.logs.data'))->assertStatus(403);
 
         $this->actingAs($this->user);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
-        $this->grantPermissionToCurrentRole('viewing_all_logs');
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
 
         $this->get(route('settings.logs.data'))
             ->assertOk()

@@ -52,9 +52,9 @@ class PermissionSeeder extends Seeder
             // account
             ['name' => 'name.editing',                   'description' => 'Изменение своего имени',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 10],
             ['name' => 'account.user.birthdate.update',  'description' => 'Изменение своей даты рождения',                  'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 20],
-            ['name' => 'changing_your_group',            'description' => 'Изменение своей группы',                         'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 30],
+            ['name' => 'changing.your.group',            'description' => 'Изменение своей группы',                         'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 30],
             ['name' => 'account.user.startDate.update',  'description' => 'Изменение даты своего начала занятий',           'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 40],
-            ['name' => 'changing_user_email',            'description' => 'Изменение своего email',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 50],
+            ['name' => 'changing.user.email',            'description' => 'Изменение своего email',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 50],
             ['name' => 'account.user.phone.update',      'description' => 'Изменение своего телефона',                      'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 60],
             ['name' => 'account.partner.update',         'description' => 'Изменение данных организации',                   'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 70],
 
@@ -70,15 +70,15 @@ class PermissionSeeder extends Seeder
             ['name' => 'users.phone.update',             'description' => 'Изменение телефона',                             'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],
 
             // misc
-            ['name' => 'paying_classes',                 'description' => 'Оплата учебных занятий',                         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 100],
+            ['name' => 'paying.classes',                 'description' => 'Оплата учебных занятий',                         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 100],
             ['name' => 'payment.clubfee',                'description' => 'Оплата клубного взноса',                         'group_slug' => 'misc',     'is_visible' => 1, 'sort_order' => 175],
             // ['name' => 'change_history',                 'description' => 'Просмотр истории изменений',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 180],
-            ['name' => 'manage_roles',                   'description' => 'Управление ролями',                              'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 190],
+            // ['name' => 'manage_roles',                   'description' => 'Управление ролями',                              'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 190],
             // ['name' => 'setting_payment_systems',        'description' => 'Настройка платежных систем',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 200],
             ['name' => 'payment.method.tbank',          'description' => 'Способ оплаты "Т-Банк',                          'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 200],
             ['name' => 'manage.payment.method.tbank',   'description' => 'Управление интеграцией оплаты "Т-Банк" (админ)', 'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 201],
             ['name' => 'tbank.payouts.manage',           'description' => 'Управление выплатами T‑Bank (бухгалтер)',        'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 202],
-            ['name' => 'viewing_all_logs',               'description' => 'Просмотр всех логов',                            'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 210],
+            ['name' => 'viewing.all.logs',               'description' => 'Просмотр всех логов',                            'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 210],
             ['name' => 'settings.commission',            'description' => 'Настройка комиссий',                             'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 220],
             ['name' => 'settings.force2fa.admins',       'description' => 'Управление обязательной 2FA для админов',         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 221],
         ];
