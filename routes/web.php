@@ -167,7 +167,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Отчёты -> "Платежные запросы"
-    Route::middleware(['can:reports.payment-intents.view'])->group(function () {
+    Route::middleware(['can:reports.payment.intents.view'])->group(function () {
         Route::get('/admin/reports/payment-intents', [PaymentIntentReportController::class, 'paymentIntents'])->name('reports.payment-intents.index');
         Route::get('/admin/reports/getPaymentIntents', [PaymentIntentReportController::class, 'getPaymentIntents'])->name('reports.payment-intents.data');
     });
@@ -456,7 +456,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Тинькоф эквайринг мультирасчеты (feature test +)
-    Route::middleware('can:payment-method-T-Bank')->group(function () {
+    Route::middleware('can:payment.method.tbank')->group(function () {
         // витрина оплаты
         Route::post('/payments/tinkoff/create', [TinkoffPaymentController::class, 'create'])->name('payment.tinkoff.pay');
         Route::post('/payments/tinkoff/sbp', [TinkoffPaymentController::class, 'createSbp'])->name('payment.tinkoff.sbp');
@@ -486,7 +486,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Админские операции по T-Bank (sm-register, debug, карточки, close deal) — только владелец (superadmin)  (feature test +)
-    Route::middleware('can:manage-payment-method-T-Bank')->group(function () {
+    Route::middleware('can:manage.payment.method.tbank')->group(function () {
         Route::post('/tinkoff/deals/{deal}/close', [TinkoffDealController::class, 'close']);
 
         // Карточки

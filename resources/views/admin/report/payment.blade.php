@@ -16,7 +16,7 @@
              aria-labelledby="columnsDropdownPayments"
              style="min-width: 240px;">
             @php
-                $canAdditional = auth()->user() && auth()->user()->can('reports.additional-value.view');
+                $canAdditional = auth()->user() && auth()->user()->can('reports.additional.value.view');
             @endphp
 
             <div class="form-check">
@@ -82,7 +82,7 @@
                        id="payColBankCommission"
                        checked
                        @if(!$canAdditional) disabled @endif
-                       @if(!$canAdditional) title="Доступно по праву reports.additional-value.view" @endif>
+                       @if(!$canAdditional) title="Доступно по праву reports.additional.value.view" @endif>
                 <label class="form-check-label" for="payColBankCommission">Комиссия банка</label>
             </div>
 
@@ -93,7 +93,7 @@
                        id="payColPlatformCommission"
                        checked
                        @if(!$canAdditional) disabled @endif
-                       @if(!$canAdditional) title="Доступно по праву reports.additional-value.view" @endif>
+                       @if(!$canAdditional) title="Доступно по праву reports.additional.value.view" @endif>
                 <label class="form-check-label" for="payColPlatformCommission">Комиссия платформы</label>
             </div>
 

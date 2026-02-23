@@ -143,7 +143,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>7.1 Права/доступы (важно для безопасности)</h3>
   <ul>
-    <li><b>Оплата для клиентов</b>: роуты витрины и QR находятся под <code>can:payment-method-T-Bank</code>.</li>
+    <li><b>Оплата для клиентов</b>: роуты витрины и QR находятся под <code>can:payment.method.tbank</code>.</li>
     <li><b>Выплаты для бухгалтера</b>: роуты <code>/tinkoff/payouts/*</code> находятся под <code>can:tbank.payouts.manage</code> (permission <code>tbank.payouts.manage</code>).</li>
     <li><b>Полный админ‑доступ</b> (sm-register/debug/карточки/close deal): под <code>can:manage.payment.method.tbank</code> (только владелец/superadmin).</li>
   </ul>

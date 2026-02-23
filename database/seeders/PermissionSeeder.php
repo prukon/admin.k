@@ -25,8 +25,8 @@ class PermissionSeeder extends Seeder
             // group_slug mainMenu
             ['name' => 'dashboard.view',                 'description' => 'Страница "Консоль"',                            'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 10],
             ['name' => 'reports.view',                   'description' => 'Страница "Отчеты"',                             'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 15],
-            ['name' => 'reports.payment-intents.view',   'description' => 'Страница "Платежные запросы"',                  'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
-            ['name' => 'reports.additional-value.view',  'description' => 'Страница "Отчеты (доп. значения)"',             'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 17],
+            ['name' => 'reports.payment.intents.view',   'description' => 'Страница "Платежные запросы"',                  'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
+            ['name' => 'reports.additional.value.view',  'description' => 'Страница "Отчеты (доп. значения)"',             'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 17],
             ['name' => 'myPayments.view',                'description' => 'Страница "Мои платежи"',                        'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'myGroup.view',                   'description' => 'Страница "Моя группа"',                         'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 17],
             ['name' => 'setPrices.view',                 'description' => 'Страница "Установка цен"',                      'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 20],
@@ -50,11 +50,11 @@ class PermissionSeeder extends Seeder
             ['name' => 'documentations.view',            'description' => 'Страница "Документация"',                       'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 71],
 
             // account
-            ['name' => 'name.editing',                   'description' => 'Изменение своего имени',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 10],
+            ['name' => 'account.user.name.update',      'description' => 'Изменение своего имени',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 10],
             ['name' => 'account.user.birthdate.update',  'description' => 'Изменение своей даты рождения',                  'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 20],
-            ['name' => 'changing.your.group',            'description' => 'Изменение своей группы',                         'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 30],
+            ['name' => 'account.user.team.update',       'description' => 'Изменение своей группы',                         'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 30],
             ['name' => 'account.user.startDate.update',  'description' => 'Изменение даты своего начала занятий',           'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 40],
-            ['name' => 'changing.user.email',            'description' => 'Изменение своего email',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 50],
+            ['name' => 'account.user.email.update',      'description' => 'Изменение своего email',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 50],
             ['name' => 'account.user.phone.update',      'description' => 'Изменение своего телефона',                      'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 60],
             ['name' => 'account.partner.update',         'description' => 'Изменение данных организации',                   'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 70],
 

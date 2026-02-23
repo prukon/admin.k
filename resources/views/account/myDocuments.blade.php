@@ -39,7 +39,7 @@
             @method('patch')
 
             {{-- Поле "Имя" --}}
-            @php $canEditName = auth()->user()->can('name.editing'); @endphp
+            @php $canEditName = auth()->user()->can('account.user.name.update'); @endphp
             <div class="mb-3">
                 <label for="name" class="form-label">Имя ученика*</label>
 
@@ -61,7 +61,7 @@
 
 
             {{-- Поле "Фамилия" --}}
-            @php $canEditName = auth()->user()->can('name.editing'); @endphp
+            @php $canEditName = auth()->user()->can('account.user.name.update'); @endphp
             <div class="mb-3">
                 <label for="lastname" class="form-label">Фамилия ученика*</label>
 
@@ -108,12 +108,12 @@
                         class="form-control @error('email') is-invalid @enderror"
                         placeholder="name@example.com"
                         value="{{ old('email', $user->email) }}"
-                        @cannot('changing.user.email') disabled aria-disabled="true" @endcannot
+                        @cannot('account.user.email.update') disabled aria-disabled="true" @endcannot
                 >
                 @error('email')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
-                @cannot('changing.user.email')
+                @cannot('account.user.email.update')
                     <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
                         email
                     </div> @endcannot
@@ -213,7 +213,7 @@
             <div class="mb-3">
                 <label for="team" class="form-label">Группа</label>
                 <select id="team" name="team_id" class="form-select @error('team_id') is-invalid @enderror"
-                        @cannot('changing.your.group') disabled aria-disabled="true" @endcannot>
+                        @cannot('account.user.team.update') disabled aria-disabled="true" @endcannot>
                     <option value="" {{ old('team_id', $user->team_id) == null ? 'selected' : '' }}>Без группы</option>
                     @foreach($allTeams as $team)
                         <option value="{{ $team->id }}" {{ old('team_id', $user->team_id) == $team->id ? 'selected' : '' }}>{{ $team->title }}</option>
@@ -222,7 +222,7 @@
                 @error('team_id')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
-                @cannot('changing.your.group')
+                @cannot('account.user.team.update')
                     <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
                         группы
                     </div> @endcannot

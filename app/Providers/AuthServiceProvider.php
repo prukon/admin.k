@@ -78,13 +78,13 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         // Отчёты -> вкладка "Платежные запросы"
-        Gate::define('reports.payment-intents.view', function (User $user) {
-            return $user->hasPermission('reports.payment-intents.view');
+        Gate::define('reports.payment.intents.view', function (User $user) {
+            return $user->hasPermission('reports.payment.intents.view');
         });
 
         // Отчёты -> доп. значения (комиссии/нетто и т.п.)
-        Gate::define('reports.additional-value.view', function (User $user) {
-            return $user->hasPermission('reports.additional-value.view');
+        Gate::define('reports.additional.value.view', function (User $user) {
+            return $user->hasPermission('reports.additional.value.view');
         });
 
         // Мои платежи
@@ -216,8 +216,8 @@ class AuthServiceProvider extends ServiceProvider
         ////////////////////////Учетная запись //////////////////////
 
         // Изменение своего имени
-        Gate::define('name.editing', function (User $user) {
-            return $user->hasPermission('name.editing');
+        Gate::define('account.user.name.update', function (User $user) {
+            return $user->hasPermission('account.user.name.update');
         });
  
         // Изменение своей даты рождения
@@ -226,8 +226,8 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         // Изменение своей группы
-        Gate::define('changing.your.group', function (User $user) {
-            return $user->hasPermission('changing.your.group');
+        Gate::define('account.user.team.update', function (User $user) {
+            return $user->hasPermission('account.user.team.update');
         });
 
         // Изменение даты своего начала занятий
@@ -236,8 +236,8 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         // Изменение своего email
-        Gate::define('changing.user.email', function (User $user) {
-            return $user->hasPermission('changing.user.email');
+        Gate::define('account.user.email.update', function (User $user) {
+            return $user->hasPermission('account.user.email.update');
         });
 
         // Изменение своего телефона

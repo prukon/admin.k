@@ -64,7 +64,7 @@ class AccountUpdateRequest extends FormRequest
             'two_factor_enabled'  => ['nullable','boolean'],
         ];
 
-        if ($this->user()->can('name.editing')) {
+        if ($this->user()->can('account.user.name.update')) {
             $rules['name'] = ['required','string','max:30'];
             $rules['lastname'] = ['required','string','max:30'];
         }
@@ -73,7 +73,7 @@ class AccountUpdateRequest extends FormRequest
             $rules['birthday'] = ['nullable','date','before_or_equal:today'];
         }
 
-        if ($this->user()->can('changing.your.group')) {
+        if ($this->user()->can('account.user.team.update')) {
             $rules['team_id'] = ['sometimes','nullable','integer','exists:teams,id'];
         }
 
@@ -82,7 +82,7 @@ class AccountUpdateRequest extends FormRequest
         }
 
 
-        if ($this->user()->can('changing.user.email')) {
+        if ($this->user()->can('account.user.email.update')) {
             $rules['email'] = ['sometimes', 'required', 'string', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($targetUserId),
             ];
