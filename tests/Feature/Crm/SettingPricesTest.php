@@ -21,7 +21,7 @@ class SettingPricesTest extends CrmTestCase
         $team   = Team::factory()->create(['partner_id' => $this->partner->id]);
         $user   = User::factory()->create(['partner_id' => $this->partner->id, 'team_id' => $team->id]);
 
-        // Без явного разрешения setPrices-view ожидаем 403 на все маршруты
+        // Без явного разрешения setPrices.view ожидаем 403 на все маршруты
         $this->get(route('admin.settingPrices.indexMenu'))->assertStatus(403);
 
         $this->postJson(route('getTeamPrice'), [

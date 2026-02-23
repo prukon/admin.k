@@ -16,7 +16,7 @@
              aria-labelledby="columnsDropdownPayments"
              style="min-width: 240px;">
             @php
-                $canAdditional = auth()->user() && auth()->user()->can('reports-additional-value-view');
+                $canAdditional = auth()->user() && auth()->user()->can('reports.additional-value.view');
             @endphp
 
             <div class="form-check">

@@ -3,7 +3,7 @@
 
     <div class=" main-content">
         <h4 class="pt-3 text-start">Консоль</h4>
-        @can('users-view')
+        @can('users.view')
             <h5 class="choose-user-header text-start">Выбор ученика:</h5>
 
             {{--Выбор ученика, группы, кнопка установить--}}

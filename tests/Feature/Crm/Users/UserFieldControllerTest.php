@@ -27,7 +27,7 @@ class UserFieldControllerTest extends CrmTestCase
     }
 
     /**
-     * Хелпер: пользователь без права users-view.
+     * Хелпер: пользователь без права users.view.
      * Если вдруг у выбранной роли есть это право, тест упадёт — это будет сигналом, что сидеры/права настроены криво.
      */
 
@@ -36,10 +36,10 @@ class UserFieldControllerTest extends CrmTestCase
         $permId = DB::table('permissions')->where('name', 'users.view')->value('id');
 
         // Если в базе вообще нет такого permission — это тоже проблема сидеров,
-        // но тогда "users-view" (Gate) нигде не работает.
+        // но тогда "users.view" (Gate) нигде не работает.
         $this->assertNotNull($permId, "Permission 'users.view' не найден в таблице permissions");
 
-        // Ищем роль, у которой НЕТ users-view
+        // Ищем роль, у которой НЕТ users.view
         $roleWithoutView = Role::query()
             ->where('name', '!=', 'superadmin')
             ->whereNotExists(function ($q) use ($permId) {
@@ -66,8 +66,8 @@ class UserFieldControllerTest extends CrmTestCase
         ]);
 
         $this->assertFalse(
-            Gate::forUser($user)->allows('users-view'),
-            "Роль '{$roleWithoutView->name}' неожиданно имеет право 'users-view'"
+            Gate::forUser($user)->allows('users.view'),
+            "Роль '{$roleWithoutView->name}' неожиданно имеет право 'users.view'"
         );
 
         return $user;

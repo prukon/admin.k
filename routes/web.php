@@ -142,14 +142,14 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', '2fa'])->group(function () {
 
     //Консоль (feature test +)
-    Route::middleware(['can:dashboard-view'])->group(function () {
+    Route::middleware(['can:dashboard.view'])->group(function () {
         Route::match(['get', 'post'], '/cabinet', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/get-user-details', [DashboardController::class, 'getUserDetails'])->name('getUserDetails');
         Route::get('/get-team-details', [DashboardController::class, 'getTeamDetails'])->name('getTeamDetails');
     });
 
     //Отчеты -> вкладка Платежи, задолженности, LTV (feature test +)
-    Route::middleware(['can:reports-view'])->group(function () {
+    Route::middleware(['can:reports.view'])->group(function () {
         //Отчеты -> Платежи
         Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
         Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
@@ -167,25 +167,25 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Отчёты -> "Платежные запросы"
-    Route::middleware(['can:reports-payment-intents-view'])->group(function () {
+    Route::middleware(['can:reports.payment-intents.view'])->group(function () {
         Route::get('/admin/reports/payment-intents', [PaymentIntentReportController::class, 'paymentIntents'])->name('reports.payment-intents.index');
         Route::get('/admin/reports/getPaymentIntents', [PaymentIntentReportController::class, 'getPaymentIntents'])->name('reports.payment-intents.data');
     });
 
     //Мои платежи (feature test +)
-    Route::middleware(['can:myPayments-view'])->group(function () {
+    Route::middleware(['can:myPayments.view'])->group(function () {
         Route::get('/reports/payments', [ReportController::class, 'showUserPayments'])->name('showUserPayments');
         Route::get('/getUserPayments', [ReportController::class, 'getUserPayments'])->name('payments.getUserPayments');
     });
 
     //    Моя группа
-    Route::middleware(['can:myGroup-view'])->group(function () {
+    Route::middleware(['can:myGroup.view'])->group(function () {
         Route::get('/my-group', [MyGroupController::class, 'index'])->name('my-group.index');
         Route::get('/my-group/data', [MyGroupController::class, 'data'])->name('my-group.data');
     });
 
     //Установка цен (feature test +)
-    Route::middleware('can:setPrices-view')->group(function () {
+    Route::middleware('can:setPrices.view')->group(function () {
         Route::get('admin/setting-prices', [SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
         Route::post('admin/setting-prices/get-team-price', [SettingPricesController::class, 'getTeamPrice'])->name('getTeamPrice');
         Route::post('admin/setting-prices/set-team-price', [SettingPricesController::class, 'setTeamPrice'])->name('setTeamPrice');
@@ -196,7 +196,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Журнал расписания
-    Route::middleware('can:schedule-view')->group(function () {
+    Route::middleware('can:schedule.view')->group(function () {
         Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
         Route::post('/schedule/update', [ScheduleController::class, 'update'])->name('schedule.update');
         Route::get('/schedule/logs-data', [ScheduleController::class, 'getLogsData'])->name('logs.data.schedule');
@@ -206,7 +206,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Статусы
-    Route::middleware('can:schedule-view')->group(function () {
+    Route::middleware('can:schedule.view')->group(function () {
         Route::get('/schedule/statuses', [StatusController::class, 'index'])->name('statuses.index');
         Route::post('/schedule/statuses', [StatusController::class, 'store'])->name('statuses.store');
         Route::patch('/schedule/statuses/{id}', [StatusController::class, 'update'])->name('statuses.update');
@@ -214,7 +214,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Пользователи (feature test +)
-    Route::middleware('can:users-view')->group(function () {
+    Route::middleware('can:users.view')->group(function () {
         Route::get('admin/users', [UserController::class, 'index'])->name('admin.user1');
         Route::post('admin/users', [UserController::class, 'store'])->name('admin.user.store');
         Route::get('admin/users/{user}/edit', [UserController::class, 'edit'])->name('admin.user.edit');

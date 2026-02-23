@@ -41,7 +41,7 @@ class UserControllerTest extends CrmTestCase
         $adminRole->is_visible = 1;
         $adminRole->save();
 
-        // Реальные права: чтобы пройти middleware can:users-view
+        // Реальные права: чтобы пройти middleware can:users.view
         DB::table('permission_role')->insertOrIgnore([
             'partner_id'    => $this->partner->id,
             'role_id'       => $adminRole->id,
@@ -768,7 +768,7 @@ class UserControllerTest extends CrmTestCase
         $adminRole->is_visible = 1;
         $adminRole->save();
 
-        // Реальные права: чтобы пройти middleware can:users-view
+        // Реальные права: чтобы пройти middleware can:users.view
         DB::table('permission_role')->insertOrIgnore([
             'partner_id'    => $this->partner->id,
             'role_id'       => $adminRole->id,

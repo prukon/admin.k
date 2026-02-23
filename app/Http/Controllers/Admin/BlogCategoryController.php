@@ -81,7 +81,8 @@ class BlogCategoryController extends Controller
     private function makeUniqueSlug(string $name, ?int $ignoreId = null): string
     {
         $base = Str::slug($name);
-        $slug = $base !== '' ? $base : 'category';
+        $fallback = $base !== '' ? $base : 'category';
+        $slug = $fallback;
 
         $i = 1;
         while (BlogCategory::query()
@@ -90,7 +91,7 @@ class BlogCategoryController extends Controller
             ->exists()
         ) {
             $i++;
-            $slug = $base . '-' . $i;
+            $slug = $fallback . '-' . $i;
         }
 
         return $slug;

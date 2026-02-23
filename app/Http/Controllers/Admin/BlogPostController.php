@@ -170,7 +170,8 @@ class BlogPostController extends Controller
     private function makeUniqueSlug(string $title, ?int $ignoreId = null): string
     {
         $base = Str::slug($title);
-        $slug = $base !== '' ? $base : 'post';
+        $fallback = $base !== '' ? $base : 'post';
+        $slug = $fallback;
 
         $i = 1;
         while (BlogPost::withTrashed()
@@ -179,7 +180,7 @@ class BlogPostController extends Controller
             ->exists()
         ) {
             $i++;
-            $slug = $base . '-' . $i;
+            $slug = $fallback . '-' . $i;
         }
 
         return $slug;

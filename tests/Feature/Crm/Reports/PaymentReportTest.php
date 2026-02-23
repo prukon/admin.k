@@ -42,7 +42,7 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
-     * (P0) Доступ к странице отчёта только при праве reports-view.
+     * (P0) Доступ к странице отчёта только при праве reports.view.
      *
      * Если права нет — 403.
      */
@@ -539,7 +539,7 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
-     * (P0) Доступ к настройкам колонок только при reports-view.
+     * (P0) Доступ к настройкам колонок только при reports.view.
      *
      * Без права — 403 для GET и POST.
      */

@@ -39,7 +39,7 @@ class UserAvatarControllerTest extends CrmTestCase
      */
     protected function createUserWithoutAdminRights(): User
     {
-        // Должен быть пользователь без permission users.view (а значит без Gate ability users-view)
+        // Должен быть пользователь без permission users.view (а значит без Gate ability users.view)
         return $this->createUserWithoutPermission('users.view', $this->partner);
     }
 

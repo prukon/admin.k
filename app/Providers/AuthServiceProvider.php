@@ -68,47 +68,47 @@ class AuthServiceProvider extends ServiceProvider
 ////////////////////////ГЛАВНОЕ МЕНЮ//////////////////////
 
         // Страница "Консоль"
-        Gate::define('dashboard-view', function (User $user) {
+        Gate::define('dashboard.view', function (User $user) {
             return $user->hasPermission('dashboard.view');
         });
 
         // Отчёты
-        Gate::define('reports-view', function (User $user) {
+        Gate::define('reports.view', function (User $user) {
             return $user->hasPermission('reports.view');
         });
 
         // Отчёты -> вкладка "Платежные запросы"
-        Gate::define('reports-payment-intents-view', function (User $user) {
+        Gate::define('reports.payment-intents.view', function (User $user) {
             return $user->hasPermission('reports.payment-intents.view');
         });
 
         // Отчёты -> доп. значения (комиссии/нетто и т.п.)
-        Gate::define('reports-additional-value-view', function (User $user) {
+        Gate::define('reports.additional-value.view', function (User $user) {
             return $user->hasPermission('reports.additional-value.view');
         });
 
         // Мои платежи
-        Gate::define('myPayments-view', function (User $user) {
+        Gate::define('myPayments.view', function (User $user) {
             return $user->hasPermission('myPayments.view');
         });
 
         // Мои группы
-        Gate::define('myGroup-view', function (User $user) {
+        Gate::define('myGroup.view', function (User $user) {
             return $user->hasPermission('myGroup.view');
         });
 
         // Установка цен
-        Gate::define('setPrices-view', function (User $user) {
+        Gate::define('setPrices.view', function (User $user) {
             return $user->hasPermission('setPrices.view');
         });
 
         // Журнал расписания
-        Gate::define('schedule-view', function (User $user) {
+        Gate::define('schedule.view', function (User $user) {
             return $user->hasPermission('schedule.view');
         });
 
         // Управление пользователями
-        Gate::define('users-view', function (User $user) {
+        Gate::define('users.view', function (User $user) {
             return $user->hasPermission('users.view');
         });
 

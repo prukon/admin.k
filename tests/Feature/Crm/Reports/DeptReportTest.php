@@ -325,11 +325,11 @@ class DeptReportTest extends CrmTestCase
     }
 
     /**
-     * 9. [P1] Проверка доступа по праву can:reports-view
+     * 9. [P1] Проверка доступа по праву can:reports.view
      */
     public function test_debts_routes_require_reports_view_permission(): void
     {
-        // Создаём пользователя без права reports-view
+        // Создаём пользователя без права reports.view
         $unauthorizedUser = User::factory()->create([
             'partner_id' => $this->partner->id,
         ]);

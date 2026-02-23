@@ -8,7 +8,7 @@ use Tests\Feature\Crm\CrmTestCase;
 class DashboardAuthorizationTest extends CrmTestCase
 {
     /**
-     * P0.1 — Маршруты защищены нужным middleware can:dashboard-view
+     * P0.1 — Маршруты защищены нужным middleware can:dashboard.view
      */
     public function test_dashboard_routes_have_dashboard_view_middleware(): void
     {
@@ -22,8 +22,8 @@ class DashboardAuthorizationTest extends CrmTestCase
             $middlewares = $route->gatherMiddleware();
 
             $this->assertTrue(
-                in_array('can:dashboard-view', $middlewares, true),
-                "Маршрут {$routeName} должен быть защищён middleware can:dashboard-view"
+                in_array('can:dashboard.view', $middlewares, true),
+                "Маршрут {$routeName} должен быть защищён middleware can:dashboard.view"
             );
         }
     }
@@ -54,7 +54,7 @@ class DashboardAuthorizationTest extends CrmTestCase
     }
 
     /**
-     * P0.3 — Пользователь без права dashboard-view получает 403
+     * P0.3 — Пользователь без права dashboard.view получает 403
      *
      * Переопределяем Gate локально в тесте.
      */

@@ -15,7 +15,7 @@ class TbankRefundRestrictionsTest extends CrmTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->asAdmin(); // refund route находится под reports-view
+        $this->asAdmin(); // refund route находится под reports.view
         session(['current_partner' => $this->partner->id]);
     }
 

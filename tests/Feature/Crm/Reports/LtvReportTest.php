@@ -16,7 +16,7 @@ class LtvReportTest extends CrmTestCase
     }
 
     /**
-     * [P1] Доступ к маршрутам LTV только при праве reports-view.
+     * [P1] Доступ к маршрутам LTV только при праве reports.view.
      */
     public function test_ltv_routes_require_reports_view_permission(): void
     {

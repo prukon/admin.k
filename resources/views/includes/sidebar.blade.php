@@ -6,7 +6,7 @@
     <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
 
         {{--Консоль--}}
-        @can('dashboard-view')
+        @can('dashboard.view')
         <li class="nav-item">
             <a href="/cabinet" class="nav-link">
                 {{--<i class="nav-icon far fa-calendar-alt"></i>--}}
@@ -19,7 +19,7 @@
 
         {{--Отчеты--}}
 {{--        @can('reports')--}}
-        @can('reports-view')
+        @can('reports.view')
         <li class="nav-item">
                 <a href="/admin/reports/payments" class="nav-link">
                     <i class="nav-icon fa-solid fa-folder"></i>
@@ -29,7 +29,7 @@
         @endcan
 
         {{--Платежи юзера--}}
-        @can('myPayments-view')
+        @can('myPayments.view')
             <li class="nav-item">
                 <a href="/reports/payments" class="nav-link">
                     <i class="nav-icon fa-solid fa-receipt"></i>
@@ -39,7 +39,7 @@
         @endcan
 
         {{--Группа юзера--}}
-        @can('myGroup-view')
+        @can('myGroup.view')
             <li class="nav-item">
                 <a href="/my-group" class="nav-link">
                     <i class="nav-icon fa-solid fa-layer-group"></i>
@@ -50,7 +50,7 @@
 
 
         {{--Установка цен--}}
-        @can('setPrices-view')
+        @can('setPrices.view')
         <li class="nav-item">
                 <a href="/admin/setting-prices?current-month" class="nav-link">
                     <i class="nav-icon fa-solid fa-receipt"></i>
@@ -60,7 +60,7 @@
         @endcan
 
         {{--Журнал расписания--}}
-        @can('schedule-view')
+        @can('schedule.view')
             <li class="nav-item">
                 <a href="/schedule" class="nav-link">
 {{--                    <i class="nav-icon fa-solid fa-receipt"></i>--}}
@@ -71,7 +71,7 @@
         @endcan
 
         {{--Пользователи--}}
-        @can('users-view')
+        @can('users.view')
             <li class="nav-item">
                 <a href="/admin/users" class="nav-link">
                     <i class="nav-icon fa-solid fa-users"></i>

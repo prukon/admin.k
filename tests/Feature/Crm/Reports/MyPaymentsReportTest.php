@@ -10,7 +10,7 @@ use Tests\Feature\Crm\CrmTestCase;
 class MyPaymentsReportTest extends CrmTestCase
 {
     /**
-     * [P1] Доступ к вкладке только с правом myPayments-view.
+     * [P1] Доступ к вкладке только с правом myPayments.view.
      * - другой пользователь без права → 403
      * - текущий пользователь с правом → 200
      */

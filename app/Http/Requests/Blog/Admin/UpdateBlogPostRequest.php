@@ -15,7 +15,7 @@ class UpdateBlogPostRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'is_published' => filter_var($this->input('is_published', false), FILTER_VALIDATE_BOOL),
+            'is_published' => (int) filter_var($this->input('is_published', false), FILTER_VALIDATE_BOOL),
         ]);
 
         if ($this->filled('slug')) {
