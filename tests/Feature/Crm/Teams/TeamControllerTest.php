@@ -19,7 +19,7 @@ class TeamControllerTest extends CrmTestCase
         // Приоритет определения партнёра через current_partner
         session(['current_partner' => $this->partner->id]);
 
-        // Реальные права: доступ к groups-view есть у admin
+        // Реальные права: доступ к groups.view есть у admin
         $this->asAdmin();
     }
 

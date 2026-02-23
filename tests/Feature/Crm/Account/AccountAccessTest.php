@@ -38,7 +38,7 @@ class AccountAccessTest extends CrmTestCase
         $this->actingAs($this->user);
 
         $payload = [
-            // Передаём текущее имя/фамилию, чтобы не зависеть от прав name-editing.
+            // Передаём текущее имя/фамилию, чтобы не зависеть от прав name.editing.
             'name'     => $this->user->name,
             'lastname' => $this->user->lastname,
         ];

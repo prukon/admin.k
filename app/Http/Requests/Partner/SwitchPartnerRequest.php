@@ -15,7 +15,7 @@ class SwitchPartnerRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return [ 
             'partner_id' => ['required', 'integer', 'exists:partners,id'],
         ];
     }

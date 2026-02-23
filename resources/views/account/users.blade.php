@@ -39,7 +39,7 @@
             @method('patch')
 
             {{-- Поле "Имя" --}}
-            @php $canEditName = auth()->user()->can('name-editing'); @endphp
+            @php $canEditName = auth()->user()->can('name.editing'); @endphp
             <div class="mb-3">
                 <label for="name" class="form-label">Имя ученика*</label>
 
@@ -60,7 +60,7 @@
 
 
             {{-- Поле "Фамилия" --}}
-            @php $canEditName = auth()->user()->can('name-editing'); @endphp
+            @php $canEditName = auth()->user()->can('name.editing'); @endphp
             <div class="mb-3">
                 <label for="lastname" class="form-label">Фамилия ученика*</label>
 

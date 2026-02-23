@@ -20,7 +20,7 @@
                     </a>
                 </li>
                 <!-- Вкладки для всех партнёров пользователя -->
-                @can('account-partner-view')
+                @can('account.partner.view')
                     <li class="nav-item" role="presentation">
                         <a class="nav-link {{ $activeTab == 'partner' ? 'active' : '' }}"
                            href="{{ route('admin.cur.company.edit') }}"
@@ -30,7 +30,7 @@
                 @endcan
 
                 <!-- Вкладки Мои документы (для юзеров) -->
-                @can('account-documents-view')
+                @can('account.documents.view')
                         <li class="nav-item" role="presentation">
                             <a class="nav-link {{ $activeTab == 'myDocuments' ? 'active' : '' }}"
                                href="{{ route('account.documents.index') }}"

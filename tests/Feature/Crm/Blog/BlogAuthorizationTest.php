@@ -50,8 +50,8 @@ class BlogAuthorizationTest extends CrmTestCase
             $middlewares = $route->gatherMiddleware();
 
             $this->assertTrue(
-                in_array('can:blog-view', $middlewares, true),
-                "Маршрут {$routeName} должен быть защищён middleware can:blog-view"
+                in_array('can:blog.view', $middlewares, true),
+                "Маршрут {$routeName} должен быть защищён middleware can:blog.view"
             );
         }
     }

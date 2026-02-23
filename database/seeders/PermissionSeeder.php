@@ -50,7 +50,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'documentations.view',            'description' => 'Страница "Документация"',                       'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 71],
 
             // account
-            ['name' => 'name_editing',                   'description' => 'Изменение своего имени',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 10],
+            ['name' => 'name.editing',                   'description' => 'Изменение своего имени',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 10],
             ['name' => 'account.user.birthdate.update',  'description' => 'Изменение своей даты рождения',                  'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 20],
             ['name' => 'changing_your_group',            'description' => 'Изменение своей группы',                         'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 30],
             ['name' => 'account.user.startDate.update',  'description' => 'Изменение даты своего начала занятий',           'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 40],

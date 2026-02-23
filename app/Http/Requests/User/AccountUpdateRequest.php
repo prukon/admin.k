@@ -64,7 +64,7 @@ class AccountUpdateRequest extends FormRequest
             'two_factor_enabled'  => ['nullable','boolean'],
         ];
 
-        if ($this->user()->can('name-editing')) {
+        if ($this->user()->can('name.editing')) {
             $rules['name'] = ['required','string','max:30'];
             $rules['lastname'] = ['required','string','max:30'];
         }

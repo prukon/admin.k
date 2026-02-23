@@ -34,7 +34,7 @@ return [
             'servicePayments.view',
             'partnerWallet.view',
             'blog.view',
-            'name_editing',
+            'name.editing',
             'account.user.birthdate.update',
             'changing_your_group',
             'account.user.startDate.update',

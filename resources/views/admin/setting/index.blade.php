@@ -19,7 +19,7 @@
                     </li>
 
 
-                    @can('settings-roles-view')
+                    @can('settings.roles.view')
                     <li class="nav-item">
                         <a class="nav-link {{ $activeTab == 'rule' ? 'active' : '' }}"
                            href="{{ route('admin.setting.rule') }}"
@@ -31,7 +31,7 @@
                         </a>
                     </li>
                     @endcan
-                    @can('settings-paymentSystems-view')
+                    @can('settings.paymentSystems.view')
                         <li class="nav-item">
                             <a class="nav-link {{ $activeTab == 'paymentSystem' ? 'active' : '' }}"
                                href="{{ route('admin.setting.paymentSystem') }}"

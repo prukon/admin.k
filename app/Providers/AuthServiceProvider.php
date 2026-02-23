@@ -113,43 +113,44 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         // Управление группами
-        Gate::define('groups-view', function (User $user) {
+        Gate::define('groups.view', function (User $user) {
             return $user->hasPermission('groups.view');
         });
 
         // Страница "Партнеры"
-        Gate::define('partner-view', function (User $user) {
+        Gate::define('partner.view', function (User $user) {
             return $user->hasPermission('partner.view');
-        });
+        }); 
 
         // Переключение партнёра (контекст) — строго superadmin (anti-leak)
-        Gate::define('partner-switch', function (User $user) use ($roleNameById) {
-            $roleName = $roleNameById((int) $user->role_id);
-            return $roleName === 'superadmin';
+        Gate::define('partner.switch', function (User $user) use ($roleNameById) {
+            // $roleName = $roleNameById((int) $user->role_id);
+            // return $roleName === 'superadmin';
+            return $user->hasPermission('partner.switch');
         });
 
         // Страница "Договоры"
-        Gate::define('contracts-view', function (User $user) {
+        Gate::define('contracts.view', function (User $user) {
             return $user->hasPermission('contracts.view');
         });
 
         // Страница "Настройки
-        Gate::define('settings-view', function (User $user) {
+        Gate::define('settings.view', function (User $user) {
             return $user->hasPermission('settings.view');
         });
 
         // Страница "Настройки -> Права и роли"
-        Gate::define('settings-roles-view', function (User $user) {
+        Gate::define('settings.roles.view', function (User $user) {
             return $user->hasPermission('settings.roles.view');
         });
 
         // Страница "Настройки  -> Платежные системы"
-        Gate::define('settings-paymentSystems-view', function (User $user) {
+        Gate::define('settings.paymentSystems.view', function (User $user) {
             return $user->hasPermission('settings.paymentSystems.view');
         });
 
         // Страница "Документация"
-        Gate::define('documentations-view', function (User $user) {
+        Gate::define('documentations.view', function (User $user) {
             return $user->hasPermission('documentations.view');
         });
 
@@ -161,52 +162,52 @@ class AuthServiceProvider extends ServiceProvider
 
         // Управление обязательной 2FA для админов (глобальная настройка)
         // По умолчанию доступно суперадмину (role_id=1), плюс можно выдать отдельное permission.
-        Gate::define('settings-force2fa-admins', function (User $user) {
+        Gate::define('settings.force2fa.admins', function (User $user) {
             return (int)$user->role_id === 1 || $user->hasPermission('settings.force2fa.admins');
         });
 
         // Страница "Учетная запись -> Личные данные"
-        Gate::define('account-user-view', function (User $user) {
+        Gate::define('account.user.view', function (User $user) {
             return $user->hasPermission('account.user.view');
         });
 
         // Страница "Учетная запись -> организация"
-        Gate::define('account-partner-view', function (User $user) {
+        Gate::define('account.partner.view', function (User $user) {
             return $user->hasPermission('account.partner.view');
         });
 
         // Изменение данных организации (учетная запись)
-        Gate::define('account-partner-update', function (User $user) {
+        Gate::define('account.partner.update', function (User $user) {
             return $user->hasPermission('account.partner.update');
         });
 
         // Страница "Учетная запись -> Документы"
-        Gate::define('account-documents-view', function (User $user) {
+        Gate::define('account.documents.view', function (User $user) {
             return $user->hasPermission('account.documents.view');
         });
 
         // Страница "Сообщения"
-        Gate::define('messages-view', function (User $user) {
+        Gate::define('messages.view', function (User $user) {
             return $user->hasPermission('messages.view');
         });
 
         // Страница "Блог" (управление статьями)
-        Gate::define('blog-view', function (User $user) {
+        Gate::define('blog.view', function (User $user) {
             return $user->hasPermission('blog.view');
         });
 
         // Страница "Лиды"
-        Gate::define('leads-view', function (User $user) {
+        Gate::define('leads.view', function (User $user) {  
             return $user->hasPermission('leads.view');
         });
 
         // Оплата сервиса
-        Gate::define('servicePayments-view', function (User $user) {
+        Gate::define('servicePayments.view', function (User $user) {
             return $user->hasPermission('servicePayments.view');
         });
 
         // Кошелек
-        Gate::define('partnerWallet-view', function (User $user) {
+        Gate::define('partnerWallet.view', function (User $user) {
             return $user->hasPermission('partnerWallet.view');
         });
 
@@ -215,10 +216,10 @@ class AuthServiceProvider extends ServiceProvider
         ////////////////////////Учетная запись //////////////////////
 
         // Изменение своего имени
-        Gate::define('name-editing', function (User $user) {
-            return $user->hasPermission('name_editing');
+        Gate::define('name.editing', function (User $user) {
+            return $user->hasPermission('name.editing');
         });
-
+ 
         // Изменение своей даты рождения
         Gate::define('account-user-birthdate-update', function (User $user) {
             return $user->hasPermission('account.user.birthdate.update');

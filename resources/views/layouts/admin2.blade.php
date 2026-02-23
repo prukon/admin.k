@@ -187,7 +187,7 @@
         </ul>
 
         <!-- Форма переключения партнёров -->
-        @can('partner-switch')
+        @can('partner.switch')
             <div class="collapse navbar-collapse mr-3">
                 <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
                     @csrf
@@ -311,7 +311,7 @@
                     Роль: {{ optional(auth()->user()->role)->label ?? 'Не указана' }}
 
 
-                    @can('servicePayments-view')
+                    @can('servicePayments.view')
 
                         @php
                             $parsedDate = \Carbon\Carbon::parse($latestEndDate);
@@ -331,7 +331,7 @@
                     @endcan
 
 
-                    {{--@can('partnerWallet-view')--}}
+                    {{--@can('partnerWallet.view')--}}
                     {{--<h6> Баланс: {{ number_format((float)($partnerWalletBalance ?? 0), 0, ',', ' ') }} руб.--}}
                     {{--<a href="/partner-wallet">(пополнить)</a></h6>--}}
                     {{--@endcan--}}
@@ -343,7 +343,7 @@
                         $balance = $cp?->wallet_balance ?? ($partnerWalletBalance ?? null);
                     @endphp
 
-                    @can('partnerWallet-view')
+                    @can('partnerWallet.view')
                         @if($cp)
                             <h6>
                                 Баланс
@@ -401,7 +401,7 @@
             Copyright &copy; 2023-{{ date('Y') }}
             <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
             Все права защищены.
-            @can('documentations-view')
+            @can('documentations.view')
                 <span class="mx-2">·</span>
                 <a href="{{ route('docs.documentation.index') }}">Документация</a>
             @endcan

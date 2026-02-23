@@ -240,7 +240,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Группы  (feature test +)
-    Route::middleware('can:groups-view')->group(function () {
+    Route::middleware('can:groups.view')->group(function () {
         Route::get('admin/teams', [TeamController::class, 'index'])->name('admin.team.index');
         Route::post('admin/teams', [TeamController::class, 'store'])->name('admin.team.store');
         Route::get('admin/team/{id}/edit', [TeamController::class, 'edit'])->name('admin.team.edit');
@@ -252,14 +252,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Группы. Колонки (feature test +)
-    Route::middleware('can:groups-view')->group(function () {
+    Route::middleware('can:groups.view')->group(function () {
         // Настройки отображения колонок
         Route::get('admin/teams/columns-settings', [TeamColumnsSettingsController::class, 'getColumnsSettings']);
         Route::post('admin/teams/columns-settings', [TeamColumnsSettingsController::class, 'saveColumnsSettings']);
     });
 
     //Партнеры (feature test +)
-    Route::middleware(['can:partner-view'])->group(function () {
+    Route::middleware(['can:partner.view'])->group(function () {
         Route::get('admin/partners', [PartnerController::class, 'index'])->name('admin.partner.index');
         Route::post('admin/partners', [PartnerController::class, 'store'])->name('admin.partner.store');
         Route::get('admin/partner/{partner}/edit', [PartnerController::class, 'edit'])->name('admin.partner.edit');
@@ -269,14 +269,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Страница Настойки - Общие  (feature test +)
-    Route::middleware('can:settings-view')->group(function () {
+    Route::middleware('can:settings.view')->group(function () {
         Route::get('admin/settings', [SettingController::class, 'showSettings'])->name('admin.setting.setting');
         Route::patch('admin/settings/registration-activity', [SettingController::class, 'registrationActivity'])->name('registrationActivity');
         Route::post('admin/settings/text-for-users', [SettingController::class, 'textForUsers'])->name('textForUsers');
         Route::post('settings/save-menu-items', [SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems');
         Route::post('settings/save-social-menu-items', [SettingController::class, 'saveSocialItems'])->name('settings.saveSocialItems');
         Route::post('admin/settings/force-2fa-admins', [SettingController::class, 'toggleForce2faAdmins'])
-            ->middleware('can:settings-force2fa-admins')
+            ->middleware('can:settings.force2fa.admins')
             ->name('settings.force2fa.admins');
     });
 
@@ -286,7 +286,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Страница Настойки- Права (feature test +)
-    Route::middleware('can:settings-roles-view')->group(function () {
+    Route::middleware('can:settings.roles.view')->group(function () {
         Route::get('admin/settings/rules', [RuleController::class, 'showRules'])->name('admin.setting.rule');
         Route::post('admin/setting/rule/toggle', [RuleController::class, 'togglePermission'])->name('admin.setting.rule.toggle');
         Route::get('admin/setting/rules/logs-data', [RuleController::class, 'logRules'])->name('logs.data.rule');
@@ -295,7 +295,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Страница Настойки - Платежные системы (feature test +)
-    Route::middleware('can:settings-paymentSystems-view')->group(function () {
+    Route::middleware('can:settings.paymentSystems.view')->group(function () {
         Route::get('admin/settings/paymentSystem', [PaymentSystemController::class, 'index'])->name('admin.setting.paymentSystem');
         Route::post('payment-systems/store', [PaymentSystemController::class, 'store'])->name('payment-systems.store');
         Route::get('payment-systems/{name}', [PaymentSystemController::class, 'show'])->name('payment-systems.show');
@@ -303,7 +303,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Внутренняя документация проекта (HTML из /docs/documentation)
-    Route::middleware('can:documentations-view')->group(function () {
+    Route::middleware('can:documentations.view')->group(function () {
         Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
         Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
             ->whereIn('page', ['payments', 'partner-context', 'partners-permissions', 'reports-payments', 'tbank', 'tests-standards'])
@@ -321,7 +321,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Учетная запись (текущий пользователь) (feature test +)
-    Route::middleware('can:account-user-view')->name('account.user.')->group(function () {
+    Route::middleware('can:account.user.view')->name('account.user.')->group(function () {
         // Вкладка "пользователь"
         Route::get('account-settings/user/edit', [AccountController::class, 'user'])->name('edit');
         Route::patch('account-settings/user', [AccountController::class, 'update'])->name('update');
@@ -333,17 +333,17 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Учетная запись - вкладка "организация" (текущий пользователь)  (feature test +)
-    Route::middleware('can:account-partner-view')->group(function () {
+    Route::middleware('can:account.partner.view')->group(function () {
         Route::get('account-settings/partner/edit', [PartnerSettingController::class, 'partner'])->name('admin.cur.company.edit');
     });
 
     // Учетная запись - вкладка "организация" ред. (текущий пользователь)  (feature test +)
-    Route::middleware('can:account-partner-update')->group(function () {
+    Route::middleware('can:account.partner.update')->group(function () {
         Route::patch('account-settings/partner/{partner}', [PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
     });
  
     //Учетная запись - вкладка "Мои договоры"  (feature test +)
-    Route::middleware('can:account-documents-view')->group(function () {
+    Route::middleware('can:account.documents.view')->group(function () {
         Route::get('account-settings/documents', [AccountDocumentsController::class, 'index'])->name('account.documents.index');
         Route::get('account-settings/documents/contracts/{contract}/requests', [AccountDocumentsController::class, 'requests'])->name('account.documents.requests');
         Route::get('account-settings/documents/contracts/{contract}/download-original', [AccountDocumentsController::class, 'downloadOriginal'])->name('account.documents.downloadOriginal');
@@ -351,7 +351,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Лиды (feature test +)
-    Route::middleware('can:leads-view')->group(function () {
+    Route::middleware('can:leads.view')->group(function () {
         Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
         // DataTables endpoint
         Route::get('/admin/leads/data', [LandingPageController::class, 'leadsDataTable'])->name('admin.leads.data');
@@ -363,7 +363,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
 
     //Страница оплаты сервиса
-    Route::middleware('can:servicePayments-view')->group(function () {
+    Route::middleware('can:servicePayments.view')->group(function () {
         Route::get('partner-payment/recharge', [PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge');
         Route::get('partner-payment/history', [PartnerPaymentController::class, 'showHistory'])->name('partner.payment.history');
         Route::get('partner-payment/data', [PartnerPaymentController::class, 'getPaymentsData'])->name('partner.payment.data');
@@ -390,7 +390,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Договоры (feature test +)
-    Route::middleware('can:contracts-view')->group(function () {
+    Route::middleware('can:contracts.view')->group(function () {
 
         // AJAX для Select2 (поиск учеников текущего партнёра)
         Route::get('/client-contracts/users-search', [ContractLookupsController::class, 'usersSearch'])->name('contracts.users.search');
@@ -425,7 +425,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Сообщения (ЧАТ)  (feature test -)
-    Route::middleware('can:messages-view')->group(function () {
+    Route::middleware('can:messages.view')->group(function () {
         // Страница чата
         Route::get('/chat', [ChatPageController::class, 'index'])->name('chat.index');
         // API для фронта (ПРЯМЫЕ URL)
@@ -445,7 +445,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     //Кошелек партнера
-    Route::middleware('can:partnerWallet-view')->group(function () {
+    Route::middleware('can:partnerWallet.view')->group(function () {
         Route::get('/partner-wallet', [PartnerPaymentController::class, 'showWallet'])->name('partner.wallet');
         // Создать платёж на пополнение кошелька
         Route::post('/partner-wallet/topup', [PartnerPaymentController::class, 'createWalletTopupYookassa'])->name('partner.wallet.topup');
@@ -517,9 +517,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::post('/partner/accept-offer', [\App\Http\Controllers\PartnerOfferController::class, 'acceptOffer'])->name('partner.accept-offer');
 
     //переключение между партнерами
-    Route::middleware(['can:partner-switch'])->prefix('admin')->group(function () {
+    Route::middleware(['can:partner.switch'])->prefix('admin')->group(function () {
         Route::post('/switch-partner', [\App\Http\Controllers\PartnerSwitchController::class, 'switch'])->name('partner.switch');
-    });
+    }); 
 
     //2FA (управление обязательной 2FA)
     Route::middleware(['can:admin'])->prefix('admin')->group(function () {
@@ -530,7 +530,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Blog (админка)
-    Route::middleware(['can:blog-view'])->prefix('admin')->group(function () {
+    Route::middleware(['can:blog.view'])->prefix('admin')->group(function () {
         Route::get('blog/categories', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'index'])->name('admin.blog.categories.index');
         Route::get('blog/categories/create', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'create'])->name('admin.blog.categories.create');
         Route::post('blog/categories', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'store'])->name('admin.blog.categories.store');

@@ -9,7 +9,7 @@ class UpdateBlogCategoryRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('blog-view') === true;
+        return $this->user()?->can('blog.view') === true;
     }
 
     protected function prepareForValidation(): void

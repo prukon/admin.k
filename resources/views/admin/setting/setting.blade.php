@@ -58,7 +58,7 @@
         </tr>
 
         {{-- НОВОЕ: Обязательная 2FA для администраторов --}}
-        @can('settings-force2fa-admins')
+        @can('settings.force2fa.admins')
             <tr id="rowForce2faAdmins">
                 <td>Обязательная 2FA для администраторов</td>
                 <td>

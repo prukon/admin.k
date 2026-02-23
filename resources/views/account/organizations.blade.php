@@ -1,6 +1,6 @@
 {{--ВКЛАДКА ОРГАНИЗАЦИЯ--}}
-@can('account-partner-view')
-    @can('account-partner-update')
+@can('account.partner.view')
+    @can('account.partner.update')
         <form id="partnerUpdateForm"
               action="{{ route('admin.cur.partner.update', $partner->id) }}"
               method="POST">
@@ -178,7 +178,7 @@
 
 
 
-@can('account-partner-update')
+@can('account.partner.update')
 @section('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
 
