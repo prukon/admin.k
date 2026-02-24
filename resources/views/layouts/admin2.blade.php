@@ -398,7 +398,7 @@
     <footer class="main-footer">
 
         <div>
-            Copyright &copy; 2023-{{ date('Y') }}
+            Copyright &copy; 2024-{{ date('Y') }}
             <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
             Все права защищены.
             @can('documentations.view')

@@ -468,7 +468,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/tinkoff/qr/{paymentId}/state', [TinkoffQrController::class, 'state'])->name('tinkoff.qr.state');
     });
 
-    // Выплаты T-Bank (роль "бухгалтер" + суперадмин)  (feature test +)
+    // Выплаты T-Bank (роль "бухгалтер" + суперадмин) (feature test +)
     Route::middleware('can:tbank.payouts.manage')->group(function () {
         Route::post('/tinkoff/payouts/{deal}/pay-now', [TinkoffPayoutController::class, 'payNow']);
         Route::post('/tinkoff/payouts/{deal}/delay', [TinkoffPayoutController::class, 'delay']);
@@ -529,7 +529,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('2fa/disable', [TwoFactorController::class, 'disable'])->name('admin.2fa.disable');
     });
 
-    // Blog (админка)
+    // Blog (админка) (feature test +)
     Route::middleware(['can:blog.view'])->prefix('admin')->group(function () {
         Route::get('blog/categories', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'index'])->name('admin.blog.categories.index');
         Route::get('blog/categories/create', [\App\Http\Controllers\Admin\BlogCategoryController::class, 'create'])->name('admin.blog.categories.create');

@@ -44,7 +44,7 @@ class TinkoffPaymentsService
             // открываем сделку NN
             'CreateDealWithType' => 'NN',
 
-            'Description' => 'Subscription payment', // ASCII, без кириллицы
+            'Description' => 'Kidscrm.online - oplata abonplaty', // ASCII, без кириллицы
             'PayType' => 'O',                    // одностадийная явно, согласно EACQ, п.2.3 Init
             'Language' => 'ru',                   // язык формы
 

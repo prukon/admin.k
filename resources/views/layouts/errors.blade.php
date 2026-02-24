@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- CSRF Token -->
+    <!-- CSRF Token --> 
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {{--    <title>{{ config('app.name', 'Laravel') }}</title>--}}
@@ -30,7 +30,7 @@
     <nav class="navbar navbar-expand-md navbar-light bg-white shadow-sm">
         <div class="container">
             <a class="navbar-brand" href="{{ url('/') }}">
-                {{ config('app.name1', 'kidscrm.online') }}
+                {{ config('app.name1', 'Kidslink.ru') }}
 
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse"

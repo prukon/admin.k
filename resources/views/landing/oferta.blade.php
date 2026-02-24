@@ -99,21 +99,9 @@
                 <li><strong>ИНН:</strong> 110211351590</li>
                 <li><strong>ЕГРНИП:</strong> 324784700017432</li>
                 <li><strong>Юридический адрес:</strong> г. Санкт-Петербург, Плесецкая ул., д. 16, стр. 1, кв. 354, 197373</li>
-                <li><strong>Email:</strong> kruzhok.online@yandex.ru</li>
+                <li><strong>Email:</strong> kidscrmonline@gmail.com</li>
             </ul>
         </div>
 
     </section>
-
-    <!-- Footer -->
-    <footer class="bg-dark text-white text-center py-4">
-        <div class="container">
-            <p class="mb-1">Все права защищены. 2024 - 2025 kidscrm.online &copy;</p>
-            <div>
-                <a href="oferta" class="text-white text-decoration-none mx-2">Оферта</a>
-                <a href="{{ route('privacy.policy') }}"  class="text-white text-decoration-none mx-2">Политика конфиденциальности</a>
-            </div>
-        </div>
-    </footer>
-
 @endsection

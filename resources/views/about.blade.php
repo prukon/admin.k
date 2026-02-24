@@ -118,7 +118,7 @@
                         {{--</tr>--}}
                         <tr>
                             <th>Почта</th>
-                            <td><a href="mailto:kruzhok.online@yandex.ru">kruzhok.online@yandex.ru</a></td>
+                            <td><a href="mailto:kidscrmonline@gmail.com">kidscrmonline@gmail.com</a></td>
                         </tr>
                         </tbody>
                     </table>
