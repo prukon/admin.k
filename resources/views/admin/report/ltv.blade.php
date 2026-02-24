@@ -1,104 +1,118 @@
-<h4 class="pt-3 text-start">LTV</h4>
-<table class="table table-bordered" id="debts-table">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
+    <h4 class="text-start mb-0">LTV учащихся</h4>
+</div>
+
+<table class="table table-bordered mt-3" id="ltv-table">
     <thead>
-    <tr>
-        <th>№</th>
-        <th>Имя пользователя</th>
-        <th>Дата первого платежа</th>
-        <th>Дата последнего платежа</th>
-        <th>Кол-во платежей</th>
-        <th>Общая сумма</th>
-    </tr>
+        <tr>
+            <th style="width: 60px;"></th>
+            <th>ФИО</th>
+            <th>Группа</th>
+            <th>Сумма</th>
+            <th>Кол-во платежей</th>
+            <th>Перв. платёж</th>
+            <th>Посл. платёж</th>
+            <th>Статус</th>
+        </tr>
     </thead>
 </table>
-{{--@section('scripts')--}}
+
+@section('scripts')
     <script type="text/javascript">
-        // Функция для форматирования даты
-        function formatDateToMonthYear(dateStr) {
-            // Преобразуем строку в объект Date
-            var date = new Date(dateStr);
-            // Определяем массив названий месяцев
-            var months = [
-                'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-                'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-            ];
-            // Форматируем дату в нужный вид "Месяц Год"
-            return months[date.getMonth()] + ' ' + date.getFullYear();
-        }
+        $(function() {
 
-        $(function () {
-
-
-            var table = $('#debts-table').DataTable({
+            // Основная таблица LTV
+            var ltvTable = $('#ltv-table').DataTable({
                 processing: true,
                 serverSide: true,
-                ajax: "{{ route('ltv.getLtv') }}",
-                columns: [
-                    {data: 'DT_RowIndex', name: 'DT_RowIndex'},
-                    {
+                ajax: '/admin/reports/ltv/data',
+                columns: [{
                         data: null,
-                        name: 'user_name',
-                        render: function (data, type, row) {
-                            var name = row.user_name ? row.user_name : 'Без имени';
-                            if (row.is_enabled == 0) {
-                                return '<span style="color: red;">' + name + '</span>';
+                        className: 'details-control text-center',
+                        orderable: false,
+                        searchable: false,
+                        defaultContent: '<button type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-chevron-down"></i></button>'
+                    },
+                    {
+                        data: 'user_name',
+                        name: 'user_name'
+                    },
+                    {
+                        data: 'team_title',
+                        name: 'team_title'
+                    },
+                    {
+                        data: 'total_price',
+                        name: 'total_price',
+                        render: function(data, type, row) {
+                            if (type === 'display') {
+                                var num = parseFloat(data || 0);
+                                return num.toLocaleString('ru-RU') + ' руб';
                             }
-                            return name;
+                            return data;
                         }
+                    },
+                    {
+                        data: 'payment_count',
+                        name: 'payment_count'
                     },
                     {
                         data: 'first_payment_date',
                         name: 'first_payment_date',
-                        render: function (data, type, row) {
-                            return row.first_payment_date ? new Date(row.first_payment_date).toLocaleDateString() : 'Нет данных';
+                        render: function(data, type, row) {
+                            if (!data) return '';
+                            var d = new Date(data);
+                            if (isNaN(d.getTime())) {
+                                return data;
+                            }
+                            var day = ("0" + d.getDate()).slice(-2);
+                            var month = ("0" + (d.getMonth() + 1)).slice(-2);
+                            var year = d.getFullYear();
+                            return day + '.' + month + '.' + year;
                         }
                     },
                     {
                         data: 'last_payment_date',
                         name: 'last_payment_date',
-                        render: function (data, type, row) {
-                            return row.last_payment_date ? new Date(row.last_payment_date).toLocaleDateString() : 'Нет данных';
-                        }
-                    },
-                    {
-                        data: 'payment_count',
-                        name: 'payment_count',
-                        render: function (data, type, row) {
-                            return row.payment_count || 0;
-                        }
-                    },
-
-                    {
-                        data: 'total_price',
-                        name: 'total_price',
-                        render: function (data, type, row) {
-                            if (type === 'display') {
-                                // Функция для форматирования числа с запятыми
-                                function formatNumber(number) {
-                                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                                }
-
-                                const formattedPrice = formatNumber(row.total_price);
-                                return `${formattedPrice} руб`; // Отображение значения с символом рубля
+                        render: function(data, type, row) {
+                            if (!data) return '';
+                            var d = new Date(data);
+                            if (isNaN(d.getTime())) {
+                                return data;
                             }
-                            return parseFloat(row.total_price); // Для сортировки возвращаем число
+                            var day = ("0" + d.getDate()).slice(-2);
+                            var month = ("0" + (d.getMonth() + 1)).slice(-2);
+                            var year = d.getFullYear();
+                            return day + '.' + month + '.' + year;
                         }
+                    },
+                    {
+                        data: 'is_enabled',
+                        name: 'is_enabled',
+                        render: function(data, type, row) {
+                            if (data) {
+                                return '<span class="badge bg-success">Активен</span>';
+                            }
+                            return '<span class="badge bg-secondary">Отключен</span>';
+                        }
+                    },
+                    // техническая колонка, чтобы легко доставать id
+                    {
+                        data: 'user_id',
+                        name: 'user_id',
+                        visible: false,
+                        searchable: false
                     }
-
-
                 ],
-                order: [[5, 'desc']],
+                // индексы: 0 – кнопка, 1 – ФИО, 2 – Группа, 3 – LTV
+                order: [
+                    [3, 'desc']
+                ],
                 scrollX: true,
-
-                fixedColumns: {
-                    leftColumns: 2
-                },
                 language: {
-                    // url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json",
                     "processing": "Обработка...",
                     "search": "",
                     "searchPlaceholder": "Поиск...",
-
                     "lengthMenu": "Показать _MENU_",
                     "info": "С _START_ до _END_ из _TOTAL_ записей",
                     "infoEmpty": "С 0 до 0 из 0 записей",
@@ -119,6 +133,152 @@
                 }
             });
 
+            /**
+             * Строим HTML вложенного блока с платежами.
+             *
+             * payments   — массив платежей из /admin/reports/ltv/{user}/payments
+             * userName   — ФИО из родительской строки
+             * teamTitle  — группа из родительской строки
+             */
+            function buildDetailsHtml(payments, userName, teamTitle) {
+                var safeUserName = userName || 'Без имени';
+                var safeTeam = teamTitle || 'Без команды';
+
+                if (!payments || !payments.length) {
+                    return '' +
+                        '<div class="p-3 details-container bg-light border-start border-3 border-secondary">' +
+                        '  <div class="fw-bold mb-2">' +
+                        '    Платежи ученика: ' + safeUserName + ' (' + safeTeam + ')' +
+                        '  </div>' +
+                        '  <div class="text-muted small">У этого ученика ещё нет платежей.</div>' +
+                        '</div>';
+                }
+
+                // считаем итого
+                var totalSum = payments.reduce(function(acc, p) {
+                    return acc + (parseFloat(p.summ || 0) || 0);
+                }, 0);
+                var totalSumFormatted = totalSum.toLocaleString('ru-RU');
+
+                var html = '' +
+                    '<div class="p-3 details-container bg-light border-start border-3 border-secondary">' +
+                    '  <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">' +
+                    '    <div class="fw-bold">' +
+                    '      Платежи ученика: ' + safeUserName + ' (' + safeTeam + ')' +
+                    '    </div>' +
+                    '    <div class="small text-muted">' +
+                    '      Всего платежей: <b>' + payments.length + '</b>, на сумму <b>' + totalSumFormatted +
+                    ' руб</b>' +
+                    '    </div>' +
+                    '  </div>' +
+                    '  <div class="table-responsive">' +
+                    '    <table class="table table-sm table-bordered mb-0 align-middle">' +
+                    '      <thead class="table-light small">' +
+                    '        <tr>' +
+                    '          <th style="width: 220px;">Дата и время платежа</th>' +
+                    '          <th style="width: 130px;">Сумма</th>' +
+                    '          <th style="width: 160px;">Месяц абонемента</th>' +
+                    '          <th style="width: 120px;">Провайдер</th>' +
+                    '        </tr>' +
+                    '      </thead>' +
+                    '      <tbody>';
+
+                payments.forEach(function(p) {
+                    var amount = (parseFloat(p.summ || 0)).toLocaleString('ru-RU') + ' руб';
+
+                    var providerLabel = '';
+                    if (p.payment_provider === 'tbank') {
+                        providerLabel = '<span class="badge bg-primary">T-Bank</span>';
+                    } else if (p.payment_provider === 'robokassa') {
+                        providerLabel = '<span class="badge bg-secondary">Robokassa</span>';
+                    } else {
+                        providerLabel = p.payment_provider || '';
+                    }
+
+                    var opDate = '';
+                    if (p.operation_date) {
+                        var d = new Date(p.operation_date);
+                        if (!isNaN(d.getTime())) {
+                            var day = ("0" + d.getDate()).slice(-2);
+                            var month = ("0" + (d.getMonth() + 1)).slice(-2);
+                            var year = d.getFullYear();
+                            var hours = ("0" + d.getHours()).slice(-2);
+                            var minutes = ("0" + d.getMinutes()).slice(-2);
+                            opDate = day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes;
+                        } else {
+                            opDate = p.operation_date;
+                        }
+                    }
+
+                    var monthLabel = p.payment_month || '';
+
+                    html += '' +
+                        '<tr>' +
+                        '  <td>' + opDate + '</td>' +
+                        '  <td class="text-end">' + amount + '</td>' +
+                        '  <td>' + monthLabel + '</td>' +
+                        '  <td>' + providerLabel + '</td>' +
+                        '</tr>';
+                });
+
+                html += '' +
+                    '      </tbody>' +
+                    '    </table>' +
+                    '  </div>' +
+                    '</div>';
+
+                return html;
+            }
+
+            // Обработчик раскрытия/сворачивания строк LTV
+            $('#ltv-table tbody').on('click', 'td.details-control button', function(e) {
+                e.stopPropagation();
+
+                var btn = $(this);
+                var tr = btn.closest('tr');
+                var row = ltvTable.row(tr);
+
+                if (row.child.isShown()) {
+                    // свернуть
+                    row.child.hide();
+                    tr.removeClass('shown');
+                    btn.find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                    return;
+                }
+
+                var data = row.data();
+                var userId = data.user_id;
+                var userName = data.user_name;
+                var teamTitle = data.team_title;
+
+                // показываем заглушку "Загрузка..."
+                row.child('<div class="p-3 details-container">Загрузка...</div>').show();
+                tr.addClass('shown');
+                btn.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+
+                $.ajax({
+                    url: '/admin/reports/ltv/' + userId + '/payments',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(resp) {
+                        var html = buildDetailsHtml(resp.payments || [], userName, teamTitle);
+                        tr.next('tr').find('div.details-container').replaceWith(html);
+                    },
+                    error: function() {
+                        var errorHtml = '' +
+                            '<div class="p-3 details-container">' +
+                            '  <div class="fw-bold mb-2">' +
+                            '    Платежи ученика: ' + (userName || 'Без имени') +
+                            (teamTitle ? ' (' + teamTitle + ')' : '') +
+                            '  </div>' +
+                            '  <div class="text-danger">Ошибка загрузки данных.</div>' +
+                            '</div>';
+
+                        tr.next('tr').find('div.details-container').replaceWith(errorHtml);
+                    }
+                });
+            });
+
         });
     </script>
-{{--@endsection--}}
+@endsection

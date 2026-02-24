@@ -18,6 +18,9 @@ class PaymentMonthlyReportController extends AdminBaseController
         parent::__construct($partnerContext);
     }
 
+    /**
+     * Страница отчёта "Платежи по месяцам".
+     */
     public function index()
     {
         $partnerId = $this->requirePartnerId();
@@ -31,9 +34,10 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
 
-        $tbankPs      = PaymentSystem::where('partner_id', $partnerId)
+        $tbankPs = PaymentSystem::where('partner_id', $partnerId)
             ->where('name', 'tbank')
             ->first();
+
         $tbankEnabled = (bool) $tbankPs;
 
         return view('admin.report.index', [
@@ -74,10 +78,10 @@ class PaymentMonthlyReportController extends AdminBaseController
             $monthsQuery
                 ->whereNotNull('payments.payment_month')
                 ->where('payments.payment_month', 'LIKE', '____-__-%')
-                ->selectRaw("CONCAT(LEFT(payments.payment_month, 7), '-01')     as month_start")
-                ->selectRaw("LEFT(payments.payment_month, 7)                    as month_key") // YYYY-MM
-                ->selectRaw('COUNT(*)                                           as payments_count')
-                ->selectRaw('SUM(payments.summ)                                 as total_sum')
+                ->selectRaw("CONCAT(LEFT(payments.payment_month, 7), '-01') as month_start")
+                ->selectRaw("LEFT(payments.payment_month, 7)                as month_key") // YYYY-MM
+                ->selectRaw('COUNT(*)                                       as payments_count')
+                ->selectRaw('SUM(payments.summ)                             as total_sum')
                 ->groupBy('month_start', 'month_key');
         } else {
             // Группировка по дате платежа (operation_date)

@@ -161,9 +161,21 @@ Route::middleware(['auth', '2fa'])->group(function () {
         //Отчеты -> Задолженности
         Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
         Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
+        
         //Отчеты -> LTV
-        Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
-        Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
+        // Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
+        // Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
+
+
+        // Страница отчёта LTV (вкладка)
+        Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('reports.ltv');
+        // DataTables — список пользователей с LTV
+        Route::get('/admin/reports/ltv/data', [LtvReportController::class, 'getLtv'])->name('reports.ltv.data');
+        // Детализация — платежи конкретного пользователя (раскрытие строки)
+        Route::get('/admin/reports/ltv/{user}/payments', [LtvReportController::class, 'getUserPayments'])->whereNumber('user')->name('reports.ltv.user_payments');
+
+
+
 
 
         // Новая вкладка "Платежи по месяцам"
@@ -173,7 +185,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // Детализация по конкретному месяцу (формат yearMonth: 2025-01)
         Route::get('/admin/reports/payments/monthly/{yearMonth}/payments', [PaymentMonthlyReportController::class, 'getMonthPayments'])->name('reports.payments.monthly.payments');
     });
- 
+
 
 
 

@@ -3,14 +3,10 @@
 
     {{-- Переключатель режима группировки --}}
     <div class="btn-group" role="group" aria-label="Режим группировки">
-        <button type="button"
-                class="btn btn-outline-secondary js-group-mode-btn active"
-                data-mode="subscription">
+        <button type="button" class="btn btn-outline-secondary js-group-mode-btn active" data-mode="subscription">
             По месяцу абонемента
         </button>
-        <button type="button"
-                class="btn btn-outline-secondary js-group-mode-btn"
-                data-mode="operation">
+        <button type="button" class="btn btn-outline-secondary js-group-mode-btn" data-mode="operation">
             По дате платежа
         </button>
     </div>
@@ -38,7 +34,7 @@
 
             // Текущий режим группировки: operation | subscription
             var currentMode = 'subscription';
-            
+
             var monthlyTable = $('#payments-monthly-table').DataTable({
                 processing: true,
                 serverSide: true,
@@ -130,28 +126,106 @@
                 monthlyTable.ajax.reload(null, true);
             });
 
-            function buildDetailsTable(payments) {
-                if (!payments || !payments.length) {
-                    return '<div class="p-3 text-muted">Нет платежей за этот месяц.</div>';
+
+
+
+
+
+
+            function formatSubscriptionMonth(raw) {
+                if (!raw) return '';
+
+                // ожидаем формат "YYYY-MM-DD"
+                var re = /^\d{4}-\d{2}-\d{2}$/;
+                if (!re.test(raw)) {
+                    // если формат другой — выводим как есть
+                    return raw;
                 }
 
+                var parts = raw.split('-'); // [YYYY, MM, DD]
+                var year = parts[0];
+                var monthNum = parseInt(parts[1], 10);
+
+                var monthNames = {
+                    1: 'Январь',
+                    2: 'Февраль',
+                    3: 'Март',
+                    4: 'Апрель',
+                    5: 'Май',
+                    6: 'Июнь',
+                    7: 'Июль',
+                    8: 'Август',
+                    9: 'Сентябрь',
+                    10: 'Октябрь',
+                    11: 'Ноябрь',
+                    12: 'Декабрь'
+                };
+
+                var monthName = monthNames[monthNum] || parts[1];
+
+                return monthName + ' ' + year;
+            }
+
+
+
+
+
+            /**
+             * Строим HTML вложенного блока с платежами за месяц.
+             *
+             * payments   — массив платежей
+             * monthTitle — строка "Февраль 2026"
+             * mode       — "subscription" | "operation"
+             */
+            function buildDetailsHtml(payments, monthTitle, mode) {
+                var captionMode = (mode === 'operation') ?
+                    'по дате платежа' :
+                    'по месяцу абонемента';
+
+                if (!payments || !payments.length) {
+                    return '' +
+                        '<div class="p-3 details-container bg-light border-start border-3 border-secondary">' +
+                        '  <div class="fw-bold mb-2">' +
+                        '    Платежи за месяц: ' + (monthTitle || '') +
+                        '    <span class="text-muted small">(' + captionMode + ')</span>' +
+                        '  </div>' +
+                        '  <div class="text-muted small">Нет платежей за этот месяц.</div>' +
+                        '</div>';
+                }
+
+                var totalSum = payments.reduce(function(acc, p) {
+                    return acc + (parseFloat(p.summ || 0) || 0);
+                }, 0);
+                var totalSumFormatted = totalSum.toLocaleString('ru-RU');
+
                 var html = '' +
-                    '<div class="table-responsive">' +
-                    '<table class="table table-sm mb-0">' +
-                    '<thead>' +
-                    '<tr>' +
-                    '<th>ФИО</th>' +
-                    '<th>Группа</th>' +
-                    '<th>Сумма</th>' +
-                    '<th>Оплаченный месяц</th>' +
-                    '<th>Дата и время платежа</th>' +
-                    '<th>Провайдер</th>' +
-                    '</tr>' +
-                    '</thead>' +
-                    '<tbody>';
+                    '<div class="p-3 details-container bg-light border-start border-3 border-secondary">' +
+                    '  <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">' +
+                    '    <div class="fw-bold">' +
+                    '      Платежи за месяц: ' + (monthTitle || '') +
+                    '      <span class="text-muted small">(' + captionMode + ')</span>' +
+                    '    </div>' +
+                    '    <div class="small text-muted">' +
+                    '      Всего платежей: <b>' + payments.length + '</b>, ' +
+                    '      на сумму <b>' + totalSumFormatted + ' руб</b>' +
+                    '    </div>' +
+                    '  </div>' +
+                    '  <div class="table-responsive">' +
+                    '    <table class="table table-sm table-bordered mb-0 align-middle">' +
+                    '      <thead class="table-light small">' +
+                    '        <tr>' +
+                    '          <th style="width: 220px;">Дата и время платежа</th>' +
+                    '          <th style="width: 180px;">ФИО</th>' +
+                    '          <th style="width: 180px;">Группа</th>' +
+                    '          <th style="width: 130px;" class="text-end">Сумма</th>' +
+                    '          <th style="width: 160px;">Месяц абонемента</th>' +
+                    '          <th style="width: 120px;">Провайдер</th>' +
+                    '        </tr>' +
+                    '      </thead>' +
+                    '      <tbody>';
 
                 payments.forEach(function(p) {
-                    var summ = (parseFloat(p.summ || 0)).toLocaleString('ru-RU') + ' руб';
+                    var amount = (parseFloat(p.summ || 0)).toLocaleString('ru-RU') + ' руб';
 
                     var providerLabel = '';
                     if (p.payment_provider === 'tbank') {
@@ -171,29 +245,36 @@
                             var year = d.getFullYear();
                             var hours = ("0" + d.getHours()).slice(-2);
                             var minutes = ("0" + d.getMinutes()).slice(-2);
-                            var seconds = ("0" + d.getSeconds()).slice(-2);
-                            opDate = day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes + ':' +
-                                seconds;
+                            opDate = day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes;
                         } else {
                             opDate = p.operation_date;
                         }
                     }
 
-                    html += '<tr>' +
-                        '<td>' + (p.user_name || 'Без имени') + '</td>' +
-                        '<td>' + (p.team_title || 'Без команды') + '</td>' +
-                        '<td>' + summ + '</td>' +
-                        '<td>' + (p.payment_month || '') + '</td>' +
-                        '<td>' + opDate + '</td>' +
-                        '<td>' + providerLabel + '</td>' +
+                    var monthLabel = formatSubscriptionMonth(p.payment_month);
+
+
+                    html += '' +
+                        '<tr>' +
+                        '  <td>' + opDate + '</td>' +
+                        '  <td>' + (p.user_name || 'Без имени') + '</td>' +
+                        '  <td>' + (p.team_title || 'Без команды') + '</td>' +
+                        '  <td class="text-end">' + amount + '</td>' +
+                        '  <td>' + monthLabel + '</td>' +
+                        '  <td>' + providerLabel + '</td>' +
                         '</tr>';
                 });
 
-                html += '</tbody></table></div>';
+                html += '' +
+                    '      </tbody>' +
+                    '    </table>' +
+                    '  </div>' +
+                    '</div>';
 
                 return html;
             }
 
+            // Обработчик раскрытия/сворачивания строк
             $('#payments-monthly-table tbody').on('click', 'td.details-control button', function(e) {
                 e.stopPropagation();
 
@@ -208,12 +289,14 @@
                     return;
                 }
 
+                // показываем заглушку "Загрузка..."
                 row.child('<div class="p-3 details-container">Загрузка...</div>').show();
                 tr.addClass('shown');
                 btn.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
 
                 var data = row.data();
                 var monthKey = data.month_key;
+                var monthText = data.month_title;
 
                 $.ajax({
                     url: '/admin/reports/payments/monthly/' + monthKey + '/payments',
@@ -223,13 +306,19 @@
                         mode: currentMode
                     },
                     success: function(resp) {
-                        var html = buildDetailsTable(resp.payments || []);
-                        tr.next('tr').find('div.details-container').html(html);
+                        var html = buildDetailsHtml(resp.payments || [], monthText,
+                        currentMode);
+                        tr.next('tr').find('div.details-container').replaceWith(html);
                     },
                     error: function() {
-                        tr.next('tr').find('div.details-container').html(
-                            '<div class="text-danger">Ошибка загрузки данных.</div>'
-                        );
+                        var html = '' +
+                            '<div class="p-3 details-container bg-light border-start border-3 border-secondary">' +
+                            '  <div class="fw-bold mb-2">' +
+                            '    Платежи за месяц: ' + (monthText || '') +
+                            '  </div>' +
+                            '  <div class="text-danger">Ошибка загрузки данных.</div>' +
+                            '</div>';
+                        tr.next('tr').find('div.details-container').replaceWith(html);
                     }
                 });
             });
