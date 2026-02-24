@@ -18,26 +18,35 @@ class LtvReportTest extends CrmTestCase
     /**
      * [P1] Доступ к маршрутам LTV только при праве reports.view.
      */
+   
+    /**
+     * [P1] Доступ к маршрутам LTV только при праве reports.view.
+     */
     public function test_ltv_routes_require_reports_view_permission(): void
     {
         // Пользователь без разрешения (роль user из CrmTestCase)
         $this->actingAs($this->user);
         $this->withSession(['current_partner' => $this->partner->id]);
 
-        $this->get(route('ltv'))->assertForbidden();
+        // было: route('reports.ltv.index')
+        $this->get(route('reports.ltv'))->assertForbidden();
+
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv'))
+            ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertForbidden();
 
         // Суперадмин — доступ есть (Gate::before в AuthServiceProvider)
         $this->asSuperadmin();
         $this->withSession(['current_partner' => $this->partner->id]);
 
-        $this->get(route('ltv'))->assertOk();
+        // было: route('reports.ltv.index')
+        $this->get(route('reports.ltv'))->assertOk();
+
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv', ['draw' => 1]))
+            ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertOk();
     }
+ 
 
     /**
      * [P1] LTV отчёт отфильтрован по текущему партнёру.
@@ -76,7 +85,7 @@ class LtvReportTest extends CrmTestCase
         // current_partner = A → в отчёте только userA
         $responseA = $this->withSession(['current_partner' => $partnerA->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv', ['draw' => 1]))
+            ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertOk()
             ->json();
 
@@ -88,7 +97,7 @@ class LtvReportTest extends CrmTestCase
         // current_partner = B → в отчёте только userB
         $responseB = $this->withSession(['current_partner' => $partnerB->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv', ['draw' => 2]))
+            ->get(route('reports.ltv.data', ['draw' => 2]))
             ->assertOk()
             ->json();
 
@@ -132,7 +141,7 @@ class LtvReportTest extends CrmTestCase
 
         $response = $this->withSession(['current_partner' => $partner->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv', ['draw' => 1]))
+            ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertOk()
             ->json();
 
@@ -174,7 +183,7 @@ class LtvReportTest extends CrmTestCase
 
         $response = $this->withSession(['current_partner' => $partner->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv', ['draw' => 1]))
+            ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertOk()
             ->json();
 
@@ -213,7 +222,7 @@ class LtvReportTest extends CrmTestCase
 
         $response = $this->withSession(['current_partner' => $partner->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv', ['draw' => 1]))
+            ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertOk()
             ->json();
 
@@ -246,7 +255,7 @@ class LtvReportTest extends CrmTestCase
 
         $response = $this->withSession(['current_partner' => $partner->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv', ['draw' => $draw]))
+            ->get(route('reports.ltv.data', ['draw' => $draw]))
             ->assertOk()
             ->json();
 
@@ -294,7 +303,7 @@ class LtvReportTest extends CrmTestCase
 
         $response = $this->withSession(['current_partner' => $partner->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv', ['draw' => 1]))
+            ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertOk()
             ->json();
 
@@ -330,7 +339,7 @@ class LtvReportTest extends CrmTestCase
 
         $response = $this->withSession(['current_partner' => $partner->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv', ['draw' => $draw]))
+            ->get(route('reports.ltv.data', ['draw' => $draw]))
             ->assertOk()
             ->json();
 
@@ -369,13 +378,13 @@ class LtvReportTest extends CrmTestCase
 
         // Без AJAX-заголовка — 404
         $this->withSession(['current_partner' => $partner->id])
-            ->get(route('ltv.getLtv'))
+            ->get(route('reports.ltv.data'))
             ->assertStatus(404);
 
         // С AJAX-заголовком — 200
         $this->withSession(['current_partner' => $partner->id])
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
-            ->get(route('ltv.getLtv', ['draw' => 1]))
+            ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertOk();
     }
 }

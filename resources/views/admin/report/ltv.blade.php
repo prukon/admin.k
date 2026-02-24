@@ -133,6 +133,41 @@
                 }
             });
 
+
+            function formatSubscriptionMonth(raw) {
+                if (!raw) return '';
+
+                // ожидаем формат YYYY-MM-DD
+                var re = /^\d{4}-\d{2}-\d{2}$/;
+                if (!re.test(raw)) {
+                    return raw;
+                }
+
+                var parts = raw.split('-'); // [YYYY, MM, DD]
+                var year = parts[0];
+                var monthNum = parseInt(parts[1], 10);
+
+                var monthNames = {
+                    1: 'Январь',
+                    2: 'Февраль',
+                    3: 'Март',
+                    4: 'Апрель',
+                    5: 'Май',
+                    6: 'Июнь',
+                    7: 'Июль',
+                    8: 'Август',
+                    9: 'Сентябрь',
+                    10: 'Октябрь',
+                    11: 'Ноябрь',
+                    12: 'Декабрь'
+                };
+
+                var monthName = monthNames[monthNum] || parts[1];
+
+                return monthName + ' ' + year;
+            }
+
+
             /**
              * Строим HTML вложенного блока с платежами.
              *
@@ -210,7 +245,7 @@
                         }
                     }
 
-                    var monthLabel = p.payment_month || '';
+                    var monthLabel = formatSubscriptionMonth(p.payment_month);
 
                     html += '' +
                         '<tr>' +
