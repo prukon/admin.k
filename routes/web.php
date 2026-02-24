@@ -64,6 +64,7 @@ use App\Http\Middleware\DebugRequestAccess;
 use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
 use App\Http\Controllers\Admin\UserAvatarController;
 use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
+use App\Http\Controllers\Admin\Report\PaymentMonthlyReportController;
 
 
 Auth::routes();
@@ -119,9 +120,8 @@ Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->nam
 Route::get('/blog/category/{slug}', [\App\Http\Controllers\BlogController::class, 'category'])->name('blog.category');
 Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show'])->name('blog.show');
 
-
+// 2FA challenge
 Route::middleware('auth')->group(function () {
-    // 2FA challenge
     Route::get('/two-factor', [TwoFactorController::class, 'showChallenge'])->name('two-factor.challenge');
     Route::post('/two-factor/verify', [TwoFactorController::class, 'verify'])->name('two-factor.verify');
     Route::post('/two-factor/resend', [TwoFactorController::class, 'resend'])->name('two-factor.resend');
@@ -164,7 +164,20 @@ Route::middleware(['auth', '2fa'])->group(function () {
         //Отчеты -> LTV
         Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
         Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
+
+
+        // Новая вкладка "Платежи по месяцам"
+        Route::get('/admin/reports/payments/monthly', [PaymentMonthlyReportController::class, 'index'])->name('reports.payments.monthly');
+        // Данные для таблицы "месяцы"
+        Route::get('/admin/reports/payments/monthly/data', [PaymentMonthlyReportController::class, 'getMonths'])->name('reports.payments.monthly.data');
+        // Детализация по конкретному месяцу (формат yearMonth: 2025-01)
+        Route::get('/admin/reports/payments/monthly/{yearMonth}/payments', [PaymentMonthlyReportController::class, 'getMonthPayments'])->name('reports.payments.monthly.payments');
     });
+ 
+
+
+
+
 
     // Отчёты -> "Платежные запросы"
     Route::middleware(['can:reports.payment.intents.view'])->group(function () {
@@ -341,7 +354,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:account.partner.update')->group(function () {
         Route::patch('account-settings/partner/{partner}', [PartnerSettingController::class, 'updatePartner'])->name('admin.cur.partner.update');
     });
- 
+
     //Учетная запись - вкладка "Мои договоры"  (feature test +)
     Route::middleware('can:account.documents.view')->group(function () {
         Route::get('account-settings/documents', [AccountDocumentsController::class, 'index'])->name('account.documents.index');
@@ -519,7 +532,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //переключение между партнерами
     Route::middleware(['can:partner.switch'])->prefix('admin')->group(function () {
         Route::post('/switch-partner', [\App\Http\Controllers\PartnerSwitchController::class, 'switch'])->name('partner.switch');
-    }); 
+    });
 
     //2FA (управление обязательной 2FA)
     Route::middleware(['can:admin'])->prefix('admin')->group(function () {
