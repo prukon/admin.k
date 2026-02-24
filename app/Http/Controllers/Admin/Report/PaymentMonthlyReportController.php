@@ -58,9 +58,9 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $partnerId = $this->requirePartnerId();
 
-        $mode = $request->get('mode', 'operation');
+        $mode = $request->get('mode', 'subscription');
         if (! in_array($mode, ['operation', 'subscription'], true)) {
-            $mode = 'operation';
+            $mode = 'subscription';
         }
 
         $hasOrder = is_array($request->input('order')) && count($request->input('order')) > 0;
@@ -149,9 +149,9 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $partnerId = $this->requirePartnerId();
 
-        $mode = $request->get('mode', 'operation');
+        $mode = $request->get('mode', 'subscription');
         if (! in_array($mode, ['operation', 'subscription'], true)) {
-            $mode = 'operation';
+            $mode = 'subscription';
         }
 
         try {

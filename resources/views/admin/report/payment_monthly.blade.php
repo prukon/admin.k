@@ -3,17 +3,16 @@
 
     {{-- Переключатель режима группировки --}}
     <div class="btn-group" role="group" aria-label="Режим группировки">
-       
         <button type="button"
                 class="btn btn-outline-secondary js-group-mode-btn active"
                 data-mode="subscription">
             По месяцу абонемента
         </button>
         <button type="button"
-        class="btn btn-outline-secondary js-group-mode-btn"
-        data-mode="operation">
-    По дате платежа
-</button>
+                class="btn btn-outline-secondary js-group-mode-btn"
+                data-mode="operation">
+            По дате платежа
+        </button>
     </div>
 </div>
 
@@ -24,46 +23,51 @@
 
 <table class="table table-bordered" id="payments-monthly-table">
     <thead>
-    <tr>
-        <th style="width: 60px;"></th>
-        <th>Месяц</th>
-        <th>Количество платежей</th>
-        <th>Сумма платежей</th>
-    </tr>
+        <tr>
+            <th style="width: 60px;"></th>
+            <th>Месяц</th>
+            <th>Количество платежей</th>
+            <th>Сумма платежей</th>
+        </tr>
     </thead>
 </table>
 
 @section('scripts')
     <script type="text/javascript">
-        $(function () {
+        $(function() {
 
             // Текущий режим группировки: operation | subscription
-            var currentMode = 'operation';
-
+            var currentMode = 'subscription';
+            
             var monthlyTable = $('#payments-monthly-table').DataTable({
                 processing: true,
                 serverSide: true,
                 ajax: {
                     url: '/admin/reports/payments/monthly/data',
                     type: 'GET',
-                    data: function (d) {
+                    data: function(d) {
                         d.mode = currentMode;
                     }
                 },
-                columns: [
-                    {
+                columns: [{
                         data: null,
                         className: 'details-control text-center',
                         orderable: false,
                         searchable: false,
                         defaultContent: '<button type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-chevron-down"></i></button>'
                     },
-                    {data: 'month_title', name: 'month_title'},
-                    {data: 'payments_count', name: 'payments_count'},
+                    {
+                        data: 'month_title',
+                        name: 'month_title'
+                    },
+                    {
+                        data: 'payments_count',
+                        name: 'payments_count'
+                    },
                     {
                         data: 'total_sum',
                         name: 'total_sum',
-                        render: function (data, type, row) {
+                        render: function(data, type, row) {
                             if (type === 'display') {
                                 var num = parseFloat(data || 0);
                                 return num.toLocaleString('ru-RU') + ' руб';
@@ -72,9 +76,16 @@
                         }
                     },
                     // тех. столбец с ключом месяца (YYYY-MM), скрытый
-                    {data: 'month_key', name: 'month_key', visible: false, searchable: false}
+                    {
+                        data: 'month_key',
+                        name: 'month_key',
+                        visible: false,
+                        searchable: false
+                    }
                 ],
-                order: [[1, 'desc']],
+                order: [
+                    [1, 'desc']
+                ],
                 scrollX: true,
                 language: {
                     "processing": "Обработка...",
@@ -101,8 +112,8 @@
             });
 
             // Переключатель режима
-            $('.js-group-mode-btn').on('click', function () {
-                var btn  = $(this);
+            $('.js-group-mode-btn').on('click', function() {
+                var btn = $(this);
                 var mode = btn.data('mode');
 
                 if (mode === currentMode) {
@@ -139,7 +150,7 @@
                     '</thead>' +
                     '<tbody>';
 
-                payments.forEach(function (p) {
+                payments.forEach(function(p) {
                     var summ = (parseFloat(p.summ || 0)).toLocaleString('ru-RU') + ' руб';
 
                     var providerLabel = '';
@@ -161,7 +172,8 @@
                             var hours = ("0" + d.getHours()).slice(-2);
                             var minutes = ("0" + d.getMinutes()).slice(-2);
                             var seconds = ("0" + d.getSeconds()).slice(-2);
-                            opDate = day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes + ':' + seconds;
+                            opDate = day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes + ':' +
+                                seconds;
                         } else {
                             opDate = p.operation_date;
                         }
@@ -182,11 +194,11 @@
                 return html;
             }
 
-            $('#payments-monthly-table tbody').on('click', 'td.details-control button', function (e) {
+            $('#payments-monthly-table tbody').on('click', 'td.details-control button', function(e) {
                 e.stopPropagation();
 
                 var btn = $(this);
-                var tr  = btn.closest('tr');
+                var tr = btn.closest('tr');
                 var row = monthlyTable.row(tr);
 
                 if (row.child.isShown()) {
@@ -200,7 +212,7 @@
                 tr.addClass('shown');
                 btn.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
 
-                var data     = row.data();
+                var data = row.data();
                 var monthKey = data.month_key;
 
                 $.ajax({
@@ -210,11 +222,11 @@
                     data: {
                         mode: currentMode
                     },
-                    success: function (resp) {
+                    success: function(resp) {
                         var html = buildDetailsTable(resp.payments || []);
                         tr.next('tr').find('div.details-container').html(html);
                     },
-                    error: function () {
+                    error: function() {
                         tr.next('tr').find('div.details-container').html(
                             '<div class="text-danger">Ошибка загрузки данных.</div>'
                         );
