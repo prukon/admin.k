@@ -1,6 +1,7 @@
 <?php
 
-namespace Tests\Feature;
+// namespace Tests\Feature;
+namespace Tests\Feature\Public;
 
 use App\Mail\NewContactSubmission;
 use App\Models\ContactSubmission;

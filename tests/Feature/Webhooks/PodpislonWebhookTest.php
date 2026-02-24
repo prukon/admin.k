@@ -1,6 +1,8 @@
 <?php
 
-namespace Tests\Feature;
+// namespace Tests\Feature;
+namespace Tests\Feature\Webhooks;
+
 
 use App\Models\Contract;
 use Illuminate\Foundation\Testing\RefreshDatabase;

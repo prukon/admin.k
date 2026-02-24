@@ -52,32 +52,31 @@ class AccountController extends AdminBaseController
     public function user()
     {
         $partnerId = $this->requirePartnerId();
-        $allTeams = Team::all();
-
-        $user = Auth::user();
+    
+        // ✅ Берём только команды текущего партнёра
+        $allTeams = $this->scopeByPartner(Team::query())
+            ->orderBy('order_by', 'asc')    // опционально, для красоты
+            ->get();
+    
+        // Лучше для консистентности брать текущего юзера через currentUser()
+        $user = $this->currentUser();
         $partners = $user->partner ? collect([$user->partner]) : collect();
-        $currentUser = Auth::user();
-
+        $currentUser = $user;
+    
         // Загружаем поля текущего партнёра вместе с ролями (pivot user_field_role)
         $fields = UserField::where('partner_id', $partnerId)
             ->with('roles')
             ->get();
-
+    
         $userFieldValues = UserFieldValue::where('user_id', $user->id)
             ->pluck('value', 'field_id');
-
-        /**
-         * ✅ FIX: editableFields не должен перезаписываться вторым блоком.
-         * Как должно быть:
-         * - если allowedRoleIds пустой => редактируемо всем
-         * - иначе => только указанным ролям
-         */
+    
         $editableFields = $fields->mapWithKeys(function ($field) use ($currentUser) {
             $allowedRoleIds = $field->roles->pluck('id')->toArray();
             $isEditable = empty($allowedRoleIds) || in_array((int)$currentUser->role_id, $allowedRoleIds, true);
             return [$field->id => $isEditable];
         });
-
+    
         return view('account.index', ['activeTab' => 'user'], compact(
             'user',
             'partners',
@@ -88,6 +87,8 @@ class AccountController extends AdminBaseController
             'currentUser'
         ));
     }
+
+
 
     // Обновление юзера в учетной записи
 

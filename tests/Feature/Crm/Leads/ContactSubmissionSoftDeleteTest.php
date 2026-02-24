@@ -1,6 +1,7 @@
 <?php
 
-namespace Tests\Feature;
+// namespace Tests\Feature;
+namespace Tests\Feature\Crm\Leads;
 
 use App\Models\ContactSubmission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
