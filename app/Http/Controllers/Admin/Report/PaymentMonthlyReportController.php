@@ -18,10 +18,6 @@ class PaymentMonthlyReportController extends AdminBaseController
         parent::__construct($partnerContext);
     }
 
-    /**
-     * Вкладка "Платежи по месяцам".
-     * Отрисовываем тот же layout, что и остальные отчёты.
-     */
     public function index()
     {
         $partnerId = $this->requirePartnerId();
@@ -48,8 +44,11 @@ class PaymentMonthlyReportController extends AdminBaseController
     }
 
     /**
-     * Данные для таблицы "месяцы".
-     * Одна строка = один календарный месяц по operation_date.
+     * Сводка по месяцам.
+     * Режим задаётся параметром ?mode=operation|subscription.
+     *
+     * mode=operation    -> группируем по payments.operation_date
+     * mode=subscription -> группируем по payments.payment_month (varchar YYYY-MM-DD)
      */
     public function getMonths(Request $request)
     {
@@ -58,17 +57,38 @@ class PaymentMonthlyReportController extends AdminBaseController
         }
 
         $partnerId = $this->requirePartnerId();
-        $hasOrder  = is_array($request->input('order')) && count($request->input('order')) > 0;
+
+        $mode = $request->get('mode', 'operation');
+        if (! in_array($mode, ['operation', 'subscription'], true)) {
+            $mode = 'operation';
+        }
+
+        $hasOrder = is_array($request->input('order')) && count($request->input('order')) > 0;
 
         $monthsQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->where('users.partner_id', $partnerId)
-            ->whereNotNull('payments.operation_date')
-            ->selectRaw('DATE_FORMAT(payments.operation_date, "%Y-%m-01") as month_start')
-            ->selectRaw('DATE_FORMAT(payments.operation_date, "%Y-%m") as month_key')
-            ->selectRaw('COUNT(*) as payments_count')
-            ->selectRaw('SUM(payments.summ) as total_sum')
-            ->groupBy('month_start', 'month_key');
+            ->where('users.partner_id', $partnerId);
+
+        if ($mode === 'subscription') {
+            // Группировка по месяцу абонемента (payment_month: varchar 'YYYY-MM-DD')
+            $monthsQuery
+                ->whereNotNull('payments.payment_month')
+                ->where('payments.payment_month', 'LIKE', '____-__-%')
+                ->selectRaw("CONCAT(LEFT(payments.payment_month, 7), '-01')     as month_start")
+                ->selectRaw("LEFT(payments.payment_month, 7)                    as month_key") // YYYY-MM
+                ->selectRaw('COUNT(*)                                           as payments_count')
+                ->selectRaw('SUM(payments.summ)                                 as total_sum')
+                ->groupBy('month_start', 'month_key');
+        } else {
+            // Группировка по дате платежа (operation_date)
+            $monthsQuery
+                ->whereNotNull('payments.operation_date')
+                ->selectRaw('DATE_FORMAT(payments.operation_date, "%Y-%m-01") as month_start')
+                ->selectRaw('DATE_FORMAT(payments.operation_date, "%Y-%m")    as month_key')
+                ->selectRaw('COUNT(*)                                         as payments_count')
+                ->selectRaw('SUM(payments.summ)                               as total_sum')
+                ->groupBy('month_start', 'month_key');
+        }
 
         if (! $hasOrder) {
             $monthsQuery->orderBy('month_start', 'desc');
@@ -117,7 +137,9 @@ class PaymentMonthlyReportController extends AdminBaseController
     }
 
     /**
-     * Детализация: все платежи за указанный календарный месяц (YYYY-MM).
+     * Детализация за конкретный месяц.
+     * mode=operation    -> фильтр по operation_date в рамках месяца
+     * mode=subscription -> фильтр по LEFT(payment_month, 7) = YYYY-MM
      */
     public function getMonthPayments(Request $request, string $yearMonth)
     {
@@ -127,6 +149,11 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $partnerId = $this->requirePartnerId();
 
+        $mode = $request->get('mode', 'operation');
+        if (! in_array($mode, ['operation', 'subscription'], true)) {
+            $mode = 'operation';
+        }
+
         try {
             $start = Carbon::createFromFormat('Y-m', $yearMonth)->startOfMonth();
         } catch (\Exception $e) {
@@ -135,13 +162,25 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $end = $start->copy()->endOfMonth();
 
-        $payments = Payment::query()
+        $paymentsQuery = Payment::query()
             ->with(['user.team'])
             ->join('users', 'users.id', '=', 'payments.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId)
-            ->whereBetween('payments.operation_date', [$start, $end])
-            ->select('payments.*')
+            ->select('payments.*');
+
+        if ($mode === 'subscription') {
+            // По месяцу абонемента: payment_month LIKE 'YYYY-MM-%'
+            $paymentsQuery
+                ->whereNotNull('payments.payment_month')
+                ->where('payments.payment_month', 'LIKE', $yearMonth . '-%');
+        } else {
+            // По дате операции
+            $paymentsQuery
+                ->whereBetween('payments.operation_date', [$start, $end]);
+        }
+
+        $payments = $paymentsQuery
             ->orderBy('payments.operation_date', 'desc')
             ->get();
 
@@ -181,6 +220,7 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         return response()->json([
             'month_key' => $yearMonth,
+            'mode'      => $mode,
             'payments'  => $items,
         ]);
     }

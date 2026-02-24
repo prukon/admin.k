@@ -1,5 +1,20 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
     <h4 class="text-start mb-0">Платежи по месяцам</h4>
+
+    {{-- Переключатель режима группировки --}}
+    <div class="btn-group" role="group" aria-label="Режим группировки">
+       
+        <button type="button"
+                class="btn btn-outline-secondary js-group-mode-btn active"
+                data-mode="subscription">
+            По месяцу абонемента
+        </button>
+        <button type="button"
+        class="btn btn-outline-secondary js-group-mode-btn"
+        data-mode="operation">
+    По дате платежа
+</button>
+    </div>
 </div>
 
 <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
@@ -22,10 +37,19 @@
     <script type="text/javascript">
         $(function () {
 
+            // Текущий режим группировки: operation | subscription
+            var currentMode = 'operation';
+
             var monthlyTable = $('#payments-monthly-table').DataTable({
                 processing: true,
                 serverSide: true,
-                ajax: '/admin/reports/payments/monthly/data',
+                ajax: {
+                    url: '/admin/reports/payments/monthly/data',
+                    type: 'GET',
+                    data: function (d) {
+                        d.mode = currentMode;
+                    }
+                },
                 columns: [
                     {
                         data: null,
@@ -74,6 +98,25 @@
                         "sortDescending": ": активировать для сортировки столбца по убыванию"
                     }
                 }
+            });
+
+            // Переключатель режима
+            $('.js-group-mode-btn').on('click', function () {
+                var btn  = $(this);
+                var mode = btn.data('mode');
+
+                if (mode === currentMode) {
+                    return;
+                }
+
+                currentMode = mode;
+
+                // визуально
+                $('.js-group-mode-btn').removeClass('active');
+                btn.addClass('active');
+
+                // Перегружаем таблицу
+                monthlyTable.ajax.reload(null, true);
             });
 
             function buildDetailsTable(payments) {
@@ -164,6 +207,9 @@
                     url: '/admin/reports/payments/monthly/' + monthKey + '/payments',
                     type: 'GET',
                     dataType: 'json',
+                    data: {
+                        mode: currentMode
+                    },
                     success: function (resp) {
                         var html = buildDetailsTable(resp.payments || []);
                         tr.next('tr').find('div.details-container').html(html);
