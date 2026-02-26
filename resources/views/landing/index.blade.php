@@ -186,7 +186,7 @@
 
                                 <li class="d-flex mb-3">
                                     <div class="me-3 mt-1">
-                                        <i class="fas fa-exclamation-circle text-danger"></i>
+                                        <i class="fas fa-exclamation-circle alert-color"></i>
                                     </div>
                                     <div>
                                         <div class="fw-semibold fs-5 mb-1">
@@ -202,7 +202,7 @@
 
                                 <li class="d-flex mb-3">
                                     <div class="me-3 mt-1">
-                                        <i class="fas fa-exclamation-circle text-danger"></i>
+                                        <i class="fas fa-exclamation-circle alert-color"></i>
                                     </div>
                                     <div>
                                         <div class="fw-semibold fs-5 mb-1">
@@ -217,7 +217,7 @@
 
                                 <li class="d-flex mb-3">
                                     <div class="me-3 mt-1">
-                                        <i class="fas fa-exclamation-circle text-danger"></i>
+                                        <i class="fas fa-exclamation-circle alert-color"></i>
                                     </div>
                                     <div>
                                         <div class="fw-semibold fs-5 mb-1">
@@ -232,7 +232,7 @@
 
                                 <li class="d-flex mb-3">
                                     <div class="me-3 mt-1">
-                                        <i class="fas fa-exclamation-circle text-danger"></i>
+                                        <i class="fas fa-exclamation-circle alert-color"></i>
                                     </div>
                                     <div>
                                         <div class="fw-semibold fs-5 mb-1">
@@ -247,7 +247,7 @@
 
                                 <li class="d-flex mb-3">
                                     <div class="me-3 mt-1">
-                                        <i class="fas fa-exclamation-circle text-danger"></i>
+                                        <i class="fas fa-exclamation-circle alert-color"></i>
                                     </div>
                                     <div>
                                         <div class="fw-semibold fs-5 mb-1">
@@ -262,7 +262,7 @@
 
                                 <li class="d-flex mb-3">
                                     <div class="me-3 mt-1">
-                                        <i class="fas fa-exclamation-circle text-danger"></i>
+                                        <i class="fas fa-exclamation-circle alert-color"></i>
                                     </div>
                                     <div>
                                         <div class="fw-semibold fs-5 mb-1">

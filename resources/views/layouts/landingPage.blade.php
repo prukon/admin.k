@@ -426,21 +426,25 @@
                          class="img-fluid rounded mx-auto d-block">
                 </div>
             </div>
-        </div>
+        </div> 
     </section>
 
     <!-- Нижний футер -->
     <div class="bg-dark text-white text-center py-4">
         <div class="container">
-            <p class="mb-1">Все права защищены. 2024 – {{ date('Y') }} kidscrm.online &copy;</p>
+            {{-- <p class="mb-1">Все права защищены. 2024 – {{ date('Y') }} kidscrm.online &copy;</p> --}}
+          
+            Copyright &copy; 2024-{{ date('Y') }}
+            <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
+            Все права защищены.
             <div>
-                <a href="/oferta" class="text-white text-decoration-none mx-2">Оферта</a>
-                <a href="{{ route('privacy.policy') }}"
+                <a target="_blank"   href="{{ route('public-offerta') }}" class="text-white text-decoration-none mx-2">Оферта</a>
+                <a target="_blank"   href="{{ route('policy') }}"
                    class="text-white text-decoration-none mx-2">
                     Политика конфиденциальности
                 </a>
             </div>
-        </div>
+        </div> 
     </div>
 </footer>
 

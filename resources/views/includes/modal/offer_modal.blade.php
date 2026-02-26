@@ -1,4 +1,4 @@
-// Blade component: resources/views/partner/offer_modal.blade.php
+{{-- // Blade component: resources/views/partner/offer_modal.blade.php
 <div class="modal fade" id="partnerOfferModal" tabindex="-1" role="dialog" aria-labelledby="offerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
@@ -17,9 +17,9 @@
                             Я ознакомлен с условиями оферты и принимаю их
                         </label>
                     </div>
-                    <button type="submit" class="btn btn-primary">Принять условия</button>
+                    <button type="submit" class="btn btn-primary">Принять условия1</button>
                 </form>
             </div>
         </div>
     </div>
-</div>
+</div> --}}

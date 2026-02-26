@@ -69,6 +69,9 @@ use App\Http\Controllers\Admin\Report\PaymentMonthlyReportController;
 
 Auth::routes();
 
+Route::fallback(function () { return response()->view('errors.404', [], 404);});
+
+
 Route::get('/sitemap.xml', [\App\Http\Controllers\SitemapController::class, 'index'])->name('sitemap');
 
 // Debug endpoint for proxy/IP/header diagnostics.
@@ -104,16 +107,13 @@ Route::view('/crm-dlya-detskih-yazykovyh-shkol', 'landing.seo.language-schools')
 Route::post('/contact/send', [LandingPageController::class, 'contactSend'])->name('contact.send');
 
 //Страница Публичная оферта
-Route::view('/oferta', 'landing.oferta')->name('oferta');
+Route::view('/public-offerta', 'landing.agreements.public-offerta')->name('public-offerta');
+ //Страница Политика конфиденциальности
+ Route::view('/policy', 'landing.agreements.policy')->name('policy');
+ 
 
-//Страница Партнёрская оферта
-Route::view('/partner/oferta', 'admin.partnerOferta')->name('partnerOferta');
+ 
 
-//Страница Политика конфиденциальности
-Route::view('/privacy-policy', 'landing.policy')->name('privacy.policy');
-
-//Страница Пользовательское соглашение
-Route::get('/terms', [\App\Http\Controllers\AboutController::class, 'terms'])->name('terms');
 
 // Blog (публичный)
 Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
@@ -161,10 +161,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         //Отчеты -> Задолженности
         Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
         Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
-        
-        //Отчеты -> LTV
-        // Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('ltv');
-        // Route::get('/admin/reports/getLtv', [LtvReportController::class, 'getLtv'])->name('ltv.getLtv');
+
 
 
         // Страница отчёта LTV (вкладка)
@@ -177,7 +174,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
 
 
-
         // Новая вкладка "Платежи по месяцам"
         Route::get('/admin/reports/payments/monthly', [PaymentMonthlyReportController::class, 'index'])->name('reports.payments.monthly');
         // Данные для таблицы "месяцы"
@@ -185,11 +181,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // Детализация по конкретному месяцу (формат yearMonth: 2025-01)
         Route::get('/admin/reports/payments/monthly/{yearMonth}/payments', [PaymentMonthlyReportController::class, 'getMonthPayments'])->name('reports.payments.monthly.payments');
     });
-
-
-
-
-
 
     // Отчёты -> "Платежные запросы"
     Route::middleware(['can:reports.payment.intents.view'])->group(function () {
@@ -580,6 +571,17 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('blog/settings', [\App\Http\Controllers\Admin\BlogSettingsController::class, 'edit'])->name('admin.blog.settings.edit');
         Route::post('blog/settings', [\App\Http\Controllers\Admin\BlogSettingsController::class, 'update'])->name('admin.blog.settings.update');
     });
+
+
+    //Страница Партнёрская оферта
+    Route::view('/admin/partner-offerta', 'admin.agreements.partnerOferta')->name('admin.partnerOferta');
+    //Страница Публичная (пользовательская) оферта
+    Route::view('/admin/public-offerta', 'admin.agreements.public-offerta')->name('admin.public-offerta');
+    //Страница Пользовательское соглашение
+    Route::view('/admin/terms', 'admin.agreements.terms')->name('admin.terms');
+    //Страница Политика конфиденциальности
+    Route::view('/admin/policy', 'admin.agreements.policy')->name('admin.policy');
+
 });
 
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');

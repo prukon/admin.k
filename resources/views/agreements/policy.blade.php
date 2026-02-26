@@ -1,10 +1,3 @@
-@extends('layouts.landingPage')
-
-@section('title', 'kidscrm.online — Политика конфиденциальности')
-@section('meta_robots', 'noindex,follow')
-@section('meta_description', 'Политика конфиденциальности kidscrm.online: обработка и защита персональных данных пользователей сервиса.')
-
-@section('content')
     <div class="container py-4">
         <h1 class="mb-4">Политика конфиденциальности</h1>
 
@@ -93,5 +86,3 @@
             Актуальная версия всегда доступна на сайте сервиса.
         </p>
     </div>
-
-@endsection
