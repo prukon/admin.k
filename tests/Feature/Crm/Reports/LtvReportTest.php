@@ -46,7 +46,7 @@ class LtvReportTest extends CrmTestCase
             ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertOk();
     }
- 
+    
 
     /**
      * [P1] LTV отчёт отфильтрован по текущему партнёру.

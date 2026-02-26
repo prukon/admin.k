@@ -6,7 +6,7 @@
             <ul class="nav nav-tabs" id="myTab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <a class="nav-link {{ $activeTab == 'payment' ? 'active' : '' }}" href="/admin/reports/payments"
-                        role="tab">Платежи</a>
+                        role="tab">Все платежи</a>
                 </li>
 
                 {{-- НОВАЯ ВКЛАДКА --}}
@@ -16,13 +16,15 @@
                 </li>
 
                 <li class="nav-item" role="presentation">
+                    <a class="nav-link {{ $activeTab == 'ltv' ? 'active' : '' }}" href="/admin/reports/ltv"
+                        role="tab">Платежи по ученикам</a>
+                </li>
+
+                <li class="nav-item" role="presentation">
                     <a class="nav-link {{ $activeTab == 'debt' ? 'active' : '' }}" href="/admin/reports/debts"
                         role="tab">Задолженности</a>
                 </li>
-                <li class="nav-item" role="presentation">
-                    <a class="nav-link {{ $activeTab == 'ltv' ? 'active' : '' }}" href="/admin/reports/ltv"
-                        role="tab">LTV</a>
-                </li>
+
                 @can('reports.payment.intents.view')
                     <li class="nav-item" role="presentation">
                         <a class="nav-link {{ $activeTab == 'payment-intents' ? 'active' : '' }}"
