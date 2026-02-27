@@ -167,7 +167,7 @@
                             </a>
 
                             <!-- YouTube + текст -->
-                            <div class="d-flex align-items-center gap-2">
+                            {{-- <div class="d-flex align-items-center gap-2">
 
                                 <a href="https://youtube.com" target="_blank"
                                     class="d-flex align-items-center justify-content-center"
@@ -179,7 +179,7 @@
                                     Ознакомительное видео
                                 </span>
 
-                            </div>
+                            </div> --}}
 
                         </div>
 
