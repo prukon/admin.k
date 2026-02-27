@@ -10,17 +10,46 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class TeamFactory extends Factory
 {
     /**
+     * Названия спортивных команд
+     */
+    protected array $teamNames = [
+        'Сокол',
+        'Динамо',
+        'Спартак',
+        'Зенит',
+        'Локомотив',
+        'Торпедо',
+        'Рубин',
+        'Метеор',
+        'Вымпел',
+        'Юность',
+        'Олимп',
+        'Старт',
+        'Искра',
+        'Виктория',
+        'Феникс',
+        'Атлант',
+        'Штурм',
+        'Буревестник',
+        'Смена',
+        'Луч',
+    ];
+
+    /**
      * Define the model's default state.
      *
-     * @return array<string, mixed> 
+     * @return array<string, mixed>
      */
     public function definition(): array
     {
         return [
-            'title' => $this->faker->name,
-            'image' => $this->faker->imageUrl(),
-            'is_enabled' => '1',
-            'order_by' => random_int(1,100),
+            // 👇 ВМЕСТО faker->name
+            'title' => $this->faker->randomElement($this->teamNames),
+
+            'image' => $this->faker->imageUrl(400, 400, 'sports'),
+
+            'is_enabled' => 1,
+            'order_by' => random_int(1, 100),
         ];
     }
 }
