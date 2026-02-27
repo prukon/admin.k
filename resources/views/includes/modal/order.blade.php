@@ -5,7 +5,7 @@
         <div class="modal-content">
 
             <div class="modal-header">
-                <h5 class="modal-title" id="createOrderLabel">Оставить заявку</h5>
+                <h5 class="modal-title" id="createOrderLabel">Записаться на демо</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
 
@@ -24,19 +24,19 @@
                         <input type="text" name="phone" id="phone" class="form-control" value="">
                         <div class="invalid-feedback d-block" data-error-for="phone" style="display:none;"></div>
                     </div>
-
+{{-- 
                     <div class="mb-3">
                         <label for="email" class="form-label">Email (необязательно)</label>
                         <input type="text" name="email" id="email" class="form-control" value="">
                         <div class="invalid-feedback d-block" data-error-for="email" style="display:none;"></div>
-                    </div>
+                    </div> --}}
 
-                    <div class="mb-3">
+                    {{-- <div class="mb-3">
                         <label for="website" class="form-label">Сайт (необязательно)</label>
                         <input type="text" name="website" id="website" class="form-control"
                             placeholder="example.com или https://example.com">
                         <div class="invalid-feedback d-block" data-error-for="website" style="display:none;"></div>
-                    </div>
+                    </div> --}}
 
                     <div class="mb-3">
                         <label for="message" class="form-label">Сообщение (необязательно)</label>
@@ -46,7 +46,7 @@
 
                     <div class="modal-footer-create-team">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                        <button type="submit" class="btn btn-primary" id="sendBtn">Отправить</button>
+                        <button type="submit" class="btn btn-primary" id="sendBtn">Записаться</button>
                     </div>
                 </form>
             </div>

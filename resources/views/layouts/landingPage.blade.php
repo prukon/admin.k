@@ -432,9 +432,8 @@
     <!-- Нижний футер -->
     <div class="bg-dark text-white text-center py-4">
         <div class="container">
-            {{-- <p class="mb-1">Все права защищены. 2024 – {{ date('Y') }} kidscrm.online &copy;</p> --}}
           
-            Copyright &copy; 2024-{{ date('Y') }}
+            Copyright &copy; 2022-{{ date('Y') }}
             <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
             Все права защищены.
             <div>

@@ -12,7 +12,7 @@
     {{--JQuery--}}
     <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
 
-    {{--JQuery-UI--}}
+    {{--JQuery-UI--}} 
     <script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>
 
     {{--bootstrap--}}
@@ -398,7 +398,7 @@
     <footer class="main-footer">
 
         <div>
-            Copyright &copy; 2024-{{ date('Y') }}
+            Copyright &copy; 2022-{{ date('Y') }}
             <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
             Все права защищены.
             @can('documentations.view')
