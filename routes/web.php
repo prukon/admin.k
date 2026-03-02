@@ -202,13 +202,23 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     //Установка цен (feature test +)
     Route::middleware('can:setPrices.view')->group(function () {
-        Route::get('admin/setting-prices', [SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
+        // Route::get('admin/setting-prices', [SettingPricesController::class, 'index'])->name('admin.settingPrices.indexMenu');
         Route::post('admin/setting-prices/get-team-price', [SettingPricesController::class, 'getTeamPrice'])->name('getTeamPrice');
         Route::post('admin/setting-prices/set-team-price', [SettingPricesController::class, 'setTeamPrice'])->name('setTeamPrice');
         Route::post('admin/setting-prices/set-price-all-teams', [SettingPricesController::class, 'setPriceAllTeams'])->name('setPriceAllTeams');
         Route::post('admin/setting-prices/set-price-all-users', [SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
         Route::get('admin/setting-prices/logs-data', [SettingPricesController::class, 'getLogsData'])->name('logs.data.settingPrice');
         Route::post('admin/setting-prices/update-date', [SettingPricesController::class, 'updateDate'])->name('updateDate');
+    
+    
+        Route::get('admin/setting-prices/monthly', [SettingPricesController::class, 'monthly'])->name('admin.settingPrices.monthly');
+        Route::get('admin/setting-prices/users', [SettingPricesController::class, 'users'])->name('admin.settingPrices.users');
+   
+
+        Route::post('admin/setting-prices/user-year-prices', [SettingPricesController::class, 'userYearPrices'])->name('setting-prices.user-year-prices');
+        Route::post('admin/setting-prices/user-year-prices/save', [SettingPricesController::class, 'saveUserYearPrices'])->name('setting-prices.user-year-prices.save');
+            
+
     });
 
     //Журнал расписания

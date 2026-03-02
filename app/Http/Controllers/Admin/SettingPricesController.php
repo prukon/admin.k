@@ -14,14 +14,11 @@ use App\Models\Weekday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use App\Models\MyLog;
-
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Str;
 use App\Support\BuildsLogTable;
 use App\Services\PartnerContext;
-
 
 class SettingPricesController extends AdminBaseController
 {
@@ -32,115 +29,234 @@ class SettingPricesController extends AdminBaseController
         parent::__construct($partnerContext);
     }
 
-    public function index(FilterRequest $request)
+    /**
+     * Команды текущего партнёра в нужном порядке.
+     */
+    protected function getPartnerTeamsOrdered()
     {
-        $partnerId = $this->requirePartnerId();
-
-        // 1) Команды партнёра, сразу в нужном порядке
-        $allTeams = Team::where('partner_id', $partnerId)
+        return $this->scopeByPartner(Team::query())
             ->whereNull('deleted_at')
             ->orderBy('order_by', 'asc')
             ->get();
+    }
 
-        // 3) Месяц
+    /**
+     * Русское название месяца по номеру.
+     */
+    protected function ruMonthName(int $month): string
+    {
+        $names = [
+            1  => 'Январь',
+            2  => 'Февраль',
+            3  => 'Март',
+            4  => 'Апрель',
+            5  => 'Май',
+            6  => 'Июнь',
+            7  => 'Июль',
+            8  => 'Август',
+            9  => 'Сентябрь',
+            10 => 'Октябрь',
+            11 => 'Ноябрь',
+            12 => 'Декабрь',
+        ];
+
+        return $names[$month] ?? '';
+    }
+
+    /**
+     * Текущий месяц для партнёра:
+     * 1) session('prices_month')
+     * 2) settings по партнёру (key = prices_last_month)
+     * 3) текущий месяц
+     */
+    protected function getCurrentMonthString(int $partnerId): string
+    {
         Carbon::setLocale('ru');
-        $monthString = session('prices_month', Str::ucfirst(Carbon::now()->translatedFormat('F Y')));
-        $monthDate   = $this->formatedDate($monthString);
 
-        // 5) Гарантируем наличие TeamPrice на этот месяц для каждой команды
-        foreach ($allTeams as $team) {
+        $sessionMonth = session('prices_month');
+        if ($sessionMonth) {
+            return $sessionMonth;
+        }
+
+        try {
+            $dbMonth = Setting::where('partner_id', $partnerId)
+                ->where('key', 'prices_last_month')
+                ->value('value');
+
+            if ($dbMonth) {
+                return $dbMonth;
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Не удалось прочитать месяц цен из settings', [
+                'partner_id' => $partnerId,
+                'error'      => $e->getMessage(),
+            ]);
+        }
+
+        return Str::ucfirst(Carbon::now()->translatedFormat('F Y'));
+    }
+
+    /**
+     * Запомнить месяц в сессии и в settings для конкретного партнёра.
+     */
+    protected function rememberCurrentMonthString(int $partnerId, string $monthString): void
+    {
+        session(['prices_month' => $monthString]);
+
+        if (!trim($monthString)) {
+            return;
+        }
+
+        try {
+            Setting::updateOrCreate(
+                [
+                    'partner_id' => $partnerId,
+                    'key'        => 'prices_last_month',
+                ],
+                [
+                    'value' => $monthString,
+                ]
+            );
+        } catch (\Throwable $e) {
+            \Log::warning('Не удалось сохранить месяц цен в settings', [
+                'partner_id'   => $partnerId,
+                'month_string' => $monthString,
+                'error'        => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Гарантируем наличие TeamPrice на этот месяц для каждой команды.
+     */
+    protected function ensureTeamPricesForMonth($teams, string $monthDate): void
+    {
+        foreach ($teams as $team) {
             TeamPrice::firstOrCreate(
                 ['team_id' => $team->id, 'new_month' => $monthDate],
                 ['price'   => 0]
             );
         }
-
-        // 6) Цены за месяц, ключ — team_id
-        $teamPrices = TeamPrice::where('new_month', $monthDate)
-            ->whereHas('team', fn($q) => $q->where('partner_id', $partnerId)->whereNull('deleted_at'))
-        ->get()
-        ->keyBy('team_id');
-
-    return view('admin.settingPrices', compact('allTeams', 'monthString', 'teamPrices'));
-}
-
-    // AJAX ПОДРОБНО. Получение списка пользователей
-    public function getTeamPrice2(Request $request)
-    {
-        // Получаем данные из тела запроса
-        $data = json_decode($request->getContent(), true);
-        $selectedDate = $data['selectedDate'] ?? null;
-        $teamId = $data['teamId'] ?? null;
-        $usersTeam = User::where('team_id', $teamId)
-            ->where('is_enabled', true)
-            ->orderBy('lastname', 'asc')   // сначала по фамилии
-            ->orderBy('name', 'asc')       // затем по имени
-            ->get();
-
-        $usersPrice = [];
-        $selectedDate = $this->formatedDate($selectedDate);
-        foreach ($usersTeam as $user) {
-            $userPrice = UserPrice::firstOrCreate(
-                [
-                    'new_month' => $selectedDate,
-                    'user_id' => $user->id
-                ],
-                [
-                    'price' => 0
-                ]
-            );
-            $userPrice->name = $user->name;
-            $userPrice->refresh();
-            $userPrice->load('user'); // Загружаем отношение для каждой модели
-            $usersPrice[] = $userPrice;
-        }
-
-        // Преобразуем каждую модель UserPrice в массив
-        Log::info('$usersPrice:', array_map(function ($item) {
-            return $item->toArray();
-        }, $usersPrice));
-
-        if ($usersTeam) {
-            return response()->json([
-                'success' => true,
-                'usersTeam' => $usersTeam,
-                'usersPrice' => $usersPrice,
-            ]);
-        } else {
-            return response()->json(['success' => false]);
-        }
     }
 
-
-    public function getTeamPrice(Request $request)
+    /**
+     * Цены за месяц, ключ — team_id, с изоляцией по партнёру.
+     */
+    protected function getTeamPricesForMonth(int $partnerId, string $monthDate)
     {
-        // 1) Разбираем вход
-        $data         = json_decode($request->getContent(), true);
-        $selectedDate = $data['selectedDate'] ?? null;
-        $teamId       = $data['teamId']       ?? null;
+        return TeamPrice::where('new_month', $monthDate)
+            ->whereHas('team', function ($q) use ($partnerId) {
+                $q->where('partner_id', $partnerId)
+                    ->whereNull('deleted_at');
+            })
+            ->get()
+            ->keyBy('team_id');
+    }
 
-        // 2) Текущий партнёр
+    /**
+     * Старая обёртка-страница (layout admin.settingPrices).
+     */
+    public function index(FilterRequest $request)
+    {
         $partnerId = $this->requirePartnerId();
 
-        // 3) Проверяем, что команда принадлежит текущему партнёру
+        $allTeams = $this->getPartnerTeamsOrdered();
+
+        $monthString = $this->getCurrentMonthString($partnerId);
+        $monthDate   = $this->formatedDate($monthString);
+
+        $this->ensureTeamPricesForMonth($allTeams, $monthDate);
+
+        $teamPrices = $this->getTeamPricesForMonth($partnerId, $monthDate);
+
+        return view('admin.settingPrices', compact('allTeams', 'monthString', 'teamPrices'));
+    }
+
+    public function monthly(FilterRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $allTeams = $this->getPartnerTeamsOrdered();
+
+        $monthString = $this->getCurrentMonthString($partnerId);
+        $monthDate   = $this->formatedDate($monthString);
+
+        $this->ensureTeamPricesForMonth($allTeams, $monthDate);
+
+        $teamPrices = $this->getTeamPricesForMonth($partnerId, $monthDate);
+
+        return view(
+            'admin.SettingPrices.index',
+            [
+                'activeTab'   => 'monthly',
+                'teamPrices'  => $teamPrices,
+                'allTeams'    => $allTeams,
+                'monthString' => $monthString,
+            ]
+        );
+    }
+
+    public function users()
+    {
+        $partnerId = $this->requirePartnerId();
+
+        // Команды нужны для фильтра в левой колонке (селект "Все группы / Группа N")
+        $allTeams = $this->getPartnerTeamsOrdered();
+
+        // Месяц + цены по группам — пока оставляем, вдруг пригодится во вью
+        $monthString = $this->getCurrentMonthString($partnerId);
+        $monthDate   = $this->formatedDate($monthString);
+        $this->ensureTeamPricesForMonth($allTeams, $monthDate);
+        $teamPrices = $this->getTeamPricesForMonth($partnerId, $monthDate);
+
+        // Список активных учеников текущего партнёра
+        $users = User::with('team')
+            ->where('is_enabled', 1)
+            ->whereHas('team', function ($q) use ($partnerId) {
+                $q->where('partner_id', $partnerId)
+                    ->whereNull('deleted_at');
+            })
+            ->orderBy('lastname')
+            ->orderBy('name')
+            ->get();
+
+        return view(
+            'admin.SettingPrices.index',
+            [
+                'activeTab'   => 'users',
+                'teamPrices'  => $teamPrices,
+                'allTeams'    => $allTeams,
+                'monthString' => $monthString,
+                'users'       => $users,
+            ]
+        );
+    }
+
+    // AJAX ПОДРОБНО. Получение списка пользователей по группе (вкладка "по месяцам")
+    public function getTeamPrice(Request $request)
+    {
+        $data         = json_decode($request->getContent(), true);
+        $selectedDate = $data['selectedDate'] ?? null;
+        $teamId       = $data['teamId'] ?? null;
+
+        $partnerId = $this->requirePartnerId();
+
         $team = Team::where('id', $teamId)
             ->where('partner_id', $partnerId)
             ->whereNull('deleted_at')
             ->first();
 
         if (!$team) {
-            // Чужая или удалённая команда — 404
             return response()->json([
                 'success' => false,
                 'message' => 'Team not found',
             ], 404);
         }
 
-        // 4) Берём только активных пользователей этой команды
         $usersTeam = User::where('team_id', $team->id)
             ->where('is_enabled', true)
-            ->orderBy('lastname', 'asc')   // сначала по фамилии
-            ->orderBy('name', 'asc')       // затем по имени
+            ->orderBy('lastname', 'asc')
+            ->orderBy('name', 'asc')
             ->get();
 
         $usersPrice   = [];
@@ -163,7 +279,7 @@ class SettingPricesController extends AdminBaseController
             $usersPrice[] = $userPrice;
         }
 
-        Log::info('$usersPrice:', array_map(function ($item) {
+        \Log::info('$usersPrice:', array_map(function ($item) {
             return $item->toArray();
         }, $usersPrice));
 
@@ -178,157 +294,73 @@ class SettingPricesController extends AdminBaseController
         return response()->json(['success' => false]);
     }
 
-    // AJAX SELECT DATE. Обработчик изменения даты
+    // AJAX SELECT DATE. Обработчик изменения месяца (общий селект наверху)
     public function updateDate(Request $request)
     {
-        // 1) Валидация входного параметра
+        $partnerId = $this->requirePartnerId();
+
         $request->validate([
             'month' => 'required|string|max:255',
         ]);
 
-        // 2) Сохраняем выбор месяца (например "Сентябрь 2024") в сессии
         $month = ucfirst($request->input('month'));
-        session(['prices_month' => $month]);
 
-        // 3) Преобразуем строку "Сентябрь 2024" в формат date для new_month
+        $this->rememberCurrentMonthString($partnerId, $month);
+
         $formatedMonth = $this->formatedDate($month);
 
-        // 4) Получаем команды, принадлежащие текущему партнёру
-        $partnerId = $this->requirePartnerId();
-        $teams = Team::where('partner_id', $partnerId)
-            ->whereNull('deleted_at')
-            ->get();
+        $teams = $this->getPartnerTeamsOrdered();
 
-        // 5) Для каждой из этих команд создаём запись в team_prices, если её ещё нет
-        foreach ($teams as $team) {
-            TeamPrice::firstOrCreate(
-                [
-                    'team_id'   => $team->id,
-                    'new_month' => $formatedMonth,
-                ],
-                [
-                    'price' => 0,
-                ]
-            );
-        }
+        $this->ensureTeamPricesForMonth($teams, $formatedMonth);
 
-        // 6) Отправляем ответ
         return response()->json([
             'success' => true,
             'month'   => $month,
         ]);
     }
 
-
-//     Помогает преобразовать строку "Сентябрь 2024" в YYYY-MM-01
+    // Помогает преобразовать строку "Сентябрь 2024" в YYYY-MM-01
     protected function formatedDate(string $monthString): string
     {
-        // Ваши реализации: разбить на месяц и год, собрать дату первого числа
-        // Например:
         $parts = explode(' ', $monthString);
         $ruMonths = [
-            'январь'=>1, 'февраль'=>2, 'март'=>3, 'апрель'=>4,
-            'май'=>5, 'июнь'=>6, 'июль'=>7, 'август'=>8,
-            'сентябрь'=>9, 'октябрь'=>10, 'ноябрь'=>11, 'декабрь'=>12
+            'январь'   => 1,
+            'февраль'  => 2,
+            'март'     => 3,
+            'апрель'   => 4,
+            'май'      => 5,
+            'июнь'     => 6,
+            'июль'     => 7,
+            'август'   => 8,
+            'сентябрь' => 9,
+            'октябрь'  => 10,
+            'ноябрь'   => 11,
+            'декабрь'  => 12,
         ];
-        $month  = mb_strtolower($parts[0], 'UTF-8');
+        $month  = mb_strtolower($parts[0] ?? '', 'UTF-8');
         $year   = $parts[1] ?? date('Y');
         $mNum   = $ruMonths[$month] ?? date('n');
-        // Возвращаем первый день месяца в формате YYYY-MM-DD
-        return sprintf('%04d-%02d-01', (int)$year, $mNum);
+
+        return sprintf('%04d-%02d-01', (int) $year, $mNum);
     }
 
-    //AJAX Кнопка ОК. Установка цен группе и юзерам.
+    /**
+     * LEGACY: для обратной совместимости. Вызывает новую реализацию.
+     */
     public function setTeamPrice2(Request $request)
     {
-        $partnerId = $this->requirePartnerId();
-        // Получаем данные из тела запроса
-        $data = json_decode($request->getContent(), true);
-        $teamPrice = $data['teamPrice'] ?? null;
-        $teamId = $data['teamId'] ?? null;
-        $selectedDate = $data['selectedDate'] ?? null;
-        $usersTeam = User::where('team_id', $teamId)->get();
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $teamTitle = Team::where('id', $teamId)->first()->title;
-        $selectedDateString = $selectedDate;
-        $selectedDate = $this->formatedDate($selectedDate);
-
-
-
-        DB::transaction(function () use ($teamId, $selectedDate, $teamPrice, $authorId, $teamTitle, $selectedDateString, $partnerId) {
-
-            TeamPrice::updateOrCreate(
-                [
-                    'team_id' => $teamId,
-                    'new_month' => $selectedDate,
-                ],
-                [
-                    'price' => $teamPrice
-                ]
-            );
-//            Кнопка ОК. Установка цен группе и юзерам.
-            MyLog::create([
-                'type' => 1,
-                'action' => 13, // Изменение цен в одной группе
-                'description' => "Обновлена цена: {$teamPrice} руб. Период: {$selectedDateString}.",
-                'target_type'  => 'App\Models\UserPrice',
-                'target_id'    => $teamId,
-                'target_label' => $teamTitle,
-                'created_at' => now(),
-            ]);
-
-
-            // Обновляем цены для пользователей
-//            $users = User::where('team_id', $teamId)->get(); // Предполагается, что пользователи связаны с командами
-
-            $users = User::where('team_id', $teamId)
-                ->where('is_enabled', 1)
-                ->get();
-
-
-            foreach ($users as $user) {
-                $userPrice = UserPrice::where('user_id', $user['id'])
-                    ->where('new_month', $selectedDate)
-                    ->first();
-
-                if ($userPrice) {
-                    // Если запись существует и не оплачена, обновляем её
-                    if (!$userPrice->is_paid) {
-                        $userPrice->update([
-                            'price' => $teamPrice
-                        ]);
-                    }
-                } else {
-                    // Если записи нет, создаем новую
-                    UserPrice::create([
-                        'user_id' => $user['id'],
-                        'new_month' => $selectedDate,
-                        'price' => $teamPrice,
-                        'is_paid' => false
-                    ]);
-                }
-            }
-        });
-
-        return response()->json([
-            'success' => true,
-            'teamPrice' => $teamPrice,
-            'selectedDate' => $selectedDate,
-            'teamId' => $teamId,
-        ]);
+        return $this->setTeamPrice($request);
     }
 
     public function setTeamPrice(Request $request)
     {
         $partnerId = $this->requirePartnerId();
 
-        // 1) Разбираем вход
         $data         = json_decode($request->getContent(), true);
-        $teamPrice    = $data['teamPrice']    ?? null;
-        $teamId       = $data['teamId']       ?? null;
+        $teamPrice    = $data['teamPrice'] ?? null;
+        $teamId       = $data['teamId'] ?? null;
         $selectedDate = $data['selectedDate'] ?? null;
 
-        // 2) Проверяем, что команда принадлежит текущему партнёру
         $team = Team::where('id', $teamId)
             ->where('partner_id', $partnerId)
             ->whereNull('deleted_at')
@@ -346,7 +378,7 @@ class SettingPricesController extends AdminBaseController
         $selectedDateString = $selectedDate;
         $selectedDate       = $this->formatedDate($selectedDate);
 
-        DB::transaction(function () use ($team, $selectedDate, $teamPrice, $authorId, $teamTitle, $selectedDateString, $partnerId) {
+        DB::transaction(function () use ($team, $selectedDate, $teamPrice, $authorId, $teamTitle, $selectedDateString) {
 
             TeamPrice::updateOrCreate(
                 [
@@ -368,7 +400,6 @@ class SettingPricesController extends AdminBaseController
                 'created_at'   => now(),
             ]);
 
-            // Обновляем цены только для активных пользователей этой команды
             $users = User::where('team_id', $team->id)
                 ->where('is_enabled', 1)
                 ->get();
@@ -403,61 +434,65 @@ class SettingPricesController extends AdminBaseController
         ]);
     }
 
-    //AJAX ПРИМЕНИТЬ слева.Установка цен всем группам
+    // AJAX ПРИМЕНИТЬ слева. Установка цен всем группам
     public function setPriceAllTeams(Request $request)
     {
-        // Получаем данные из тела запроса
-        $data = json_decode($request->getContent(), true);
+        $partnerId = $this->requirePartnerId();
+
+        $data         = json_decode($request->getContent(), true);
         $selectedDate = $data['selectedDate'] ?? null;
-        $teamsData = $data['teamsData'] ?? null;
+        $teamsData    = $data['teamsData'] ?? null;
+
         if (is_null($teamsData) || !is_array($teamsData)) {
-            return response()->json(['error' => 'Invalid teams data1'], 400);
+            return response()->json(['error' => 'Invalid teams data'], 400);
         }
+
         $selectedDateString = $selectedDate;
-        $selectedDate = $this->formatedDate($selectedDate);
+        $selectedDate       = $this->formatedDate($selectedDate);
+        $authorId           = auth()->id();
 
-        if (is_null($teamsData) || !is_array($teamsData)) {
-            return response()->json(['error' => 'Invalid teams data2'], 400);
-        }
-        $authorId = auth()->id(); // Авторизованный пользователь
-
-        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $teamsData) {
-            // Перебираем массив и обновляем цены команд
+        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $teamsData, $partnerId) {
             foreach ($teamsData as $teamData) {
-                // Обновляем цены для групп
-                $teamId = $teamData['teamId'];
 
-                $team = \App\Models\Team::select('id', 'title')->find($teamId);
-
-                if (!$team) {
-                    Log::warning('setPriceAllTeams: команда не найдена по teamId', ['teamId' => $teamId]);
+                $teamId = $teamData['teamId'] ?? null;
+                if (!$teamId) {
                     continue;
                 }
 
-                if ($teamId) {
-                    // Обновляем или создаем запись в таблице team_prices
-                    TeamPrice::updateOrCreate(
-                        [
-                            'team_id' => $teamId,
-                            'new_month' => $selectedDate
-                        ],
-                        [
-                            'price' => $teamData['price']
-                        ]
-                    );
-//                    ПРИМЕНИТЬ слева.Установка цен всем группам
-                    MyLog::create([
-                        'type' => 1,
-                        'action' => 11, // Изменение цен во всех группах
-                        'target_type'  => 'App\Models\UserPrice',
-                        'target_id'    => $teamId,
-                        'target_label' => $team->title,
-                        'description' => "Обновлена цена: {$teamData['price']} руб. Период: {$selectedDateString}.",
-                        'created_at' => now(),
+                $team = $this->scopeByPartner(Team::select('id', 'title'))
+                    ->where('id', $teamId)
+                    ->whereNull('deleted_at')
+                    ->first();
+
+                if (!$team) {
+                    \Log::warning('setPriceAllTeams: команда не найдена или не принадлежит текущему партнёру', [
+                        'teamId'    => $teamId,
+                        'partnerId' => $partnerId,
                     ]);
+                    continue;
                 }
 
-                $users = User::where('team_id', $teamId)
+                TeamPrice::updateOrCreate(
+                    [
+                        'team_id'   => $team->id,
+                        'new_month' => $selectedDate,
+                    ],
+                    [
+                        'price' => $teamData['price'],
+                    ]
+                );
+
+                MyLog::create([
+                    'type'         => 1,
+                    'action'       => 11, // Изменение цен во всех группах
+                    'target_type'  => 'App\Models\UserPrice',
+                    'target_id'    => $team->id,
+                    'target_label' => $team->title,
+                    'description'  => "Обновлена цена: {$teamData['price']} руб. Период: {$selectedDateString}.",
+                    'created_at'   => now(),
+                ]);
+
+                $users = User::where('team_id', $team->id)
                     ->where('is_enabled', 1)
                     ->get();
 
@@ -467,99 +502,251 @@ class SettingPricesController extends AdminBaseController
                         ->first();
 
                     if ($userPrice) {
-                        // Если запись существует и не оплачена, обновляем её
                         if (!$userPrice->is_paid) {
                             $userPrice->update([
-                                'price' => $teamData['price']
+                                'price' => $teamData['price'],
                             ]);
                         }
                     } else {
-                        // Если записи нет, создаем новую
                         UserPrice::create([
-                            'user_id' => $user['id'],
+                            'user_id'   => $user['id'],
                             'new_month' => $selectedDate,
-                            'price' => $teamData['price'],
-                            'is_paid' => false
+                            'price'     => $teamData['price'],
+                            'is_paid'   => false,
                         ]);
                     }
                 }
-
             }
         });
+
         return response()->json([
             'success' => true,
         ]);
     }
 
-    //AJAX ПРИМЕНИТЬ справа.Установка цен всем ученикам
+    // AJAX ПРИМЕНИТЬ справа. Установка цен всем ученикам (массово по команде, вкладка "по месяцам")
     public function setPriceAllUsers(Request $request)
     {
+        $partnerId = $this->requirePartnerId();
 
-        // Получаем JSON-содержимое запроса и декодируем его
         $data = json_decode($request->getContent(), true);
 
-        // Проверяем, что данные переданы корректно
         $selectedDate = $data['selectedDate'] ?? null;
-        $usersPrice = $data['usersPrice'] ?? null;
+        $usersPrice   = $data['usersPrice'] ?? null;
 
-        // Проверка данных
         if (is_null($usersPrice) || !is_array($usersPrice)) {
             return response()->json(['error' => 'Некорректные данные'], 400);
         }
 
-        $authorId = auth()->id(); // Авторизованный пользователь
+        $authorId           = auth()->id();
         $selectedDateString = $selectedDate;
-        $selectedDate = $this->formatedDate($selectedDate); // Предполагаем, что эта функция существует для форматирования даты
+        $selectedDate       = $this->formatedDate($selectedDate);
 
-        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice) {
+        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice, $partnerId) {
             foreach ($usersPrice as $priceData) {
-                $userPriceRecord = UserPrice::where('user_id', $priceData['user_id'])
+
+                $userId = $priceData['user_id'] ?? null;
+                if (!$userId) {
+                    continue;
+                }
+
+                $user = User::with('team')->find($userId);
+
+                if (!$user || !$user->team || (int) $user->team->partner_id !== (int) $partnerId) {
+                    \Log::warning('setPriceAllUsers: попытка изменить цену пользователя не своего партнёра', [
+                        'user_id'   => $userId,
+                        'partnerId' => $partnerId,
+                    ]);
+                    continue;
+                }
+
+                $userPriceRecord = UserPrice::where('user_id', $userId)
                     ->where('new_month', $selectedDate)
                     ->where('is_paid', 0)
                     ->first();
 
-                if ($userPriceRecord) {
-                    // Проверка, изменилось ли значение `price`
-                    if ($userPriceRecord->price != $priceData['price']) {
-                        $userPriceRecord->update([
-                            'price' => $priceData['price']
-                        ]);
+                if ($userPriceRecord && $userPriceRecord->price != $priceData['price']) {
+                    $userPriceRecord->update([
+                        'price' => $priceData['price'],
+                    ]);
 
-                        // Получаем имя через отношение
-//                        $userName = $priceData->user->name ?? 'Неизвестный пользователь'; // Защита от null
-                        $userName = $priceData['user']['name'] ?? 'Неизвестный пользователь';
+                    $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
 
-
-//                        ПРИМЕНИТЬ справа.Установка цен всем ученикам
-                        MyLog::create([
-                            'type' => 1,
-                            'action' => 12, // Лог для обновления цены команды
-                            'user_id'   => $priceData['user_id'],
-                            'target_type'  => 'App\Models\UserPrice',
-                            'target_id'    => $priceData['user_id'],
-                            'target_label' => $userName,
-                            'description' => "Обновлена цена: {$priceData['price']} руб. Период: {$selectedDateString}.",
-                            'created_at' => now(),
-                        ]);
-                    }
+                    MyLog::create([
+                        'type'         => 1,
+                        'action'       => 12,
+                        'user_id'      => $userId,
+                        'target_type'  => 'App\Models\UserPrice',
+                        'target_id'    => $userId,
+                        'target_label' => $userName,
+                        'description'  => "Обновлена цена: {$priceData['price']} руб. Период: {$selectedDateString}.",
+                        'created_at'   => now(),
+                    ]);
                 }
             }
         });
 
-//        return response()->json(['status' => 'Цены обновлены при необходимости'], 200);
-
-                return response()->json([
-            'success' => true,
-            'usersPrice' => $usersPrice,
-            'selectedDate' => $selectedDate
+        return response()->json([
+            'success'      => true,
+            'usersPrice'   => $usersPrice,
+            'selectedDate' => $selectedDate,
         ]);
     }
 
-    // Метод для обработки DataTables запросов
+    /**
+     * AJAX: получить цены конкретного ученика по месяцам за год (вкладка "по ученикам")
+     */
+    public function userYearPrices(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
 
+        $data = $request->validate([
+            'user_id' => 'required|integer',
+            'year'    => 'required|integer|min:2000|max:2100',
+        ]);
+
+        $userId = $data['user_id'];
+        $year   = $data['year'];
+
+        $user = User::with('team')->find($userId);
+
+        if (!$user || !$user->team || (int) $user->team->partner_id !== (int) $partnerId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        $prices = UserPrice::where('user_id', $userId)
+            ->whereYear('new_month', $year)
+            ->get()
+            ->keyBy('new_month');
+
+        $months = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $dateStr     = sprintf('%04d-%02d-01', $year, $m);
+            /** @var UserPrice|null $priceRow */
+            $priceRow    = $prices->get($dateStr);
+            $monthLabel  = $this->ruMonthName($m);
+
+            $months[] = [
+                'month'       => $m,
+                'month_label' => $monthLabel,
+                'new_month'   => $dateStr,
+                'price'       => $priceRow ? (int) $priceRow->price : 0,
+                'is_paid'     => $priceRow ? (bool) $priceRow->is_paid : false,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'user'    => [
+                'id'        => $user->id,
+                'name'      => $user->name,
+                'lastname'  => $user->lastname,
+                'team_id'   => $user->team_id,
+                'team_name' => optional($user->team)->title,
+            ],
+            'year'   => $year,
+            'months' => $months,
+        ]);
+    }
+
+    /**
+     * AJAX: сохранить цены ученика за год (вкладка "по ученикам")
+     */
+    public function saveUserYearPrices(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $data = $request->validate([
+            'user_id'          => 'required|integer',
+            'year'             => 'required|integer|min:2000|max:2100',
+            'prices'           => 'required|array',
+            'prices.*.new_month' => 'required|date_format:Y-m-d',
+            'prices.*.price'     => 'required|numeric|min:0',
+        ]);
+
+        $userId = $data['user_id'];
+        $year   = $data['year'];
+        $items  = $data['prices'];
+
+        $user = User::with('team')->find($userId);
+        if (!$user || !$user->team || (int) $user->team->partner_id !== (int) $partnerId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        $authorId = auth()->id();
+
+        DB::transaction(function () use ($items, $userId, $year, $authorId) {
+            foreach ($items as $item) {
+                $newMonth = $item['new_month'];
+                $price    = (int) $item['price'];
+
+                // защита от рассинхрона по году
+                $itemYear = (int) substr($newMonth, 0, 4);
+                if ($itemYear !== (int) $year) {
+                    continue;
+                }
+
+                $userPrice = UserPrice::where('user_id', $userId)
+                    ->where('new_month', $newMonth)
+                    ->first();
+
+                // вытаскиваем месяц для лога
+                $monthInt   = (int) substr($newMonth, 5, 2);
+                $monthLabel = $this->ruMonthName($monthInt) . ' ' . $year;
+
+                if ($userPrice) {
+                    if (!$userPrice->is_paid && (int) $userPrice->price !== $price) {
+                        $userPrice->update([
+                            'price' => $price,
+                        ]);
+
+                        MyLog::create([
+                            'type'         => 1,
+                            'action'       => 12,
+                            'user_id'      => $userId,
+                            'target_type'  => 'App\Models\UserPrice',
+                            'target_id'    => $userPrice->id,
+                            'target_label' => $userPrice->user->name ?? 'Пользователь',
+                            'description'  => "Обновлена цена: {$price} руб. Период: {$monthLabel}.",
+                            'created_at'   => now(),
+                        ]);
+                    }
+                } else {
+                    $created = UserPrice::create([
+                        'user_id'   => $userId,
+                        'new_month' => $newMonth,
+                        'price'     => $price,
+                        'is_paid'   => false,
+                    ]);
+
+                    MyLog::create([
+                        'type'         => 1,
+                        'action'       => 12,
+                        'user_id'      => $userId,
+                        'target_type'  => 'App\Models\UserPrice',
+                        'target_id'    => $created->id,
+                        'target_label' => $created->user->name ?? 'Пользователь',
+                        'description'  => "Установлена цена: {$price} руб. Период: {$monthLabel}.",
+                        'created_at'   => now(),
+                    ]);
+                }
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
+    // Метод для обработки DataTables запросов (логи)
     public function getLogsData(FilterRequest $request)
     {
         return $this->buildLogDataTable(1);
     }
-
 }

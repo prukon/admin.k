@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,31 +10,31 @@
     <title>kidscrm.online - сервис учета для детских садов, тематических школ и секций</title>
     <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
 
-    {{--JQuery--}}
+    {{-- JQuery --}}
     <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
 
-    {{--JQuery-UI--}} 
+    {{-- JQuery-UI --}}
     <script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>
 
-    {{--bootstrap--}}
+    {{-- bootstrap --}}
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
 
-    {{--Fontawesome--}}
+    {{-- Fontawesome --}}
     <script src="{{ asset('js/fontawesome/fontawesome.js') }}"></script>
     <link rel="stylesheet" href="{{ asset('plugins/fontawesome-free/css/all.min.css') }}">
 
 
-    {{--Datapicker--}}
+    {{-- Datapicker --}}
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.material.css') }}">
     <link rel="stylesheet" href="{{ asset('css/datapicker/datepicker.minimal.css') }}">
     <link rel="stylesheet" href="{{ asset('css/datapicker/themes-jquery-ui.css') }}">
     <script src="{{ asset('js/datapicker/datepicker.js') }}"></script>
 
     <!-- Google Font: Source Sans Pro -->
-    {{--<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">--}}
+    {{-- <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback"> --}}
 
     <!-- Ionicons -->
-    {{--<link rels="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">--}}
+    {{-- <link rels="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css"> --}}
 
 
 
@@ -63,7 +64,7 @@
     <!-- AdminLTE App -->
     <script src="{{ asset('dist/js/adminlte.js') }}"></script>
 
-    {{--Select2--}}
+    {{-- Select2 --}}
     <link rel="stylesheet" href="{{ asset('css/select2/select2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('css/select2/select2-bootstrap-5-theme.min.css') }}">
     <script src="{{ asset('js/select2/select2.full.min.js') }}"></script>
@@ -75,10 +76,9 @@
     <link rel="stylesheet" href="https://unpkg.com/cropperjs@1.6.1/dist/cropper.min.css">
     <script src="https://unpkg.com/cropperjs@1.6.1/dist/cropper.min.js"></script>
 
-    @vite([
-    'resources/sass/app.scss',
-    'resources/css/style.css'
-    ])
+    @vite(['resources/sass/app.scss', 'resources/css/style.css'])
+
+
 
 
     <style>
@@ -108,6 +108,32 @@
         }
     </style>
 
+
+    <style>
+        /* твоя белая кнопка по умолчанию */
+        .btn-primary {
+            background-color: #fff;
+            /* border-color: #0d6efd; */
+            /* или твой цвет */
+            color: black;
+            /* или #212529, как тебе комфортнее */
+        }
+
+        /* и то же самое для фокуса/актива, чтобы перебить bootstrap */
+        .btn-primary:focus,
+        .btn-primary.focus,
+        .btn-primary:active,
+        .btn-primary.active,
+        .show>.btn-primary.dropdown-toggle {
+            /* background-color: #fff; */
+            /* border-color: #0d6efd; */
+            color: black;
+            /* опционально — оставляем/убираем подсветку фокуса */
+            /* box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, .25); */
+        }
+    </style>
+
+
     <script>
         /**
          * Открывает modalId. Если уже открыта другая модалка —
@@ -115,7 +141,7 @@
          * После закрытия новой возвращаем предыдущую модалку.
          */
         function showModalQueued(modalId, opts = {}) {
-            const $current = $('.modal.show').last();                 // текущая (если есть)
+            const $current = $('.modal.show').last(); // текущая (если есть)
             const currentId = $current.length ? $current.attr('id') : null;
 
             const targetEl = document.getElementById(modalId);
@@ -127,7 +153,7 @@
             const target = bootstrap.Modal.getOrCreateInstance(targetEl, opts);
 
             // когда НОВАЯ закроется — вернуть предыдущую (если была)
-            $(targetEl).off('hidden.bs.modal.return').one('hidden.bs.modal.return', function () {
+            $(targetEl).off('hidden.bs.modal.return').one('hidden.bs.modal.return', function() {
                 if (currentId) {
                     const prevEl = document.getElementById(currentId);
                     if (prevEl) bootstrap.Modal.getOrCreateInstance(prevEl).show();
@@ -138,7 +164,7 @@
                 const prevEl = document.getElementById(currentId);
                 const prev = bootstrap.Modal.getInstance(prevEl);
                 // после полного скрытия предыдущей — показать новую
-                $(prevEl).off('hidden.bs.modal.openNext').one('hidden.bs.modal.openNext', function () {
+                $(prevEl).off('hidden.bs.modal.openNext').one('hidden.bs.modal.openNext', function() {
                     target.show();
                 });
                 prev.hide();
@@ -151,335 +177,342 @@
     @include('includes.metrika')
     @include('includes.gtm')
 
-    
+
 </head>
+
 <body class="hold-transition sidebar-mini layout-fixed">
-<div class="wrapper">
+    <div class="wrapper">
 
-    <!-- Preloader -->
-    {{--<div class="preloader flex-column justify-content-center align-items-center">--}}
-    {{--<img class="animation__shake" src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="AdminLTELogo" height="60"--}}
-    {{--width="60">--}}
-    {{--</div>--}}
+        <!-- Preloader -->
+        {{-- <div class="preloader flex-column justify-content-center align-items-center"> --}}
+        {{-- <img class="animation__shake" src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="AdminLTELogo" height="60" --}}
+        {{-- width="60"> --}}
+        {{-- </div> --}}
 
-    <!-- Navbar -->
-    @php
-        $user = auth()->user();
-    @endphp
+        <!-- Navbar -->
+        @php
+            $user = auth()->user();
+        @endphp
 
-    <nav class="main-header navbar navbar-expand navbar-white navbar-light">
-        <!-- Левый бар (акардион для моб версии) -->
-        <ul class="navbar-nav ml-3">
-            <li class="nav-item">
-                <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
-            </li>
+        <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+            <!-- Левый бар (акардион для моб версии) -->
+            <ul class="navbar-nav ml-3">
+                <li class="nav-item">
+                    <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i
+                            class="fas fa-bars"></i></a>
+                </li>
 
-            @isset($menuItems)
+                @isset($menuItems)
 
-                @foreach($menuItems as $item)
-                    <li class="nav-item d-none d-sm-inline-block">
-                        <a target="{{ $item->target_blank ? '_blank' : '_self' }}" href="{{ $item->link }}"
-                           class="nav-link">{{ $item->name }}</a>
-                    </li>
-                @endforeach
-            @endisset
+                    @foreach ($menuItems as $item)
+                        <li class="nav-item d-none d-sm-inline-block">
+                            <a target="{{ $item->target_blank ? '_blank' : '_self' }}" href="{{ $item->link }}"
+                                class="nav-link">{{ $item->name }}</a>
+                        </li>
+                    @endforeach
+                @endisset
 
-        </ul>
+            </ul>
 
-        <!-- Форма переключения партнёров -->
-        @can('partner.switch')
-            <div class="collapse navbar-collapse mr-3">
-                <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
-                    @csrf
-                    <div>
-                        <select name="partner_id" class="form-select @error('partner_id') is-invalid @enderror" onchange="this.form.submit()">
-                        @foreach(App\Models\Partner::query()->orderBy('title')->get(['id', 'title']) as $partner)
-                            <option value="{{ $partner->id }}" {{ session('current_partner') == $partner->id ? 'selected' : '' }}>
-                                {{ $partner->title }}
-                            </option>
-                        @endforeach
-                        </select>
-                        @error('partner_id')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                        @enderror
-                    </div>
-                </form>
-            </div>
-        @endcan
-
-
-
-        <!-- Right navbar links -->
-        <ul class="navbar-nav ml-auto social-menu mr-3">
-            <!-- Navbar Search -->
-
-            @isset($socialItems)
-                @foreach($socialItems as $social)
-                    <li class="nav-item {{ $loop->first ? '' : 'ml-2' }}">
-                        <a target="_blank" class="d-flex justify-content-center align-items-center"
-                           href="{{ $social->link }}">
-                            <i class="{{ $social->icon ?: 'fa fa-globe' }}" aria-hidden="true"></i>
-                        </a>
-
-                    </li>
-                @endforeach
-            @endisset
-
-            <li class="nav-item d-flex align-items-center">
-                <button type="button" class="btn btn-primary logout confirm-logout-modal" data-bs-toggle="modal"
-                        data-bs-target="#logoutModal">Выйти
-                </button>
-            </li>
-
-            <script>
-                document.addEventListener('show.bs.modal', function (event) {
-                    const modal = event.target; // Получаем текущее модальное окно
-                    const wrapper = document.querySelector('.wrapper'); // Находим элемент wrapper
-
-                    if (wrapper && modal) {
-                        wrapper.prepend(modal); // Перемещаем модальное окно в начало wrapper
-                    }
-                });
-            </script>
+            <!-- Форма переключения партнёров -->
+            @can('partner.switch')
+                <div class="collapse navbar-collapse mr-3">
+                    <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
+                        @csrf
+                        <div>
+                            <select name="partner_id" class="form-select @error('partner_id') is-invalid @enderror"
+                                onchange="this.form.submit()">
+                                @foreach (App\Models\Partner::query()->orderBy('title')->get(['id', 'title']) as $partner)
+                                    <option value="{{ $partner->id }}"
+                                        {{ session('current_partner') == $partner->id ? 'selected' : '' }}>
+                                        {{ $partner->title }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('partner_id')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </form>
+                </div>
+            @endcan
 
 
-            <script>
-                // Вызов модалки логаута
-                $(document).on('click', '.confirm-logout-modal', function () {
-                    logoutUser();
-                });
 
-                //Выполнение логаута
-                function logoutUser() {
-                    // Показываем модалку с текстом и передаём колбэк, который выполнит выход
-                    showConfirmDeleteModal(
-                        "Подтверждение выхода",
-                        "Вы уверены, что хотите выйти?",
-                        function () {
-                            $.ajax({
-                                url: "{{ route('logout') }}",   // маршрут выхода
-                                type: "POST",                  // метод запроса
-                                data: {
-                                    _token: "{{ csrf_token() }}" // обязательно передаём CSRF-токен
-                                },
-                                success: function (response) {
-                                    // Закрываем модальное окно
-                                    // $('#deleteConfirmationModal').modal('hide');
-                                    // Перезагружаем страницу или перенаправляем, если нужно
-                                    location.reload();
-                                },
-                                error: function (xhr) {
-                                    // alert('Ошибка при попытке выйти.');
-                                    location.reload();
-                                }
-                            });
-                        }
-                    );
-                }
+            <!-- Right navbar links -->
+            <ul class="navbar-nav ml-auto social-menu mr-3">
+                <!-- Navbar Search -->
 
-            </script>
-
-
-        </ul>
-    </nav>
-    <!-- /.navbar -->
-
-    <!-- Левое меню -->
-    <aside class="main-sidebar sidebar-dark-primary elevation-4">
-        <!-- Brand Logo -->
-        <a href="/" class="brand-link my-brand-link  ml-3">
-            {{--<a href="/" class="ml-3">--}}
-            {{--                        <img src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="Kidslink Logo"--}}
-            {{--                             class="brand-image img-circle elevation-3" style="opacity: .8">--}}
-            <span class="brand-text font-weight-light">kidscrm.online</span>
-        </a>
-
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <!-- Sidebar user panel (optional) -->
-            <div class="user-panel mt-3 pb-3 mb-3 d-flex">
-                {{--                                <div class="image">--}}
-                {{--                                    <img src="{{ asset('dist/img/user2-160x160.jpg') }}" class="img-circle elevation-2"--}}
-                {{--                                         alt="User Image">--}}
-                {{--                                </div>--}}
-                <div class="info text-light">
-                    <a href="#" class="d-block"></a>
-                    <h6> Имя: {{auth()->user()->name}}</h6>
-                    {{--                    <h6> Id: {{auth()->user()->id}}</h6>--}}
-                    <h6> Почта: {{auth()->user()->email}}</h6>
-                    {{--                    <h6> Роль: {{auth()->user()->role->label}}</h6>--}}
-                    Роль: {{ optional(auth()->user()->role)->label ?? 'Не указана' }}
-
-
-                    @can('servicePayments.view')
-
-                        @php
-                            $parsedDate = \Carbon\Carbon::parse($latestEndDate);
-                            // Проверяем, меньше ли текущая дата, чем $parsedDate
-                            $isFuture = now()->lessThan($parsedDate);
-                        @endphp
-
-                        <h6>
-                            Оплачено до:
-                            <a href="/partner-payment/history">
-        <span class="badge {{ $isFuture ? 'badge-success' : 'badge-danger' }} latestEndDate">
-            {{ $parsedDate->format('d.m.Y') }}
-        </span>
+                @isset($socialItems)
+                    @foreach ($socialItems as $social)
+                        <li class="nav-item {{ $loop->first ? '' : 'ml-2' }}">
+                            <a target="_blank" class="d-flex justify-content-center align-items-center"
+                                href="{{ $social->link }}">
+                                <i class="{{ $social->icon ?: 'fa fa-globe' }}" aria-hidden="true"></i>
                             </a>
 
-                        </h6>
-                    @endcan
-
-
-                    {{--@can('partnerWallet.view')--}}
-                    {{--<h6> Баланс: {{ number_format((float)($partnerWalletBalance ?? 0), 0, ',', ' ') }} руб.--}}
-                    {{--<a href="/partner-wallet">(пополнить)</a></h6>--}}
-                    {{--@endcan--}}
-
-
-                    @php
-                        /** @var \App\Models\Partner|null $cp */
-                        $cp = app()->bound('current_partner') ? app('current_partner') : null;
-                        $balance = $cp?->wallet_balance ?? ($partnerWalletBalance ?? null);
-                    @endphp
-
-                    @can('partnerWallet.view')
-                        @if($cp)
-                            <h6>
-                                Баланс
-                                {{ number_format((float)$balance, 0, ',', ' ') }} ₽
-                                <a href="/partner-wallet">(пополнить)</a>
-                            </h6>
-                        @else
-                            <h6>Партнёр не выбран</h6>
-                        @endif
-                    @endcan
-
-
-                </div>
-            </div>
-
-
-            <!-- SidebarSearch Form -->
-            {{--                    <div class="form-inline">--}}
-            {{--                        <div class="input-group" data-widget="sidebar-search">--}}
-            {{--                            <input class="form-control form-control-sidebar" type="search" placeholder="Search"--}}
-            {{--                                   aria-label="Search">--}}
-            {{--                            <div class="input-group-append">--}}
-            {{--                                <button class="btn btn-sidebar">--}}
-            {{--                                    <i class="fas fa-search fa-fw"></i>--}}
-            {{--                                </button>--}}
-            {{--                            </div>--}}
-            {{--                        </div>--}}
-            {{--                    </div>--}}
-
-            <!-- Sidebar Menu -->
-            @include('includes.sidebar')
-            <!-- /.sidebar-menu -->
-        </div>
-        <!-- /.sidebar -->
-    </aside>
-
-    <!-- Контент -->
-    <div class="content-wrapper">
-        <!-- Content Header (Page header) -->
-
-        <!-- Main content -->
-        <section class="content">
-            <div class="container-fluid">
-
-                @yield('content')
-
-            </div>
-        </section>
-    </div>
-
-    <!-- Футер -->
-    <footer class="main-footer">
-
-        <div>
-            Copyright &copy; 2022-{{ date('Y') }}
-            <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
-            Все права защищены.
-            @can('documentations.view')
-                <span class="mx-2">·</span>
-                <a href="{{ route('docs.documentation.index') }}">Документация</a>
-            @endcan
-        </div>
-        <div class="float-right d-none d-sm-inline-block">
-            {{--            <b>Version</b> 3.2.0--}}
-        </div>
-    </footer>
-
-
-</div>
-
-<script>
-    $.widget.bridge('uibutton', $.ui.button)
-</script>
-
-
-@yield('scripts')
-
-
-@if (auth()->check() && optional(auth()->user()->role)->name === 'admin' && !auth()->user()->offer_accepted)
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            var modal = new bootstrap.Modal(document.getElementById('partnerOfferModal'));
-            modal.show();
-        });
-    </script>
-    @include('includes.modal.offerModal')
-@endif
-
-@stack('scripts')
-
-{{--jivo site--}}
-{{--<script src="//code.jivo.ru/widget/3lc75ICTPG" async></script>--}}
-
-
-@include('includes.modal.confirmDeleteModal')
-@include('includes.modal.successModal')
-@include('includes.modal.errorModal')
-
-
-
-
-@if(session('status'))
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div class="toast show align-items-center text-bg-success border-0">
-            <div class="d-flex">
-                <div class="toast-body">{{ session('status') }}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    </div>
-@endif
-@if($errors->any())
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div class="toast show align-items-center text-bg-danger border-0">
-            <div class="d-flex">
-                <div class="toast-body">
-                    @foreach ($errors->all() as $e)
-                        <div>{{ $e }}</div>
+                        </li>
                     @endforeach
+                @endisset
+
+                <li class="nav-item d-flex align-items-center">
+                    <button type="button" class="btn btn-primary logout confirm-logout-modal" data-bs-toggle="modal"
+                        data-bs-target="#logoutModal">Выйти
+                    </button>
+                </li>
+
+                <script>
+                    document.addEventListener('show.bs.modal', function(event) {
+                        const modal = event.target; // Получаем текущее модальное окно
+                        const wrapper = document.querySelector('.wrapper'); // Находим элемент wrapper
+
+                        if (wrapper && modal) {
+                            wrapper.prepend(modal); // Перемещаем модальное окно в начало wrapper
+                        }
+                    });
+                </script>
+
+
+                <script>
+                    // Вызов модалки логаута
+                    $(document).on('click', '.confirm-logout-modal', function() {
+                        logoutUser();
+                    });
+
+                    //Выполнение логаута
+                    function logoutUser() {
+                        // Показываем модалку с текстом и передаём колбэк, который выполнит выход
+                        showConfirmDeleteModal(
+                            "Подтверждение выхода",
+                            "Вы уверены, что хотите выйти?",
+                            function() {
+                                $.ajax({
+                                    url: "{{ route('logout') }}", // маршрут выхода
+                                    type: "POST", // метод запроса
+                                    data: {
+                                        _token: "{{ csrf_token() }}" // обязательно передаём CSRF-токен
+                                    },
+                                    success: function(response) {
+                                        // Закрываем модальное окно
+                                        // $('#deleteConfirmationModal').modal('hide');
+                                        // Перезагружаем страницу или перенаправляем, если нужно
+                                        location.reload();
+                                    },
+                                    error: function(xhr) {
+                                        // alert('Ошибка при попытке выйти.');
+                                        location.reload();
+                                    }
+                                });
+                            }
+                        );
+                    }
+                </script>
+
+
+            </ul>
+        </nav>
+        <!-- /.navbar -->
+
+        <!-- Левое меню -->
+        <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <!-- Brand Logo -->
+            <a href="/" class="brand-link my-brand-link  ml-3">
+                {{-- <a href="/" class="ml-3"> --}}
+                {{--                        <img src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="Kidslink Logo" --}}
+                {{--                             class="brand-image img-circle elevation-3" style="opacity: .8"> --}}
+                <span class="brand-text font-weight-light">kidscrm.online</span>
+            </a>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Sidebar user panel (optional) -->
+                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                    {{--                                <div class="image"> --}}
+                    {{--                                    <img src="{{ asset('dist/img/user2-160x160.jpg') }}" class="img-circle elevation-2" --}}
+                    {{--                                         alt="User Image"> --}}
+                    {{--                                </div> --}}
+                    <div class="info text-light">
+                        <a href="#" class="d-block"></a>
+                        <h6> Имя: {{ auth()->user()->name }}</h6>
+                        {{--                    <h6> Id: {{auth()->user()->id}}</h6> --}}
+                        <h6> Почта: {{ auth()->user()->email }}</h6>
+                        {{--                    <h6> Роль: {{auth()->user()->role->label}}</h6> --}}
+                        Роль: {{ optional(auth()->user()->role)->label ?? 'Не указана' }}
+
+
+                        @can('servicePayments.view')
+                            @php
+                                $parsedDate = \Carbon\Carbon::parse($latestEndDate);
+                                // Проверяем, меньше ли текущая дата, чем $parsedDate
+                                $isFuture = now()->lessThan($parsedDate);
+                            @endphp
+
+                            <h6>
+                                Оплачено до:
+                                <a href="/partner-payment/history">
+                                    <span class="badge {{ $isFuture ? 'badge-success' : 'badge-danger' }} latestEndDate">
+                                        {{ $parsedDate->format('d.m.Y') }}
+                                    </span>
+                                </a>
+
+                            </h6>
+                        @endcan
+
+
+                        {{-- @can('partnerWallet.view') --}}
+                        {{-- <h6> Баланс: {{ number_format((float)($partnerWalletBalance ?? 0), 0, ',', ' ') }} руб. --}}
+                        {{-- <a href="/partner-wallet">(пополнить)</a></h6> --}}
+                        {{-- @endcan --}}
+
+
+                        @php
+                            /** @var \App\Models\Partner|null $cp */
+                            $cp = app()->bound('current_partner') ? app('current_partner') : null;
+                            $balance = $cp?->wallet_balance ?? ($partnerWalletBalance ?? null);
+                        @endphp
+
+                        @can('partnerWallet.view')
+                            @if ($cp)
+                                <h6>
+                                    Баланс
+                                    {{ number_format((float) $balance, 0, ',', ' ') }} ₽
+                                    <a href="/partner-wallet">(пополнить)</a>
+                                </h6>
+                            @else
+                                <h6>Партнёр не выбран</h6>
+                            @endif
+                        @endcan
+
+
+                    </div>
                 </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+
+
+                <!-- SidebarSearch Form -->
+                {{--                    <div class="form-inline"> --}}
+                {{--                        <div class="input-group" data-widget="sidebar-search"> --}}
+                {{--                            <input class="form-control form-control-sidebar" type="search" placeholder="Search" --}}
+                {{--                                   aria-label="Search"> --}}
+                {{--                            <div class="input-group-append"> --}}
+                {{--                                <button class="btn btn-sidebar"> --}}
+                {{--                                    <i class="fas fa-search fa-fw"></i> --}}
+                {{--                                </button> --}}
+                {{--                            </div> --}}
+                {{--                        </div> --}}
+                {{--                    </div> --}}
+
+                <!-- Sidebar Menu -->
+                @include('includes.sidebar')
+                <!-- /.sidebar-menu -->
+            </div>
+            <!-- /.sidebar -->
+        </aside>
+
+        <!-- Контент -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+
+            <!-- Main content -->
+            <section class="content">
+                <div class="container-fluid">
+
+                    @yield('content')
+
+                </div>
+            </section>
+        </div>
+
+        <!-- Футер -->
+        <footer class="main-footer">
+
+            <div>
+                Copyright &copy; 2022-{{ date('Y') }}
+                <a target="_blank" href="https://kidscrm.online/">kidscrm.online</a>.
+                Все права защищены.
+                @can('documentations.view')
+                    <span class="mx-2">·</span>
+                    <a href="{{ route('docs.documentation.index') }}">Документация</a>
+                @endcan
+            </div>
+            <div class="float-right d-none d-sm-inline-block">
+                {{--            <b>Version</b> 3.2.0 --}}
+            </div>
+        </footer>
+
+
+    </div>
+
+    <script>
+        $.widget.bridge('uibutton', $.ui.button)
+    </script>
+
+
+    @yield('scripts')
+
+
+    @if (auth()->check() && optional(auth()->user()->role)->name === 'admin' && !auth()->user()->offer_accepted)
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                var modal = new bootstrap.Modal(document.getElementById('partnerOfferModal'));
+                modal.show();
+            });
+        </script>
+        @include('includes.modal.offerModal')
+    @endif
+
+    @stack('scripts')
+
+    {{-- jivo site --}}
+    {{-- <script src="//code.jivo.ru/widget/3lc75ICTPG" async></script> --}}
+
+
+    @include('includes.modal.confirmDeleteModal')
+    @include('includes.modal.successModal')
+    @include('includes.modal.errorModal')
+
+
+
+
+    @if (session('status'))
+        <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div class="toast show align-items-center text-bg-success border-0">
+                <div class="d-flex">
+                    <div class="toast-body">{{ session('status') }}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                        data-bs-dismiss="toast"></button>
+                </div>
             </div>
         </div>
-    </div>
-@endif
+    @endif
+    @if ($errors->any())
+        <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div class="toast show align-items-center text-bg-danger border-0">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        @foreach ($errors->all() as $e)
+                            <div>{{ $e }}</div>
+                        @endforeach
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                        data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        </div>
+    @endif
 
-{{-- снежинки --}}
+    {{-- снежинки --}}
 
-@php
-    $month = now()->month; // 1 — январь, 2 — февраль, ..., 12 — декабрь
-@endphp
-@if (in_array($month, [12, 1, 2]))
-    <script src="https://daruse.ru/assets/js/snowfall.js"></script>
-    <script type="text/javascript">$(document).snowfall();</script>
-@endif
+    @php
+        $month = now()->month; // 1 — январь, 2 — февраль, ..., 12 — декабрь
+    @endphp
+    @if (in_array($month, [12, 1, 2]))
+        <script src="https://daruse.ru/assets/js/snowfall.js"></script>
+        <script type="text/javascript">
+            $(document).snowfall();
+        </script>
+    @endif
 
 
 </body>
+
 </html>

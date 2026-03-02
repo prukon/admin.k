@@ -52,7 +52,7 @@
         {{--Установка цен--}}
         @can('setPrices.view')
         <li class="nav-item">
-                <a href="/admin/setting-prices?current-month" class="nav-link">
+                <a href="/admin/setting-prices/monthly" class="nav-link">
                     <i class="nav-icon fa-solid fa-receipt"></i>
                     <p>Установка цен</p>
                 </a>
