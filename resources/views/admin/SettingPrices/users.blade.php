@@ -70,7 +70,7 @@
 
                 <div class="col-12 mb-2">
                     @php $currentYear = now()->year; @endphp
-                    <label for="user-year-select" class="form-label small mb-1">Год</label>
+                    {{-- <label for="user-year-select" class="form-label small mb-1">Год</label> --}}
                     <select class="form-select form-select-sm" id="user-year-select">
                         @for($year = $currentYear - 1; $year <= $currentYear + 1; $year++)
                             <option value="{{ $year }}" {{ $year === $currentYear ? 'selected' : '' }}>
@@ -242,7 +242,7 @@
                 currentUserId = userId;
 
                 $('#user-detail-name').text(userName);
-                $('#user-detail-team').text(teamName ? 'Группа: ' + teamName : '');
+                // $('#user-detail-team').text(teamName ? 'Группа: ' + teamName : '');
 
                 loadUserYearPrices();
             });

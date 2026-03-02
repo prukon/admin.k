@@ -250,27 +250,27 @@
                             <li class="d-flex align-items-start mb-2">
                                 <img src="{{ asset('img/landing/icons/check-mark.png') }}" class="me-2 mt-1"
                                     style="width:20px; height:20px; object-fit:contain;" alt="Не нужна онлайн-касса">
-                                <span>Готовая платёжная система. Онлайн-касса вам не требуется</span>
+                                <span>Не нужна онлайн-касса</span>
                             </li>
 
                             <li class="d-flex align-items-start mb-2">
                                 <img src="{{ asset('img/landing/icons/check-mark.png') }}" class="me-2 mt-1"
                                     style="width:20px; height:20px; object-fit:contain;"
                                     alt="Не нужно подключать эквайринг">
-                                <span>Не нужно отдельно подключать эквайринг и разбираться с банками</span>
+                                <span>Не нужно подключать эквайринг</span>
                             </li>
 
                             <li class="d-flex align-items-start mb-2">
                                 <img src="{{ asset('img/landing/icons/check-mark.png') }}" class="me-2 mt-1"
                                     style="width:20px; height:20px; object-fit:contain;"
                                     alt="Не нужно считать долги вручную">
-                                <span>Система сама считает долги и показывает, кто и за какой месяц должен школе</span>
+                                <span>Не нужно считать долги вручную</span>
                             </li>
 
                             <li class="d-flex align-items-start mb-2">
                                 <img src="{{ asset('img/landing/icons/check-mark.png') }}" class="me-2 mt-1"
                                     style="width:20px; height:20px; object-fit:contain;" alt="Онлайн подписание договоров">
-                                <span>Онлайн-подписание договоров с родителями — без бумажной волокиты</span>
+                                <span>Онлайн подписание договоров с родителями</span>
                             </li>
 
                             <li class="d-flex align-items-start mb-2">

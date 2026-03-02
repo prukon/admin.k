@@ -1,7 +1,7 @@
 @extends('layouts.admin2')
 @section('content')
     <div class="main-content">
-        <h4 class="pt-3 pb-3  text-start">Установка цен 1</h4>
+        <h4 class="pt-3 pb-3  text-start">Установка цен</h4>
         <div class="">
             <ul class="nav nav-tabs" id="myTab" role="tablist">
                 {{-- Установка цен по месяцам --}}

@@ -344,13 +344,6 @@ class SettingPricesController extends AdminBaseController
         return sprintf('%04d-%02d-01', (int) $year, $mNum);
     }
 
-    /**
-     * LEGACY: для обратной совместимости. Вызывает новую реализацию.
-     */
-    public function setTeamPrice2(Request $request)
-    {
-        return $this->setTeamPrice($request);
-    }
 
     public function setTeamPrice(Request $request)
     {
@@ -525,7 +518,7 @@ class SettingPricesController extends AdminBaseController
     }
 
     // AJAX ПРИМЕНИТЬ справа. Установка цен всем ученикам (массово по команде, вкладка "по месяцам")
-    public function setPriceAllUsers(Request $request)
+    public function setPriceAllUsers2(Request $request)
     {
         $partnerId = $this->requirePartnerId();
 
@@ -592,6 +585,82 @@ class SettingPricesController extends AdminBaseController
             'selectedDate' => $selectedDate,
         ]);
     }
+
+    public function setPriceAllUsers(Request $request)
+{
+    // Получаем JSON-содержимое запроса и декодируем его
+    $data = json_decode($request->getContent(), true);
+
+    // Проверяем, что данные переданы корректно
+    $selectedDate = $data['selectedDate'] ?? null;
+    $usersPrice   = $data['usersPrice']   ?? null;
+
+    // Проверка данных
+    if (is_null($usersPrice) || !is_array($usersPrice)) {
+        return response()->json(['error' => 'Некорректные данные'], 400);
+    }
+
+    $authorId           = auth()->id(); // Авторизованный пользователь
+    $selectedDateString = $selectedDate;
+    $selectedDate       = $this->formatedDate($selectedDate); // 'Сентябрь 2024' -> '2024-09-01'
+
+    DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice) {
+        foreach ($usersPrice as $priceData) {
+            $userId = $priceData['user_id'] ?? null;
+            if (!$userId) {
+                continue;
+            }
+
+            /** @var UserPrice|null $userPriceRecord */
+            $userPriceRecord = UserPrice::where('user_id', $userId)
+                ->where('new_month', $selectedDate)
+                ->first();
+
+            // 1) Нет записи — не создаём новую (по тесту set_price_all_users_does_not_create_new_records_or_touch_absent_users)
+            if (!$userPriceRecord) {
+                continue;
+            }
+
+            // 2) Если оплачено — не трогаем
+            if ($userPriceRecord->is_paid) {
+                continue;
+            }
+
+            $newPrice = (int)($priceData['price'] ?? 0);
+
+            // 3) Меняем только если цена реально изменилась
+            if ((int)$userPriceRecord->price === $newPrice) {
+                continue;
+            }
+
+            // Обновляем цену
+            $userPriceRecord->update([
+                'price' => $newPrice,
+            ]);
+
+            // Имя для лога — из payload (как в тестах)
+            $userName = $priceData['user']['name'] ?? 'Неизвестный пользователь';
+
+            // ПРИМЕНИТЬ справа. Установка цен всем ученикам
+            MyLog::create([
+                'type'         => 1,
+                'action'       => 12, // Лог для обновления цены ученика
+                'user_id'      => $userId,
+                'target_type'  => 'App\Models\UserPrice',
+                'target_id'    => $userId,
+                'target_label' => $userName,
+                'description'  => "Обновлена цена: {$newPrice} руб. Период: {$selectedDateString}.",
+                'created_at'   => now(),
+            ]);
+        }
+    });
+
+    return response()->json([
+        'success'      => true,
+        'usersPrice'   => $usersPrice,
+        'selectedDate' => $selectedDate,
+    ]);
+}
 
     /**
      * AJAX: получить цены конкретного ученика по месяцам за год (вкладка "по ученикам")

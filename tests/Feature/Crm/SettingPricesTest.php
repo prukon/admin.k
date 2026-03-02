@@ -75,7 +75,7 @@ class SettingPricesTest extends CrmTestCase
         // index
         $this->get(route('admin.settingPrices.indexMenu'))
             ->assertStatus(200)
-            ->assertViewIs('admin.settingPrices');
+            ->assertViewIs('admin.SettingPrices.index');
 
         // updateDate
         $this->post(route('updateDate'), [
@@ -164,7 +164,7 @@ class SettingPricesTest extends CrmTestCase
 
         $response = $this->get(route('admin.settingPrices.indexMenu'))
             ->assertStatus(200)
-            ->assertViewIs('admin.settingPrices');
+            ->assertViewIs('admin.SettingPrices.index');
 
         // Команды в представлении — только текущего партнёра, отсортированы по order_by
         $viewTeams = $response->viewData('allTeams');
@@ -175,7 +175,6 @@ class SettingPricesTest extends CrmTestCase
         $monthString = $response->viewData('monthString');
         $this->assertNotEmpty($monthString);
 
-        // Превращаем с помощью формата контроллера (проверим ниже отдельно)
         $currentMonthDate = (new Carbon())->startOfMonth()->format('Y-m-d');
 
         $this->assertDatabaseHas('team_prices', [
@@ -186,13 +185,13 @@ class SettingPricesTest extends CrmTestCase
             'team_id'   => $team2->id,
             'new_month' => $currentMonthDate,
         ]);
-    }
+    }    
 
     /** @test */
     public function update_date_changes_month_and_initializes_team_prices_for_current_partner()
     {
         $this->asAdmin();
-
+ 
         $team1 = Team::factory()->create([
             'partner_id' => $this->partner->id,
             'deleted_at' => null,
@@ -707,7 +706,7 @@ class SettingPricesTest extends CrmTestCase
             'teamsData'    => null,
         ])->assertStatus(400)
             ->assertJson([
-                'error' => 'Invalid teams data1',
+                'error' => 'Invalid teams data',
             ]);
 
         // teamsData не массив
@@ -716,7 +715,7 @@ class SettingPricesTest extends CrmTestCase
             'teamsData'    => 'not-an-array',
         ])->assertStatus(400)
             ->assertJson([
-                'error' => 'Invalid teams data1',
+                'error' => 'Invalid teams data',
             ]);
     }
 
