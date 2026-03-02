@@ -5,7 +5,7 @@
         {{-- Левый блок: список учеников (аналогично левому бару групп) --}}
         <div id="left_bar" class="col-12 col-lg-5 mb-3">
             {{-- Фильтры над списком --}}
-            <div class="row mb-3">
+            <div class="row mb-3 mt-3">
                 <div class="col-6">
                     <select class="form-select" id="filter-team">
                         <option value="">Все группы</option>
