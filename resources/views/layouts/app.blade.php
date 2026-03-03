@@ -34,10 +34,11 @@
         <nav class="navbar navbar-expand-md">
             <div class="container">
                 <!-- Лого -->
+               
+
                 <a class="navbar-brand" href="{{ url('/') }}">
-{{--                    <img src="{{ asset('img/logo3.png') }}" alt="kidscrm.online" height="80">--}}
-               kidscrm.online123
-                </a>
+                    <img src="{{ asset('img/logo.png') }}" alt="kidscrm.online" height="80">
+               </a>
 
                 <!-- Кнопка‑гамбургер -->
                 <button class="navbar-toggler" type="button"
