@@ -316,10 +316,12 @@
         <!-- Левое меню -->
         <aside class="main-sidebar sidebar-dark-primary elevation-4">
             <!-- Brand Logo -->
+            
+            {{-- <a href="/cabinet" class=" ml-3 mt-3 mb-3 " style="width: 140px;">
+                <img src="{{ asset('img/logo.png') }}" class="brand-image mt-3 mb-3" alt="kidscrm.online Logo" style=" width: 140px;">
+            </a> --}}
+            
             <a href="/" class="brand-link my-brand-link  ml-3">
-                {{-- <a href="/" class="ml-3"> --}}
-                {{--                        <img src="{{ asset('dist/img/AdminLTELogo.png') }}" alt="Kidslink Logo" --}}
-                {{--                             class="brand-image img-circle elevation-3" style="opacity: .8"> --}}
                 <span class="brand-text font-weight-light">kidscrm.online</span>
             </a>
 

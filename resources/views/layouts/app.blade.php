@@ -36,7 +36,7 @@
                 <!-- Лого -->
                 <a class="navbar-brand" href="{{ url('/') }}">
 {{--                    <img src="{{ asset('img/logo3.png') }}" alt="kidscrm.online" height="80">--}}
-               kidscrm.online
+               kidscrm.online123
                 </a>
 
                 <!-- Кнопка‑гамбургер -->

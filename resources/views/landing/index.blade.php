@@ -23,9 +23,10 @@
             bottom: 0.08em;
             height: 0.7em;
             background: linear-gradient(95deg,
-                    #ffb366 0%,
-                    #ffc694 40%,
-                    #ffb366 80%);
+                    #ffa300 0%,
+                    #ff670299 40%,
+                    #ffa300 80%);
+
             border-radius: 12px;
             transform: rotate(-0.5deg);
             z-index: -1;
@@ -157,7 +158,7 @@
             justify-content: center;
             font-weight: 700;
             font-size: 0.95rem;
-            color: #065f46;
+            color: #289b5f;
             box-shadow: 0 4px 10px rgba(16, 185, 129, 0.18);
         }
 
@@ -211,6 +212,62 @@
                 left: 0.05rem;
             }
         }
+
+        .btn-order {
+            Background-color: #289b5f;
+            border-color: #289b5f;
+        }
+
+        .btn-order {
+            background-color: #289b5f;
+            border-color: #289b5f;
+            color: #fff;
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* hover */
+        .btn-order:hover {
+            background-color: #218653;
+            border-color: #218653;
+            color: #fff;
+        }
+
+        /* active */
+        .btn-order:active,
+        .btn-order.active,
+        .show>.btn-order.dropdown-toggle {
+            background-color: #1b6f45;
+            border-color: #1b6f45;
+            color: #fff;
+        }
+
+        /* focus */
+        .btn-order:focus,
+        .btn-order:focus-visible {
+            background-color: #218653;
+            border-color: #218653;
+            box-shadow: 0 0 0 0.25rem rgba(40, 155, 95, 0.35);
+            color: #fff;
+        }
+
+        /* disabled */
+        .btn-order:disabled,
+        .btn-order.disabled {
+            background-color: #289b5f;
+            border-color: #289b5f;
+            opacity: 0.6;
+        }
+
+        .btn-order-transform:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-order-transform:active {
+            transform: translateY(0);
+        } 
+        .my-alert-color {
+            color:#ff6501;
+        }
     </style>
 
     <div class="landing-page">
@@ -226,7 +283,7 @@
                     <div class="col-12 mb-3 mb-md-4">
                         <div class="text-center mb-2">
                             <span class="section-label">Онлайн-оплаты для детских секций</span>
-                        </div>
+                        </div> 
 
                         <h1 class="fw-bold text-center mb-3">
                             <span class="mark-creative">CRM для детских секций и кружков</span>
@@ -237,7 +294,7 @@
                         </p>
 
                         <p class="fw-semibold text-center mt-3 mb-0" style="font-size: 1.02rem;">
-                            <span class="alert-color">0 ₽ в месяц </span> — только комиссия сервиса с успешных платежей
+                            <span class="my-alert-color">0 ₽ в месяц </span> — только комиссия сервиса с успешных платежей
                         </p>
                     </div>
 
@@ -292,8 +349,8 @@
                                 class="d-flex flex-column flex-md-row align-items-center justify-content-center gap-3 text-center">
 
                                 <!-- Кнопка демо -->
-                                <a href="#registration-form" class="btn btn-success btn-lg px-4" style="min-width:230px;"
-                                    data-bs-toggle="modal" data-bs-target="#createOrder">
+                                <a href="#registration-form" class="btn btn-success btn-lg px-4 btn-order btn-order-transform"
+                                    style="min-width:230px;" data-bs-toggle="modal" data-bs-target="#createOrder">
                                     Записаться на демо
                                 </a>
 
@@ -343,7 +400,7 @@
 
                                     <li class="d-flex mb-3">
                                         <div class="me-3 mt-1">
-                                            <i class="fas fa-exclamation-circle alert-color"></i>
+                                            <i class="fas fa-exclamation-circle my-alert-color"></i>
                                         </div>
                                         <div>
                                             <h5 class="fw-semibold mb-1">
@@ -359,7 +416,7 @@
 
                                     <li class="d-flex mb-3">
                                         <div class="me-3 mt-1">
-                                            <i class="fas fa-exclamation-circle alert-color"></i>
+                                            <i class="fas fa-exclamation-circle my-alert-color"></i>
                                         </div>
                                         <div>
                                             <h5 class="fw-semibold mb-1">
@@ -374,7 +431,7 @@
 
                                     <li class="d-flex mb-3">
                                         <div class="me-3 mt-1">
-                                            <i class="fas fa-exclamation-circle alert-color"></i>
+                                            <i class="fas fa-exclamation-circle my-alert-color"></i>
                                         </div>
                                         <div>
                                             <h5 class="fw-semibold mb-1">
@@ -389,7 +446,7 @@
 
                                     <li class="d-flex mb-3">
                                         <div class="me-3 mt-1">
-                                            <i class="fas fa-exclamation-circle alert-color"></i>
+                                            <i class="fas fa-exclamation-circle my-alert-color"></i>
                                         </div>
                                         <div>
                                             <h5 class="fw-semibold mb-1">
@@ -405,7 +462,7 @@
 
                                     <li class="d-flex mb-3">
                                         <div class="me-3 mt-1">
-                                            <i class="fas fa-exclamation-circle alert-color"></i>
+                                            <i class="fas fa-exclamation-circle my-alert-color"></i>
                                         </div>
                                         <div>
                                             <h5 class="fw-semibold mb-1">
@@ -421,7 +478,7 @@
 
                                     <li class="d-flex mb-3">
                                         <div class="me-3 mt-1">
-                                            <i class="fas fa-exclamation-circle alert-color"></i>
+                                            <i class="fas fa-exclamation-circle my-alert-color"></i>
                                         </div>
                                         <div>
                                             <h5 class="fw-semibold mb-1">
@@ -481,7 +538,7 @@
                                             <div class="text-uppercase small fw-semibold text-muted mb-1">
                                                 Сбор оплат
                                             </div>
-                                            <div class="h3 fw-bold mb-1 alert-color">
+                                            <div class="h3 fw-bold mb-1 my-alert-color">
                                                 +10–20%
                                             </div>
                                             <div class="text-muted small">
@@ -495,7 +552,7 @@
                                             <div class="text-uppercase small fw-semibold text-muted mb-1">
                                                 Админская рутина
                                             </div>
-                                            <div class="h3 fw-bold mb-1 alert-color">
+                                            <div class="h3 fw-bold mb-1 my-alert-color">
                                                 до −10 ч/нед
                                             </div>
                                             <div class="text-muted small">
@@ -508,7 +565,7 @@
                                             <div class="text-uppercase small fw-semibold text-muted mb-1">
                                                 Стоимость сервиса
                                             </div>
-                                            <div class="h3 fw-bold mb-1 alert-color">
+                                            <div class="h3 fw-bold mb-1 my-alert-color">
                                                 0 ₽ в месяц
                                             </div>
                                             <div class="text-muted small">
@@ -988,7 +1045,7 @@
                                 </div>
 
                                 <div class="text-center mt-4">
-                                    <a href="#registration-form" class="btn btn-outline-success cta-inline"
+                                    <a href="#registration-form" class="btn btn-outline-success cta-inline btn-order btn-order-transform"
                                         data-bs-toggle="modal" data-bs-target="#createOrder">
                                         Обсудить ваш формат секции и нужный функционал
                                     </a>
@@ -1012,7 +1069,7 @@
                     <span class="mark-creative">Сколько это стоит</span>
                 </h2>
                 <p class="text-center fs-5 text-muted mb-5">
-                    <span class="alert-color">Никакой абонентской платы и плат за внедрение</span> —
+                    <span class="my-alert-color">Никакой абонентской платы и плат за внедрение</span> —
                     мы зарабатываем только тогда, когда вы получаете оплату от родителей.
                 </p>
 
@@ -1031,7 +1088,7 @@
                                                 alt="Перенос данных" class="mx-auto mb-3"
                                                 style="width:48px; height:48px; object-fit:contain;">
                                             <h5 class="fw-bold">
-                                                <span class="alert-color">0 ₽</span> за перенос данных учеников
+                                                <span class="my-alert-color">0 ₽</span> за перенос данных учеников
                                             </h5>
                                             <p class="text-muted fs-6">
                                                 Перенесём вашу базу учеников, групп и расписаний “под ключ”, чтобы не
@@ -1047,7 +1104,7 @@
                                                 alt="Абонентская плата" class="mx-auto mb-3"
                                                 style="width:48px; height:48px; object-fit:contain;">
                                             <h5 class="fw-bold">
-                                                <span class="alert-color">0 ₽</span> абонентская плата
+                                                <span class="my-alert-color">0 ₽</span> абонентская плата
                                             </h5>
                                             <p class="text-muted fs-6">
                                                 Полный доступ ко всем функциям сервиса: учёт учеников, групп, расписаний,
@@ -1063,7 +1120,7 @@
                                                 alt="Техническая поддержка" class="mx-auto mb-3"
                                                 style="width:48px; height:48px; object-fit:contain;">
                                             <h5 class="fw-bold">
-                                                <span class="alert-color">0 ₽</span> техническая поддержка
+                                                <span class="my-alert-color">0 ₽</span> техническая поддержка
                                             </h5>
                                             <p class="text-muted fs-6">
                                                 Персональное сопровождение: помогаем с настройкой, отвечаем на вопросы
@@ -1079,7 +1136,7 @@
                                                 alt="Комиссия сервиса" class="mx-auto mb-3"
                                                 style="width:48px; height:48px; object-fit:contain;">
                                             <h5 class="fw-bold">
-                                                <span class="alert-color">1% комиссия сервиса</span> только с успешных
+                                                <span class="my-alert-color">1% комиссия сервиса</span> только с успешных
                                                 платежей
                                             </h5>
                                             <p class="text-muted fs-6">
@@ -1183,7 +1240,7 @@
 
                                 <!-- Блок с цифрой -->
                                 <div class="text-center mb-5">
-                                    <div class="display-4 fw-bold mb-2 alert-color">
+                                    <div class="display-4 fw-bold mb-2 my-alert-color">
                                         6+ лет
                                     </div>
                                     <div class="fs-5 fw-semibold">
@@ -1253,9 +1310,9 @@
                                         Это не абстрактная CRM “для бизнеса”.
                                     </div>
                                     <div class="text-muted mb-3">
-                                        Это система, которая <span class="alert-color"> родилась внутри футбольной школы в
+                                        Это система, которая <span class=" my-alert-color"> родилась внутри футбольной школы в
                                             СПб</span>
-                                        и продолжает работать там <span class="alert-color"> каждый день</span>.
+                                        и продолжает работать там <span class="my-alert-color"> каждый день</span>.
                                     </div>
 
                                     <a href="#registration-form" class="btn btn-success btn-lg" data-bs-toggle="modal"
@@ -1346,7 +1403,7 @@
                     на связи.
                 </p>
 
-                <a href="#registration-form" class="btn btn-success btn-lg" data-bs-toggle="modal"
+                <a href="#registration-form" class="btn btn-success btn-lg btn-order btn-order-transform" data-bs-toggle="modal"
                     data-bs-target="#createOrder" data-analytics="cta_bottom_demo">
                     Записаться на демо 15 минут
                 </a>
