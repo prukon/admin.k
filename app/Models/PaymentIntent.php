@@ -11,20 +11,8 @@ class PaymentIntent extends Model
 
     protected $table = 'payment_intents';
 
-    protected $fillable = [
-        'partner_id',
-        'user_id',
-        'payable_id',
-        'provider',
-        'provider_inv_id',
-        'tbank_payment_id',
-        'tbank_order_id',
-        'status',
-        'out_sum',
-        'payment_date',
-        'meta',
-        'paid_at',
-    ];
+    protected $guarded = []; //разрешение на изменение данных в таблице}
+
 
     protected $casts = [
         'out_sum' => 'decimal:2',

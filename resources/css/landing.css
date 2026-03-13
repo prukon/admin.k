@@ -80,3 +80,262 @@
     color: #fff;
 }
 
+.mark-creative {
+    position: relative;
+    display: inline-block;
+    z-index: 1;
+}
+
+.mark-creative::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    right: -8px;
+    bottom: 0.08em;
+    height: 0.7em;
+    background: linear-gradient(95deg,
+            #ffa300 0%,
+            #ff670299 40%,
+            #ffa300 80%);
+
+    border-radius: 12px;
+    transform: rotate(-0.5deg);
+    z-index: -1;
+    box-shadow: 0 4px 12px rgba(255, 182, 120, 0.4);
+}
+
+/* Единая типографика лендинга */
+.landing-page {
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+/* Базовый текст и списки */
+.landing-page p,
+.landing-page li {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: #0f172a;
+}
+
+/* Более читабельный muted */
+.landing-page .text-muted {
+    color: #4b5563 !important;
+}
+
+/* Заголовки */
+.landing-page h1,
+.landing-page h2,
+.landing-page h3,
+.landing-page h4,
+.landing-page h5,
+.landing-page h6 {
+    color: #0f172a;
+    letter-spacing: -0.01em;
+}
+
+/* Главный заголовок */
+.landing-page h1 {
+    font-size: 2.4rem;
+    line-height: 1.15;
+}
+
+/* h2 по всему ленду */
+.landing-page h2 {
+    font-size: 2rem;
+    line-height: 1.3;
+    font-weight: 700;
+}
+
+/* h3 вспомогательные */
+.landing-page h3 {
+    font-size: 1.4rem;
+    line-height: 1.35;
+    font-weight: 600;
+}
+
+/* Текст в карточках – немного компактнее */
+.landing-page .card p {
+    font-size: 0.97rem;
+    line-height: 1.6;
+}
+
+/* Подзаголовки в карточках */
+.landing-page .card h5,
+.landing-page .card h6 {
+    font-size: 1.08rem;
+}
+
+/* Текст в FAQ */
+.landing-page .accordion-body {
+    font-size: 0.97rem;
+    line-height: 1.6;
+}
+
+/* Лейбл секции */
+.section-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    background-color: #ecfdf5;
+    color: #047857;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.6rem;
+}
+
+/* Тонкий разделитель под заголовками секций */
+.section-divider {
+    width: 72px;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #22c55e, #f97316);
+    margin: 0.75rem auto 0;
+}
+
+/* Ступенчатые шаги */
+.step-item {
+    position: relative;
+    padding-left: 3rem;
+}
+
+.step-line {
+    position: absolute;
+    left: 1.25rem;
+    top: 2.5rem;
+    bottom: -1.5rem;
+    width: 2px;
+    background: linear-gradient(to bottom, #d1fae5, #e5e7eb);
+}
+
+.step-item:last-child .step-line {
+    display: none;
+}
+
+.step-circle {
+    position: absolute;
+    left: 0;
+    top: 0.15rem;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 999px;
+    background: #ecfdf5;
+    border: 2px solid #22c55e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #289b5f;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.18);
+}
+
+/* Внутренние CTA */
+.cta-inline {
+    border-radius: 999px;
+    padding: 0.55rem 1.4rem;
+    font-weight: 600;
+    font-size: 0.98rem;
+}
+
+/* Карточка внутри серого фона */
+.card-soft {
+    border-radius: 1.3rem;
+    border: 1px solid #e5e7eb;
+}
+
+/* Разделитель в карточке стоимости */
+.pricing-divider {
+    border-top: 1px dashed #e5e7eb;
+    margin: 1.5rem 0 1.25rem;
+}
+
+/* Адаптация под мобильные */
+@media (max-width: 991.98px) {
+    .landing-page h1 {
+        font-size: 2rem;
+    }
+
+    .landing-page h2 {
+        font-size: 1.6rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .landing-page h1 {
+        font-size: 1.7rem;
+    }
+
+    .landing-page h2 {
+        font-size: 1.4rem;
+    }
+
+    .step-item {
+        padding-left: 2.6rem;
+    }
+
+    .step-circle {
+        width: 2rem;
+        height: 2rem;
+        left: 0.05rem;
+    }
+}
+
+.btn-order {
+    Background-color: #289b5f;
+    border-color: #289b5f;
+}
+
+.btn-order {
+    background-color: #289b5f;
+    border-color: #289b5f;
+    color: #fff;
+    transition: all 0.2s ease-in-out;
+}
+
+/* hover */
+.btn-order:hover {
+    background-color: #218653;
+    border-color: #218653;
+    color: #fff;
+}
+
+/* active */
+.btn-order:active,
+.btn-order.active,
+.show>.btn-order.dropdown-toggle {
+    background-color: #1b6f45;
+    border-color: #1b6f45;
+    color: #fff;
+}
+
+/* focus */
+.btn-order:focus,
+.btn-order:focus-visible {
+    background-color: #218653;
+    border-color: #218653;
+    box-shadow: 0 0 0 0.25rem rgba(40, 155, 95, 0.35); 
+    color: #fff;
+}
+
+/* disabled */
+.btn-order:disabled,
+.btn-order.disabled {
+    background-color: #289b5f;
+    border-color: #289b5f;
+    opacity: 0.6;
+}
+
+.btn-order-transform:hover {
+    transform: translateY(-1px);
+}
+
+.btn-order-transform:active {
+    transform: translateY(0);
+} 
+.my-alert-color {
+    color:#ff6501;
+}

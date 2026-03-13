@@ -17,6 +17,11 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Config;
 use App\Services\Tinkoff\SmRegisterClient;
 
+use App\Jobs\SendCloudKassirReceiptJob;
+use App\Models\FiscalReceipt;
+
+
+
 class TinkoffPaymentsService
 {
     public function initPayment(int $partnerId, int $amountCents, string $method = null, array $data = []): TinkoffPayment
@@ -389,10 +394,70 @@ class TinkoffPaymentsService
                 $payable->status = 'paid';
                 $payable->paid_at = now();
                 $payable->save();
+
+                $this->createIncomeFiscalReceiptIfNeeded($locked, $payable, $payment, $webhook);
+
             } elseif ($isFail) {
                 $locked->status = 'failed';
                 $locked->save();
             }
         });
+    } 
+
+    protected function createIncomeFiscalReceiptIfNeeded(
+        PaymentIntent $intent,
+        Payable $payable,
+        TinkoffPayment $tinkoffPayment,
+        array $webhook
+    ): void {
+        $paymentRow = Payment::query()
+            ->where('partner_id', (int) $intent->partner_id)
+            ->where('payment_number', (string) ($webhook['PaymentId'] ?? ''))
+            ->first();
+    
+        $idempotencyKey = $this->makeIncomeFiscalReceiptIdempotencyKey($intent, $payable);
+    
+        $fiscalReceipt = FiscalReceipt::query()->firstOrCreate(
+            [
+                'idempotency_key' => $idempotencyKey,
+            ],
+            [
+                'partner_id' => (int) $intent->partner_id,
+                'payment_intent_id' => (int) $intent->id,
+                'payment_id' => $paymentRow?->id,
+                'payable_id' => (int) $payable->id,
+                'provider' => FiscalReceipt::PROVIDER_CLOUDKASSIR,
+                'type' => FiscalReceipt::TYPE_INCOME,
+                'status' => FiscalReceipt::STATUS_PENDING,
+                'amount' => (string) $intent->out_sum,
+                'invoice_id' => 'pi_' . $intent->id,
+                'account_id' => (string) $intent->user_id,
+            ]
+        );
+    
+        // Если запись уже была и payment_id ещё пустой — дособерём связь.
+        if ($paymentRow && !$fiscalReceipt->payment_id) {
+            $fiscalReceipt->payment_id = $paymentRow->id;
+            $fiscalReceipt->save();
+        }
+    
+        // Уже поставлен в очередь / уже обработан — повторно не отправляем.
+        if (in_array($fiscalReceipt->status, [
+            FiscalReceipt::STATUS_QUEUED,
+            FiscalReceipt::STATUS_PROCESSED,
+        ], true)) {
+            return;
+        }
+    
+        SendCloudKassirReceiptJob::dispatch($fiscalReceipt->id);
+    }
+
+    protected function makeIncomeFiscalReceiptIdempotencyKey(
+        PaymentIntent $intent,
+        Payable $payable
+    ): string {
+        return 'income:partner:' . $intent->partner_id
+            . ':payable:' . $payable->id
+            . ':intent:' . $intent->id;
     }
 }

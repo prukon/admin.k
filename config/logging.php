@@ -89,7 +89,7 @@ return [
             'handler_with' => [
                 'host' => env('PAPERTRAIL_URL'),
                 'port' => env('PAPERTRAIL_PORT'),
-                'connectionString' => 'tls://'.env('PAPERTRAIL_URL').':'.env('PAPERTRAIL_PORT'),
+                'connectionString' => 'tls://' . env('PAPERTRAIL_URL') . ':' . env('PAPERTRAIL_PORT'),
             ],
             'processors' => [PsrLogMessageProcessor::class],
         ],
@@ -139,6 +139,12 @@ return [
             // Для интеграции с T‑Bank пишем в error_log (без файлов в storage/logs).
             'driver' => 'errorlog',
             'level' => 'debug',
+        ],
+
+        'cloudkassir' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/cloudkassir.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
         ],
 
 

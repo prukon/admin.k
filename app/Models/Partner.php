@@ -30,6 +30,8 @@ class Partner extends Model
         'is_registered'       => 'boolean',   // GENERATED column
         'registered_at'       => 'datetime',
         'bank_details_last_updated_at' => 'datetime',
+        'taxation_system' => 'integer',
+
 
     ];
 

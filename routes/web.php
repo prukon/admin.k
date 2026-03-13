@@ -66,6 +66,7 @@ use App\Http\Controllers\Admin\UserAvatarController;
 use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
 use App\Http\Controllers\Admin\Report\PaymentMonthlyReportController;
 
+use App\Http\Controllers\CloudKassirWebhookController;
 
 Auth::routes();
 
@@ -616,3 +617,8 @@ Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle']
 Route::get('/payments/tinkoff/{order}/success', [TinkoffPaymentController::class, 'success']);
 Route::get('/payments/tinkoff/{order}/fail', [TinkoffPaymentController::class, 'fail']);
 Route::post('/webhooks/tinkoff/payments', [TinkoffWebhookController::class, 'payments']);
+
+//CloudKassir webhook
+Route::post('/webhook/cloudkassir/receipt', [CloudKassirWebhookController::class, 'receipt'])
+    ->withoutMiddleware([VerifyCsrfToken::class])
+    ->name('webhook.cloudkassir.receipt');
