@@ -1,712 +1,853 @@
 @extends('layouts.landingPage')
-@section('title', 'CRM для школы единоборств — учет учеников, расписание и оплаты | kidscrm.online')
-@section('meta_description', 'CRM для школы единоборств: учет учеников, расписание тренировок, оплаты, долги и онлайн-договоры. Без абонплаты, комиссия 2% с успешных оплат. Запуск за 1 день.')
+
+@section('title', 'CRM для секции единоборств — онлайн-оплаты без абонплаты | kidscrm.online')
+
+@section('meta_description',
+    'CRM для секции единоборств и школы боевых искусств: онлайн-оплаты, учёт абонементов, долгов, учеников, групп, расписания и договоров. Без абонентской платы, без своей онлайн-кассы и без отдельного эквайринга.')
 
 @section('content')
 
-    <!-- Hero -->
-    <section class="bg-light py-5">
-        <div class="container">
-            <div class="row align-items-center">
+    <div class="landing-page martial-arts-landing">
 
-                <h1 class="display-5 fw-bold text-center">
-                    CRM для школ единоборств — контроль оплат, договоров и расписания в одном сервисе
-                </h1>
-                <h2 class="text-center">
-                    <b class="alert-color">Экономьте до 30% времени</b> за счёт автоматизации административных задач
+        <!-- HERO -->
+        <section class="bg-light py-4 py-md-5">
+            <div class="container">
+                <div class="row align-items-center">
+
+                    <div class="col-12 mb-3 mb-md-4">
+                        <div class="text-center mb-2">
+                            <span class="section-label">CRM для секций единоборств</span>
+                        </div>
+
+                        <h1 class="fw-bold text-center mb-3">
+                            <span class="mark-creative">CRM для школы единоборств с онлайн-оплатами без абонплаты</span>
+                        </h1>
+
+                        <p class="text-center mb-2" style="font-size: 1.08rem;">
+                            Помогаем секциям единоборств собирать оплаты вовремя, видеть долги по абонементам
+                            и держать учеников, группы и платежи в одной системе.
+                        </p>
+
+                        <p class="fw-semibold text-center mt-3 mb-0" style="font-size: 1.02rem;">
+                            <span class="my-alert-color">0 ₽ в месяц</span> — только комиссия с успешных платежей
+                        </p>
+                    </div>
+
+                    <!-- Левый столбец -->
+                    <div class="col-md-6 mb-4 mb-md-0 d-flex flex-column">
+
+                        <ul class="list-unstyled mt-3 mb-3 mb-md-4">
+
+                            <li class="d-flex align-items-start mb-2">
+                                <img src="{{ asset('img/landing/icons/check-mark.png') }}"
+                                    class="me-2 mt-1"
+                                    style="width:20px; height:20px; object-fit:contain;"
+                                    alt="Онлайн-оплаты для секции единоборств">
+                                <span>Онлайн-оплаты за абонементы и занятия</span>
+                            </li>
+
+                            <li class="d-flex align-items-start mb-2">
+                                <img src="{{ asset('img/landing/icons/check-mark.png') }}"
+                                    class="me-2 mt-1"
+                                    style="width:20px; height:20px; object-fit:contain;"
+                                    alt="Учёт долгов">
+                                <span>Учёт долгов и просрочек по каждому ученику</span>
+                            </li>
+
+                            <li class="d-flex align-items-start mb-2">
+                                <img src="{{ asset('img/landing/icons/check-mark.png') }}"
+                                    class="me-2 mt-1"
+                                    style="width:20px; height:20px; object-fit:contain;"
+                                    alt="Без онлайн-кассы">
+                                <span>Без своей онлайн-кассы и отдельного эквайринга</span>
+                            </li>
+
+                            <li class="d-flex align-items-start mb-2">
+                                <img src="{{ asset('img/landing/icons/check-mark.png') }}"
+                                    class="me-2 mt-1"
+                                    style="width:20px; height:20px; object-fit:contain;"
+                                    alt="Договоры с родителями">
+                                <span>Онлайн-договоры с родителями</span>
+                            </li>
+
+                            <li class="d-flex align-items-start mb-2">
+                                <img src="{{ asset('img/landing/icons/check-mark.png') }}"
+                                    class="me-2 mt-1"
+                                    style="width:20px; height:20px; object-fit:contain;"
+                                    alt="Перенос базы">
+                                <span>Бесплатный перенос базы учеников и расписания</span>
+                            </li>
+
+                        </ul>
+
+                        <div class="small text-muted mb-3 mb-md-4">
+                            Подходит для школ бокса, каратэ, дзюдо, тхэквондо, самбо, ММА и других секций боевых искусств.
+                        </div>
+
+                        <div class="d-flex flex-column flex-md-row align-items-center gap-3">
+                            <a href="#registration-form"
+                                class="btn btn-success btn-lg px-4 btn-order btn-order-transform"
+                                style="min-width:260px;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#createOrder">
+                                Записаться на демо
+                            </a>
+
+                            <div class="small text-muted text-center text-md-start">
+                                Покажем за 15 минут, как это будет работать именно в вашей секции
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Правый столбец -->
+                    <div class="col-md-6 d-flex justify-content-center align-items-center mt-4 mt-md-0">
+                        <img src="{{ asset('img/landing/martial-arts.png') }}"
+                            alt="CRM для секции единоборств"
+                            class="img-fluid"
+                            style="max-height:360px; width:auto;">
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ПРОБЛЕМА -->
+        <section class="py-5 bg-light">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-12 col-xl-11">
+
+                        <div class="text-center mb-3">
+                            <span class="section-label">Проблема</span>
+                        </div>
+
+                        <h2 class="text-center mb-3">
+                            <span class="mark-creative">Почему в секции единоборств быстро начинается хаос с оплатами</span>
+                        </h2>
+
+                        <p class="text-center text-muted fs-5 mb-4">
+                            Когда учеников и групп становится больше, ручной учёт начинает отнимать слишком много времени.
+                        </p>
+
+                        <div class="card border-0 shadow-lg rounded-4">
+                            <div class="card-body py-4 px-3 px-md-4">
+
+                                <ul class="list-unstyled mb-0">
+
+                                    <li class="d-flex mb-3">
+                                        <div class="me-3 mt-1">
+                                            <i class="fas fa-exclamation-circle my-alert-color"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="fw-semibold mb-1">Оплаты приходят несистемно</h5>
+                                            <div class="text-muted">
+                                                Кто-то оплатил абонемент, кто-то переводит частями, кто-то обещал позже —
+                                                и всё это приходится проверять вручную.
+                                            </div>
+                                        </div>
+                                    </li>
+
+                                    <li class="d-flex mb-3">
+                                        <div class="me-3 mt-1">
+                                            <i class="fas fa-exclamation-circle my-alert-color"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="fw-semibold mb-1">Не видно полной картины по долгам</h5>
+                                            <div class="text-muted">
+                                                Сложно быстро понять, кто должен, за какой месяц и по какой группе.
+                                            </div>
+                                        </div>
+                                    </li>
+
+                                    <li class="d-flex mb-3">
+                                        <div class="me-3 mt-1">
+                                            <i class="fas fa-exclamation-circle my-alert-color"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="fw-semibold mb-1">Много ручной рутины</h5>
+                                            <div class="text-muted">
+                                                Напоминания родителям, сверки переводов и ответы на вопросы по оплатам
+                                                забирают часы каждую неделю.
+                                            </div>
+                                        </div>
+                                    </li>
+
+                                    <li class="d-flex mb-0">
+                                        <div class="me-3 mt-1">
+                                            <i class="fas fa-exclamation-circle my-alert-color"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="fw-semibold mb-1">Приём денег “на карту” мешает росту</h5>
+                                            <div class="text-muted">
+                                                Такая схема неудобна, непрозрачна и плохо подходит для секции, которая хочет расти системно.
+                                            </div>
+                                        </div>
+                                    </li>
+
+                                </ul>
+
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- РЕШЕНИЕ -->
+        <section id="solution" class="py-5 bg-light">
+            <div class="container">
+
+                <div class="text-center mb-2">
+                    <span class="section-label">Решение</span>
+                </div>
+
+                <h2 class="text-center mb-3">
+                    <span class="mark-creative">Как kidscrm.online помогает школе единоборств</span>
                 </h2>
 
-                <div class="col-md-6 mb-4 mb-md-0">
-                    <p class="lead mt-4 mb-3">
-                        <b>kidscrm.online</b> — CRM-сервис для секций единоборств (карате, дзюдо, тхэквондо, бокс),
-                        который помогает держать под контролем: учеников и группы, расписание тренировок, оплаты,
-                        задолженности, договоры и отчетность.
-                    </p>
+                <p class="text-center text-muted fs-5 mb-4">
+                    Вы занимаетесь тренировочным процессом. Система берёт на себя оплату, учёт долгов и порядок в базе.
+                </p>
 
-                    <ul class="list-unstyled lead mt-4 mb-4">
-                        <li class="d-flex align-items-center mb-2">
-                            <img src="{{ asset('img/landing/icons/check-mark.png') }}"
-                                 alt="Чек"
-                                 class="me-2"
-                                 style="width:24px; height:24px; object-fit:contain;">
-                            <span>Онлайн-подписание договоров с родителями через СМС.</span>
-                        </li>
-                        <li class="d-flex align-items-center mb-2">
-                            <img src="{{ asset('img/landing/icons/check-mark.png') }}"
-                                 alt="Чек"
-                                 class="me-2"
-                                 style="width:24px; height:24px; object-fit:contain;">
-                            <span>Администрирование тренировок: группы, тренеры, расписание.</span>
-                        </li>
-                        <li class="d-flex align-items-center mb-2">
-                            <img src="{{ asset('img/landing/icons/check-mark.png') }}"
-                                 alt="Чек"
-                                 class="me-2"
-                                 style="width:24px; height:24px; object-fit:contain;">
-                            <span>Гибкие суммы оплат: общие и индивидуальные цены на месяц.</span>
-                        </li>
-                        <li class="d-flex align-items-center">
-                            <img src="{{ asset('img/landing/icons/check-mark.png') }}"
-                                 alt="Чек"
-                                 class="me-2"
-                                 style="width:24px; height:24px; object-fit:contain;">
-                            <span>Контроль задолженностей: кто не оплатил и за какой период.</span>
-                        </li>
-                    </ul>
+                <div class="row justify-content-center">
+                    <div class="col-lg-12 col-xl-11">
+                        <div class="card border-0 shadow-lg rounded-4 bg-white card-soft">
+                            <div class="card-body p-4 p-md-5">
 
-                    <!-- CTA -->
-                    <div class="text-center mt-4">
-                        <a href="#registration-form" class="btn btn-success btn-lg"
-                           data-bs-toggle="modal" data-bs-target="#createOrder">Попробовать бесплатно</a>
-                    </div>
-
-                </div>
-
-                <div class="col-md-6 text-end">
-                    <img src="{{ asset('img/landing/seo/martial-arts/hero.png') }}"
-                         alt="CRM для школы единоборств"
-                         class="img-fluid rounded shadow-sm"
-                         onerror="this.src='{{ asset('img/landing/football.png') }}'">
-                </div>
-
-            </div>
-        </div>
-    </section>
-
-    {{-- (1) Сегменты / сценарии для единоборств --}}
-    <section id="martial-segments" class="py-5">
-        <div class="container">
-            <h2 class="text-center mb-5">CRM для единоборств: под какие сценарии подходит лучше всего</h2>
-
-            <div class="row g-4">
-                <div class="col-md-6 col-lg-3">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h6 fw-bold mb-2">Небольшая секция</h3>
-                            <p class="text-muted mb-0">
-                                1 администратор, несколько групп, оплата помесячно. Важны долги, порядок в расписании и отчеты.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6 col-lg-3">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h6 fw-bold mb-2">Клуб с несколькими дисциплинами</h3>
-                            <p class="text-muted mb-0">
-                                Карате + дзюдо + бокс, разные тренеры и группы. Нужны единые правила учета и прозрачные оплаты.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6 col-lg-3">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h6 fw-bold mb-2">Сеть / несколько залов</h3>
-                            <p class="text-muted mb-0">
-                                Важно стандартизировать процессы и снизить зависимость от “табличек администратора”.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6 col-lg-3">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h6 fw-bold mb-2">Сборы и соревнования</h3>
-                            <p class="text-muted mb-0">
-                                Доп. тренировки, переносы и платежи по разным условиям — всё должно быть фиксировано и прозрачно.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    {{-- (2) Сравнение: Excel/тетрадь/мессенджеры vs CRM --}}
-    <section id="comparison" class="py-5">
-        <div class="container">
-            <h2 class="text-center mb-4">CRM vs Excel/тетрадь/чаты: что меняется в школе единоборств</h2>
-            <p class="text-center text-muted mb-5 fs-5">
-                Если учет живёт в таблицах и переписках — появляются долги, путаница по суммам и ручная рутина.
-                CRM делает процессы управляемыми и прозрачными.
-            </p>
-
-            <div class="table-responsive shadow-sm rounded">
-                <table class="table table-bordered align-middle mb-0 bg-white">
-                    <thead class="table-light">
-                    <tr>
-                        <th style="width:34%">Задача</th>
-                        <th style="width:33%">Тетрадь, Excel и чаты</th>
-                        <th style="width:33%">Как с kidscrm.online</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr>
-                        <td class="fw-bold">Контроль оплат</td>
-                        <td>Ручные отметки, постоянные уточнения “оплатили/не оплатили”.</td>
-                        <td>Оплаты фиксируются в системе, статусы видны сразу.</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold">Сумма “в этом месяце”</td>
-                        <td>Разные условия, пересчеты, админ объясняет каждому отдельно.</td>
-                        <td>Заданные суммы: общие и индивидуальные — меньше вопросов и ручных пояснений.</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold">Задолженности</td>
-                        <td>Долги “всплывают” поздно, неловкие разговоры с родителями.</td>
-                        <td>Прозрачный список должников и периодов, меньше конфликтов.</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold">Расписание тренировок</td>
-                        <td>Переносы по чатам, легко пропустить изменение.</td>
-                        <td>Единый источник правды: расписание и изменения в одном месте.</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold">Договоры</td>
-                        <td>Распечатки, подписи на тренировках, потерянные файлы.</td>
-                        <td>Онлайн-подписание через СМС и хранение документов в системе.</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold">Отчет за месяц</td>
-                        <td>Сводится вручную, занимает часы и ошибки неизбежны.</td>
-                        <td>Автоматические отчеты: доходы, долги, транзакции.</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-
-        </div>
-    </section>
-
-    {{-- (3) Боли / сценарии --}}
-    <section id="problems" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="text-center mb-5">Что обычно болит у школ единоборств — и как CRM это закрывает</h2>
-
-            <div class="row g-4 align-items-center">
-                <div class="col-md-6">
-                    <div class="border-0 shadow-sm p-4 rounded bg-white">
-                        <h3 class="h5 fw-bold">Оплаты, долги и ручные сверки</h3>
-                        <p class="text-muted mb-0">
-                            CRM дает прозрачность по оплатам и задолженностям: меньше ручной сверки, меньше спорных ситуаций.
-                        </p>
-                    </div>
-                    <div class="border-0 shadow-sm p-4 rounded bg-white mt-3">
-                        <h3 class="h5 fw-bold">Переносы, сборы, доп. тренировки</h3>
-                        <p class="text-muted mb-0">
-                            Расписание в едином месте: изменения не теряются в чатах и не превращаются в “кто что понял”.
-                        </p>
-                    </div>
-                    <div class="border-0 shadow-sm p-4 rounded bg-white mt-3">
-                        <h3 class="h5 fw-bold">Договоры и организационная рутина</h3>
-                        <p class="text-muted mb-0">
-                            Онлайн-подписание через СМС убирает бумажные круги ада и экономит время и клубу, и родителям.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="col-md-6 text-center">
-                    {{-- место под графику --}}
-                    <img src="{{ asset('img/landing/seo/martial-arts/problems.png') }}"
-                         alt="Проблемы школы единоборств и решение через CRM"
-                         class="img-fluid rounded shadow-sm"
-                         onerror="this.style.display='none'">
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Ключевой функционал (дубль) -->
-    <section id="features" class="bg-light py-5">
-        <div class="container">
-            <h2 class="text-center mb-5">Ключевой функционал</h2>
-            <div class="row align-items-center">
-
-                <div class="col-md-4">
-                    @foreach([
-                        ['icon' => 'img/landing/icons/functional/user-group.png', 'text' => 'Учёт пользователей и групп', 'desc' => 'Добавляйте учеников и распределяйте по группам, храните данные в одном месте.'],
-                        ['icon' => 'img/landing/icons/functional/schedule-management.png', 'text' => 'Управление расписанием', 'desc' => 'Гибко настраивайте расписание с учётом тренеров, залов и групп.'],
-                    ] as $item)
-                        <div class="d-flex align-items-center mb-4">
-                            <img src="{{ asset($item['icon']) }}"
-                                 alt="{{ $item['text'] }}"
-                                 class="me-3"
-                                 style="width:150px; height:150px; object-fit:contain;">
-                            <div>
-                                <h6 class="fw-bold mb-1">{{ $item['text'] }}</h6>
-                                <p class="text-muted fs-6 mb-0">{{ $item['desc'] }}</p>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-
-                <div class="col-md-4 text-center mb-4 mb-md-0">
-                    <img src="{{ asset('img/landing/dashboard.png') }}"
-                         alt="Функции CRM"
-                         class="img-fluid rounded mx-auto d-block">
-                </div>
-
-                <div class="col-md-4">
-                    @foreach([
-                        ['icon' => 'img/landing/icons/functional/payment-acceptance.png', 'text' => 'Приём и учёт оплат', 'desc' => 'Онлайн-оплата и автоматическая фиксация платежей в системе.'],
-                        ['icon' => 'img/landing/icons/functional/automatic-reporting.png', 'text' => 'Автоматическая отчётность', 'desc' => 'Сводки по доходам, задолженностям и транзакциям — автоматически.'],
-                    ] as $item)
-                        <div class="d-flex align-items-center mb-4">
-                            <img src="{{ asset($item['icon']) }}"
-                                 alt="{{ $item['text'] }}"
-                                 class="me-3"
-                                 style="width:150px; height:150px; object-fit:contain;">
-                            <div>
-                                <h6 class="fw-bold mb-1">{{ $item['text'] }}</h6>
-                                <p class="text-muted fs-6 mb-0">{{ $item['desc'] }}</p>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-
-            </div>
-
-            <div class="text-center mt-4">
-                <a href="#registration-form" class="btn btn-success btn-lg"
-                   data-bs-toggle="modal" data-bs-target="#createOrder">Попробовать бесплатно</a>
-            </div>
-        </div>
-    </section>
-
-    {{-- (4) Коммуникации с родителями --}}
-    <section id="communications" class="py-5">
-        <div class="container">
-            <h2 class="text-center mb-4">Коммуникации с родителями: меньше сообщений, больше ясности</h2>
-            <p class="text-center text-muted mb-5 fs-5">
-                В секциях единоборств больше всего времени “съедают” повторяющиеся вопросы и ручные напоминания.
-                CRM снижает хаос в переписке и помогает выстроить прозрачный процесс.
-            </p>
-
-            <div class="row g-4 align-items-stretch">
-                <div class="col-md-6 col-lg-3">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h6 fw-bold mb-2">Понятные суммы оплат</h3>
-                            <p class="text-muted mb-0">
-                                Общие и индивидуальные цены на месяц — меньше уточнений “сколько платить?”.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6 col-lg-3">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h6 fw-bold mb-2">Прозрачные статусы</h3>
-                            <p class="text-muted mb-0">
-                                “Оплачено / не оплачено / задолженность” — меньше споров и недопонимания.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6 col-lg-3">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h6 fw-bold mb-2">Изменения расписания</h3>
-                            <p class="text-muted mb-0">
-                                Когда тренировка переносится — важна единая точка правды, а не “последнее сообщение в чате”.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6 col-lg-3">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h6 fw-bold mb-2">Договоры без бумажной рутины</h3>
-                            <p class="text-muted mb-0">
-                                Онлайн-подпись через СМС — не нужно ловить родителей на тренировках и носить распечатки.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    {{-- (5) Что дает CRM — по ролям --}}
-    <section id="roles" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="text-center mb-4">Что дает CRM школе единоборств — владельцу и родителям</h2>
-            <p class="text-center text-muted mb-5 fs-5">
-                CRM делает процессы прозрачными: владельцу — контроль и управляемость, родителям — ясность и удобство.
-            </p>
-
-            <div class="row g-4">
-                <div class="col-md-6">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h5 fw-bold mb-3">Владелец секции</h3>
-                            <ul class="text-muted mb-0 ps-3">
-                                <li class="mb-2"><b>Прозрачность денег:</b> видны оплаты и задолженности по всем группам и периодам.</li>
-                                <li class="mb-2"><b>Гибкие суммы оплат:</b> общая цена на месяц или индивидуальные цены отдельным ученикам/группам. Раз в месяц подправили — и забыли.</li>
-                                <li class="mb-2"><b>Меньше вопросов от родителей:</b> “сколько платить?” — сумма уже задана в системе.</li>
-                                <li class="mb-2"><b>Онлайн-подписание договоров:</b> подписывается через СМС прямо в сервисе — без распечаток и встреч на тренировках.</li>
-                                <li class="mb-2"><b>Контроль без микроменеджмента:</b> меньше зависимости от таблиц и “памяти администратора”.</li>
-                                <li><b>Быстрая отчетность:</b> доходы, долги, транзакции — автоматически.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h5 fw-bold mb-3">Родители</h3>
-                            <ul class="text-muted mb-0 ps-3">
-                                <li class="mb-2"><b>Онлайн-подписание договора:</b> через СМС — без бумажек и встреч на занятиях ради подписи.</li>
-                                <li class="mb-2"><b>Понятная сумма к оплате:</b> нет вопросов “сколько оплачивать в этом месяце?” — сумма задана в системе, включая индивидуальные условия.</li>
-                                <li class="mb-2"><b>Онлайн-оплата:</b> удобно оплачивать занятия без наличных и “переводов на карту”.</li>
-                                <li class="mb-2"><b>Меньше неудобных ситуаций:</b> прозрачные статусы оплат снижают спорные моменты.</li>
-                                <li><b>Ясность по расписанию:</b> меньше хаоса в переносах и организационных вопросах.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="text-center mt-4">
-                <a href="#registration-form" class="btn btn-success btn-lg"
-                   data-bs-toggle="modal" data-bs-target="#createOrder">Попробовать бесплатно</a>
-            </div>
-        </div>
-    </section>
-
-    <!-- Как это работает (дубль) -->
-    <section id="how-it-works" class="py-5">
-        <div class="container">
-            <h2 class="text-center mb-5">Как это работает</h2>
-            <p class="text-center text-muted mb-5 fs-4">
-                Автоматизируйте управление секцией от регистрации до оплаты и отчётности.
-            </p>
-
-            @php
-                $steps = [
-                    ['icon' => 'img/landing/icons/Register.png',          'title' => 'Моментальная регистрация',         'desc' => 'Подключите секцию в пару кликов — без лишних форм и ожиданий.'],
-                    ['icon' => 'img/landing/icons/Import.png',            'title' => 'Импорт данных “под ключ”',       'desc' => 'Мы бесплатно перенесём группы, учеников и расписание в систему, чтобы вы сразу начали работать.'],
-                    ['icon' => 'img/landing/icons/Price.png',             'title' => 'Гибкая настройка цен',           'desc' => 'Задавайте общие и индивидуальные цены для ученика или группы — одним действием.'],
-                    ['icon' => 'img/landing/icons/Credit-card.png',       'title' => 'Онлайн-платежи за занятия',      'desc' => 'Родители оплачивают через встроенный эквайринг, платежи автоматически фиксируются в системе.'],
-                    ['icon' => 'img/landing/icons/Report.png',            'title' => 'Единая панель отчётности',       'desc' => 'Контролируйте платежи, просрочки и ключевые показатели в реальном времени.'],
-                    ['icon' => 'img/landing/icons/reminder.png',          'title' => 'Напоминания и пени',             'desc' => 'Система оповестит должников и при необходимости рассчитает штрафы автоматически.'],
-                    ['icon' => 'img/landing/icons/saving-time.png',       'title' => 'Экономия времени',              'desc' => 'Меньше ручного учета и переписок — больше времени на развитие секции и качество тренировок.'],
-                ];
-                $half = ceil(count($steps) / 2);
-                $leftSteps  = array_slice($steps, 0, $half);
-                $rightSteps = array_slice($steps, $half);
-            @endphp
-
-            <div class="row g-4">
-                <div class="col-md-6">
-                    @foreach($leftSteps as $step)
-                        <div class="d-flex align-items-start border-bottom pb-3 mb-3">
-                            <img src="{{ asset($step['icon']) }}"
-                                 alt="{{ $step['title'] }}"
-                                 class="me-3"
-                                 style="width:48px; height:48px; object-fit:contain;">
-                            <div>
-                                <h5 class="fw-bold mb-1">{{ $step['title'] }}</h5>
-                                <p class="text-muted fs-6 mb-0">{{ $step['desc'] }}</p>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-
-                <div class="col-md-6">
-                    @foreach($rightSteps as $step)
-                        <div class="d-flex align-items-start border-bottom pb-3 mb-3">
-                            <img src="{{ asset($step['icon']) }}"
-                                 alt="{{ $step['title'] }}"
-                                 class="me-3"
-                                 style="width:48px; height:48px; object-fit:contain;">
-                            <div>
-                                <h5 class="fw-bold mb-1">{{ $step['title'] }}</h5>
-                                <p class="text-muted fs-6 mb-0">{{ $step['desc'] }}</p>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    {{-- (6) Чек-лист внедрения --}}
-    <section id="checklist" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="text-center mb-4">Внедрение CRM за 1 день: короткий чек-лист</h2>
-            <p class="text-center text-muted mb-5 fs-5">
-                Ваша задача — подготовить минимум вводных. Наша задача — перенести данные и помочь запустить процесс.
-            </p>
-
-            <div class="row g-4 align-items-stretch">
-                <div class="col-md-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h5 fw-bold mb-3">Что готовите вы</h3>
-                            <ul class="text-muted mb-0 ps-3">
-                                <li class="mb-2">Список групп и тренеров.</li>
-                                <li class="mb-2">Расписание тренировок (как сейчас).</li>
-                                <li class="mb-2">Правила оплаты: суммы/периоды (включая индивидуальные цены).</li>
-                                <li>База учеников (хоть в тетради/Excel).</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h5 fw-bold mb-3">Что делаем мы</h3>
-                            <ul class="text-muted mb-0 ps-3">
-                                <li class="mb-2">Бесплатно переносим учеников, группы, расписание.</li>
-                                <li class="mb-2">Помогаем настроить оплаты и логику учета.</li>
-                                <li class="mb-2">Подключаем онлайн-оплату (при необходимости).</li>
-                                <li>Даем поддержку технического специалиста.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <h3 class="h5 fw-bold mb-3">Что вы получаете</h3>
-                            <ul class="text-muted mb-0 ps-3">
-                                <li class="mb-2">Единую базу учеников и групп.</li>
-                                <li class="mb-2">Порядок в расписании тренировок.</li>
-                                <li class="mb-2">Прозрачный контроль оплат и задолженностей.</li>
-                                <li>Автоматическую отчетность по секции.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="text-center mt-4">
-                <a href="#registration-form" class="btn btn-success btn-lg"
-                   data-bs-toggle="modal" data-bs-target="#createOrder">Запустить внедрение</a>
-            </div>
-        </div>
-    </section>
-
-    <!-- Уникальные преимущества (как на главной) -->
-    <section class="bg-light py-5">
-        <div class="container">
-            <div class="row align-items-center">
-
-                <div class="col-md-6 text-end mob-hide">
-                    <img src="{{ asset('img/landing/icons/unit/martial-arts.png') }}"
-                         alt="Преимущества CRM"
-                         class="img-fluid rounded"
-                         onerror="this.style.display='none'">
-                </div>
-
-                <div class="col-md-6 mb-4 mb-md-0">
-                    <h2 class="text-center mb-5" id='advantages'>Наши уникальные преимущества</h2>
-
-                    <div class="container">
-                        <div class="row g-4">
-                            <div class="col-md-6">
-                                <div class="card h-100 p-4 shadow-sm border-0 rounded-3">
-                                    <h5 class="fw-bold mb-3">Мы сами перенесем данные ваших учеников</h5>
-                                    <p class="text-muted fs-6">
-                                        Мы бесплатно перенесём вашу базу учеников, групп и расписаний — даже если
-                                        сейчас всё в тетради или Excel. Вы ничего не вводите вручную.
-                                    </p>
-                                    <div class="mt-auto">
-                                        <i class="bi bi-box-arrow-in-right display-5 text-primary"></i>
+                                <div class="row g-4 mb-4 text-center text-md-start">
+                                    <div class="col-md-4">
+                                        <div class="p-3 p-md-4 h-100 rounded-4 bg-light">
+                                            <div class="text-uppercase small fw-semibold text-muted mb-1">
+                                                Оплаты
+                                            </div>
+                                            <div class="h3 fw-bold mb-1 my-alert-color">
+                                                вовремя
+                                            </div>
+                                            <div class="text-muted small">
+                                                Родители получают ссылку на оплату, а секция видит статусы и долги.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="p-3 p-md-4 h-100 rounded-4 bg-light">
+                                            <div class="text-uppercase small fw-semibold text-muted mb-1">
+                                                Рутины
+                                            </div>
+                                            <div class="h3 fw-bold mb-1 my-alert-color">
+                                                меньше
+                                            </div>
+                                            <div class="text-muted small">
+                                                Меньше сообщений, сверок и ручной проверки переводов.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="p-3 p-md-4 h-100 rounded-4 bg-light">
+                                            <div class="text-uppercase small fw-semibold text-muted mb-1">
+                                                Стоимость
+                                            </div>
+                                            <div class="h3 fw-bold mb-1 my-alert-color">
+                                                0 ₽ / мес
+                                            </div>
+                                            <div class="text-muted small">
+                                                Нет абонплаты и платы за внедрение — только комиссия с успешных оплат.
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card h-100 p-4 shadow-sm border-0 rounded-3">
-                                    <h5 class="fw-bold mb-3">Личный технических специалист</h5>
-                                    <p class="text-muted fs-6">
-                                        При старте вы получаете персонального тех. специалиста:
-                                        консультации, ответы на вопросы, помощь в адаптации процессов под платформу.
-                                    </p>
-                                    <div class="mt-auto">
-                                        <i class="bi bi-person-raised-hand display-5 text-primary"></i>
+
+                                <div class="row g-4">
+                                    <div class="col-md-4">
+                                        <div class="h-100 p-3 p-md-4 rounded-4 bg-light">
+                                            <h5 class="fw-bold mb-2">Онлайн-оплаты</h5>
+                                            <ul class="text-muted small mb-0 ps-3">
+                                                <li>оплата по ссылке;</li>
+                                                <li>автофиксация платежей;</li>
+                                                <li>чеки отправляются автоматически;</li>
+                                                <li>не нужна своя касса.</li>
+                                            </ul>
+                                        </div>
                                     </div>
+
+                                    <div class="col-md-4">
+                                        <div class="h-100 p-3 p-md-4 rounded-4 bg-light">
+                                            <h5 class="fw-bold mb-2">Учёт секции</h5>
+                                            <ul class="text-muted small mb-0 ps-3">
+                                                <li>ученики, группы, расписание;</li>
+                                                <li>абонементы и долги;</li>
+                                                <li>история оплат;</li>
+                                                <li>отчёты в одном месте.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <div class="h-100 p-3 p-md-4 rounded-4 bg-light">
+                                            <h5 class="fw-bold mb-2">Спокойный запуск</h5>
+                                            <ul class="text-muted small mb-0 ps-3">
+                                                <li>переносим базу;</li>
+                                                <li>помогаем настроить систему;</li>
+                                                <li>сопровождаем на старте;</li>
+                                                <li>не нужно разбираться одному.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="text-center mt-4">
+                                    <a href="#registration-form"
+                                        class="btn btn-success btn-lg cta-inline"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#createOrder">
+                                        Посмотреть демо для секции единоборств
+                                    </a>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ЗАТОЧЕНО ПОД ЕДИНОБОРСТВА -->
+        <section class="py-5 bg-light">
+            <div class="container">
+
+                <div class="text-center mb-2">
+                    <span class="section-label">Подходит для единоборств</span>
+                </div>
+
+                <h2 class="text-center mb-3">
+                    <span class="mark-creative">Что особенно важно для секции боевых искусств</span>
+                </h2>
+
+                <p class="text-center text-muted fs-5 mb-5">
+                    В школе единоборств обычно есть абонементы, разные возрастные группы, тренеры,
+                    аттестации, экипировка и дополнительные сборы. Всё это удобнее вести в одной системе.
+                </p>
+
+                <div class="row justify-content-center">
+                    <div class="col-lg-12 col-xl-11">
+                        <div class="card border-0 shadow-lg rounded-4 bg-white card-soft">
+                            <div class="card-body p-4 p-md-5">
+                                <div class="row g-4">
+
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="h-100 p-4 rounded-4 bg-light">
+                                            <h5 class="fw-bold mb-2">Абонементы</h5>
+                                            <p class="text-muted small mb-0">
+                                                Видно, кто оплатил месяц, а у кого просрочка или частичный долг.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="h-100 p-4 rounded-4 bg-light">
+                                            <h5 class="fw-bold mb-2">Группы и тренеры</h5>
+                                            <p class="text-muted small mb-0">
+                                                Ученики, тренеры, расписание и группы — в одном месте.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="h-100 p-4 rounded-4 bg-light">
+                                            <h5 class="fw-bold mb-2">Доплаты и сборы</h5>
+                                            <p class="text-muted small mb-0">
+                                                Можно учитывать экипировку, аттестации, соревнования и другие платежи отдельно.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="h-100 p-4 rounded-4 bg-light">
+                                            <h5 class="fw-bold mb-2">Родители и договоры</h5>
+                                            <p class="text-muted small mb-0">
+                                                Онлайн-договоры и понятная история взаимодействия по оплатам.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="text-center mt-4">
+                                    <a href="#registration-form"
+                                        class="btn btn-outline-success cta-inline"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#createOrder">
+                                        Обсудить задачи моей секции
+                                    </a>
                                 </div>
                             </div>
                         </div>
                     </div>
-
                 </div>
 
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Стоимость (дубль) -->
-    <section id="pricing" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="text-center mb-5">Стоимость</h2>
-            <p class="text-center fs-5 text-muted mb-5">
-                <span class="alert-color">Мы не берём деньги за использование сервиса</span> —
-                оплата взимается только с успешных платежей ваших клиентов.
-            </p>
+        <!-- КАК ЭТО РАБОТАЕТ -->
+        <section id="how-it-works" class="py-5 bg-light">
+            <div class="container">
 
-            <div class="row g-4 justify-content-center">
-                <div class="col-md-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100 p-4 text-center">
-                        <img src="{{ asset('img/landing/icons/price/money-fee.png') }}"
-                             alt="Иконка абонентской платы"
-                             class="mx-auto mb-3"
-                             style="width:48px; height:48px; object-fit:contain;">
-                        <h5 class="fw-bold"><span class="alert-color"> 0 ₽</span> абонентская плата</h5>
-                        <p class="text-muted fs-6">
-                            Полный доступ ко всем функциям: учёт учеников и групп, управление расписанием,
-                            отчёты и прочие инструменты — без ежемесячных взносов.
-                        </p>
+                <div class="text-center mb-2">
+                    <span class="section-label">Как это работает</span>
+                </div>
+
+                <h2 class="text-center mb-4">
+                    <span class="mark-creative">Подключаем секцию под ключ</span>
+                </h2>
+
+                <p class="text-center text-muted mb-5 fs-5">
+                    Вы оставляете заявку. Мы помогаем с запуском, переносом базы и настройкой оплат.
+                </p>
+
+                @php
+                    $steps = [
+                        [
+                            'icon' => 'img/landing/icons/Register.png',
+                            'title' => 'Заявка',
+                            'desc' => 'Вы показываете, как сейчас устроены оплаты и учёт в вашей секции.',
+                        ],
+                        [
+                            'icon' => 'img/landing/icons/Import.png',
+                            'title' => 'Перенос базы',
+                            'desc' => 'Переносим учеников, группы и расписание в систему.',
+                        ],
+                        [
+                            'icon' => 'img/landing/icons/Price.png',
+                            'title' => 'Настройка тарифов',
+                            'desc' => 'Помогаем задать абонементы, цены и нужные типы платежей.',
+                        ],
+                        [
+                            'icon' => 'img/landing/icons/Credit-card.png',
+                            'title' => 'Запуск оплат',
+                            'desc' => 'Родители оплачивают онлайн, а система фиксирует статусы и чеки.',
+                        ],
+                        [
+                            'icon' => 'img/landing/icons/reminder.png',
+                            'title' => 'Контроль долгов',
+                            'desc' => 'Вы видите, кто оплатил, кто должен и какая картина по секции.',
+                        ],
+                    ];
+                    $half = ceil(count($steps) / 2);
+                    $leftSteps = array_slice($steps, 0, $half);
+                    $rightSteps = array_slice($steps, $half);
+                @endphp
+
+                <div class="row justify-content-center">
+                    <div class="col-lg-12 col-xl-11">
+                        <div class="card border-0 shadow-lg rounded-4 bg-white card-soft">
+                            <div class="card-body p-4 p-md-5">
+                                <div class="row g-4">
+
+                                    <div class="col-md-6">
+                                        @foreach ($leftSteps as $step)
+                                            <div class="step-item mb-4">
+                                                <div class="step-circle">
+                                                    {{ $loop->iteration }}
+                                                </div>
+                                                <div class="step-line"></div>
+                                                <div class="d-flex align-items-start">
+                                                    <img src="{{ asset($step['icon']) }}"
+                                                        alt="{{ $step['title'] }}"
+                                                        class="me-3 flex-shrink-0"
+                                                        style="width:48px; height:48px; object-fit:contain;">
+                                                    <div>
+                                                        <h5 class="fw-bold mb-1">{{ $step['title'] }}</h5>
+                                                        <p class="text-muted fs-6 mb-0">{{ $step['desc'] }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        @foreach ($rightSteps as $step)
+                                            <div class="step-item mb-4">
+                                                <div class="step-circle">
+                                                    {{ $loop->iteration + $half }}
+                                                </div>
+                                                @if (!$loop->last)
+                                                    <div class="step-line"></div>
+                                                @endif
+                                                <div class="d-flex align-items-start">
+                                                    <img src="{{ asset($step['icon']) }}"
+                                                        alt="{{ $step['title'] }}"
+                                                        class="me-3 flex-shrink-0"
+                                                        style="width:48px; height:48px; object-fit:contain;">
+                                                    <div>
+                                                        <h5 class="fw-bold mb-1">{{ $step['title'] }}</h5>
+                                                        <p class="text-muted fs-6 mb-0">{{ $step['desc'] }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                </div>
+
+                                <div class="text-center mt-4">
+                                    <a href="#registration-form"
+                                        class="btn btn-outline-success cta-inline"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#createOrder">
+                                        Получить демо и условия подключения
+                                    </a>
+                                </div>
+
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="col-md-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100 p-4 text-center">
-                        <img src="{{ asset('img/landing/icons/price/transferring-data.png') }}"
-                             alt="Иконка миграции данных"
-                             class="mx-auto mb-3"
-                             style="width:48px; height:48px; object-fit:contain;">
-                        <h5 class="fw-bold"><span class="alert-color">0 ₽</span> за перенос данных учеников в нашу систему</h5>
-                        <p class="text-muted fs-6">
-                            Мы бесплатно перенесём вашу базу учеников, групп и расписаний «под ключ»,
-                            чтобы вы могли сразу приступить к работе без ручного ввода.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="col-md-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100 p-4 text-center">
-                        <img src="{{ asset('img/landing/icons/price/technical-support.png') }}"
-                             alt="Иконка технической поддержки"
-                             class="mx-auto mb-3"
-                             style="width:48px; height:48px; object-fit:contain;">
-                        <h5 class="fw-bold"><span class="alert-color">0 ₽</span> техническая поддержка</h5>
-                        <p class="text-muted fs-6">
-                            Оперативная помощь по чату и телефону — персональный специалист решит вашу задачу
-                            сразу, без «переадресаций».
-                        </p>
-                    </div>
-                </div>
-
-                <div class="col-md-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100 p-4 text-center">
-                        <img src="{{ asset('img/landing/icons/price/commission.png') }}"
-                             alt="Иконка комиссии"
-                             class="mx-auto mb-3"
-                             style="width:48px; height:48px; object-fit:contain;">
-                        <h5 class="fw-bold"><span class="alert-color"> 2% комиссия</span> только с транзакций</h5>
-                        <p class="text-muted fs-6">
-                            Оплата сервиса — небольшой процент от каждой успешной оплаты занятий через
-                            онлайн-эквайринг. Никаких скрытых сборов и дополнительных платежей.
-                        </p>
-                    </div>
-                </div>
             </div>
+        </section>
 
-        </div>
-    </section>
+        <!-- ФУНКЦИОНАЛ -->
+        <section id="features" class="py-5 bg-light">
+            <div class="container">
 
-    <!-- FAQ (с JSON-LD) -->
-    <section id="faq" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="text-center mb-4">FAQ</h2>
+                <div class="row justify-content-center text-center mb-5">
+                    <div class="col-lg-9">
 
-            @php
-                $martialFaq = [
-                    'Подходит ли CRM небольшой секции единоборств?' =>
-                        'Да. Даже небольшая секция выигрывает за счёт прозрачного учета оплат, задолженностей и порядка в расписании.',
-                    'Можно ли задать разные суммы оплат для разных учеников или групп?' =>
-                        'Да. Вы можете установить общую цену на месяц или индивидуальные цены отдельным ученикам/группам. Это снижает количество вопросов от родителей.',
-                    'Как происходит подписание договора с родителями?' =>
-                        'Договор подписывается прямо в сервисе через СМС. Не нужно распечатывать документы и встречаться на тренировках ради подписи.',
-                    'Помогаете ли вы перенести базу учеников и расписание?' =>
-                        'Да. Мы бесплатно переносим данные “под ключ”: учеников, группы и расписание — даже если сейчас всё в тетради или Excel.',
-                    'Есть ли абонентская плата?' =>
-                        'Нет. Абонентская плата — 0 ₽. Оплата сервиса — комиссия 2% только с успешных транзакций.',
-                    'Есть ли мобильное приложение?' =>
-                        'Пока приложения нет, но интерфейс адаптирован под смартфоны и планшеты — можно работать из браузера.',
-                    'Сколько времени занимает запуск?' =>
-                        'Чаще всего старт возможен за 1 день: вы даете вводные, мы переносим данные и помогаем настроить процесс.',
-                ];
-            @endphp
+                        <div class="mb-2">
+                            <span class="section-label">Функционал</span>
+                        </div>
 
-            <div class="accordion" id="faqAccordion">
-                @foreach($martialFaq as $question => $answer)
-                    <div class="accordion-item mb-3 border-0 shadow-sm">
-                        <h2 class="accordion-header" id="heading{{ $loop->index }}">
-                            <button
-                                    class="accordion-button collapsed bg-white text-dark d-flex justify-content-between align-items-center"
-                                    type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#collapse{{ $loop->index }}"
-                                    aria-expanded="false"
-                                    aria-controls="collapse{{ $loop->index }}"
-                            >
-                                <span class="flex-grow-1 text-start">{{ $question }}</span>
-                                <i class="bi bi-chevron-down ms-2"></i>
-                            </button>
+                        <h2 class="mb-3">
+                            <span class="mark-creative">Что есть в CRM для секции единоборств</span>
                         </h2>
-                        <div
-                                id="collapse{{ $loop->index }}"
-                                class="accordion-collapse collapse"
-                                aria-labelledby="heading{{ $loop->index }}"
-                                data-bs-parent="#faqAccordion"
-                        >
-                            <div class="accordion-body text-muted">
-                                {{ $answer }}
+
+                        <p class="text-muted fs-5 mb-0">
+                            Всё основное для оплаты, учёта учеников и управления секцией в одном кабинете.
+                        </p>
+                        <div class="section-divider"></div>
+                    </div>
+                </div>
+
+                <div class="row justify-content-center">
+                    <div class="col-lg-12 col-xl-11">
+                        <div class="card border-0 shadow-lg rounded-4 bg-white card-soft">
+                            <div class="card-body py-4 py-md-5 px-3 px-md-4">
+
+                                <div class="row align-items-center">
+
+                                    <div class="col-md-4 mb-4 mb-md-0">
+                                        @foreach ([
+                                            [
+                                                'icon' => 'img/landing/icons/functional/payment-acceptance.png',
+                                                'text' => 'Приём оплат',
+                                                'desc' => 'Онлайн-оплаты от родителей и автоматическая фиксация платежей.',
+                                            ],
+                                            [
+                                                'icon' => 'img/landing/icons/functional/automatic-reporting.png',
+                                                'text' => 'Долги и отчёты',
+                                                'desc' => 'Понятно, кто оплатил, кто должен и за какой период.',
+                                            ],
+                                        ] as $item)
+                                            <div class="d-flex align-items-start mb-4 p-3 rounded-4 bg-light">
+                                                <div class="me-3 flex-shrink-0">
+                                                    <div class="rounded-circle bg-white shadow-sm d-flex align-items-center justify-content-center"
+                                                        style="width:72px; height:72px;">
+                                                        <img src="{{ asset($item['icon']) }}"
+                                                            alt="{{ $item['text'] }}"
+                                                            style="max-width:48px; max-height:48px; object-fit:contain;">
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h6 class="fw-bold mb-1">{{ $item['text'] }}</h6>
+                                                    <p class="text-muted fs-6 mb-0">{{ $item['desc'] }}</p>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                    <div class="col-md-4 text-center mb-4 mb-md-0">
+                                        <div class="border rounded-4 shadow-sm p-2 bg-light">
+                                            <img src="{{ asset('img/landing/dashboard.png') }}"
+                                                alt="Панель управления секцией единоборств"
+                                                class="img-fluid rounded-3">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        @foreach ([
+                                            [
+                                                'icon' => 'img/landing/icons/functional/user-group.png',
+                                                'text' => 'Ученики и группы',
+                                                'desc' => 'Единая база учеников, родителей, групп и тренеров.',
+                                            ],
+                                            [
+                                                'icon' => 'img/landing/icons/functional/schedule-management.png',
+                                                'text' => 'Онлайн-договоры',
+                                                'desc' => 'Подписание договоров с родителями без бумажной волокиты.',
+                                            ],
+                                        ] as $item)
+                                            <div class="d-flex align-items-start mb-4 p-3 rounded-4 bg-light">
+                                                <div class="me-3 flex-shrink-0">
+                                                    <div class="rounded-circle bg-white shadow-sm d-flex align-items-center justify-content-center"
+                                                        style="width:72px; height:72px;">
+                                                        <img src="{{ asset($item['icon']) }}"
+                                                            alt="{{ $item['text'] }}"
+                                                            style="max-width:48px; max-height:48px; object-fit:contain;">
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h6 class="fw-bold mb-1">{{ $item['text'] }}</h6>
+                                                    <p class="text-muted fs-6 mb-0">{{ $item['desc'] }}</p>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                </div>
+
+                                <div class="text-center mt-3">
+                                    <a href="#registration-form"
+                                        class="btn btn-success cta-inline"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#createOrder">
+                                        Запросить демо системы
+                                    </a>
+                                </div>
+
                             </div>
                         </div>
                     </div>
-                @endforeach
+                </div>
+
             </div>
+        </section>
 
-            <script type="application/ld+json">
-                {
-                  "@context": "https://schema.org",
-                  "@type": "FAQPage",
-                  "mainEntity": [
-                    @foreach($martialFaq as $q => $a)
-                    {
-                      "@type": "Question",
-                      "name": @json($q),
-                      "acceptedAnswer": {
-                        "@type": "Answer",
-                        "text": @json($a)
-                    }
-                  }@if(!$loop->last),@endif
-                @endforeach
-                ]
-              }
-</script>
-        </div>
-    </section>
+        <!-- ПРЕИМУЩЕСТВА -->
+        <section class="bg-light py-5">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-12 col-xl-11">
+                        <div class="card border-0 shadow-lg rounded-4 bg-white card-soft">
+                            <div class="card-body p-4 p-md-5">
+                                <div class="row align-items-center">
 
-    <!-- Call to Action -->
-    <section id="cta" class="py-5 bg-call-to-action">
-        <div class="container text-center">
-            <h2 class="display-6 fw-bold mb-3">Готовы навести порядок в школе единоборств?</h2>
-            <p class="fs-5 mb-4">
-                Попробуйте <span class="fw-bold">kidscrm.online</span> бесплатно и получите полную поддержку
-                персонального куратора при запуске.
-            </p>
-            <a href="#registration-form" class="btn btn-success btn-lg me-3"
-               data-bs-toggle="modal" data-bs-target="#createOrder">Попробовать бесплатно</a>
-        </div>
-    </section>
+                                    <div class="col-md-4 text-end mob-hide">
+                                        <img src="{{ asset('img/landing/martial-arts.png') }}"
+                                            alt="Преимущества CRM для школы единоборств"
+                                            class="img-fluid rounded">
+                                    </div>
+
+                                    <div class="col-md-8 mb-4 mb-md-0">
+                                        <div class="text-center mb-2">
+                                            <span class="section-label">Почему мы</span>
+                                        </div>
+
+                                        <h2 class="text-center mb-5" id="advantages">
+                                            <span class="mark-creative">Почему школы единоборств выбирают kidscrm.online</span>
+                                        </h2>
+
+                                        <div class="container">
+                                            <div class="row g-4">
+
+                                                <div class="col-md-6">
+                                                    <div class="card h-100 p-4 shadow-sm border-0 rounded-3">
+                                                        <h5 class="fw-bold mb-3">Быстрый старт</h5>
+                                                        <p class="text-muted fs-6 mb-0">
+                                                            Помогаем запуститься без долгого внедрения и ручного переноса данных.
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="card h-100 p-4 shadow-sm border-0 rounded-3">
+                                                        <h5 class="fw-bold mb-3">Меньше рутины</h5>
+                                                        <p class="text-muted fs-6 mb-0">
+                                                            Снижается нагрузка на администратора и руководителя по оплатам и сверкам.
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-12">
+                                                    <div class="card h-100 p-4 shadow-sm border-0 rounded-3 mt-3">
+                                                        <h5 class="fw-bold mb-3">Без лишних расходов на старте</h5>
+                                                        <p class="text-muted fs-6 mb-0">
+                                                            Нет абонентской платы, нет платы за внедрение, не нужно отдельно покупать онлайн-кассу и подключать эквайринг.
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- КОМУ ПОДХОДИТ -->
+        <section id="audience" class="py-5 bg-light">
+            <div class="container">
+                <div class="text-center mb-2">
+                    <span class="section-label">Кому подходит</span>
+                </div>
+
+                <h2 class="text-center mb-3">
+                    <span class="mark-creative">Для каких направлений единоборств подходит CRM</span>
+                </h2>
+
+                <p class="text-center text-muted mb-5 fs-5">
+                    Решение подходит секциям, где есть группы, абонементы, регулярные оплаты и работа с родителями.
+                </p>
+
+                <div class="row justify-content-center">
+                    <div class="col-lg-12 col-xl-11">
+                        <div class="card border-0 shadow-lg rounded-4 bg-white card-soft">
+                            <div class="card-body p-4 p-md-5">
+                                <div class="row g-4 text-center text-md-start">
+
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="p-4 bg-light rounded-4 h-100">
+                                            <h5 class="fw-bold mb-2">Бокс и кикбоксинг</h5>
+                                            <p class="text-muted small mb-0">
+                                                Регулярные тренировки, абонементы и понятный учёт оплат.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="p-4 bg-light rounded-4 h-100">
+                                            <h5 class="fw-bold mb-2">Каратэ, тхэквондо, дзюдо</h5>
+                                            <p class="text-muted small mb-0">
+                                                Группы, тренеры, расписание и прозрачный контроль задолженностей.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="p-4 bg-light rounded-4 h-100">
+                                            <h5 class="fw-bold mb-2">Самбо и ММА</h5>
+                                            <p class="text-muted small mb-0">
+                                                Удобно вести абонементы, долги и дополнительные сборы.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="p-4 bg-light rounded-4 h-100">
+                                            <h5 class="fw-bold mb-2">Секции с несколькими группами</h5>
+                                            <p class="text-muted small mb-0">
+                                                Когда таблиц уже много и нужен единый порядок в секции.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="text-center mt-4">
+                                    <a href="#registration-form"
+                                        class="btn btn-outline-success cta-inline btn-order btn-order-transform"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#createOrder">
+                                        Узнать, подойдёт ли это моей секции
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- FAQ -->
+        <section id="faq" class="py-5 bg-light">
+            <div class="container">
+                <div class="text-center mb-2">
+                    <span class="section-label">Частые вопросы</span>
+                </div>
+
+                <h2 class="text-center mb-4">FAQ для секций единоборств</h2>
+
+                <div class="row justify-content-center">
+                    <div class="col-lg-12 col-xl-11">
+                        <div class="card border-0 shadow-lg rounded-4 bg-white card-soft">
+                            <div class="card-body p-4 p-md-5">
+                                <div class="accordion" id="faqAccordion">
+                                    @foreach ([
+                                        'Подходит ли сервис для секции единоборств?' => 'Да. Сервис подходит школам и секциям единоборств, где есть группы, абонементы, расписание, тренеры и регулярные оплаты от родителей.',
+                                        'Можно ли учитывать доплаты, кроме абонемента?' => 'Да. Можно учитывать отдельные платежи: экипировку, аттестации, соревнования, сборы и другие доплаты.',
+                                        'Нужно ли покупать свою онлайн-кассу?' => 'Нет. Платёжная инфраструктура и онлайн-касса уже на нашей стороне.',
+                                        'Нужно ли подключать свой эквайринг?' => 'Нет. Мы уже работаем через мультирасчёты Т-Банка.',
+                                        'Поможете перенести базу учеников?' => 'Да. Мы бесплатно переносим текущую базу учеников, групп и расписание.',
+                                        'Есть ли мобильное приложение?' => 'Отдельного приложения пока нет, но интерфейс адаптирован под смартфоны и планшеты.',
+                                        'Можно ли подписывать договоры онлайн?' => 'Да. В системе предусмотрено онлайн-подписание договоров с родителями.',
+                                        'Сколько стоит сервис?' => 'Нет абонентской платы и платы за внедрение. Вы платите только комиссию с успешных онлайн-платежей.',
+                                    ] as $question => $answer)
+                                        <div class="accordion-item mb-3 border-0 shadow-sm">
+                                            <h2 class="accordion-header" id="heading{{ $loop->index }}">
+                                                <button
+                                                    class="accordion-button collapsed bg-white text-dark d-flex justify-content-between align-items-center"
+                                                    type="button"
+                                                    data-bs-toggle="collapse"
+                                                    data-bs-target="#collapse{{ $loop->index }}"
+                                                    aria-expanded="false"
+                                                    aria-controls="collapse{{ $loop->index }}">
+                                                    <span class="flex-grow-1 text-start">{{ $question }}</span>
+                                                    <i class="bi bi-chevron-down ms-2"></i>
+                                                </button>
+                                            </h2>
+                                            <div id="collapse{{ $loop->index }}"
+                                                class="accordion-collapse collapse"
+                                                aria-labelledby="heading{{ $loop->index }}"
+                                                data-bs-parent="#faqAccordion">
+                                                <div class="accordion-body text-muted">
+                                                    {{ $answer }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <section id="cta" class="py-5 bg-call-to-action">
+            <div class="container text-center">
+                <h2 class="display-6 fw-bold mb-3">
+                    Хотите навести порядок в оплатах секции единоборств?
+                </h2>
+
+                <p class="fs-5 mb-3">
+                    Покажем, как <span class="fw-bold">kidscrm.online</span> поможет вашей секции
+                    собирать оплаты вовремя и убрать ручной хаос из учёта.
+                </p>
+
+                <p class="fs-5 fw-semibold mb-4">
+                    На демо покажем, как это будет работать именно под вашу структуру групп и абонементов.
+                </p>
+
+                <a href="#registration-form"
+                    class="btn btn-success btn-lg btn-order btn-order-transform"
+                    data-bs-toggle="modal"
+                    data-bs-target="#createOrder"
+                    data-analytics="cta_bottom_demo_martial_arts">
+                    Записаться на демо 15 минут
+                </a>
+            </div>
+        </section>
+
+    </div>
 
 @endsection

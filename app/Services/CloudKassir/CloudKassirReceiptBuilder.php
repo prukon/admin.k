@@ -46,23 +46,25 @@ class CloudKassirReceiptBuilder
         $label = $this->makeLabel($payable);
         $amount = $this->normalizeMoney($fiscalReceipt->amount ?: $payable->amount);
 
-        $payload = [
+        $item = [
+            'Label' => $label,
+            'Price' => $amount,
+            'Quantity' => 1,
+            'Amount' => $amount,
+            'Vat' => $this->resolveVat(),
+            'Method' => $this->resolveMethod(),
+            'Object' => $this->resolveObject(),
+        ];
+
+        $item = $this->appendAgentDataIfNeeded($item, $partner);
+
+        return [
             'Inn' => (string) $partner->tax_id,
             'Type' => $this->mapType($fiscalReceipt->type),
             'InvoiceId' => $this->makeInvoiceId($fiscalReceipt, $paymentIntent, $payable),
             'AccountId' => $this->makeAccountId($paymentIntent),
             'CustomerReceipt' => [
-                'Items' => [
-                    [
-                        'Label' => $label,
-                        'Price' => $amount,
-                        'Quantity' => 1,
-                        'Amount' => $amount,
-                        'Vat' => $this->resolveVat($partner, $payable),
-                        'Method' => $this->resolveMethod($payable),
-                        'Object' => $this->resolveObject($payable),
-                    ],
-                ],
+                'Items' => [$item],
                 'TaxationSystem' => (int) $partner->taxation_system,
                 'Amounts' => [
                     'Electronic' => $amount,
@@ -72,13 +74,6 @@ class CloudKassirReceiptBuilder
                 'RussiaTimeZone' => (int) config('services.cloudkassir.russia_time_zone', 2),
             ],
         ];
-
-        // На первом этапе email/phone покупателя можно не передавать.
-        // Если позже захочешь отправку чека покупателю — добавим отсюда.
-
-        $payload = $this->appendAgentDataIfNeeded($payload, $partner);
-
-        return $payload;
     }
 
     protected function mapType(string $type): string
@@ -118,13 +113,28 @@ class CloudKassirReceiptBuilder
     protected function makeLabel(Payable $payable): string
     {
         if ($payable->type === 'monthly_fee') {
-            $month = $payable->month?->translatedFormat('F');
+            $monthNumber = $payable->month?->format('m');
 
-            if (!$month) {
-                return 'Абонемент';
+            $months = [
+                '01' => 'январь',
+                '02' => 'февраль',
+                '03' => 'март',
+                '04' => 'апрель',
+                '05' => 'май',
+                '06' => 'июнь',
+                '07' => 'июль',
+                '08' => 'август',
+                '09' => 'сентябрь',
+                '10' => 'октябрь',
+                '11' => 'ноябрь',
+                '12' => 'декабрь',
+            ];
+
+            if ($monthNumber && isset($months[$monthNumber])) {
+                return 'Абонемент за ' . $months[$monthNumber];
             }
 
-            return 'Абонемент за ' . mb_strtolower($month);
+            return 'Абонемент';
         }
 
         if ($payable->type === 'club_fee') {
@@ -143,10 +153,8 @@ class CloudKassirReceiptBuilder
         return (string) config('app.url');
     }
 
-    protected function resolveVat(Partner $partner, Payable $payable): ?int
+    protected function resolveVat(): ?int
     {
-        // Пока берём дефолт из конфига.
-        // Если позже захочешь разные ставки по партнёрам/услугам, вынесем в БД.
         $vat = config('services.cloudkassir.default_vat', null);
 
         if ($vat === null || $vat === '') {
@@ -156,16 +164,13 @@ class CloudKassirReceiptBuilder
         return (int) $vat;
     }
 
-    protected function resolveMethod(Payable $payable): int
+    protected function resolveMethod(): int
     {
-        // Для твоего текущего сценария можно начать с полного расчёта.
-        // Если бухгалтерски нужно как предоплата — потом переключим.
         return (int) config('services.cloudkassir.default_method', 4);
     }
 
-    protected function resolveObject(Payable $payable): int
+    protected function resolveObject(): int
     {
-        // У тебя сейчас это обычная услуга.
         return (int) config('services.cloudkassir.default_object', 4);
     }
 
@@ -174,44 +179,63 @@ class CloudKassirReceiptBuilder
         return number_format((float) $value, 2, '.', '');
     }
 
-    protected function appendAgentDataIfNeeded(array $payload, Partner $partner): array
+    protected function appendAgentDataIfNeeded(array $item, Partner $partner): array
     {
         $agentEnabled = (bool) config('services.cloudkassir.agent.enabled', false);
         if (!$agentEnabled) {
-            return $payload;
+            return $item;
         }
 
         $agentSign = config('services.cloudkassir.agent.agent_sign');
         if ($agentSign === null || $agentSign === '') {
-            return $payload;
+            return $item;
         }
 
-        $payload['CustomerReceipt']['AgentSign'] = (int) $agentSign;
+        $item['AgentSign'] = (string) $agentSign;
 
-        // Данные поставщика — вероятный минимально нужный блок для агентской схемы.
         $purveyorEnabled = (bool) config('services.cloudkassir.agent.use_purveyor_data', false);
         if ($purveyorEnabled) {
-            $payload['CustomerReceipt']['Items'][0]['PurveyorData'] = [
+            $purveyorPhone = $this->normalizePhone($partner->phone);
+
+            $item['PurveyorData'] = [
                 'Name' => (string) ($partner->organization_name ?: $partner->title),
                 'Inn' => (string) $partner->tax_id,
-                'Phone' => (string) ($partner->phone ?: config('services.cloudkassir.default_supplier_phone', '')),
+                'Phone' => $purveyorPhone,
             ];
         }
 
-        // AgentData пока оставляем опциональным до ответа менеджера.
         $agentDataEnabled = (bool) config('services.cloudkassir.agent.use_agent_data', false);
         if ($agentDataEnabled) {
-            $payload['CustomerReceipt']['Items'][0]['AgentData'] = array_filter([
-                'AgentOperationName' => config('services.cloudkassir.agent.operation_name'),
-                'PaymentAgentPhone' => config('services.cloudkassir.agent.payment_agent_phone'),
-                'PaymentReceiverOperatorPhone' => config('services.cloudkassir.agent.payment_receiver_operator_phone'),
-                'TransferOperatorPhone' => config('services.cloudkassir.agent.transfer_operator_phone'),
-                'TransferOperatorName' => config('services.cloudkassir.agent.transfer_operator_name'),
-                'TransferOperatorAddress' => config('services.cloudkassir.agent.transfer_operator_address'),
-                'TransferOperatorInn' => config('services.cloudkassir.agent.transfer_operator_inn'),
-            ], fn ($v) => $v !== null && $v !== '');
+            $paymentAgentPhone = $this->normalizePhone(
+                (string) config('services.cloudkassir.agent.payment_agent_phone', '')
+            );
+
+            if ($paymentAgentPhone === '') {
+                throw new RuntimeException('CloudKassir agent phone is not configured.');
+            }
+
+            $item['AgentData'] = [
+                'PaymentAgentPhone' => $paymentAgentPhone,
+            ];
         }
 
-        return $payload;
+        return $item;
+    }
+
+    protected function normalizePhone(?string $phone): string
+    {
+        $phone = trim((string) $phone);
+
+        if ($phone === '') {
+            return '';
+        }
+
+        $phone = preg_replace('/[^\d+]/', '', $phone) ?? '';
+
+        if ($phone !== '' && $phone[0] !== '+') {
+            $phone = '+' . $phone;
+        }
+
+        return $phone;
     }
 }

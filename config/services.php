@@ -66,51 +66,38 @@ return [
         'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
     ],
 
-   
-   'cloudkassir' => [
-    'base_url' => env('CLOUDKASSIR_BASE_URL', 'https://api.cloudpayments.ru'),
-    'public_id' => env('CLOUDKASSIR_PUBLIC_ID'),
-    'api_secret' => env('CLOUDKASSIR_API_SECRET'),
-    'timeout' => (int) env('CLOUDKASSIR_TIMEOUT', 30),
 
-    // НДС:
-    // null = "НДС не облагается"
-    // 0, 5, 7, 10, 20, 22, 105, 107, 110, 120, 122
-    'default_vat' => env('CLOUDKASSIR_DEFAULT_VAT'),
 
-    // Method:
-    // 1 FullPrepayment
-    // 2 PartialPrepayment
-    // 3 AdvancePay
-    // 4 FullPay
-    // 5 PartialPayAndCredit
-    // 6 Credit
-    // 7 CreditPayment
-    'default_method' => (int) env('CLOUDKASSIR_DEFAULT_METHOD', 4),
 
-    // Object:
-    // 4 = Service
-    'default_object' => (int) env('CLOUDKASSIR_DEFAULT_OBJECT', 4),
+    'cloudkassir' => [
+        'base_url' => env('CLOUDKASSIR_BASE_URL', 'https://api.cloudpayments.ru'),
+        'public_id' => env('CLOUDKASSIR_PUBLIC_ID'),
+        'api_secret' => env('CLOUDKASSIR_API_SECRET'),
+        'timeout' => (int) env('CLOUDKASSIR_TIMEOUT', 30),
 
-    // Москва = RTZ 2
-    'russia_time_zone' => (int) env('CLOUDKASSIR_RUSSIA_TIME_ZONE', 2),
+        'default_vat' => env('CLOUDKASSIR_DEFAULT_VAT'),
+        'default_method' => (int) env('CLOUDKASSIR_DEFAULT_METHOD', 4),
+        'default_object' => (int) env('CLOUDKASSIR_DEFAULT_OBJECT', 4),
+        'russia_time_zone' => (int) env('CLOUDKASSIR_RUSSIA_TIME_ZONE', 2),
 
-    // Агентская схема — включим после ответа менеджера
-    'agent' => [
-        'enabled' => filter_var(env('CLOUDKASSIR_AGENT_ENABLED', false), FILTER_VALIDATE_BOOL),
-        'agent_sign' => env('CLOUDKASSIR_AGENT_SIGN'),
+        'agent' => [
+            'enabled' => filter_var(env('CLOUDKASSIR_AGENT_ENABLED', true), FILTER_VALIDATE_BOOL),
+            'agent_sign' => env('CLOUDKASSIR_AGENT_SIGN', 6),
 
-        'use_purveyor_data' => filter_var(env('CLOUDKASSIR_USE_PURVEYOR_DATA', false), FILTER_VALIDATE_BOOL),
-        'use_agent_data' => filter_var(env('CLOUDKASSIR_USE_AGENT_DATA', false), FILTER_VALIDATE_BOOL),
+            'use_purveyor_data' => filter_var(env('CLOUDKASSIR_USE_PURVEYOR_DATA', true), FILTER_VALIDATE_BOOL),
+            'use_agent_data' => filter_var(env('CLOUDKASSIR_USE_AGENT_DATA', true), FILTER_VALIDATE_BOOL),
 
-        'operation_name' => env('CLOUDKASSIR_AGENT_OPERATION_NAME'),
-        'payment_agent_phone' => env('CLOUDKASSIR_PAYMENT_AGENT_PHONE'),
-        'payment_receiver_operator_phone' => env('CLOUDKASSIR_PAYMENT_RECEIVER_OPERATOR_PHONE'),
-        'transfer_operator_phone' => env('CLOUDKASSIR_TRANSFER_OPERATOR_PHONE'),
-        'transfer_operator_name' => env('CLOUDKASSIR_TRANSFER_OPERATOR_NAME'),
-        'transfer_operator_address' => env('CLOUDKASSIR_TRANSFER_OPERATOR_ADDRESS'),
-        'transfer_operator_inn' => env('CLOUDKASSIR_TRANSFER_OPERATOR_INN'),
+            'operation_name' => env('CLOUDKASSIR_AGENT_OPERATION_NAME'),
+            'payment_agent_phone' => env('CLOUDKASSIR_PAYMENT_AGENT_PHONE'),
+            'payment_receiver_operator_phone' => env('CLOUDKASSIR_PAYMENT_RECEIVER_OPERATOR_PHONE'),
+            'transfer_operator_phone' => env('CLOUDKASSIR_TRANSFER_OPERATOR_PHONE'),
+            'transfer_operator_name' => env('CLOUDKASSIR_TRANSFER_OPERATOR_NAME'),
+            'transfer_operator_address' => env('CLOUDKASSIR_TRANSFER_OPERATOR_ADDRESS'),
+            'transfer_operator_inn' => env('CLOUDKASSIR_TRANSFER_OPERATOR_INN'),
+        ],
     ],
-],
+
+
+
 
 ];
