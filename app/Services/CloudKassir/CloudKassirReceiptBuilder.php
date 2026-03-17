@@ -48,6 +48,11 @@ class CloudKassirReceiptBuilder
             throw new RuntimeException('CLOUDKASSIR_INN is not set in .env (ИНН платформы, на который зарегистрирована касса).');
         }
 
+        $partnerEmail = trim((string) ($partner->email ?? ''));
+        if ($partnerEmail === '') {
+            throw new RuntimeException("Partner #{$partner->id} has no email. Required for IsInternetPayment receipt.");
+        }
+
         $label = $this->makeLabel($payable);
         $amount = $this->normalizeMoney($fiscalReceipt->amount ?: $payable->amount);
 
@@ -75,7 +80,7 @@ class CloudKassirReceiptBuilder
                     'Electronic' => $amount,
                 ],
                 'CalculationPlace' => $this->resolveCalculationPlace($partner),
-                'Email' => (string) $partner->email,
+                'Email' => $partnerEmail,
                 'IsInternetPayment' => true,
                 'RussiaTimeZone' => (int) config('services.cloudkassir.russia_time_zone', 2),
             ],
