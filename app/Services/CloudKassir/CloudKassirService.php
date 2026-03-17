@@ -4,6 +4,7 @@ namespace App\Services\CloudKassir;
 
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class CloudKassirService
@@ -55,6 +56,12 @@ class CloudKassirService
             $headers['X-Request-ID'] = $requestId;
         }
 
+        // Лог тела запроса и ответа (для передачи менеджеру CloudKassir при необходимости)
+        Log::channel('cloudkassir')->info('CloudKassir request', [
+            'path' => $path,
+            'request_body' => $payload,
+        ]);
+
         /** @var Response $response */
         $response = Http::withBasicAuth($this->publicId, $this->apiSecret)
             ->withHeaders($headers)
@@ -63,6 +70,13 @@ class CloudKassirService
             ->post($this->baseUrl . $path, $payload);
 
         $json = $response->json();
+
+        // Лог тела ответа (для передачи менеджеру CloudKassir при необходимости)
+        Log::channel('cloudkassir')->info('CloudKassir response', [
+            'path' => $path,
+            'http_status' => $response->status(),
+            'response_body' => is_array($json) ? $json : ['_raw' => $response->body()],
+        ]);
 
         if (!is_array($json)) {
             throw new RuntimeException(
