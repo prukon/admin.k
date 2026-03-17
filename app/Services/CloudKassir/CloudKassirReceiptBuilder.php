@@ -75,6 +75,7 @@ class CloudKassirReceiptBuilder
                     'Electronic' => $amount,
                 ],
                 'CalculationPlace' => $this->resolveCalculationPlace($partner),
+                'Email' => (string) $partner->email,
                 'IsInternetPayment' => true,
                 'RussiaTimeZone' => (int) config('services.cloudkassir.russia_time_zone', 2),
             ],
