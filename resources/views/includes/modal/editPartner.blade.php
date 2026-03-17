@@ -52,6 +52,21 @@
                             <div class="text-danger error-tax_id"></div>
                         </div>
 
+                        {{-- Система налогообложения (СНО) --}}
+                        <div class="mb-3" id="taxation_system_wrapper">
+                            <label for="taxation_system" class="form-label">Система налогообложения (СНО)</label>
+                            <select name="taxation_system" id="taxation_system" class="form-control">
+                                <option value="">— не указано —</option>
+                                <option value="0"{{ old('taxation_system') === '0' ? ' selected' : '' }}>ОСН</option>
+                                <option value="1"{{ old('taxation_system') === '1' ? ' selected' : '' }}>УСН доход</option>
+                                <option value="2"{{ old('taxation_system') === '2' ? ' selected' : '' }}>УСН доход − расход</option>
+                                <option value="3"{{ old('taxation_system') === '3' ? ' selected' : '' }}>ЕНВД</option>
+                                <option value="4"{{ old('taxation_system') === '4' ? ' selected' : '' }}>ЕСХН</option>
+                                <option value="5"{{ old('taxation_system') === '5' ? ' selected' : '' }}>Патент</option>
+                            </select>
+                            <div class="text-danger error-taxation_system"></div>
+                        </div>
+
                         {{-- КПП --}}
                         <div class="mb-3" id="kpp_wrapper">
                             <label for="kpp" class="form-label">КПП</label>
@@ -237,6 +252,20 @@
                             <label for="edit-tax_id" class="form-label">ИНН</label>
                             <input type="text" name="tax_id" class="form-control" id="edit-tax_id">
                             <p class="text-danger" id="edit-tax_id-error"></p>
+                        </div>
+
+                        <div class="mb-3" id="edit-taxation_system_wrapper">
+                            <label for="edit-taxation_system" class="form-label">Система налогообложения (СНО)</label>
+                            <select name="taxation_system" class="form-control" id="edit-taxation_system">
+                                <option value="">— не указано —</option>
+                                <option value="0">ОСН</option>
+                                <option value="1">УСН доход</option>
+                                <option value="2">УСН доход − расход</option>
+                                <option value="3">ЕНВД</option>
+                                <option value="4">ЕСХН</option>
+                                <option value="5">Патент</option>
+                            </select>
+                            <p class="text-danger" id="edit-taxation_system-error"></p>
                         </div>
 
                         <div class="mb-3" id="edit-kpp_wrapper">
@@ -520,7 +549,7 @@
             function toggleCreateFields() {
                 const type = createForm.business_type.value;
                 const isPP = type === 'physical_person';
-                ['organization_name_wrapper','tax_id_wrapper','kpp_wrapper','registration_number_wrapper','requisites','bankFields']
+                ['organization_name_wrapper','tax_id_wrapper','taxation_system_wrapper','kpp_wrapper','registration_number_wrapper','requisites','bankFields']
                     .forEach(id => { const node = document.getElementById(id); if (node) node.style.display = isPP ? 'none' : ''; });
                 document.getElementById('label-title').textContent = isPP ? 'ФИО*' : 'Наименование*';
             }
@@ -560,6 +589,7 @@
                     $('#edit-title').val(response.title);
                     $('#edit-organization_name').val(response.organization_name || '');
                     $('#edit-tax_id').val(response.tax_id);
+                    $('#edit-taxation_system').val(response.taxation_system !== undefined && response.taxation_system !== null ? String(response.taxation_system) : '');
                     $('#edit-kpp').val(response.kpp);
                     $('#edit-registration_number').val(response.registration_number);
 
@@ -606,6 +636,7 @@
 
             // Для физлица скрываем юр.поля и реквизиты
             $('#edit-tax_id_wrapper').toggle(!isPP);
+            $('#edit-taxation_system_wrapper').toggle(!isPP);
             $('#edit-organization_name_wrapper').toggle(!isPP);
             $('#edit-kpp_wrapper').toggle(!isPP && showKpp);
             $('#edit-registration_number_wrapper').toggle(!isPP);

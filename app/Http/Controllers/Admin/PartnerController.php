@@ -93,6 +93,7 @@ class PartnerController extends AdminBaseController
                 'title' => 'Наименование',
                 'organization_name' => 'Наименование организации',
                 'tax_id' => 'ИНН',
+                'taxation_system' => 'Система налогообложения (СНО)',
                 'kpp' => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',
                 'sms_name' => 'Название для SMS/выписок',
@@ -113,6 +114,7 @@ class PartnerController extends AdminBaseController
             foreach ($fields as $key => $label) {
                 $val = $partner->{$key} ?? '—';
                 if ($key === 'is_enabled') $val = $val ? 'Да' : 'Нет';
+                if ($key === 'taxation_system' && $val !== '—') $val = self::taxationSystemLabel((int) $val);
                 $lines[] = "{$label}: {$val}";
             }
 
@@ -164,6 +166,7 @@ class PartnerController extends AdminBaseController
             'title' => $partner->title,
             'organization_name' => $partner->organization_name,
             'tax_id' => $partner->tax_id,
+            'taxation_system' => $partner->taxation_system,
             'kpp' => $partner->kpp,
             'registration_number' => $partner->registration_number,
             'sms_name' => $partner->sms_name,
@@ -208,7 +211,7 @@ class PartnerController extends AdminBaseController
         DB::transaction(function () use ($data, $authorId, $partnerId, $partner) {
 
             $old = $partner->only([
-                'business_type', 'title', 'organization_name', 'tax_id', 'kpp', 'registration_number',
+                'business_type', 'title', 'organization_name', 'tax_id', 'taxation_system', 'kpp', 'registration_number',
                 'sms_name', 'city', 'zip', 'address',
                 'phone', 'email', 'website',
                 'bank_name', 'bank_bik', 'bank_account',
@@ -218,7 +221,7 @@ class PartnerController extends AdminBaseController
             $partner->update($data);
 
             $new = $partner->only([
-                'business_type', 'title', 'organization_name', 'tax_id', 'kpp', 'registration_number',
+                'business_type', 'title', 'organization_name', 'tax_id', 'taxation_system', 'kpp', 'registration_number',
                 'sms_name', 'city', 'zip', 'address',
                 'phone', 'email', 'website',
                 'bank_name', 'bank_bik', 'bank_account',
@@ -230,6 +233,7 @@ class PartnerController extends AdminBaseController
                 'title' => 'Наименование',
                 'organization_name' => 'Наименование организации',
                 'tax_id' => 'ИНН',
+                'taxation_system' => 'Система налогообложения (СНО)',
                 'kpp' => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',
                 'sms_name' => 'Название для SMS/выписок',
@@ -255,6 +259,10 @@ class PartnerController extends AdminBaseController
                 if ($key === 'is_enabled') {
                     $ov = $ov ? 'Да' : 'Нет';
                     $nv = $nv ? 'Да' : 'Нет';
+                }
+                if ($key === 'taxation_system') {
+                    if ($ov !== null && $ov !== '') $ov = self::taxationSystemLabel((int) $ov);
+                    if ($nv !== null && $nv !== '') $nv = self::taxationSystemLabel((int) $nv);
                 }
                 if ((string)$ov !== (string)$nv) {
                     $oldLines[] = "{$label}: {$ov}";
@@ -344,6 +352,7 @@ class PartnerController extends AdminBaseController
             'title',
             'organization_name',
             'tax_id',
+            'taxation_system',
             'kpp',
             'registration_number',
             'address',
@@ -365,8 +374,9 @@ class PartnerController extends AdminBaseController
             $fields = [
                 'business_type' => 'Тип бизнеса',
                 'title' => 'Наименование',
-            'organization_name' => 'Наименование организации',
+                'organization_name' => 'Наименование организации',
                 'tax_id' => 'ИНН',
+                'taxation_system' => 'Система налогообложения (СНО)',
                 'kpp' => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',
                 'address' => 'Почтовый адрес',
@@ -385,6 +395,9 @@ class PartnerController extends AdminBaseController
                 $val = $old[$key] ?? '—';
                 if ($key === 'is_enabled') {
                     $val = $val ? 'Да' : 'Нет';
+                }
+                if ($key === 'taxation_system' && $val !== '—' && $val !== null && $val !== '') {
+                    $val = self::taxationSystemLabel((int) $val);
                 }
                 $lines[] = "{$label}: {$val}";
             }
@@ -413,4 +426,17 @@ class PartnerController extends AdminBaseController
         return $this->buildLogDataTable(80);
     }
 
+    /** СНО: 0=OSN, 1=USN income, 2=USN income-expense, 3=ENVD, 4=ESHN, 5=Patent */
+    private static function taxationSystemLabel(int $value): string
+    {
+        return match ($value) {
+            0 => 'ОСН',
+            1 => 'УСН доход',
+            2 => 'УСН доход − расход',
+            3 => 'ЕНВД',
+            4 => 'ЕСХН',
+            5 => 'Патент',
+            default => (string) $value,
+        };
+    }
 }

@@ -38,6 +38,12 @@
                                 <div>Сумма: <strong>{{ roubles($payment->amount) }} ₽</strong></div>
                                 <div>Метод: {{ $payment->method ?? '—' }}</div>
                                 <div>Партнёр: {{ optional($payment->partner)->title ?? '#'.$payment->partner_id }}</div>
+                                @php
+                                    $pPartner = $payment->partner;
+                                    $taxVal = $pPartner ? $pPartner->taxation_system : null;
+                                    $taxLabel = $taxVal !== null && $taxVal !== '' ? (match((int)$taxVal) { 0=>'ОСН', 1=>'УСН доход', 2=>'УСН доход − расход', 3=>'ЕНВД', 4=>'ЕСХН', 5=>'Патент', default=>(string)$taxVal }) : '—';
+                                @endphp
+                                <div class="small text-muted">СНО (для чеков): {{ $taxLabel }}</div>
                                 @if($refundUntil)
                                     <div class="mt-2">
                                         <span class="badge text-bg-warning">Окно возврата до: {{ $refundUntil->format('d.m.Y H:i') }}</span>

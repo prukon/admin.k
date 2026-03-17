@@ -27,6 +27,9 @@ class UpdatePartnerRequest extends FormRequest
                 ]
             ]);
         }
+        if ($this->has('taxation_system') && $this->taxation_system === '') {
+            $this->merge(['taxation_system' => null]);
+        }
     }
 
     public function rules()
@@ -38,6 +41,7 @@ class UpdatePartnerRequest extends FormRequest
             'title'               => 'required|string|max:255',
             'organization_name'   => 'nullable|string|max:255',
             'tax_id'              => 'nullable|string|max:12',
+            'taxation_system'     => 'nullable|integer|in:0,1,2,3,4,5',
             'kpp'                 => 'nullable|string|max:9',
             'registration_number' => 'nullable|string|max:20',
 
@@ -81,6 +85,7 @@ class UpdatePartnerRequest extends FormRequest
             'title'               => 'Наименование',
             'organization_name'   => 'Наименование организации',
             'tax_id'              => 'ИНН',
+            'taxation_system'     => 'Система налогообложения (СНО)',
             'kpp'                 => 'КПП',
             'registration_number' => 'ОГРН (ОГРНИП)',
 

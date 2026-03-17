@@ -21,6 +21,11 @@
                     <div><b>Статус sm-register:</b> {{ $partner->sm_register_status ?? 'Не зарегистрирован' }}</div>
                     <div><b>Версия реквизитов:</b> {{ $partner->bank_details_version ?? 0 }}</div>
                     <div><b>Обновлены:</b> {{ $partner->bank_details_last_updated_at ?? '—' }}</div>
+                    @php
+                        $ts = $partner->taxation_system;
+                        $tsLabel = $ts !== null && $ts !== '' ? (match((int)$ts) { 0=>'ОСН', 1=>'УСН доход', 2=>'УСН доход − расход', 3=>'ЕНВД', 4=>'ЕСХН', 5=>'Патент', default=>(string)$ts }) : '—';
+                    @endphp
+                    <div><b>СНО (для чеков):</b> {{ $tsLabel }}</div>
                 </div>
             </div>
 
