@@ -73,6 +73,7 @@ return [
         'base_url' => env('CLOUDKASSIR_BASE_URL', 'https://api.cloudpayments.ru'),
         'public_id' => env('CLOUDKASSIR_PUBLIC_ID'),
         'api_secret' => env('CLOUDKASSIR_API_SECRET'),
+        'inn' => env('CLOUDKASSIR_INN'),
         'timeout' => (int) env('CLOUDKASSIR_TIMEOUT', 30),
 
         'default_vat' => env('CLOUDKASSIR_DEFAULT_VAT'),

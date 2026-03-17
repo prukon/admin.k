@@ -43,6 +43,11 @@ class CloudKassirReceiptBuilder
             throw new RuntimeException("Partner #{$partner->id} has no taxation_system.");
         }
 
+        $platformInn = (string) config('services.cloudkassir.inn', '');
+        if ($platformInn === '') {
+            throw new RuntimeException('CLOUDKASSIR_INN is not set in .env (ИНН платформы, на который зарегистрирована касса).');
+        }
+
         $label = $this->makeLabel($payable);
         $amount = $this->normalizeMoney($fiscalReceipt->amount ?: $payable->amount);
 
@@ -59,7 +64,7 @@ class CloudKassirReceiptBuilder
         $item = $this->appendAgentDataIfNeeded($item, $partner);
 
         return [
-            'Inn' => (string) $partner->tax_id,
+            'Inn' => $platformInn,
             'Type' => $this->mapType($fiscalReceipt->type),
             'InvoiceId' => $this->makeInvoiceId($fiscalReceipt, $paymentIntent, $payable),
             'AccountId' => $this->makeAccountId($paymentIntent),

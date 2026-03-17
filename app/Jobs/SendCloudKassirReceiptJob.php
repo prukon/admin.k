@@ -28,6 +28,10 @@ class SendCloudKassirReceiptJob implements ShouldQueue
         CloudKassirService $cloudKassirService,
         CloudKassirReceiptBuilder $builder
     ): void {
+        // Отладка логов: пишем в файл напрямую — если появится, воркер пишет в storage/logs и путь верный
+        $debugPath = storage_path('logs/cloudkassir_debug.txt');
+        @file_put_contents($debugPath, date('Y-m-d H:i:s') . " job start receipt_id={$this->fiscalReceiptId} path=" . $debugPath . "\n", FILE_APPEND);
+
         /** @var FiscalReceipt|null $receipt */
         $receipt = FiscalReceipt::query()
             ->with(['partner', 'payable', 'paymentIntent'])

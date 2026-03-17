@@ -17,6 +17,7 @@ class SendCloudKassirReceiptJobTest extends CrmTestCase
         Config::set('services.cloudkassir.base_url', 'https://api.cloudpayments.ru');
         Config::set('services.cloudkassir.public_id', 'test-public-id');
         Config::set('services.cloudkassir.api_secret', 'test-secret');
+        Config::set('services.cloudkassir.inn', '7708806062');
         Config::set('services.cloudkassir.timeout', 30);
 
         Config::set('services.cloudkassir.default_method', 4);
@@ -95,7 +96,7 @@ class SendCloudKassirReceiptJobTest extends CrmTestCase
             $data = $request->data();
 
             return $request->url() === 'https://api.cloudpayments.ru/kkt/receipt'
-                && $data['Inn'] === '7700000000'
+                && $data['Inn'] === '7708806062'
                 && $data['Type'] === 'Income'
                 && $data['CustomerReceipt']['TaxationSystem'] === 1
                 && $data['CustomerReceipt']['Items'][0]['Label'] === 'Абонемент за март'

@@ -13,6 +13,7 @@ class CloudKassirReceiptBuilderAgentTest extends CrmTestCase
 {
     public function test_builder_adds_agent_and_purveyor_data_for_agent_scheme(): void
     {
+        Config::set('services.cloudkassir.inn', '7708806062');
         Config::set('services.cloudkassir.default_method', 4);
         Config::set('services.cloudkassir.default_object', 4);
         Config::set('services.cloudkassir.default_vat', 0);
@@ -72,7 +73,7 @@ class CloudKassirReceiptBuilderAgentTest extends CrmTestCase
         $builder = app(CloudKassirReceiptBuilder::class);
         $payload = $builder->build($receipt);
 
-        $this->assertSame('7700000000', $payload['Inn']);
+        $this->assertSame('7708806062', $payload['Inn']);
         $this->assertSame('Income', $payload['Type']);
         $this->assertSame(1, $payload['CustomerReceipt']['TaxationSystem']);
         $this->assertSame('3500.00', $payload['CustomerReceipt']['Amounts']['Electronic']);
