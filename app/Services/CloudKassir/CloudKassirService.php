@@ -57,10 +57,10 @@ class CloudKassirService
         }
 
         // Лог тела запроса и ответа (для передачи менеджеру CloudKassir при необходимости)
-        Log::channel('cloudkassir')->info('CloudKassir request', [
-            'path' => $path,
-            'request_body' => $payload,
-        ]);
+        // Дублируем в default-канал: если cloudkassir.log недоступен по правам, данные будут в laravel.log
+        $requestLog = ['path' => $path, 'request_body' => $payload];
+        Log::channel('cloudkassir')->info('CloudKassir request', $requestLog);
+        Log::info('CloudKassir request', $requestLog);
 
         /** @var Response $response */
         $response = Http::withBasicAuth($this->publicId, $this->apiSecret)
@@ -72,11 +72,13 @@ class CloudKassirService
         $json = $response->json();
 
         // Лог тела ответа (для передачи менеджеру CloudKassir при необходимости)
-        Log::channel('cloudkassir')->info('CloudKassir response', [
+        $responseLog = [
             'path' => $path,
             'http_status' => $response->status(),
             'response_body' => is_array($json) ? $json : ['_raw' => $response->body()],
-        ]);
+        ];
+        Log::channel('cloudkassir')->info('CloudKassir response', $responseLog);
+        Log::info('CloudKassir response', $responseLog);
 
         if (!is_array($json)) {
             throw new RuntimeException(
