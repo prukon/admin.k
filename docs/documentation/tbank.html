@@ -81,8 +81,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
       <code>/admin/settings/tbank-commissions/{id}/edit</code> чекбокс “Автовыплата включена”.</li>
     <li><b>Важно</b>: чекбокс применяется к <b>партнёру</b>, указанному в этом правиле (поле <code>partner_id</code>).
       Для “глобального” правила (partner_id = NULL) чекбокс не применяется — сначала нужно выбрать партнёра и сохранить правило.</li>
-    <li><b>Что делает</b>: если включено — после успешной оплаты (<code>Status=CONFIRMED</code>) автоматически создаём выплату партнёру (e2c) с задержкой <b>+48 часов</b>.
-      Дальше фактический статус доводится polling’ом (<code>GetState</code>) до <code>COMPLETED/REJECTED</code>.</li>
+    <li><b>Что делает</b>: если включено — после успешной оплаты (<code>Status=CONFIRMED</code>) автоматически создаём выплату партнёру (e2c) с задержкой <b>из глобальной настройки</b> (часы, по умолчанию 48). При 0 — выплата уходит в банк сразу. Дальше фактический статус доводится polling’ом (<code>GetState</code>) до <code>COMPLETED/REJECTED</code>.</li>
     <li><b>Если выключено</b>: выплаты запускаются только вручную (админ‑действиями).</li>
   </ul>
 
@@ -112,6 +111,30 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><b>СБП-выплата</b> (не используется для партнёров-юрлиц в kidscrm): <code>Payment</code> не требуется; выплата происходит в рамках одного <code>Init</code>, при необходимости статус уточняется через <code>GetState</code>.</li>
   </ul>
 
+  <h3 id="payout-settings">5.4 Глобальные настройки выплат (задержка и интервал джобы)</h3>
+  <div class="note">
+    Два параметра хранятся в таблице <code>settings</code> (колонка <code>text</code>, ключи <code>name</code>): <code>tinkoff_payout_auto_delay_hours</code>, <code>tinkoff_payout_scheduled_interval_minutes</code>. При отсутствии записи используются значения из <code>config/tinkoff.php</code> (и .env).
+  </div>
+  <ul>
+    <li><b>Задержка автовыплаты (часы)</b>: через сколько часов после <code>CONFIRMED</code> создаётся/запускается выплата. 0 = сразу. По умолчанию 48 (окно возврата).</li>
+    <li><b>Интервал джобы (минуты)</b>: как часто планировщик запускает <code>TinkoffRunScheduledPayoutsJob</code> и <code>TinkoffPollPayoutStatesJob</code>. По умолчанию 10.</li>
+    <li><b>Где управлять</b>: страница комиссий <code>/admin/settings/tbank-commissions</code> — блок <b>«Глобальные настройки выплат Т‑Банк»</b> над таблицей правил. Поля «Задержка автовыплаты после оплаты (часы)» и «Интервал запуска джобы (мин)», кнопка «Сохранить». Изменение интервала джобы применяется после перезапуска планировщика (cron/queue).</li>
+  </ul>
+
+  <h3>5.5 Где отображается информация об автовыплатах</h3>
+  <ul>
+    <li><b>Страница выплат</b> <code>/admin/tinkoff/payouts</code>: блок «Автовыплаты: включены у партнёров …» и «Обработка отложенных выплат: каждые N мин.»</li>
+    <li><b>Страница партнёра</b> <code>/admin/tinkoff/partners/{id}</code>: в карточке слева — «Автовыплата: вкл/выкл», интервал, «За 30 дн.: N автовыплат», ссылка «к выплатам». Счётчик <b>«Ожидают выплат»</b> — это количество выплат в статусах <code>INITIATED</code>/<code>CREDIT_CHECKING</code> (уже созданы и в процессе), а не «платежи, ожидающие создания выплаты».</li>
+    <li><b>Страница комиссий</b>: в таблице правил — по каждому партнёру «Автовыплата: on/off» и «За 30 дн.: N автовыплат, последняя …» со ссылкой на список выплат; на форме редактирования правила — тот же блок «За 30 дн.» под чекбоксом автовыплаты.</li>
+  </ul>
+
+  <h3>5.6 Защита от повторной выплаты по одному платежу</h3>
+  <ul>
+    <li>По одному <code>payment_id</code> не создаётся вторая запись в <code>tinkoff_payouts</code>, если уже есть выплата со статусом отличным от <code>REJECTED</code>. Повторная попытка (кнопка «Выплатить сейчас») возвращает существующую выплату или запускает её, если она была отложенной.</li>
+    <li>Если последняя выплата по платежу в статусе <code>REJECTED</code> — можно создать новую (retry).</li>
+    <li>На карточке платежа <code>/admin/tinkoff/payments/{id}</code> кнопки «Выплатить сейчас» и «Отложить» показываются только когда выплаты ещё нет или последняя — <code>REJECTED</code>; иначе выводится «Выплата уже создана или в процессе».</li>
+  </ul>
+
   <h2>6) Workflow оплаты (одностадийный)</h2>
   <ol>
     <li>Юзер выбирает T‑Bank на странице <code>/payment</code>.</li>
@@ -126,7 +149,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
         <li>Если <code>payables.type=monthly_fee</code> → отмечаем месяц в <code>users_prices</code>.</li>
       </ul>
     </li>
-    <li>После CONFIRMED запускаем выплату партнёру (e2c) на сумму <code>net_to_partner</code> <b>только если включена автовыплата</b> (см. раздел 5).</li>
+    <li>После CONFIRMED запускаем выплату партнёру (e2c) на сумму <code>net_to_partner</code> <b>только если в момент обработки webhook у партнёра включена автовыплата</b> (<code>auto_payout_enabled</code>). Ретроактивно автовыплаты по старым платежам не создаются.</li>
   </ol>
 
   <div class="note">
@@ -182,11 +205,11 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     </li>
   </ul>
 
-  <h3>7.4 Выплаты (e2c): ручные/авто/поллинг</h3>
+  <h3>7.4 Выплаты (e2c): ручные/авто/поллинг/защита от дублей</h3>
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankAutoPayoutOnWebhookTest.php</code>
       <ul>
-        <li><b>Автовыплата</b>: после webhook <code>CONFIRMED</code> при <code>auto_payout_enabled=true</code> запускается e2c‑выплата и доводится до <code>COMPLETED</code>.</li>
+        <li><b>Автовыплата</b>: после webhook <code>CONFIRMED</code> при <code>auto_payout_enabled=true</code> запускается e2c‑выплата и доводится до <code>COMPLETED</code>; задержка берётся из <code>Setting::getTinkoffPayoutAutoDelayHours()</code>.</li>
       </ul>
     </li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankPollPayoutStatesJobTest.php</code>
@@ -202,6 +225,13 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
         <li><b>Superadmin</b>: может управлять выплатой по <code>deal_id</code> любого партнёра (как владелец сервиса).</li>
       </ul>
     </li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutDuplicatePreventionTest.php</code>
+      <ul>
+        <li><b>Защита от дублей</b>: вторая выплата по одному платежу не создаётся, если уже есть выплата не в <code>REJECTED</code>; при <code>REJECTED</code> разрешён retry. UI карточки платежа: кнопки «Выплатить сейчас»/«Отложить» только при отсутствии активной выплаты.</li>
+      </ul>
+    </li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsIndexAutoInfoTest.php</code> — на странице <code>/admin/tinkoff/payouts</code> отображаются блоки про автовыплаты и интервал обработки отложенных.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Partners/TbankPartnerShowAutoPayoutInfoTest.php</code> — на странице партнёра отображаются статус автовыплаты, интервал и счётчик автовыплат за 30 дней.</li>
   </ul>
 
   <h3>7.5 CloseSpDeal</h3>
@@ -225,12 +255,14 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     </li>
   </ul>
 
-  <h3>7.7 Комиссии (CRUD + приоритеты правил)</h3>
+  <h3>7.7 Комиссии (CRUD + приоритеты правил + настройки выплат)</h3>
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAccessTest.php</code> — доступы/SetPartner к настройке комиссий.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerCrudTest.php</code> — CRUD правил комиссий + валидация.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAutoPayoutTest.php</code> — флаг <code>auto_payout_enabled</code> в <code>payment_systems.settings</code> и его корректное сохранение.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionRulePriorityTest.php</code> — дефолт 2% и приоритет выбора правила (global → partner → partner+method).</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsPayoutSettingsTest.php</code> — сохранение глобальных настроек выплат (задержка, интервал джобы) через форму на странице комиссий.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsAutoPayoutStatsTest.php</code> — отображение «За 30 дн.: N автовыплат» в списке правил и на форме редактирования правила.</li>
   </ul>
 
   <h3>7.8 Возвраты (ограничения при выплатах)</h3>
@@ -241,6 +273,12 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
         <li><b>Разрешение возврата</b>: если выплата <code>REJECTED</code>, создаётся refund и ставится job.</li>
       </ul>
     </li>
+  </ul>
+
+  <h3>7.9 Планировщик и настройки выплат (Setting)</h3>
+  <ul>
+    <li><code>tests/Feature/Console/KernelPayoutScheduleTest.php</code> — в расписании зарегистрированы <code>tinkoff:run-scheduled-payouts</code> и <code>tinkoff:poll-payout-states</code> с интервалом из <code>Setting::getTinkoffPayoutScheduledIntervalMinutes()</code>.</li>
+    <li><code>tests/Feature/Setting/SettingTinkoffPayoutTest.php</code> — модель <code>Setting</code>: <code>getInt</code>/<code>setInt</code> и методы <code>getTinkoffPayoutAutoDelayHours</code>, <code>setTinkoffPayoutAutoDelayHours</code>, <code>getTinkoffPayoutScheduledIntervalMinutes</code>, <code>setTinkoffPayoutScheduledIntervalMinutes</code> (чтение из БД с fallback на config).</li>
   </ul>
 </div>
 </body>

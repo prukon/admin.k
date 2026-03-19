@@ -1,7 +1,6 @@
 @extends('layouts.admin2')
 
 @php
-    function roubles($cents){ return $cents === null ? '—' : number_format($cents/100,2,',',' '); }
     $badge = [
       'INITIATED' => 'secondary',
       'NEW' => 'info',

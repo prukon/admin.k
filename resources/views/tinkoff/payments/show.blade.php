@@ -1,12 +1,6 @@
 @extends('layouts.admin2')
 
 @php
-    function roubles($cents){ return number_format($cents/100,2,',',' '); }
-    function pretty_json($v){
-        if ($v === null) return '';
-        if (is_string($v)) return $v;
-        return json_encode($v, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
-    }
     $badge = [
       'NEW' => 'secondary','FORM'=>'info','CONFIRMED'=>'success',
       'REJECTED'=>'danger','CANCELED'=>'warning'
