@@ -559,6 +559,23 @@
                         <div class="small text-muted">Статус sm-register: {{ $partner->sm_register_status ?? '—' }}</div>
                         <div class="small text-muted">Банк обновлён: {{ $partner->bank_details_last_updated_at?->format('d.m.Y H:i') ?? '—' }}</div>
                         <div class="small text-muted">Версия реквизитов: {{ $partner->bank_details_version ?? '—' }}</div>
+                        <hr class="my-2">
+                        <div class="small">
+                            <strong>Автовыплата:</strong>
+                            @if($autoPayoutEnabled ?? false)
+                                <span class="badge text-bg-success">вкл</span>
+                            @else
+                                <span class="badge text-bg-secondary">выкл</span>
+                            @endif
+                        </div>
+                        <div class="small text-muted">Обработка отложенных: каждые {{ $scheduledIntervalMinutes }} мин.</div>
+                        <div class="small text-muted">
+                            За 30 дн.: {{ $autoPayoutCount30 ?? 0 }} автовыплат
+                            @if(!empty($autoPayoutLastAt))
+                                , последняя {{ $autoPayoutLastAt->format('d.m.Y H:i') }}
+                            @endif
+                            — <a href="{{ url('/admin/tinkoff/payouts?partner_id=' . $partner->id . '&source=auto') }}" target="_blank">к выплатам</a>
+                        </div>
                     </div>
                 </div>
 

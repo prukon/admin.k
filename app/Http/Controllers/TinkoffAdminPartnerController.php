@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Partner;
+use App\Models\PaymentSystem;
 use App\Models\TinkoffPayout;
 use App\Models\TinkoffPayment;
 use App\Services\Tinkoff\SmRegisterClient;
@@ -36,7 +37,29 @@ class TinkoffAdminPartnerController extends Controller
         $latestPayments = TinkoffPayment::where('partner_id', $partner->id)
             ->latest()->limit(20)->get();
 
-        return view('tinkoff.partners.show', compact('partner', 'waiting', 'latestPayments'));
+        $ps = PaymentSystem::where('partner_id', $partner->id)->where('name', 'tbank')->first();
+        $autoPayoutEnabled = $ps ? (bool) (($ps->settings ?: [])['auto_payout_enabled'] ?? false) : false;
+        $scheduledIntervalMinutes = config('tinkoff.payouts.scheduled_interval_minutes', 10);
+
+        $autoPayoutStats = TinkoffPayout::query()
+            ->where('partner_id', $partner->id)
+            ->where('source', 'auto')
+            ->where('created_at', '>=', now()->subDays(30))
+            ->selectRaw('count(*) as cnt, max(created_at) as last_at')
+            ->first();
+        $autoPayoutCount30 = (int) ($autoPayoutStats->cnt ?? 0);
+        $autoPayoutLastAt = isset($autoPayoutStats->last_at) && $autoPayoutStats->last_at
+            ? \Carbon\Carbon::parse($autoPayoutStats->last_at) : null;
+
+        return view('tinkoff.partners.show', compact(
+            'partner',
+            'waiting',
+            'latestPayments',
+            'autoPayoutEnabled',
+            'scheduledIntervalMinutes',
+            'autoPayoutCount30',
+            'autoPayoutLastAt'
+        ));
     }
 
     public function smRegister($id, SmRegisterRequest $request, SmRegisterClient $sm)
