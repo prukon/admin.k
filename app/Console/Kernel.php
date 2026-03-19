@@ -20,8 +20,8 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
 
-        // T-Bank payouts: интервал из config('tinkoff.payouts.scheduled_interval_minutes')
-        $payoutIntervalMinutes = config('tinkoff.payouts.scheduled_interval_minutes', 10);
+        // T-Bank payouts: интервал из БД (settings) или config
+        $payoutIntervalMinutes = \App\Models\Setting::getTinkoffPayoutScheduledIntervalMinutes();
         $payoutCron = '*/' . max(1, (int) $payoutIntervalMinutes) . ' * * * *';
 
         $schedule->job(new \App\Jobs\TinkoffRunScheduledPayoutsJob)

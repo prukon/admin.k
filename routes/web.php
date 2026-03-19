@@ -340,6 +340,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Страница Настойки - Комиссии Т-Банк (feature test +)
     Route::middleware('can:settings.commission')->group(function () {
         Route::get('admin/settings/tbank-commissions', [TbankCommissionsController::class, 'index'])->name('admin.setting.tbankCommissions');
+        Route::post('admin/settings/tbank-commissions/payout-settings', [TbankCommissionsController::class, 'updatePayoutSettings'])->name('admin.setting.tbankCommissions.payoutSettings');
         Route::get('admin/settings/tbank-commissions/create', [TbankCommissionsController::class, 'create'])->name('admin.setting.tbankCommissions.create');
         Route::post('admin/settings/tbank-commissions', [TbankCommissionsController::class, 'store'])->name('admin.setting.tbankCommissions.store');
         Route::get('admin/settings/tbank-commissions/{id}/edit', [TbankCommissionsController::class, 'edit'])->name('admin.setting.tbankCommissions.edit');

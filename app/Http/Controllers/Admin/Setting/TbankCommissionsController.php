@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Setting;
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use App\Models\PaymentSystem;
+use App\Models\Setting;
 use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayout;
 use Illuminate\Support\Carbon;
@@ -63,7 +64,27 @@ class TbankCommissionsController extends Controller
             'autoPayoutByPartnerId' => $autoPayoutByPartnerId,
             'tbankConnectedByPartnerId' => $tbankConnectedByPartnerId,
             'autoPayoutStatsByPartnerId' => $autoPayoutStatsByPartnerId,
+            'payoutAutoDelayHours' => Setting::getTinkoffPayoutAutoDelayHours(),
+            'payoutScheduledIntervalMinutes' => Setting::getTinkoffPayoutScheduledIntervalMinutes(),
         ]);
+    }
+
+    /**
+     * Сохранение глобальных настроек выплат (задержка автовыплаты, интервал джобы).
+     */
+    public function updatePayoutSettings(Request $r)
+    {
+        $validated = $r->validate([
+            'payout_auto_delay_hours' => ['required', 'integer', 'min:0', 'max:720'],
+            'payout_scheduled_interval_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
+        ]);
+
+        Setting::setTinkoffPayoutAutoDelayHours((int) $validated['payout_auto_delay_hours']);
+        Setting::setTinkoffPayoutScheduledIntervalMinutes((int) $validated['payout_scheduled_interval_minutes']);
+
+        return redirect()
+            ->route('admin.setting.tbankCommissions')
+            ->with('status', 'Настройки выплат сохранены. Изменение интервала джобы применится после перезапуска планировщика.');
     }
 
     public function create()

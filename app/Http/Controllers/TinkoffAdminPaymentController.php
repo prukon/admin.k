@@ -44,10 +44,11 @@ class TinkoffAdminPaymentController extends Controller
         // Калькуляция (поступило/банк/платформа/партнёру)
         $breakdown = $svc->breakdownForPayment($payment);
 
-        // Окно возврата 48ч (если CONFIRMED)
+        // Окно возврата (часы из БД/config, то же значение что и задержка автовыплаты)
         $refundUntil = null;
         if ($payment->confirmed_at) {
-            $refundUntil = $payment->confirmed_at->clone()->addHours(48);
+            $delayHours = \App\Models\Setting::getTinkoffPayoutAutoDelayHours();
+            $refundUntil = $payment->confirmed_at->clone()->addHours($delayHours);
         }
 
         // История статусов (оплата + выплаты) из лог-таблиц

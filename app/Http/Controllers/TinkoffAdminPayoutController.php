@@ -29,7 +29,7 @@ class TinkoffAdminPayoutController extends Controller
         $autoPayoutByPartnerId = $paymentSystems->keyBy(fn ($ps) => (int) $ps->partner_id)
             ->map(fn ($ps) => (bool) (($ps->settings ?: [])['auto_payout_enabled'] ?? false));
         $partnersWithAuto = $partners->filter(fn ($p) => $autoPayoutByPartnerId[(int) $p->id] ?? false);
-        $scheduledIntervalMinutes = config('tinkoff.payouts.scheduled_interval_minutes', 10);
+        $scheduledIntervalMinutes = \App\Models\Setting::getTinkoffPayoutScheduledIntervalMinutes();
 
         return view('tinkoff.payouts.index', compact(
             'partners',

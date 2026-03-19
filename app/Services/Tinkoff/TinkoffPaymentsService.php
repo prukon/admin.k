@@ -196,16 +196,18 @@ class TinkoffPaymentsService
                 Log::channel('tinkoff')->error('[sm-register PATCH failed] ' . $e->getMessage());
             }
 
-            // 2) Создаём выплату с задержкой 48 часов после CONFIRMED.
-            // Важно: e2c не присылает webhook, поэтому статус доведёт polling job.
+            // 2) Создаём выплату с задержкой после CONFIRMED (часы из БД/config, 0 = сразу).
+            $delayHours = \App\Models\Setting::getTinkoffPayoutAutoDelayHours();
+            $runAt = $delayHours > 0
+                ? ($payment->confirmed_at ?? now())->clone()->addHours($delayHours)
+                : null;
             try {
-                $runAt = ($payment->confirmed_at ?? now())->clone()->addHours(48);
                 app(\App\Services\Tinkoff\TinkoffPayoutsService::class)
                     ->createAndRunPayout($payment, true, $runAt, 'auto', null);
                 Log::channel('tinkoff')->info('[auto-payout scheduled]', [
                     'deal_id' => $payment->deal_id,
                     'payment_id' => $payment->id,
-                    'run_at' => $runAt->format('c'),
+                    'run_at' => $runAt ? $runAt->format('c') : 'immediately',
                 ]);
             } catch (\Throwable $e) {
                 Log::channel('tinkoff')->error('[auto-payout failed] ' . $e->getMessage());

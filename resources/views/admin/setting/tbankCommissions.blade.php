@@ -91,6 +91,31 @@
     @else
         @php /** @var \Illuminate\Pagination\LengthAwarePaginator $rules */ @endphp
 
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">Глобальные настройки выплат Т‑Банк</div>
+            <div class="card-body">
+                <form method="post" action="{{ route('admin.setting.tbankCommissions.payoutSettings') }}" class="row g-3 align-items-end">
+                    @csrf
+                    <div class="col-auto">
+                        <label for="payout_auto_delay_hours" class="form-label mb-0">Задержка автовыплаты после оплаты (часы)</label>
+                        <input type="number" class="form-control form-control-sm" id="payout_auto_delay_hours" name="payout_auto_delay_hours"
+                               value="{{ old('payout_auto_delay_hours', $payoutAutoDelayHours ?? 48) }}" min="0" max="720" style="width: 6rem;">
+                        <div class="form-text small">0 = сразу, 48 = через 48 ч (окно возврата)</div>
+                    </div>
+                    <div class="col-auto">
+                        <label for="payout_scheduled_interval_minutes" class="form-label mb-0">Интервал запуска джобы (мин)</label>
+                        <input type="number" class="form-control form-control-sm" id="payout_scheduled_interval_minutes" name="payout_scheduled_interval_minutes"
+                               value="{{ old('payout_scheduled_interval_minutes', $payoutScheduledIntervalMinutes ?? 10) }}" min="1" max="1440" style="width: 6rem;">
+                        <div class="form-text small">Как часто обрабатываются отложенные выплаты</div>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                    </div>
+                </form>
+                <div class="small text-muted mt-2">Изменение интервала джобы применится после перезапуска планировщика (cron/queue).</div>
+            </div>
+        </div>
+
         <div class="table-responsive">
             <table class="table table-sm align-middle">
                 <thead class="table-light">

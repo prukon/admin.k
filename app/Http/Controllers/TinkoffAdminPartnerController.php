@@ -39,7 +39,7 @@ class TinkoffAdminPartnerController extends Controller
 
         $ps = PaymentSystem::where('partner_id', $partner->id)->where('name', 'tbank')->first();
         $autoPayoutEnabled = $ps ? (bool) (($ps->settings ?: [])['auto_payout_enabled'] ?? false) : false;
-        $scheduledIntervalMinutes = config('tinkoff.payouts.scheduled_interval_minutes', 10);
+        $scheduledIntervalMinutes = \App\Models\Setting::getTinkoffPayoutScheduledIntervalMinutes();
 
         $autoPayoutStats = TinkoffPayout::query()
             ->where('partner_id', $partner->id)
