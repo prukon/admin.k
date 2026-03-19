@@ -35,6 +35,7 @@
             $rulePartnerId = (int) ($rule->partner_id ?? 0);
             $auto = !empty($autoPayoutByPartnerId) ? (bool) ($autoPayoutByPartnerId[$rulePartnerId] ?? false) : false;
             $conn = !empty($tbankConnectedByPartnerId) ? (bool) ($tbankConnectedByPartnerId[$rulePartnerId] ?? false) : false;
+            $ruleStats = ($autoPayoutStatsByPartnerId ?? collect())->get($rulePartnerId);
         @endphp
 
         <form method="post" action="{{ route('admin.setting.tbankCommissions.update', ['id' => $rule->id]) }}">
@@ -68,6 +69,13 @@
                                    value="1"
                                    {{ $auto ? 'checked' : '' }}>
                             <label class="form-check-label" for="autoPayoutEnabled">Автовыплата включена</label>
+                        </div>
+                        <div class="small text-muted mt-2">
+                            За 30 дн.: {{ $ruleStats['count'] ?? 0 }} автовыплат
+                            @if(!empty($ruleStats['last_at']))
+                                , последняя {{ $ruleStats['last_at']->format('d.m.Y H:i') }}
+                            @endif
+                            — <a href="{{ url('/admin/tinkoff/payouts?partner_id=' . $rulePartnerId . '&source=auto') }}" target="_blank">к выплатам (авто)</a>
                         </div>
                     @endif
                 </div>
@@ -107,6 +115,7 @@
                                     $pid = (int) $r->partner_id;
                                     $auto = !empty($autoPayoutByPartnerId) ? (bool) ($autoPayoutByPartnerId[$pid] ?? false) : false;
                                     $conn = !empty($tbankConnectedByPartnerId) ? (bool) ($tbankConnectedByPartnerId[$pid] ?? false) : false;
+                                    $stats = ($autoPayoutStatsByPartnerId ?? collect())->get($pid);
                                 @endphp
                                 <div>{{ optional($r->partner)->title ?? ('#'.$pid) }}</div>
                                 <div class="small">
@@ -119,6 +128,13 @@
                                     @if(!$conn)
                                         <span class="badge text-bg-warning">ключи?</span>
                                     @endif
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    За 30 дн.: {{ $stats['count'] ?? 0 }} автовыплат
+                                    @if(!empty($stats['last_at']))
+                                        , последняя {{ $stats['last_at']->format('d.m.Y H:i') }}
+                                    @endif
+                                    <a href="{{ url('/admin/tinkoff/payouts?partner_id=' . $pid . '&source=auto') }}" class="ms-1" target="_blank" title="К выплатам (авто)">→</a>
                                 </div>
                             @else
                                 — (глобально)

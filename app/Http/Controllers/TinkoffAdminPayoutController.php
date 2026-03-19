@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Partner;
+use App\Models\PaymentSystem;
 use App\Models\TinkoffPayout;
 use App\Services\Tinkoff\TinkoffPayoutsService;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsDataTableRequest;
@@ -22,7 +23,21 @@ class TinkoffAdminPayoutController extends Controller
             ? Partner::orderBy('title')->get(['id', 'title'])
             : Partner::query()->whereKey((int) app('current_partner')->id)->get(['id', 'title']);
 
-        return view('tinkoff.payouts.index', compact('partners', 'isSuperadmin'));
+        $paymentSystems = PaymentSystem::query()
+            ->where('name', 'tbank')
+            ->get(['partner_id', 'settings']);
+        $autoPayoutByPartnerId = $paymentSystems->keyBy(fn ($ps) => (int) $ps->partner_id)
+            ->map(fn ($ps) => (bool) (($ps->settings ?: [])['auto_payout_enabled'] ?? false));
+        $partnersWithAuto = $partners->filter(fn ($p) => $autoPayoutByPartnerId[(int) $p->id] ?? false);
+        $scheduledIntervalMinutes = config('tinkoff.payouts.scheduled_interval_minutes', 10);
+
+        return view('tinkoff.payouts.index', compact(
+            'partners',
+            'isSuperadmin',
+            'autoPayoutByPartnerId',
+            'partnersWithAuto',
+            'scheduledIntervalMinutes'
+        ));
     }
 
     public function show(int $id, TinkoffPayoutsService $svc)

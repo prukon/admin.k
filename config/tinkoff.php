@@ -37,6 +37,11 @@ return [
     ],
 
 
+    // Обработка отложенных выплат: джоба TinkoffRunScheduledPayoutsJob запускается каждые N минут
+    'payouts' => [
+        'scheduled_interval_minutes' => (int) env('TINKOFF_PAYOUT_SCHEDULED_INTERVAL_MINUTES', 10),
+    ],
+
     // Тарифы для UI (можно править в .env или вынести в БД позже)
     'tariffs' => [
         'acquiring' => ['percent' => 2.49, 'min_fixed' => 3.49], // банк за прием платежа

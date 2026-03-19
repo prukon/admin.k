@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffCommissionRule;
+use App\Models\TinkoffPayout;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -32,6 +34,27 @@ class TbankCommissionsController extends Controller
             ->keyBy(fn ($ps) => (int) $ps->partner_id)
             ->map(fn ($ps) => (bool) $ps->is_connected);
 
+        $partnerIds = $paymentSystems->pluck('partner_id')->map(fn ($id) => (int) $id)->filter(fn ($id) => $id > 0)->unique()->values()->all();
+        $autoPayoutStatsByPartnerId = collect();
+        if (!empty($partnerIds)) {
+            foreach ($partnerIds as $pid) {
+                $autoPayoutStatsByPartnerId[$pid] = ['count' => 0, 'last_at' => null];
+            }
+            $stats = TinkoffPayout::query()
+                ->where('source', 'auto')
+                ->whereIn('partner_id', $partnerIds)
+                ->where('created_at', '>=', now()->subDays(30))
+                ->selectRaw('partner_id, count(*) as cnt, max(created_at) as last_at')
+                ->groupBy('partner_id')
+                ->get();
+            foreach ($stats as $row) {
+                $autoPayoutStatsByPartnerId[(int) $row->partner_id] = [
+                    'count' => (int) $row->cnt,
+                    'last_at' => $row->last_at ? Carbon::parse($row->last_at) : null,
+                ];
+            }
+        }
+
         return view('admin.setting.index', [
             'activeTab' => 'tbankCommissions',
             'mode' => 'list',
@@ -39,6 +62,7 @@ class TbankCommissionsController extends Controller
             'partners' => $partners,
             'autoPayoutByPartnerId' => $autoPayoutByPartnerId,
             'tbankConnectedByPartnerId' => $tbankConnectedByPartnerId,
+            'autoPayoutStatsByPartnerId' => $autoPayoutStatsByPartnerId,
         ]);
     }
 
@@ -105,6 +129,21 @@ class TbankCommissionsController extends Controller
             ->keyBy(fn ($ps) => (int) $ps->partner_id)
             ->map(fn ($ps) => (bool) $ps->is_connected);
 
+        $rulePartnerId = (int) ($rule->partner_id ?? 0);
+        $autoPayoutStatsByPartnerId = collect();
+        if ($rulePartnerId > 0) {
+            $row = TinkoffPayout::query()
+                ->where('source', 'auto')
+                ->where('partner_id', $rulePartnerId)
+                ->where('created_at', '>=', now()->subDays(30))
+                ->selectRaw('count(*) as cnt, max(created_at) as last_at')
+                ->first();
+            $autoPayoutStatsByPartnerId = collect([$rulePartnerId => [
+                'count' => (int) ($row->cnt ?? 0),
+                'last_at' => isset($row->last_at) && $row->last_at ? Carbon::parse($row->last_at) : null,
+            ]]);
+        }
+
         return view('admin.setting.index', [
             'activeTab' => 'tbankCommissions',
             'mode' => 'edit',
@@ -112,6 +151,7 @@ class TbankCommissionsController extends Controller
             'partners' => $partners,
             'autoPayoutByPartnerId' => $autoPayoutByPartnerId,
             'tbankConnectedByPartnerId' => $tbankConnectedByPartnerId,
+            'autoPayoutStatsByPartnerId' => $autoPayoutStatsByPartnerId,
         ]);
     }
 

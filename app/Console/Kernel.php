@@ -20,16 +20,17 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
 
-        // T-Bank payouts:
-        // - запускаем отложенные выплаты
-        // - часто добиваем статусы, т.к. e2c не присылает webhook-уведомления
+        // T-Bank payouts: интервал из config('tinkoff.payouts.scheduled_interval_minutes')
+        $payoutIntervalMinutes = config('tinkoff.payouts.scheduled_interval_minutes', 10);
+        $payoutCron = '*/' . max(1, (int) $payoutIntervalMinutes) . ' * * * *';
+
         $schedule->job(new \App\Jobs\TinkoffRunScheduledPayoutsJob)
             ->timezone('Europe/Riga')
-            ->everyTenMinutes();
+            ->cron($payoutCron);
 
         $schedule->job(new \App\Jobs\TinkoffPollPayoutStatesJob)
             ->timezone('Europe/Riga')
-            ->everyTenMinutes();
+            ->cron($payoutCron);
 
 
     }

@@ -5,6 +5,23 @@
         <h4 class="pt-3">Выплаты T‑Bank</h4>
         <hr>
 
+        <div class="alert alert-light border mb-3 py-2">
+            <div class="small">
+                <strong>Автовыплаты:</strong>
+                @if($partnersWithAuto->isNotEmpty())
+                    включены у партнёров
+                    @foreach($partnersWithAuto as $pa)
+                        <span class="badge text-bg-success">{{ $pa->title }}</span>
+                    @endforeach
+                @else
+                    <span class="text-muted">ни у кого не включены</span>
+                @endif
+            </div>
+            <div class="small text-muted mt-1">
+                Обработка отложенных выплат: каждые {{ $scheduledIntervalMinutes }} мин.
+            </div>
+        </div>
+
         <div class="row gy-2 align-items-end">
             <div class="col-12 col-lg-8">
                 <div class="d-flex flex-wrap gap-2 align-items-center">
