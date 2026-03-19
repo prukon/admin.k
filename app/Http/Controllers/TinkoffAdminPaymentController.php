@@ -81,6 +81,7 @@ class TinkoffAdminPaymentController extends Controller
             }
         }
 
+        $payouts = collect();
         if (!empty($payment->deal_id)) {
             $payouts = TinkoffPayout::query()
                 ->where('partner_id', (int) $payment->partner_id)
@@ -123,6 +124,9 @@ class TinkoffAdminPaymentController extends Controller
             return strcmp($atA, $atB);
         });
 
-        return view('tinkoff.payments.show', compact('payment','breakdown','refundUntil','historyEvents','payouts'));
+        $showPayoutActions = !empty($payment->deal_id)
+            && ($payouts->isEmpty() || (string) $payouts->last()->status === 'REJECTED');
+
+        return view('tinkoff.payments.show', compact('payment', 'breakdown', 'refundUntil', 'historyEvents', 'payouts', 'showPayoutActions'));
     }
 }

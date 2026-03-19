@@ -88,12 +88,16 @@
                         <h6 class="mb-2">Действия</h6>
 
                         @if($payment->deal_id)
-                            <form class="d-inline" method="post" action="/tinkoff/payouts/{{ $payment->deal_id }}/pay-now">
-                                @csrf
-                                <button class="btn btn-success btn-sm">Выплатить сейчас</button>
-                            </form>
+                            @if($showPayoutActions)
+                                <form class="d-inline" method="post" action="/tinkoff/payouts/{{ $payment->deal_id }}/pay-now">
+                                    @csrf
+                                    <button class="btn btn-success btn-sm">Выплатить сейчас</button>
+                                </form>
 
-                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#delayModal">Отложить до…</button>
+                                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#delayModal">Отложить до…</button>
+                            @else
+                                <span class="text-muted small">Выплата уже создана или в процессе.</span>
+                            @endif
 
                             <form class="d-inline" method="post" action="/tinkoff/deals/{{ $payment->deal_id }}/close" onsubmit="return confirm('Закрыть сделку?')">
                                 @csrf
@@ -179,6 +183,7 @@
                     </div>
                 </div>
 
+                @if($showPayoutActions ?? false)
                 <!-- Modal Отложить -->
                 <div class="modal fade" id="delayModal" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog">
@@ -199,6 +204,7 @@
                         </form>
                     </div>
                 </div>
+                @endif
 
             </div>
 
