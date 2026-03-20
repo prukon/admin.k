@@ -73,6 +73,15 @@
                 <label class="form-check-label" for="payColProvider">Провайдер</label>
             </div>
 
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="receipt"
+                       id="payColReceipt"
+                       checked>
+                <label class="form-check-label" for="payColReceipt">Чек</label>
+            </div>
+
          @if($tbankEnabled ?? false)
 
             <div class="form-check">
@@ -162,6 +171,7 @@
         <th>Оплаченный месяц</th>
         <th>Дата и время платежа</th>
         <th>Провайдер</th>
+        <th>Чек</th>
             @if($tbankEnabled ?? false)
         <th>Комиссия банка</th>
         <th>Комиссия платформы</th>
@@ -277,6 +287,7 @@
     payment_month: true,
     operation_date: true,
     payment_provider: true,
+    receipt: true,
     payout_amount: tbankEnabled,
     net_to_partner: tbankEnabled,
     commission_total: tbankEnabled,
@@ -297,13 +308,14 @@
     payment_month: 4,
     operation_date: 5,
     payment_provider: 6,
-    bank_commission_total: 7,
-    platform_commission: 8,
-    commission_total: 9,
-    net_to_partner: 10,
-    payout_amount: 11,
-    refund_action: 12,
-    refund_status: 13
+    receipt: 7,
+    bank_commission_total: 8,
+    platform_commission: 9,
+    commission_total: 10,
+    net_to_partner: 11,
+    payout_amount: 12,
+    refund_action: 13,
+    refund_status: 14
 } : {
     user_name: 1,
     team_title: 2,
@@ -311,8 +323,9 @@
     payment_month: 4,
     operation_date: 5,
     payment_provider: 6,
-    refund_action: 7,
-    refund_status: 8
+    receipt: 7,
+    refund_action: 8,
+    refund_status: 9
 };
 
             function toBool(val, fallback = true) {
@@ -471,6 +484,29 @@ const columns = [
             if (data === 'tbank') return '<span class="badge bg-primary">T-Bank</span>';
             if (data === 'robokassa') return '<span class="badge bg-secondary">Robokassa</span>';
             return data ? data : '';
+        }
+    },
+    {
+        data: null,
+        name: 'receipt',
+        orderable: false,
+        searchable: false,
+        render: function (data, type, row) {
+            if (type !== 'display') return row.has_receipt ? 1 : 0;
+
+            if (row.payment_provider !== 'tbank') {
+                return '<span title="Чек формируется у партнера в его онлайн-кассе"></span>';
+            }
+
+            if (row.has_receipt && row.receipt_url) {
+                return '<a href="' + row.receipt_url + '" target="_blank" rel="noopener noreferrer" title="Чек сформирован" aria-label="Чек сформирован">' +
+                    '<i class="fa-solid fa-receipt text-primary"></i>' +
+                    '</a>';
+            }
+
+            return '<span title="Чек не сформирован" aria-label="Чек не сформирован">' +
+                '<i class="fa-solid fa-receipt text-secondary"></i>' +
+                '</span>';
         }
     }
 ];
