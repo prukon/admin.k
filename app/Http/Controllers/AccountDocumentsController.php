@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Contract;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -79,8 +80,18 @@ class AccountDocumentsController extends Controller
     {
         // Anti-enumeration: скрываем существование чужого договора
         abort_unless((int)$contract->user_id === (int)Auth::id(), 404);
-        abort_unless($contract->source_pdf_path, 404);
-        return Storage::download($contract->source_pdf_path, 'contract-' . $contract->id . '.pdf');
+        if (!$contract->source_pdf_path) {
+            return back()->withErrors([
+                'file' => 'Исходный файл договора не найден.',
+            ]);
+        }
+
+        return $this->downloadContractFile(
+            $contract,
+            $contract->source_pdf_path,
+            'contract-' . $contract->id . '.pdf',
+            'original'
+        );
     }
 
     /**
@@ -90,8 +101,44 @@ class AccountDocumentsController extends Controller
     {
         // Anti-enumeration: скрываем существование чужого договора
         abort_unless((int)$contract->user_id === (int)Auth::id(), 404);
-        abort_unless($contract->signed_pdf_path, 404);
-        return Storage::download($contract->signed_pdf_path, 'contract-' . $contract->id . '-signed.pdf');
+        if (!$contract->signed_pdf_path) {
+            return back()->withErrors([
+                'file' => 'Подписанный файл договора не найден.',
+            ]);
+        }
+
+        return $this->downloadContractFile(
+            $contract,
+            $contract->signed_pdf_path,
+            'contract-' . $contract->id . '-signed.pdf',
+            'signed'
+        );
+    }
+
+    private function downloadContractFile(Contract $contract, string $path, string $downloadName, string $kind)
+    {
+        try {
+            if (!Storage::exists($path)) {
+                return back()->withErrors([
+                    'file' => 'Файл договора не найден в хранилище.',
+                ]);
+            }
+
+            return Storage::download($path, $downloadName);
+        } catch (\Throwable $e) {
+            Log::error('[account.documents.download] failed', [
+                'contract_id' => $contract->id,
+                'user_id' => Auth::id(),
+                'kind' => $kind,
+                'path' => $path,
+                'disk' => config('filesystems.default'),
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'file' => 'Не удалось скачать файл договора. Попробуйте позже.',
+            ]);
+        }
     }
 }
 

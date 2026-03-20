@@ -144,7 +144,7 @@ class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
     }
 
     /** @test */
-    public function download_signed_returns_404_when_missing(): void
+    public function download_signed_redirects_with_error_when_path_is_missing(): void
     {
         Storage::fake();
 
@@ -164,8 +164,66 @@ class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
             'signed_pdf_path' => null,
         ]);
 
-        $this->get('/client-contracts/' . $contract->id . '/download-signed')
-            ->assertStatus(404);
+        $this->from('/client-contracts/' . $contract->id)
+            ->get('/client-contracts/' . $contract->id . '/download-signed')
+            ->assertStatus(302)
+            ->assertRedirect('/client-contracts/' . $contract->id)
+            ->assertSessionHasErrors(['file']);
+    }
+
+    /** @test */
+    public function download_original_redirects_with_error_when_physical_file_is_missing(): void
+    {
+        Storage::fake();
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+
+        $contract = Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $student->id,
+            'group_id'        => null,
+            'source_pdf_path' => 'documents/2026/01/missing-source.pdf',
+            'source_sha256'   => str_repeat('f', 64),
+            'provider'        => 'podpislon',
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+
+        $this->from('/client-contracts/' . $contract->id)
+            ->get('/client-contracts/' . $contract->id . '/download-original')
+            ->assertStatus(302)
+            ->assertRedirect('/client-contracts/' . $contract->id)
+            ->assertSessionHasErrors(['file']);
+    }
+
+    /** @test */
+    public function download_signed_redirects_with_error_when_physical_file_is_missing(): void
+    {
+        Storage::fake();
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+
+        $contract = Contract::create([
+            'school_id'        => $this->partner->id,
+            'user_id'          => $student->id,
+            'group_id'         => null,
+            'source_pdf_path'  => 'documents/2026/01/source.pdf',
+            'source_sha256'    => str_repeat('g', 64),
+            'provider'         => 'podpislon',
+            'status'           => Contract::STATUS_SIGNED,
+            'signed_pdf_path'  => 'documents/2026/01/missing-signed.pdf',
+        ]);
+
+        $this->from('/client-contracts/' . $contract->id)
+            ->get('/client-contracts/' . $contract->id . '/download-signed')
+            ->assertStatus(302)
+            ->assertRedirect('/client-contracts/' . $contract->id)
+            ->assertSessionHasErrors(['file']);
     }
 }
 

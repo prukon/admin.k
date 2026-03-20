@@ -204,15 +204,18 @@ class AccountDocumentsTest extends CrmTestCase
         $resp->assertStatus(404);
     }
 
-    public function test_download_signed_404_when_missing_signed_path(): void
+    public function test_download_signed_redirects_with_error_when_missing_signed_path(): void
     {
         $contract = $this->makeContract([
             'signed_pdf_path' => null,
         ]);
 
-        $resp = $this->get(route('account.documents.downloadSigned', $contract));
+        $resp = $this->from(route('account.documents.index'))
+            ->get(route('account.documents.downloadSigned', $contract));
 
-        $resp->assertStatus(404);
+        $resp->assertStatus(302);
+        $resp->assertRedirect(route('account.documents.index'));
+        $resp->assertSessionHasErrors(['file']);
     }
 
     public function test_download_signed_ok_for_owner(): void
@@ -229,6 +232,39 @@ class AccountDocumentsTest extends CrmTestCase
 
         $resp->assertStatus(200);
         $resp->assertDownload('contract-' . $contract->id . '-signed.pdf');
+    }
+
+    public function test_download_original_redirects_with_error_when_file_missing_in_storage(): void
+    {
+        $this->useTempLocalDiskRoot();
+
+        $contract = $this->makeContract([
+            'source_pdf_path' => 'documents/2026/02/missing.pdf',
+        ]);
+
+        $resp = $this->from(route('account.documents.index'))
+            ->get(route('account.documents.downloadOriginal', $contract));
+
+        $resp->assertStatus(302);
+        $resp->assertRedirect(route('account.documents.index'));
+        $resp->assertSessionHasErrors(['file']);
+    }
+
+    public function test_download_signed_redirects_with_error_when_file_missing_in_storage(): void
+    {
+        $this->useTempLocalDiskRoot();
+
+        $contract = $this->makeContract([
+            'signed_pdf_path' => 'documents/2026/02/missing-signed.pdf',
+            'status' => Contract::STATUS_SIGNED,
+        ]);
+
+        $resp = $this->from(route('account.documents.index'))
+            ->get(route('account.documents.downloadSigned', $contract));
+
+        $resp->assertStatus(302);
+        $resp->assertRedirect(route('account.documents.index'));
+        $resp->assertSessionHasErrors(['file']);
     }
 
     public function test_routes_do_not_require_current_partner_in_session(): void

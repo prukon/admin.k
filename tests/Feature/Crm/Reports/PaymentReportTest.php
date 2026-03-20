@@ -6,6 +6,7 @@ use App\Models\Partner;
 use App\Models\Payable;
 use App\Models\Payment;
 use App\Models\PaymentSystem;
+use App\Models\FiscalReceipt;
 use App\Models\Team;
 use App\Models\TinkoffCommissionRule;
 use App\Models\User;
@@ -328,6 +329,97 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
+     * (P0) Колонки receipt_url/has_receipt работают по правилам:
+     * - только URL вида https://receipts.ru/... считается валидным;
+     * - robokassa не получает ссылку чека;
+     * - при нескольких чеках берётся последний (по id).
+     */
+    public function test_getPayments_receipt_columns_follow_tbank_and_receipts_ru_rules(): void
+    {
+        $tbankWithValidReceipt = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'deal_id' => 'deal-valid',
+            'payment_id' => null,
+            'payment_status' => null,
+        ]);
+
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $tbankWithValidReceipt->id,
+            'type' => FiscalReceipt::TYPE_INCOME,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount' => (float) $tbankWithValidReceipt->summ,
+            'receipt_url' => 'https://receipts.ru/first-old-receipt',
+        ]);
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $tbankWithValidReceipt->id,
+            'type' => FiscalReceipt::TYPE_INCOME,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount' => (float) $tbankWithValidReceipt->summ,
+            'receipt_url' => 'https://receipts.ru/latest-valid-receipt',
+        ]);
+
+        $tbankWithInvalidReceipt = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'deal_id' => 'deal-invalid',
+            'payment_id' => null,
+            'payment_status' => null,
+        ]);
+
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $tbankWithInvalidReceipt->id,
+            'type' => FiscalReceipt::TYPE_INCOME,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount' => (float) $tbankWithInvalidReceipt->summ,
+            'receipt_url' => 'https://example.com/not-allowed',
+        ]);
+
+        $robokassaPayment = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'deal_id' => null,
+            'payment_id' => null,
+            'payment_status' => null,
+        ]);
+
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $robokassaPayment->id,
+            'type' => FiscalReceipt::TYPE_INCOME,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount' => (float) $robokassaPayment->summ,
+            'receipt_url' => 'https://receipts.ru/robokassa-should-not-be-used-in-ui',
+        ]);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'));
+
+        $response->assertOk();
+        $data = collect($response->json('data') ?? []);
+
+        $rowValid = $data->firstWhere('id', $tbankWithValidReceipt->id);
+        $rowInvalid = $data->firstWhere('id', $tbankWithInvalidReceipt->id);
+        $rowRobokassa = $data->firstWhere('id', $robokassaPayment->id);
+
+        $this->assertNotNull($rowValid);
+        $this->assertEquals('tbank', $rowValid['payment_provider']);
+        $this->assertTrue((bool) ($rowValid['has_receipt'] ?? false));
+        $this->assertSame('https://receipts.ru/latest-valid-receipt', $rowValid['receipt_url']);
+
+        $this->assertNotNull($rowInvalid);
+        $this->assertEquals('tbank', $rowInvalid['payment_provider']);
+        $this->assertFalse((bool) ($rowInvalid['has_receipt'] ?? true));
+        $this->assertNull($rowInvalid['receipt_url']);
+
+        $this->assertNotNull($rowRobokassa);
+        $this->assertEquals('robokassa', $rowRobokassa['payment_provider']);
+        $this->assertTrue((bool) ($rowRobokassa['has_receipt'] ?? false));
+        $this->assertSame('https://receipts.ru/robokassa-should-not-be-used-in-ui', $rowRobokassa['receipt_url']);
+    }
+
+    /**
      * (P0) По умолчанию выдача отсортирована по operation_date DESC
      * (ближайшие платежи сверху), если order не передан.
      */
@@ -555,6 +647,25 @@ class PaymentReportTest extends CrmTestCase
             'columns' => ['user_name' => true],
         ]);
         $postResponse->assertForbidden();
+    }
+
+    /**
+     * (P0) Для пользователя с правом все основные эндпоинты отчёта доступны (200).
+     */
+    public function test_payments_report_endpoints_return_200_for_authorized_user(): void
+    {
+        $this->get(route('payments'))->assertOk();
+
+        $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'))
+            ->assertOk();
+
+        $this->get('/admin/reports/payments/columns-settings')->assertOk();
+
+        $this->postJson('/admin/reports/payments/columns-settings', [
+            'columns' => ['user_name' => true, 'receipt' => true],
+        ])->assertOk();
     }
 
     /**

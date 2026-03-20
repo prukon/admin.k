@@ -235,6 +235,18 @@
     <li><b>Оплата месяца</b>: <code>users_prices</code></li>
   </ul>
 
+  <h2>7) Онлайн‑чеки в отчётах по платежам</h2>
+  <div class="note">
+    В отчётах платежей используются данные из таблицы <code>fiscal_receipts</code>
+    (поле <code>receipt_url</code>) для отображения колонки “Чек”.
+  </div>
+  <ul>
+    <li><b>Админ-отчёт:</b> <code>/admin/reports/payments</code></li>
+    <li><b>Пользовательский отчёт:</b> <code>/reports/payments</code></li>
+    <li><b>Логика для T‑Bank:</b> ссылка показывается только если URL начинается с <code>https://receipts.ru/</code>; иначе чек считается несформированным.</li>
+    <li><b>Логика для Robokassa:</b> иконка чека не показывается, т.к. фискализация и доступ к чекам находятся на стороне партнёра.</li>
+  </ul>
+
 </div>
 </body>
 </html>
