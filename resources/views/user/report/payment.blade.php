@@ -20,6 +20,7 @@
                         <th>Сумма платежа</th>
                         <th>Оплаченный месяц</th>
                         <th>Дата и время платежа</th>
+                        <th>Чек</th>
                     </tr>
                     </thead>
                 </table>
@@ -96,6 +97,29 @@
                                 return day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes + ':' + seconds;
                             }
                             return data;
+                        }
+                    },
+                    {
+                        data: null,
+                        name: 'receipt',
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row) {
+                            if (type !== 'display') return row.has_receipt ? 1 : 0;
+
+                            if (row.payment_provider !== 'tbank') {
+                                return '<span title="Чек формируется у партнера в его онлайн-кассе"></span>';
+                            }
+
+                            if (row.has_receipt && row.receipt_url) {
+                                return '<a href="' + row.receipt_url + '" target="_blank" rel="noopener noreferrer" title="Чек сформирован" aria-label="Чек сформирован">' +
+                                    '<i class="fa-solid fa-receipt text-primary"></i>' +
+                                    '</a>';
+                            }
+
+                            return '<span title="Чек не сформирован" aria-label="Чек не сформирован">' +
+                                '<i class="fa-solid fa-receipt text-secondary"></i>' +
+                                '</span>';
                         }
                     }
                 ],
