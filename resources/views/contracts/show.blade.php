@@ -233,21 +233,21 @@
                     <div class="card-header">Файлы</div>
                     <div class="card-body text-center">
                         <div class="d-flex justify-content-center flex-wrap gap-5 mt-3">
-                            {{-- Оригинал --}}
-                            <a href="{{ route('contracts.downloadOriginal', $contract) }}"
-                               class="d-inline-flex flex-column align-items-center text-decoration-none"
-                               title="Скачать оригинал">
-                                <i class="fa-solid {{ fileIconClass($contract->source_pdf_path) }} fa-3x mb-2"></i>
-                                <span>Оригинал</span>
-                            </a>
-
-                            {{-- Подписанный (если есть) --}}
-                            @if($contract->signed_pdf_path)
+                            @if($contract->status === \App\Models\Contract::STATUS_SIGNED)
+                                {{-- Подписан: только подписанный файл --}}
                                 <a href="{{ route('contracts.downloadSigned', $contract) }}"
                                    class="d-inline-flex flex-column align-items-center text-decoration-none"
-                                   title="Скачать подписанный">
-                                    <i class="fa-solid {{ fileIconClass($contract->signed_pdf_path) }} fa-3x mb-2"></i>
-                                    <span>Подписанный</span>
+                                   title="Скачать подписанный договор">
+                                    <i class="fa-solid {{ fileIconClass($contract->signed_pdf_path ?? $contract->source_pdf_path) }} fa-3x mb-2"></i>
+                                    <span>Скачать подписанный</span>
+                                </a>
+                            @else
+                                {{-- Не подписан: только оригинал --}}
+                                <a href="{{ route('contracts.downloadOriginal', $contract) }}"
+                                   class="d-inline-flex flex-column align-items-center text-decoration-none"
+                                   title="Скачать оригинал договора">
+                                    <i class="fa-solid {{ fileIconClass($contract->source_pdf_path) }} fa-3x mb-2"></i>
+                                    <span>Скачать оригинал</span>
                                 </a>
                             @endif
                         </div>

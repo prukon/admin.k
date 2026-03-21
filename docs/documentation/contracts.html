@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Договоры (клиентские): скачивание в интерфейсе</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .small { color: #555; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="./index.html">← Документация</a></p>
+  <h1>Договоры (клиентские): скачивание в интерфейсе</h1>
+  <div class="small">Папка: <code>/docs/documentation</code></div>
+
+  <div class="note">
+    Правило единое для карточки договора в CRM (<code>/client-contracts/{id}</code>) и для вкладки «Мои документы» в учётной записи пользователя.
+  </div>
+
+  <h2>Какая кнопка показывается</h2>
+  <ul>
+    <li>Если статус договора <code>signed</code> (<code>Contract::STATUS_SIGNED</code>) — в интерфейсе предлагается только скачивание <strong>подписанного</strong> файла. Подпись кнопки/ссылки: «Скачать подписанный».</li>
+    <li>Если статус любой другой — предлагается только скачивание <strong>оригинала</strong> (неподписанного PDF). Подпись: «Скачать оригинал».</li>
+  </ul>
+
+  <h2>Замечания</h2>
+  <ul>
+    <li>Критерий выбора кнопки — именно поле <code>contracts.status</code>, а не наличие <code>signed_pdf_path</code>.</li>
+    <li>Если статус <code>signed</code>, а файл подписанного PDF в хранилище отсутствует или путь в БД не совпадает с диском, скачивание вернёт ошибку (см. обработку в контроллерах скачивания).</li>
+    <li>Файлы хранятся под корнем диска <code>local</code>: <code>storage/app/</code> + относительный путь из <code>source_pdf_path</code> / <code>signed_pdf_path</code>.</li>
+  </ul>
+</div>
+</body>
+</html>

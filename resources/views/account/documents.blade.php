@@ -83,21 +83,16 @@
 
 
 
-                                        @if($c->signed_pdf_path)
+                                        @if($c->status === \App\Models\Contract::STATUS_SIGNED)
                                             <a class="btn btn-sm btn-primary"
                                                href="{{ route('account.documents.downloadSigned', $c) }}">
-                                                Скачать
+                                                Скачать подписанный
                                             </a>
                                         @else
-
                                             <a class="btn btn-sm btn-outline-primary"
                                                href="{{ route('account.documents.downloadOriginal', $c) }}">
-                                                Скачать
+                                                Скачать оригинал
                                             </a>
-
-                                            {{--<button class="btn btn-sm btn-outline-secondary" disabled>--}}
-                                                {{--Скачать (подписанный)--}}
-                                            {{--</button>--}}
                                         @endif
                                     </div>
 
