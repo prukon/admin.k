@@ -116,7 +116,6 @@ class PodpislonWebhookTest extends TestCase
     {
         config([
             'services.podpislon.webhook_secret' => 'anything',
-            'services.podpislon.webhook_token'  => 'tok',
         ]);
 
         // создаём контракт
@@ -130,7 +129,7 @@ class PodpislonWebhookTest extends TestCase
         $signature = md5($rawNoSig);
         $rawBody   = $rawNoSig . '&SIGNATURE=' . $signature;
 
-        $response = $this->postRawForm($this->webhookUrl() . '?token=tok', $rawBody);
+        $response = $this->postRawForm($this->webhookUrl(), $rawBody);
 
         $response
             ->assertStatus(200)
@@ -177,22 +176,44 @@ class PodpislonWebhookTest extends TestCase
         ]);
     }
 
-    public function test_requires_token_when_token_configured(): void
+    public function test_empty_post_body_returns_probe_ok(): void
     {
-        config([
-            'services.podpislon.webhook_token' => 'tok',
-        ]);
+        $response = $this->call(
+            'POST',
+            $this->webhookUrl(),
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/x-www-form-urlencoded'],
+            ''
+        );
 
-        $rawNoSig  = 'EVENT=DOCUMENT_OPENED&FILE_ID=1&COMPANY_ID=2';
-        $rawBody   = $rawNoSig . '&SIGNATURE=' . md5($rawNoSig);
+        $response
+            ->assertStatus(200)
+            ->assertJson([
+                'ok'    => true,
+                'probe' => true,
+            ]);
+    }
 
-        $response = $this->postRawForm($this->webhookUrl(), $rawBody);
+    public function test_empty_post_with_webhook_field_in_query_requires_signature(): void
+    {
+        $response = $this->call(
+            'POST',
+            $this->webhookUrl() . '?EVENT=DOCUMENT_OPENED',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/x-www-form-urlencoded'],
+            ''
+        );
 
         $response
             ->assertStatus(403)
             ->assertJson([
                 'ok'    => false,
-                'error' => 'token_required',
+                'error' => 'signature_required',
             ]);
     }
+
 }

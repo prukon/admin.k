@@ -42,9 +42,6 @@ return [
         'base_url'       => env('PODPISLON_BASE_URL', 'https://podpislon.ru/integration'),
         'key'            => env('PODPISLON_API_KEY'),
         'webhook_secret' => env('PODPISLON_WEBHOOK_SECRET'),
-        // Token-based protection for incoming webhooks (recommended).
-        // If not set, it falls back to PODPISLON_WEBHOOK_SECRET for backwards compatibility.
-        'webhook_token'  => env('PODPISLON_WEBHOOK_TOKEN', env('PODPISLON_WEBHOOK_SECRET')),
         'http_debug'     => env('PODPISLON_HTTP_DEBUG', false),      // для Guzzle on_stats/debug
         'upload_strategy' => env('PODPISLON_UPLOAD_STRATEGY', 'auto'), // auto|multipart|json
     ],

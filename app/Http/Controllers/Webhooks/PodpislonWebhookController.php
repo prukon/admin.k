@@ -73,13 +73,11 @@ class PodpislonWebhookController extends Controller
         }
 
         // нормализуем ключи в UPPER_SNAKE
-        if (!empty($parsed)) {
-            $norm = [];
-            foreach ($parsed as $k => $v) {
-                $norm[strtoupper((string) $k)] = $v;
-            }
-            $parsed = $norm;
+        $norm = [];
+        foreach ($parsed as $k => $v) {
+            $norm[strtoupper((string) $k)] = $v;
         }
+        $parsed = $norm;
 
         $log->debug('Webhook payloads', [
             'rid'    => $rid,
@@ -87,8 +85,34 @@ class PodpislonWebhookController extends Controller
             'parsed' => $parsed,
         ]);
 
+        // Проверка URL в админке Подпислона: POST с пустым телом, без полей события (в т.ч. в query).
+        if ($request->isMethod('POST') && trim((string) $raw) === '') {
+            $webhookKeys = ['EVENT', 'FILE_ID', 'ID', 'SIGNATURE', 'COMPANY_ID', 'CONTACT'];
+            $hasPayload  = false;
+            foreach ($webhookKeys as $key) {
+                if (!array_key_exists($key, $parsed)) {
+                    continue;
+                }
+                if ((string) ($parsed[$key] ?? '') !== '') {
+                    $hasPayload = true;
+                    break;
+                }
+            }
+            if ($hasPayload === false) {
+                $log->debug('webhook_probe', [
+                    'rid' => $rid,
+                    'ip'  => $request->ip(),
+                ]);
+
+                return response()->json([
+                    'ok'    => true,
+                    'rid'   => $rid,
+                    'probe' => true,
+                ]);
+            }
+        }
+
         // --- подпись (как у Подпислона): SIGNATURE == md5(raw-body без SIGNATURE)
-        // NOTE: у реальных вебхуков подпись не зависит от секрета, поэтому для защиты ниже добавляем token.
         $provided = strtolower((string) ($parsed['SIGNATURE'] ?? ''));
         $sigOk    = null;
         $sigAlgo  = null;
@@ -150,40 +174,6 @@ class PodpislonWebhookController extends Controller
                 'rid'   => $rid,
                 'error' => 'invalid_signature',
             ], 403);
-        }
-
-        // --- токен (рекомендуемая защита): /webhooks/podpislon?token=...
-        // Можно также передавать заголовком X-Podpislon-Token / X-Webhook-Token.
-        $tokenConfigured = (string) config('services.podpislon.webhook_token', '');
-        if ($tokenConfigured !== '') {
-            $tokenProvided = (string) ($request->query('token')
-                ?? $request->header('X-Podpislon-Token')
-                ?? $request->header('X-Webhook-Token')
-                ?? '');
-
-            if ($tokenProvided === '') {
-                $log->warning('Webhook token missing while configured', [
-                    'rid' => $rid,
-                ]);
-
-                return response()->json([
-                    'ok'    => false,
-                    'rid'   => $rid,
-                    'error' => 'token_required',
-                ], 403);
-            }
-
-            if (!hash_equals($tokenConfigured, $tokenProvided)) {
-                $log->warning('Webhook token mismatch', [
-                    'rid' => $rid,
-                ]);
-
-                return response()->json([
-                    'ok'    => false,
-                    'rid'   => $rid,
-                    'error' => 'invalid_token',
-                ], 403);
-            }
         }
 
         $log->info('Webhook parsed fields', [
