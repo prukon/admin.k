@@ -13,24 +13,24 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            WeekdaysSeeder::class,
-            RolesSeeder::class,
-            PermissionGroupsSeeder::class,
-            PermissionSeeder::class,
-            SocialNetworksSeeder::class,
+            WeekdaysSeeder::class, // добавляем дни недели
+            RolesSeeder::class, // добавляем роли
+            PermissionGroupsSeeder::class, // добавляем группы разрешений
+            PermissionSeeder::class, // добавляем разрешения
+            SocialNetworksSeeder::class, // добавляем социальные сети
         ]);
 
         if (env('SEED_DEV_DATA', false)) {
             $this->call([
-                DevPartnersSeeder::class,
-                UserRoleBasePermissionsSeeder::class,
-                AdminRoleBasePermissionsSeeder::class,
-                DevTeamsSeeder::class,
-                DevAdminsSeeder::class,
-                DevUsersSeeder::class,
-                DevPricesSeeder::class,
+                DevPartnersSeeder::class, // добавляем случайных партнеров
+                UserRoleBasePermissionsSeeder::class, // добавляем разрешения для пользователей
+                AdminRoleBasePermissionsSeeder::class, // добавляем разрешения для администраторов
+                DevTeamsSeeder::class, // добавляем команды
+                DevAdminsSeeder::class, // добавляем администраторов
+                DevUsersSeeder::class, // добавляем пользователей
+                DevPricesSeeder::class, // добавляем цены
                 DevPaymentSystemsSeeder::class,
-                IstokMenuSeeder::class,
+                IstokMenuSeeder::class, // добавляем меню для Истока
             ]);
         }
     } 

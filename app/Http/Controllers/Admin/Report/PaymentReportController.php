@@ -83,21 +83,41 @@ class PaymentReportController extends AdminBaseController
         $hasOrder = is_array($request->input('order')) && count($request->input('order')) > 0;
 
         // Базовый запрос: только нужный партнёр, без get()
-        $latestReceiptSub = FiscalReceipt::query()
+        // В интерфейсе "Чек" показываются два независимых чека:
+        // - income (оплата) => receipt_url
+        // - income_return (возврат) => return_receipt_url
+        // Поэтому нужно выбирать "последний" чек отдельно по каждому типу.
+        $latestIncomeReceiptSub = FiscalReceipt::query()
             ->select('payment_id', DB::raw('MAX(id) as latest_id'))
             ->whereNotNull('payment_id')
+            ->where('type', FiscalReceipt::TYPE_INCOME)
+            ->groupBy('payment_id');
+
+        $latestReturnReceiptSub = FiscalReceipt::query()
+            ->select('payment_id', DB::raw('MAX(id) as latest_id'))
+            ->whereNotNull('payment_id')
+            ->where('type', FiscalReceipt::TYPE_INCOME_RETURN)
             ->groupBy('payment_id');
 
         $paymentsQuery = Payment::query()
             ->with(['user.team'])
             ->join('users', 'users.id', '=', 'payments.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
-            ->leftJoinSub($latestReceiptSub, 'latest_fiscal_receipts', function ($join) {
-                $join->on('latest_fiscal_receipts.payment_id', '=', 'payments.id');
+            ->leftJoinSub($latestIncomeReceiptSub, 'latest_income_fiscal_receipts', function ($join) {
+                $join->on('latest_income_fiscal_receipts.payment_id', '=', 'payments.id');
             })
-            ->leftJoin('fiscal_receipts as fiscal_receipt', 'fiscal_receipt.id', '=', 'latest_fiscal_receipts.latest_id')
+            ->leftJoin('fiscal_receipts as fiscal_income_receipt', 'fiscal_income_receipt.id', '=', 'latest_income_fiscal_receipts.latest_id')
+            ->leftJoinSub($latestReturnReceiptSub, 'latest_return_fiscal_receipts', function ($join) {
+                $join->on('latest_return_fiscal_receipts.payment_id', '=', 'payments.id');
+            })
+            ->leftJoin('fiscal_receipts as fiscal_return_receipt', 'fiscal_return_receipt.id', '=', 'latest_return_fiscal_receipts.latest_id')
             ->where('users.partner_id', $partnerId)
-            ->select('payments.*', 'fiscal_receipt.receipt_url as fiscal_receipt_url');
+            ->select(
+                'payments.*',
+                'fiscal_income_receipt.receipt_url as fiscal_income_receipt_url',
+                'fiscal_return_receipt.receipt_url as fiscal_return_receipt_url',
+                'fiscal_return_receipt.status as fiscal_return_receipt_status'
+            );
 
         // Дефолтная сортировка, если фронт не передал order (например, после кастомизаций таблицы)
         if (! $hasOrder) {
@@ -171,7 +191,7 @@ class PaymentReportController extends AdminBaseController
                     : 'robokassa';
             })
             ->addColumn('receipt_url', function (Payment $row) {
-                $receiptUrl = trim((string) ($row->fiscal_receipt_url ?? ''));
+                $receiptUrl = trim((string) ($row->fiscal_income_receipt_url ?? ''));
                 if ($receiptUrl === '' || !str_starts_with($receiptUrl, 'https://receipts.ru/')) {
                     return null;
                 }
@@ -179,8 +199,24 @@ class PaymentReportController extends AdminBaseController
                 return $receiptUrl;
             })
             ->addColumn('has_receipt', function (Payment $row) {
-                $receiptUrl = trim((string) ($row->fiscal_receipt_url ?? ''));
+                $receiptUrl = trim((string) ($row->fiscal_income_receipt_url ?? ''));
                 return $receiptUrl !== '' && str_starts_with($receiptUrl, 'https://receipts.ru/');
+            })
+            ->addColumn('return_receipt_url', function (Payment $row) {
+                $receiptUrl = trim((string) ($row->fiscal_return_receipt_url ?? ''));
+                if ($receiptUrl === '' || !str_starts_with($receiptUrl, 'https://receipts.ru/')) {
+                    return null;
+                }
+
+                return $receiptUrl;
+            })
+            ->addColumn('has_return_receipt', function (Payment $row) {
+                $receiptUrl = trim((string) ($row->fiscal_return_receipt_url ?? ''));
+                return $receiptUrl !== '' && str_starts_with($receiptUrl, 'https://receipts.ru/');
+            })
+            ->addColumn('return_receipt_status', function (Payment $row) {
+                $status = trim((string) ($row->fiscal_return_receipt_status ?? ''));
+                return $status !== '' ? $status : '';
             })
             ->orderColumn('summ', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';

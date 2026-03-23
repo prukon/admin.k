@@ -329,10 +329,10 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
-     * (P0) Колонки receipt_url/has_receipt работают по правилам:
+     * (P0) Колонки receipt_url/has_receipt и return_receipt_url/has_return_receipt работают по правилам:
      * - только URL вида https://receipts.ru/... считается валидным;
      * - robokassa не получает ссылку чека;
-     * - при нескольких чеках берётся последний (по id).
+     * - при нескольких чеках берётся последний (по id) отдельно по каждому типу (income vs income_return).
      */
     public function test_getPayments_receipt_columns_follow_tbank_and_receipts_ru_rules(): void
     {
@@ -360,6 +360,16 @@ class PaymentReportTest extends CrmTestCase
             'receipt_url' => 'https://receipts.ru/latest-valid-receipt',
         ]);
 
+        // Чек возврата (income_return)
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $tbankWithValidReceipt->id,
+            'type' => FiscalReceipt::TYPE_INCOME_RETURN,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount' => (float) $tbankWithValidReceipt->summ,
+            'receipt_url' => 'https://receipts.ru/latest-return-receipt',
+        ]);
+
         $tbankWithInvalidReceipt = Payment::factory()->create([
             'user_id' => $this->user->id,
             'deal_id' => 'deal-invalid',
@@ -374,6 +384,16 @@ class PaymentReportTest extends CrmTestCase
             'status' => FiscalReceipt::STATUS_PROCESSED,
             'amount' => (float) $tbankWithInvalidReceipt->summ,
             'receipt_url' => 'https://example.com/not-allowed',
+        ]);
+
+        // Некорректный return чек (не receipts.ru => должен игнорироваться в UI-колонке)
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $tbankWithInvalidReceipt->id,
+            'type' => FiscalReceipt::TYPE_INCOME_RETURN,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount' => (float) $tbankWithInvalidReceipt->summ,
+            'receipt_url' => 'https://example.com/not-allowed-return',
         ]);
 
         $robokassaPayment = Payment::factory()->create([
@@ -392,6 +412,15 @@ class PaymentReportTest extends CrmTestCase
             'receipt_url' => 'https://receipts.ru/robokassa-should-not-be-used-in-ui',
         ]);
 
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $robokassaPayment->id,
+            'type' => FiscalReceipt::TYPE_INCOME_RETURN,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount' => (float) $robokassaPayment->summ,
+            'receipt_url' => 'https://receipts.ru/robokassa-return-should-not-be-used-in-ui',
+        ]);
+
         $response = $this
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('payments.getPayments'));
@@ -407,16 +436,22 @@ class PaymentReportTest extends CrmTestCase
         $this->assertEquals('tbank', $rowValid['payment_provider']);
         $this->assertTrue((bool) ($rowValid['has_receipt'] ?? false));
         $this->assertSame('https://receipts.ru/latest-valid-receipt', $rowValid['receipt_url']);
+        $this->assertTrue((bool) ($rowValid['has_return_receipt'] ?? false));
+        $this->assertSame('https://receipts.ru/latest-return-receipt', $rowValid['return_receipt_url']);
 
         $this->assertNotNull($rowInvalid);
         $this->assertEquals('tbank', $rowInvalid['payment_provider']);
         $this->assertFalse((bool) ($rowInvalid['has_receipt'] ?? true));
         $this->assertNull($rowInvalid['receipt_url']);
+        $this->assertFalse((bool) ($rowInvalid['has_return_receipt'] ?? true));
+        $this->assertNull($rowInvalid['return_receipt_url']);
 
         $this->assertNotNull($rowRobokassa);
         $this->assertEquals('robokassa', $rowRobokassa['payment_provider']);
         $this->assertTrue((bool) ($rowRobokassa['has_receipt'] ?? false));
         $this->assertSame('https://receipts.ru/robokassa-should-not-be-used-in-ui', $rowRobokassa['receipt_url']);
+        $this->assertTrue((bool) ($rowRobokassa['has_return_receipt'] ?? false));
+        $this->assertSame('https://receipts.ru/robokassa-return-should-not-be-used-in-ui', $rowRobokassa['return_receipt_url']);
     }
 
     /**

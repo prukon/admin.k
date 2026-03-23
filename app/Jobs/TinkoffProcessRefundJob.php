@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
+use App\Models\FiscalReceipt;
 use App\Models\Refund;
 use App\Models\UserPrice;
 use App\Services\Tinkoff\TinkoffApiClient;
@@ -16,6 +17,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Jobs\SendCloudKassirReceiptJob;
 
 class TinkoffProcessRefundJob implements ShouldQueue
 {
@@ -134,6 +136,9 @@ class TinkoffProcessRefundJob implements ShouldQueue
         $payable->status = 'refunded';
         $payable->save();
 
+        // CloudKassir: создаём чек возврата асинхронно после успешного Cancel в T-Bank.
+        $this->tryCreateCloudKassirReturnReceipt($refund);
+
         if ((string) $payable->type !== 'monthly_fee') {
             return;
         }
@@ -169,6 +174,53 @@ class TinkoffProcessRefundJob implements ShouldQueue
             'failed_details' => $details,
         ]);
         $refund->save();
+    }
+
+    private function tryCreateCloudKassirReturnReceipt(Refund $refund): void
+    {
+        $partnerId = (int) $refund->partner_id;
+        $paymentId = (int) $refund->payment_id;
+        $payableId = (int) $refund->payable_id;
+        $paymentIntentId = (int) ($refund->meta['payment_intent_id'] ?? 0);
+
+        // Нужны ключевые связи, чтобы CloudKassirReceiptBuilder мог собрать payload.
+        if ($partnerId <= 0 || $paymentId <= 0 || $payableId <= 0 || $paymentIntentId <= 0) {
+            return;
+        }
+
+        $idempotencyKey = 'return:partner:' . $partnerId
+            . ':payment:' . $paymentId
+            . ':payable:' . $payableId
+            . ':refund:' . (int) $refund->id;
+
+        try {
+            $receipt = FiscalReceipt::query()->firstOrCreate(
+                ['idempotency_key' => $idempotencyKey],
+                [
+                    'partner_id' => $partnerId,
+                    'payment_intent_id' => $paymentIntentId,
+                    'payment_id' => $paymentId,
+                    'payable_id' => $payableId,
+                    'provider' => FiscalReceipt::PROVIDER_CLOUDKASSIR,
+                    'type' => FiscalReceipt::TYPE_INCOME_RETURN,
+                    'status' => FiscalReceipt::STATUS_PENDING,
+                    'amount' => (float) $refund->amount,
+                ]
+            );
+
+            // Job должен быть отправлен только один раз на pending, чтобы не дублировать запрос.
+            if ((string) $receipt->status === FiscalReceipt::STATUS_PENDING) {
+                SendCloudKassirReceiptJob::dispatch((int) $receipt->id);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Tinkoff refund succeeded but cloudkassir return receipt not created', [
+                'refund_id' => $refund->id,
+                'partner_id' => $partnerId,
+                'payment_id' => $paymentId,
+                'payable_id' => $payableId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
 
