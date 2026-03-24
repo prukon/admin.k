@@ -11,6 +11,10 @@ use App\Models\Team;
 use App\Models\TinkoffCommissionRule;
 use App\Models\User;
 use App\Models\UserTableSetting;
+use App\Models\PaymentIntent;
+use App\Models\TinkoffPayout;
+use Illuminate\Support\Facades\Queue;
+use App\Jobs\TinkoffProcessRefundJob;
 use Tests\Feature\Crm\CrmTestCase;
 
 class PaymentReportTest extends CrmTestCase
@@ -701,6 +705,65 @@ class PaymentReportTest extends CrmTestCase
         $this->postJson('/admin/reports/payments/columns-settings', [
             'columns' => ['user_name' => true, 'receipt' => true],
         ])->assertOk();
+
+        // tbank-history endpoint также доступен (200)
+        $payment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 1000.00,
+            'deal_id' => 'deal-for-history',
+            'payment_id' => '123456',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        $this->get(route('payments.tbankHistory', ['payment' => $payment->id]))
+            ->assertOk();
+
+        // refund endpoint возвращает 200 при разрешённом кейсе (п payout уже REJECTED)
+        Queue::fake([TinkoffProcessRefundJob::class]);
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount' => '100.00',
+            'currency' => 'RUB',
+            'status' => 'paid',
+        ]);
+
+        $paymentForRefund = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 100.00,
+            'deal_id' => 'deal-for-refund',
+            'payment_id' => '12346',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'status' => 'paid',
+            'out_sum' => '100.00',
+            'payment_date' => 'Клубный взнос',
+            'provider_inv_id' => 12346,
+            'tbank_payment_id' => 12346,
+        ]);
+
+        TinkoffPayout::create([
+            'payment_id' => (int) $paymentForRefund->id,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'deal-for-refund',
+            'amount' => 9000,
+            'is_final' => 1,
+            'status' => 'REJECTED',
+        ]);
+
+        $resp = $this->postJson(route('payments.refund', ['payment' => $paymentForRefund->id]), []);
+        $resp->assertOk();
+        $resp->assertJsonFragment(['message' => 'refund_created']);
     }
 
     /**

@@ -21,6 +21,9 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Observers\UserObserver;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Queue\Events\JobFailed;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -111,6 +114,40 @@ class AppServiceProvider extends ServiceProvider
             $view->with([
                 'allTeamsCount' => $teamsCount,
                 'allUsersCount' => $usersCount,
+            ]);
+        });
+
+        // Queue health monitor:
+        // - heartbeat from worker loop
+        // - timestamps for last processed/failed jobs (global)
+        Queue::looping(function () {
+            Cache::put('queue:monitor:last_heartbeat_at', now()->timestamp, now()->addMinutes(30));
+        });
+
+        Queue::after(function (JobProcessed $event) {
+            $ts = now()->timestamp;
+            Cache::put('queue:monitor:last_heartbeat_at', $ts, now()->addMinutes(30));
+            Setting::setInt('queue_monitor_last_success_at', $ts, null);
+
+            Log::channel('queue')->info('Job processed', [
+                'connection' => $event->connectionName,
+                'queue' => $event->job->getQueue(),
+                'job_name' => $event->job->resolveName(),
+                'job_id' => $event->job->getJobId(),
+            ]);
+        });
+
+        Queue::failing(function (JobFailed $event) {
+            $ts = now()->timestamp;
+            Cache::put('queue:monitor:last_heartbeat_at', $ts, now()->addMinutes(30));
+            Setting::setInt('queue_monitor_last_failed_at', $ts, null);
+
+            Log::channel('queue')->error('Job failed', [
+                'connection' => $event->connectionName,
+                'queue' => $event->job->getQueue(),
+                'job_name' => $event->job->resolveName(),
+                'job_id' => $event->job->getJobId(),
+                'exception' => $event->exception->getMessage(),
             ]);
         });
     }

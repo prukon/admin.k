@@ -19,6 +19,7 @@ class DocumentationController extends Controller
             ['slug' => 'partners-permissions', 'title' => 'Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)'],
             ['slug' => 'reports-payments', 'title' => 'Отчёт “Платежи” (админка): таблица и “Поля списка”'],
             ['slug' => 'tbank', 'title' => 'T‑Bank (мультирасчёты): настройки/комиссии/flow'],
+            ['slug' => 'queues-monitoring', 'title' => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker'],
             ['slug' => 'tests-standards', 'title' => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)'],
         ];
 
@@ -48,6 +49,7 @@ class DocumentationController extends Controller
             'partners-permissions' => base_path('docs/documentation/partners-permissions.html'),
             'reports-payments' => base_path('docs/documentation/reports-payments.html'),
             'tbank' => base_path('docs/documentation/tbank.html'),
+            'queues-monitoring' => base_path('docs/documentation/queues-monitoring.html'),
             'tests-standards' => base_path('docs/documentation/tests-standards.html'),
         ];
 

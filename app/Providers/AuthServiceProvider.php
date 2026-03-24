@@ -166,6 +166,16 @@ class AuthServiceProvider extends ServiceProvider
             return (int)$user->role_id === 1 || $user->hasPermission('settings.force2fa.admins');
         });
 
+        // Настройки -> Очереди (просмотр)
+        Gate::define('settings.queues.view', function (User $user) {
+            return $user->hasPermission('settings.queues.view');
+        });
+
+        // Настройки -> Очереди (управление: restart и т.п.)
+        Gate::define('settings.queues.manage', function (User $user) {
+            return $user->hasPermission('settings.queues.manage');
+        });
+
         // Страница "Учетная запись -> Личные данные"
         Gate::define('account.user.view', function (User $user) {
             return $user->hasPermission('account.user.view');

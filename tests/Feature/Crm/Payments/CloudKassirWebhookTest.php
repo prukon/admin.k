@@ -84,4 +84,71 @@ class CloudKassirWebhookTest extends CrmTestCase
             'qr_code_url' => 'https://qr.example/ck-123',
         ]);
     }
+
+    public function test_cloudkassir_webhook_marks_income_return_receipt_as_processed(): void
+    {
+        Config::set('services.cloudkassir.api_secret', 'cloud-secret');
+
+        $receipt = FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'provider' => FiscalReceipt::PROVIDER_CLOUDKASSIR,
+            'type' => FiscalReceipt::TYPE_INCOME_RETURN,
+            'status' => FiscalReceipt::STATUS_QUEUED,
+            'amount' => '1500.00',
+            'invoice_id' => 'pi_return_1',
+            'account_id' => (string) $this->user->id,
+            'external_id' => 'ck-return-123',
+            'idempotency_key' => 'return:partner:' . $this->partner->id . ':payable:1:intent:1',
+        ]);
+
+        $payload = [
+            'Id' => 'ck-return-123',
+            'DocumentNumber' => 888,
+            'SessionNumber' => 11,
+            'Number' => 6,
+            'FiscalSign' => '987654321',
+            'DeviceNumber' => '01801810008670',
+            'RegNumber' => '0000000370021656',
+            'FiscalNumber' => '9999078902005455',
+            'Ofd' => 'Второй ОФД',
+            'Url' => 'https://receipts.ru/ck-return-123',
+            'QrCodeUrl' => 'https://qr.example/ck-return-123',
+            'DateTime' => '2026-03-13 10:11:12',
+        ];
+
+        $rawBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $hmac = base64_encode(hash_hmac('sha256', $rawBody, 'cloud-secret', true));
+
+        $response = $this->call(
+            'POST',
+            '/webhook/cloudkassir/receipt',
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_CONTENT_HMAC' => $hmac,
+            ],
+            $rawBody
+        );
+
+        $response->assertOk()
+            ->assertJson(['code' => 0]);
+
+        $this->assertDatabaseHas('fiscal_receipts', [
+            'id' => $receipt->id,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'external_id' => 'ck-return-123',
+            'document_number' => '888',
+            'session_number' => '11',
+            'number' => '6',
+            'fiscal_sign' => '987654321',
+            'device_number' => '01801810008670',
+            'reg_number' => '0000000370021656',
+            'fiscal_number' => '9999078902005455',
+            'ofd' => 'Второй ОФД',
+            'receipt_url' => 'https://receipts.ru/ck-return-123',
+            'qr_code_url' => 'https://qr.example/ck-return-123',
+        ]);
+    }
 }

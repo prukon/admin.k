@@ -27,6 +27,7 @@ return [
             'settings.view',
             'settings.roles.view',
             'settings.paymentSystems.view',
+            'settings.queues.view',
             'account.user.view',
             'account.partner.view',
             'account.partner.update',

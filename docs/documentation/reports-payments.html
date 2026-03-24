@@ -91,24 +91,36 @@ net_to_partner   = gross - commission_total</pre>
 
   <h2>4) Колонка “Чек” (онлайн‑чек)</h2>
   <div class="note">
-    Колонка “Чек” показывает факт формирования фискального чека и быстрый переход к нему.
-    Используется таблица <code>fiscal_receipts</code>, поле <code>receipt_url</code>.
+    Колонка “Чек” в отчёте “Платежи” показывает онлайн‑чеки из <code>fiscal_receipts</code> и быстрый переход к ним.
   </div>
   <ul>
     <li><b>Для T‑Bank:</b>
       <ul>
-        <li>если <code>receipt_url</code> валиден и начинается с <code>https://receipts.ru/</code> — показываем активную иконку чека (ссылка открывается в новой вкладке)</li>
-        <li>если ссылки нет или она невалидна — показываем серую иконку с подсказкой “Чек не сформирован”</li>
+        <li>
+          <b>Оплата (income)</b>: берётся последняя запись чека по <code>FiscalReceipt.type=income</code> (в UI используется поле <code>receipt_url</code>).
+          Если <code>receipt_url</code> валиден и начинается с <code>https://receipts.ru/</code> — показываем активную иконку (ссылка открывается в новой вкладке).
+        </li>
+        <li>
+          <b>Возврат (income_return)</b>: после успешного T‑Bank Cancel система создаёт чек возврата в CloudKassir и сохраняет его в <code>fiscal_receipts</code> как <code>FiscalReceipt.type=income_return</code>.
+          Если URL возврат‑чека (<code>return_receipt_url</code>) валиден — показывается вторая иконка “Чек возврата” (также открывается в новой вкладке).
+        </li>
+        <li>
+          <b>Если возврат уже создан, но чек возврата ещё не сформирован</b>: иконка income будет иметь расширенную подсказку (tooltip) вида “Чек возврата ожидается (CloudKassir)” или “Чек возврата: ошибка”.
+          Вторая иконка при этом не показывается до появления валидного <code>return_receipt_url</code>.
+        </li>
+        <li>
+          <b>Если income‑чек не сформирован</b>: показывается серая иконка с подсказкой “Чек не сформирован”.
+        </li>
       </ul>
     </li>
     <li><b>Для Robokassa:</b> иконка не показывается (ячейка пустая), подсказка: “Чек формируется у партнера в его онлайн-кассе”.</li>
     <li><b>Почему так:</b> при Robokassa чек формируется в инфраструктуре партнёра (его касса/ОФД), и платформа не имеет гарантированного доступа к ссылке на чек.</li>
-    <li><b>Источник записи:</b> берётся последняя запись чека по платежу (<code>MAX(id)</code> в <code>fiscal_receipts</code>).</li>
+    <li><b>Источник записи:</b> для income и income_return используются отдельные выборки “последнего” чека по <code>payment_id</code> (через <code>MAX(id)</code> внутри каждого <code>type</code>).</li>
   </ul>
 
   <div class="note">
     <b>Важно:</b> в JSON выдаче DataTables присутствуют технические поля
-    <code>receipt_url</code> и <code>has_receipt</code>.
+    <code>receipt_url</code>/<code>has_receipt</code> и <code>return_receipt_url</code>/<code>has_return_receipt</code>.
     В UI финальное отображение всё равно зависит от провайдера платежа
     (<code>tbank</code>/<code>robokassa</code>) по правилам выше.
   </div>

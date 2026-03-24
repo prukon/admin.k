@@ -11,6 +11,8 @@ use App\Models\MenuItem;
 use App\Models\PartnerSocialLink;
 use App\Models\Setting;
 use App\Models\SocialNetwork;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -111,6 +113,66 @@ class SettingController extends AdminBaseController
                 'socialSettingsItems'
             )
         );
+    }
+
+    public function showQueues()
+    {
+        return view('admin.setting.index', [
+            'activeTab' => 'queues',
+        ]);
+    }
+
+    public function queueStatus()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->buildQueueStatusData(),
+        ]);
+    }
+
+    public function queueRestart(Request $request)
+    {
+        try {
+            Artisan::call('queue:restart');
+            Log::channel('queue')->warning('Queue restart requested from admin UI', [
+                'user_id' => $request->user()?->id,
+                'at' => now()->toDateTimeString(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Команда queue:restart отправлена.',
+            ]);
+        } catch (\Throwable $e) {
+            Log::channel('queue')->error('Queue restart failed from admin UI', [
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось выполнить queue:restart: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function queueLogs()
+    {
+        try {
+            $path = storage_path('logs/queue.log');
+            $lines = $this->tailFile($path, 200);
+
+            return response()->json([
+                'success' => true,
+                'lines' => $lines,
+                'path' => $path,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось прочитать queue.log: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     //AJAX Активность регистрации
@@ -449,6 +511,156 @@ class SettingController extends AdminBaseController
             ]);
             return response()->json(['success' => false, 'message' => 'DB error: ' . $e->getMessage()], 500);
         }
+    }
+
+    private function buildQueueStatusData(): array
+    {
+        $jobsCount = (int) DB::table('jobs')->count();
+        $failedJobsCount = (int) DB::table('failed_jobs')->count();
+
+        $oldestJobCreatedAtRaw = DB::table('jobs')->min('created_at');
+        $oldestJobCreatedAt = $oldestJobCreatedAtRaw ? \Illuminate\Support\Carbon::parse($oldestJobCreatedAtRaw) : null;
+        $oldestJobAgeSeconds = $oldestJobCreatedAt ? now()->diffInSeconds($oldestJobCreatedAt) : null;
+
+        $lastSuccessTs = Setting::getInt('queue_monitor_last_success_at', 0, null);
+        $lastFailedTs = Setting::getInt('queue_monitor_last_failed_at', 0, null);
+        $lastHeartbeatTs = (int) (Cache::get('queue:monitor:last_heartbeat_at', 0) ?: 0);
+
+        $lastSuccessAt = $lastSuccessTs > 0 ? now()->setTimestamp($lastSuccessTs)->toDateTimeString() : null;
+        $lastFailedAt = $lastFailedTs > 0 ? now()->setTimestamp($lastFailedTs)->toDateTimeString() : null;
+        $lastHeartbeatAt = $lastHeartbeatTs > 0 ? now()->setTimestamp($lastHeartbeatTs)->toDateTimeString() : null;
+
+        $workerStatus = $this->resolveWorkerStatus($lastHeartbeatTs);
+
+        $queuesPending = DB::table('jobs')
+            ->select('queue', DB::raw('COUNT(*) as total'))
+            ->groupBy('queue')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn($row) => ['queue' => (string) $row->queue, 'pending' => (int) $row->total])
+            ->values()
+            ->all();
+
+        $queuesFailed = DB::table('failed_jobs')
+            ->select('queue', DB::raw('COUNT(*) as total'))
+            ->groupBy('queue')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn($row) => ['queue' => (string) ($row->queue ?: 'default'), 'failed' => (int) $row->total])
+            ->values()
+            ->all();
+
+        $jobGroups = [
+            'refunds' => [
+                'label' => 'Возвраты',
+                'patterns' => ['TinkoffProcessRefundJob', 'RobokassaProcessRefundJob'],
+            ],
+            'receipts' => [
+                'label' => 'Онлайн-чеки CloudKassir',
+                'patterns' => ['SendCloudKassirReceiptJob'],
+            ],
+            'blog_ai' => [
+                'label' => 'AI-статьи блога',
+                'patterns' => ['RunBlogAiGenerationJob', 'RunBlogAiGeneratedImageJob', 'RunBlogAiImageRegenerationJob'],
+            ],
+            'payouts' => [
+                'label' => 'Выплаты T-Bank',
+                'patterns' => ['TinkoffRunScheduledPayoutsJob', 'TinkoffPollPayoutStatesJob'],
+            ],
+            'smoke' => [
+                'label' => 'Тех. проверка очереди',
+                'patterns' => ['QueueSmokeTestJob'],
+            ],
+        ];
+
+        $groupStats = [];
+        foreach ($jobGroups as $key => $group) {
+            $pending = $this->countByPayloadPatterns('jobs', $group['patterns']);
+            $failed = $this->countByPayloadPatterns('failed_jobs', $group['patterns']);
+            $groupStats[] = [
+                'key' => $key,
+                'label' => $group['label'],
+                'pending' => $pending,
+                'failed' => $failed,
+            ];
+        }
+
+        return [
+            'jobs_count' => $jobsCount,
+            'failed_jobs_count' => $failedJobsCount,
+            'oldest_job_age_seconds' => $oldestJobAgeSeconds,
+            'oldest_job_created_at' => $oldestJobCreatedAt?->toDateTimeString(),
+            'last_success_at' => $lastSuccessAt,
+            'last_failed_at' => $lastFailedAt,
+            'last_heartbeat_at' => $lastHeartbeatAt,
+            'worker_status' => $workerStatus,
+            'queues_pending' => $queuesPending,
+            'queues_failed' => $queuesFailed,
+            'job_groups' => $groupStats,
+            'generated_at' => now()->toDateTimeString(),
+        ];
+    }
+
+    private function countByPayloadPatterns(string $table, array $patterns): int
+    {
+        return (int) DB::table($table)
+            ->where(function ($q) use ($patterns) {
+                foreach ($patterns as $pattern) {
+                    $q->orWhere('payload', 'like', '%' . $pattern . '%');
+                }
+            })
+            ->count();
+    }
+
+    private function resolveWorkerStatus(int $lastHeartbeatTs): array
+    {
+        if ($lastHeartbeatTs <= 0) {
+            return [
+                'code' => 'no_data',
+                'title' => 'Нет данных',
+                'seconds_since_heartbeat' => null,
+            ];
+        }
+
+        $seconds = now()->timestamp - $lastHeartbeatTs;
+
+        if ($seconds <= 60) {
+            return [
+                'code' => 'alive',
+                'title' => 'Жив',
+                'seconds_since_heartbeat' => $seconds,
+            ];
+        }
+
+        if ($seconds <= 300) {
+            return [
+                'code' => 'stale',
+                'title' => 'Нет данных давно',
+                'seconds_since_heartbeat' => $seconds,
+            ];
+        }
+
+        return [
+            'code' => 'dead',
+            'title' => 'Вероятно умер',
+            'seconds_since_heartbeat' => $seconds,
+        ];
+    }
+
+    private function tailFile(string $path, int $lineCount = 200): array
+    {
+        if (!is_file($path)) {
+            return [];
+        }
+
+        $lines = @file($path, FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            return [];
+        }
+
+        $slice = array_slice($lines, -1 * max(1, $lineCount));
+
+        return array_values($slice);
     }
 
 

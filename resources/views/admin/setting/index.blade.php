@@ -56,6 +56,19 @@
                             </a>
                         </li>
                     @endcan
+
+                    @can('settings.queues.view')
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeTab == 'queues' ? 'active' : '' }}"
+                               href="{{ route('admin.setting.queues') }}"
+                               id="queues-tab"
+                               role="tab"
+                               aria-controls="queues"
+                               aria-selected="{{ $activeTab == 'queues' ? 'true' : 'false' }}">
+                                Очереди
+                            </a>
+                        </li>
+                    @endcan
                 </ul>
                 <div class="tab-content">
                 @if($activeTab === 'setting')
@@ -90,6 +103,8 @@
                             'partners' => $partners ?? null,
                             'rule' => $rule ?? null,
                         ])
+                    @elseif($activeTab === 'queues')
+                        @include('admin.setting.queues')
                     @endif
                 </div>
             </div>

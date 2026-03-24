@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Очереди в админке: мониторинг и управление</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Очереди в админке: мониторинг и управление</h1>
+  <div class="small">Файл: <code>/docs/documentation/queues-monitoring.html</code></div>
+
+  <div class="note">
+    Раздел описывает вкладку <b>Настройки → Очереди</b>, которая показывает реальное состояние
+    database-очередей и даёт безопасные инструменты операционного контроля.
+  </div>
+
+  <h2>1) Доступ и права</h2>
+  <ul>
+    <li><b>Просмотр вкладки и данных</b>: permission <code>settings.queues.view</code>.</li>
+    <li><b>Управление (перезапуск worker)</b>: permission <code>settings.queues.manage</code>.</li>
+    <li>Маршруты вкладки остаются внутри стандартного CRM-контекста (<code>auth + 2fa + SetPartner</code>), но сами метрики очередей глобальные (не по партнёру).</li>
+  </ul>
+
+  <h2>2) Маршруты</h2>
+  <ul>
+    <li><code>GET /admin/settings/queues</code> — страница вкладки (HTML).</li>
+    <li><code>GET /admin/settings/queues/status</code> — JSON со статусом и метриками.</li>
+    <li><code>GET /admin/settings/queues/logs</code> — JSON с последними строками queue-лога.</li>
+    <li><code>POST /admin/settings/queues/restart</code> — выполняет <code>queue:restart</code> (graceful restart).</li>
+  </ul>
+
+  <h2>3) Что показывает вкладка</h2>
+  <ul>
+    <li><code>jobs_count</code> — количество задач в таблице <code>jobs</code>.</li>
+    <li><code>failed_jobs_count</code> — количество задач в <code>failed_jobs</code>.</li>
+    <li><code>oldest_job_age_seconds</code> — возраст самой старой задачи в <code>jobs</code>.</li>
+    <li><code>last_success_at</code> — время последней успешной обработки job.</li>
+    <li><code>last_failed_at</code> — время последней неуспешной обработки job.</li>
+    <li><code>worker_status</code> — вычисляемый статус worker: <code>alive</code>, <code>stale</code>, <code>dead</code>, <code>no_data</code>.</li>
+  </ul>
+
+  <h2>4) Логика статуса worker (heartbeat)</h2>
+  <ul>
+    <li>heartbeat обновляется на <code>Queue::looping</code> и на событиях <code>Queue::after</code>/<code>Queue::failing</code>.</li>
+    <li><code>alive</code>: heartbeat не старше 60 сек.</li>
+    <li><code>stale</code>: heartbeat от 61 до 300 сек.</li>
+    <li><code>dead</code>: heartbeat старше 300 сек.</li>
+    <li><code>no_data</code>: heartbeat ещё не зафиксирован.</li>
+  </ul>
+
+  <h2>5) Разбивки в UI</h2>
+  <ul>
+    <li><b>По очередям</b>: агрегируется по колонке <code>queue</code> в <code>jobs</code>/<code>failed_jobs</code>.</li>
+    <li><b>По типам задач</b>: агрегируется по шаблонам class-name в <code>payload</code>:
+      возвраты, CloudKassir-чеки, AI-блог, выплаты T-Bank, smoke-test.
+    </li>
+  </ul>
+
+  <div class="warn">
+    В текущей архитектуре большинство задач отправляется в очередь <code>default</code> (без <code>onQueue(...)</code>),
+    поэтому физическая разбивка по очередям может быть однотипной. Для оперативного анализа используйте также разбивку по типам задач.
+  </div>
+
+  <h2>6) Логирование очередей</h2>
+  <ul>
+    <li>Выделен отдельный канал <code>queue</code> в <code>config/logging.php</code>.</li>
+    <li>Файл канала: <code>storage/logs/queue.log</code>.</li>
+    <li>Во вкладке выводятся последние строки именно этого канала (не общий <code>laravel.log</code>).</li>
+  </ul>
+
+  <h2>7) Перезапуск worker</h2>
+  <ul>
+    <li>Кнопка запускает <code>php artisan queue:restart</code> через контроллер.</li>
+    <li>Это мягкий (graceful) перезапуск: текущая job завершается, затем worker перезапускается.</li>
+    <li>Действие логируется в канал <code>queue</code> с <code>user_id</code>.</li>
+  </ul>
+
+  <h2>8) Контроль корректности (feature-тесты)</h2>
+  <ul>
+    <li>Покрыты проверки доступа: отдельные права <code>settings.queues.view</code> и <code>settings.queues.manage</code>.</li>
+    <li>Покрыты happy-path сценарии: страница 200, статус 200, логи 200, restart 200.</li>
+    <li>Покрыта структура JSON и базовые метрики статуса очередей.</li>
+  </ul>
+
+</div>
+</body>
+</html>
+

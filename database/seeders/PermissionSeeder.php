@@ -39,6 +39,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'settings.view',                  'description' => 'Страница "Настройки"',                          'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 60],
             ['name' => 'settings.roles.view',            'description' => 'Страница "Настройки  -> Права и роли"',         'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 61],
             ['name' => 'settings.paymentSystems.view',   'description' => 'Страница "Настройки  -> Платежные системы"',    'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 62],
+            ['name' => 'settings.queues.view',           'description' => 'Страница "Настройки -> Очереди"',               'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 63],
             ['name' => 'account.user.view',              'description' => 'Страница "Учетная запись -> Личные данные"',    'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 65],
             ['name' => 'account.partner.view',           'description' => 'Страница "Учетная запись -> Организация"',      'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 70],
             ['name' => 'account.documents.view',         'description' => 'Страница "Учетная запись -> "Мои документы"',   'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 70],
@@ -81,6 +82,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'viewing.all.logs',               'description' => 'Просмотр всех логов',                            'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 210],
             ['name' => 'settings.commission',            'description' => 'Настройка комиссий',                             'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 220],
             ['name' => 'settings.force2fa.admins',       'description' => 'Управление обязательной 2FA для админов',         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 221],
+            ['name' => 'settings.queues.manage',         'description' => 'Управление очередями (restart worker)',          'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 222],
         ];
 
         // Готовим данные для upsert: name как уникальный ключ, created_at задаём только "на создание"

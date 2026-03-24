@@ -8,7 +8,9 @@ use App\Models\PartnerSocialLink;
 use App\Models\Setting;
 use App\Models\SocialNetwork;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Tests\Feature\Crm\CrmTestCase;
 
 class SettingsControllerTest extends CrmTestCase
@@ -437,6 +439,133 @@ class SettingsControllerTest extends CrmTestCase
         $this->get(route('settings.logs.data'))
             ->assertOk()
             ->assertHeader('Content-Type', 'application/json');
+    }
+
+    public function test_queues_page_requires_separate_permission(): void
+    {
+        // Есть доступ в "Настройки", но нет отдельного права "Очереди".
+        $this->grantPermissionToCurrentRole('settings.view');
+
+        $this->asUserWithoutPermission('settings.queues.view');
+        $this->grantPermissionToCurrentRole('settings.view');
+
+        $this->get(route('admin.setting.queues'))->assertStatus(403);
+    }
+
+    public function test_queues_status_requires_permission_and_returns_json(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+
+        $this->asUserWithoutPermission('settings.queues.view');
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->get(route('admin.setting.queues.status'))->assertStatus(403);
+
+        $this->actingAs($this->user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+
+        $this->get(route('admin.setting.queues.status'))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    'jobs_count',
+                    'failed_jobs_count',
+                    'worker_status',
+                    'job_groups',
+                ],
+            ]);
+    }
+
+    public function test_queues_restart_requires_manage_permission(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+
+        $this->asUserWithoutPermission('settings.queues.manage');
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+
+        $this->postJson(route('admin.setting.queues.restart'))->assertStatus(403);
+    }
+
+    public function test_queues_page_is_available_with_permissions_and_returns_200(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+
+        $this->get(route('admin.setting.queues'))
+            ->assertOk()
+            ->assertSee('Очереди');
+    }
+
+    public function test_queues_status_returns_expected_metrics_and_200_for_allowed_user(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+
+        DB::table('jobs')->insert([
+            'queue' => 'default',
+            'payload' => '{"displayName":"App\\\\Jobs\\\\SendCloudKassirReceiptJob"}',
+            'attempts' => 0,
+            'reserved_at' => null,
+            'available_at' => now()->timestamp,
+            'created_at' => now()->subMinutes(2)->timestamp,
+        ]);
+
+        DB::table('failed_jobs')->insert([
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'connection' => 'database',
+            'queue' => 'default',
+            'payload' => '{"displayName":"App\\\\Jobs\\\\TinkoffProcessRefundJob"}',
+            'exception' => 'Test failure',
+            'failed_at' => now(),
+        ]);
+
+        Setting::setInt('queue_monitor_last_success_at', now()->subMinute()->timestamp, null);
+        Setting::setInt('queue_monitor_last_failed_at', now()->subSeconds(30)->timestamp, null);
+        Cache::put('queue:monitor:last_heartbeat_at', now()->subSeconds(20)->timestamp, now()->addMinutes(5));
+
+        $this->get(route('admin.setting.queues.status'))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.jobs_count', 1)
+            ->assertJsonPath('data.failed_jobs_count', 1)
+            ->assertJsonPath('data.worker_status.code', 'alive');
+    }
+
+    public function test_queues_logs_returns_queue_channel_file_and_200_for_allowed_user(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+
+        $dir = storage_path('logs');
+        if (!File::exists($dir)) {
+            File::makeDirectory($dir, 0755, true);
+        }
+        $logPath = storage_path('logs/queue.log');
+        File::put($logPath, "line-one\nline-two\n");
+
+        $this->get(route('admin.setting.queues.logs'))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('lines.0', 'line-one');
+    }
+
+    public function test_queues_restart_returns_200_for_user_with_manage_permission(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+        $this->grantPermissionToCurrentRole('settings.queues.manage');
+
+        $response = $this->postJson(route('admin.setting.queues.restart'));
+        $response->assertOk()
+            ->assertJsonPath('success', true);
+
+        // Дополнительно убеждаемся, что установлен "restart timestamp" для воркеров.
+        $this->assertNotNull(Cache::get('illuminate:queue:restart'));
     }
 }
 

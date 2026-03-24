@@ -298,6 +298,18 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Страница Настойки - Общие  (feature test +)
     Route::middleware('can:settings.view')->group(function () {
         Route::get('admin/settings', [SettingController::class, 'showSettings'])->name('admin.setting.setting');
+        Route::get('admin/settings/queues', [SettingController::class, 'showQueues'])
+            ->middleware('can:settings.queues.view')
+            ->name('admin.setting.queues');
+        Route::get('admin/settings/queues/status', [SettingController::class, 'queueStatus'])
+            ->middleware('can:settings.queues.view')
+            ->name('admin.setting.queues.status');
+        Route::get('admin/settings/queues/logs', [SettingController::class, 'queueLogs'])
+            ->middleware('can:settings.queues.view')
+            ->name('admin.setting.queues.logs');
+        Route::post('admin/settings/queues/restart', [SettingController::class, 'queueRestart'])
+            ->middleware('can:settings.queues.manage')
+            ->name('admin.setting.queues.restart');
         Route::patch('admin/settings/registration-activity', [SettingController::class, 'registrationActivity'])->name('registrationActivity');
         Route::post('admin/settings/text-for-users', [SettingController::class, 'textForUsers'])->name('textForUsers');
         Route::post('settings/save-menu-items', [SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems');
@@ -333,7 +345,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:documentations.view')->group(function () {
         Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
         Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
-            ->whereIn('page', ['payments', 'partner-context', 'partners-permissions', 'reports-payments', 'tbank', 'tests-standards'])
+            ->whereIn('page', ['payments', 'partner-context', 'partners-permissions', 'reports-payments', 'tbank', 'queues-monitoring', 'tests-standards'])
             ->name('docs.documentation.show');
     });
 

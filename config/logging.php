@@ -147,6 +147,13 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
         ],
 
+        'queue' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/queue.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'replace_placeholders' => true,
+        ],
+
 
 
     ],
