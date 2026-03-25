@@ -1,14 +1,38 @@
 @extends('layouts.admin2')
 @section('content')
     <div class="main-content text-start">
-        <h4 class="pt-3">Оплата через СБП</h4>
-        <p>Отсканируйте QR-код в мобильном банке. После оплаты статус изменится автоматически.</p>
+        <div class="d-flex flex-wrap align-items-center gap-3 pt-3 mb-2">
+            <img class="img-fluid" src="{{ asset('/img/partners/tbank.png') }}" alt="T‑Bank" style="max-height: 40px; width: auto;">
+            <h4 class="mb-0">Оплата через СБП</h4>
+        </div>
 
-        <div id="qrBox" class="p-3 border rounded" style="display:inline-block;min-width:320px;text-align:center;">
+        <p class="text-muted mb-2">Отсканируйте QR-код в приложении банка. После успешной оплаты статус обновится автоматически.</p>
+
+        @if(!empty($amountRubFormatted))
+            <p class="mb-3"><span class="text-muted">К оплате:</span> <strong>{{ $amountRubFormatted }}&nbsp;₽</strong></p>
+        @endif
+
+        <div id="qrBox" class="p-3 border rounded bg-light" style="display:inline-block;min-width:280px;max-width:100%;text-align:center;">
             Загружаем QR…
         </div>
 
         <div class="mt-3 small text-muted" id="statusBox">Статус: ожидание…</div>
+
+        <div class="mt-4 d-flex flex-wrap gap-2">
+            @if(!empty($canReturnToPaymentChoice) && !empty($backOutSum))
+                <form action="{{ route('payment') }}" method="POST" class="d-inline">
+                    @csrf
+                    <input type="hidden" name="outSum" value="{{ $backOutSum }}">
+                    <input type="hidden" name="paymentDate" value="{{ $backPaymentDate ?? '' }}">
+                    @if(!empty($backFormatedPaymentDate))
+                        <input type="hidden" name="formatedPaymentDate" value="{{ $backFormatedPaymentDate }}">
+                    @endif
+                    <button type="submit" class="btn btn-outline-secondary">← К выбору способа оплаты</button>
+                </form>
+            @else
+                <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">В личный кабинет</a>
+            @endif
+        </div>
     </div>
 @endsection
 

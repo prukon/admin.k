@@ -106,6 +106,7 @@ class TbankQrFeatureTest extends CrmTestCase
         $show = $this->get(route('tinkoff.qr', self::PAYMENT_ID));
         $show->assertOk();
         $show->assertSee('Оплата через СБП', false);
+        $show->assertSee('100.00', false);
         $show->assertSee('appendQrToBox', false);
         $show->assertSee('data:image/svg+xml', false);
         $show->assertSee('qr.nspk.ru', false);
@@ -160,8 +161,6 @@ class TbankQrFeatureTest extends CrmTestCase
         $this->get(route('tinkoff.qr', self::PAYMENT_ID))->assertForbidden();
         $this->get('/tinkoff/qr/' . self::PAYMENT_ID . '/json')->assertForbidden();
         $this->get(route('tinkoff.qr.state', self::PAYMENT_ID))->assertForbidden();
-
-        $this->post(route('payment.tinkoff.qrInit'), ['outSum' => '100.00'])->assertForbidden();
     }
 
     public function test_guest_is_redirected_to_login_for_qr_routes(): void
@@ -171,7 +170,6 @@ class TbankQrFeatureTest extends CrmTestCase
         $this->get(route('tinkoff.qr', self::PAYMENT_ID))->assertRedirect(route('login'));
         $this->get('/tinkoff/qr/' . self::PAYMENT_ID . '/json')->assertRedirect(route('login'));
         $this->get(route('tinkoff.qr.state', self::PAYMENT_ID))->assertRedirect(route('login'));
-        $this->post(route('payment.tinkoff.qrInit'), ['outSum' => '100.00'])->assertRedirect(route('login'));
     }
 
     public function test_get_qr_json_propagates_bank_error_to_client(): void

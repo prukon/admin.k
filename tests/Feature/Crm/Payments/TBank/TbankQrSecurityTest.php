@@ -36,9 +36,12 @@ class TbankQrSecurityTest extends CrmTestCase
         ]);
     }
 
-    public function test_qr_init_ignores_partner_id_from_request_and_uses_current_partner_keys(): void
+    public function test_sbp_create_ignores_partner_id_from_request_and_uses_current_partner_keys(): void
     {
         $this->grantTbankPaymentPermissionForCurrentUser();
+
+        $this->partner->tinkoff_partner_id = 'SHOP-CURRENT';
+        $this->partner->save();
 
         // Настроим разные ключи для текущего и чужого партнёра
         PaymentSystem::create([
@@ -81,10 +84,11 @@ class TbankQrSecurityTest extends CrmTestCase
             return Http::response(['Success' => false], 500);
         });
 
-        // Пытаемся подложить чужой partner_id (должен игнорироваться)
-        $resp = $this->post(route('payment.tinkoff.qrInit'), [
+        // Пытаемся подложить чужой partner_id (должен игнорироваться — партнёр только из контекста)
+        $resp = $this->post(route('payment.tinkoff.sbp'), [
             'partner_id' => $this->foreignPartner->id,
             'outSum' => '10.00',
+            'formatedPaymentDate' => '2024-01-01',
         ]);
 
         $resp->assertRedirect(route('tinkoff.qr', 777));

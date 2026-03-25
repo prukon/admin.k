@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\Tinkoff\QrInitRequest;
 use Illuminate\Support\Facades\Config;
+use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Services\Tinkoff\TinkoffPaymentsService;
 use App\Services\Tinkoff\TinkoffApiClient;
@@ -13,25 +13,25 @@ use App\Models\TinkoffPayment;
 class TinkoffQrController extends Controller
 {
     // 1) Инициализация платежа и редирект на QR-страницу
-    public function init(QrInitRequest $r, TinkoffPaymentsService $svc)
-    {
-        // Безопасность: partner_id только из текущего партнёра (не из запроса — иначе подмена на чужого)
-        $partnerId  = (int) app('current_partner')->id;
-        $outSumRub  = (float) str_replace(',', '.', $r->input('outSum', 0));
-        $amountCents= (int) round($outSumRub * 100);
-        $method     = 'sbp'; // для аналитики комиссий у нас
+    // public function init(QrInitRequest $r, TinkoffPaymentsService $svc)
+    // {
+    //     // Безопасность: partner_id только из текущего партнёра (не из запроса — иначе подмена на чужого)
+    //     $partnerId  = (int) app('current_partner')->id;
+    //     $outSumRub  = (float) str_replace(',', '.', $r->input('outSum', 0));
+    //     $amountCents= (int) round($outSumRub * 100);
+    //     $method     = 'sbp'; // для аналитики комиссий у нас
 
-        // Ограничение банка для QR (СБП): сумма от 1 000 коп. (10 ₽) до 100 000 000 коп.
-        if ($amountCents < 1000 || $amountCents > 100000000) {
-            return back()->withErrors(['tinkoff' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']);
-        }
+    //     // Ограничение банка для QR (СБП): сумма от 1 000 коп. (10 ₽) до 100 000 000 коп.
+    //     if ($amountCents < 1000 || $amountCents > 100000000) {
+    //         return back()->withErrors(['tinkoff' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']);
+    //     }
 
-        $payment = $svc->initPayment($partnerId, $amountCents, $method);
-        if (!$payment->tinkoff_payment_id) {
-            return back()->withErrors(['tinkoff' => 'Не удалось инициализировать оплату']);
-        }
-        return redirect()->route('tinkoff.qr', $payment->tinkoff_payment_id);
-    }
+    //     $payment = $svc->initPayment($partnerId, $amountCents, $method);
+    //     if (!$payment->tinkoff_payment_id) {
+    //         return back()->withErrors(['tinkoff' => 'Не удалось инициализировать оплату']);
+    //     }
+    //     return redirect()->route('tinkoff.qr', $payment->tinkoff_payment_id);
+    // }
 
     // 2) Страница с QR
     public function show($paymentId)
@@ -42,12 +42,55 @@ class TinkoffQrController extends Controller
         }
         $orderId = $tp->order_id;
 
+        $intent = PaymentIntent::query()
+            ->where('partner_id', (int) $tp->partner_id)
+            ->where('tbank_payment_id', (int) $paymentId)
+            ->first();
+
+        $backOutSum = null;
+        $backPaymentDate = null;
+        $backFormatedPaymentDate = null;
+        if ($intent) {
+            $backOutSum = (string) $intent->out_sum;
+            $pd = (string) $intent->payment_date;
+            if ($pd !== '' && $pd !== 'Клубный взнос' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $pd)) {
+                $backFormatedPaymentDate = $pd;
+                $backPaymentDate = self::russianMonthYearFromYmFirst($pd);
+            }
+        }
+
+        $amountKop = (int) $tp->amount;
+        $amountRubFormatted = number_format($amountKop / 100, 2, '.', '');
+
         return view('tinkoff.qr', [
             'paymentId' => $paymentId,
+            'amountRubFormatted' => $amountRubFormatted,
             'successUrl' => $orderId ? url('/payments/tinkoff/' . $orderId . '/success') : url('/payment/success'),
             'stateUrl' => url('/tinkoff/qr/' . $paymentId . '/state'),
             'qrUrl' => url('/tinkoff/qr/' . $paymentId . '/json'),
+            'backOutSum' => $backOutSum,
+            'backPaymentDate' => $backPaymentDate,
+            'backFormatedPaymentDate' => $backFormatedPaymentDate,
+            'canReturnToPaymentChoice' => $intent !== null,
         ]);
+    }
+
+    /** Обратное к формату «Месяц Год» для POST на страницу выбора способа оплаты. */
+    private static function russianMonthYearFromYmFirst(string $ymd): string
+    {
+        $months = [
+            1 => 'Январь', 2 => 'Февраль', 3 => 'Март', 4 => 'Апрель',
+            5 => 'Май', 6 => 'Июнь', 7 => 'Июль', 8 => 'Август',
+            9 => 'Сентябрь', 10 => 'Октябрь', 11 => 'Ноябрь', 12 => 'Декабрь',
+        ];
+        try {
+            $d = \Carbon\Carbon::createFromFormat('Y-m-d', $ymd);
+        } catch (\Throwable) {
+            return '';
+        }
+        $m = (int) $d->month;
+
+        return ($months[$m] ?? '') . ' ' . $d->year;
     }
 
     // 3) AJAX — получить картинку QR
