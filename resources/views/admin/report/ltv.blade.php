@@ -1,5 +1,5 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
-    <h4 class="text-start mb-0">LTV учащихся</h4>
+    <h4 class="text-start mb-3 ">Платежи по ученикам</h4>
 </div>
 
 <table class="table table-bordered mt-3" id="ltv-table">
@@ -223,7 +223,7 @@
 
                     var providerLabel = '';
                     if (p.payment_provider === 'tbank') {
-                        providerLabel = '<span class="badge bg-primary">T-Bank</span>';
+                        providerLabel = '<span class="badge" style="background-color:#ffdd2d !important; color:black !important;">T-Bank</span>';
                     } else if (p.payment_provider === 'robokassa') {
                         providerLabel = '<span class="badge bg-secondary">Robokassa</span>';
                     } else {

@@ -70,6 +70,7 @@
             <th>Partner</th>
             <th>User</th>
             <th>Provider</th>
+            <th>Способ оплаты</th>
             <th>Status</th>
             <th>OutSum</th>
             <th>PaymentDate</th>
@@ -166,7 +167,37 @@
                             return (row.user_id ? row.user_id : '') + name;
                         }
                     },
-                    {data: 'provider', name: 'provider'},
+                    {
+                        data: 'provider',
+                        name: 'provider',
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            if (data === 'tbank') {
+                                return '<span class="badge" style="background-color:#ffdd2d !important; color:black !important;">T-Bank</span>';
+                            }
+                            if (data === 'robokassa') {
+                                return '<span class="badge bg-secondary">Robokassa</span>';
+                            }
+                            return data ? $('<div/>').text(data).html() : '';
+                        }
+                    },
+                    {
+                        data: 'payment_method_label',
+                        name: 'payment_method_label',
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            if (!data) {
+                                return '<span class="text-muted">—</span>';
+                            }
+                            return $('<div/>').text(data).html();
+                        }
+                    },
                     {
                         data: 'status',
                         name: 'status',

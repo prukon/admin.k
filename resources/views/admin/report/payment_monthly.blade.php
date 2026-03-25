@@ -229,7 +229,7 @@
 
                     var providerLabel = '';
                     if (p.payment_provider === 'tbank') {
-                        providerLabel = '<span class="badge bg-primary">T-Bank</span>';
+                        providerLabel = '<span class="badge" style="background-color:#ffdd2d !important; color:black !important;">T-Bank</span>';
                     } else if (p.payment_provider === 'robokassa') {
                         providerLabel = '<span class="badge bg-secondary">Robokassa</span>';
                     } else {

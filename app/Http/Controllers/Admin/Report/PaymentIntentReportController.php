@@ -88,6 +88,18 @@ class PaymentIntentReportController extends AdminBaseController
             ->addColumn('user_name', function (PaymentIntent $intent) {
                 return (string) ($intent->user->full_name ?? ($intent->user->name ?? ''));
             })
+            ->addColumn('payment_method_label', function (PaymentIntent $intent) {
+                $code = (string) ($intent->payment_method ?? '');
+                if ($code === '') {
+                    return '';
+                }
+
+                return match ($code) {
+                    'card' => 'Карта',
+                    'sbp_qr' => 'QR (СБП)',
+                    default => $code,
+                };
+            })
             ->editColumn('created_at', function (PaymentIntent $intent) {
                 return $intent->created_at ? $intent->created_at->format('Y-m-d H:i:s') : '';
             })
