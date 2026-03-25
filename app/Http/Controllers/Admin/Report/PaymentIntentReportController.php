@@ -89,7 +89,7 @@ class PaymentIntentReportController extends AdminBaseController
                 return (string) ($intent->user->full_name ?? ($intent->user->name ?? ''));
             })
             ->addColumn('payment_method_label', function (PaymentIntent $intent) {
-                $code = (string) ($intent->payment_method ?? '');
+                $code = (string) ($intent->payment_method_webhook ?? $intent->payment_method ?? '');
                 if ($code === '') {
                     return '';
                 }
@@ -97,6 +97,7 @@ class PaymentIntentReportController extends AdminBaseController
                 return match ($code) {
                     'card' => 'Карта',
                     'sbp_qr' => 'QR (СБП)',
+                    'tpay' => 'T‑Pay',
                     default => $code,
                 };
             })

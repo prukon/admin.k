@@ -129,7 +129,8 @@ class PaymentReportController extends AdminBaseController
                 'fiscal_income_receipt.receipt_url as fiscal_income_receipt_url',
                 'fiscal_return_receipt.receipt_url as fiscal_return_receipt_url',
                 'fiscal_return_receipt.status as fiscal_return_receipt_status',
-                'pi_tbank.payment_method as intent_payment_method'
+                'pi_tbank.payment_method_webhook as intent_payment_method_webhook',
+                'pi_tbank.payment_method as intent_payment_method_init'
             );
 
         // Дефолтная сортировка, если фронт не передал order (например, после кастомизаций таблицы)
@@ -204,7 +205,7 @@ class PaymentReportController extends AdminBaseController
                     : 'robokassa';
             })
             ->addColumn('payment_method_label', function (Payment $row) {
-                $code = isset($row->intent_payment_method) ? (string) $row->intent_payment_method : '';
+                $code = (string) ($row->intent_payment_method_webhook ?? $row->intent_payment_method_init ?? '');
                 if ($code === '') {
                     return '';
                 }
@@ -212,6 +213,7 @@ class PaymentReportController extends AdminBaseController
                 return match ($code) {
                     'card' => 'Карта',
                     'sbp_qr' => 'QR (СБП)',
+                    'tpay' => 'T‑Pay',
                     default => $code,
                 };
             })

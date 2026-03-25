@@ -24,6 +24,11 @@ use App\Models\FiscalReceipt;
 
 class TinkoffPaymentsService
 {
+    public function __construct(
+        private readonly TbankWebhookPaymentMethodResolver $webhookPaymentMethodResolver,
+    ) {
+    }
+
     public function initPayment(int $partnerId, int $amountCents, string $method = null, array $data = []): TinkoffPayment
     {
         $orderId = Str::uuid()->toString();
@@ -113,6 +118,7 @@ class TinkoffPaymentsService
         }
 
         $fromStatus = (string) ($payment->status ?? '');
+        $initTinkoffMethod = (string) ($payment->method ?? '');
 
         // В нотификациях прилетает SpAccumulationId — берем как deal_id
         if (isset($data['SpAccumulationId']) && !$payment->deal_id) {
@@ -121,6 +127,13 @@ class TinkoffPaymentsService
 
         $status = $data['Status'] ?? null;
         if ($status === 'CONFIRMED') {
+            $resolved = $this->webhookPaymentMethodResolver->resolve(
+                $data,
+                $initTinkoffMethod !== '' ? $initTinkoffMethod : null
+            );
+            if ($resolved['tinkoff'] !== null) {
+                $payment->method = $resolved['tinkoff'];
+            }
             $payment->status = 'CONFIRMED';
             $payment->confirmed_at = now();
         } elseif ($status === 'CANCELED' || $status === 'REJECTED') {
@@ -161,7 +174,7 @@ class TinkoffPaymentsService
 
         // --- Связка с доменным воркфлоу (payables/payment_intents/payments/users_prices) ---
         try {
-            $this->applyDomainEffects($payment, $data);
+            $this->applyDomainEffects($payment, $data, $initTinkoffMethod);
         } catch (\Throwable $e) {
             Log::channel('tinkoff')->error('[domain-effects failed] '.$e->getMessage(), [
                 'order_id' => $orderId,
@@ -246,7 +259,7 @@ class TinkoffPaymentsService
         ];
     }
 
-    protected function applyDomainEffects(TinkoffPayment $payment, array $webhook): void
+    protected function applyDomainEffects(TinkoffPayment $payment, array $webhook, string $initTinkoffMethod = ''): void
     {
         $status = (string) ($webhook['Status'] ?? '');
         $paymentId = $webhook['PaymentId'] ?? null;
@@ -307,7 +320,7 @@ class TinkoffPaymentsService
         }
 
         $intentId = (int) $intent->id;
-        DB::transaction(function () use ($intentId, $payment, $webhook, $isSuccess, $isFail) {
+        DB::transaction(function () use ($intentId, $payment, $webhook, $isSuccess, $isFail, $initTinkoffMethod) {
             /** @var PaymentIntent $locked */
             $locked = PaymentIntent::whereKey($intentId)->lockForUpdate()->first();
             if (!$locked) {
@@ -340,6 +353,16 @@ class TinkoffPaymentsService
                 'last_webhook' => $webhook,
             ]);
             $locked->meta = json_encode($meta, JSON_UNESCAPED_UNICODE);
+
+            if ($isSuccess) {
+                $resolved = $this->webhookPaymentMethodResolver->resolve(
+                    $webhook,
+                    $initTinkoffMethod !== '' ? $initTinkoffMethod : null
+                );
+                if ($resolved['intent'] !== null) {
+                    $locked->payment_method_webhook = $resolved['intent'];
+                }
+            }
 
             $payable = $locked->payable;
             if (!$payable) {

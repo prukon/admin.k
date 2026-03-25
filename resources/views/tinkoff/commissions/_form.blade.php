@@ -15,7 +15,7 @@
             <option value="">— Для всех —</option>
             <option value="card" @selected($m==='card')>Карты</option>
             <option value="sbp"  @selected($m==='sbp')>СБП</option>
-            <option value="tpay" @selected($m==='tpay')>Tinkoff Pay</option>
+            <option value="tpay" @selected($m==='tpay')>T‑Pay</option>
         </select>
     </div>
 

@@ -120,7 +120,7 @@ class PayableFactory extends Factory
                         'provider_inv_id'  => $bankPaymentId,
                         'tbank_payment_id' => $bankPaymentId,
                         'tbank_order_id'   => (string) Str::uuid(),
-                        'payment_method'   => $this->faker->randomElement(['card', 'sbp_qr']),
+                        'payment_method'   => $this->faker->randomElement(['card', 'sbp_qr', 'tpay']),
                     ]);
 
                 // 2) users_prices

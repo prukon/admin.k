@@ -76,7 +76,11 @@ class TinkoffPaymentController extends Controller
         ]);
 
         $bankMethod = (string) ($r->input('method') ?: 'card');
-        $intentPaymentMethod = ($bankMethod === 'sbp') ? 'sbp_qr' : 'card';
+        $intentPaymentMethod = match ($bankMethod) {
+            'sbp' => 'sbp_qr',
+            'tpay' => 'tpay',
+            default => 'card',
+        };
 
         $intent = PaymentIntent::create([
             'partner_id'      => $partnerId,

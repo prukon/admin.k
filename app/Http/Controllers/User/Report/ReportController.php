@@ -111,7 +111,8 @@ class ReportController extends Controller
                 ->select(
                     'payments.*',
                     'fiscal_receipt.receipt_url as fiscal_receipt_url',
-                    'pi_tbank.payment_method as intent_payment_method'
+                    'pi_tbank.payment_method_webhook as intent_payment_method_webhook',
+                    'pi_tbank.payment_method as intent_payment_method_init'
                 )
                 ->get();
 
@@ -146,7 +147,7 @@ class ReportController extends Controller
                         : 'robokassa';
                 })
                 ->addColumn('payment_method_label', function ($row) {
-                    $code = isset($row->intent_payment_method) ? (string) $row->intent_payment_method : '';
+                    $code = (string) ($row->intent_payment_method_webhook ?? $row->intent_payment_method_init ?? '');
                     if ($code === '') {
                         return '';
                     }
@@ -154,6 +155,7 @@ class ReportController extends Controller
                     return match ($code) {
                         'card' => 'Карта',
                         'sbp_qr' => 'QR (СБП)',
+                        'tpay' => 'T‑Pay',
                         default => $code,
                     };
                 })

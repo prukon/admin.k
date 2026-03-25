@@ -118,11 +118,64 @@ class TbankWebhookPaymentsTest extends CrmTestCase
         $payable->refresh();
         $this->assertSame('paid', (string) $intent->status);
         $this->assertSame('paid', (string) $payable->status);
+        $this->assertSame('card', (string) $intent->payment_method_webhook);
 
         $this->assertDatabaseHas('payments', [
             'partner_id' => $this->partner->id,
             'payment_number' => '12345',
         ]);
+
+        $this->assertSame('card', (string) $tp->fresh()->method);
+    }
+
+    public function test_webhook_confirmed_data_source_tpay_sets_intent_webhook_and_tinkoff_method(): void
+    {
+        $this->setupTbankKeysForPartner('TERM', 'PWD');
+
+        $tp = TinkoffPayment::create([
+            'order_id' => 'order-tpay-1',
+            'partner_id' => $this->partner->id,
+            'amount' => 2000,
+            'method' => 'card',
+            'status' => 'FORM',
+        ]);
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount' => '20.00',
+            'currency' => 'RUB',
+            'status' => 'pending',
+        ]);
+
+        $intent = PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'payment_method' => 'card',
+            'status' => 'pending',
+            'out_sum' => '20.00',
+            'payment_date' => 'Клубный взнос',
+            'tbank_order_id' => 'order-tpay-1',
+        ]);
+
+        $payload = $this->makeWebhookPayload([
+            'OrderId' => 'order-tpay-1',
+            'PaymentId' => 888001,
+            'Status' => 'CONFIRMED',
+            'Data' => json_encode(['source' => 'TinkoffPay'], JSON_UNESCAPED_UNICODE),
+        ], 'PWD');
+
+        $this->post('/webhooks/tinkoff/payments', $payload)->assertOk();
+
+        $tp->refresh();
+        $this->assertSame('tpay', (string) $tp->method);
+
+        $intent->refresh();
+        $this->assertSame('tpay', (string) $intent->payment_method_webhook);
+        $this->assertSame('card', (string) $intent->payment_method);
     }
 
     public function test_webhook_is_idempotent_second_call_does_not_duplicate_domain_records(): void
