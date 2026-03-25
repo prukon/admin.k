@@ -18,6 +18,8 @@
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
 
+    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
+
     @vite([
     'resources/js/common-scripts.js',
     'resources/js/landing.js',
@@ -30,96 +32,7 @@
 
 <div id="app">
 
-    <header class="bg-white shadow-sm">
-        <nav class="navbar navbar-expand-md">
-            <div class="container">
-                <!-- Лого -->
-               
-
-                <a class="navbar-brand" href="{{ url('/') }}">
-                    <img src="{{ asset('img/logo.png') }}" alt="kidscrm.online" height="80">
-               </a>
-
-                <!-- Кнопка‑гамбургер -->
-                <button class="navbar-toggler" type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#mainNav"
-                        aria-controls="mainNav"
-                        aria-expanded="false"
-                        aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-
-                <!-- Содержимое меню -->
-                <div class="collapse navbar-collapse" id="mainNav">
-                    <!-- Центрированное меню -->
-                    {{--<ul class="navbar-nav mx-auto mb-2 mb-md-0">--}}
-                        {{--<li class="nav-item">--}}
-                            {{--<a class="nav-link text-dark" href="#how-it-works">Как это работает</a>--}}
-                        {{--</li>--}}
-                        {{--<li class="nav-item">--}}
-                            {{--<a class="nav-link text-dark" href="#features">Функционал</a>--}}
-                        {{--</li>--}}
-                        {{--<li class="nav-item">--}}
-                            {{--<a class="nav-link text-dark" href="#advantages">Преимущества</a>--}}
-                        {{--</li>--}}
-                        {{--<li class="nav-item">--}}
-                            {{--<a class="nav-link text-dark" href="#pricing">Цены</a>--}}
-                        {{--</li>--}}
-                        {{--<li class="nav-item">--}}
-                            {{--<a class="nav-link text-dark" href="#contacts">Контакты</a>--}}
-                        {{--</li>--}}
-                    {{--</ul>--}}
-
-                    <!-- Кнопки авторизации -->
-                    <ul class="navbar-nav ms-auto">
-                        @guest
-                            @if (Route::has('login'))
-                                <li class="nav-item">
-                                    <a class="btn btn-primary  me-2" href="{{ route('login') }}">Войти</a>
-                                </li>
-                            @endif
-                        @else
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button"
-                                   data-bs-toggle="dropdown" aria-expanded="false">
-                                    {{ Auth::user()->name }}
-                                </a>
-
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li>
-                                        <form method="POST" action="{{ route('dashboard') }}">@csrf
-                                            <button type="submit"
-                                                    class="dropdown-item d-flex align-items-center  hover-underline">
-                                                <img src="{{ asset('img/landing/icons/login/home.png') }}"
-                                                     alt="Иконка договора"
-                                                     class="me-2"
-                                                     style="width:24px; height:24px; object-fit:contain;">
-                                                В личный кабинет
-                                            </button>
-                                        </form>
-                                    </li>
-                                    <li>
-                                        <form method="POST" action="{{ route('logout') }}">@csrf
-                                            <button type="submit"
-                                                    class="dropdown-item d-flex align-items-center  hover-underline">
-                                                <img src="{{ asset('img/landing/icons/login/exit.png') }}"
-                                                     alt="Иконка договора"
-                                                     class="me-2"
-                                                     style="width:24px; height:24px; object-fit:contain;">
-                                                Выйти
-                                            </button>
-                                        </form>
-                                    </li>
-                                </ul>
-
-                            </li>
-                        @endguest
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
+    @include('includes.public-navbar')
 
     <main class="py-4">
         @yield('content')
