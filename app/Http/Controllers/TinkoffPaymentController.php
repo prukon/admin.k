@@ -74,21 +74,25 @@ class TinkoffPaymentController extends Controller
             'meta'       => $payableMeta,
         ]);
 
+        $bankMethod = (string) ($r->input('method') ?: 'card');
+        $intentPaymentMethod = ($bankMethod === 'sbp') ? 'sbp_qr' : 'card';
+
         $intent = PaymentIntent::create([
-            'partner_id'   => $partnerId,
-            'user_id'      => $userId,
-            'payable_id'   => $payable->id,
-            'provider'     => 'tbank',
-            'status'       => 'pending',
-            'out_sum'      => $outSum,
-            'payment_date' => $paymentDate,
-            'meta'         => json_encode([
+            'partner_id'      => $partnerId,
+            'user_id'         => $userId,
+            'payable_id'      => $payable->id,
+            'provider'        => 'tbank',
+            'payment_method'  => $intentPaymentMethod,
+            'status'          => 'pending',
+            'out_sum'         => $outSum,
+            'payment_date'    => $paymentDate,
+            'meta'            => json_encode([
                 'user_name' => $userName,
             ], JSON_UNESCAPED_UNICODE),
         ]);
 
         // One-stage (PayType=O) + DATA.month для трассировки
-        $payment = $svc->initPayment($partnerId, $amountCents, $r->input('method') ?: 'card', [
+        $payment = $svc->initPayment($partnerId, $amountCents, $bankMethod, [
             'month' => $month ?: null,
             'payable_id' => (string) $payable->id,
             'payment_intent_id' => (string) $intent->id,
@@ -164,14 +168,15 @@ class TinkoffPaymentController extends Controller
         ]);
 
         $intent = PaymentIntent::create([
-            'partner_id'   => $partnerId,
-            'user_id'      => $userId,
-            'payable_id'   => $payable->id,
-            'provider'     => 'tbank',
-            'status'       => 'pending',
-            'out_sum'      => $outSum,
-            'payment_date' => $paymentDate,
-            'meta'         => json_encode([
+            'partner_id'      => $partnerId,
+            'user_id'         => $userId,
+            'payable_id'      => $payable->id,
+            'provider'        => 'tbank',
+            'payment_method'  => 'sbp_qr',
+            'status'          => 'pending',
+            'out_sum'         => $outSum,
+            'payment_date'    => $paymentDate,
+            'meta'            => json_encode([
                 'user_name' => $userName,
                 'method' => 'sbp',
             ], JSON_UNESCAPED_UNICODE),

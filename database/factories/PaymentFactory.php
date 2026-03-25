@@ -61,6 +61,10 @@ class PaymentFactory extends Factory
             $operationAt = $intent?->paid_at ?: $payable->paid_at ?: now();
             $operationCarbon = Carbon::parse($operationAt);
 
+            $tbankPid = $intent && (int) ($intent->tbank_payment_id ?? 0) > 0
+                ? (string) $intent->tbank_payment_id
+                : null;
+
             return [
                 'user_id'        => $payable->user_id,
                 'partner_id'     => $payable->partner_id,
@@ -72,9 +76,10 @@ class PaymentFactory extends Factory
                 'deal_id'        => $intent?->provider_inv_id
                     ? (string) $intent->provider_inv_id
                     : ($attributes['deal_id'] ?? $this->faker->unique()->uuid()),
-                'payment_id'     => $intent?->tbank_payment_id
-                    ? (string) $intent->tbank_payment_id
-                    : ($attributes['payment_id'] ?? $this->faker->uuid()),
+                'payment_id'     => $tbankPid
+                    ?? ($attributes['payment_id'] ?? $this->faker->uuid()),
+                'payment_number' => $tbankPid
+                    ?? ($attributes['payment_number'] ?? $this->faker->numerify('########')),
                 'payment_status' => 'paid',
             ];
         });

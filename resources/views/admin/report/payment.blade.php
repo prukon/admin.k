@@ -76,6 +76,15 @@
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
                        type="checkbox"
+                       data-column-key="payment_method_label"
+                       id="payColPaymentMethod"
+                       checked>
+                <label class="form-check-label" for="payColPaymentMethod">Способ оплаты</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
                        data-column-key="receipt"
                        id="payColReceipt"
                        checked>
@@ -171,6 +180,7 @@
         <th>Оплаченный месяц</th>
         <th>Дата и время платежа</th>
         <th>Провайдер</th>
+        <th>Способ оплаты</th>
         <th>Чек</th>
             @if($tbankEnabled ?? false)
         <th>Комиссия банка</th>
@@ -303,6 +313,7 @@
     payment_month: true,
     operation_date: true,
     payment_provider: true,
+    payment_method_label: true,
     receipt: true,
     payout_amount: tbankEnabled,
     net_to_partner: tbankEnabled,
@@ -324,14 +335,15 @@
     payment_month: 4,
     operation_date: 5,
     payment_provider: 6,
-    receipt: 7,
-    bank_commission_total: 8,
-    platform_commission: 9,
-    commission_total: 10,
-    net_to_partner: 11,
-    payout_amount: 12,
-    refund_action: 13,
-    refund_status: 14
+    payment_method_label: 7,
+    receipt: 8,
+    bank_commission_total: 9,
+    platform_commission: 10,
+    commission_total: 11,
+    net_to_partner: 12,
+    payout_amount: 13,
+    refund_action: 14,
+    refund_status: 15
 } : {
     user_name: 1,
     team_title: 2,
@@ -339,9 +351,10 @@
     payment_month: 4,
     operation_date: 5,
     payment_provider: 6,
-    receipt: 7,
-    refund_action: 8,
-    refund_status: 9
+    payment_method_label: 7,
+    receipt: 8,
+    refund_action: 9,
+    refund_status: 10
 };
 
             function toBool(val, fallback = true) {
@@ -497,9 +510,24 @@ const columns = [
         orderable: false,
         searchable: false,
         render: function (data, type, row) {
-            if (data === 'tbank') return '<span class="badge bg-primary">T-Bank</span>';
+            if (data === 'tbank') return '<span class="badge" style="background-color:#ffdd2d !important; color:black !important;">T-Bank</span>';
             if (data === 'robokassa') return '<span class="badge bg-secondary">Robokassa</span>';
             return data ? data : '';
+        }
+    },
+    {
+        data: 'payment_method_label',
+        name: 'payment_method_label',
+        orderable: false,
+        searchable: false,
+        render: function (data, type, row) {
+            if (type !== 'display') {
+                return data || '';
+            }
+            if (!data) {
+                return '<span class="text-muted">—</span>';
+            }
+            return $('<div/>').text(data).html();
         }
     },
     {

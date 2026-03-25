@@ -95,8 +95,24 @@ class ReportController extends Controller
                     $join->on('latest_fiscal_receipts.payment_id', '=', 'payments.id');
                 })
                 ->leftJoin('fiscal_receipts as fiscal_receipt', 'fiscal_receipt.id', '=', 'latest_fiscal_receipts.latest_id')
-                ->where('user_id', $this->curUser->id) // Сначала фильтрация по user_id
-                ->select('payments.*', 'fiscal_receipt.receipt_url as fiscal_receipt_url')
+                ->leftJoin('payment_intents as pi_tbank', function ($join) {
+                    $join->on('payments.partner_id', '=', 'pi_tbank.partner_id')
+                        ->where('pi_tbank.provider', '=', 'tbank')
+                        ->where(function ($q) {
+                            $q->whereNotNull('payments.deal_id')
+                                ->orWhereNotNull('payments.payment_id')
+                                ->orWhereNotNull('payments.payment_status');
+                        })
+                        ->whereRaw(
+                            'pi_tbank.provider_inv_id = CAST(NULLIF(NULLIF(TRIM(payments.payment_number), ""), "0") AS UNSIGNED)'
+                        );
+                })
+                ->where('payments.user_id', $this->curUser->id) // фильтр по владельцу платежа (payments.*)
+                ->select(
+                    'payments.*',
+                    'fiscal_receipt.receipt_url as fiscal_receipt_url',
+                    'pi_tbank.payment_method as intent_payment_method'
+                )
                 ->get();
 
 
@@ -128,6 +144,18 @@ class ReportController extends Controller
                     return (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status))
                         ? 'tbank'
                         : 'robokassa';
+                })
+                ->addColumn('payment_method_label', function ($row) {
+                    $code = isset($row->intent_payment_method) ? (string) $row->intent_payment_method : '';
+                    if ($code === '') {
+                        return '';
+                    }
+
+                    return match ($code) {
+                        'card' => 'Карта',
+                        'sbp_qr' => 'QR (СБП)',
+                        default => $code,
+                    };
                 })
                 ->addColumn('receipt_url', function ($row) {
                     $receiptUrl = trim((string) ($row->fiscal_receipt_url ?? ''));

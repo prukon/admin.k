@@ -111,12 +111,25 @@ class PaymentReportController extends AdminBaseController
                 $join->on('latest_return_fiscal_receipts.payment_id', '=', 'payments.id');
             })
             ->leftJoin('fiscal_receipts as fiscal_return_receipt', 'fiscal_return_receipt.id', '=', 'latest_return_fiscal_receipts.latest_id')
+            ->leftJoin('payment_intents as pi_tbank', function ($join) {
+                $join->on('payments.partner_id', '=', 'pi_tbank.partner_id')
+                    ->where('pi_tbank.provider', '=', 'tbank')
+                    ->where(function ($q) {
+                        $q->whereNotNull('payments.deal_id')
+                            ->orWhereNotNull('payments.payment_id')
+                            ->orWhereNotNull('payments.payment_status');
+                    })
+                    ->whereRaw(
+                        'pi_tbank.provider_inv_id = CAST(NULLIF(NULLIF(TRIM(payments.payment_number), ""), "0") AS UNSIGNED)'
+                    );
+            })
             ->where('users.partner_id', $partnerId)
             ->select(
                 'payments.*',
                 'fiscal_income_receipt.receipt_url as fiscal_income_receipt_url',
                 'fiscal_return_receipt.receipt_url as fiscal_return_receipt_url',
-                'fiscal_return_receipt.status as fiscal_return_receipt_status'
+                'fiscal_return_receipt.status as fiscal_return_receipt_status',
+                'pi_tbank.payment_method as intent_payment_method'
             );
 
         // Дефолтная сортировка, если фронт не передал order (например, после кастомизаций таблицы)
@@ -189,6 +202,18 @@ class PaymentReportController extends AdminBaseController
                 return (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status))
                     ? 'tbank'
                     : 'robokassa';
+            })
+            ->addColumn('payment_method_label', function (Payment $row) {
+                $code = isset($row->intent_payment_method) ? (string) $row->intent_payment_method : '';
+                if ($code === '') {
+                    return '';
+                }
+
+                return match ($code) {
+                    'card' => 'Карта',
+                    'sbp_qr' => 'QR (СБП)',
+                    default => $code,
+                };
             })
             ->addColumn('receipt_url', function (Payment $row) {
                 $receiptUrl = trim((string) ($row->fiscal_income_receipt_url ?? ''));

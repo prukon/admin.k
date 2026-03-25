@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Reports;
 
 use App\Models\FiscalReceipt;
 use App\Models\Payment;
+use App\Models\PaymentIntent;
 use App\Models\Team;
 use App\Models\User;
 use Tests\Feature\Crm\CrmTestCase;
@@ -156,8 +157,48 @@ class MyPaymentsReportTest extends CrmTestCase
         $this->assertArrayHasKey('team_title', $row);
         $this->assertArrayHasKey('summ', $row);
         $this->assertArrayHasKey('operation_date', $row);
+        $this->assertArrayHasKey('payment_provider', $row);
+        $this->assertArrayHasKey('payment_method_label', $row);
         // Индексная колонка от addIndexColumn()
         $this->assertArrayHasKey('DT_RowIndex', $row);
+    }
+
+    /**
+     * [P2] Способ оплаты подтягивается из payment_intents по payment_number.
+     */
+    public function test_get_user_payments_payment_method_label_joins_intent(): void
+    {
+        $bankPid = 887_766_554;
+        $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'summ' => 100.00,
+            'deal_id' => 'deal-m',
+            'payment_id' => (string) $bankPid,
+            'payment_number' => (string) $bankPid,
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => null,
+            'provider' => 'tbank',
+            'provider_inv_id' => $bankPid,
+            'payment_method' => 'sbp_qr',
+            'status' => 'paid',
+            'out_sum' => '100.00',
+        ]);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getUserPayments'));
+
+        $response->assertOk();
+        $row = collect($response->json('data'))->firstWhere('id', $payment->id);
+        $this->assertNotNull($row);
+        $this->assertSame('tbank', $row['payment_provider']);
+        $this->assertSame('QR (СБП)', $row['payment_method_label']);
     }
 
     /**

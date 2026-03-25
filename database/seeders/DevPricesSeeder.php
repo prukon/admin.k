@@ -12,7 +12,9 @@ class DevPricesSeeder extends Seeder
 {
     public function run(): void
     {
-        // 7.1. Оплаченные месяцы (0–6 месяцев назад)
+        // 7.1. Оплаченные месяцы (0–6 месяцев назад).
+        // Цепочка Payable → PaymentIntent → Payment задаётся в PayableFactory::paidMonthlyWithAllRelations()
+        // (T‑Bank, payment_intents.payment_method случайно card | sbp_qr).
         Payable::factory()
             ->count(1000)
             ->paidMonthlyWithAllRelations()

@@ -35,6 +35,7 @@ class PaymentReportTest extends CrmTestCase
                 ['data' => 'payment_month', 'name' => 'payment_month', 'searchable' => 'true', 'orderable' => 'true'],
                 ['data' => 'operation_date', 'name' => 'operation_date', 'searchable' => 'true', 'orderable' => 'true'],
                 ['data' => 'payment_provider', 'name' => 'payment_provider', 'searchable' => 'false', 'orderable' => 'false'],
+                ['data' => 'payment_method_label', 'name' => 'payment_method_label', 'searchable' => 'false', 'orderable' => 'false'],
             ],
         ];
     }
@@ -330,6 +331,75 @@ class PaymentReportTest extends CrmTestCase
         $this->assertEquals((float)$tbankPayment->summ, (float)$tbankRow['summ']);
         $this->assertEquals($tbankPayment->operation_date, $tbankRow['operation_date']);
         $this->assertEquals('tbank', $tbankRow['payment_provider']);
+        $this->assertSame('', (string) ($robokassaRow['payment_method_label'] ?? ''));
+        $this->assertSame('', (string) ($tbankRow['payment_method_label'] ?? ''));
+    }
+
+    /**
+     * (P1) Колонка payment_method_label — из payment_intents.payment_method по payment_number / provider_inv_id.
+     */
+    public function test_getPayments_payment_method_label_joins_tbank_intent(): void
+    {
+        $bankPaymentIdQr = 556_677_881;
+        $paymentQr = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'summ' => 500.00,
+            'operation_date' => now()->toDateTimeString(),
+            'deal_id' => 'deal-qr',
+            'payment_id' => (string) $bankPaymentIdQr,
+            'payment_number' => (string) $bankPaymentIdQr,
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => null,
+            'provider' => 'tbank',
+            'provider_inv_id' => $bankPaymentIdQr,
+            'payment_method' => 'sbp_qr',
+            'status' => 'paid',
+            'out_sum' => '500.00',
+        ]);
+
+        $bankPaymentIdCard = 556_677_882;
+        $paymentCard = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'summ' => 300.00,
+            'operation_date' => now()->subHour()->toDateTimeString(),
+            'deal_id' => 'deal-card',
+            'payment_id' => (string) $bankPaymentIdCard,
+            'payment_number' => (string) $bankPaymentIdCard,
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => null,
+            'provider' => 'tbank',
+            'provider_inv_id' => $bankPaymentIdCard,
+            'payment_method' => 'card',
+            'status' => 'paid',
+            'out_sum' => '300.00',
+        ]);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'));
+
+        $response->assertOk();
+        $data = collect($response->json('data') ?? []);
+
+        $rowQr = $data->firstWhere('id', $paymentQr->id);
+        $rowCard = $data->firstWhere('id', $paymentCard->id);
+
+        $this->assertNotNull($rowQr);
+        $this->assertNotNull($rowCard);
+        $this->assertSame('QR (СБП)', $rowQr['payment_method_label']);
+        $this->assertSame('Карта', $rowCard['payment_method_label']);
     }
 
     /**

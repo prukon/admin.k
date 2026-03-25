@@ -20,6 +20,8 @@
                         <th>Сумма платежа</th>
                         <th>Оплаченный месяц</th>
                         <th>Дата и время платежа</th>
+                        <th>Провайдер</th>
+                        <th>Способ оплаты</th>
                         <th>Чек</th>
                     </tr>
                     </thead>
@@ -100,6 +102,36 @@
                         }
                     },
                     {
+                        data: 'payment_provider',
+                        name: 'payment_provider',
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row) {
+                            if (data === 'tbank') {
+                                return '<span class="badge" style="background-color:#ffdd2d !important; color:black !important;">T-Bank</span>';
+                            }
+                            if (data === 'robokassa') {
+                                return '<span class="badge bg-secondary">Robokassa</span>';
+                            }
+                            return data ? data : '';
+                        }
+                    },
+                    {
+                        data: 'payment_method_label',
+                        name: 'payment_method_label',
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            if (!data) {
+                                return '<span class="text-muted">—</span>';
+                            }
+                            return $('<div/>').text(data).html();
+                        }
+                    },
+                    {
                         data: null,
                         name: 'receipt',
                         orderable: false,
@@ -123,7 +155,7 @@
                         }
                     }
                 ],
-                order: [[5, 'desc']], // Сортировка по столбцу "Дата" в порядке убывания
+                order: [[5, 'desc']], // Колонка «Дата и время платежа»
 
                 scrollX: true,
                 fixedColumns: {

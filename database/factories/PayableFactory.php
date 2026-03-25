@@ -5,8 +5,6 @@ namespace Database\Factories;
 use App\Models\Payable;
 use App\Models\Partner;
 use App\Models\User;
-use App\Models\PaymentIntent;
-use App\Models\Payment;
 use App\Models\UserPrice;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -108,15 +106,21 @@ class PayableFactory extends Factory
                 ];
             })
             ->afterCreating(function (Payable $payable) {
-                // 1) payment_intents
+                // 1) payment_intents (T‑Bank, как в отчёте «Платежи» + случайный способ)
+                $bankPaymentId = $this->faker->unique()->numberBetween(200_000_000, 2_147_000_000);
                 $intent = \App\Models\PaymentIntent::factory()
                     ->forPayable($payable)
                     ->paid()
                     ->create([
-                        'partner_id' => $payable->partner_id,
-                        'user_id'    => $payable->user_id,
-                        'out_sum'    => $payable->amount,
-                        'paid_at'    => $payable->paid_at,
+                        'partner_id'       => $payable->partner_id,
+                        'user_id'          => $payable->user_id,
+                        'out_sum'          => $payable->amount,
+                        'paid_at'          => $payable->paid_at,
+                        'provider'         => 'tbank',
+                        'provider_inv_id'  => $bankPaymentId,
+                        'tbank_payment_id' => $bankPaymentId,
+                        'tbank_order_id'   => (string) Str::uuid(),
+                        'payment_method'   => $this->faker->randomElement(['card', 'sbp_qr']),
                     ]);
 
                 // 2) users_prices

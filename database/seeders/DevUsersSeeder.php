@@ -16,7 +16,6 @@ class DevUsersSeeder extends Seeder
             return;
         }
 
-        // Было: User::factory()->count(200)->create(['is_enabled' => 1])->each(...)
         User::factory()->count(200)->create([
             'is_enabled' => 1,
         ])->each(function (User $user) use ($partnerIds) {
