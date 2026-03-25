@@ -15,19 +15,32 @@
 @push('scripts')
     <script>
         (function(){
-            const pid = @json($paymentId);
             const qrUrl = @json($qrUrl ?? ("/tinkoff/qr/".$paymentId."/json"));
             const stateUrl = @json($stateUrl ?? ("/tinkoff/qr/".$paymentId."/state"));
             const successUrl = @json($successUrl ?? "/payment/success");
             const qrBox = document.getElementById('qrBox');
             const statusBox = document.getElementById('statusBox');
 
+            /** GetQr: Data может быть base64 PNG или URL (например qr.nspk.ru для СБП). */
+            function qrImgSrcFromData(data) {
+                const s = String(data).trim();
+                if (/^https?:\/\//i.test(s)) return s;
+                if (s.startsWith('data:')) return s;
+                return 'data:image/png;base64,' + s;
+            }
+
             async function fetchQr() {
                 try {
                     const r = await fetch(qrUrl);
                     const j = await r.json();
                     if (j.Success && j.Data) {
-                        qrBox.innerHTML = `<img alt="QR" src="data:image/png;base64,${j.Data}" style="max-width:360px">`;
+                        qrBox.replaceChildren();
+                        const img = document.createElement('img');
+                        img.alt = 'QR';
+                        img.src = qrImgSrcFromData(j.Data);
+                        img.style.maxWidth = '360px';
+                        img.referrerPolicy = 'no-referrer';
+                        qrBox.appendChild(img);
                     } else {
                         const msg = (j && (j.Message || j.Details)) ? `${j.Message || ''}<br>${j.Details || ''}` : 'Не удалось получить QR';
                         qrBox.innerHTML = `<div class="text-danger">${msg}</div>`;

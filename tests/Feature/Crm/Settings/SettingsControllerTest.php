@@ -610,5 +610,61 @@ class SettingsControllerTest extends CrmTestCase
         // Дополнительно убеждаемся, что установлен "restart timestamp" для воркеров.
         $this->assertNotNull(Cache::get('illuminate:queue:restart'));
     }
+
+    public function test_queues_status_does_not_count_foreign_partner_overdue_scheduled_payouts(): void
+    {
+        $this->actingAs($this->user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+
+        TinkoffPayout::query()->create([
+            'payment_id' => null,
+            'partner_id' => $this->foreignPartner->id,
+            'deal_id' => 'foreign-overdue-' . uniqid(),
+            'amount' => 100,
+            'is_final' => false,
+            'status' => 'INITIATED',
+            'tinkoff_payout_payment_id' => null,
+            'when_to_run' => now()->subHour(),
+            'completed_at' => null,
+        ]);
+
+        $this->get(route('admin.setting.queues.status'))
+            ->assertOk()
+            ->assertJsonPath('data.overdue_scheduled_payouts_count', 0);
+    }
+
+    /**
+     * Сводная проверка: страница «Очереди» и все связанные JSON/действия отвечают 200 при полном наборе прав.
+     */
+    public function test_queue_monitoring_page_and_actions_all_return_200_with_permissions(): void
+    {
+        $this->actingAs($this->user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+        $this->grantPermissionToCurrentRole('settings.queues.manage');
+
+        $dir = storage_path('logs');
+        if (!File::exists($dir)) {
+            File::makeDirectory($dir, 0755, true);
+        }
+        File::put(storage_path('logs/queue.log'), "smoke-line\n");
+
+        $this->get(route('admin.setting.queues'))->assertOk();
+
+        $this->get(route('admin.setting.queues.status'))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->get(route('admin.setting.queues.logs'))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->postJson(route('admin.setting.queues.restart'))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+    }
 }
 

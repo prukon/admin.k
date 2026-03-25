@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Админка выплат T‑Bank: список, карточка, доступы</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Админка выплат T‑Bank: список, карточка, API таблицы</h1>
+  <div class="small">Файл: <code>/docs/documentation/tbank-admin-payouts.html</code> · см. также <a href="./tbank.html">T‑Bank (общий раздел)</a>, <a href="./queues-monitoring.html">Очереди и планировщик</a></div>
+
+  <div class="note">
+    Раздел описывает страницу <b>списка выплат</b> и связанные маршруты в CRM. Они отделены от «тяжёлого» админа T‑Bank
+    (<code>manage.payment.method.tbank</code>: sm-register, debug, карточки платежей и т.д.).
+  </div>
+
+  <h2>1) Доступ</h2>
+  <ul>
+    <li><b>Permission</b>: <code>tbank.payouts.manage</code> (middleware <code>can:tbank.payouts.manage</code>).</li>
+    <li><b>Контекст</b>: как и остальной кабинет — <code>auth</code>, <code>2fa</code>, <code>SetPartner</code> (<code>current_partner</code>).</li>
+    <li>Без права на все перечисленные ниже маршруты ответ <b>403</b>.</li>
+  </ul>
+
+  <h2>2) Маршруты</h2>
+  <ul>
+    <li><code>GET /admin/tinkoff/payouts</code> — HTML: таблица выплат (DataTables), фильтры, информационные блоки.</li>
+    <li><code>GET /admin/tinkoff/payouts/data</code> — JSON для DataTables (валидация через <code>TinkoffPayoutsDataTableRequest</code>).</li>
+    <li><code>GET /admin/tinkoff/payouts/columns-settings</code> — JSON: сохранённые видимые колонки таблицы (per user, ключ <code>tinkoff_payouts_index</code>).</li>
+    <li><code>POST /admin/tinkoff/payouts/columns-settings</code> — тело JSON <code>{"columns":{"column_key":true|false,...}}</code> → <code>{"success":true}</code>.</li>
+    <li><code>GET /admin/tinkoff/payouts/{id}</code> — карточка выплаты (<code>id</code> — число).</li>
+    <li><code>POST /tinkoff/payouts/{deal}/pay-now</code> и <code>POST /tinkoff/payouts/{deal}/delay</code> — ручной запуск и отложенная выплата по <code>deal_id</code> (тот же permission).</li>
+  </ul>
+
+  <h2>3) Изоляция по партнёру</h2>
+  <ul>
+    <li><b>Список и DataTables</b>: пользователь без роли <code>superadmin</code> видит только выплаты с <code>tinkoff_payouts.partner_id = current_partner</code>. Параметр <code>partner_id</code> в запросе к <code>/data</code> для такого пользователя не расширяет выборку.</li>
+    <li><b>Superadmin</b>: видит все выплаты; может передать <code>partner_id</code> в <code>/admin/tinkoff/payouts/data</code> для фильтра по партнёру. На странице списка в фильтрах доступен выбор партнёра.</li>
+    <li><b>Карточка выплаты</b>: если не superadmin и <code>payout.partner_id</code> не совпадает с <code>current_partner</code> — ответ <b>404</b> (не 403).</li>
+  </ul>
+
+  <h2>4) Блоки на странице списка</h2>
+  <ul>
+    <li><b>Автовыплаты</b>: по данным <code>payment_systems</code> (name=<code>tbank</code>) — у каких партнёров в <code>settings.auto_payout_enabled</code> включено; для superadmin — сводка по выбранным в фильтре партнёрам, для обычного пользователя — по своему партнёру.</li>
+    <li><b>Интервал обработки отложенных</b>: из <code>Setting::getTinkoffPayoutScheduledIntervalMinutes()</code> (см. <a href="./tbank.html#payout-settings">глобальные настройки выплат</a>).</li>
+    <li><b>Просроченные отложенные выплаты</b>: записи, которые должны подхватываться <code>TinkoffRunScheduledPayoutsJob</code>:
+      <code>when_to_run &lt;= now()</code>, <code>status = INITIATED</code>, <code>tinkoff_payout_payment_id IS NULL</code>, <code>completed_at IS NULL</code>.
+      На странице показываются счётчик и до 25 строк со ссылками в карточку. Для не‑superadmin выборка ограничена текущим партнёром.</li>
+  </ul>
+
+  <div class="warn">
+    Отложенные выплаты попадают в очередь только после срабатывания <b>Laravel Scheduler</b> (<code>php artisan schedule:run</code> по cron, обычно каждую минуту).
+    Если worker работает, а выплаты «висят» в <code>INITIATED</code> с прошедшим <code>when_to_run</code>, проверьте cron и индикатор планировщика на вкладке
+    <a href="./queues-monitoring.html">Настройки → Очереди</a>.
+  </div>
+
+  <h2>5) Связь с остальной документацией</h2>
+  <ul>
+    <li>Общий flow e2c, статусы, автовыплата, защита от дублей — <a href="./tbank.html">tbank.html</a> (разделы про выплаты и тесты).</li>
+    <li>Мониторинг очередей, heartbeat worker, тик планировщика, счётчик просроченных выплат в JSON — <a href="./queues-monitoring.html">queues-monitoring.html</a>.</li>
+  </ul>
+
+  <h2>6) Тесты (feature)</h2>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsIndexAutoInfoTest.php</code> — блоки автовыплат, интервал, просроченные на index.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankAdminPayoutsAccessFeatureTest.php</code> — 403 без <code>tbank.payouts.manage</code>; 200 для index, data, columns-settings, show; 404 чужой выплаты; изоляция строк в DataTables; superadmin + <code>partner_id</code>.</li>
+    <li>Ручные действия <code>pay-now</code> / <code>delay</code> — <code>TbankPayoutManualTest.php</code> и см. <a href="./tbank.html#tests">tbank.html → тесты</a>.</li>
+  </ul>
+
+</div>
+</body>
+</html>

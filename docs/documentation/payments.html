@@ -150,7 +150,7 @@
     </li>
     <li><b>Обработка оплаты</b>:
       <ul>
-        <li>При отправке формы вызывается тот же роут, что и для месячных оплат (<code>/payment/pay</code>, <code>/payment/tinkoff/pay</code>, <code>/payment/tinkoff/sbp</code>)</li>
+        <li>При отправке формы вызывается тот же роут, что и для месячных оплат (<code>POST /payment/pay</code> для Робокассы, <code>POST /payments/tinkoff/create</code> и <code>POST /payments/tinkoff/sbp</code> для T‑Bank)</li>
         <li>Создаётся <code>payables</code> с <code>type=club_fee</code></li>
         <li>В <code>users_prices</code> запись <b>не создаётся</b> (только для <code>monthly_fee</code>)</li>
       </ul>
@@ -199,7 +199,7 @@
 
   <h3>4.2 Комиссии (удерживаются с партнёра)</h3>
   <div class="note">
-    Комиссии настраиваются на странице <code>/admin/tinkoff/commissions</code> и хранятся в таблице <code>tinkoff_commission_rules</code>.
+    Комиссии настраиваются на странице <code>/admin/settings/tbank-commissions</code> и хранятся в таблице <code>tinkoff_commission_rules</code>.
   </div>
   <ul>
     <li><b>Комиссия банка (эквайринг)</b>: <code>acquiring_percent</code> / <code>acquiring_min_fixed</code> (по умолчанию 2.49% и мин 3.49 ₽)</li>
@@ -213,10 +213,15 @@
 
   <h3>4.3 T‑Bank: оплата по СБП (QR)</h3>
   <div class="note">
-    Оплата через СБП для учеников выполняется через T‑Bank QR:
-    после инициализации платежа отображаем QR-код и ждём успешный статус <code>CONFIRMED</code>.
-    Факт оплаты фиксируется webhook’ом <code>/webhooks/tinkoff/payments</code> и/или через <code>GetState</code> (для UI).
+    На страницах выбора оплаты (<code>/payment</code>, <code>/payment/club-fee</code>) кнопка «Оплатить по СБП» отправляет форму на маршрут <code>payment.tinkoff.sbp</code>
+    (<code>TinkoffPaymentController::createSbp</code>): создаются <code>payables</code> и <code>payment_intents</code>, вызывается банковский <code>Init</code> с полем <code>DATA</code> (связка с intent/payable), затем редирект на страницу QR в CRM
+    (<code>GET /tinkoff/qr/{PaymentId}</code>). Подробности, отображение QR и доступы — в разделе
+    <a href="/docs/documentation/tbank#sbp-qr-ui">T‑Bank: СБП (QR) в интерфейсе</a>.
   </div>
+  <ul>
+    <li><b>Факт оплаты</b>: webhook <code>/webhooks/tinkoff/payments</code> (как у карточной оплаты T‑Bank); страница QR дополнительно опрашивает <code>GetState</code> для подсказки пользователю и редиректа после <code>CONFIRMED</code>.</li>
+    <li><b>Отдельный маршрут</b> <code>POST …/payments/tinkoff/qr-init</code> (<code>TinkoffQrController::init</code>) выполняет только <code>Init</code> и запись в <code>tinkoff_payments</code> <b>без</b> создания <code>payables</code>/<code>payment_intents</code>; в текущих шаблонах витрины оплаты используется сценарий через <code>payment.tinkoff.sbp</code>, а не <code>qr-init</code>.</li>
+  </ul>
 
   <h2>5) Идемпотентность webhooks</h2>
   <div class="warn">

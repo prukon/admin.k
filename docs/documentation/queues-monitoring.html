@@ -57,7 +57,11 @@
     <li><code>scheduler_last_tick_at</code> — время последнего успешного тика планировщика (см. ниже).</li>
     <li><code>scheduler_status</code> — «живость» планировщика по последнему тику.</li>
     <li><code>overdue_scheduled_payouts_count</code> — число просроченных отложенных выплат T‑Bank (условие совпадает с <code>TinkoffRunScheduledPayoutsJob</code>).</li>
-    <li><code>overdue_scheduled_payouts_sample</code> — до 15 строк для быстрого перехода в карточку выплаты.</li>
+    <li><code>overdue_scheduled_payouts_sample</code> — до 15 строк (id, partner_id, partner_title, when_to_run) для быстрого перехода в карточку выплаты.</li>
+    <li><code>last_heartbeat_at</code> — время последнего heartbeat worker (по cache <code>queue:monitor:last_heartbeat_at</code>).</li>
+    <li><code>queues_pending</code> / <code>queues_failed</code> — агрегаты по полю <code>queue</code> в <code>jobs</code> и <code>failed_jobs</code>.</li>
+    <li><code>job_groups</code> — счётчики pending/failed по группам (шаблоны class name в <code>payload</code>).</li>
+    <li><code>generated_at</code> — время формирования ответа на сервере.</li>
   </ul>
 
   <h2>4) Логика статуса worker (heartbeat)</h2>

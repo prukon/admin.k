@@ -123,7 +123,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>5.5 Где отображается информация об автовыплатах</h3>
   <ul>
-    <li><b>Страница выплат</b> <code>/admin/tinkoff/payouts</code>: блок «Автовыплаты: включены у партнёров …» и «Обработка отложенных выплат: каждые N мин.»</li>
+    <li><b>Страница выплат</b> <code>/admin/tinkoff/payouts</code>: блок «Автовыплаты: включены у партнёров …» и «Обработка отложенных выплат: каждые N мин.»; таблица выплат (DataTables); блок просроченных отложенных выплат (см. отдельно <a href="./tbank-admin-payouts.html">админка выплат</a>).</li>
     <li><b>Страница партнёра</b> <code>/admin/tinkoff/partners/{id}</code>: в карточке слева — «Автовыплата: вкл/выкл», интервал, «За 30 дн.: N автовыплат», ссылка «к выплатам». Счётчик <b>«Ожидают выплат»</b> — это количество выплат в статусах <code>INITIATED</code>/<code>CREDIT_CHECKING</code> (уже созданы и в процессе), а не «платежи, ожидающие создания выплаты».</li>
     <li><b>Страница комиссий</b>: в таблице правил — по каждому партнёру «Автовыплата: on/off» и «За 30 дн.: N автовыплат, последняя …» со ссылкой на список выплат; на форме редактирования правила — тот же блок «За 30 дн.» под чекбоксом автовыплаты.</li>
   </ul>
@@ -157,21 +157,59 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <br>Для устойчивости к гонкам webhook’ов обработчик также использует <code>Data.payment_intent_id</code>, если webhook пришёл раньше сохранения <code>tbank_payment_id</code>/<code>tbank_order_id</code> в <code>payment_intents</code>.
   </div>
 
-  <h2 id="tests">7) Тесты</h2>
+  <h2 id="sbp-qr-ui">7) Оплата СБП (QR) в интерфейсе kidscrm</h2>
+  <div class="note">
+    Номер раздела следует за п.6 (workflow оплаты). Пользователь видит QR <b>на странице CRM</b> (layout <code>admin2</code>), а не только на внешней странице банка.
+  </div>
+
+  <h3>7.1 Типовой сценарий (витрина оплаты)</h3>
+  <ol>
+    <li>Страницы <code>/payment</code> и <code>/payment/club-fee</code>: при доступном СБП показывается форма «T‑Bank СБП (QR)».</li>
+    <li><code>POST /payments/tinkoff/sbp</code> (имя маршрута <code>payment.tinkoff.sbp</code>) → <code>TinkoffPaymentController::createSbp</code>:
+      создаются <code>payables</code> и <code>payment_intents</code> (как у карточной оплаты), вызывается <code>TinkoffPaymentsService::initPayment</code> с методом <code>sbp</code> и объектом <code>DATA</code> (<code>payment_intent_id</code>, <code>payable_id</code>, <code>user_id</code>, при необходимости <code>month</code>).</li>
+    <li>Редирект на <code>GET /tinkoff/qr/{PaymentId}</code> (маршрут <code>tinkoff.qr</code>), шаблон <code>resources/views/tinkoff/qr.blade.php</code>.</li>
+    <li>Браузер запрашивает <code>GET /tinkoff/qr/{PaymentId}/json</code> — сервер вызывает банк <code>POST /v2/GetQr</code> и возвращает JSON клиенту как есть.</li>
+    <li>Браузер периодически запрашивает <code>GET /tinkoff/qr/{PaymentId}/state</code> — сервер вызывает <code>POST /v2/GetState</code>. При статусе <code>CONFIRMED</code> выполняется переход на URL успеха (из данных страницы).</li>
+  </ol>
+
+  <h3>7.2 Поле <code>Data</code> в ответе GetQr и отрисовка QR</h3>
+  <div class="warn">
+    Банк может вернуть в <code>Data</code> не только base64 PNG, но и <b>URL изображения</b> (часто домен НСПК, например <code>https://qr.nspk.ru/…</code>). Нельзя всегда подставлять префикс <code>data:image/png;base64,</code> — иначе картинка в <code>&lt;img src&gt;</code> не отобразится.
+  </div>
+  <ul>
+    <li>Во фронтенде (скрипт на странице <code>tinkoff/qr.blade.php</code>) используется логика «если строка начинается с <code>http://</code> или <code>https://</code> — подставить как обычный URL; если уже <code>data:</code> — как есть; иначе считать base64 PNG и добавить префикс <code>data:image/png;base64,</code>».</li>
+    <li>Для загрузки внешнего изображения у элемента задаётся <code>referrerPolicy=&quot;no-referrer&quot;</code> (часть хостов иначе режет запрос).</li>
+  </ul>
+
+  <h3>7.3 Доступы и изоляция по партнёру</h3>
+  <ul>
+    <li>Все маршруты QR сгруппированы с оплатой T‑Bank под middleware <code>can:payment.method.tbank</code> (плюс общие <code>auth</code> и <code>2fa</code> для кабинета).</li>
+    <li>Без авторизации — редирект на страницу входа. Без права <code>payment.method.tbank</code> — ответ <b>403</b>.</li>
+    <li><code>TinkoffQrController</code> сверяет <code>tinkoff_payments.partner_id</code> с <code>current_partner</code>; чужой <code>PaymentId</code> → <b>404</b> (в т.ч. для <code>/json</code> и <code>/state</code>).</li>
+    <li>Параметр <code>partner_id</code> из формы при альтернативном <code>POST …/qr-init</code> не используется: партнёр берётся только из контекста (см. тесты безопасности).</li>
+  </ul>
+
+  <h3>7.4 Альтернатива: <code>POST /payments/tinkoff/qr-init</code></h3>
+  <ul>
+    <li><code>TinkoffQrController::init</code>: только сумма и <code>initPayment</code> без связки <code>payables</code>/<code>payment_intents</code>. В шаблонах <code>payment/paymentUser.blade.php</code> и <code>payment/clubFee.blade.php</code> для СБП используется <code>payment.tinkoff.sbp</code>, а не этот маршрут.</li>
+    <li>Ограничение суммы (как в контроллере): от 10 ₽ до 1&nbsp;000&nbsp;000 ₽ (в копейках в коде).</li>
+  </ul>
+
+  <h2 id="tests">8) Тесты</h2>
   <div class="note">
     Все feature‑тесты по мультирасчётам T‑Bank собраны в одной папке:
     <code>/tests/Feature/Crm/Payments/TBank</code>.
     <br>Запуск: <code>php artisan test --testsuite=Feature</code>.
   </div>
 
-  <h3>7.1 Права/доступы (важно для безопасности)</h3>
+  <h3>8.1 Права/доступы (важно для безопасности)</h3>
   <ul>
     <li><b>Оплата для клиентов</b>: роуты витрины и QR находятся под <code>can:payment.method.tbank</code>.</li>
-    <li><b>Выплаты для бухгалтера</b>: роуты <code>/tinkoff/payouts/*</code> находятся под <code>can:tbank.payouts.manage</code> (permission <code>tbank.payouts.manage</code>).</li>
+    <li><b>Выплаты для бухгалтера</b>: действия <code>POST /tinkoff/payouts/{deal}/…</code> и админ‑страница списка <code>/admin/tinkoff/payouts</code> (включая <code>/data</code>, карточку, настройки колонок) — под <code>can:tbank.payouts.manage</code> (permission <code>tbank.payouts.manage</code>). Подробнее: <a href="./tbank-admin-payouts.html">админка выплат</a>.</li>
     <li><b>Полный админ‑доступ</b> (sm-register/debug/карточки/close deal): под <code>can:manage.payment.method.tbank</code> (только владелец/superadmin).</li>
   </ul>
 
-  <h3>7.2 Security (P0)</h3>
+  <h3>8.2 Security (P0)</h3>
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankQrSecurityTest.php</code>
       <ul>
@@ -179,6 +217,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
         <li><b>QR enumeration</b>: доступ к <code>/tinkoff/qr/{paymentId}</code>, <code>/json</code>, <code>/state</code> для чужого партнёра → <b>404</b>.</li>
       </ul>
     </li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankQrFeatureTest.php</code> — страница QR и AJAX (<code>/json</code>, <code>/state</code>) возвращают <b>200</b> при наличии права; сценарии ответа GetQr (URL НСПК, base64 PNG, <code>data:</code>); без права → <b>403</b>; гость → login; проброс ошибки банка в JSON.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Security/TbankAdminSecurityTest.php</code>
       <ul>
         <li><b>Разделение прав</b>: пользователь с одним правом выплат (<code>tbank.payouts.manage</code>) не может дергать sm-register/debug.</li>
@@ -186,7 +225,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     </li>
   </ul>
 
-  <h3>7.3 Webhooks (подпись, доменные эффекты, идемпотентность)</h3>
+  <h3>8.3 Webhooks (подпись, доменные эффекты, идемпотентность)</h3>
   <ul>
     <li><b>История</b>: каждый принятый (валидный) webhook по оплате записывается в <code>tinkoff_payment_status_logs</code> (включая повторные).</li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankWebhookPaymentsTest.php</code>
@@ -205,7 +244,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     </li>
   </ul>
 
-  <h3>7.4 Выплаты (e2c): ручные/авто/поллинг/защита от дублей</h3>
+  <h3>8.4 Выплаты (e2c): ручные/авто/поллинг/защита от дублей</h3>
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankAutoPayoutOnWebhookTest.php</code>
       <ul>
@@ -230,11 +269,12 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
         <li><b>Защита от дублей</b>: вторая выплата по одному платежу не создаётся, если уже есть выплата не в <code>REJECTED</code>; при <code>REJECTED</code> разрешён retry. UI карточки платежа: кнопки «Выплатить сейчас»/«Отложить» только при отсутствии активной выплаты.</li>
       </ul>
     </li>
-    <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsIndexAutoInfoTest.php</code> — на странице <code>/admin/tinkoff/payouts</code> отображаются блоки про автовыплаты и интервал обработки отложенных.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsIndexAutoInfoTest.php</code> — на странице <code>/admin/tinkoff/payouts</code> отображаются блоки про автовыплаты, интервал обработки отложенных и просроченные отложенные выплаты.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankAdminPayoutsAccessFeatureTest.php</code> — доступ <code>tbank.payouts.manage</code> (403/200), карточка чужого партнёра → 404, изоляция DataTables, superadmin + фильтр <code>partner_id</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Partners/TbankPartnerShowAutoPayoutInfoTest.php</code> — на странице партнёра отображаются статус автовыплаты, интервал и счётчик автовыплат за 30 дней.</li>
   </ul>
 
-  <h3>7.5 CloseSpDeal</h3>
+  <h3>8.5 CloseSpDeal</h3>
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/Deals/TbankDealCloseTest.php</code>
       <ul>
@@ -243,7 +283,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     </li>
   </ul>
 
-  <h3>7.6 Sm-register (регистрация/обновление партнёра)</h3>
+  <h3>8.6 Sm-register (регистрация/обновление партнёра)</h3>
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/SmRegister/TbankSmRegisterAdminFlowTest.php</code>
       <ul>
@@ -255,7 +295,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     </li>
   </ul>
 
-  <h3>7.7 Комиссии (CRUD + приоритеты правил + настройки выплат)</h3>
+  <h3>8.7 Комиссии (CRUD + приоритеты правил + настройки выплат)</h3>
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAccessTest.php</code> — доступы/SetPartner к настройке комиссий.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerCrudTest.php</code> — CRUD правил комиссий + валидация.</li>
@@ -265,7 +305,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsAutoPayoutStatsTest.php</code> — отображение «За 30 дн.: N автовыплат» в списке правил и на форме редактирования правила.</li>
   </ul>
 
-  <h3>7.8 Возвраты (ограничения при выплатах)</h3>
+  <h3>8.8 Возвраты (ограничения при выплатах)</h3>
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/Refunds/TbankRefundRestrictionsTest.php</code>
       <ul>
@@ -275,7 +315,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     </li>
   </ul>
 
-  <h3>7.9 Планировщик и настройки выплат (Setting)</h3>
+  <h3>8.9 Планировщик и настройки выплат (Setting)</h3>
   <ul>
     <li><code>tests/Feature/Console/KernelPayoutScheduleTest.php</code> — в расписании зарегистрированы <code>tinkoff:run-scheduled-payouts</code> и <code>tinkoff:poll-payout-states</code> с интервалом из <code>Setting::getTinkoffPayoutScheduledIntervalMinutes()</code>.</li>
     <li><code>tests/Feature/Setting/SettingTinkoffPayoutTest.php</code> — модель <code>Setting</code>: <code>getInt</code>/<code>setInt</code> и методы <code>getTinkoffPayoutAutoDelayHours</code>, <code>setTinkoffPayoutAutoDelayHours</code>, <code>getTinkoffPayoutScheduledIntervalMinutes</code>, <code>setTinkoffPayoutScheduledIntervalMinutes</code> (чтение из БД с fallback на config).</li>

@@ -18,7 +18,8 @@ class DocumentationController extends Controller
             ['slug' => 'partner-context', 'title' => 'Партнёр‑контекст и SetPartner (current_partner/anti‑leak/блокировки)'],
             ['slug' => 'partners-permissions', 'title' => 'Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)'],
             ['slug' => 'reports-payments', 'title' => 'Отчёт “Платежи” (админка): таблица и “Поля списка”'],
-            ['slug' => 'tbank', 'title' => 'T‑Bank (мультирасчёты): настройки/комиссии/flow'],
+            ['slug' => 'tbank', 'title' => 'T‑Bank (мультирасчёты): настройки/комиссии/flow, СБП (QR) в CRM'],
+            ['slug' => 'tbank-admin-payouts', 'title' => 'T‑Bank: админка выплат (список, DataTables, карточка, права tbank.payouts.manage)'],
             ['slug' => 'queues-monitoring', 'title' => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker'],
             ['slug' => 'tests-standards', 'title' => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)'],
         ];
@@ -29,7 +30,7 @@ class DocumentationController extends Controller
             . '.wrap{max-width:980px;margin:0 auto;padding:24px}h1{font-size:26px;margin:0 0 12px}ul{margin:8px 0 8px 20px}'
             . 'a{color:#2563eb;text-decoration:none}a:hover{text-decoration:underline}.small{color:#555;font-size:13px}</style></head><body><div class="wrap">'
             . '<h1>Документация проекта</h1>'
-            . '<div class="small">Раздел: <code>/docs/documentation</code></div>'
+            . '<div class="small">Раздел: <code>/docs/documentation</code> · короткая ссылка: <code>/doc</code></div>'
             . '<ul>';
 
         foreach ($items as $it) {
@@ -49,6 +50,7 @@ class DocumentationController extends Controller
             'partners-permissions' => base_path('docs/documentation/partners-permissions.html'),
             'reports-payments' => base_path('docs/documentation/reports-payments.html'),
             'tbank' => base_path('docs/documentation/tbank.html'),
+            'tbank-admin-payouts' => base_path('docs/documentation/tbank-admin-payouts.html'),
             'queues-monitoring' => base_path('docs/documentation/queues-monitoring.html'),
             'tests-standards' => base_path('docs/documentation/tests-standards.html'),
         ];

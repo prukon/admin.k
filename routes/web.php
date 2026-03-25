@@ -376,6 +376,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     // Внутренняя документация проекта (HTML из /docs/documentation)
     Route::middleware('can:documentations.view')->group(function () {
+        Route::get('/doc', function () {
+            return redirect()->route('docs.documentation.index');
+        })->name('docs.documentation.short');
         Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
         Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
             ->whereIn('page', ['payments', 'partner-context', 'partners-permissions', 'reports-payments', 'tbank', 'queues-monitoring', 'tests-standards'])
