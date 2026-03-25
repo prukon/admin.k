@@ -21,12 +21,40 @@
             const qrBox = document.getElementById('qrBox');
             const statusBox = document.getElementById('statusBox');
 
-            /** GetQr: Data может быть base64 PNG или URL (например qr.nspk.ru для СБП). */
-            function qrImgSrcFromData(data) {
+            /**
+             * GetQr Data: при DataType=IMAGE — base64 SVG; иначе бывает PNG base64, data:…, сырой SVG XML.
+             * URL qr.nspk.ru — страница (text/html), не изображение → только iframe.
+             */
+            function appendQrToBox(box, data) {
                 const s = String(data).trim();
-                if (/^https?:\/\//i.test(s)) return s;
-                if (s.startsWith('data:')) return s;
-                return 'data:image/png;base64,' + s;
+                if (/^https?:\/\/qr\.nspk\.ru\//i.test(s)) {
+                    const iframe = document.createElement('iframe');
+                    iframe.src = s;
+                    iframe.title = 'QR СБП';
+                    iframe.width = '360';
+                    iframe.height = '440';
+                    iframe.style.border = '0';
+                    iframe.style.maxWidth = '100%';
+                    iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-same-origin');
+                    box.replaceChildren(iframe);
+                    return;
+                }
+                const img = document.createElement('img');
+                img.alt = 'QR';
+                img.style.maxWidth = '360px';
+                if (/^https?:\/\//i.test(s)) {
+                    img.src = s;
+                    img.referrerPolicy = 'no-referrer';
+                } else if (s.startsWith('data:')) {
+                    img.src = s;
+                } else if (s.startsWith('<svg') || s.startsWith('<' + '?xml')) {
+                    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+                } else if (s.startsWith('iVBOR')) {
+                    img.src = 'data:image/png;base64,' + s;
+                } else {
+                    img.src = 'data:image/svg+xml;base64,' + s;
+                }
+                box.replaceChildren(img);
             }
 
             async function fetchQr() {
@@ -34,13 +62,7 @@
                     const r = await fetch(qrUrl);
                     const j = await r.json();
                     if (j.Success && j.Data) {
-                        qrBox.replaceChildren();
-                        const img = document.createElement('img');
-                        img.alt = 'QR';
-                        img.src = qrImgSrcFromData(j.Data);
-                        img.style.maxWidth = '360px';
-                        img.referrerPolicy = 'no-referrer';
-                        qrBox.appendChild(img);
+                        appendQrToBox(qrBox, j.Data);
                     } else {
                         const msg = (j && (j.Message || j.Details)) ? `${j.Message || ''}<br>${j.Details || ''}` : 'Не удалось получить QR';
                         qrBox.innerHTML = `<div class="text-danger">${msg}</div>`;

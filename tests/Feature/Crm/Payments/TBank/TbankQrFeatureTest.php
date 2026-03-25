@@ -18,6 +18,9 @@ class TbankQrFeatureTest extends CrmTestCase
 
     private const PNG_1X1_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmWQQAAAABJRU5ErkJggg==';
 
+    /** Минимальный SVG в base64 (как в ответе GetQr с DataType=IMAGE). */
+    private const SVG_1X1_BASE64 = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz4=';
+
     private function grantTbankPaymentPermissionForCurrentUser(): void
     {
         $permId = $this->permissionId('payment.method.tbank');
@@ -60,11 +63,17 @@ class TbankQrFeatureTest extends CrmTestCase
 
     private function fakeTinkoffQrAndState(?string $qrData = null, string $status = 'FORM_SHOWED'): void
     {
-        $qrData ??= 'https://qr.nspk.ru/AD10001ME8TRH5HJ8LSAEARJGOJ56LGH';
+        $qrData ??= self::SVG_1X1_BASE64;
 
         Http::fake(function ($request) use ($qrData, $status) {
             $url = $request->url();
             if (str_contains($url, '/v2/GetQr')) {
+                $this->assertSame(
+                    'IMAGE',
+                    $request->data()['DataType'] ?? null,
+                    'GetQr должен запрашиваться с DataType=IMAGE (SVG), иначе в Data приходит URL страницы НСПК, а не картинка.'
+                );
+
                 return Http::response([
                     'Success' => true,
                     'ErrorCode' => '0',
@@ -97,15 +106,15 @@ class TbankQrFeatureTest extends CrmTestCase
         $show = $this->get(route('tinkoff.qr', self::PAYMENT_ID));
         $show->assertOk();
         $show->assertSee('Оплата через СБП', false);
-        $show->assertSee('qrImgSrcFromData', false);
-        $show->assertSee('https?:', false);
-        $show->assertSee('data:image/png;base64,', false);
-        $show->assertSee('referrerPolicy', false);
+        $show->assertSee('appendQrToBox', false);
+        $show->assertSee('data:image/svg+xml', false);
+        $show->assertSee('qr.nspk.ru', false);
+        $show->assertSee('sandbox', false);
 
         $json = $this->getJson('/tinkoff/qr/' . self::PAYMENT_ID . '/json');
         $json->assertOk()
             ->assertJsonPath('Success', true)
-            ->assertJsonPath('Data', 'https://qr.nspk.ru/AD10001ME8TRH5HJ8LSAEARJGOJ56LGH');
+            ->assertJsonPath('Data', self::SVG_1X1_BASE64);
 
         $state = $this->getJson(route('tinkoff.qr.state', self::PAYMENT_ID));
         $state->assertOk()

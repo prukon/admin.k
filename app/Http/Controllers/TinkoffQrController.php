@@ -62,7 +62,8 @@ class TinkoffQrController extends Controller
         $payload = [
             'TerminalKey' => $cfg['terminal_key'],
             'PaymentId'   => $paymentId,
-            // Data в ответе: base64 PNG и/или URL (СБП, qr.nspk.ru) — см. resources/views/tinkoff/qr.blade.php
+            // IMAGE — SVG QR в Data (см. T‑Bank GetQr). PAYLOAD даёт ссылку qr.nspk.ru — это HTML, не картинка для <img>.
+            'DataType'    => 'IMAGE',
         ];
         $payload['Token'] = TinkoffSignature::makeToken($payload, $cfg['password']);
 

@@ -174,11 +174,12 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>7.2 Поле <code>Data</code> в ответе GetQr и отрисовка QR</h3>
   <div class="warn">
-    Банк может вернуть в <code>Data</code> не только base64 PNG, но и <b>URL изображения</b> (часто домен НСПК, например <code>https://qr.nspk.ru/…</code>). Нельзя всегда подставлять префикс <code>data:image/png;base64,</code> — иначе картинка в <code>&lt;img src&gt;</code> не отобразится.
+    Ссылка <code>https://qr.nspk.ru/…</code> (режим GetQr <code>DataType=PAYLOAD</code> по умолчанию) ведёт на <b>HTML‑страницу</b> (SPA), а не на файл изображения. Браузер не может показать такой URL в <code>&lt;img src&gt;</code> — будет битая картинка.
   </div>
   <ul>
-    <li>Во фронтенде (скрипт на странице <code>tinkoff/qr.blade.php</code>) используется логика «если строка начинается с <code>http://</code> или <code>https://</code> — подставить как обычный URL; если уже <code>data:</code> — как есть; иначе считать base64 PNG и добавить префикс <code>data:image/png;base64,</code>».</li>
-    <li>Для загрузки внешнего изображения у элемента задаётся <code>referrerPolicy=&quot;no-referrer&quot;</code> (часть хостов иначе режет запрос).</li>
+    <li><b>Сервер</b> (<code>TinkoffQrController::getQr</code>) вызывает GetQr с <code>DataType=IMAGE</code>: в <code>Data</code> приходит <b>SVG QR в base64</b> (спецификация T‑Bank). На странице <code>tinkoff/qr.blade.php</code> оно подставляется как <code>data:image/svg+xml;base64,…</code> (или сырой XML → UTF‑8 data URI).</li>
+    <li><b>Запасной вариант</b>: если в <code>Data</code> всё же пришёл URL <code>qr.nspk.ru</code>, показывается <code>&lt;iframe sandbox=&quot;…&quot;&gt;</code> с этой страницей (там свой JS рисует QR).</li>
+    <li>Поддерживаются также <code>data:…</code>, PNG base64 (префикс <code>iVBOR</code>) и прямые https‑URL не НСПК для <code>&lt;img&gt;</code> (с <code>referrerPolicy=no-referrer</code> при необходимости).</li>
   </ul>
 
   <h3>7.3 Доступы и изоляция по партнёру</h3>
