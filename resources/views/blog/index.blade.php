@@ -32,41 +32,12 @@
 
             <div class="row g-4">
                 @forelse($posts as $post)
-                    @php
-                        $cover = $post->cover_image_path
-                            ? asset('storage/' . $post->cover_image_path)
-                            : $defaultOg;
-                    @endphp
-                    <div class="col-12 col-md-6 col-lg-4">
-                        <div class="card blog-card h-100 border-0">
-                            <a href="{{ route('blog.show', $post->slug) }}" class="text-decoration-none">
-                                <img src="{{ $cover }}" class="card-img-top blog-card__img" alt="{{ $post->title }}">
-                            </a>
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <a href="{{ route('blog.category', $post->category->slug) }}"
-                                       class="badge blog-badge text-decoration-none">
-                                        {{ $post->category->name }}
-                                    </a>
-                                    <div class="text-muted small">
-                                        {{ $post->published_at?->format('d.m.Y') }}
-                                    </div>
-                                </div>
-
-                                <h2 class="h5 fw-bold blog-card__title">
-                                    <a href="{{ route('blog.show', $post->slug) }}" class="text-dark text-decoration-none">
-                                        {{ $post->title }}
-                                    </a>
-                                </h2>
-
-                                @if($post->excerpt)
-                                    <div class="text-muted">
-                                        {!! $post->excerpt !!}
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
+                    @include('blog._post_card', [
+                        'post' => $post,
+                        'defaultOg' => $defaultOg,
+                        'desktopCategoryBadge' => true,
+                        'lazyLoad' => ! $loop->first,
+                    ])
                 @empty
                     <div class="col-12 text-muted">Пока нет опубликованных статей.</div>
                 @endforelse
