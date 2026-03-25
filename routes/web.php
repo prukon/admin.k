@@ -533,7 +533,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     //Тинькоф эквайринг мультирасчеты (feature test +)
     Route::middleware('can:payment.method.tbank')->group(function () {
-        // витрина оплаты
+        // оплата картой  и QR
         Route::post('/payments/tinkoff/create', [TinkoffPaymentController::class, 'create'])->name('payment.tinkoff.pay');
         Route::post('/payments/tinkoff/sbp', [TinkoffPaymentController::class, 'createSbp'])->name('payment.tinkoff.sbp');
 
@@ -662,9 +662,9 @@ Route::post('/webhook/yookassa', [YooKassaWebhookController::class, 'handle']);
 // Podpislon
 Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle'])->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon');
 
-//Тиньков мультирасчеты
-Route::get('/payments/tinkoff/{order}/success', [TinkoffPaymentController::class, 'success']);
-Route::get('/payments/tinkoff/{order}/fail', [TinkoffPaymentController::class, 'fail']);
+//Тиньков мультирасчеты (возврат из банка: публично, без auth)
+Route::get('/payments/tinkoff/{order}/success', [TinkoffPaymentController::class, 'success'])->name('payments.tinkoff.success');
+Route::get('/payments/tinkoff/{order}/fail', [TinkoffPaymentController::class, 'fail'])->name('payments.tinkoff.fail');
 Route::post('/webhooks/tinkoff/payments', [TinkoffWebhookController::class, 'payments']);
 
 //CloudKassir webhook

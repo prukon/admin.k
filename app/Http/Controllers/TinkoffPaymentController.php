@@ -9,6 +9,7 @@ use App\Models\PaymentIntent;
 use App\Models\Payable;
 use App\Models\PaymentSystem;
 use App\Services\Tinkoff\TinkoffPaymentsService;
+use Illuminate\Support\Facades\Log;
 
 class TinkoffPaymentController extends Controller
 {
@@ -240,13 +241,42 @@ class TinkoffPaymentController extends Controller
 
     public function success($order)
     {
-        // TODO: UX «успешно»
-        return view('tinkoff.success', ['order' => $order]);
+        Log::info('tbank.return', [
+            'event' => 'success',
+            'order' => (string) $order,
+            'auth' => auth()->check(),
+            'user_id' => auth()->id(),
+            'ip' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        return view('tinkoff.success', $this->tinkoffReturnViewData($order));
     }
 
     public function fail($order)
     {
-        // TODO: UX «ошибка»
-        return view('tinkoff.fail', ['order' => $order]);
+        Log::info('tbank.return', [
+            'event' => 'fail',
+            'order' => (string) $order,
+            'auth' => auth()->check(),
+            'user_id' => auth()->id(),
+            'ip' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        return view('tinkoff.fail', $this->tinkoffReturnViewData($order));
+    }
+
+    /**
+     * @return array{order: mixed, authenticated: bool, cabinetUrl: string, homeUrl: string}
+     */
+    private function tinkoffReturnViewData($order): array
+    {
+        return [
+            'order' => $order,
+            'authenticated' => auth()->check(),
+            'cabinetUrl' => route('dashboard'),
+            'homeUrl' => url('/'),
+        ];
     }
 }

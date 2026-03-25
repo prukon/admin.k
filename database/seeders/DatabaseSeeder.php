@@ -27,7 +27,7 @@ class DatabaseSeeder extends Seeder
                 AdminRoleBasePermissionsSeeder::class, // добавляем разрешения для администраторов
                 DevTeamsSeeder::class, // добавляем команды
                 DevAdminsSeeder::class, // добавляем администраторов
-                DevUsersSeeder::class, // добавляем пользователей
+                DevUsersSeeder::class, // добавляем рандомных пользователей
                 DevPricesSeeder::class, // добавляем цены
                 DevPaymentSystemsSeeder::class,
                 IstokMenuSeeder::class, // добавляем меню для Истока
