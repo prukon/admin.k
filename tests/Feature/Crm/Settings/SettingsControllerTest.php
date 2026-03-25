@@ -7,7 +7,9 @@ use App\Models\MyLog;
 use App\Models\PartnerSocialLink;
 use App\Models\Setting;
 use App\Models\SocialNetwork;
+use App\Models\TinkoffPayout;
 use App\Models\User;
+use App\Support\SchedulerHeartbeat;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -474,9 +476,50 @@ class SettingsControllerTest extends CrmTestCase
                     'jobs_count',
                     'failed_jobs_count',
                     'worker_status',
+                    'scheduler_status',
+                    'overdue_scheduled_payouts_count',
+                    'overdue_scheduled_payouts_sample',
                     'job_groups',
                 ],
             ]);
+    }
+
+    public function test_queues_status_includes_overdue_scheduled_payouts_for_current_partner(): void
+    {
+        $this->actingAs($this->user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+
+        TinkoffPayout::query()->create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'test-deal-overdue-' . uniqid(),
+            'amount' => 100,
+            'is_final' => false,
+            'status' => 'INITIATED',
+            'tinkoff_payout_payment_id' => null,
+            'when_to_run' => now()->subHour(),
+            'completed_at' => null,
+        ]);
+
+        $this->get(route('admin.setting.queues.status'))
+            ->assertOk()
+            ->assertJsonPath('data.overdue_scheduled_payouts_count', 1);
+    }
+
+    public function test_queues_status_reflects_scheduler_heartbeat(): void
+    {
+        $this->actingAs($this->user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.queues.view');
+
+        SchedulerHeartbeat::touch();
+
+        $this->get(route('admin.setting.queues.status'))
+            ->assertOk()
+            ->assertJsonPath('data.scheduler_status.code', 'alive');
     }
 
     public function test_queues_restart_requires_manage_permission(): void

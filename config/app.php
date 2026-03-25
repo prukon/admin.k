@@ -61,6 +61,8 @@ return [
 
     'noindex' => (bool) env('APP_NOINDEX', false),
 
+    'favicon_theme_color' => env('APP_FAVICON_THEME_COLOR', '#ff6501'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

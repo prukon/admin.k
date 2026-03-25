@@ -11,8 +11,7 @@
     {{--    <title>{{ config('app.name', 'Laravel') }}</title>--}}
     <title>@yield('title', config('app.name'))</title>
 
-    <link rel="icon" href="{{ asset('img/landing/favicon.png') }}" type="image/png">
-    <link rel="shortcut icon" href="{{ asset('img/landing/favicon.png') }}" type="image/png">
+    @include('includes.favicons')
 
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">

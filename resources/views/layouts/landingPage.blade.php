@@ -48,9 +48,8 @@
     <meta name="twitter:image" content="{{ $pageTwitterImage }}" />
 
     @stack('head')
-    <link rel="icon" href="{{ asset('img/landing/favicon.png') }}" type="image/png">
-    <link rel="shortcut icon" href="{{ asset('img/landing/favicon.png') }}" type="image/png">
- 
+    @include('includes.favicons')
+
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">

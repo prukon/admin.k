@@ -29,6 +29,7 @@ class KernelPayoutScheduleTest extends TestCase
         $cronStrings = array_map(fn ($e) => $e->expression, $events);
 
         $this->assertContains('*/15 * * * *', $cronStrings);
+        $this->assertContains('* * * * *', $cronStrings);
     }
 
     public function test_schedule_uses_config_default_when_no_setting_row(): void
@@ -48,5 +49,6 @@ class KernelPayoutScheduleTest extends TestCase
         $cronStrings = array_map(fn ($e) => $e->expression, $events);
 
         $this->assertContains('*/10 * * * *', $cronStrings);
+        $this->assertContains('* * * * *', $cronStrings);
     }
 }

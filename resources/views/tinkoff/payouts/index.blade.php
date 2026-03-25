@@ -19,8 +19,55 @@
             </div>
             <div class="small text-muted mt-1">
                 Обработка отложенных выплат: каждые {{ $scheduledIntervalMinutes }} мин.
+                <span class="d-block mt-1">
+                    Отложенные выплаты не лежат в таблице <code>jobs</code> до срока: их подбирает джоба по расписанию (cron → <code>schedule:run</code> → очередь).
+                    Если срок прошёл, а статус всё ещё <code>INITIATED</code>, проверьте cron и queue worker.
+                </span>
             </div>
         </div>
+
+        @if(!empty($overdueScheduledPayoutsCount))
+            <div class="alert alert-warning border mb-3">
+                <div class="fw-semibold mb-2">
+                    Просроченные отложенные выплаты: {{ $overdueScheduledPayoutsCount }}
+                </div>
+                <div class="small text-muted mb-2">
+                    Условие: <code>when_to_run</code> уже наступил, статус <code>INITIATED</code>, нет <code>tinkoff_payout_payment_id</code>.
+                    Ожидается запуск <code>TinkoffRunScheduledPayoutsJob</code> (планировщик + worker).
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0 bg-white">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            @if(!empty($isSuperadmin))
+                                <th>Партнёр</th>
+                            @endif
+                            <th>Запланировано на</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($overdueScheduledPayouts as $op)
+                            <tr>
+                                <td>{{ $op->id }}</td>
+                                @if(!empty($isSuperadmin))
+                                    <td>{{ $op->partner?->title ?? ('#' . $op->partner_id) }}</td>
+                                @endif
+                                <td>{{ $op->when_to_run?->format('Y-m-d H:i') }}</td>
+                                <td class="text-nowrap">
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ url('/admin/tinkoff/payouts/' . $op->id) }}">Карточка</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @if($overdueScheduledPayoutsCount > $overdueScheduledPayouts->count())
+                    <div class="small text-muted mt-2">Показаны первые {{ $overdueScheduledPayouts->count() }} записей.</div>
+                @endif
+            </div>
+        @endif
 
         <div class="row gy-2 align-items-end">
             <div class="col-12 col-lg-8">

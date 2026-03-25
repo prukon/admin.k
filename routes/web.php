@@ -75,6 +75,39 @@ Route::fallback(function () { return response()->view('errors.404', [], 404);});
 
 Route::get('/sitemap.xml', [\App\Http\Controllers\SitemapController::class, 'index'])->name('sitemap');
 
+Route::get('favicons/site.webmanifest', function () {
+    $payload = [
+        'name' => 'kidscrm.online',
+        'short_name' => 'kidscrm',
+        'description' => 'CRM для детских секций, студий и кружков',
+        'lang' => 'ru',
+        'start_url' => url('/'),
+        'scope' => url('/'),
+        'display' => 'browser',
+        'orientation' => 'any',
+        'background_color' => '#ffffff',
+        'theme_color' => config('app.favicon_theme_color', '#ff6501'),
+        'icons' => [
+            [
+                'src' => asset('favicons/android-chrome-192x192.png'),
+                'sizes' => '192x192',
+                'type' => 'image/png',
+                'purpose' => 'any',
+            ],
+            [
+                'src' => asset('favicons/android-chrome-512x512.png'),
+                'sizes' => '512x512',
+                'type' => 'image/png',
+                'purpose' => 'any',
+            ],
+        ],
+    ];
+
+    return response()
+        ->json($payload, 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        ->header('Content-Type', 'application/manifest+json');
+})->name('webmanifest');
+
 // Debug endpoint for proxy/IP/header diagnostics.
 // Access: either X-Debug-Token header (env DEBUG_REQUEST_TOKEN) OR authenticated + 2FA passed + can:viewing.all.logs.
 Route::get('/_debug/request', [RequestDebugController::class, 'show'])

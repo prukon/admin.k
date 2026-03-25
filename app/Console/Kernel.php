@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Support\SchedulerHeartbeat;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -19,6 +20,9 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
+
+        // Метка для админки: cron вызывает schedule:run → это событие должно срабатывать каждую минуту.
+        $schedule->call([SchedulerHeartbeat::class, 'touch'])->everyMinute();
 
         // T-Bank payouts: интервал из БД (settings) или config
         $payoutIntervalMinutes = \App\Models\Setting::getTinkoffPayoutScheduledIntervalMinutes();

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class TinkoffPayout extends Model
@@ -26,4 +27,18 @@ class TinkoffPayout extends Model
     public function payment() { return $this->belongsTo(TinkoffPayment::class, 'payment_id'); }
     public function payer() { return $this->belongsTo(\App\Models\User::class, 'payer_user_id'); }
     public function initiator() { return $this->belongsTo(\App\Models\User::class, 'initiated_by_user_id'); }
+
+    /**
+     * Отложенная выплата, срок которой наступил, но банковский PaymentId ещё не получен
+     * (должна подхватываться TinkoffRunScheduledPayoutsJob).
+     */
+    public function scopeOverdueScheduled(Builder $q): Builder
+    {
+        return $q
+            ->whereNull('tinkoff_payout_payment_id')
+            ->whereNotNull('when_to_run')
+            ->where('when_to_run', '<=', now())
+            ->where('status', 'INITIATED')
+            ->whereNull('completed_at');
+    }
 }

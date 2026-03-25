@@ -31,12 +31,25 @@ class TinkoffAdminPayoutController extends Controller
         $partnersWithAuto = $partners->filter(fn ($p) => $autoPayoutByPartnerId[(int) $p->id] ?? false);
         $scheduledIntervalMinutes = \App\Models\Setting::getTinkoffPayoutScheduledIntervalMinutes();
 
+        $overdueScheduledBase = TinkoffPayout::query()->overdueScheduled();
+        if (!$isSuperadmin) {
+            $overdueScheduledBase->where('partner_id', (int) app('current_partner')->id);
+        }
+        $overdueScheduledPayoutsCount = (int) (clone $overdueScheduledBase)->count();
+        $overdueScheduledPayouts = (clone $overdueScheduledBase)
+            ->with(['partner:id,title'])
+            ->orderBy('when_to_run')
+            ->limit(25)
+            ->get();
+
         return view('tinkoff.payouts.index', compact(
             'partners',
             'isSuperadmin',
             'autoPayoutByPartnerId',
             'partnersWithAuto',
-            'scheduledIntervalMinutes'
+            'scheduledIntervalMinutes',
+            'overdueScheduledPayoutsCount',
+            'overdueScheduledPayouts'
         ));
     }
 

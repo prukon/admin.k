@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Payments\TBank\Payouts;
 
 use App\Models\PaymentSystem;
 use App\Models\Setting;
+use App\Models\TinkoffPayout;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -57,5 +58,26 @@ class TbankPayoutsIndexAutoInfoTest extends CrmTestCase
 
         $resp->assertOk();
         $resp->assertSee('ни у кого не включены');
+    }
+
+    public function test_index_shows_overdue_scheduled_payouts_block(): void
+    {
+        TinkoffPayout::query()->create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'test-overdue-' . uniqid(),
+            'amount' => 200,
+            'is_final' => false,
+            'status' => 'INITIATED',
+            'tinkoff_payout_payment_id' => null,
+            'when_to_run' => now()->subMinutes(30),
+            'completed_at' => null,
+        ]);
+
+        $resp = $this->get('/admin/tinkoff/payouts');
+
+        $resp->assertOk();
+        $resp->assertSee('Просроченные отложенные выплаты');
+        $resp->assertSee('Просроченные отложенные выплаты: 1');
     }
 }

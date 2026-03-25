@@ -8,7 +8,7 @@
 
 
     <title>kidscrm.online - сервис учета для детских садов, тематических школ и секций</title>
-    <link rel="icon" href=" {{ asset('img/favicon.png') }} " type="image/png">
+    @include('includes.favicons')
 
     {{-- JQuery --}}
     <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>

@@ -53,7 +53,7 @@
                 'url' => url('/'),
                 'logo' => [
                     '@type' => 'ImageObject',
-                    'url' => asset('img/landing/favicon.png'),
+                    'url' => asset('favicons/apple-touch-icon.png'),
                 ],
             ],
             'mainEntityOfPage' => [

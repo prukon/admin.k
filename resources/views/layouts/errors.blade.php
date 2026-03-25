@@ -9,6 +9,7 @@
 
     {{--    <title>{{ config('app.name', 'Laravel') }}</title>--}}
     <title>kidscrm.online - сервис учета для детских садов, тематических школ и секций</title>
+    @include('includes.favicons')
 
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">

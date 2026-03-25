@@ -19,6 +19,9 @@
         <tbody>
         <tr><td>Статус worker</td><td id="q_worker_status">—</td></tr>
         <tr><td>Последний heartbeat</td><td id="q_last_heartbeat">—</td></tr>
+        <tr><td>Статус планировщика (cron → schedule:run)</td><td id="q_scheduler_status">—</td></tr>
+        <tr><td>Последний тик планировщика</td><td id="q_scheduler_last_tick">—</td></tr>
+        <tr><td>Просроченные отложенные выплаты T‑Bank (счётчик)</td><td id="q_overdue_payouts_count">—</td></tr>
         <tr><td>Количество задач в jobs</td><td id="q_jobs_count">—</td></tr>
         <tr><td>Количество задач в failed_jobs</td><td id="q_failed_jobs_count">—</td></tr>
         <tr><td>Возраст самой старой задачи в jobs</td><td id="q_oldest_age">—</td></tr>
@@ -27,6 +30,27 @@
         <tr><td>Последнее обновление виджета</td><td id="q_generated_at">—</td></tr>
         </tbody>
     </table>
+</div>
+
+<div id="queueOverdueWrap" class="mt-4 d-none">
+    <h5 class="mb-2">Просроченные отложенные выплаты T‑Bank (пример)</h5>
+    <div class="small text-muted mb-2">
+        Условие: <code>when_to_run</code> в прошлом, статус <code>INITIATED</code>, нет <code>tinkoff_payout_payment_id</code>.
+        Для не‑superadmin считается только по текущему партнёру.
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm" id="queueOverduePayoutsTable">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Партнёр</th>
+                <th>Запланировано</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
 </div>
 
 <h5 class="mt-4">Разбивка по очередям</h5>
@@ -135,6 +159,42 @@
                 });
             }
 
+            function renderOverduePayouts(data) {
+                const wrap = document.getElementById('queueOverdueWrap');
+                const tbody = document.querySelector('#queueOverduePayoutsTable tbody');
+                if (!wrap || !tbody) {
+                    return;
+                }
+                const count = Number(data.overdue_scheduled_payouts_count || 0);
+                const sample = data.overdue_scheduled_payouts_sample || [];
+                tbody.innerHTML = '';
+                if (count <= 0) {
+                    wrap.classList.add('d-none');
+                    return;
+                }
+                wrap.classList.remove('d-none');
+                sample.forEach((row) => {
+                    const tr = document.createElement('tr');
+                    const tdId = document.createElement('td');
+                    tdId.textContent = String(row.id ?? '');
+                    const tdPartner = document.createElement('td');
+                    tdPartner.textContent = row.partner_title ? String(row.partner_title) : ('#' + String(row.partner_id ?? ''));
+                    const tdWhen = document.createElement('td');
+                    tdWhen.textContent = row.when_to_run ? String(row.when_to_run) : '—';
+                    const tdLink = document.createElement('td');
+                    const a = document.createElement('a');
+                    a.href = '/admin/tinkoff/payouts/' + encodeURIComponent(String(row.id ?? ''));
+                    a.className = 'btn btn-sm btn-outline-primary';
+                    a.textContent = 'Карточка';
+                    tdLink.appendChild(a);
+                    tr.appendChild(tdId);
+                    tr.appendChild(tdPartner);
+                    tr.appendChild(tdWhen);
+                    tr.appendChild(tdLink);
+                    tbody.appendChild(tr);
+                });
+            }
+
             async function loadStatus() {
                 try {
                     const response = await fetch(statusUrl, {
@@ -152,6 +212,17 @@
                     statusEl.textContent = ws.title ? `${ws.title}${ws.seconds_since_heartbeat != null ? ` (${ws.seconds_since_heartbeat} сек назад)` : ''}` : '—';
 
                     document.getElementById('q_last_heartbeat').textContent = fmtDate(data.last_heartbeat_at);
+
+                    const ss = data.scheduler_status || {};
+                    const schEl = document.getElementById('q_scheduler_status');
+                    schEl.className = workerClass(ss.code);
+                    schEl.textContent = ss.title
+                        ? `${ss.title}${ss.seconds_since_tick != null ? ` (${ss.seconds_since_tick} сек назад)` : ''}`
+                        : '—';
+                    document.getElementById('q_scheduler_last_tick').textContent = fmtDate(data.scheduler_last_tick_at);
+                    document.getElementById('q_overdue_payouts_count').textContent = Number(data.overdue_scheduled_payouts_count || 0);
+                    renderOverduePayouts(data);
+
                     document.getElementById('q_jobs_count').textContent = Number(data.jobs_count || 0);
                     document.getElementById('q_failed_jobs_count').textContent = Number(data.failed_jobs_count || 0);
                     document.getElementById('q_oldest_age').textContent = fmtAge(data.oldest_job_age_seconds);

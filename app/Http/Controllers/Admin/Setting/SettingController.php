@@ -11,6 +11,8 @@ use App\Models\MenuItem;
 use App\Models\PartnerSocialLink;
 use App\Models\Setting;
 use App\Models\SocialNetwork;
+use App\Models\TinkoffPayout;
+use App\Support\SchedulerHeartbeat;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
@@ -585,6 +587,31 @@ class SettingController extends AdminBaseController
             ];
         }
 
+        $schedulerTickTs = (int) (Cache::get(SchedulerHeartbeat::CACHE_KEY, 0) ?: 0);
+        $schedulerLastTickAt = $schedulerTickTs > 0
+            ? now()->setTimestamp($schedulerTickTs)->toDateTimeString()
+            : null;
+        $schedulerStatus = $this->resolveSchedulerStatus($schedulerTickTs);
+
+        $overdueBase = TinkoffPayout::query()->overdueScheduled();
+        if (!$this->isSuperAdmin()) {
+            $overdueBase->where('partner_id', $this->requirePartnerId());
+        }
+        $overdueScheduledPayoutsCount = (int) (clone $overdueBase)->count();
+        $overdueScheduledPayoutsSample = (clone $overdueBase)
+            ->with(['partner:id,title'])
+            ->orderBy('when_to_run')
+            ->limit(15)
+            ->get()
+            ->map(fn (TinkoffPayout $p) => [
+                'id' => $p->id,
+                'partner_id' => $p->partner_id,
+                'partner_title' => $p->partner?->title,
+                'when_to_run' => $p->when_to_run?->toDateTimeString(),
+            ])
+            ->values()
+            ->all();
+
         return [
             'jobs_count' => $jobsCount,
             'failed_jobs_count' => $failedJobsCount,
@@ -594,10 +621,49 @@ class SettingController extends AdminBaseController
             'last_failed_at' => $lastFailedAt,
             'last_heartbeat_at' => $lastHeartbeatAt,
             'worker_status' => $workerStatus,
+            'scheduler_last_tick_at' => $schedulerLastTickAt,
+            'scheduler_status' => $schedulerStatus,
+            'overdue_scheduled_payouts_count' => $overdueScheduledPayoutsCount,
+            'overdue_scheduled_payouts_sample' => $overdueScheduledPayoutsSample,
             'queues_pending' => $queuesPending,
             'queues_failed' => $queuesFailed,
             'job_groups' => $groupStats,
             'generated_at' => now()->toDateTimeString(),
+        ];
+    }
+
+    private function resolveSchedulerStatus(int $lastTickTs): array
+    {
+        if ($lastTickTs <= 0) {
+            return [
+                'code' => 'no_data',
+                'title' => 'Планировщик: нет данных (проверьте cron: * * * * * php artisan schedule:run)',
+                'seconds_since_tick' => null,
+            ];
+        }
+
+        $seconds = now()->timestamp - $lastTickTs;
+
+        if ($seconds <= 120) {
+            return [
+                'code' => 'alive',
+                'title' => 'Планировщик: работает',
+                'seconds_since_tick' => $seconds,
+            ];
+        }
+
+        if ($seconds <= 600) {
+            return [
+                'code' => 'stale',
+                'title' => 'Планировщик: давно не было тика',
+                'seconds_since_tick' => $seconds,
+            ];
+        }
+
+        return [
+            'code' => 'dead',
+            'title' => 'Планировщик: вероятно не запускается',
+            'seconds_since_tick' => $seconds,
         ];
     }
 
