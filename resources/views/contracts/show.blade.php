@@ -82,8 +82,12 @@
                             <button class="btn btn-outline-success" id="openResendModal" data-id="{{ $contract->id }}">
                                 Повторно отправить на подпись
                             </button>
-                            {{--<a class="btn btn-outline-secondary" id="syncStatusBtn" data-id="{{ $contract->id }}">Обновить--}}
-                                {{--статус</a>--}}
+                        @endif
+
+                        @if($contract->provider_doc_id && (in_array($contract->status, ['sent','opened','failed','expired'], true) || ($contract->status === 'signed' && !$contract->signed_pdf_path)))
+                            <button type="button" class="btn btn-outline-secondary" id="syncStatusBtn" data-id="{{ $contract->id }}">
+                                Синхронизировать с Подпислон
+                            </button>
                         @endif
 
 

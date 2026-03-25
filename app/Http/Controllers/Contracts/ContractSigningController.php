@@ -12,6 +12,7 @@ use App\Models\ContractSignRequest;
 use App\Models\MyLog;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -390,28 +391,209 @@ class ContractSigningController extends Controller
     public function status(Contract $contract, SignatureProvider $provider)
     {
         try {
-            $data = $provider->getStatus($contract);
-            $status = $this->mapProviderStatus($data['status'] ?? null);
-
-            if ($status && $status !== $contract->status) {
-                $contract->status = $status;
-                $contract->save();
-
-                ContractEvent::create([
-                    'contract_id'  => $contract->id,
-                    'author_id'    => Auth::id(),
-                    'type'         => 'status_sync',
-                    'payload_json' => json_encode($data, JSON_UNESCAPED_UNICODE),
-                ]);
-
-                if ($status === Contract::STATUS_SIGNED && !$contract->signed_pdf_path) {
-                    $this->downloadAndAttachSigned($contract, $provider);
-                }
+            if (!$contract->provider_doc_id) {
+                return response()->json([
+                    'message' => 'Договор не связан с Подпислоном (нет provider_doc_id). Сначала отправьте договор на подпись.',
+                ], 422);
             }
 
-            return response()->json(['status' => $contract->status, 'raw' => $data]);
+            $data = $provider->getStatus($contract);
+            $mapped = $this->mapProviderStatus($data['status'] ?? null);
+
+            if (!$mapped) {
+                return response()->json([
+                    'status' => $contract->status,
+                    'raw'    => $data,
+                    'synced' => false,
+                    'message' => 'Провайдер вернул неизвестный статус.',
+                ]);
+            }
+
+            $contract->refresh();
+            $oldStatus = $contract->status;
+            $authorId = Auth::id() ?? $contract->user_id;
+            $rid = 'MANUAL-SYNC-' . bin2hex(random_bytes(8));
+            $payloadBase = ['rid' => $rid, 'source' => 'manual_status_sync', 'raw' => $data];
+
+            $needsSignedPdf = $mapped === Contract::STATUS_SIGNED && !$contract->signed_pdf_path;
+            if ($mapped === $oldStatus && !$needsSignedPdf) {
+                return response()->json([
+                    'status' => $contract->status,
+                    'raw'    => $data,
+                    'synced' => false,
+                ]);
+            }
+
+            // Уже signed в БД, но нет файла — имитируем цепочку вебхука и докачиваем PDF
+            if ($mapped === Contract::STATUS_SIGNED && $oldStatus === Contract::STATUS_SIGNED && $needsSignedPdf) {
+                ContractEvent::create([
+                    'contract_id'  => $contract->id,
+                    'author_id'    => $authorId,
+                    'type'         => 'webhook_document_signed',
+                    'payload_json' => json_encode($payloadBase, JSON_UNESCAPED_UNICODE),
+                ]);
+                $this->downloadAndAttachSigned($contract, $provider);
+                $contract->refresh();
+
+                return response()->json([
+                    'status' => $contract->status,
+                    'raw'    => $data,
+                    'synced' => true,
+                ]);
+            }
+
+            // OPENED — как PodpislonWebhookController (не понижаем подписанный)
+            if ($mapped === Contract::STATUS_OPENED && $oldStatus !== Contract::STATUS_SIGNED && $oldStatus !== Contract::STATUS_OPENED) {
+                ContractEvent::create([
+                    'contract_id'  => $contract->id,
+                    'author_id'    => $authorId,
+                    'type'         => 'webhook_document_opened',
+                    'payload_json' => json_encode($payloadBase, JSON_UNESCAPED_UNICODE),
+                ]);
+
+                DB::transaction(function () use ($contract, $payloadBase, $authorId) {
+                    $c = Contract::query()->whereKey($contract->id)->lockForUpdate()->firstOrFail();
+                    if ($c->status === Contract::STATUS_SIGNED || $c->status === Contract::STATUS_OPENED) {
+                        return;
+                    }
+                    $prev = $c->status;
+                    $c->status = Contract::STATUS_OPENED;
+                    $c->save();
+
+                    ContractEvent::create([
+                        'contract_id'  => $c->id,
+                        'author_id'    => $authorId,
+                        'type'         => 'status_sync',
+                        'payload_json' => json_encode($payloadBase, JSON_UNESCAPED_UNICODE),
+                    ]);
+                    $this->manualSyncMyLogContractOpened($c, $prev);
+                });
+
+                $contract->refresh();
+
+                return response()->json([
+                    'status' => $contract->status,
+                    'raw'    => $data,
+                    'synced' => true,
+                ]);
+            }
+
+            // SIGNED — как вебхук: webhook_document_signed → статус + status_sync + MyLog → PDF
+            if ($mapped === Contract::STATUS_SIGNED && $oldStatus !== Contract::STATUS_SIGNED) {
+                ContractEvent::create([
+                    'contract_id'  => $contract->id,
+                    'author_id'    => $authorId,
+                    'type'         => 'webhook_document_signed',
+                    'payload_json' => json_encode($payloadBase, JSON_UNESCAPED_UNICODE),
+                ]);
+
+                DB::transaction(function () use ($contract, $payloadBase, $authorId) {
+                    $c = Contract::query()->whereKey($contract->id)->lockForUpdate()->firstOrFail();
+                    if ($c->status === Contract::STATUS_SIGNED) {
+                        return;
+                    }
+                    $prev = $c->status;
+                    $c->status = Contract::STATUS_SIGNED;
+                    $c->signed_at = now();
+                    $c->save();
+
+                    ContractEvent::create([
+                        'contract_id'  => $c->id,
+                        'author_id'    => $authorId,
+                        'type'         => 'status_sync',
+                        'payload_json' => json_encode($payloadBase, JSON_UNESCAPED_UNICODE),
+                    ]);
+                    $this->manualSyncMyLogContractSigned($c, $prev);
+                });
+
+                $contract->refresh();
+                if (!$contract->signed_pdf_path) {
+                    $this->downloadAndAttachSigned($contract, $provider);
+                }
+                $contract->refresh();
+
+                return response()->json([
+                    'status' => $contract->status,
+                    'raw'    => $data,
+                    'synced' => true,
+                ]);
+            }
+
+            // Прочие смены статуса
+            if ($mapped !== $oldStatus) {
+                DB::transaction(function () use ($contract, $mapped, $data, $authorId) {
+                    $c = Contract::query()->whereKey($contract->id)->lockForUpdate()->firstOrFail();
+                    if ($c->status === $mapped) {
+                        return;
+                    }
+                    $c->status = $mapped;
+                    $c->save();
+
+                    ContractEvent::create([
+                        'contract_id'  => $c->id,
+                        'author_id'    => $authorId,
+                        'type'         => 'status_sync',
+                        'payload_json' => json_encode($data, JSON_UNESCAPED_UNICODE),
+                    ]);
+                });
+                $contract->refresh();
+            }
+
+            return response()->json([
+                'status' => $contract->status,
+                'raw'    => $data,
+                'synced' => $mapped !== $oldStatus,
+            ]);
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    protected function manualSyncMyLogContractOpened(Contract $contract, string $oldStatus): void
+    {
+        try {
+            $oldLabel = Contract::$STATUS_RU[$oldStatus] ?? ucfirst($oldStatus);
+            $newLabel = Contract::$STATUS_RU[Contract::STATUS_OPENED] ?? 'Opened';
+
+            MyLog::create([
+                'type'         => 2,
+                'action'       => 519,
+                'partner_id'   => $contract->school_id,
+                'author_id'    => $contract->user_id,
+                'target_type'  => Contract::class,
+                'target_id'    => $contract->id,
+                'target_label' => 'Договор #' . $contract->id,
+                'description'  => 'Статус договора: "' . $oldLabel . '" → "' . $newLabel . '"',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('manualSyncMyLogContractOpened failed', [
+                'contract_id' => $contract->id,
+                'error'       => $e->getMessage(),
+            ]);
+        }
+    }
+
+    protected function manualSyncMyLogContractSigned(Contract $contract, string $oldStatus): void
+    {
+        try {
+            $oldLabel = Contract::$STATUS_RU[$oldStatus] ?? ucfirst($oldStatus);
+            $newLabel = Contract::$STATUS_RU[Contract::STATUS_SIGNED] ?? 'Signed';
+
+            MyLog::create([
+                'type'         => 2,
+                'action'       => 520,
+                'partner_id'   => $contract->school_id,
+                'author_id'    => $contract->user_id,
+                'target_type'  => Contract::class,
+                'target_id'    => $contract->id,
+                'target_label' => 'Договор #' . $contract->id,
+                'description'  => 'Статус договора: "' . $oldLabel . '" → "' . $newLabel . '"',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('manualSyncMyLogContractSigned failed', [
+                'contract_id' => $contract->id,
+                'error'       => $e->getMessage(),
+            ]);
         }
     }
 
@@ -440,7 +622,7 @@ class ContractSigningController extends Controller
 
         ContractEvent::create([
             'contract_id'  => $contract->id,
-            'author_id'    => Auth::id(),
+            'author_id'    => Auth::id() ?? $contract->user_id,
             'type'         => 'signed_pdf_saved',
             'payload_json' => json_encode(['path' => $path], JSON_UNESCAPED_UNICODE),
         ]);

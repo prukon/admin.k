@@ -71,6 +71,7 @@
             <th>User</th>
             <th>Provider</th>
             <th>Способ оплаты</th>
+            <th>Способ оплаты (вебхук)</th>
             <th>Status</th>
             <th>OutSum</th>
             <th>PaymentDate</th>
@@ -186,6 +187,21 @@
                     {
                         data: 'payment_method_label',
                         name: 'payment_method_label',
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            if (!data) {
+                                return '<span class="text-muted">—</span>';
+                            }
+                            return $('<div/>').text(data).html();
+                        }
+                    },
+                    {
+                        data: 'payment_method_webhook_label',
+                        name: 'payment_method_webhook_label',
                         orderable: false,
                         searchable: false,
                         render: function (data, type, row) {

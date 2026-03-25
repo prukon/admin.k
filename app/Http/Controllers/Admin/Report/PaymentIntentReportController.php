@@ -89,17 +89,12 @@ class PaymentIntentReportController extends AdminBaseController
                 return (string) ($intent->user->full_name ?? ($intent->user->name ?? ''));
             })
             ->addColumn('payment_method_label', function (PaymentIntent $intent) {
-                $code = (string) ($intent->payment_method_webhook ?? $intent->payment_method ?? '');
-                if ($code === '') {
-                    return '';
-                }
-
-                return match ($code) {
-                    'card' => 'Карта',
-                    'sbp_qr' => 'QR (СБП)',
-                    'tpay' => 'T‑Pay',
-                    default => $code,
-                };
+                return $this->paymentIntentMethodLabel(
+                    $intent->payment_method_webhook ?? $intent->payment_method
+                );
+            })
+            ->addColumn('payment_method_webhook_label', function (PaymentIntent $intent) {
+                return $this->paymentIntentMethodLabel($intent->payment_method_webhook);
             })
             ->editColumn('created_at', function (PaymentIntent $intent) {
                 return $intent->created_at ? $intent->created_at->format('Y-m-d H:i:s') : '';
@@ -108,5 +103,20 @@ class PaymentIntentReportController extends AdminBaseController
                 return $intent->paid_at ? $intent->paid_at->format('Y-m-d H:i:s') : '';
             })
             ->toJson();
+    }
+
+    private function paymentIntentMethodLabel(?string $code): string
+    {
+        $code = $code !== null ? trim($code) : '';
+        if ($code === '') {
+            return '';
+        }
+
+        return match ($code) {
+            'card' => 'Карта',
+            'sbp_qr' => 'QR (СБП)',
+            'tpay' => 'T‑Pay',
+            default => $code,
+        };
     }
 }

@@ -1,0 +1,725 @@
+openapi: 3.1.0
+info:
+  title: Podpislon - OpenAPI
+  description: "### Описание\n API сервиса Подпислон позволяет автоматизировать бизнес-процессы документооборота в вашей компании. Вы можете интегрировать функционал сервиса в вашу систему (CRM, ERP, CMS, SAP), для того чтобы работать в одном окне.  \n\n С помощью API Подпислон можно:\n\n -\tОтправлять документы на подпись\n -\tПолучать информацию по документам: \n - -\tНазвание\n   -\tСтатус\n   -\tКод из СМС\n   -\tДата и время\n   -\tКонтакт\n   -\tФайл документа\n -\tПолучать информацию по вашей компании\n - -\tНазвание\n   -\tИНН\n   -\tКПП\n   -\tБаланс документов\n\n ### Ограничения\n Количество обращений к серверу для одного ключа ограничено и составляет 4 запроса в секунду.\n\n ### Авторизация:\n   Для авторизации вам необходимо:\n * Сформировать api-ключ в личном кабинете сервиса на странице [\"Интеграции\"](https://podpislon.ru/lk/integrations)\n * В запросах использовать заголовок `X-Api-Key: `_`ВашАпиКлюч`_\n\n ### SDK\n Для удобной работы с API доступны официальные SDK.\n\n #### JavaScript SDK\n\n **NPM:**\n ```bash\n npm install @podpislon/podpislon-sdk\n ```\n\n **CDN:**\n ```html\n <script src=\\\"https://cdn.jsdelivr.net/npm/@podpislon/podpislon-sdk/podpislon.min.js\\\"></script>\n ```\n\n #### PHP SDK\n\n **Composer:**\n ```bash\n composer require podpislon/podpislon-sdk\n ```\n\n **Пример:**\n ```php\n use Podpislon\\\\PodpislonSDK;\n $sdk = new PodpislonSDK('ваш_api_токен');\n $info = $sdk->getInfo();\n ```\n\n ### Вебхуки \nСистема событий отправляет HTTP POST-запросы на заранее указанные в личном кабинете URL-адреса обработчиков. Тело запроса кодируется как application/x-www-form-urlencoded и содержит информацию о произошедшем событии.\n\n### Типы событий\n -\t`DOCUMENT_OPENED` — документ просмотрен\n -\t`DOCUMENT_SIGNED` — документ подписан\n -\t`CLIENT_DATA_REQUEST_SUBMITTED` — форма персональных данных заполнена\n\n### Общие поля\n -\t`EVENT` (string): Тип события\n -\t`COMPANY_ID` (integer): ID компании\n -\t`SIGNATURE` (string): Подпись запроса для проверки целостности\n\n### Дополнительные поля по событиям\n**DOCUMENT_OPENED / DOCUMENT_SIGNED:**\n -\t`FILE_ID` (integer): ID документа\n -\t`CONTACT` (string, только DOCUMENT_OPENED): Телефон клиента\n\n**CLIENT_DATA_REQUEST_SUBMITTED:**\n -\t`CLIENT_ID` (integer): ID созданного контакта\n -\t`CLIENT_NAME` (string): Имя клиента\n -\t`CLIENT_LAST_NAME` (string): Фамилия клиента\n -\t`CLIENT_PHONE` (string): Телефон клиента\n\n ### **Примеры**\n\n**DOCUMENT_SIGNED:**\n```EVENT=DOCUMENT_SIGNED&FILE_ID=1234&COMPANY_ID=12&SIGNATURE=1a2b3c4d5e6f``` \n\n**DOCUMENT_OPENED:**\n```EVENT=DOCUMENT_OPENED&FILE_ID=5678&COMPANY_ID=21&SIGNATURE=9z8y7x6w5v4u&CONTACT=%2B79123456789```\n\n**CLIENT_DATA_REQUEST_SUBMITTED:**\n```EVENT=CLIENT_DATA_REQUEST_SUBMITTED&COMPANY_ID=12&CLIENT_ID=456&CLIENT_NAME=Иван&CLIENT_LAST_NAME=Иванов&CLIENT_PHONE=%2B79999999999&SIGNATURE=3f4g5h6i7j8k```"
+  version: 1.0.3
+servers:
+  - url: https://podpislon.ru/integration
+tags:
+  - name: Document
+    description: Работа с документами
+  - name: Company
+    description: Информация о компании
+  - name: Pay-System
+    description: Информация о платежных системах компании
+  - name: Webhooks
+    description: События, отправляемые на ваш сервер
+paths:
+  /:
+    post:
+      tags:
+        - Document
+      summary: Получить список документов
+      description: |-
+        Получить список документов
+
+         В ответе также приходит ряд заголовков:
+
+         `x-pagination-current-page: 1` - номер текущей страницы
+
+         `x-pagination-page-count: 4 ` - общее количество страниц
+
+         `x-pagination-per-page: 20` - количество элементов на странице
+
+         `x-pagination-total-count: 67` - общее количество элементов
+
+          Избегайте использования параметра `contact`, он признан устаревшим. На замену пришел массив контактов - `contacts`
+      operationId: getDocs
+      parameters:
+        - in: query
+          name: page
+          description: Номер страницы
+          required: false
+          schema:
+            type: string
+            default: 1
+        - in: query
+          name: expand
+          description: Дополнительные параметры. На данный момент доступен параметр package, для включеня в ответ id пакета документов
+          required: false
+          schema:
+            type: string
+            default: ''
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                  example:
+                    - 100
+                    - 315
+                filter:
+                  $ref: '#/components/schemas/Filter'
+            encoding:
+              payload:
+                contentType: application/json
+          application/json:
+            schema:
+              type: object
+              properties:
+                filter:
+                  $ref: '#/components/schemas/Filter'
+                ids:
+                  $ref: '#/components/schemas/IDs'
+      responses:
+        '200':
+          description: Успешный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentsArray'
+        '401':
+          description: Аутентификация завершилась неудачно.
+        '429':
+          description: Слишком много запросов. Запрос отклонен из-за превышения ограничения частоты запросов.
+        '500':
+          description: Внутреняя ошибка сервера.
+      security:
+        - api_key: []
+  /add-document:
+    put:
+      tags:
+        - Document
+      summary: Добавление документа
+      description: Добавление документа и отправка на подпись клиенту
+      operationId: addDoc
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddDocumentMultipart'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddDocumentJson'
+      responses:
+        '200':
+          description: Успешный запрос
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: boolean
+                  result:
+                    description: ID созданного документа, массив ID при множественной отправке, или объект с ID документов и ссылками на подписание (при передаче параметра no_sms)
+                    oneOf:
+                      - type: integer
+                        description: ID документа при единичной отправке
+                        example: 101
+                      - type: array
+                        description: Массив ID при множественной отправке
+                        items:
+                          type: integer
+                        example: [101, 102, 103]
+                      - type: object
+                        description: Объект с ID и ссылками (при no_sms)
+                        properties:
+                          ids:
+                            type: array
+                            items:
+                              type: integer
+                          links:
+                            type: array
+                            items:
+                              type: string
+                        example:
+                          ids: [101, 102]
+                          links: ["https://podpislon.ru/sign/pack/...", "https://podpislon.ru/sign/pack/..."]
+        '401':
+          description: Аутентификация завершилась неудачно.
+        '429':
+          description: Слишком много запросов. Запрос отклонен из-за превышения ограничения частоты запросов.
+        '500':
+          description: Внутреняя ошибка сервера.
+      security:
+        - api_key: []
+  /get-file:
+    post:
+      tags:
+        - Document
+      summary: Получить файл по id
+      description: Возвращает pdf-файл закодированный в base64.
+      operationId: getDoc
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+              required:
+                - id
+      responses:
+        '200':
+          description: Успешный запрос
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: boolean
+                  result:
+                    type: string
+                    format: byte
+                    description: Файл в формате base64
+        '401':
+          description: Аутентификация завершилась неудачно.
+        '429':
+          description: Слишком много запросов. Запрос отклонен из-за превышения ограничения частоты запросов.
+        '500':
+          description: Внутреняя ошибка сервера.
+      security:
+        - api_key: []
+  /resend/{package_id}:
+    post:
+      tags:
+        - Document
+      summary: Переотправляет ссылку на подписание клиенту
+      description: Запрос переотправляет ссылку на подписание клиенту. Переотправить возможно не более 5 раз.
+      operationId: resend
+      parameters:
+        - in: path
+          name: package_id
+          schema:
+            type: string
+          required: true
+          description: Параметр "package" из запроса списка документов
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                contact:
+                  type: string
+                  description: ID (sid) контакта, которому необходимо повторно отправить ссылку
+      responses:
+        '200':
+          description: Успешный запрос
+          content:
+            application/json:
+              schema:
+                properties:
+                  ok:
+                    type: boolean
+                  mess:
+                    type: string
+                    description: Описание ошибки, при неуспешной отправке
+        '401':
+          description: Аутентификация завершилась неудачно.
+        '429':
+          description: Слишком много запросов. Запрос отклонен из-за превышения ограничения частоты запросов.
+        '500':
+          description: Внутреняя ошибка сервера.
+      security:
+        - api_key: []
+  /delete-document/{file_id}:
+    delete:
+      tags:
+        - Document
+      summary: Удалить документ
+      description: Удаляет документ по его ID. Документ должен принадлежать вашей компании.
+      operationId: deleteDocument
+      parameters:
+        - in: path
+          name: file_id
+          schema:
+            type: integer
+          required: true
+          description: ID документа
+      responses:
+        '200':
+          description: Успешный запрос
+          content:
+            application/json:
+              schema:
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  mess:
+                    type: string
+                    description: Сообщение о результате операции
+                    example: Документ удален
+        '401':
+          description: Аутентификация завершилась неудачно.
+        '403':
+          description: Недостаточно прав для удаления документа.
+        '404':
+          description: Документ не найден.
+        '429':
+          description: Слишком много запросов. Запрос отклонен из-за превышения ограничения частоты запросов.
+        '500':
+          description: Внутреняя ошибка сервера.
+      security:
+        - api_key: []
+  /get-info:
+    get:
+      tags:
+        - Company
+      summary: Получить информацию о компании
+      description: Получить информацию о компании, в т.ч. остаток документов
+      operationId: getInfo
+      responses:
+        '200':
+          description: Успешный запрос
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: boolean
+                    example: true
+                  signings:
+                    type: string
+                    description: Остаток документов
+                    example: '259'
+                  company:
+                    $ref: '#/components/schemas/Company'
+        '401':
+          description: Аутентификация завершилась неудачно.
+        '429':
+          description: Слишком много запросов. Запрос отклонен из-за превышения ограничения частоты запросов.
+        '500':
+          description: Внутреняя ошибка сервера.
+      security:
+        - api_key: []
+  /pay-systems:
+    get:
+      tags:
+        - Pay-System
+      summary: Получить список платежных систем
+      description: Получить список платежных систем компании
+      operationId: paySystems
+      responses:
+        '200':
+          description: Успешный запрос
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: boolean
+                    example: true
+                  result:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: ID платёжной системы
+                          example: 2
+                        name:
+                          type: string
+                          description: Название платёжной
+                          example: Robokassa
+                     
+        '401':
+          description: Аутентификация завершилась неудачно.
+        '429':
+          description: Слишком много запросов. Запрос отклонен из-за превышения ограничения частоты запросов.
+        '500':
+          description: Внутреняя ошибка сервера.
+      security:
+        - api_key: []
+webhooks:
+  DOCUMENT_OPENED:
+    post:
+      operationId: webhookDocumentOpened
+      summary: Документ просмотрен
+      description: Вебхук отправляется когда получатель открыл ссылку на подписание. URL вебхука настраивается в личном кабинете на странице "Интеграции".
+      tags:
+        - Webhooks
+      security: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EventDocumentOpened'
+      responses:
+        '200':
+          description: Вебхук успешно обработан
+  DOCUMENT_SIGNED:
+    post:
+      operationId: webhookDocumentSigned
+      summary: Документ подписан
+      description: Вебхук отправляется когда документ полностью подписан всеми участниками. URL вебхука настраивается в личном кабинете на странице "Интеграции".
+      tags:
+        - Webhooks
+      security: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EventDocumentSigned'
+      responses:
+        '200':
+          description: Вебхук успешно обработан
+  CLIENT_DATA_REQUEST_SUBMITTED:
+    post:
+      operationId: webhookClientDataRequestSubmitted
+      summary: Форма персональных данных заполнена
+      description: Вебхук отправляется когда клиент заполнил форму запроса персональных данных. Создаётся контакт у компании, которая отправила форму. URL вебхука настраивается в личном кабинете на странице "Интеграции".
+      tags:
+        - Webhooks
+      security: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EventClientDataRequestSubmitted'
+      responses:
+        '200':
+          description: Вебхук успешно обработан
+components:
+  schemas:
+    Filter:
+      type: object
+      properties:
+        fio:
+          type: string
+          example: Владимир Путин
+        dates:
+          type: object
+          description: 'Timestamp. Возможные ключи: >, >=, <, <=. Ключи можно комбинировать.'
+          properties:
+            '>=':
+              type: string
+              example: '1667941200'
+            <=:
+              type: string
+              example: '1668041200'
+        status:
+          type: string
+          description: Статус документа
+          example: '15'
+          enum:
+            - '10'
+            - '15'
+            - '20'
+            - '30'
+            - '35'
+            - '40'
+        phone:
+          type: string
+          example: '89999999999'
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 101
+        name:
+          type: string
+          example: Акт №853
+        status:
+          type: string
+          example: '30'
+          description: ID статуса документа (10 - Создан; 15 - Отправлен, 20 - Просмотрен; 30 - Подписан; 35 - Запрошено аннулирование; 40 - Аннулирован)
+          enum:
+            - '10'
+            - '15'
+            - '20'
+            - '30'
+            - '35'
+            - '40'
+        status_text:
+          type: string
+          example: Подписан
+        sms:
+          type: string
+          example: '658721'
+        date_create:
+          type: string
+          format: date-time
+          example: '2022-11-09T15:14:49.000Z'
+        contact:
+          $ref: '#/components/schemas/Contact'
+        contacts:
+          $ref: '#/components/schemas/ContactsArray'
+        package:
+          type: string
+          example: cb4b683
+    Contact:
+      description: Данные о контакте
+      type: object
+      properties:
+        name:
+          type: string
+          example: Иван
+        second_name:
+          type: string
+          example: Иванович
+        last_name:
+          type: string
+          example: Иванов
+        phone:
+          type: string
+          description: Телефон в одном из форматов +7 (XXX) XXX-XX-XX, 8 (XXX) XXX-XX-XX, 8XXXXXXXXXX, +7XXXXXXXXXX
+          example: "+79999999999"
+        sid:
+          type: string
+          example: ODYxMjI=
+          readOnly: true
+        link:
+          type: string
+          example: https://podpislon.ru/sign/pack/861221/58abc612882
+          readOnly: true
+    ContactsArray:
+      description: Список контактов
+      type: array
+      items:
+        $ref: '#/components/schemas/Contact'
+    Payment:
+      description: Для добавления оплаты при подписании документа обязательно указывается pid(ID платёжной системы) и sum(Сумма)
+      type: object
+      properties:
+        pid:
+          type: string
+          example: '2'
+        sum:
+          type: string
+          example: '1200'
+    DocumentsArray:
+      description: Список документов
+      type: array
+      items:
+        $ref: '#/components/schemas/Document'
+    IDs:
+      description: Список id документов
+      type: array
+      items:
+        type: integer
+      example:
+        - 100
+        - 315
+    Company:
+      description: Данные о компании
+      type: object
+      properties:
+        name:
+          type: string
+          example: ООО "рога и копыта"
+        inn:
+          type: string
+          example: '1001982736'
+        kpp:
+          type: string
+          example: '123456789'
+    AddDocumentBase:
+      description: Базовые поля для добавления документа
+      type: object
+      properties:
+        name:
+          type: string
+          description: Имя контакта
+          example: Иван
+        second_name:
+          type: string
+          description: Отчество контакта
+          example: Иванович
+        last_name:
+          type: string
+          description: Фамилия контакта
+          example: Иванов
+        phone:
+          type: string
+          description: Телефон в одном из форматов +7 (XXX) XXX-XX-XX, 8 (XXX) XXX-XX-XX, 8XXXXXXXXXX, +7XXXXXXXXXX
+          example: "+79999999999"
+        agreement:
+          type: string
+          description: Согласие с обработкой перс. данных (любое не пустое значение будет интерпретировано как подтверждение согласия)
+          enum:
+            - 'Y'
+        contacts:
+          type: array
+          description: Массив контактов в формате json
+          items:
+            $ref: '#/components/schemas/Contact'
+        payment:
+          $ref: '#/components/schemas/Payment'
+        send_date:
+          type: integer
+          description: Метка системного времени Unix. Если указана, то документ будет отправлен позднее, в указанную дату.
+          example: 1718644466
+        stroke_doc:
+          type: integer
+          description: Строгий порядок документов. Если необходимо, указывается значение "1"
+        no_sms:
+          type: string
+          description: Если необходимо получить ссылку на подписание, для самостоятельной отправки клиенту, передайте данный параметр со значением "Y" (без кавычек). Если корректно добавлен параметр send_date, то no_sms проигнорируется.
+          example: 'Y'
+        redirect_url:
+          type: string
+          description: После подписания пользователь будет переведён на указанную ссылку. Функция работает только в том случае, если в документе один подписант.
+          example: 'https://redirect.url.com'
+        sign_by_time:
+          type: integer
+          description: Время на подписание документа.
+          example: 1744035750
+      required:
+        - name
+        - last_name
+        - phone
+        - agreement
+    AddDocumentMultipart:
+      description: Добавление документа через multipart/form-data (бинарные файлы)
+      allOf:
+        - $ref: '#/components/schemas/AddDocumentBase'
+        - type: object
+          properties:
+            file:
+              type: array
+              description: Массив PDF-документов в бинарном формате
+              items:
+                type: string
+                format: binary
+          required:
+            - file
+    AddDocumentJson:
+      description: Добавление документа через JSON (файлы в base64)
+      allOf:
+        - $ref: '#/components/schemas/AddDocumentBase'
+        - type: object
+          properties:
+            file:
+              type: array
+              description: Массив PDF-документов, закодированных в base64
+              items:
+                type: string
+                format: byte
+              example: ["SnZCRVJpMHhMalFLSmVManozTUtNeUF3Li4u", "SnZasdkjDHHhMalFLSmVManozTUtNeqwe321"]
+            fileName:
+              type: array
+              description: Массив названий файлов (обязательно при передаче в base64)
+              items:
+                type: string
+              example: ["document.pdf", "contract.pdf"]
+          required:
+            - file
+            - fileName
+    EventDocumentOpened:
+      description: Вебхук при просмотре документа
+      type: object
+      properties:
+        EVENT:
+          type: string
+          description: Тип события
+          example: DOCUMENT_OPENED
+          enum:
+            - DOCUMENT_OPENED
+        FILE_ID:
+          type: integer
+          description: ID документа
+          example: 5678
+        COMPANY_ID:
+          type: integer
+          description: ID компании
+          example: 21
+        SIGNATURE:
+          type: string
+          description: Подпись запроса для проверки целостности
+          example: 9z8y7x6w5v4u
+        CONTACT:
+          type: string
+          description: Телефон клиента, открывшего документ
+          example: '+79123456789'
+      required:
+        - EVENT
+        - FILE_ID
+        - COMPANY_ID
+        - SIGNATURE
+        - CONTACT
+    EventDocumentSigned:
+      description: Вебхук при подписании документа
+      type: object
+      properties:
+        EVENT:
+          type: string
+          description: Тип события
+          example: DOCUMENT_SIGNED
+          enum:
+            - DOCUMENT_SIGNED
+        FILE_ID:
+          type: integer
+          description: ID документа
+          example: 1234
+        COMPANY_ID:
+          type: integer
+          description: ID компании
+          example: 12
+        SIGNATURE:
+          type: string
+          description: Подпись запроса для проверки целостности
+          example: 1a2b3c4d5e6f
+      required:
+        - EVENT
+        - FILE_ID
+        - COMPANY_ID
+        - SIGNATURE
+    EventClientDataRequestSubmitted:
+      description: Вебхук при заполнении формы персональных данных
+      type: object
+      properties:
+        EVENT:
+          type: string
+          description: Тип события
+          example: CLIENT_DATA_REQUEST_SUBMITTED
+          enum:
+            - CLIENT_DATA_REQUEST_SUBMITTED
+        COMPANY_ID:
+          type: integer
+          description: ID компании
+          example: 12
+        CLIENT_ID:
+          type: integer
+          description: ID созданного контакта
+          example: 456
+        CLIENT_NAME:
+          type: string
+          description: Имя клиента
+          example: Иван
+        CLIENT_LAST_NAME:
+          type: string
+          description: Фамилия клиента
+          example: Иванов
+        CLIENT_PHONE:
+          type: string
+          description: Телефон клиента
+          example: '+79999999999'
+        SIGNATURE:
+          type: string
+          description: Подпись запроса для проверки целостности
+          example: 3f4g5h6i7j8k
+      required:
+        - EVENT
+        - COMPANY_ID
+        - CLIENT_ID
+        - CLIENT_NAME
+        - CLIENT_LAST_NAME
+        - CLIENT_PHONE
+        - SIGNATURE
+  securitySchemes:
+    api_key:
+      type: apiKey
+      name: X-Api-Key
+      in: header
+      description: API-ключ для авторизации запроса.
