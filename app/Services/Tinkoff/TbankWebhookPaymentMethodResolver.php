@@ -10,11 +10,13 @@ namespace App\Services\Tinkoff;
 final class TbankWebhookPaymentMethodResolver
 {
     /**
+     * @param  ?string  $intentPaymentMethod  payment_intents.payment_method (card|sbp_qr|tpay) — если Init в БД «card», а запрос создавали как T‑Pay.
      * @return array{intent: 'card'|'sbp_qr'|'tpay'|null, tinkoff: 'card'|'sbp'|'tpay'|null}
      */
-    public function resolve(array $webhook, ?string $initTinkoffMethod): array
+    public function resolve(array $webhook, ?string $initTinkoffMethod, ?string $intentPaymentMethod = null): array
     {
         $init = $initTinkoffMethod !== null ? strtolower(trim($initTinkoffMethod)) : '';
+        $intentPm = $intentPaymentMethod !== null ? strtolower(trim($intentPaymentMethod)) : '';
 
         $intent = null;
 
@@ -33,6 +35,24 @@ final class TbankWebhookPaymentMethodResolver
             $intent = 'tpay';
         }
 
+        // Init T‑Pay / СБП: банк часто присылает Pan+ExpDate (Mir и т.п.) — раньше это перетиралось веткой «карта».
+        if ($intent === null && $init === 'tpay') {
+            $intent = 'tpay';
+        }
+
+        if ($intent === null && $init === 'sbp') {
+            $intent = 'sbp_qr';
+        }
+
+        // Рассинхрон tinkoff_payments.method и payment_intents.payment_method
+        if ($intent === null && $intentPm === 'tpay') {
+            $intent = 'tpay';
+        }
+
+        if ($intent === null && $intentPm === 'sbp_qr') {
+            $intent = 'sbp_qr';
+        }
+
         // Pan без ExpDate часто приходит и для СБП/кошелька/QR на той же форме — не считаем это картой.
         // Если в DATA уже есть source, но мы его не распознали — не додумываем способ по Pan.
         if (! $hadUnmappedSource && $intent === null
@@ -44,14 +64,6 @@ final class TbankWebhookPaymentMethodResolver
         // Та же сценарная форма Init=card: маска Pan без срока — типично не классическая карта (QR/кошелёк на странице банка).
         if ($intent === null && $init === 'card' && ! $hadUnmappedSource
             && ! empty($webhook['Pan']) && empty($webhook['ExpDate'])) {
-            $intent = 'tpay';
-        }
-
-        if ($intent === null && $init === 'sbp') {
-            $intent = 'sbp_qr';
-        }
-
-        if ($intent === null && $init === 'tpay') {
             $intent = 'tpay';
         }
 

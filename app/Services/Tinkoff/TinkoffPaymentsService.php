@@ -127,9 +127,16 @@ class TinkoffPaymentsService
 
         $status = $data['Status'] ?? null;
         if ($status === 'CONFIRMED') {
+            $intentPaymentMethod = PaymentIntent::query()
+                ->where('provider', 'tbank')
+                ->where('partner_id', (int) $payment->partner_id)
+                ->where('tbank_order_id', (string) $orderId)
+                ->value('payment_method');
+
             $resolved = $this->webhookPaymentMethodResolver->resolve(
                 $data,
-                $initTinkoffMethod !== '' ? $initTinkoffMethod : null
+                $initTinkoffMethod !== '' ? $initTinkoffMethod : null,
+                is_string($intentPaymentMethod) && $intentPaymentMethod !== '' ? $intentPaymentMethod : null
             );
             if ($resolved['tinkoff'] !== null) {
                 $payment->method = $resolved['tinkoff'];
@@ -355,9 +362,11 @@ class TinkoffPaymentsService
             $locked->meta = json_encode($meta, JSON_UNESCAPED_UNICODE);
 
             if ($isSuccess) {
+                $im = $locked->payment_method ?? null;
                 $resolved = $this->webhookPaymentMethodResolver->resolve(
                     $webhook,
-                    $initTinkoffMethod !== '' ? $initTinkoffMethod : null
+                    $initTinkoffMethod !== '' ? $initTinkoffMethod : null,
+                    is_string($im) && $im !== '' ? $im : null
                 );
                 if ($resolved['intent'] !== null) {
                     $locked->payment_method_webhook = $resolved['intent'];

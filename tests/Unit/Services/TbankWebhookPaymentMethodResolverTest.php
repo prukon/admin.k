@@ -96,4 +96,26 @@ class TbankWebhookPaymentMethodResolverTest extends TestCase
         $this->assertSame('tpay', $r['intent']);
         $this->assertSame('tpay', $r['tinkoff']);
     }
+
+    public function test_init_tpay_with_mir_like_pan_and_exp_date_stays_tpay(): void
+    {
+        $r = $this->resolver->resolve([
+            'Pan'     => '220070******8527',
+            'ExpDate' => '0935',
+        ], 'tpay');
+
+        $this->assertSame('tpay', $r['intent']);
+        $this->assertSame('tpay', $r['tinkoff']);
+    }
+
+    public function test_intent_payment_method_tpay_overrides_card_like_webhook_when_init_card(): void
+    {
+        $r = $this->resolver->resolve([
+            'Pan'     => '220070******8527',
+            'ExpDate' => '0935',
+        ], 'card', 'tpay');
+
+        $this->assertSame('tpay', $r['intent']);
+        $this->assertSame('tpay', $r['tinkoff']);
+    }
 }
