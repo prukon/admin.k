@@ -31,6 +31,22 @@
     </div>
 @endsection
 
+<style>
+    .return-receipt-link {
+        text-decoration: none;
+    }
+
+    .return-receipt-icon {
+        color: #ffc107;
+        transition: color .15s ease, transform .15s ease;
+    }
+
+    .return-receipt-link:hover .return-receipt-icon {
+        color: #ff9800;
+        transform: translateY(-1px);
+    }
+</style>
+
 @section('scripts')
     <script type="text/javascript">
         $(function () {
@@ -143,15 +159,45 @@
                                 return '<span title="Чек формируется у партнера в его онлайн-кассе"></span>';
                             }
 
+                            var refundStatus = row.refund_status || '';
+                            var returnReceiptUrl = row.return_receipt_url || '';
+                            var returnReceiptStatus = row.return_receipt_status || '';
+
+                            var incomeTitle = (row.has_receipt && row.receipt_url)
+                                ? 'Чек сформирован'
+                                : 'Чек не сформирован';
+
+                            if (refundStatus !== '' && !returnReceiptUrl) {
+                                if (returnReceiptStatus === 'error') {
+                                    incomeTitle += '. Чек возврата: не сформирован (ошибка).';
+                                } else {
+                                    incomeTitle += '. Чек возврата ожидается (CloudKassir).';
+                                }
+                            }
+
+                            var incomeHtml = '';
                             if (row.has_receipt && row.receipt_url) {
-                                return '<a href="' + row.receipt_url + '" target="_blank" rel="noopener noreferrer" title="Чек сформирован" aria-label="Чек сформирован">' +
+                                incomeHtml =
+                                    '<a href="' + row.receipt_url + '" target="_blank" rel="noopener noreferrer" title="' + incomeTitle + '" aria-label="Чек сформирован">' +
                                     '<i class="fa-solid fa-receipt text-primary"></i>' +
+                                    '</a>';
+                            } else {
+                                incomeHtml =
+                                    '<span title="' + incomeTitle + '" aria-label="Чек не сформирован">' +
+                                    '<i class="fa-solid fa-receipt text-secondary"></i>' +
+                                    '</span>';
+                            }
+
+                            var returnHtml = '';
+                            if (returnReceiptUrl) {
+                                returnHtml =
+                                    '<a href="' + returnReceiptUrl + '" target="_blank" rel="noopener noreferrer" ' +
+                                    'class="return-receipt-link" title="Чек возврата" aria-label="Чек возврата">' +
+                                    '<i class="fa-solid fa-receipt return-receipt-icon"></i>' +
                                     '</a>';
                             }
 
-                            return '<span title="Чек не сформирован" aria-label="Чек не сформирован">' +
-                                '<i class="fa-solid fa-receipt text-secondary"></i>' +
-                                '</span>';
+                            return '<span style="display:inline-flex; align-items:center; gap:8px;">' + incomeHtml + returnHtml + '</span>';
                         }
                     }
                 ],

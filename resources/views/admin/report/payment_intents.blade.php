@@ -243,9 +243,21 @@
                         render: function (data, type, row) {
                             if (!data) return '';
                             var text = String(data);
+                            if (type !== 'display') {
+                                return text;
+                            }
                             var safe = $('<div/>').text(text).html();
                             var short = safe.length > 160 ? (safe.slice(0, 160) + '…') : safe;
-                            return '<span class="small" title="' + safe + '">' + short + '</span>';
+                            return (
+                                '<div class="d-flex align-items-start gap-1 payment-intent-meta-cell">' +
+                                '<span class="small flex-grow-1" style="min-width:0">' + short + '</span>' +
+                                '<button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0 js-copy-payment-intent-meta" title="Копировать Meta">' +
+                                '<i class="fa-solid fa-copy" aria-hidden="true"></i>' +
+                                '<span class="visually-hidden">Копировать</span>' +
+                                '</button>' +
+                                '<span class="payment-intent-meta-full d-none">' + safe + '</span>' +
+                                '</div>'
+                            );
                         }
                     }
                 ],
@@ -253,6 +265,50 @@
                 scrollX: true,
                 fixedColumns: {leftColumns: 2},
                 language: dtLanguageRu()
+            });
+
+            $('#payment-intents-table').on('click', '.js-copy-payment-intent-meta', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var $cell = $(this).closest('.payment-intent-meta-cell');
+                var full = $cell.find('.payment-intent-meta-full').text();
+                var $btn = $(this);
+                var origHtml = $btn.html();
+
+                function flashOk() {
+                    $btn.prop('disabled', true).html('<i class="fa-solid fa-check text-success" aria-hidden="true"></i>');
+                    setTimeout(function () {
+                        $btn.prop('disabled', false).html(origHtml);
+                    }, 1500);
+                }
+
+                function copyViaTextarea() {
+                    var ta = document.createElement('textarea');
+                    ta.value = full;
+                    ta.setAttribute('readonly', '');
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try {
+                        if (document.execCommand('copy')) {
+                            flashOk();
+                        } else {
+                            alert('Не удалось скопировать Meta');
+                        }
+                    } catch (err) {
+                        alert('Не удалось скопировать Meta');
+                    }
+                    document.body.removeChild(ta);
+                }
+
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                    navigator.clipboard.writeText(full).then(flashOk).catch(function () {
+                        copyViaTextarea();
+                    });
+                } else {
+                    copyViaTextarea();
+                }
             });
 
             $form.on('submit', function (e) {

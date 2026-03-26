@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User\Report;
 use App\Http\Controllers\Controller;
 use App\Models\FiscalReceipt;
 use App\Models\Payment;
+use App\Models\Refund;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -85,16 +86,27 @@ class ReportController extends Controller
 
 
         if ($request->ajax()) {
-            $latestReceiptSub = FiscalReceipt::query()
+            $latestIncomeReceiptSub = FiscalReceipt::query()
                 ->select('payment_id', DB::raw('MAX(id) as latest_id'))
                 ->whereNotNull('payment_id')
+                ->where('type', FiscalReceipt::TYPE_INCOME)
+                ->groupBy('payment_id');
+
+            $latestReturnReceiptSub = FiscalReceipt::query()
+                ->select('payment_id', DB::raw('MAX(id) as latest_id'))
+                ->whereNotNull('payment_id')
+                ->where('type', FiscalReceipt::TYPE_INCOME_RETURN)
                 ->groupBy('payment_id');
 
             $payments = Payment::with(['user.team'])
-                ->leftJoinSub($latestReceiptSub, 'latest_fiscal_receipts', function ($join) {
-                    $join->on('latest_fiscal_receipts.payment_id', '=', 'payments.id');
+                ->leftJoinSub($latestIncomeReceiptSub, 'latest_income_fiscal_receipts', function ($join) {
+                    $join->on('latest_income_fiscal_receipts.payment_id', '=', 'payments.id');
                 })
-                ->leftJoin('fiscal_receipts as fiscal_receipt', 'fiscal_receipt.id', '=', 'latest_fiscal_receipts.latest_id')
+                ->leftJoin('fiscal_receipts as fiscal_income_receipt', 'fiscal_income_receipt.id', '=', 'latest_income_fiscal_receipts.latest_id')
+                ->leftJoinSub($latestReturnReceiptSub, 'latest_return_fiscal_receipts', function ($join) {
+                    $join->on('latest_return_fiscal_receipts.payment_id', '=', 'payments.id');
+                })
+                ->leftJoin('fiscal_receipts as fiscal_return_receipt', 'fiscal_return_receipt.id', '=', 'latest_return_fiscal_receipts.latest_id')
                 ->leftJoin('payment_intents as pi_tbank', function ($join) {
                     $join->on('payments.partner_id', '=', 'pi_tbank.partner_id')
                         ->where('pi_tbank.provider', '=', 'tbank')
@@ -110,7 +122,9 @@ class ReportController extends Controller
                 ->where('payments.user_id', $this->curUser->id) // фильтр по владельцу платежа (payments.*)
                 ->select(
                     'payments.*',
-                    'fiscal_receipt.receipt_url as fiscal_receipt_url',
+                    'fiscal_income_receipt.receipt_url as fiscal_income_receipt_url',
+                    'fiscal_return_receipt.receipt_url as fiscal_return_receipt_url',
+                    'fiscal_return_receipt.status as fiscal_return_receipt_status',
                     'pi_tbank.payment_method_webhook as intent_payment_method_webhook',
                     'pi_tbank.payment_method as intent_payment_method_init'
                 )
@@ -160,7 +174,7 @@ class ReportController extends Controller
                     };
                 })
                 ->addColumn('receipt_url', function ($row) {
-                    $receiptUrl = trim((string) ($row->fiscal_receipt_url ?? ''));
+                    $receiptUrl = trim((string) ($row->fiscal_income_receipt_url ?? ''));
                     if ($receiptUrl === '' || !str_starts_with($receiptUrl, 'https://receipts.ru/')) {
                         return null;
                     }
@@ -168,8 +182,29 @@ class ReportController extends Controller
                     return $receiptUrl;
                 })
                 ->addColumn('has_receipt', function ($row) {
-                    $receiptUrl = trim((string) ($row->fiscal_receipt_url ?? ''));
+                    $receiptUrl = trim((string) ($row->fiscal_income_receipt_url ?? ''));
                     return $receiptUrl !== '' && str_starts_with($receiptUrl, 'https://receipts.ru/');
+                })
+                ->addColumn('return_receipt_url', function ($row) {
+                    $receiptUrl = trim((string) ($row->fiscal_return_receipt_url ?? ''));
+                    if ($receiptUrl === '' || !str_starts_with($receiptUrl, 'https://receipts.ru/')) {
+                        return null;
+                    }
+
+                    return $receiptUrl;
+                })
+                ->addColumn('return_receipt_status', function ($row) {
+                    $status = trim((string) ($row->fiscal_return_receipt_status ?? ''));
+
+                    return $status !== '' ? $status : '';
+                })
+                ->addColumn('refund_status', function ($row) {
+                    $refund = Refund::query()
+                        ->where('payment_id', $row->id)
+                        ->orderByDesc('id')
+                        ->first();
+
+                    return $refund ? (string) $refund->status : '';
                 })
                 ->make(true);
         }
