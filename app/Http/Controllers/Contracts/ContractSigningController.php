@@ -10,6 +10,7 @@ use App\Models\Contract;
 use App\Models\ContractEvent;
 use App\Models\ContractSignRequest;
 use App\Models\MyLog;
+use App\Services\Signatures\Providers\PodpislonProvider;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -398,7 +399,10 @@ class ContractSigningController extends Controller
             }
 
             $data = $provider->getStatus($contract);
-            $mapped = $this->mapProviderStatus($data['status'] ?? null);
+            $mapped = PodpislonProvider::mapDocumentStatusToContract(
+                $data['status'] ?? null,
+                isset($data['status_text']) ? (string) $data['status_text'] : null
+            );
 
             if (!$mapped) {
                 return response()->json([
@@ -595,19 +599,6 @@ class ContractSigningController extends Controller
                 'error'       => $e->getMessage(),
             ]);
         }
-    }
-
-    protected function mapProviderStatus(?string $s): ?string
-    {
-        return match ($s) {
-            'sent'    => Contract::STATUS_SENT,
-            'opened'  => Contract::STATUS_OPENED,
-            'signed'  => Contract::STATUS_SIGNED,
-            'expired' => Contract::STATUS_EXPIRED,
-            'revoked' => Contract::STATUS_REVOKED,
-            'failed'  => Contract::STATUS_FAILED,
-            default   => null,
-        };
     }
 
     protected function downloadAndAttachSigned(Contract $contract, SignatureProvider $provider): void

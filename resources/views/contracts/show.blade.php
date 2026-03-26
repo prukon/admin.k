@@ -539,7 +539,10 @@
                 $.ajax({
                     method: 'GET',
                     url: '/client-contracts/' + contractId + '/status'
-                }).done(function () {
+                }).done(function (resp) {
+                    if (resp && resp.message && resp.synced === false) {
+                        alert(resp.message);
+                    }
                     location.reload();
                 }).fail(function (xhr) {
                     alert((xhr.responseJSON && xhr.responseJSON.message) || 'Ошибка');

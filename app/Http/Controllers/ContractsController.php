@@ -8,6 +8,7 @@ use App\Models\ContractSignRequest;
 use App\Models\MyLog;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
+use App\Services\Signatures\Providers\PodpislonProvider;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -1123,7 +1124,10 @@ class ContractsController extends Controller
 
         try {
             $data = $provider->getStatus($contract);
-            $status = $this->mapProviderStatus($data['status'] ?? null);
+            $status = PodpislonProvider::mapDocumentStatusToContract(
+                $data['status'] ?? null,
+                isset($data['status_text']) ? (string) $data['status_text'] : null
+            );
 
             if ($status && $status !== $contract->status) {
                 $contract->status = $status;
@@ -1147,18 +1151,6 @@ class ContractsController extends Controller
         }
     }
 
-    protected function mapProviderStatus(?string $s): ?string
-    {
-        return match ($s) {
-            'sent' => Contract::STATUS_SENT,
-            'opened' => Contract::STATUS_OPENED,
-            'signed' => Contract::STATUS_SIGNED,
-            'expired' => Contract::STATUS_EXPIRED,
-            'revoked' => Contract::STATUS_REVOKED,
-            'failed' => Contract::STATUS_FAILED,
-            default => null,
-        };
-    }
     protected function downloadAndAttachSigned(Contract $contract, SignatureProvider $provider): void
     {
         abort_unless($contract->school_id === $this->partnerId(), 403, 'Нет доступа к договору этого партнёра.');

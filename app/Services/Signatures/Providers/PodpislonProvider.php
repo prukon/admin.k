@@ -333,7 +333,21 @@ class PodpislonProvider implements SignatureProvider
         $arr = $this->safeJson($resp);
         // Ожидаем массив документов; берём первый
         $doc = $arr[0] ?? null;
-        return $doc ?: ['raw' => $arr];
+        $out = $doc ?: ['raw' => $arr];
+
+        Log::channel('podpislon')->info('PODPISLON: getStatus response', [
+            'contract_id'      => $contract->id,
+            'provider_doc_id'  => $contract->provider_doc_id,
+            'http_status'      => $resp->status(),
+            'api_status'       => is_array($out) ? ($out['status'] ?? null) : null,
+            'api_status_text'  => is_array($out) ? ($out['status_text'] ?? null) : null,
+            'mapped_contract'  => self::mapDocumentStatusToContract(
+                is_array($out) ? ($out['status'] ?? null) : null,
+                is_array($out) ? ($out['status_text'] ?? null) : null
+            ),
+        ]);
+
+        return $out;
     }
 
 
@@ -353,6 +367,12 @@ class PodpislonProvider implements SignatureProvider
             'status' => $resp->status(),
             'ok' => $resp->ok(),
             'len' => strlen($resp->body() ?? '')
+        ]);
+        Log::channel('podpislon')->info('PODPISLON: POST /get-file', [
+            'contract_id'     => $contract->id,
+            'provider_doc_id' => $contract->provider_doc_id,
+            'http_status'     => $resp->status(),
+            'body_len'        => strlen($resp->body() ?? ''),
         ]);
 
         if (!$resp->ok()) {
@@ -808,6 +828,48 @@ class PodpislonProvider implements SignatureProvider
 //        return $req->put($url, $json);
 //    }
 
+    /**
+     * Соответствие полей status / status_text ответа API и статуса договора в CRM.
+     *
+     * В OpenAPI Подпислона status — строковые коды: 10 создан, 15 отправлен, 20 просмотрен,
+     * 30 подписан, 35 запрошено аннулирование, 40 аннулирован (см. docs/Podpislon/podpislon-api.yaml).
+     * В старых интеграциях встречались слова sent / opened / signed.
+     */
+    public static function mapDocumentStatusToContract(string|int|null $status, ?string $statusText = null): ?string
+    {
+        if ($status !== null && $status !== '') {
+            $key = is_int($status) ? (string) $status : strtolower(trim((string) $status));
+
+            $mapped = match ($key) {
+                'sent', '15' => Contract::STATUS_SENT,
+                'opened', 'viewed', '20' => Contract::STATUS_OPENED,
+                'signed', '30' => Contract::STATUS_SIGNED,
+                'expired' => Contract::STATUS_EXPIRED,
+                'revoked', '40' => Contract::STATUS_REVOKED,
+                'failed' => Contract::STATUS_FAILED,
+                'draft', 'created', '10' => Contract::STATUS_DRAFT,
+                default => null,
+            };
+            if ($mapped !== null) {
+                return $mapped;
+            }
+        }
+
+        if ($statusText === null || trim($statusText) === '') {
+            return null;
+        }
+
+        $t = mb_strtolower(trim($statusText));
+
+        return match (true) {
+            str_contains($t, 'подписан') && !str_contains($t, 'аннулир') => Contract::STATUS_SIGNED,
+            str_contains($t, 'просмотрен') => Contract::STATUS_OPENED,
+            str_contains($t, 'отправлен') => Contract::STATUS_SENT,
+            str_contains($t, 'создан') => Contract::STATUS_DRAFT,
+            str_contains($t, 'аннулирован') => Contract::STATUS_REVOKED,
+            default => null,
+        };
+    }
 
 }
 

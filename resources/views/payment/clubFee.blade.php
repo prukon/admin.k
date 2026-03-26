@@ -34,24 +34,13 @@
             <div class="wrap-pay" style="max-width: 300px;">
                 <h5 class="pay-name mt-3 mb-3">T‑Bank (мультирасчёты)</h5>
                 <img class="img-fluid d-block mx-auto" src="{{ asset('/img/partners/tbank.png') }}" alt="Tinkoff">
-                <p class="small text-muted mb-2">Укажите сумму выше, затем выберите способ оплаты на странице банка — так же отметьте кнопку здесь.</p>
-                <form class="mb-2 mt-3 payment-form" action="{{ route('payment.tinkoff.pay') }}" method="POST" onsubmit="return validateAndSetAmount(this);">
+                <form class="mb-3 mt-3 payment-form" action="{{ route('payment.tinkoff.pay') }}" method="POST" onsubmit="return validateAndSetAmount(this);">
                     @csrf
                     <input type="hidden" name="partner_id" value="{{ $partnerId }}">
                     <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
                     <input type="hidden" name="outSum" class="outSum-field" value="">
                     <input type="hidden" name="paymentDate" value="Клубный взнос">
-                    <input type="hidden" name="method" value="card">
-                    <button type="submit" class="btn btn-bd-primary pay-btn w-100">Оплатить картой</button>
-                </form>
-                <form class="mb-3 mt-2 payment-form" action="{{ route('payment.tinkoff.pay') }}" method="POST" onsubmit="return validateAndSetAmount(this);">
-                    @csrf
-                    <input type="hidden" name="partner_id" value="{{ $partnerId }}">
-                    <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
-                    <input type="hidden" name="outSum" class="outSum-field" value="">
-                    <input type="hidden" name="paymentDate" value="Клубный взнос">
-                    <input type="hidden" name="method" value="tpay">
-                    <button type="submit" class="btn btn-outline-primary pay-btn w-100">Оплатить через T‑Pay</button>
+                    <button type="submit" class="btn btn-bd-primary pay-btn">Оплатить</button>
                 </form>
                 <div class="pay-fee mb-3">Комиссия: показывается банком</div>
             </div>
