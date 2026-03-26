@@ -38,18 +38,26 @@
             <div class="wrap-pay" style="max-width: 300px;">
                 <h5 class="pay-name mt-3 mb-3">T‑Bank (мультирасчёты)</h5>
                 <img class="img-fluid d-block mx-auto" src="{{ asset('/img/partners/tbank.png') }}" alt="Tinkoff">
-                <form class="mb-3 mt-3" action="{{ route('payment.tinkoff.pay') }}" method="POST">
+                <p class="small text-muted mb-2">Выберите способ, которым реально будете платить на странице банка — так корректно попадёт в отчёты и комиссии.</p>
+                <form class="mb-2" action="{{ route('payment.tinkoff.pay') }}" method="POST">
                     @csrf
-                    {{-- обязательные данные --}}
                     <input type="hidden" name="partner_id" value="{{ $partnerId }}">
                     <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
-                    <input type="hidden" name="outSum" value="{{ $outSum }}"> {{-- рубли, сконвертим на бэке --}}
+                    <input type="hidden" name="outSum" value="{{ $outSum }}">
                     <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
                     <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
-                    {{-- опционально: метод оплаты (если хочешь разделять card/sbp/tpay). Можно убрать. --}}
-                    {{-- <input type="hidden" name="method" value="card"> --}}
-
-                    <button type="submit" class="btn btn-bd-primary pay-btn">Оплатить</button>
+                    <input type="hidden" name="method" value="card">
+                    <button type="submit" class="btn btn-bd-primary pay-btn w-100">Оплатить картой</button>
+                </form>
+                <form class="mb-3 mt-2" action="{{ route('payment.tinkoff.pay') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="partner_id" value="{{ $partnerId }}">
+                    <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
+                    <input type="hidden" name="outSum" value="{{ $outSum }}">
+                    <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
+                    <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
+                    <input type="hidden" name="method" value="tpay">
+                    <button type="submit" class="btn btn-outline-primary pay-btn w-100">Оплатить через T‑Pay</button>
                 </form>
                 <div class="pay-fee mb-3">Комиссия: показывается банком</div>
             </div>
