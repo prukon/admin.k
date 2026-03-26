@@ -134,6 +134,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('contracts.view');
         });
 
+        // Договоры: ручная синхронизация с Подпислон (статус и подписанный файл)
+        Gate::define('contracts.sync', function (User $user) {
+            return $user->hasPermission('contracts.sync');
+        });
+
         // Страница "Настройки
         Gate::define('settings.view', function (User $user) {
             return $user->hasPermission('settings.view');

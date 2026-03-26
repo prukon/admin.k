@@ -176,6 +176,8 @@ class ContractsSigningTest extends ContractsFeatureTestCase
         ]);
         $this->app->instance(SignatureProvider::class, $provider);
 
+        $this->grantPermissionToRoleForPartner($this->user->role_id, $this->partner->id, 'contracts.sync');
+
         $this->getJson('/client-contracts/' . $contract->id . '/status')
             ->assertStatus(200)
             ->assertJsonStructure(['status', 'raw']);

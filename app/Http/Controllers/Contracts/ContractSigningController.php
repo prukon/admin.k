@@ -391,6 +391,8 @@ class ContractSigningController extends Controller
 
     public function status(Contract $contract, SignatureProvider $provider)
     {
+        $this->authorize('contracts.sync');
+
         try {
             if (!$contract->provider_doc_id) {
                 return response()->json([

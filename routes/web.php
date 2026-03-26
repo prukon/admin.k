@@ -493,7 +493,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
             Route::post('/client-contracts/{contract}/send', [ContractSigningController::class, 'send'])->name('contracts.send');
             Route::post('/client-contracts/{contract}/resend', [ContractSigningController::class, 'resend'])->name('contracts.resend');
             Route::post('/client-contracts/{contract}/revoke', [ContractSigningController::class, 'revoke'])->name('contracts.revoke');
-            Route::get('/client-contracts/{contract}/status', [ContractSigningController::class, 'status'])->name('contracts.status');
+            Route::get('/client-contracts/{contract}/status', [ContractSigningController::class, 'status'])
+                ->middleware('can:contracts.sync')
+                ->name('contracts.status');
             Route::post('/client-contracts/{contract}/send-email', [ContractSigningController::class, 'sendEmail'])->name('contracts.sendEmail');
             Route::get('/client-contracts/{contract}/download-original', [ContractsController::class, 'downloadOriginal'])->name('contracts.downloadOriginal');
             Route::get('/client-contracts/{contract}/download-signed', [ContractsController::class, 'downloadSigned'])->name('contracts.downloadSigned');

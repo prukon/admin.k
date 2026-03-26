@@ -84,11 +84,13 @@
                             </button>
                         @endif
 
-                        @if($contract->provider_doc_id && (in_array($contract->status, ['sent','opened','failed','expired'], true) || ($contract->status === 'signed' && !$contract->signed_pdf_path)))
-                            <button type="button" class="btn btn-outline-secondary" id="syncStatusBtn" data-id="{{ $contract->id }}">
-                                Синхронизировать с Подпислон
-                            </button>
-                        @endif
+                        @can('contracts.sync')
+                            @if($contract->provider_doc_id && (in_array($contract->status, ['sent','opened','failed','expired'], true) || ($contract->status === 'signed' && !$contract->signed_pdf_path)))
+                                <button type="button" class="btn btn-outline-secondary" id="syncStatusBtn" data-id="{{ $contract->id }}">
+                                    Синхронизировать с Подпислон
+                                </button>
+                            @endif
+                        @endcan
 
 
                         @if($contract->status === 'signed')

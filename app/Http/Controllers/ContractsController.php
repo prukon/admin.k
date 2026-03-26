@@ -1121,6 +1121,7 @@ class ContractsController extends Controller
     public function status(Contract $contract, SignatureProvider $provider)
     {
         abort_unless($contract->school_id === $this->partnerId(), 403, 'Нет доступа к договору этого партнёра.');
+        $this->authorize('contracts.sync');
 
         try {
             $data = $provider->getStatus($contract);
