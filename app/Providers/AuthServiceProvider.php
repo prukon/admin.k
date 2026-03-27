@@ -344,9 +344,16 @@ class AuthServiceProvider extends ServiceProvider
         //     return $user->hasPermission('setting_payment_systems');
         // });
 
-        // Настройка платежных систем
-        Gate::define('payment.method.tbank', function (User $user) {
-            return $user->hasPermission('payment.method.tbank');
+        Gate::define('payment.method.robokassa', function (User $user) {
+            return $user->hasPermission('payment.method.robokassa');
+        });
+
+        Gate::define('payment.method.tbankCard', function (User $user) {
+            return $user->hasPermission('payment.method.tbankCard');
+        });
+
+        Gate::define('payment.method.tbankSBP', function (User $user) {
+            return $user->hasPermission('payment.method.tbankSBP');
         });
 
         // Управление интеграцией T-Bank (админские действия: sm-register, payouts, debug, админ-карточки)

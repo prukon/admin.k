@@ -76,16 +76,16 @@ class TransactionController extends Controller
         $curPartner = app('current_partner');
         $partnerId = app('current_partner')->id;
 
+        $user = $request->user();
 
-
- 
-        // Доступность платёжных систем
-        $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner);
-        $tbankAvailable     = $paymentService->isTbankAvailable($curPartner);
+        // Доступность платёжных систем (настройки партнёра + право на способ оплаты)
+        $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner)
+            && $user->can('payment.method.robokassa');
+        $tbankAvailable = $paymentService->isTbankAvailable($curPartner)
+            && $user->can('payment.method.tbankCard');
         $amountCents = $paymentService->amountToCents($outSum);
-        $tbankSbpAvailable  = $paymentService->isTbankSbpAvailable($curPartner, $amountCents);
-
-
+        $tbankSbpAvailable = $paymentService->isTbankSbpAvailable($curPartner, $amountCents)
+            && $user->can('payment.method.tbankSBP');
 
         return view('payment.paymentUser', compact(
             'paymentDate',
@@ -101,6 +101,8 @@ class TransactionController extends Controller
     //Переход со страницы выбора оплат. Формирование ссылки робокасса (Юзер)
     public function pay(Request $request)
     {
+        $this->authorize('payment.method.robokassa');
+
         $user = $request->user();
         $userId = (int) $user->id;
         $userName = (string) ($user->name ?? '');
@@ -287,11 +289,15 @@ class TransactionController extends Controller
         $partnerId = app('current_partner')->id;
         $outSum = (string) $request->input('outSum', '');
 
-        // Доступность платёжных систем
-        $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner);
-        $tbankAvailable     = $paymentService->isTbankAvailable($curPartner);
+        $user = $request->user();
+
+        $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner)
+            && $user->can('payment.method.robokassa');
+        $tbankAvailable = $paymentService->isTbankAvailable($curPartner)
+            && $user->can('payment.method.tbankCard');
         $amountCents = $paymentService->amountToCents($outSum);
-        $tbankSbpAvailable  = $paymentService->isTbankSbpAvailable($curPartner, $amountCents);
+        $tbankSbpAvailable = $paymentService->isTbankSbpAvailable($curPartner, $amountCents)
+            && $user->can('payment.method.tbankSBP');
 
         return view('payment.clubFee', compact(
             'outSum',

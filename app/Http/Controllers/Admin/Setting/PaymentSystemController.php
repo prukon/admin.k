@@ -87,6 +87,8 @@ class PaymentSystemController extends AdminBaseController
         Log::debug('HIT store AFTER validate');
 
         $validated = $validator->validated();
+        $this->authorizePaymentSystemMethod($validated['name']);
+
         $partnerId = $this->requirePartnerId();
 
         Log::debug('store payment settings', [
@@ -141,6 +143,8 @@ class PaymentSystemController extends AdminBaseController
 
     public function show(Request $request, string $name)
     {
+        $this->authorizePaymentSystemMethod($name);
+
         $partnerId = $this->requirePartnerId();
 
         $paymentSystem = PaymentSystem::where([
@@ -169,8 +173,31 @@ class PaymentSystemController extends AdminBaseController
             return response()->json(['message' => 'Доступ запрещён'], 403);
         }
 
+        $this->authorizePaymentSystemMethod($paymentSystem->name);
+
         $paymentSystem->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Настройка конкретной ПС в админке разрешена только при соответствующем праве на способ оплаты.
+     */
+    private function authorizePaymentSystemMethod(string $name): void
+    {
+        if ($name === 'robokassa') {
+            $this->authorize('payment.method.robokassa');
+
+            return;
+        }
+
+        if ($name === 'tbank') {
+            $user = Auth::user();
+            if (!$user->can('payment.method.tbankCard') && !$user->can('payment.method.tbankSBP')) {
+                abort(403);
+            }
+
+            return;
+        }
     }
 }

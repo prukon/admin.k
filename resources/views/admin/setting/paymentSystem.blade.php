@@ -1,6 +1,7 @@
 <h4 class="pt-3 pb-3 text-start">Платежные системы</h4>
 
 <div class="row mt-4">
+    @can('payment.method.robokassa')
     {{-- Карточка: Робокасса --}}
     <div class="col-sm-3 mb-4">
         <div class="card shadow h-100">
@@ -34,7 +35,10 @@
             </div>
         </div>
     </div>
+    @endcan
 
+@php($canTbankSettings = auth()->user()->can('payment.method.tbankCard') || auth()->user()->can('payment.method.tbankSBP'))
+@if($canTbankSettings)
 {{-- Карточка: T-Банк --}}
 <div class="col-sm-3 mb-4">
     <div class="card shadow h-100">
@@ -67,10 +71,12 @@
         </div>
     </div>
 </div>
+@endif
 
 
 </div>
 
+@can('payment.method.robokassa')
 {{--Модалка для ввода настроек Робокассы--}}
 <div class="modal fade" id="modalRobokassa" tabindex="-1" aria-labelledby="modalRobokassaLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -156,7 +162,9 @@
         </div>
     </div>
 </div>
+@endcan
 
+@if($canTbankSettings)
 {{--Модалка для Tбанка--}}
 <div class="modal fade" id="modalTbank" tabindex="-1" aria-labelledby="modalTbankLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -228,6 +236,7 @@
         </div>
     </div>
 </div>
+@endif
 
 @section('scripts')
 

@@ -37,7 +37,7 @@ class IstokMenuSeeder extends Seeder
                 'bank_bik' => null,
                 'bank_account' => null,
                 'activity_start_date' => null,
-                'tinkoff_partner_id' => null,
+                'tinkoff_partner_id' => 'fc3d02a0-398e-3648-b595-eda8f7cb7d3r',
                 'sm_register_status' => null,
                 'bank_details_version' => null,
                 'bank_details_last_updated_at' => null,

@@ -29,7 +29,7 @@
             </div>
             @endif
 
-            {{-- T‑Bank (мультирасчёты) --}}
+            {{-- T‑Bank карта (отдельно от СБП: разные права) --}}
             @if(!empty($tbankAvailable))
             <div class="wrap-pay" style="max-width: 300px;">
                 <h5 class="pay-name mt-3 mb-3">T‑Bank (мультирасчёты)</h5>
@@ -44,6 +44,7 @@
                 </form>
                 <div class="pay-fee mb-3">Комиссия: показывается банком</div>
             </div>
+            @endif
 
             {{-- T‑Bank СБП (QR) --}}
             @if(!empty($tbankSbpAvailable))
@@ -60,7 +61,6 @@
                     </form>
                     <div class="pay-fee mb-3">Комиссия: показывается банком</div>
                 </div>
-            @endif
             @endif
 
         </div>

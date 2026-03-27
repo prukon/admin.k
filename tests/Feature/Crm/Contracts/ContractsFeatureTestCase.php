@@ -10,6 +10,8 @@ abstract class ContractsFeatureTestCase extends CrmTestCase
 {
     protected const PERM_CONTRACTS_VIEW = 'contracts.view';
 
+    protected const PERM_CONTRACTS_SYNC = 'contracts.sync';
+
     protected function setUp(): void
     {
         parent::setUp();

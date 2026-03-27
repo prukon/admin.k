@@ -41,6 +41,15 @@ class PermissionGroupsSeeder extends Seeder
                 'updated_at'  => $now,
             ],
             [
+                'slug'        => 'paymentMethods',
+                'name'        => 'Способы оплаты',
+                'description' => null,
+                'is_visible'  => 1,
+                'sort_order'  => 35,
+                'created_at'  => $now,
+                'updated_at'  => $now,
+            ],
+            [
                 'slug'        => 'misc',
                 'name'        => 'Разное',
                 'description' => null,

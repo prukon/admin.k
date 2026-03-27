@@ -184,8 +184,8 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>7.3 Доступы и изоляция по партнёру</h3>
   <ul>
-    <li>Все маршруты QR сгруппированы с оплатой T‑Bank под middleware <code>can:payment.method.tbank</code> (плюс общие <code>auth</code> и <code>2fa</code> для кабинета).</li>
-    <li>Без авторизации — редирект на страницу входа. Без права <code>payment.method.tbank</code> — ответ <b>403</b>.</li>
+    <li>Оплата картой: <code>POST /payments/tinkoff/create</code> — <code>can:payment.method.tbankCard</code>. СБП и QR: <code>POST /payments/tinkoff/sbp</code>, <code>/tinkoff/qr/…</code> — <code>can:payment.method.tbankSBP</code> (плюс общие <code>auth</code> и <code>2fa</code> для кабинета).</li>
+    <li>Без авторизации — редирект на страницу входа. Без соответствующего права — ответ <b>403</b>.</li>
     <li><code>TinkoffQrController</code> сверяет <code>tinkoff_payments.partner_id</code> с <code>current_partner</code>; чужой <code>PaymentId</code> → <b>404</b> (в т.ч. для <code>/json</code> и <code>/state</code>).</li>
     <li>Параметр <code>partner_id</code> из формы при альтернативном <code>POST …/qr-init</code> не используется: партнёр берётся только из контекста (см. тесты безопасности).</li>
   </ul>
@@ -205,7 +205,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>8.1 Права/доступы (важно для безопасности)</h3>
   <ul>
-    <li><b>Оплата для клиентов</b>: роуты витрины и QR находятся под <code>can:payment.method.tbank</code>.</li>
+    <li><b>Оплата для клиентов</b>: карта — <code>can:payment.method.tbankCard</code>; СБП и QR — <code>can:payment.method.tbankSBP</code>; Робокасса — <code>can:payment.method.robokassa</code> (см. группу прав «Способы оплаты»).</li>
     <li><b>Выплаты для бухгалтера</b>: действия <code>POST /tinkoff/payouts/{deal}/…</code> и админ‑страница списка <code>/admin/tinkoff/payouts</code> (включая <code>/data</code>, карточку, настройки колонок) — под <code>can:tbank.payouts.manage</code> (permission <code>tbank.payouts.manage</code>). Подробнее: <a href="./tbank-admin-payouts.html">админка выплат</a>.</li>
     <li><b>Полный админ‑доступ</b> (sm-register/debug/карточки/close deal): под <code>can:manage.payment.method.tbank</code> (только владелец/superadmin).</li>
   </ul>

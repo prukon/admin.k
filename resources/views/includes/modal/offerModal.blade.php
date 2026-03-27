@@ -5,8 +5,7 @@
                 <h5 class="modal-title">Партнёрская оферта</h5>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-{{--                @include('admin.partnerOferta')--}}
-                @include('partner-offer-multirasschety')
+                @include('agreements.partner-offerta')
             </div>
             <div class="modal-footer">
                 <form method="POST" action="{{ route('partner.accept-offer') }}">

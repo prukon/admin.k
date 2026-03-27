@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Страница СБП QR, AJAX GetQr/GetState и контроль доступа (can:payment.method.tbank).
+ * Страница СБП QR, AJAX GetQr/GetState и контроль доступа (can:payment.method.tbankSBP).
  */
 class TbankQrFeatureTest extends CrmTestCase
 {
@@ -23,7 +23,7 @@ class TbankQrFeatureTest extends CrmTestCase
 
     private function grantTbankPaymentPermissionForCurrentUser(): void
     {
-        $permId = $this->permissionId('payment.method.tbank');
+        $permId = $this->permissionId('payment.method.tbankSBP');
 
         DB::table('permission_role')->insertOrIgnore([
             'partner_id' => $this->partner->id,
@@ -151,7 +151,7 @@ class TbankQrFeatureTest extends CrmTestCase
 
     public function test_user_without_tbank_permission_cannot_access_qr_routes(): void
     {
-        $deniedUser = $this->createUserWithoutPermission('payment.method.tbank', $this->partner);
+        $deniedUser = $this->createUserWithoutPermission('payment.method.tbankSBP', $this->partner);
         $this->seedConnectedTbankForPartner($this->partner->id);
         $this->createTinkoffPaymentForCurrentPartner();
 
