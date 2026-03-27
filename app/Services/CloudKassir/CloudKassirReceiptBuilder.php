@@ -62,7 +62,7 @@ class CloudKassirReceiptBuilder
             'Object' => $this->resolveObject(),
         ];
 
-        $item = $this->appendPurveyorAndPaymentAgentOnItem($item, $partner);
+        $item = $this->appendAgentFieldsOnItem($item, $partner);
 
         $customerReceipt = [
             'Items' => [$item],
@@ -75,8 +75,6 @@ class CloudKassirReceiptBuilder
             'IsInternetPayment' => true,
             'RussiaTimeZone' => (int) config('services.cloudkassir.russia_time_zone', 2),
         ];
-
-        $customerReceipt = $this->appendAgentSignOnCustomerReceipt($customerReceipt);
 
         return [
             'Inn' => $platformInn,
@@ -108,29 +106,11 @@ class CloudKassirReceiptBuilder
     }
 
     /**
-     * Признак агента задаётся на уровне CustomerReceipt (см. API CloudKassir /kkt/receipt).
+     * Признак агента (AgentSign), данные принципала (PurveyorData) и платёжного агента (AgentData) — на уровне позиции.
+     * Для ККТ с ФФД 1.2 признак на весь чек (CustomerReceipt / тег 1057 на документ) может не поддерживаться;
+     * передача в Items[] согласуется с фактическим поведением кассы.
      */
-    protected function appendAgentSignOnCustomerReceipt(array $customerReceipt): array
-    {
-        $agentEnabled = (bool) config('services.cloudkassir.agent.enabled', false);
-        if (!$agentEnabled) {
-            return $customerReceipt;
-        }
-
-        $agentSign = config('services.cloudkassir.agent.agent_sign');
-        if ($agentSign === null || $agentSign === '') {
-            return $customerReceipt;
-        }
-
-        $customerReceipt['AgentSign'] = (string) $agentSign;
-
-        return $customerReceipt;
-    }
-
-    /**
-     * Данные поставщика (принципала) и платёжного агента — в позиции (реквизиты агента по ФФД привязаны к предмету расчёта).
-     */
-    protected function appendPurveyorAndPaymentAgentOnItem(array $item, Partner $partner): array
+    protected function appendAgentFieldsOnItem(array $item, Partner $partner): array
     {
         $agentEnabled = (bool) config('services.cloudkassir.agent.enabled', false);
         if (!$agentEnabled) {
@@ -141,6 +121,8 @@ class CloudKassirReceiptBuilder
         if ($agentSign === null || $agentSign === '') {
             return $item;
         }
+
+        $item['AgentSign'] = (string) $agentSign;
 
         $purveyorEnabled = (bool) config('services.cloudkassir.agent.use_purveyor_data', false);
         if ($purveyorEnabled) {

@@ -77,14 +77,14 @@ class CloudKassirReceiptBuilderAgentTest extends CrmTestCase
         $this->assertSame('7708806062', $payload['Inn']);
         $this->assertSame('Income', $payload['Type']);
         $this->assertSame(1, $payload['CustomerReceipt']['TaxationSystem']);
-        $this->assertSame('6', $payload['CustomerReceipt']['AgentSign']);
+        $this->assertArrayNotHasKey('AgentSign', $payload['CustomerReceipt']);
         $this->assertSame('3500.00', $payload['CustomerReceipt']['Amounts']['Electronic']);
         $this->assertSame('https://school.example', $payload['CustomerReceipt']['CalculationPlace']);
         $this->assertTrue($payload['CustomerReceipt']['IsInternetPayment']);
 
         $item = $payload['CustomerReceipt']['Items'][0];
 
-        $this->assertArrayNotHasKey('AgentSign', $item);
+        $this->assertSame('6', $item['AgentSign']);
 
         $this->assertSame('Абонемент за март', $item['Label']);
         $this->assertSame('3500.00', $item['Price']);
