@@ -99,6 +99,9 @@ class PartnerFactory extends Factory
                 ? $this->faker->unique()->uuid()
                 : null,
 
+            /** Код НДС CloudKassir; null — не облагается */
+            'vat' => null,
+
             'sm_register_status' => null,
             'registered_at' => null,
 

@@ -67,6 +67,26 @@
                             <div class="text-danger error-taxation_system"></div>
                         </div>
 
+                        {{-- НДС для фискализации (принципал) --}}
+                        <div class="mb-3" id="vat_wrapper">
+                            <label for="vat" class="form-label">Ставка НДС (онлайн-чек)</label>
+                            <select name="vat" id="vat" class="form-control">
+                                <option value="" @if(old('vat') === null || old('vat') === '') selected @endif>НДС не облагается</option>
+                                <option value="0"{{ old('vat') === '0' || old('vat') === 0 ? ' selected' : '' }}>НДС 0%</option>
+                                <option value="5"{{ old('vat') === '5' || old('vat') === 5 ? ' selected' : '' }}>НДС 5%</option>
+                                <option value="7"{{ old('vat') === '7' || old('vat') === 7 ? ' selected' : '' }}>НДС 7%</option>
+                                <option value="10"{{ old('vat') === '10' || old('vat') === 10 ? ' selected' : '' }}>НДС 10%</option>
+                                <option value="20"{{ old('vat') === '20' || old('vat') === 20 ? ' selected' : '' }}>НДС 20%</option>
+                                <option value="22"{{ old('vat') === '22' || old('vat') === 22 ? ' selected' : '' }}>НДС 22%</option>
+                                <option value="105"{{ old('vat') === '105' || old('vat') === 105 ? ' selected' : '' }}>Расчётный НДС 5/105</option>
+                                <option value="107"{{ old('vat') === '107' || old('vat') === 107 ? ' selected' : '' }}>Расчётный НДС 7/107</option>
+                                <option value="110"{{ old('vat') === '110' || old('vat') === 110 ? ' selected' : '' }}>Расчётный НДС 10/110</option>
+                                <option value="120"{{ old('vat') === '120' || old('vat') === 120 ? ' selected' : '' }}>Расчётный НДС 20/120</option>
+                                <option value="122"{{ old('vat') === '122' || old('vat') === 122 ? ' selected' : '' }}>Расчётный НДС 22/122</option>
+                            </select>
+                            <div class="text-danger error-vat"></div>
+                        </div>
+
                         {{-- КПП --}}
                         <div class="mb-3" id="kpp_wrapper">
                             <label for="kpp" class="form-label">КПП</label>
@@ -266,6 +286,25 @@
                                 <option value="5">Патент</option>
                             </select>
                             <p class="text-danger" id="edit-taxation_system-error"></p>
+                        </div>
+
+                        <div class="mb-3" id="edit-vat_wrapper">
+                            <label for="edit-vat" class="form-label">Ставка НДС (онлайн-чек)</label>
+                            <select name="vat" class="form-control" id="edit-vat">
+                                <option value="">НДС не облагается</option>
+                                <option value="0">НДС 0%</option>
+                                <option value="5">НДС 5%</option>
+                                <option value="7">НДС 7%</option>
+                                <option value="10">НДС 10%</option>
+                                <option value="20">НДС 20%</option>
+                                <option value="22">НДС 22%</option>
+                                <option value="105">Расчётный НДС 5/105</option>
+                                <option value="107">Расчётный НДС 7/107</option>
+                                <option value="110">Расчётный НДС 10/110</option>
+                                <option value="120">Расчётный НДС 20/120</option>
+                                <option value="122">Расчётный НДС 22/122</option>
+                            </select>
+                            <p class="text-danger" id="edit-vat-error"></p>
                         </div>
 
                         <div class="mb-3" id="edit-kpp_wrapper">
@@ -549,7 +588,7 @@
             function toggleCreateFields() {
                 const type = createForm.business_type.value;
                 const isPP = type === 'physical_person';
-                ['organization_name_wrapper','tax_id_wrapper','taxation_system_wrapper','kpp_wrapper','registration_number_wrapper','requisites','bankFields']
+                ['organization_name_wrapper','tax_id_wrapper','taxation_system_wrapper','vat_wrapper','kpp_wrapper','registration_number_wrapper','requisites','bankFields']
                     .forEach(id => { const node = document.getElementById(id); if (node) node.style.display = isPP ? 'none' : ''; });
                 document.getElementById('label-title').textContent = isPP ? 'ФИО*' : 'Наименование*';
             }
@@ -590,6 +629,7 @@
                     $('#edit-organization_name').val(response.organization_name || '');
                     $('#edit-tax_id').val(response.tax_id);
                     $('#edit-taxation_system').val(response.taxation_system !== undefined && response.taxation_system !== null ? String(response.taxation_system) : '');
+                    $('#edit-vat').val(response.vat !== undefined && response.vat !== null ? String(response.vat) : '');
                     $('#edit-kpp').val(response.kpp);
                     $('#edit-registration_number').val(response.registration_number);
 
@@ -637,6 +677,7 @@
             // Для физлица скрываем юр.поля и реквизиты
             $('#edit-tax_id_wrapper').toggle(!isPP);
             $('#edit-taxation_system_wrapper').toggle(!isPP);
+            $('#edit-vat_wrapper').toggle(!isPP);
             $('#edit-organization_name_wrapper').toggle(!isPP);
             $('#edit-kpp_wrapper').toggle(!isPP && showKpp);
             $('#edit-registration_number_wrapper').toggle(!isPP);

@@ -31,6 +31,13 @@
                             href="/admin/reports/payment-intents" role="tab">Платежные запросы</a>
                     </li>
                 @endcan
+
+                @can('reports.fiscal.receipts.view')
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {{ $activeTab == 'fiscal-receipts' ? 'active' : '' }}"
+                            href="/admin/reports/fiscal-receipts" role="tab">Чеки</a>
+                    </li>
+                @endcan
             </ul>
 
 
@@ -52,6 +59,11 @@
                 @elseif($activeTab === 'payment-intents')
                     <!-- Контент вкладки платежные запросы -->
                     @include('admin.report.payment_intents', [
+                        'filters' => $filters ?? [],
+                    ])
+                @elseif($activeTab === 'fiscal-receipts')
+                    <!-- Контент вкладки чеки -->
+                    @include('admin.report.fiscal_receipts', [
                         'filters' => $filters ?? [],
                     ])
                 @endif

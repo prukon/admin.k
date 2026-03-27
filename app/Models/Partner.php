@@ -31,7 +31,8 @@ class Partner extends Model
         'registered_at'       => 'datetime',
         'bank_details_last_updated_at' => 'datetime',
         'taxation_system' => 'integer',
-
+        /** Код ставки НДС CloudKassir (Items.Vat); null — не облагается */
+        'vat' => 'integer',
 
     ];
 

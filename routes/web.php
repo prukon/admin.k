@@ -62,6 +62,7 @@ use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\Debug\RequestDebugController;
 use App\Http\Middleware\DebugRequestAccess;
 use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
+use App\Http\Controllers\Admin\Report\FiscalReceiptReportController;
 use App\Http\Controllers\Admin\UserAvatarController;
 use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
 use App\Http\Controllers\Admin\Report\PaymentMonthlyReportController;
@@ -220,6 +221,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware(['can:reports.payment.intents.view'])->group(function () {
         Route::get('/admin/reports/payment-intents', [PaymentIntentReportController::class, 'paymentIntents'])->name('reports.payment-intents.index');
         Route::get('/admin/reports/getPaymentIntents', [PaymentIntentReportController::class, 'getPaymentIntents'])->name('reports.payment-intents.data');
+    });
+
+    // Отчёты -> "Чеки" (fiscal_receipts)
+    Route::middleware(['can:reports.fiscal.receipts.view'])->group(function () {
+        Route::get('/admin/reports/fiscal-receipts', [FiscalReceiptReportController::class, 'index'])->name('reports.fiscal-receipts.index');
+        Route::get('/admin/reports/fiscal-receipts/data', [FiscalReceiptReportController::class, 'data'])->name('reports.fiscal-receipts.data');
+        Route::get('/admin/reports/fiscal-receipts/columns-settings', [FiscalReceiptReportController::class, 'getColumnsSettings']);
+        Route::post('/admin/reports/fiscal-receipts/columns-settings', [FiscalReceiptReportController::class, 'saveColumnsSettings']);
     });
 
     //Мои платежи (feature test +)

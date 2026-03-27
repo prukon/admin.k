@@ -94,6 +94,7 @@ class PartnerController extends AdminBaseController
                 'organization_name' => 'Наименование организации',
                 'tax_id' => 'ИНН',
                 'taxation_system' => 'Система налогообложения (СНО)',
+                'vat' => 'Ставка НДС (онлайн-чек)',
                 'kpp' => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',
                 'sms_name' => 'Название для SMS/выписок',
@@ -115,6 +116,9 @@ class PartnerController extends AdminBaseController
                 $val = $partner->{$key} ?? '—';
                 if ($key === 'is_enabled') $val = $val ? 'Да' : 'Нет';
                 if ($key === 'taxation_system' && $val !== '—') $val = self::taxationSystemLabel((int) $val);
+                if ($key === 'vat') {
+                    $val = self::vatLabel($val === '—' || $val === null || $val === '' ? null : (int) $val);
+                }
                 $lines[] = "{$label}: {$val}";
             }
 
@@ -167,6 +171,7 @@ class PartnerController extends AdminBaseController
             'organization_name' => $partner->organization_name,
             'tax_id' => $partner->tax_id,
             'taxation_system' => $partner->taxation_system,
+            'vat' => $partner->vat,
             'kpp' => $partner->kpp,
             'registration_number' => $partner->registration_number,
             'sms_name' => $partner->sms_name,
@@ -211,7 +216,7 @@ class PartnerController extends AdminBaseController
         DB::transaction(function () use ($data, $authorId, $partnerId, $partner) {
 
             $old = $partner->only([
-                'business_type', 'title', 'organization_name', 'tax_id', 'taxation_system', 'kpp', 'registration_number',
+                'business_type', 'title', 'organization_name', 'tax_id', 'taxation_system', 'vat', 'kpp', 'registration_number',
                 'sms_name', 'city', 'zip', 'address',
                 'phone', 'email', 'website',
                 'bank_name', 'bank_bik', 'bank_account',
@@ -221,7 +226,7 @@ class PartnerController extends AdminBaseController
             $partner->update($data);
 
             $new = $partner->only([
-                'business_type', 'title', 'organization_name', 'tax_id', 'taxation_system', 'kpp', 'registration_number',
+                'business_type', 'title', 'organization_name', 'tax_id', 'taxation_system', 'vat', 'kpp', 'registration_number',
                 'sms_name', 'city', 'zip', 'address',
                 'phone', 'email', 'website',
                 'bank_name', 'bank_bik', 'bank_account',
@@ -234,6 +239,7 @@ class PartnerController extends AdminBaseController
                 'organization_name' => 'Наименование организации',
                 'tax_id' => 'ИНН',
                 'taxation_system' => 'Система налогообложения (СНО)',
+                'vat' => 'Ставка НДС (онлайн-чек)',
                 'kpp' => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',
                 'sms_name' => 'Название для SMS/выписок',
@@ -263,6 +269,10 @@ class PartnerController extends AdminBaseController
                 if ($key === 'taxation_system') {
                     if ($ov !== null && $ov !== '') $ov = self::taxationSystemLabel((int) $ov);
                     if ($nv !== null && $nv !== '') $nv = self::taxationSystemLabel((int) $nv);
+                }
+                if ($key === 'vat') {
+                    $ov = self::vatLabel($ov === null || $ov === '' ? null : (int) $ov);
+                    $nv = self::vatLabel($nv === null || $nv === '' ? null : (int) $nv);
                 }
                 if ((string)$ov !== (string)$nv) {
                     $oldLines[] = "{$label}: {$ov}";
@@ -353,6 +363,7 @@ class PartnerController extends AdminBaseController
             'organization_name',
             'tax_id',
             'taxation_system',
+            'vat',
             'kpp',
             'registration_number',
             'address',
@@ -377,6 +388,7 @@ class PartnerController extends AdminBaseController
                 'organization_name' => 'Наименование организации',
                 'tax_id' => 'ИНН',
                 'taxation_system' => 'Система налогообложения (СНО)',
+                'vat' => 'Ставка НДС (онлайн-чек)',
                 'kpp' => 'КПП',
                 'registration_number' => 'ОГРН (ОГРНИП)',
                 'address' => 'Почтовый адрес',
@@ -398,6 +410,9 @@ class PartnerController extends AdminBaseController
                 }
                 if ($key === 'taxation_system' && $val !== '—' && $val !== null && $val !== '') {
                     $val = self::taxationSystemLabel((int) $val);
+                }
+                if ($key === 'vat') {
+                    $val = self::vatLabel($val === '—' || $val === null || $val === '' ? null : (int) $val);
                 }
                 $lines[] = "{$label}: {$val}";
             }
@@ -436,6 +451,29 @@ class PartnerController extends AdminBaseController
             3 => 'ЕНВД',
             4 => 'ЕСХН',
             5 => 'Патент',
+            default => (string) $value,
+        };
+    }
+
+    /** Коды Items.Vat (CloudKassir /kkt/receipt). null — не облагается. */
+    private static function vatLabel(?int $value): string
+    {
+        if ($value === null) {
+            return 'НДС не облагается';
+        }
+
+        return match ($value) {
+            0 => 'НДС 0%',
+            5 => 'НДС 5%',
+            7 => 'НДС 7%',
+            10 => 'НДС 10%',
+            20 => 'НДС 20%',
+            22 => 'НДС 22%',
+            105 => 'Расчётный НДС 5/105',
+            107 => 'Расчётный НДС 7/107',
+            110 => 'Расчётный НДС 10/110',
+            120 => 'Расчётный НДС 20/120',
+            122 => 'Расчётный НДС 22/122',
             default => (string) $value,
         };
     }

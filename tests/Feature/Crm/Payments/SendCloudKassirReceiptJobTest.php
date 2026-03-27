@@ -20,9 +20,9 @@ class SendCloudKassirReceiptJobTest extends CrmTestCase
         Config::set('services.cloudkassir.inn', '7708806062');
         Config::set('services.cloudkassir.timeout', 30);
 
+        Config::set('services.cloudkassir.taxation_system', 1);
         Config::set('services.cloudkassir.default_method', 4);
         Config::set('services.cloudkassir.default_object', 4);
-        Config::set('services.cloudkassir.default_vat', 0);
         Config::set('services.cloudkassir.russia_time_zone', 2);
 
         Config::set('services.cloudkassir.agent.enabled', true);
@@ -37,6 +37,7 @@ class SendCloudKassirReceiptJobTest extends CrmTestCase
             'phone' => '+79990000002',
             'website' => 'https://school.example',
             'taxation_system' => 1,
+            'vat' => 10,
         ]);
 
         $payable = Payable::query()->create([
@@ -95,14 +96,18 @@ class SendCloudKassirReceiptJobTest extends CrmTestCase
         Http::assertSent(function ($request) {
             $data = $request->data();
 
+            $cr = $data['CustomerReceipt'] ?? [];
+
             return $request->url() === 'https://api.cloudpayments.ru/kkt/receipt'
                 && $data['Inn'] === '7708806062'
                 && $data['Type'] === 'Income'
-                && $data['CustomerReceipt']['TaxationSystem'] === 1
-                && $data['CustomerReceipt']['Items'][0]['Label'] === 'Абонемент за март'
-                && $data['CustomerReceipt']['Items'][0]['AgentSign'] === '6'
-                && $data['CustomerReceipt']['Items'][0]['AgentData']['PaymentAgentPhone'] === '+79110263811'
-                && $data['CustomerReceipt']['Items'][0]['PurveyorData']['Inn'] === '7700000000';
+                && ($cr['TaxationSystem'] ?? null) === 1
+                && ($cr['AgentSign'] ?? null) === '6'
+                && ($cr['Items'][0]['Label'] ?? null) === 'Абонемент за март'
+                && ! array_key_exists('AgentSign', $cr['Items'][0] ?? [])
+                && ($cr['Items'][0]['Vat'] ?? null) === 10
+                && ($cr['Items'][0]['AgentData']['PaymentAgentPhone'] ?? null) === '+79110263811'
+                && ($cr['Items'][0]['PurveyorData']['Inn'] ?? null) === '7700000000';
         });
 
         $this->assertDatabaseHas('fiscal_receipts', [
@@ -118,4 +123,4 @@ class SendCloudKassirReceiptJobTest extends CrmTestCase
         $this->assertNull($receipt->failed_at);
         $this->assertNull($receipt->error_message);
     }
-} 
+}

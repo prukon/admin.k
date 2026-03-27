@@ -39,10 +39,6 @@ class CloudKassirReceiptBuilder
             throw new RuntimeException("Partner #{$partner->id} has no tax_id.");
         }
 
-        if ($partner->taxation_system === null) {
-            throw new RuntimeException("Partner #{$partner->id} has no taxation_system.");
-        }
-
         $platformInn = (string) config('services.cloudkassir.inn', '');
         if ($platformInn === '') {
             throw new RuntimeException('CLOUDKASSIR_INN is not set in .env (ИНН платформы, на который зарегистрирована касса).');
@@ -61,30 +57,118 @@ class CloudKassirReceiptBuilder
             'Price' => $amount,
             'Quantity' => 1,
             'Amount' => $amount,
-            'Vat' => $this->resolveVat(),
+            'Vat' => $this->resolveVatForPartner($partner),
             'Method' => $this->resolveMethod(),
             'Object' => $this->resolveObject(),
         ];
 
-        $item = $this->appendAgentDataIfNeeded($item, $partner);
+        $item = $this->appendPurveyorAndPaymentAgentOnItem($item, $partner);
+
+        $customerReceipt = [
+            'Items' => [$item],
+            'TaxationSystem' => $this->resolvePlatformTaxationSystem(),
+            'Amounts' => [
+                'Electronic' => $amount,
+            ],
+            'CalculationPlace' => $this->resolveCalculationPlace($partner),
+            'Email' => $partnerEmail,
+            'IsInternetPayment' => true,
+            'RussiaTimeZone' => (int) config('services.cloudkassir.russia_time_zone', 2),
+        ];
+
+        $customerReceipt = $this->appendAgentSignOnCustomerReceipt($customerReceipt);
 
         return [
             'Inn' => $platformInn,
             'Type' => $this->mapType($fiscalReceipt->type),
             'InvoiceId' => $this->makeInvoiceId($fiscalReceipt, $paymentIntent, $payable),
             'AccountId' => $this->makeAccountId($paymentIntent),
-            'CustomerReceipt' => [
-                'Items' => [$item],
-                'TaxationSystem' => (int) $partner->taxation_system,
-                'Amounts' => [
-                    'Electronic' => $amount,
-                ],
-                'CalculationPlace' => $this->resolveCalculationPlace($partner),
-                'Email' => $partnerEmail,
-                'IsInternetPayment' => true,
-                'RussiaTimeZone' => (int) config('services.cloudkassir.russia_time_zone', 2),
-            ],
+            'CustomerReceipt' => $customerReceipt,
         ];
+    }
+
+    /**
+     * СНО в чеке — система налогообложения организации, на которую зарегистрирована ККТ (платформа), не партнёра.
+     */
+    protected function resolvePlatformTaxationSystem(): int
+    {
+        return (int) config('services.cloudkassir.taxation_system', 1);
+    }
+
+    /**
+     * Ставка НДС по данным принципала (партнёра). null — «НДС не облагается» (см. документацию CloudKassir, Vat).
+     */
+    protected function resolveVatForPartner(Partner $partner): ?int
+    {
+        if ($partner->vat === null) {
+            return null;
+        }
+
+        return (int) $partner->vat;
+    }
+
+    /**
+     * Признак агента задаётся на уровне CustomerReceipt (см. API CloudKassir /kkt/receipt).
+     */
+    protected function appendAgentSignOnCustomerReceipt(array $customerReceipt): array
+    {
+        $agentEnabled = (bool) config('services.cloudkassir.agent.enabled', false);
+        if (!$agentEnabled) {
+            return $customerReceipt;
+        }
+
+        $agentSign = config('services.cloudkassir.agent.agent_sign');
+        if ($agentSign === null || $agentSign === '') {
+            return $customerReceipt;
+        }
+
+        $customerReceipt['AgentSign'] = (string) $agentSign;
+
+        return $customerReceipt;
+    }
+
+    /**
+     * Данные поставщика (принципала) и платёжного агента — в позиции (реквизиты агента по ФФД привязаны к предмету расчёта).
+     */
+    protected function appendPurveyorAndPaymentAgentOnItem(array $item, Partner $partner): array
+    {
+        $agentEnabled = (bool) config('services.cloudkassir.agent.enabled', false);
+        if (!$agentEnabled) {
+            return $item;
+        }
+
+        $agentSign = config('services.cloudkassir.agent.agent_sign');
+        if ($agentSign === null || $agentSign === '') {
+            return $item;
+        }
+
+        $purveyorEnabled = (bool) config('services.cloudkassir.agent.use_purveyor_data', false);
+        if ($purveyorEnabled) {
+            $purveyorPhone = $this->normalizePhone($partner->phone);
+
+            $item['PurveyorData'] = [
+                'Name' => (string) ($partner->organization_name ?: $partner->title),
+                'Inn' => (string) $partner->tax_id,
+                'Phone' => $purveyorPhone,
+            ];
+        }
+
+        $agentDataEnabled = (bool) config('services.cloudkassir.agent.use_agent_data', false);
+        if ($agentDataEnabled) {
+            $paymentAgentPhone = $this->normalizePhone(
+                (string) config('services.cloudkassir.agent.payment_agent_phone', '')
+            );
+
+            if ($paymentAgentPhone === '') {
+                throw new RuntimeException('CloudKassir agent phone is not configured.');
+            }
+
+            $item['AgentData'] = [
+                'PaymentAgentPhone' => $paymentAgentPhone,
+            ];
+        }
+
+        return $item;
     }
 
     protected function mapType(string $type): string
@@ -164,17 +248,6 @@ class CloudKassirReceiptBuilder
         return (string) config('app.url');
     }
 
-    protected function resolveVat(): ?int
-    {
-        $vat = config('services.cloudkassir.default_vat', null);
-
-        if ($vat === null || $vat === '') {
-            return null;
-        }
-
-        return (int) $vat;
-    }
-
     protected function resolveMethod(): int
     {
         return (int) config('services.cloudkassir.default_method', 4);
@@ -188,49 +261,6 @@ class CloudKassirReceiptBuilder
     protected function normalizeMoney($value): string
     {
         return number_format((float) $value, 2, '.', '');
-    }
-
-    protected function appendAgentDataIfNeeded(array $item, Partner $partner): array
-    {
-        $agentEnabled = (bool) config('services.cloudkassir.agent.enabled', false);
-        if (!$agentEnabled) {
-            return $item;
-        }
-
-        $agentSign = config('services.cloudkassir.agent.agent_sign');
-        if ($agentSign === null || $agentSign === '') {
-            return $item;
-        }
-
-        $item['AgentSign'] = (string) $agentSign;
-
-        $purveyorEnabled = (bool) config('services.cloudkassir.agent.use_purveyor_data', false);
-        if ($purveyorEnabled) {
-            $purveyorPhone = $this->normalizePhone($partner->phone);
-
-            $item['PurveyorData'] = [
-                'Name' => (string) ($partner->organization_name ?: $partner->title),
-                'Inn' => (string) $partner->tax_id,
-                'Phone' => $purveyorPhone,
-            ];
-        }
-
-        $agentDataEnabled = (bool) config('services.cloudkassir.agent.use_agent_data', false);
-        if ($agentDataEnabled) {
-            $paymentAgentPhone = $this->normalizePhone(
-                (string) config('services.cloudkassir.agent.payment_agent_phone', '')
-            );
-
-            if ($paymentAgentPhone === '') {
-                throw new RuntimeException('CloudKassir agent phone is not configured.');
-            }
-
-            $item['AgentData'] = [
-                'PaymentAgentPhone' => $paymentAgentPhone,
-            ];
-        }
-
-        return $item;
     }
 
     protected function normalizePhone(?string $phone): string

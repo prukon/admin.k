@@ -26,6 +26,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'dashboard.view',                 'description' => 'Страница "Консоль"',                            'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 10],
             ['name' => 'reports.view',                   'description' => 'Страница "Отчеты"',                             'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 15],
             ['name' => 'reports.payment.intents.view',   'description' => 'Страница "Платежные запросы"',                  'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
+            ['name' => 'reports.fiscal.receipts.view',   'description' => 'Страница "Чеки"',                               'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'reports.additional.value.view',  'description' => 'Страница "Отчеты (доп. значения)"',             'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 17],
             ['name' => 'myPayments.view',                'description' => 'Страница "Мои платежи"',                        'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'myGroup.view',                   'description' => 'Страница "Моя группа"',                         'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 17],

@@ -73,7 +73,9 @@ return [
         'inn' => env('CLOUDKASSIR_INN'),
         'timeout' => (int) env('CLOUDKASSIR_TIMEOUT', 30),
 
-        'default_vat' => env('CLOUDKASSIR_DEFAULT_VAT'),
+        /** СНО кассы платформы (CustomerReceipt.TaxationSystem), должен совпадать с регистрацией ККТ. УСН доход = 1. */
+        'taxation_system' => (int) env('CLOUDKASSIR_TAXATION_SYSTEM', 1),
+
         'default_method' => (int) env('CLOUDKASSIR_DEFAULT_METHOD', 4),
         'default_object' => (int) env('CLOUDKASSIR_DEFAULT_OBJECT', 4),
         'russia_time_zone' => (int) env('CLOUDKASSIR_RUSSIA_TIME_ZONE', 2),
