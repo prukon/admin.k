@@ -83,8 +83,9 @@ class TransactionController extends Controller
             && $user->can('payment.method.robokassa');
         $tbankAvailable = $paymentService->isTbankAvailable($curPartner)
             && $user->can('payment.method.tbankCard');
-        $amountCents = $paymentService->amountToCents($outSum);
-        $tbankSbpAvailable = $paymentService->isTbankSbpAvailable($curPartner, $amountCents)
+        // На странице клубного взноса сумма вводится пользователем позже,
+        // поэтому не скрываем СБП по amountCents на этапе рендера.
+        $tbankSbpAvailable = $paymentService->isTbankAvailable($curPartner)
             && $user->can('payment.method.tbankSBP');
 
         return view('payment.paymentUser', compact(
@@ -295,8 +296,9 @@ class TransactionController extends Controller
             && $user->can('payment.method.robokassa');
         $tbankAvailable = $paymentService->isTbankAvailable($curPartner)
             && $user->can('payment.method.tbankCard');
-        $amountCents = $paymentService->amountToCents($outSum);
-        $tbankSbpAvailable = $paymentService->isTbankSbpAvailable($curPartner, $amountCents)
+        // На странице клубного взноса сумма вводится пользователем после рендера,
+        // поэтому отображаем СБП по правам и подключению метода, без проверки суммы.
+        $tbankSbpAvailable = $paymentService->isTbankAvailable($curPartner)
             && $user->can('payment.method.tbankSBP');
 
         return view('payment.clubFee', compact(

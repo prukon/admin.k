@@ -84,6 +84,11 @@ class RuleController extends AdminBaseController
             $groups->push($misc);
         }
 
+        // Скрываем полностью группы без доступных прав (для всех, включая superadmin).
+        $groups = $groups->filter(function ($group) {
+            return ($group->permissions ?? collect())->isNotEmpty();
+        })->values();
+
         return view('admin.setting.index', [
             'activeTab'   => 'rule',
             'roles'       => $roles,
