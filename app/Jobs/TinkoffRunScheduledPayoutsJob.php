@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 
 class TinkoffRunScheduledPayoutsJob implements ShouldQueue
 {
@@ -23,10 +24,26 @@ class TinkoffRunScheduledPayoutsJob implements ShouldQueue
             ->whereNull('completed_at')
             ->orderBy('when_to_run')
             ->limit(100)
-            ->get();
+            ->pluck('id');
 
-        foreach ($toRun as $p) {
-            $svc->runPayout($p);
+        foreach ($toRun as $payoutId) {
+            DB::transaction(function () use ($svc, $payoutId) {
+                $payout = TinkoffPayout::query()
+                    ->whereKey((int) $payoutId)
+                    ->lockForUpdate()
+                    ->first();
+                if (!$payout) {
+                    return;
+                }
+                if (!empty($payout->tinkoff_payout_payment_id)
+                    || (string) $payout->status !== 'INITIATED'
+                    || $payout->completed_at !== null
+                    || $payout->when_to_run === null
+                    || $payout->when_to_run->gt(now())) {
+                    return;
+                }
+                $svc->runPayout($payout);
+            });
         }
     }
 }

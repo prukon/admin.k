@@ -613,9 +613,11 @@ class PaymentReportController extends AdminBaseController
                         ->orderByDesc('id')
                         ->first();
 
-                    if ($payout && (string) $payout->status !== 'REJECTED') {
+                    if ($payout
+                        && (string) $payout->status !== 'REJECTED'
+                        && !empty($payout->tinkoff_payout_payment_id)) {
                         $disabled = true;
-                        $title = 'Возврат запрещён: есть выплата партнёру (статус: ' . (string) $payout->status . ')';
+                        $title = 'Возврат запрещён: выплата уже отправлена в банк (есть PaymentId).';
                     }
                 }
 

@@ -60,13 +60,15 @@ class TbankRefundRestrictionsTest extends CrmTestCase
             'amount' => 9000,
             'is_final' => 1,
             'status' => 'COMPLETED',
+            'tinkoff_payout_payment_id' => '999001',
+            'completed_at' => now(),
         ]);
 
         $this->postJson(route('payments.refund', ['payment' => $payment->id]), [])
             ->assertStatus(422)
             ->assertJson([
                 'error' => true,
-                'message' => 'Возврат запрещён: по этому платежу уже есть выплата партнёру.',
+                'message' => 'Возврат запрещён: выплата уже отправлена в банк (есть PaymentId выплаты).',
             ]);
 
         Queue::assertNothingPushed();
@@ -122,6 +124,65 @@ class TbankRefundRestrictionsTest extends CrmTestCase
             ]);
 
         Queue::assertPushed(TinkoffProcessRefundJob::class);
+    }
+
+    public function test_refund_allowed_when_payout_is_due_initiated_without_bank_payment_id(): void
+    {
+        Queue::fake();
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount' => '100.00',
+            'currency' => 'RUB',
+            'status' => 'paid',
+        ]);
+
+        $payment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 100.00,
+            'deal_id' => 'deal-r-overdue',
+            'payment_id' => '12347',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'status' => 'paid',
+            'out_sum' => '100.00',
+            'payment_date' => 'Клубный взнос',
+            'provider_inv_id' => 12347,
+            'tbank_payment_id' => 12347,
+        ]);
+
+        TinkoffPayout::create([
+            'payment_id' => (int) $payment->id,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'deal-r-overdue',
+            'amount' => 9000,
+            'is_final' => 1,
+            'status' => 'INITIATED',
+            'tinkoff_payout_payment_id' => null,
+            'when_to_run' => now()->subHour(),
+        ]);
+
+        $this->postJson(route('payments.refund', ['payment' => $payment->id]), [])
+            ->assertOk()
+            ->assertJson([
+                'message' => 'refund_created',
+            ]);
+
+        Queue::assertPushed(TinkoffProcessRefundJob::class);
+
+        $payout = TinkoffPayout::query()->where('deal_id', 'deal-r-overdue')->orderByDesc('id')->first();
+        $this->assertNotNull($payout);
+        $this->assertSame('REJECTED', (string) $payout->status);
+        $this->assertArrayHasKey('cancelled_by_refund', $payout->payload_state ?? []);
     }
 }
 
