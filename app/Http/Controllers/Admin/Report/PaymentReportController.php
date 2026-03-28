@@ -605,19 +605,44 @@ class PaymentReportController extends AdminBaseController
                     }
                 }
 
-                // T-Bank: запрет возврата, если есть выплата партнёру
-                if (! $disabled && $provider === 'tbank' && ! empty($row->deal_id)) {
-                    $payout = TinkoffPayout::query()
-                        ->where('partner_id', (int) $partnerId)
-                        ->where('deal_id', $row->deal_id)
-                        ->orderByDesc('id')
-                        ->first();
-
-                    if ($payout
-                        && (string) $payout->status !== 'REJECTED'
-                        && !empty($payout->tinkoff_payout_payment_id)) {
-                        $disabled = true;
-                        $title = 'Возврат запрещён: выплата уже отправлена в банк (есть PaymentId).';
+                // T-Bank: запрет возврата, если по этой оплате выплата уже ушла в банк (только через tinkoff_payments).
+                if (! $disabled && $provider === 'tbank' && $tbankIntent) {
+                    $tpPidStr = (is_string($row->payment_id) || is_numeric($row->payment_id))
+                        ? (string) $row->payment_id
+                        : '';
+                    if ($tpPidStr === '' || !ctype_digit($tpPidStr)) {
+                        $tpPidStr = (is_string($row->payment_number) || is_numeric($row->payment_number))
+                            ? (string) $row->payment_number
+                            : '';
+                    }
+                    if ($tpPidStr !== '' && ctype_digit($tpPidStr)) {
+                        $tinkoffRowIds = TinkoffPayment::query()
+                            ->where('partner_id', (int) $partnerId)
+                            ->where('tinkoff_payment_id', $tpPidStr)
+                            ->pluck('id');
+                        $tbOrderId = trim((string) ($tbankIntent->tbank_order_id ?? ''));
+                        if ($tbOrderId !== '') {
+                            $tinkoffRowIds = $tinkoffRowIds->merge(
+                                TinkoffPayment::query()
+                                    ->where('partner_id', (int) $partnerId)
+                                    ->where('order_id', $tbOrderId)
+                                    ->pluck('id')
+                            );
+                        }
+                        $tinkoffRowIds = $tinkoffRowIds->unique()->filter()->values()->all();
+                        if ($tinkoffRowIds !== []) {
+                            $hasBlockingPayout = TinkoffPayout::query()
+                                ->where('partner_id', (int) $partnerId)
+                                ->whereIn('payment_id', $tinkoffRowIds)
+                                ->whereNotIn('status', ['REJECTED'])
+                                ->whereNotNull('tinkoff_payout_payment_id')
+                                ->where('tinkoff_payout_payment_id', '!=', '')
+                                ->exists();
+                            if ($hasBlockingPayout) {
+                                $disabled = true;
+                                $title = 'Возврат запрещён: выплата уже отправлена в банк (есть PaymentId).';
+                            }
+                        }
                     }
                 }
 

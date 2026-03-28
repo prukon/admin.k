@@ -8,6 +8,7 @@ use App\Jobs\TinkoffProcessRefundJob;
 use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\Refund;
+use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -59,37 +60,6 @@ class PaymentRefundController extends AdminBaseController
                 : 'robokassa';
 
             if ($provider === 'tbank') {
-                // 1) запретить возврат, если была выплата партнёру
-                $dealId = (string) ($lockedPayment->deal_id ?? '');
-                if ($dealId !== '') {
-                    $payout = TinkoffPayout::query()
-                        ->where('partner_id', (int) $partnerId)
-                        ->where('deal_id', $dealId)
-                        ->orderByDesc('id')
-                        ->lockForUpdate()
-                        ->first();
-                    if ($payout && (string) $payout->status !== 'REJECTED') {
-                        // После e2c/v2/Init в БД появляется PaymentId — с этого момента возврат не разрешаем.
-                        if (!empty($payout->tinkoff_payout_payment_id)) {
-                            return ['error' => true, 'message' => 'payout_exists'];
-                        }
-
-                        // Выплата ещё не уходила в банк — отменяем локально (в т.ч. просроченный INITIATED до джобы).
-                        $payload = $payout->payload_state ?? [];
-                        $payload['cancelled_by_refund'] = [
-                            'at' => now()->toIso8601String(),
-                            'actor_id' => $actorId,
-                            'refund_payment_id' => (int) $lockedPayment->id,
-                        ];
-
-                        $payout->status = 'REJECTED';
-                        $payout->completed_at = now();
-                        $payout->when_to_run = null;
-                        $payout->payload_state = $payload;
-                        $payout->save();
-                    }
-                }
-
                 $paymentIdStr = (is_string($lockedPayment->payment_id) || is_numeric($lockedPayment->payment_id))
                     ? (string) $lockedPayment->payment_id
                     : ((is_string($lockedPayment->payment_number) || is_numeric($lockedPayment->payment_number)) ? (string) $lockedPayment->payment_number : '');
@@ -112,6 +82,73 @@ class PaymentRefundController extends AdminBaseController
                 if ((string) $intent->status !== 'paid') {
                     return ['error' => true, 'message' => 'payment_not_paid'];
                 }
+
+                // Выплаты: только tinkoff_payouts.payment_id → tinkoff_payments.id (без поиска по deal_id).
+                $tinkoffRowIds = TinkoffPayment::query()
+                    ->where('partner_id', (int) $partnerId)
+                    ->where('tinkoff_payment_id', $paymentIdStr)
+                    ->orderByDesc('id')
+                    ->pluck('id');
+                $orderId = trim((string) ($intent->tbank_order_id ?? ''));
+                if ($orderId !== '') {
+                    $tinkoffRowIds = $tinkoffRowIds->merge(
+                        TinkoffPayment::query()
+                            ->where('partner_id', (int) $partnerId)
+                            ->where('order_id', $orderId)
+                            ->orderByDesc('id')
+                            ->pluck('id')
+                    );
+                }
+                $tinkoffRowIds = $tinkoffRowIds->unique()->values()->all();
+
+                $payoutIds = $tinkoffRowIds === []
+                    ? collect()
+                    : TinkoffPayout::query()
+                        ->where('partner_id', (int) $partnerId)
+                        ->whereIn('payment_id', $tinkoffRowIds)
+                        ->pluck('id')
+                        ->unique()
+                        ->values();
+
+                if ($payoutIds->isNotEmpty()) {
+                    $payoutRows = TinkoffPayout::query()
+                        ->whereIn('id', $payoutIds->all())
+                        ->lockForUpdate()
+                        ->orderBy('id')
+                        ->get();
+
+                    foreach ($payoutRows as $payoutRow) {
+                        if ((string) $payoutRow->status === 'REJECTED') {
+                            continue;
+                        }
+                        if (trim((string) ($payoutRow->tinkoff_payout_payment_id ?? '')) !== '') {
+                            return ['error' => true, 'message' => 'payout_exists'];
+                        }
+                    }
+
+                    foreach ($payoutRows as $payoutRow) {
+                        if ((string) $payoutRow->status === 'REJECTED') {
+                            continue;
+                        }
+                        if (trim((string) ($payoutRow->tinkoff_payout_payment_id ?? '')) !== '') {
+                            continue;
+                        }
+                        $payload = $payoutRow->payload_state ?? [];
+                        $payload['cancelled_by_refund'] = [
+                            'at' => now()->toIso8601String(),
+                            'actor_id' => $actorId,
+                            'refund_payment_id' => (int) $lockedPayment->id,
+                        ];
+
+                        $payoutRow->status = 'REJECTED';
+                        $payoutRow->completed_at = now();
+                        $payoutRow->when_to_run = null;
+                        $payoutRow->payload_state = $payload;
+                        $payoutRow->save();
+                    }
+                }
+
+                $dealId = trim((string) ($lockedPayment->deal_id ?? ''));
 
                 $amount = (float) $lockedPayment->summ;
                 if ($amount <= 0) {
