@@ -168,6 +168,8 @@ class PaymentReportController extends AdminBaseController
             ]);
         };
 
+        $canViewTbankHistory = Auth::user()?->can('viewing.all.logs') ?? false;
+
         return DataTables::of($paymentsQuery)
             ->addIndexColumn()
             ->addColumn('user_name', function (Payment $row) {
@@ -514,7 +516,7 @@ class PaymentReportController extends AdminBaseController
 
                 return $refund ? (string) $refund->status : '';
             })
-            ->addColumn('refund_action', function (Payment $row) use ($partnerId) {
+            ->addColumn('refund_action', function (Payment $row) use ($partnerId, $canViewTbankHistory) {
                 // Определяем провайдера
                 $provider = (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status))
                     ? 'tbank'
@@ -665,7 +667,7 @@ class PaymentReportController extends AdminBaseController
                 $buttonHtml = '<button ' . implode(' ', $btnAttrs) . '>Возврат</button>';
 
                 $historyButtonHtml = '';
-                if ($provider === 'tbank') {
+                if ($provider === 'tbank' && $canViewTbankHistory) {
                     $historyButtonHtml =
                         '<button type="button" class="btn btn-sm btn-outline-secondary ms-1 js-tbank-history-btn" ' .
                         'data-payment-id="' . (int) $row->id . '" ' .

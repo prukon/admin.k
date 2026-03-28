@@ -120,7 +120,9 @@
                        type="checkbox"
                        data-column-key="commission_total"
                        id="payColCommissionTotal"
-                       checked>
+                       checked
+                       @if(!$canAdditional) disabled @endif
+                       @if(!$canAdditional) title="Доступно по праву reports.additional.value.view" @endif>
                 <label class="form-check-label" for="payColCommissionTotal">Комиссия</label>
             </div>
 
@@ -129,7 +131,9 @@
                        type="checkbox"
                        data-column-key="net_to_partner"
                        id="payColNetToPartner"
-                       checked>
+                       checked
+                       @if(!$canAdditional) disabled @endif
+                       @if(!$canAdditional) title="Доступно по праву reports.additional.value.view" @endif>
                 <label class="form-check-label" for="payColNetToPartner">К выплате</label>
             </div>
 
@@ -158,7 +162,9 @@
                        type="checkbox"
                        data-column-key="refund_status"
                        id="payColRefundStatus"
-                       checked>
+                       checked
+                       @if(!$canAdditional) disabled @endif
+                       @if(!$canAdditional) title="Доступно по праву reports.additional.value.view" @endif>
                 <label class="form-check-label" for="payColRefundStatus">Статус возврата</label>
             </div>
 
@@ -240,6 +246,7 @@
     </div>
 </div>
 
+@can('viewing.all.logs')
 <!-- Модальное окно "История" (T‑Bank) -->
 <div class="modal fade" id="tbankHistoryModal" tabindex="-1" aria-labelledby="tbankHistoryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -282,6 +289,7 @@
         </div>
     </div>
 </div>
+@endcan
 
 <style>
     .return-receipt-link {
@@ -316,13 +324,21 @@
     payment_method_label: true,
     receipt: true,
     payout_amount: tbankEnabled,
-    net_to_partner: tbankEnabled,
-    commission_total: tbankEnabled,
-    bank_commission_total: tbankEnabled,
-    platform_commission: tbankEnabled,
-    refund_status: true,
+    net_to_partner: tbankEnabled && canAdditional,
+    commission_total: tbankEnabled && canAdditional,
+    bank_commission_total: tbankEnabled && canAdditional,
+    platform_commission: tbankEnabled && canAdditional,
+    refund_status: canAdditional,
     refund_action: true
             };
+
+            const additionalColumnsKeys = [
+                'bank_commission_total',
+                'platform_commission',
+                'commission_total',
+                'net_to_partner',
+                'refund_status',
+            ];
 
             let currentColumnsConfig = {...defaultColumnsVisibility};
 
@@ -392,8 +408,8 @@
 
                     let isVisible = toBool(config[key], defaultColumnsVisibility[key]);
 
-                    // Доступ к детальным комиссиям — только по праву.
-                    if (!canAdditional && (key === 'bank_commission_total' || key === 'platform_commission')) {
+                    // Доступ к комиссиям, «к выплате», статусу возврата — только по праву reports.additional.value.view.
+                    if (!canAdditional && additionalColumnsKeys.indexOf(key) !== -1) {
                         isVisible = false;
                     }
 
@@ -402,7 +418,7 @@
                     $('.payments-column-toggle[data-column-key="' + key + '"]')
                         .prop('checked', isVisible);
 
-                    if (!canAdditional && (key === 'bank_commission_total' || key === 'platform_commission')) {
+                    if (!canAdditional && additionalColumnsKeys.indexOf(key) !== -1) {
                         $('.payments-column-toggle[data-column-key="' + key + '"]').prop('disabled', true);
                     }
                 });
@@ -744,7 +760,9 @@ columns.push(
 
             // handlers: refund modal
             var refundModal = new bootstrap.Modal(document.getElementById('refundModal'));
+            @can('viewing.all.logs')
             var tbankHistoryModal = new bootstrap.Modal(document.getElementById('tbankHistoryModal'));
+            @endcan
 
             function applyRefundProviderUi(provider) {
                 var title = 'Возврат платежа';
@@ -825,6 +843,7 @@ columns.push(
                 });
             });
 
+            @can('viewing.all.logs')
             // handlers: tbank history modal
             function escapeHtml(str) {
                 return String(str ?? '')
@@ -914,6 +933,7 @@ columns.push(
                     }
                 });
             });
+            @endcan
         });
     </script>
 @endsection

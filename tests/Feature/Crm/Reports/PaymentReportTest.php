@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\UserTableSetting;
 use App\Models\PaymentIntent;
 use App\Models\TinkoffPayout;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use App\Jobs\TinkoffProcessRefundJob;
 use Tests\Feature\Crm\CrmTestCase;
@@ -776,7 +777,17 @@ class PaymentReportTest extends CrmTestCase
             'columns' => ['user_name' => true, 'receipt' => true],
         ])->assertOk();
 
-        // tbank-history endpoint также доступен (200)
+        // tbank-history только при viewing.all.logs
+        $now = now();
+        DB::table('permission_role')->updateOrInsert(
+            [
+                'partner_id' => $this->partner->id,
+                'role_id' => $this->user->role_id,
+                'permission_id' => $this->permissionId('viewing.all.logs'),
+            ],
+            ['created_at' => $now, 'updated_at' => $now]
+        );
+
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,

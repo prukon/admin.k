@@ -15,7 +15,20 @@ class PaymentReportTbankHistoryTest extends CrmTestCase
     {
         parent::setUp();
         session(['current_partner' => $this->partner->id]);
-        $this->asAdmin(); // reports.view
+        $this->asAdmin(); // reports.view (viewing.all.logs у admin по умолчанию нет)
+    }
+
+    private function grantViewingAllLogsToCurrentAdminRole(): void
+    {
+        $now = now();
+        DB::table('permission_role')->updateOrInsert(
+            [
+                'partner_id' => $this->partner->id,
+                'role_id' => $this->user->role_id,
+                'permission_id' => $this->permissionId('viewing.all.logs'),
+            ],
+            ['created_at' => $now, 'updated_at' => $now]
+        );
     }
 
     public function test_tbank_history_requires_reports_view_permission(): void
@@ -27,6 +40,22 @@ class PaymentReportTbankHistoryTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'deal_id' => 'deal-1',
             'payment_id' => '123',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.tbankHistory', ['payment' => $payment->id]));
+
+        $response->assertForbidden();
+    }
+
+    public function test_tbank_history_requires_viewing_all_logs_permission(): void
+    {
+        $payment = Payment::factory()->forUser($this->user)->create([
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'deal-logs',
+            'payment_id' => '999',
             'payment_status' => 'CONFIRMED',
         ]);
 
@@ -58,6 +87,8 @@ class PaymentReportTbankHistoryTest extends CrmTestCase
 
     public function test_tbank_history_returns_404_for_non_tbank_payment(): void
     {
+        $this->grantViewingAllLogsToCurrentAdminRole();
+
         $payment = Payment::factory()->forUser($this->user)->create([
             'partner_id' => $this->partner->id,
             'deal_id' => null,
@@ -74,6 +105,8 @@ class PaymentReportTbankHistoryTest extends CrmTestCase
 
     public function test_tbank_history_returns_combined_payment_and_payout_events(): void
     {
+        $this->grantViewingAllLogsToCurrentAdminRole();
+
         $payment = Payment::factory()->forUser($this->user)->create([
             'partner_id' => $this->partner->id,
             'deal_id' => 'deal-1',

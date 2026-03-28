@@ -79,9 +79,11 @@ net_to_partner   = gross - commission_total</pre>
   </ul>
 
   <div class="note">
-    <b>Права доступа:</b> детальные колонки комиссий (<code>bank_commission_total</code>, <code>platform_commission</code>)
-    показываются только пользователям с правом <code>reports.additional.value.view</code>.
-    Для остальных пользователей детальные колонки скрыты. “К выплате” (<code>net_to_partner</code>) и “Комиссия” (<code>commission_total</code>) доступны всем.
+    <b>Права доступа:</b> колонки
+    <code>bank_commission_total</code>, <code>platform_commission</code>, <code>commission_total</code>, <code>net_to_partner</code>, <code>refund_status</code>
+    в таблице «Платежи» по умолчанию скрыты и недоступны в настройке колонок без права <code>reports.additional.value.view</code>
+    (у суперадмина и ролей с этим правом — как у «Комиссия банка» / «Комиссия платформы»).
+    Колонка «Выплата» (<code>payout_amount</code>) и прочие базовые поля не зависят от этого права.
   </div>
 
   <div class="note">
