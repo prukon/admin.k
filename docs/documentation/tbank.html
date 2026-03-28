@@ -168,8 +168,9 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>POST /payments/tinkoff/sbp</code> (имя маршрута <code>payment.tinkoff.sbp</code>) → <code>TinkoffPaymentController::createSbp</code>:
       создаются <code>payables</code> и <code>payment_intents</code> (как у карточной оплаты), вызывается <code>TinkoffPaymentsService::initPayment</code> с методом <code>sbp</code> и объектом <code>DATA</code> (<code>payment_intent_id</code>, <code>payable_id</code>, <code>user_id</code>, при необходимости <code>month</code>).</li>
     <li>Редирект на <code>GET /tinkoff/qr/{PaymentId}</code> (маршрут <code>tinkoff.qr</code>), шаблон <code>resources/views/tinkoff/qr.blade.php</code>.</li>
-    <li>Браузер запрашивает <code>GET /tinkoff/qr/{PaymentId}/json</code> — сервер вызывает банк <code>POST /v2/GetQr</code> и возвращает JSON клиенту как есть.</li>
-    <li>Браузер периодически запрашивает <code>GET /tinkoff/qr/{PaymentId}/state</code> — сервер вызывает <code>POST /v2/GetState</code>. При статусе <code>CONFIRMED</code> выполняется переход на URL успеха (из данных страницы).</li>
+    <li><b>Мобильный веб</b> (узкий экран и/или типичный mobile User-Agent): кнопка «Перейти к оплате СБП» запрашивает <code>GET /tinkoff/qr/{PaymentId}/payload</code> (маршрут <code>tinkoff.qr.payload</code>) — сервер вызывает <code>POST /v2/GetQr</code> с <code>DataType=PAYLOAD</code>; в <code>Data</code> — ссылка <code>https://qr.nspk.ru/…</code> (НСПК). QR для второго телефона: свёрнутый блок «Показать QR-код» подгружает <code>/json</code> (IMAGE).</li>
+    <li><b>Десктоп</b>: браузер запрашивает <code>GET /tinkoff/qr/{PaymentId}/json</code> — сервер вызывает <code>POST /v2/GetQr</code> с <code>DataType=IMAGE</code>, JSON клиенту как есть.</li>
+    <li>Браузер периодически запрашивает <code>GET /tinkoff/qr/{PaymentId}/state</code> — сервер вызывает <code>POST /v2/GetState</code>. При <code>CONFIRMED</code> — переход на URL успеха. После возврата с НСПК статус снова опрашивается (<code>visibilitychange</code>).</li>
   </ol>
 
   <h3>7.2 Поле <code>Data</code> в ответе GetQr и отрисовка QR</h3>
@@ -177,8 +178,9 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     Ссылка <code>https://qr.nspk.ru/…</code> (режим GetQr <code>DataType=PAYLOAD</code> по умолчанию) ведёт на <b>HTML‑страницу</b> (SPA), а не на файл изображения. Браузер не может показать такой URL в <code>&lt;img src&gt;</code> — будет битая картинка.
   </div>
   <ul>
-    <li><b>Сервер</b> (<code>TinkoffQrController::getQr</code>) вызывает GetQr с <code>DataType=IMAGE</code>: в <code>Data</code> приходит <b>SVG QR в base64</b> (спецификация T‑Bank). На странице <code>tinkoff/qr.blade.php</code> оно подставляется как <code>data:image/svg+xml;base64,…</code> (или сырой XML → UTF‑8 data URI).</li>
-    <li><b>Запасной вариант</b>: если в <code>Data</code> всё же пришёл URL <code>qr.nspk.ru</code>, показывается <code>&lt;iframe sandbox=&quot;…&quot;&gt;</code> с этой страницей (там свой JS рисует QR).</li>
+    <li><b>Сервер</b>: <code>TinkoffQrController::getQr</code> — GetQr с <code>DataType=IMAGE</code>: в <code>Data</code> приходит <b>SVG QR в base64</b> (спецификация T‑Bank). На странице <code>tinkoff/qr.blade.php</code> подстановка как <code>data:image/svg+xml;base64,…</code> (или сырой XML → UTF‑8 data URI).</li>
+    <li><code>TinkoffQrController::getQrPayload</code> — GetQr с <code>DataType=PAYLOAD</code>; ответ банка отдаётся клиенту как есть. В браузере перед переходом проверяются <code>https</code> и домен в зоне <code>nspk.ru</code>.</li>
+    <li><b>Запасной вариант</b>: если в <code>Data</code> (IMAGE) пришёл URL <code>qr.nspk.ru</code>, показывается <code>&lt;iframe sandbox=&quot;…&quot;&gt;</code> с этой страницей (там свой JS рисует QR).</li>
     <li>Поддерживаются также <code>data:…</code>, PNG base64 (префикс <code>iVBOR</code>) и прямые https‑URL не НСПК для <code>&lt;img&gt;</code> (с <code>referrerPolicy=no-referrer</code> при необходимости).</li>
   </ul>
 
@@ -186,7 +188,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <ul>
     <li>Оплата картой: <code>POST /payments/tinkoff/create</code> — <code>can:payment.method.tbankCard</code>. СБП и QR: <code>POST /payments/tinkoff/sbp</code>, <code>/tinkoff/qr/…</code> — <code>can:payment.method.tbankSBP</code> (плюс общие <code>auth</code> и <code>2fa</code> для кабинета).</li>
     <li>Без авторизации — редирект на страницу входа. Без соответствующего права — ответ <b>403</b>.</li>
-    <li><code>TinkoffQrController</code> сверяет <code>tinkoff_payments.partner_id</code> с <code>current_partner</code>; чужой <code>PaymentId</code> → <b>404</b> (в т.ч. для <code>/json</code> и <code>/state</code>).</li>
+    <li><code>TinkoffQrController</code> сверяет <code>tinkoff_payments.partner_id</code> с <code>current_partner</code>; чужой <code>PaymentId</code> → <b>404</b> (в т.ч. для <code>/json</code>, <code>/payload</code> и <code>/state</code>).</li>
     <li>Параметр <code>partner_id</code> из формы при альтернативном <code>POST …/qr-init</code> не используется: партнёр берётся только из контекста (см. тесты безопасности).</li>
   </ul>
 
@@ -218,7 +220,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
         <li><b>QR enumeration</b>: доступ к <code>/tinkoff/qr/{paymentId}</code>, <code>/json</code>, <code>/state</code> для чужого партнёра → <b>404</b>.</li>
       </ul>
     </li>
-    <li><code>tests/Feature/Crm/Payments/TBank/TbankQrFeatureTest.php</code> — страница QR и AJAX (<code>/json</code>, <code>/state</code>) возвращают <b>200</b> при наличии права; сценарии ответа GetQr (URL НСПК, base64 PNG, <code>data:</code>); без права → <b>403</b>; гость → login; проброс ошибки банка в JSON.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankQrFeatureTest.php</code> — страница QR и AJAX (<code>/json</code>, <code>/payload</code>, <code>/state</code>) возвращают <b>200</b> при наличии права; сценарии ответа GetQr для IMAGE и PAYLOAD (URL НСПК, base64 PNG, <code>data:</code>); без права → <b>403</b>; гость → login; проброс ошибки банка в JSON.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Security/TbankAdminSecurityTest.php</code>
       <ul>
         <li><b>Разделение прав</b>: пользователь с одним правом выплат (<code>tbank.payouts.manage</code>) не может дергать sm-register/debug.</li>

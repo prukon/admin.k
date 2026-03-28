@@ -553,6 +553,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // QR СБП (страница плательщика)
         Route::get('/tinkoff/qr/{paymentId}', [TinkoffQrController::class, 'show'])->name('tinkoff.qr');
         Route::get('/tinkoff/qr/{paymentId}/json', [TinkoffQrController::class, 'getQr']);
+        Route::get('/tinkoff/qr/{paymentId}/payload', [TinkoffQrController::class, 'getQrPayload'])->name('tinkoff.qr.payload');
         Route::get('/tinkoff/qr/{paymentId}/state', [TinkoffQrController::class, 'state'])->name('tinkoff.qr.state');
     });
 

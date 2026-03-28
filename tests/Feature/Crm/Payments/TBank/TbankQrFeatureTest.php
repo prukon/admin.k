@@ -61,6 +61,8 @@ class TbankQrFeatureTest extends CrmTestCase
         ]);
     }
 
+    private const NSPK_PAYLOAD_URL = 'https://qr.nspk.ru/BC000000TEST';
+
     private function fakeTinkoffQrAndState(?string $qrData = null, string $status = 'FORM_SHOWED'): void
     {
         $qrData ??= self::SVG_1X1_BASE64;
@@ -68,10 +70,20 @@ class TbankQrFeatureTest extends CrmTestCase
         Http::fake(function ($request) use ($qrData, $status) {
             $url = $request->url();
             if (str_contains($url, '/v2/GetQr')) {
+                $dataType = $request->data()['DataType'] ?? null;
+                if ($dataType === 'PAYLOAD') {
+                    return Http::response([
+                        'Success' => true,
+                        'ErrorCode' => '0',
+                        'Message' => 'OK',
+                        'Data' => self::NSPK_PAYLOAD_URL,
+                    ], 200);
+                }
+
                 $this->assertSame(
                     'IMAGE',
-                    $request->data()['DataType'] ?? null,
-                    'GetQr должен запрашиваться с DataType=IMAGE (SVG), иначе в Data приходит URL страницы НСПК, а не картинка.'
+                    $dataType,
+                    'GetQr для /json должен запрашиваться с DataType=IMAGE (SVG).'
                 );
 
                 return Http::response([
@@ -121,6 +133,11 @@ class TbankQrFeatureTest extends CrmTestCase
         $state->assertOk()
             ->assertJsonPath('Success', true)
             ->assertJsonPath('Status', 'FORM_SHOWED');
+
+        $payload = $this->getJson(route('tinkoff.qr.payload', self::PAYMENT_ID));
+        $payload->assertOk()
+            ->assertJsonPath('Success', true)
+            ->assertJsonPath('Data', self::NSPK_PAYLOAD_URL);
     }
 
     public function test_get_qr_json_returns_base64_png_data_unchanged_in_payload(): void
@@ -160,6 +177,7 @@ class TbankQrFeatureTest extends CrmTestCase
 
         $this->get(route('tinkoff.qr', self::PAYMENT_ID))->assertForbidden();
         $this->get('/tinkoff/qr/' . self::PAYMENT_ID . '/json')->assertForbidden();
+        $this->get(route('tinkoff.qr.payload', self::PAYMENT_ID))->assertForbidden();
         $this->get(route('tinkoff.qr.state', self::PAYMENT_ID))->assertForbidden();
     }
 
@@ -169,6 +187,7 @@ class TbankQrFeatureTest extends CrmTestCase
 
         $this->get(route('tinkoff.qr', self::PAYMENT_ID))->assertRedirect(route('login'));
         $this->get('/tinkoff/qr/' . self::PAYMENT_ID . '/json')->assertRedirect(route('login'));
+        $this->get(route('tinkoff.qr.payload', self::PAYMENT_ID))->assertRedirect(route('login'));
         $this->get(route('tinkoff.qr.state', self::PAYMENT_ID))->assertRedirect(route('login'));
     }
 
@@ -180,10 +199,13 @@ class TbankQrFeatureTest extends CrmTestCase
 
         Http::fake(function ($request) {
             if (str_contains($request->url(), '/v2/GetQr')) {
+                $dataType = $request->data()['DataType'] ?? null;
+                $msg = $dataType === 'PAYLOAD' ? 'Ссылка СБП недоступна' : 'QR недоступен';
+
                 return Http::response([
                     'Success' => false,
                     'ErrorCode' => '999',
-                    'Message' => 'QR недоступен',
+                    'Message' => $msg,
                 ], 200);
             }
             if (str_contains($request->url(), '/v2/GetState')) {
@@ -197,5 +219,23 @@ class TbankQrFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertJsonPath('Success', false)
             ->assertJsonPath('Message', 'QR недоступен');
+
+        $this->getJson(route('tinkoff.qr.payload', self::PAYMENT_ID))
+            ->assertOk()
+            ->assertJsonPath('Success', false)
+            ->assertJsonPath('Message', 'Ссылка СБП недоступна');
+    }
+
+    public function test_qr_page_marks_mobile_client_from_user_agent(): void
+    {
+        $this->grantTbankPaymentPermissionForCurrentUser();
+        $this->seedConnectedTbankForPartner($this->partner->id);
+        $this->createTinkoffPaymentForCurrentPartner();
+        $this->fakeTinkoffQrAndState();
+
+        $this->withHeader('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1')
+            ->get(route('tinkoff.qr', self::PAYMENT_ID))
+            ->assertOk()
+            ->assertViewHas('isMobileClient', true);
     }
 }

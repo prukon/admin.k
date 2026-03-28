@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
-use App\Services\Tinkoff\TinkoffPaymentsService;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Services\Tinkoff\TinkoffSignature;
 use App\Models\TinkoffPayment;
@@ -34,7 +34,7 @@ class TinkoffQrController extends Controller
     // }
 
     // 2) Страница с QR
-    public function show($paymentId)
+    public function show(Request $request, $paymentId)
     {
         $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
         if (!$tp || (int) $tp->partner_id !== (int) app('current_partner')->id) {
@@ -68,11 +68,29 @@ class TinkoffQrController extends Controller
             'successUrl' => $orderId ? url('/payments/tinkoff/' . $orderId . '/success') : url('/payment/success'),
             'stateUrl' => url('/tinkoff/qr/' . $paymentId . '/state'),
             'qrUrl' => url('/tinkoff/qr/' . $paymentId . '/json'),
+            'nspkPayloadUrl' => url('/tinkoff/qr/' . $paymentId . '/payload'),
+            'isMobileClient' => self::isLikelyMobileUserAgent($request->userAgent()),
             'backOutSum' => $backOutSum,
             'backPaymentDate' => $backPaymentDate,
             'backFormatedPaymentDate' => $backFormatedPaymentDate,
             'canReturnToPaymentChoice' => $intent !== null,
         ]);
+    }
+
+    /**
+     * Грубая эвристика для первичной разметки «мобильный СБП».
+     * Окончательный выбор также делается в браузере по ширине экрана (см. tinkoff/qr.blade.php).
+     */
+    private static function isLikelyMobileUserAgent(?string $userAgent): bool
+    {
+        if ($userAgent === null || $userAgent === '') {
+            return false;
+        }
+
+        return (bool) preg_match(
+            '/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile\b|CriOS|FxiOS/i',
+            $userAgent
+        );
     }
 
     /** Обратное к формату «Месяц Год» для POST на страницу выбора способа оплаты. */
@@ -93,8 +111,22 @@ class TinkoffQrController extends Controller
         return ($months[$m] ?? '') . ' ' . $d->year;
     }
 
-    // 3) AJAX — получить картинку QR
+    // 3) AJAX — получить картинку QR (GetQr DataType=IMAGE)
     public function getQr($paymentId)
+    {
+        return $this->getQrByDataType($paymentId, 'IMAGE');
+    }
+
+    /**
+     * AJAX — ссылка НСПК для оплаты с того же телефона (GetQr DataType=PAYLOAD).
+     * Ответ банка отдаём как есть; в Data обычно URL вида https://qr.nspk.ru/…
+     */
+    public function getQrPayload($paymentId)
+    {
+        return $this->getQrByDataType($paymentId, 'PAYLOAD');
+    }
+
+    private function getQrByDataType(string $paymentId, string $dataType)
     {
         $tp = TinkoffPayment::where('tinkoff_payment_id', (string) $paymentId)->first();
         if (!$tp || (int) $tp->partner_id !== (int) app('current_partner')->id) {
@@ -105,12 +137,13 @@ class TinkoffQrController extends Controller
         $payload = [
             'TerminalKey' => $cfg['terminal_key'],
             'PaymentId'   => $paymentId,
-            // IMAGE — SVG QR в Data (см. T‑Bank GetQr). PAYLOAD даёт ссылку qr.nspk.ru — это HTML, не картинка для <img>.
-            'DataType'    => 'IMAGE',
+            // IMAGE — SVG QR в Data. PAYLOAD — ссылка qr.nspk.ru (страница НСПК), для мобильного СБП.
+            'DataType'    => $dataType,
         ];
         $payload['Token'] = TinkoffSignature::makeToken($payload, $cfg['password']);
 
         $res = TinkoffApiClient::post($cfg['base_url'], '/v2/GetQr', $payload);
+
         return response()->json($res);
     }
 

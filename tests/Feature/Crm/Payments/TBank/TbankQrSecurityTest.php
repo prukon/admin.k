@@ -120,6 +120,7 @@ class TbankQrSecurityTest extends CrmTestCase
 
         $this->get(route('tinkoff.qr', $tp->tinkoff_payment_id))->assertStatus(404);
         $this->get('/tinkoff/qr/' . $tp->tinkoff_payment_id . '/json')->assertStatus(404);
+        $this->get(route('tinkoff.qr.payload', $tp->tinkoff_payment_id))->assertStatus(404);
         $this->get('/tinkoff/qr/' . $tp->tinkoff_payment_id . '/state')->assertStatus(404);
     }
 }
