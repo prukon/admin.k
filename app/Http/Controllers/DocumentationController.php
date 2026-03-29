@@ -17,9 +17,10 @@ class DocumentationController extends Controller
             ['slug' => 'payments', 'title' => 'Оплаты (payables/payment_intents/payments/users_prices)'],
             ['slug' => 'partner-context', 'title' => 'Партнёр‑контекст и SetPartner (current_partner/anti‑leak/блокировки)'],
             ['slug' => 'partners-permissions', 'title' => 'Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)'],
-            ['slug' => 'reports-payments', 'title' => 'Отчёт “Платежи” (админка): таблица и “Поля списка”'],
+            ['slug' => 'reports-payments', 'title' => 'Отчёт “Платежи” (админка): таблица, “Поля списка”, права (доп. колонки, история T‑Bank)'],
             ['slug' => 'tbank', 'title' => 'T‑Bank (мультирасчёты): настройки/комиссии/flow, СБП (QR) в CRM'],
             ['slug' => 'tbank-admin-payouts', 'title' => 'T‑Bank: админка выплат (список, DataTables, карточка, права tbank.payouts.manage)'],
+            ['slug' => 'tbank-refunds-payout-cancel', 'title' => 'T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты (tinkoff_payments → tinkoff_payouts)'],
             ['slug' => 'queues-monitoring', 'title' => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker'],
             ['slug' => 'tests-standards', 'title' => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)'],
         ];
@@ -51,6 +52,7 @@ class DocumentationController extends Controller
             'reports-payments' => base_path('docs/documentation/reports-payments.html'),
             'tbank' => base_path('docs/documentation/tbank.html'),
             'tbank-admin-payouts' => base_path('docs/documentation/tbank-admin-payouts.html'),
+            'tbank-refunds-payout-cancel' => base_path('docs/documentation/tbank-refunds-payout-cancel.html'),
             'queues-monitoring' => base_path('docs/documentation/queues-monitoring.html'),
             'tests-standards' => base_path('docs/documentation/tests-standards.html'),
         ];

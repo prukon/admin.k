@@ -19,7 +19,7 @@
 <body>
 <div class="wrap">
   <h1>Отчёт “Платежи” (админка)</h1>
-  <div class="small">Файл: <code>/docs/documentation/reports-payments.html</code></div>
+  <div class="small">Файл: <code>/docs/documentation/reports-payments.html</code> · <a href="/docs/documentation">список разделов</a> (<code>/doc</code>)</div>
 
   <h2>1) Где находится</h2>
   <ul>
@@ -41,6 +41,7 @@
         <li><code>POST /admin/reports/payments/columns-settings</code> — сохранить настройки (<code>columns: {key: true/false}</code>)</li>
       </ul>
     </li>
+    <li>Все эти маршруты (включая страницу и DataTables) находятся в группе с middleware <code>can:reports.view</code> — без права <code>reports.view</code> ответ <b>403</b>.</li>
   </ul>
 
   <h2>3) Колонки: выплаты и комиссии (T‑Bank)</h2>
@@ -79,11 +80,18 @@ net_to_partner   = gross - commission_total</pre>
   </ul>
 
   <div class="note">
-    <b>Права доступа:</b> колонки
+    <b>Права доступа (интерфейс «Поля списка» и видимость колонок):</b> без права <code>reports.additional.value.view</code>
+    в таблице по умолчанию скрыты и <b>нельзя включить через чекбоксы</b> колонки с ключами
     <code>bank_commission_total</code>, <code>platform_commission</code>, <code>commission_total</code>, <code>net_to_partner</code>, <code>refund_status</code>
-    в таблице «Платежи» по умолчанию скрыты и недоступны в настройке колонок без права <code>reports.additional.value.view</code>
-    (у суперадмина и ролей с этим правом — как у «Комиссия банка» / «Комиссия платформы»).
-    Колонка «Выплата» (<code>payout_amount</code>) и прочие базовые поля не зависят от этого права.
+    (то же правило, что раньше действовало только для «Комиссия банка» и «Комиссия платформы»).
+    Колонка «Выплата» (<code>payout_amount</code>), «Действия», базовые поля (ФИО, сумма, чек и т.д.) от этого права <b>не</b> зависят.
+    Право нужно явно назначить роли в разрезе партнёра (<code>permission_role</code>); в базовом конфиге роли <code>admin</code>
+    (<code>config/role_base_permissions.php</code>) оно <b>не</b> входит.
+  </div>
+  <div class="note">
+    <b>Важно (API DataTables):</b> эндпоинт <code>GET /admin/reports/getPayments</code> по-прежнему отдаёт в JSON значения комиссий, нетто и <code>refund_status</code>
+    для всех, у кого есть <code>reports.view</code> — ограничение касается <b>отображения в UI</b> и переключателей «Поля списка».
+    Отдельно сервером защищён только просмотр таймлайна T‑Bank: см. раздел «История T‑Bank» ниже.
   </div>
 
   <div class="note">
@@ -131,11 +139,66 @@ net_to_partner   = gross - commission_total</pre>
   <div class="note">
     В таблице есть 2 колонки, связанные с возвратами:
     <ul>
-      <li><b>Действия</b> (<code>refund_action</code>) — кнопка “Возврат” (может быть недоступна, если возврат запрещён правилами).</li>
-      <li><b>Статус возврата</b> (<code>refund_status</code>) — текущий статус возврата (например, <code>pending</code>/<code>succeeded</code>/<code>failed</code>).</li>
+      <li><b>Действия</b> (<code>refund_action</code>) — кнопка “Возврат” (может быть недоступна, если возврат запрещён правилами).
+        Для платежей T‑Bank в той же ячейке может отображаться кнопка <b>«История»</b> — см. раздел 7.</li>
+      <li><b>Статус возврата</b> (<code>refund_status</code>) — текущий статус возврата (например, <code>pending</code>/<code>succeeded</code>/<code>failed</code>).
+        Видимость колонки в UI и доступ к переключателю в «Поля списка» — только при <code>reports.additional.value.view</code> (раздел 3).</li>
     </ul>
     Порядок этих колонок в таблице: <b>“Действия”</b>, затем <b>“Статус возврата”</b>.
   </div>
+
+  <h3>5.1) T‑Bank: возврат и отмена отложенной выплаты партнёру</h3>
+  <div class="note">
+    <b>API:</b> <code>POST /admin/reports/payments/{payment}/refund</code> (тело: опционально <code>comment</code>), в группе <code>can:reports.view</code>.
+    Платёж должен относиться к <code>current_partner</code>.
+  </div>
+  <ul>
+    <li><b>Когда возврат запрещён (ответ 422)</b>: если по связке через таблицу <code>tinkoff_payments</code> найдена выплата <code>tinkoff_payouts</code> со статусом не <code>REJECTED</code> и с непустым <code>tinkoff_payout_payment_id</code> (выплата уже отправлена в банк на этапе e2c <code>Init</code>).</li>
+    <li><b>Когда возврат разрешён при «висящей» выплате</b>: статус выплаты <code>INITIATED</code> (или иной не <code>REJECTED</code>), но банковский PaymentId выплаты ещё пустой — перед созданием возврата такие строки переводятся в <code>REJECTED</code>, сбрасывается <code>when_to_run</code>, в <code>payload_state</code> фиксируется <code>cancelled_by_refund</code>.</li>
+    <li><b>Кнопка в таблице</b>: отключается по той же логике, что и сервер (поиск выплат только через <code>tinkoff_payments</code>, без опоры на <code>deal_id</code> отчёта).</li>
+  </ul>
+  <div class="note">
+    Подробно (модель данных, поиск строк, джоба, идемпотентность, тесты):
+    <a href="/docs/documentation/tbank-refunds-payout-cancel">tbank-refunds-payout-cancel.html</a>.
+  </div>
+
+  <h2>6) Права доступа: сводка по отчёту</h2>
+  <div class="note">
+    Ниже — соответствие прав и функционала. Подробнее о модели прав: <a href="/docs/documentation/partners-permissions">партнёры и permission_role</a>.
+  </div>
+  <ul>
+    <li><b><code>reports.view</code></b> — обязательно для страницы <code>/admin/reports/payments</code>, выборки <code>/admin/reports/getPayments</code> (AJAX),
+      <code>GET/POST …/columns-settings</code>, создания возврата <code>POST /admin/reports/payments/{payment}/refund</code>.</li>
+    <li><b><code>reports.additional.value.view</code></b> — управление видимостью «чувствительных» колонок и их чекбоксов в «Поля списка»
+      (комиссии, «К выплате», «Статус возврата»; см. раздел 3). На тело ответа <code>getPayments</code> не влияет.</li>
+    <li><b><code>viewing.all.logs</code></b> (в справочнике: «Просмотр всех логов») — кнопка <b>«История»</b> для T‑Bank, модальное окно на странице отчёта
+      и доступ к <code>GET /admin/reports/payments/{payment}/tbank-history</code> (middleware <code>can:viewing.all.logs</code>).
+      Без права кнопка не рендерится, эндпоинт отвечает <b>403</b>. Требуется также <code>reports.view</code> (маршрут внутри той же группы).</li>
+  </ul>
+
+  <h2>7) История платежа T‑Bank (кнопка «История»)</h2>
+  <div class="note">
+    Для строк с провайдером T‑Bank (наличие <code>deal_id</code> / банковского <code>payment_id</code> / <code>payment_status</code> в смысле отчёта)
+    в колонке «Действия» может выводиться вторая кнопка — <b>«История»</b>. По нажатию открывается модальное окно и выполняется запрос
+    <code>GET /admin/reports/payments/{id}/tbank-history</code> (ожидается AJAX/JSON).
+  </div>
+  <ul>
+    <li><b>Доступ:</b> только при <code>viewing.all.logs</code>; иначе кнопка и модалка не показываются, запрос к API — 403.</li>
+    <li><b>Содержимое ответа:</b> объединённый таймлайн событий по платежу — логи статусов оплаты (<code>tinkoff_payment_status_logs</code>, webhook и др.)
+      и логи выплат по связанным <code>tinkoff_payouts</code> (<code>tinkoff_payout_status_logs</code>). Платёж должен принадлежать текущему партнёру (tenant).</li>
+    <li><b>Связанная документация:</b> общий обзор T‑Bank — <a href="/docs/documentation/tbank">tbank.html</a>.</li>
+  </ul>
+
+  <h2>8) Автотесты</h2>
+  <div class="note">
+    Фичтесты покрывают доступ к странице и эндпоинтам, зависимость кнопки «История» и API от <code>viewing.all.logs</code>, модалку в HTML,
+    чекбоксы колонок от <code>reports.additional.value.view</code>, полный сценарий 200 при выдаче всех нужных прав:
+    <br><code>tests/Feature/Crm/Reports/PaymentReportTest.php</code>,
+    <br><code>tests/Feature/Crm/Reports/PaymentReportTbankHistoryTest.php</code>.
+    Сценарии возврата T‑Bank и отмены отложенной выплаты (в т.ч. колонка <code>refund_action</code>): см. раздел 5.1 и
+    <a href="/docs/documentation/tbank-refunds-payout-cancel">tbank-refunds-payout-cancel.html</a>.
+  </div>
+  <pre><code>php artisan test --env=testing --filter PaymentReport</code></pre>
 </div>
 </body>
 </html>

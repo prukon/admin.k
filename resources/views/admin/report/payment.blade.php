@@ -619,8 +619,8 @@ if (tbankEnabled) {
 
                 const acq = row.bank_commission_acquiring;
                 const payout = row.bank_commission_payout;
-                const title = `Эквайринг: ${acq !== null && acq !== undefined ? formatNumber(parseFloat(acq).toFixed(2)) : ''} руб&#10;Выплата: ${payout !== null && payout !== undefined ? formatNumber(parseFloat(payout).toFixed(2)) : ''} руб`;
-                const total = formatNumber(parseFloat(data).toFixed(2));
+                const title = `Эквайринг: ${acq !== null && acq !== undefined ? formatNumber(Math.round(parseFloat(acq))) : ''} руб&#10;Выплата: ${payout !== null && payout !== undefined ? formatNumber(Math.round(parseFloat(payout))) : ''} руб`;
+                const total = formatNumber(Math.round(parseFloat(data)));
                 return `<span title="${title}">${total} руб</span>`;
             }
         },
@@ -633,7 +633,7 @@ if (tbankEnabled) {
                 function formatNumber(number) {
                     return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                 }
-                return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
+                return `${formatNumber(Math.round(parseFloat(data)))} руб`;
             }
         },
         {
@@ -646,7 +646,7 @@ if (tbankEnabled) {
                     return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                 }
                 const title = 'Суммарные удержания по тарифу и комиссии банка';
-                const total = formatNumber(parseFloat(data).toFixed(2));
+                const total = formatNumber(Math.round(parseFloat(data)));
                 return `<span title="${title}">${total} руб</span>`;
             }
         },
@@ -659,7 +659,7 @@ if (tbankEnabled) {
                 function formatNumber(number) {
                     return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                 }
-                return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
+                return `${formatNumber(Math.round(parseFloat(data)))} руб`;
             }
         },
         {
@@ -671,7 +671,7 @@ if (tbankEnabled) {
                 function formatNumber(number) {
                     return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                 }
-                return `${formatNumber(parseFloat(data).toFixed(2))} руб`;
+                return `${formatNumber(Math.round(parseFloat(data)))} руб`;
             }
         }
     );

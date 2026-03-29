@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>T‑Bank: возврат платежа и отмена отложенной выплаты</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>T‑Bank: возврат платежа и отмена отложенной выплаты партнёру</h1>
+  <div class="small">Файл: <code>/docs/documentation/tbank-refunds-payout-cancel.html</code> · <a href="/docs/documentation">список разделов</a> (<code>/doc</code>)</div>
+
+  <div class="note">
+    Описывает актуальную логику <b>отчёта «Платежи»</b>: кнопка «Возврат», API <code>POST /admin/reports/payments/{payment}/refund</code>
+    и согласованность с таблицей <code>tinkoff_payouts</code>. Общий обзор T‑Bank и e2c: <a href="./tbank.html">tbank.html</a>,
+    отчёт и права: <a href="./reports-payments.html">reports-payments.html</a>, админка списка выплат: <a href="./tbank-admin-payouts.html">tbank-admin-payouts.html</a>.
+  </div>
+
+  <h2>1) Два разных «PaymentId»</h2>
+  <ul>
+    <li><b>Платёж эквайринга</b> (оплата ученика): идентификатор в нотификациях T‑Bank, в CRM хранится в <code>payments.payment_id</code> / <code>payments.payment_number</code> и в <code>payment_intents</code> (<code>tbank_payment_id</code>, <code>provider_inv_id</code>).</li>
+    <li><b>Выплата партнёру (e2c)</b>: после вызова банка <code>e2c/v2/Init</code> в <code>tinkoff_payouts.tinkoff_payout_payment_id</code> появляется <b>отдельный</b> идентификатор операции выплаты. Пока поле пустое, запрос <code>Init</code> в банк ещё не выполнялся (или Init завершился без успешного присвоения id — см. код).</li>
+  </ul>
+
+  <h2>2) Связь «оплата → выплата» в базе</h2>
+  <ul>
+    <li>Строка оплаты в смысле мультирасчётов: <code>tinkoff_payments</code> (внутренний PK <code>id</code>, поле <code>tinkoff_payment_id</code> — строка, как отдаёт банк).</li>
+    <li>Строка выплаты: <code>tinkoff_payouts</code>. Поле <code>tinkoff_payouts.payment_id</code> — это <b>FK на <code>tinkoff_payments.id</code></b>, а не на <code>payments.id</code> отчёта.</li>
+    <li><code>tinkoff_payouts.deal_id</code> дублирует сделку мультирасчёта для API и отображения; <b>отмена выплаты при возврате не опирается на <code>deal_id</code></b> (ни из CRM <code>payments</code>, ни иначе) — только на цепочку через <code>tinkoff_payments</code>.</li>
+  </ul>
+
+  <h2>3) Политика доступности возврата</h2>
+  <div class="note">
+    <b>Запрет возврата</b>, если для текущего партнёра найдены выплаты, привязанные к тем же <code>tinkoff_payments</code>, что и возвращаемый платёж, и среди них есть строка со статусом <b>не</b> <code>REJECTED</code> и с <b>непустым</b> <code>tinkoff_payout_payment_id</code> (выплата уже ушла в банк на этапе e2c Init).</div>
+  <ul>
+    <li><b>Разрешён возврат</b>, если таких «активных с банковским id» выплат нет: в том числе когда выплата в статусе <code>INITIATED</code> с пустым <code>tinkoff_payout_payment_id</code> (отложена по <code>when_to_run</code> или ещё не подобрана джобой).</li>
+    <li>Перед созданием возврата все подходящие выплаты (тот же <code>tinkoff_payments.id</code>, не <code>REJECTED</code>, без банковского PaymentId) переводятся в <code>REJECTED</code>, обнуляется <code>when_to_run</code>, в <code>payload_state</code> пишется <code>cancelled_by_refund</code> (время, актор, id строки отчёта <code>payments</code>).</li>
+    <li>Если по возвращаемому платежу <b>не удаётся</b> найти строку <code>tinkoff_payments</code> (по <code>tinkoff_payment_id</code> из CRM и при необходимости по <code>tbank_order_id</code> из intent), автоматическая отмена выплат <b>не выполняется</b> — возврат в эквайринг может пройти, а «висящая» выплата без корректной связи потребует ручной разборки данных.</li>
+  </ul>
+
+  <h2>4) Как находится <code>tinkoff_payments</code> при возврате</h2>
+  <ul>
+    <li>Из строки отчёта берётся числовой T‑Bank PaymentId оплаты (<code>payments.payment_id</code> или <code>payment_number</code>).</li>
+    <li>Загружается <code>payment_intents</code> (tbank, тот же партнёр, совпадение по <code>provider_inv_id</code> / <code>tbank_payment_id</code>).</li>
+    <li>Кандидаты <code>tinkoff_payments.id</code>: все строки партнёра с <code>tinkoff_payment_id</code> = эта строка (как в БД), плюс строки с <code>order_id</code> = <code>intent.tbank_order_id</code> (если заполнен) — на случай расхождения строкового <code>tinkoff_payment_id</code> в <code>tinkoff_payments</code> с полем в отчёте.</li>
+    <li>По объединённому списку id оплат выбираются все <code>tinkoff_payouts</code> с <code>payment_id</code> из этого списка; строки лочатся в одной транзакции с блокировкой платежа отчёта.</li>
+  </ul>
+
+  <h2>5) Согласованность с джобой отложенных выплат</h2>
+  <ul>
+    <li><code>TinkoffRunScheduledPayoutsJob</code> перед <code>runPayout</code> берёт строку выплаты в транзакции с <code>lockForUpdate</code> и проверяет, что она всё ещё <code>INITIATED</code>, без <code>tinkoff_payout_payment_id</code>, с наступившим <code>when_to_run</code>.</li>
+    <li>После успешного возврата выплата становится <code>REJECTED</code> и не попадает в выборку джобы — повторный <code>Init</code> в банк по отменённой записи не выполняется.</li>
+  </ul>
+
+  <h2>6) UI отчёта «Платежи»</h2>
+  <ul>
+    <li>Колонка <code>refund_action</code>: кнопка «Возврат» отключается по <b>той же логике</b>, что и серверный запрет: через <code>tinkoff_payments</code> → выплаты с непустым <code>tinkoff_payout_payment_id</code> и статусом не <code>REJECTED</code>.</li>
+    <li>Только <code>INITIATED</code> без банковского id кнопку не блокирует.</li>
+  </ul>
+
+  <h2>7) Права доступа</h2>
+  <ul>
+    <li><code>reports.view</code> — страница отчёта, <code>getPayments</code>, настройки колонок, <code>POST …/refund</code>. Без права — 403.</li>
+    <li>Платёж должен принадлежать <code>current_partner</code> (иначе 403 на возврате).</li>
+  </ul>
+
+  <div class="warn">
+    <b>Легаси и «сироты»:</b> если в <code>tinkoff_payouts</code> указан <code>payment_id</code>, не совпадающий ни с одной строкой <code>tinkoff_payments</code> для этой оплаты, такая выплата при возврате <b>не отменяется</b> автоматически. Поле <code>deal_id</code> для этого не используется.
+  </div>
+
+  <h2>8) Автотесты (feature)</h2>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/TBank/Refunds/TbankRefundRestrictionsTest.php</code> — базовые сценарии запрета/разрешения, отмена <code>INITIATED</code>, без <code>deal_id</code> в отчёте, смешанные строки выплат.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Refunds/TbankRefundPayoutFeatureTest.php</code> — доступ 200/403, DataTables <code>refund_action</code>, две <code>INITIATED</code> на одну оплату, сирота, fallback по <code>order_id</code>, отсутствие HTTP к банку после возврата при прогоне джобы, идемпотентность повторного POST, блокировка при активной выплате с банковским id рядом с <code>INITIATED</code>.</li>
+    <li><code>tests/Feature/Jobs/TinkoffRunScheduledPayoutsJobQueueTest.php</code> — отбор отложенных выплат и пропуск будущих.</li>
+  </ul>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/Payments/TBank/Refunds/</code></pre>
+</div>
+</body>
+</html>

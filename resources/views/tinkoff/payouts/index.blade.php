@@ -118,10 +118,10 @@
                 </div>
 
                 <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
-                    <input id="filter-gross-min" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Gross от (₽)">
-                    <input id="filter-gross-max" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Gross до (₽)">
-                    <input id="filter-net-min" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Net от (₽)">
-                    <input id="filter-net-max" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Net до (₽)">
+                    <input id="filter-gross-min" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Сумма платежа от (₽)">
+                    <input id="filter-gross-max" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Сумма платежа до (₽)">
+                    <input id="filter-net-min" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Сумма выплаты от (₽)">
+                    <input id="filter-net-max" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Сумма выплаты до (₽)">
 
                     <div class="form-check ms-1">
                         <input class="form-check-input" type="checkbox" value="1" id="filter-stuck-only">
@@ -162,11 +162,10 @@
                                 'initiator' => 'Инициатор',
                                 'payment' => 'Платёж',
                                 'deal_id' => 'DealId',
-                                'gross' => 'Gross',
-                                'bank_accept_fee' => 'Комиссия банк (приём)',
-                                'bank_payout_fee' => 'Комиссия банк (выплата)',
-                                'platform_fee' => 'Комиссия платформа',
-                                'net' => 'Net',
+                                'gross' => 'Сумма платежа',
+                                'bank_fee' => 'Комиссия банка',
+                                'platform_fee' => 'Комиссия Платформы',
+                                'net' => 'Сумма выплаты',
                                 'when_to_run' => 'Запланирована',
                                 'created_at' => 'Создана',
                                 'completed_at' => 'Завершена',
@@ -205,11 +204,10 @@
                     <th>Инициатор</th>
                     <th>Платёж</th>
                     <th>DealId</th>
-                    <th>Gross</th>
-                    <th>Банк (приём)</th>
-                    <th>Банк (выплата)</th>
-                    <th>Платформа</th>
-                    <th>Net</th>
+                    <th>Сумма платежа</th>
+                    <th>Комиссия банка</th>
+                    <th>Комиссия Платформы</th>
+                    <th>Сумма выплаты</th>
                     <th>Запланирована</th>
                     <th>Создана</th>
                     <th>Завершена</th>
@@ -236,8 +234,7 @@
                 payment: true,
                 deal_id: true,
                 gross: true,
-                bank_accept_fee: true,
-                bank_payout_fee: true,
+                bank_fee: true,
                 platform_fee: true,
                 net: true,
                 when_to_run: true,
@@ -260,15 +257,14 @@
                 payment: 7,
                 deal_id: 8,
                 gross: 9,
-                bank_accept_fee: 10,
-                bank_payout_fee: 11,
-                platform_fee: 12,
-                net: 13,
-                when_to_run: 14,
-                created_at: 15,
-                completed_at: 16,
-                tinkoff_payout_payment_id: 17,
-                actions: 18
+                bank_fee: 10,
+                platform_fee: 11,
+                net: 12,
+                when_to_run: 13,
+                created_at: 14,
+                completed_at: 15,
+                tinkoff_payout_payment_id: 16,
+                actions: 17
             };
 
             function toBool(val, fallback = true) {
@@ -323,6 +319,28 @@
                         d.stuck_minutes = $('#filter-stuck-minutes').val();
                     }
                 },
+                language: {
+                    "processing": "Обработка...",
+                    "search": "",
+                    "searchPlaceholder": "Поиск...",
+                    "lengthMenu": "Показать _MENU_",
+                    "info": "С _START_ до _END_ из _TOTAL_ записей",
+                    "infoEmpty": "С 0 до 0 из 0 записей",
+                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
+                    "loadingRecords": "Загрузка записей...",
+                    "zeroRecords": "Записи отсутствуют.",
+                    "emptyTable": "В таблице отсутствуют данные",
+                    "paginate": {
+                        "first": "",
+                        "previous": "",
+                        "next": "",
+                        "last": ""
+                    },
+                    "aria": {
+                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
+                        "sortDescending": ": активировать для сортировки столбца по убыванию"
+                    }
+                },
                 columns: [
                     {
                         data: null,
@@ -367,8 +385,7 @@
                     },
                     {data: 'deal_id', name: 'deal_id', defaultContent: ''},
                     {data: 'gross', name: 'gross', className: 'text-end', defaultContent: ''},
-                    {data: 'bank_accept_fee', name: 'bank_accept_fee', className: 'text-end', defaultContent: ''},
-                    {data: 'bank_payout_fee', name: 'bank_payout_fee', className: 'text-end', defaultContent: ''},
+                    {data: 'bank_fee', name: 'bank_fee', className: 'text-end', defaultContent: ''},
                     {data: 'platform_fee', name: 'platform_fee', className: 'text-end', defaultContent: ''},
                     {data: 'net', name: 'net', className: 'text-end', defaultContent: ''},
                     {data: 'when_to_run', name: 'when_to_run', className: 'text-nowrap', defaultContent: ''},

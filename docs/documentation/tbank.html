@@ -308,14 +308,14 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsAutoPayoutStatsTest.php</code> — отображение «За 30 дн.: N автовыплат» в списке правил и на форме редактирования правила.</li>
   </ul>
 
-  <h3>8.8 Возвраты (ограничения при выплатах)</h3>
+  <h3>8.8 Возвраты и отмена отложенной выплаты при возврате</h3>
+  <div class="note">
+    Продуктовая логика и термины: <a href="./tbank-refunds-payout-cancel.html">tbank-refunds-payout-cancel.html</a>.
+  </div>
   <ul>
-    <li><code>tests/Feature/Crm/Payments/TBank/Refunds/TbankRefundRestrictionsTest.php</code>
-      <ul>
-        <li><b>Запрет возврата</b>: если по <code>deal_id</code> есть выплата партнёру и статус не <code>REJECTED</code>.</li>
-        <li><b>Разрешение возврата</b>: если выплата <code>REJECTED</code>, создаётся refund и ставится job.</li>
-      </ul>
-    </li>
+    <li><b>Правило</b>: возврат из отчёта «Платежи» блокируется, если для той же строки <code>tinkoff_payments</code> есть выплата с непустым <code>tinkoff_payouts.tinkoff_payout_payment_id</code> и статусом не <code>REJECTED</code>. Пока банковского PaymentId выплаты нет (<code>INITIATED</code> с отложенным <code>when_to_run</code> и т.п.), возврат разрешён; подходящие выплаты отменяются (<code>REJECTED</code>, аудит в <code>payload_state</code>). Поиск выплат — только по <code>tinkoff_payouts.payment_id</code> → <code>tinkoff_payments.id</code>, не по <code>deal_id</code>.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Refunds/TbankRefundRestrictionsTest.php</code> — базовые сценарии запрета/разрешения и отмены <code>INITIATED</code>.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Refunds/TbankRefundPayoutFeatureTest.php</code> — доступы, UI <code>refund_action</code>, несколько выплат на одну оплату, сироты, fallback по <code>order_id</code>, согласованность с <code>TinkoffRunScheduledPayoutsJob</code>, идемпотентность.</li>
   </ul>
 
   <h3>8.9 Планировщик и настройки выплат (Setting)</h3>

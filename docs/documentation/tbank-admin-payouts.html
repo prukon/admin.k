@@ -59,7 +59,8 @@
     <li><b>Интервал обработки отложенных</b>: из <code>Setting::getTinkoffPayoutScheduledIntervalMinutes()</code> (см. <a href="./tbank.html#payout-settings">глобальные настройки выплат</a>).</li>
     <li><b>Просроченные отложенные выплаты</b>: записи, которые должны подхватываться <code>TinkoffRunScheduledPayoutsJob</code>:
       <code>when_to_run &lt;= now()</code>, <code>status = INITIATED</code>, <code>tinkoff_payout_payment_id IS NULL</code>, <code>completed_at IS NULL</code>.
-      На странице показываются счётчик и до 25 строк со ссылками в карточку. Для не‑superadmin выборка ограничена текущим партнёром.</li>
+      На странице показываются счётчик и до 25 строк со ссылками в карточку. Для не‑superadmin выборка ограничена текущим партнёром.
+      Если по тому же <code>tinkoff_payments.id</code> выполнен <b>возврат</b> из отчёта «Платежи», отложенная выплата переводится в <code>REJECTED</code> и джобой в банк не отправляется — см. <a href="./tbank-refunds-payout-cancel.html">возвраты и отмена выплаты</a>.</li>
   </ul>
 
   <div class="warn">

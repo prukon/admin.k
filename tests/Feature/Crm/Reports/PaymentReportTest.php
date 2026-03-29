@@ -959,4 +959,300 @@ class PaymentReportTest extends CrmTestCase
             $setting->columns
         );
     }
+
+    /**
+     * (P0) getPayments под middleware reports.view — без права 403.
+     */
+    public function test_getPayments_forbidden_without_reports_view_permission(): void
+    {
+        $actor = $this->createUserWithoutPermission('reports.view', $this->partner);
+        $this->actingAs($actor);
+
+        $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'))
+            ->assertForbidden();
+    }
+
+    /**
+     * (P0) Возврат платежа — только при reports.view.
+     */
+    public function test_payments_refund_forbidden_without_reports_view_permission(): void
+    {
+        $actor = $this->createUserWithoutPermission('reports.view', $this->partner);
+        $this->actingAs($actor);
+
+        $payment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $actor->id,
+            'summ' => 10.00,
+        ]);
+
+        $this
+            ->postJson(route('payments.refund', ['payment' => $payment->id]), [])
+            ->assertForbidden();
+    }
+
+    /**
+     * (P0) История T‑Bank — 403 без права viewing.all.logs (при наличии reports.view).
+     */
+    public function test_tbank_history_forbidden_without_viewing_all_logs_even_with_reports_view(): void
+    {
+        $payment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 100.00,
+            'deal_id' => 'deal-acl',
+            'payment_id' => '111',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.tbankHistory', ['payment' => $payment->id]))
+            ->assertForbidden();
+    }
+
+    /**
+     * (P0) В HTML колонки «Действия» кнопка «История» (T‑Bank) только при viewing.all.logs.
+     */
+    public function test_getPayments_tbank_history_button_depends_on_viewing_all_logs_permission(): void
+    {
+        $ps = new PaymentSystem();
+        $ps->partner_id = $this->partner->id;
+        $ps->name = 'tbank';
+        $ps->save();
+
+        $payment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 100.00,
+            'deal_id' => 'deal-btn',
+            'payment_id' => '222',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        $fetchRefundActionHtml = function () use ($payment): string {
+            $response = $this
+                ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get(route('payments.getPayments'));
+
+            $response->assertOk();
+            $data = collect($response->json('data') ?? []);
+            $row = $data->firstWhere('id', $payment->id);
+            $this->assertNotNull($row, 'Платёж должен быть в выдаче getPayments.');
+
+            return (string) ($row['refund_action'] ?? '');
+        };
+
+        $htmlWithoutLogs = $fetchRefundActionHtml();
+        $this->assertStringNotContainsString('js-tbank-history-btn', $htmlWithoutLogs);
+        $this->assertStringNotContainsString('>История</button>', $htmlWithoutLogs);
+
+        $this->grantPermissionToCurrentUserRole('viewing.all.logs');
+
+        $htmlWithLogs = $fetchRefundActionHtml();
+        $this->assertStringContainsString('js-tbank-history-btn', $htmlWithLogs);
+        $this->assertStringContainsString('>История</button>', $htmlWithLogs);
+    }
+
+    /**
+     * (P1) Модальное окно истории T‑Bank в вёрстке страницы только при viewing.all.logs.
+     */
+    public function test_payments_page_includes_tbank_history_modal_only_when_can_view_all_logs(): void
+    {
+        $ps = new PaymentSystem();
+        $ps->partner_id = $this->partner->id;
+        $ps->name = 'tbank';
+        $ps->save();
+
+        $htmlNoLogs = $this->get(route('payments'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="tbankHistoryModal"', $htmlNoLogs);
+
+        $this->grantPermissionToCurrentUserRole('viewing.all.logs');
+
+        $htmlWithLogs = $this->get(route('payments'))->assertOk()->getContent();
+        $this->assertStringContainsString('id="tbankHistoryModal"', $htmlWithLogs);
+    }
+
+    /**
+     * (P1) Чекбоксы колонок комиссий / к выплате / статус возврата: disabled без reports.additional.value.view.
+     */
+    public function test_payments_page_sensitive_column_toggles_disabled_without_reports_additional_value_permission(): void
+    {
+        $ps = new PaymentSystem();
+        $ps->partner_id = $this->partner->id;
+        $ps->name = 'tbank';
+        $ps->save();
+
+        $html = $this->get(route('payments'))->assertOk()->getContent();
+
+        foreach (
+            [
+                'payColBankCommission',
+                'payColPlatformCommission',
+                'payColCommissionTotal',
+                'payColNetToPartner',
+                'payColRefundStatus',
+            ] as $inputId
+        ) {
+            $this->assertCheckboxInputHasDisabledAttribute($html, $inputId, true);
+        }
+
+        $this->assertCheckboxInputHasDisabledAttribute($html, 'payColPayout', false);
+    }
+
+    /**
+     * (P1) С правом reports.additional.value.view чекбоксы комиссий и статуса возврата не disabled.
+     */
+    public function test_payments_page_sensitive_column_toggles_enabled_with_reports_additional_value_permission(): void
+    {
+        $ps = new PaymentSystem();
+        $ps->partner_id = $this->partner->id;
+        $ps->name = 'tbank';
+        $ps->save();
+
+        $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
+
+        $html = $this->get(route('payments'))->assertOk()->getContent();
+
+        foreach (
+            [
+                'payColBankCommission',
+                'payColPlatformCommission',
+                'payColCommissionTotal',
+                'payColNetToPartner',
+                'payColRefundStatus',
+            ] as $inputId
+        ) {
+            $this->assertCheckboxInputHasDisabledAttribute($html, $inputId, false);
+        }
+    }
+
+    /**
+     * (P0) Полный доступ: страница и все HTTP-эндпоинты отчёта «Платежи» дают 200 при нужных правах.
+     *
+     * Покрывает: reports.view, viewing.all.logs (история), сценарий refund, настройки колонок, DataTables.
+     */
+    public function test_payments_report_page_and_all_endpoints_return_200_for_fully_authorized_user(): void
+    {
+        $this->grantPermissionToCurrentUserRole('viewing.all.logs');
+        $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
+
+        $ps = new PaymentSystem();
+        $ps->partner_id = $this->partner->id;
+        $ps->name = 'tbank';
+        $ps->save();
+
+        $this->get(route('payments'))->assertOk();
+
+        $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'))
+            ->assertOk();
+
+        $this->get('/admin/reports/payments/columns-settings')->assertOk();
+
+        $this->postJson('/admin/reports/payments/columns-settings', [
+            'columns' => [
+                'user_name' => true,
+                'receipt' => true,
+                'bank_commission_total' => true,
+                'refund_status' => true,
+            ],
+        ])->assertOk();
+
+        $paymentHistory = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 1000.00,
+            'deal_id' => 'deal-full-stack',
+            'payment_id' => '333444',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.tbankHistory', ['payment' => $paymentHistory->id]))
+            ->assertOk();
+
+        Queue::fake([TinkoffProcessRefundJob::class]);
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount' => '100.00',
+            'currency' => 'RUB',
+            'status' => 'paid',
+        ]);
+
+        $paymentRefund = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 100.00,
+            'deal_id' => 'deal-full-refund',
+            'payment_id' => '55566',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'status' => 'paid',
+            'out_sum' => '100.00',
+            'payment_date' => 'Клубный взнос',
+            'provider_inv_id' => 55566,
+            'tbank_payment_id' => 55566,
+        ]);
+
+        TinkoffPayout::create([
+            'payment_id' => (int) $paymentRefund->id,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'deal-full-refund',
+            'amount' => 9000,
+            'is_final' => 1,
+            'status' => 'REJECTED',
+        ]);
+
+        $this
+            ->postJson(route('payments.refund', ['payment' => $paymentRefund->id]), [])
+            ->assertOk()
+            ->assertJsonFragment(['message' => 'refund_created']);
+    }
+
+    private function grantPermissionToCurrentUserRole(string $permissionName): void
+    {
+        $now = now();
+        DB::table('permission_role')->updateOrInsert(
+            [
+                'partner_id' => $this->partner->id,
+                'role_id' => $this->user->role_id,
+                'permission_id' => $this->permissionId($permissionName),
+            ],
+            ['created_at' => $now, 'updated_at' => $now]
+        );
+    }
+
+    private function assertCheckboxInputHasDisabledAttribute(string $html, string $elementId, bool $expectDisabled): void
+    {
+        $this->assertSame(
+            1,
+            preg_match('/<input\b[^>]*\bid="' . preg_quote($elementId, '/') . '"[^>]*>/i', $html, $m),
+            'Не найден input #' . $elementId
+        );
+
+        $tag = $m[0];
+        $hasDisabled = preg_match('/\bdisabled\b/i', $tag) === 1;
+
+        $this->assertSame(
+            $expectDisabled,
+            $hasDisabled,
+            $expectDisabled
+                ? 'Ожидался атрибут disabled у #' . $elementId
+                : 'Не ожидался disabled у #' . $elementId . ', тег: ' . $tag
+        );
+    }
 }
