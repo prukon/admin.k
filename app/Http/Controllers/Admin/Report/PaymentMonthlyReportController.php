@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin\Report;
 use App\Http\Controllers\AdminBaseController;
 use App\Models\Payment;
 use App\Models\PaymentSystem;
+use App\Models\Team;
+use App\Models\User;
 use App\Services\PartnerContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -21,18 +23,20 @@ class PaymentMonthlyReportController extends AdminBaseController
     /**
      * Страница отчёта "Платежи по месяцам".
      */
-    public function index()
+    public function index(Request $request)
     {
         $partnerId = $this->requirePartnerId();
 
-        DB::enableQueryLog();
+        $filters = $request->query();
 
-        $totalPaidPrice = DB::table('payments')
+        $totalQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->where('users.partner_id', $partnerId)
-            ->sum('payments.summ');
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->where('users.partner_id', $partnerId);
+        $this->applyMonthlyReportFilters($totalQuery, $request);
 
-        $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
+        $totalRaw = $totalQuery->sum('payments.summ');
+        $totalPaidPrice = number_format((float) $totalRaw, 0, '', ' ');
 
         $tbankPs = PaymentSystem::where('partner_id', $partnerId)
             ->where('name', 'tbank')
@@ -40,10 +44,16 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $tbankEnabled = (bool) $tbankPs;
 
+        $paymentsFilterUser = $this->resolveMonthlyFilterUserLabel($partnerId, $filters);
+        $paymentsFilterTeam = $this->resolveMonthlyFilterTeamLabel($partnerId, $filters);
+
         return view('admin.report.index', [
-            'activeTab'      => 'payment-monthly',
-            'totalPaidPrice' => $totalPaidPrice,
-            'tbankEnabled'   => $tbankEnabled,
+            'activeTab'          => 'payment-monthly',
+            'totalPaidPrice'     => $totalPaidPrice,
+            'tbankEnabled'       => $tbankEnabled,
+            'filters'            => $filters,
+            'paymentsFilterUser' => $paymentsFilterUser,
+            'paymentsFilterTeam' => $paymentsFilterTeam,
         ]);
     }
 
@@ -71,7 +81,10 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $monthsQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId);
+
+        $this->applyMonthlyReportFilters($monthsQuery, $request);
 
         if ($mode === 'subscription') {
             // Группировка по месяцу абонемента (payment_month: varchar 'YYYY-MM-DD')
@@ -173,6 +186,8 @@ class PaymentMonthlyReportController extends AdminBaseController
             ->where('users.partner_id', $partnerId)
             ->select('payments.*');
 
+        $this->applyMonthlyReportFilters($paymentsQuery, $request);
+
         if ($mode === 'subscription') {
             // По месяцу абонемента: payment_month LIKE 'YYYY-MM-%'
             $paymentsQuery
@@ -227,5 +242,137 @@ class PaymentMonthlyReportController extends AdminBaseController
             'mode'      => $mode,
             'payments'  => $items,
         ]);
+    }
+
+    /**
+     * Те же правила, что у отчёта «Все платежи», кроме способа оплаты и статуса возврата (нужны join'ы intent/refunds).
+     *
+     * @param  QueryBuilder|EloquentBuilder  $paymentsQuery
+     */
+    private function applyMonthlyReportFilters($paymentsQuery, Request $request): void
+    {
+        $filterUserId = $request->query('filter_user_id');
+        if ($filterUserId !== null && $filterUserId !== '' && ctype_digit((string) $filterUserId)) {
+            $uid = (int) $filterUserId;
+            if ($uid > 0) {
+                $paymentsQuery->where('users.id', $uid);
+            }
+        } elseif ($request->filled('user_name')) {
+            $needle = '%'.trim((string) $request->query('user_name')).'%';
+            $paymentsQuery->where(function ($q) use ($needle) {
+                $q->whereRaw("CONCAT_WS(' ', users.lastname, users.name) LIKE ?", [$needle])
+                    ->orWhere('payments.user_name', 'like', $needle);
+            });
+        }
+
+        $filterTeamId = $request->query('filter_team_id');
+        if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
+            $tid = (int) $filterTeamId;
+            if ($tid > 0) {
+                $paymentsQuery->where('users.team_id', $tid);
+            }
+        } elseif ($request->filled('team_title')) {
+            $like = '%'.trim((string) $request->query('team_title')).'%';
+            $paymentsQuery->where('teams.title', 'like', $like);
+        }
+
+        if ($request->filled('payment_month')) {
+            $ym = trim((string) $request->query('payment_month'));
+            if (preg_match('/^\d{4}-\d{2}$/', $ym) === 1) {
+                $paymentsQuery->where('payments.payment_month', 'like', $ym.'%');
+            }
+        }
+
+        if ($request->filled('operation_date_from')) {
+            $paymentsQuery->whereDate('payments.operation_date', '>=', (string) $request->query('operation_date_from'));
+        }
+        if ($request->filled('operation_date_to')) {
+            $paymentsQuery->whereDate('payments.operation_date', '<=', (string) $request->query('operation_date_to'));
+        }
+
+        if ($request->filled('payment_provider')) {
+            $p = (string) $request->query('payment_provider');
+            if ($p === 'tbank') {
+                $paymentsQuery->where(function ($w) {
+                    $w->where(function ($x) {
+                        $x->whereNotNull('payments.deal_id')->where('payments.deal_id', '<>', '');
+                    })->orWhere(function ($x) {
+                        $x->whereNotNull('payments.payment_id')->where('payments.payment_id', '<>', '');
+                    })->orWhere(function ($x) {
+                        $x->whereNotNull('payments.payment_status')->where('payments.payment_status', '<>', '');
+                    });
+                });
+            } elseif ($p === 'robokassa') {
+                $paymentsQuery->where(function ($w) {
+                    $w->where(function ($x) {
+                        $x->whereNull('payments.deal_id')->orWhere('payments.deal_id', '=', '');
+                    })->where(function ($x) {
+                        $x->whereNull('payments.payment_id')->orWhere('payments.payment_id', '=', '');
+                    })->where(function ($x) {
+                        $x->whereNull('payments.payment_status')->orWhere('payments.payment_status', '=', '');
+                    });
+                });
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolveMonthlyFilterUserLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_user_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $uid = (int) $raw;
+        if ($uid <= 0) {
+            return null;
+        }
+
+        $u = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('id', $uid)
+            ->first(['id', 'name', 'lastname']);
+
+        if (! $u) {
+            return null;
+        }
+
+        $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
+        return [
+            'id'   => $u->id,
+            'text' => $text !== '' ? $text : '—',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolveMonthlyFilterTeamLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_team_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $tid = (int) $raw;
+        if ($tid <= 0) {
+            return null;
+        }
+
+        $t = Team::query()
+            ->where('partner_id', $partnerId)
+            ->where('id', $tid)
+            ->first(['id', 'title']);
+
+        if (! $t) {
+            return null;
+        }
+
+        return [
+            'id'   => $t->id,
+            'text' => (string) ($t->title ?? ''),
+        ];
     }
 }

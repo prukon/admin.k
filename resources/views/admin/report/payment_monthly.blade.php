@@ -1,20 +1,166 @@
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
-    <h4 class="text-start mb-0">Платежи по месяцам</h4>
+@php
+    $filters = $filters ?? [];
+    $paymentsFilterUser = $paymentsFilterUser ?? null;
+    $paymentsFilterTeam = $paymentsFilterTeam ?? null;
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
+    $payHasActiveFilters = false;
+    foreach ($payFilterKeys as $k) {
+        $v = $filters[$k] ?? null;
+        if ($v !== null && $v !== '') {
+            $payHasActiveFilters = true;
+            break;
+        }
+    }
+    $groupMode = request('mode', 'subscription');
+    if (! in_array($groupMode, ['operation', 'subscription'], true)) {
+        $groupMode = 'subscription';
+    }
+@endphp
 
-    {{-- Переключатель режима группировки --}}
-    <div class="btn-group" role="group" aria-label="Режим группировки">
-        <button type="button" class="btn btn-outline-secondary js-group-mode-btn active" data-mode="subscription">
-            По месяцу абонемента
-        </button>
-        <button type="button" class="btn btn-outline-secondary js-group-mode-btn" data-mode="operation">
-            По дате платежа
-        </button>
+@vite(['resources/css/payments-report.css'])
+
+<div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+    <div class="card-body px-3 py-3">
+        <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Платежи по месяцам</h1>
+            <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
+                <div class="payments-report-total-inline payments-report-total-stat text-end" id="paymentsMonthlyReportTotalStat">
+                    <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
+                    <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                        <span class="payments-report-total-value-inner">
+                            <span class="payments-report-total-amount">{{ $totalPaidPrice }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                    <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#paymentsMonthlyFiltersCollapse"
+                            aria-expanded="{{ $payHasActiveFilters ? 'true' : 'false' }}"
+                            aria-controls="paymentsMonthlyFiltersCollapse"
+                            id="paymentsMonthlyFiltersToggle">
+                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                            <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                        </span>
+                        <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                        <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                    </button>
+
+                    <div class="dropdown payments-report-toolbar-dropdown">
+                        <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                id="columnsDropdownMonthlyPayments"
+                                data-bs-toggle="dropdown"
+                                data-bs-auto-close="outside"
+                                aria-expanded="false"
+                                aria-haspopup="true"
+                                title="Какие колонки показывать в таблице">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
+
+                        <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                             aria-labelledby="columnsDropdownMonthlyPayments">
+                            <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
+                            <div class="form-check">
+                                <input class="form-check-input payments-monthly-column-toggle" type="checkbox" id="monthlyColMonth" data-column-index="1" checked>
+                                <label class="form-check-label" for="monthlyColMonth">Месяц</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payments-monthly-column-toggle" type="checkbox" id="monthlyColCount" data-column-index="2" checked>
+                                <label class="form-check-label" for="monthlyColCount">Количество платежей</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payments-monthly-column-toggle" type="checkbox" id="monthlyColSum" data-column-index="3" checked>
+                                <label class="form-check-label" for="monthlyColSum">Сумма платежей</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">
+            <span class="small text-muted mb-0">Группировка:</span>
+            <div class="btn-group btn-group-sm js-monthly-group-mode" role="group" aria-label="Режим группировки">
+                <button type="button" class="btn btn-outline-secondary js-group-mode-btn {{ $groupMode === 'subscription' ? 'active' : '' }}"
+                        data-mode="subscription">
+                    По месяцу абонемента
+                </button>
+                <button type="button" class="btn btn-outline-secondary js-group-mode-btn {{ $groupMode === 'operation' ? 'active' : '' }}"
+                        data-mode="operation">
+                    По дате платежа
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
-    <span class="fw-bold">Общая сумма платежей:</span>
-    <span class="fw-bold">{{ $totalPaidPrice }} руб</span>
+<div class="collapse {{ $payHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="paymentsMonthlyFiltersCollapse">
+    <form id="payments-monthly-filters" method="GET" action="{{ route('reports.payments.monthly') }}" class="border rounded p-2 p-md-3 bg-light">
+        <input type="hidden" name="mode" id="payments-monthly-mode-hidden" value="{{ $groupMode }}">
+
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-monthly-filter-user">Ученик</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-monthly-filter-user"
+                        name="filter_user_id"
+                        data-placeholder="Все ученики"
+                        data-search-url="{{ route('reports.payments.users.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterUser)
+                        <option value="{{ $paymentsFilterUser['id'] }}" selected>{{ $paymentsFilterUser['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-monthly-filter-team">Группа</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-monthly-filter-team"
+                        name="filter_team_id"
+                        data-placeholder="Все группы"
+                        data-search-url="{{ route('reports.payments.teams.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterTeam)
+                        <option value="{{ $paymentsFilterTeam['id'] }}" selected>{{ $paymentsFilterTeam['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-monthly-filter-payment-month">Оплаченный месяц</label>
+                <input class="form-control" id="pay-monthly-filter-payment-month" type="month" name="payment_month"
+                       value="{{ $filters['payment_month'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-monthly-filter-op-from">Дата платежа: с</label>
+                <input class="form-control" id="pay-monthly-filter-op-from" type="date" name="operation_date_from"
+                       value="{{ $filters['operation_date_from'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-monthly-filter-op-to">Дата платежа: по</label>
+                <input class="form-control" id="pay-monthly-filter-op-to" type="date" name="operation_date_to"
+                       value="{{ $filters['operation_date_to'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-monthly-filter-provider">Провайдер</label>
+                @php($fpProvider = $filters['payment_provider'] ?? '')
+                <select class="form-select" id="pay-monthly-filter-provider" name="payment_provider">
+                    <option value="">—</option>
+                    <option value="tbank" {{ $fpProvider === 'tbank' ? 'selected' : '' }}>T-Bank</option>
+                    <option value="robokassa" {{ $fpProvider === 'robokassa' ? 'selected' : '' }}>Robokassa</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
+                <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="paymentsMonthlyFiltersResetBtn">Сброс</button>
+            </div>
+        </div>
+    </form>
 </div>
 
 <table class="table table-bordered" id="payments-monthly-table">
@@ -32,8 +178,53 @@
     <script type="text/javascript">
         $(function() {
 
-            // Текущий режим группировки: operation | subscription
-            var currentMode = 'subscription';
+            var currentMode = @json($groupMode);
+
+            var $payMonthlyFilterUser = $('#pay-monthly-filter-user');
+            var $payMonthlyFilterTeam = $('#pay-monthly-filter-team');
+
+            function initPaymentsReportFilterSelect2($el) {
+                var searchUrl = $el.data('search-url');
+                if (!$el.length || !searchUrl) {
+                    return;
+                }
+                $el.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $el.data('placeholder') || '',
+                    allowClear: true,
+                    ajax: {
+                        url: searchUrl,
+                        delay: 250,
+                        data: function (params) {
+                            return {q: params.term || ''};
+                        },
+                        processResults: function (data) {
+                            return data;
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            }
+
+            initPaymentsReportFilterSelect2($payMonthlyFilterUser);
+            initPaymentsReportFilterSelect2($payMonthlyFilterTeam);
+
+            $('#paymentsMonthlyFiltersResetBtn').on('click', function () {
+                window.location.href = @json(route('reports.payments.monthly'));
+            });
+
+            function monthlyQueryParams() {
+                var params = {};
+                if (window.location.search) {
+                    var sp = new URLSearchParams(window.location.search);
+                    sp.forEach(function (value, key) {
+                        params[key] = value;
+                    });
+                }
+                params.mode = currentMode;
+                return params;
+            }
 
             var monthlyTable = $('#payments-monthly-table').DataTable({
                 processing: true,
@@ -41,8 +232,11 @@
                 ajax: {
                     url: '/admin/reports/payments/monthly/data',
                     type: 'GET',
-                    data: function(d) {
-                        d.mode = currentMode;
+                    data: function (d) {
+                        var extra = monthlyQueryParams();
+                        Object.keys(extra).forEach(function (key) {
+                            d[key] = extra[key];
+                        });
                     }
                 },
                 columns: [{
@@ -71,7 +265,6 @@
                             return data;
                         }
                     },
-                    // тех. столбец с ключом месяца (YYYY-MM), скрытый
                     {
                         data: 'month_key',
                         name: 'month_key',
@@ -107,7 +300,15 @@
                 }
             });
 
-            // Переключатель режима
+            $('.payments-monthly-column-toggle').on('change', function () {
+                var idx = parseInt($(this).data('column-index'), 10);
+                if (isNaN(idx)) {
+                    return;
+                }
+                var col = monthlyTable.column(idx);
+                col.visible($(this).is(':checked'));
+            });
+
             $('.js-group-mode-btn').on('click', function() {
                 var btn = $(this);
                 var mode = btn.data('mode');
@@ -117,32 +318,76 @@
                 }
 
                 currentMode = mode;
+                $('#payments-monthly-mode-hidden').val(currentMode);
 
-                // визуально
                 $('.js-group-mode-btn').removeClass('active');
                 btn.addClass('active');
 
-                // Перегружаем таблицу
+                try {
+                    var url = new URL(window.location.href);
+                    url.searchParams.set('mode', currentMode);
+                    window.history.replaceState({}, '', url);
+                } catch (e) {}
+
                 monthlyTable.ajax.reload(null, true);
             });
 
+            $('#payments-monthly-table tbody').on('click', 'td.details-control button', function(e) {
+                e.stopPropagation();
 
+                var btn = $(this);
+                var tr = btn.closest('tr');
+                var row = monthlyTable.row(tr);
 
+                if (row.child.isShown()) {
+                    row.child.hide();
+                    tr.removeClass('shown');
+                    btn.find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                    return;
+                }
 
+                row.child('<div class="p-3 details-container">Загрузка...</div>').show();
+                tr.addClass('shown');
+                btn.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
 
+                var data = row.data();
+                var monthKey = data.month_key;
+                var monthText = data.month_title;
 
+                var detailData = monthlyQueryParams();
+
+                $.ajax({
+                    url: '/admin/reports/payments/monthly/' + monthKey + '/payments',
+                    type: 'GET',
+                    dataType: 'json',
+                    data: detailData,
+                    success: function(resp) {
+                        var html = buildDetailsHtml(resp.payments || [], monthText,
+                        currentMode);
+                        tr.next('tr').find('div.details-container').replaceWith(html);
+                    },
+                    error: function() {
+                        var html = '' +
+                            '<div class="p-3 details-container bg-light border-start border-3 border-secondary">' +
+                            '  <div class="fw-bold mb-2">' +
+                            '    Платежи за месяц: ' + (monthText || '') +
+                            '  </div>' +
+                            '  <div class="text-danger">Ошибка загрузки данных.</div>' +
+                            '</div>';
+                        tr.next('tr').find('div.details-container').replaceWith(html);
+                    }
+                });
+            });
 
             function formatSubscriptionMonth(raw) {
                 if (!raw) return '';
 
-                // ожидаем формат "YYYY-MM-DD"
                 var re = /^\d{4}-\d{2}-\d{2}$/;
                 if (!re.test(raw)) {
-                    // если формат другой — выводим как есть
                     return raw;
                 }
 
-                var parts = raw.split('-'); // [YYYY, MM, DD]
+                var parts = raw.split('-');
                 var year = parts[0];
                 var monthNum = parseInt(parts[1], 10);
 
@@ -166,17 +411,6 @@
                 return monthName + ' ' + year;
             }
 
-
-
-
-
-            /**
-             * Строим HTML вложенного блока с платежами за месяц.
-             *
-             * payments   — массив платежей
-             * monthTitle — строка "Февраль 2026"
-             * mode       — "subscription" | "operation"
-             */
             function buildDetailsHtml(payments, monthTitle, mode) {
                 var captionMode = (mode === 'operation') ?
                     'по дате платежа' :
@@ -253,7 +487,6 @@
 
                     var monthLabel = formatSubscriptionMonth(p.payment_month);
 
-
                     html += '' +
                         '<tr>' +
                         '  <td>' + opDate + '</td>' +
@@ -273,55 +506,6 @@
 
                 return html;
             }
-
-            // Обработчик раскрытия/сворачивания строк
-            $('#payments-monthly-table tbody').on('click', 'td.details-control button', function(e) {
-                e.stopPropagation();
-
-                var btn = $(this);
-                var tr = btn.closest('tr');
-                var row = monthlyTable.row(tr);
-
-                if (row.child.isShown()) {
-                    row.child.hide();
-                    tr.removeClass('shown');
-                    btn.find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
-                    return;
-                }
-
-                // показываем заглушку "Загрузка..."
-                row.child('<div class="p-3 details-container">Загрузка...</div>').show();
-                tr.addClass('shown');
-                btn.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
-
-                var data = row.data();
-                var monthKey = data.month_key;
-                var monthText = data.month_title;
-
-                $.ajax({
-                    url: '/admin/reports/payments/monthly/' + monthKey + '/payments',
-                    type: 'GET',
-                    dataType: 'json',
-                    data: {
-                        mode: currentMode
-                    },
-                    success: function(resp) {
-                        var html = buildDetailsHtml(resp.payments || [], monthText,
-                        currentMode);
-                        tr.next('tr').find('div.details-container').replaceWith(html);
-                    },
-                    error: function() {
-                        var html = '' +
-                            '<div class="p-3 details-container bg-light border-start border-3 border-secondary">' +
-                            '  <div class="fw-bold mb-2">' +
-                            '    Платежи за месяц: ' + (monthText || '') +
-                            '  </div>' +
-                            '  <div class="text-danger">Ошибка загрузки данных.</div>' +
-                            '</div>';
-                        tr.next('tr').find('div.details-container').replaceWith(html);
-                    }
-                });
-            });
 
         });
     </script>

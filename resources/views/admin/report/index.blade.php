@@ -52,9 +52,11 @@
                         'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
                     ])
                 @elseif($activeTab === 'payment-monthly')
-                    {{-- НОВЫЙ partial --}}
                     @include('admin.report.payment_monthly', [
                         'totalPaidPrice' => $totalPaidPrice,
+                        'filters' => $filters ?? [],
+                        'paymentsFilterUser' => $paymentsFilterUser ?? null,
+                        'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
                     ])
                 @elseif($activeTab === 'debt')
                     <!-- Контент вкладки задолженности -->
