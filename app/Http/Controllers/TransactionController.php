@@ -19,7 +19,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Services\Payments\PaymentService;
-
+use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
+use App\Support\Payments\PaymentOutSumNormalizer;
 
 class TransactionController extends Controller
 {
@@ -54,11 +55,13 @@ class TransactionController extends Controller
             return null; // Если формат не соответствует "Месяц Год", возвращаем null
         }
 
-        // Преобразуем строку в объект DateTime
+        // Преобразуем строку в объект DateTime.
+        // Формат !F Y: «!» сбрасывает поля, не заданные в строке; иначе PHP подставляет
+        // текущий день месяца и для «Февраль» в конце марта получается переполнение в март.
         try {
-            $date = \DateTime::createFromFormat('F Y', $month); // F - имя месяца, Y - год
+            $date = \DateTime::createFromFormat('!F Y', $month);
             if ($date) {
-                return $date->format('Y-m-01'); // Всегда возвращаем первое число месяца
+                return $date->format('Y-m-01');
             }
             return null; // Возвращаем null, если не удалось преобразовать
         } catch (\Exception $e) {
@@ -72,11 +75,30 @@ class TransactionController extends Controller
     {
         $paymentDate = (string) $request->input('paymentDate', '');
         $outSum = (string) $request->input('outSum', '');
-        $formatedPaymentDate = $paymentDate !== '' ? $this->formatedDate($paymentDate) : null;
+
+        $formatedPaymentDate = null;
+        $rawFmt = $request->input('formatedPaymentDate');
+        if ($request->filled('formatedPaymentDate') && is_string($rawFmt) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt)) {
+            $formatedPaymentDate = $rawFmt;
+        } elseif ($paymentDate !== '') {
+            $formatedPaymentDate = $this->formatedDate($paymentDate);
+        }
+
         $curPartner = app('current_partner');
-        $partnerId = app('current_partner')->id;
+        $partnerId = (int) $curPartner->id;
 
         $user = $request->user();
+
+        // Месячный абонемент: сумма на экране и в скрытых полях — из users_prices (как при Init оплаты).
+        if ($formatedPaymentDate !== null) {
+            $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
+                (int) $user->id,
+                $partnerId,
+                $formatedPaymentDate
+            );
+            $outSum = $resolved['out_sum'];
+            $formatedPaymentDate = $resolved['month_first_day'];
+        }
 
         // Доступность платёжных систем (настройки партнёра + право на способ оплаты)
         $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner)
@@ -108,22 +130,33 @@ class TransactionController extends Controller
         $userId = (int) $user->id;
         $userName = (string) ($user->name ?? '');
 
-        $outSumRaw = (string) $request->input('outSum', '');
-        $outSum = $this->normalizeOutSum($outSumRaw);
-        if ($outSum === null) {
-            Log::warning('Robokassa pay: invalid OutSum', ['outSum' => $outSumRaw, 'user_id' => $userId]);
-            abort(422, 'Некорректная сумма');
+        $partnerId = (int) app('current_partner')->id;
+
+        $rawFmt = $request->input('formatedPaymentDate');
+        $hasMonthly = $request->filled('formatedPaymentDate')
+            && is_string($rawFmt)
+            && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
+
+        if ($hasMonthly) {
+            $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
+                $userId,
+                $partnerId,
+                $rawFmt
+            );
+            $outSum = $resolved['out_sum'];
+            $paymentDate = $resolved['month_first_day'];
+        } else {
+            $outSumRaw = (string) $request->input('outSum', '');
+            $outSum = PaymentOutSumNormalizer::normalize($outSumRaw);
+            if ($outSum === null) {
+                Log::warning('Robokassa pay: invalid OutSum', ['outSum' => $outSumRaw, 'user_id' => $userId]);
+                abort(422, 'Некорректная сумма');
+            }
+            $paymentDate = 'Клубный взнос';
+            if (!$request->has('formatedPaymentDate')) {
+                Log::warning('formatedPaymentDate отсутствует в запросе');
+            }
         }
-
-        $paymentDate = $request->filled('formatedPaymentDate')
-            ? (string) $request->input('formatedPaymentDate')
-            : 'Клубный взнос';
-
-        if (!$request->has('formatedPaymentDate')) {
-            Log::warning('formatedPaymentDate отсутствует в запросе');
-        }
-
-        $partnerId = app('current_partner')->id;
 
         // Получаем настройки Робокассы из БД
         $paymentSystem = PaymentSystem::where('partner_id', $partnerId)
@@ -145,7 +178,7 @@ class TransactionController extends Controller
         }
 
         // Создаём Payable (доменная "покупка")
-        $type = $request->filled('formatedPaymentDate') ? 'monthly_fee' : 'club_fee';
+        $type = $hasMonthly ? 'monthly_fee' : 'club_fee';
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
@@ -205,8 +238,8 @@ class TransactionController extends Controller
         ];
         $receipt = rawurlencode(json_encode($receiptJson, JSON_UNESCAPED_UNICODE));
 
-        $description = $paymentDate === "Клубный взнос"
-            ? "Оплата клубного взноса"
+        $description = $paymentDate === 'Клубный взнос'
+            ? 'Оплата клубного взноса'
             : "Пользователь: $userName. Период оплаты: $paymentDate.";
 
         // Формируем подпись
@@ -227,48 +260,6 @@ class TransactionController extends Controller
 
         return redirect()->to($paymentUrl);
     }
-
-    /**
-     * Нормализуем сумму для Robokassa.
-     * Принимаем до 6 знаков после точки и округляем до 2.
-     */
-
-    private function normalizeOutSum(string $value): ?string
-    {
-        $v = trim(str_replace(',', '.', $value));
-        if ($v === '') {
-            return null;
-        }
-        if (!preg_match('/^\d+(\.\d{1,6})?$/', $v)) {
-            return null;
-        }
-
-        $a = $v;
-        $b = '';
-        if (str_contains($v, '.')) {
-            [$a, $b] = explode('.', $v, 2);
-        }
-
-        $a = ltrim($a, '0');
-        if ($a === '') {
-            $a = '0';
-        }
-
-        $b = str_pad($b, 6, '0');
-        $cents = (int) substr($b, 0, 2);
-        $third = (int) substr($b, 2, 1);
-
-        if ($third >= 5) {
-            $cents++;
-            if ($cents >= 100) {
-                $cents = 0;
-                $a = (string) ((int) $a + 1);
-            }
-        }
-
-        return $a . '.' . str_pad((string) $cents, 2, '0', STR_PAD_LEFT);
-    }
-
 
 //    Успешная оплата (для юзеров и партнеров)
     public function success(Request $request)

@@ -176,7 +176,7 @@ class LtvReportController extends AdminBaseController
         }
 
         try {
-            $date = \DateTime::createFromFormat('F Y', $month);
+            $date = \DateTime::createFromFormat('!F Y', $month);
             if ($date) {
                 return $date->format('Y-m-01');
             }

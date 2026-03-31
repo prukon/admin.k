@@ -8,7 +8,9 @@ use Illuminate\Http\Request;
 use App\Models\PaymentIntent;
 use App\Models\Payable;
 use App\Models\PaymentSystem;
+use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
 use App\Services\Tinkoff\TinkoffPaymentsService;
+use App\Support\Payments\PaymentOutSumNormalizer;
 use Illuminate\Support\Facades\Log;
 
 class TinkoffPaymentController extends Controller
@@ -40,23 +42,35 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
         }
 
-        // outSum прилетает в рублях (может быть строкой) — приводим к формату "12.34" и к копейкам
-        $outSumRaw = (string) $r->input('outSum', '0');
-        $outSum = $this->normalizeOutSum($outSumRaw);
-        if ($outSum === null) {
-            return back()->withErrors(['tinkoff' => 'Некорректная сумма']);
-        }
-        $amountCents = (int) round(((float) $outSum) * 100);
-
         $user = $r->user();
         $userId = (int) $user->id;
         $userName = (string) ($user->name ?? '');
 
-        $paymentDate = $r->filled('formatedPaymentDate')
-            ? (string) $r->input('formatedPaymentDate')   // YYYY-MM-01
-            : 'Клубный взнос';
+        $rawFmt = $r->input('formatedPaymentDate');
+        $hasMonthly = $r->filled('formatedPaymentDate')
+            && is_string($rawFmt)
+            && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
 
-        $type = $r->filled('formatedPaymentDate') ? 'monthly_fee' : 'club_fee';
+        if ($hasMonthly) {
+            $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
+                $userId,
+                (int) $partnerId,
+                $rawFmt
+            );
+            $outSum = $resolved['out_sum'];
+            $paymentDate = $resolved['month_first_day'];
+        } else {
+            $outSumRaw = (string) $r->input('outSum', '0');
+            $outSum = PaymentOutSumNormalizer::normalize($outSumRaw);
+            if ($outSum === null) {
+                return back()->withErrors(['tinkoff' => 'Некорректная сумма']);
+            }
+            $paymentDate = 'Клубный взнос';
+        }
+
+        $amountCents = (int) round(((float) $outSum) * 100);
+
+        $type = $hasMonthly ? 'monthly_fee' : 'club_fee';
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
@@ -134,26 +148,39 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
         }
 
-        $outSumRaw = (string) $r->input('outSum', '0');
-        $outSum = $this->normalizeOutSum($outSumRaw);
-        if ($outSum === null) {
-            return back()->withErrors(['tinkoff' => 'Некорректная сумма']);
+        $user = $r->user();
+        $userId = (int) $user->id;
+        $userName = (string) ($user->name ?? '');
+
+        $rawFmt = $r->input('formatedPaymentDate');
+        $hasMonthly = $r->filled('formatedPaymentDate')
+            && is_string($rawFmt)
+            && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
+
+        if ($hasMonthly) {
+            $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
+                $userId,
+                (int) $partnerId,
+                $rawFmt
+            );
+            $outSum = $resolved['out_sum'];
+            $paymentDate = $resolved['month_first_day'];
+        } else {
+            $outSumRaw = (string) $r->input('outSum', '0');
+            $outSum = PaymentOutSumNormalizer::normalize($outSumRaw);
+            if ($outSum === null) {
+                return back()->withErrors(['tinkoff' => 'Некорректная сумма']);
+            }
+            $paymentDate = 'Клубный взнос';
         }
+
         $amountCents = (int) round(((float) $outSum) * 100);
         // Ограничение банка для QR (СБП): сумма от 1 000 коп. (10 ₽) до 100 000 000 коп.
         if ($amountCents < 1000 || $amountCents > 100000000) {
             return back()->withErrors(['tinkoff' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']);
         }
 
-        $user = $r->user();
-        $userId = (int) $user->id;
-        $userName = (string) ($user->name ?? '');
-
-        $paymentDate = $r->filled('formatedPaymentDate')
-            ? (string) $r->input('formatedPaymentDate')   // YYYY-MM-01
-            : 'Клубный взнос';
-
-        $type = $r->filled('formatedPaymentDate') ? 'monthly_fee' : 'club_fee';
+        $type = $hasMonthly ? 'monthly_fee' : 'club_fee';
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
@@ -207,41 +234,6 @@ class TinkoffPaymentController extends Controller
         // Переходим на страницу QR
         return redirect()->route('tinkoff.qr', $payment->tinkoff_payment_id);
     }
-
-    /**
-     * Нормализуем сумму (рубли) до формата 0.00, округляя до копейки.
-     */
-    private function normalizeOutSum(string $value): ?string
-    {
-        $v = trim(str_replace(',', '.', $value));
-        if ($v === '') return null;
-        if (!preg_match('/^\d+(\.\d{1,6})?$/', $v)) return null;
-
-        $a = $v;
-        $b = '';
-        if (str_contains($v, '.')) {
-            [$a, $b] = explode('.', $v, 2);
-        }
-
-        $a = ltrim($a, '0');
-        if ($a === '') $a = '0';
-
-        $b = str_pad($b, 6, '0');
-        $cents = (int) substr($b, 0, 2);
-        $third = (int) substr($b, 2, 1);
-
-        if ($third >= 5) {
-            $cents++;
-            if ($cents >= 100) {
-                $cents = 0;
-                $a = (string) ((int) $a + 1);
-            }
-        }
-
-        return $a . '.' . str_pad((string) $cents, 2, '0', STR_PAD_LEFT);
-    }
-
-
 
     public function success($order)
     {

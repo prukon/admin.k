@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Payments\TBank;
 
 use App\Models\PaymentSystem;
 use App\Models\TinkoffPayment;
+use App\Models\UserPrice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
@@ -83,6 +84,10 @@ class TbankQrSecurityTest extends CrmTestCase
 
             return Http::response(['Success' => false], 500);
         });
+
+        UserPrice::factory()
+            ->forUserAndMonth((int) $this->user->id, '2024-01-01', 10, false)
+            ->create();
 
         // Пытаемся подложить чужой partner_id (должен игнорироваться — партнёр только из контекста)
         $resp = $this->post(route('payment.tinkoff.sbp'), [

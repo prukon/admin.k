@@ -46,11 +46,11 @@ class ReportController extends Controller
             return null; // Если формат не соответствует "Месяц Год", возвращаем null
         }
 
-        // Преобразуем строку в объект DateTime
+        // !F Y — без «!» PHP подставляет текущий день и ломает короткие месяцы (февраль → март).
         try {
-            $date = \DateTime::createFromFormat('F Y', $month); // F - имя месяца, Y - год
+            $date = \DateTime::createFromFormat('!F Y', $month);
             if ($date) {
-                return $date->format('Y-m-01'); // Всегда возвращаем первое число месяца
+                return $date->format('Y-m-01');
             }
             return null; // Возвращаем null, если не удалось преобразовать
         } catch (\Exception $e) {

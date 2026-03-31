@@ -233,7 +233,7 @@
                     <div class="summary-item-value">Выберите ниже</div>
                 </div>
             </div>
-            <div class="summary-total">Итого к оплате: <span class="value">{{ $outSum }} руб.</span></div>
+            <div class="summary-total">Итого к оплате: <span class="value">{{ number_format((int) round((float) str_replace(',', '.', (string) $outSum)), 0, ',', ' ') }} руб.</span></div>
             <div class="payment-trust">Оплата защищена банковскими протоколами безопасности.</div>
         </div>
 

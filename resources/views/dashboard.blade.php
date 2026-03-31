@@ -722,6 +722,7 @@
                     'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
                     'Июль', 'Август'
                 ];
+                const calendarMonthByKey = [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8];
                 var season2024;
 
                 document.querySelectorAll('.season .container').forEach(container => {
@@ -745,6 +746,9 @@
                         }
 
                         const paymentDate = `${monthsRu[key]} ${displaySeason}`;
+                        const year = Number(displaySeason);
+                        const calMonth = calendarMonthByKey[key];
+                        const formatedPaymentDate = `${year}-${String(calMonth).padStart(2, '0')}-01`;
 
                         var outSum = 22;
                         div.innerHTML = `
@@ -761,6 +765,7 @@
                     <form action="${paymentUrl}" method="POST">
                         <input type="hidden" name="_token" value="${csrfToken}">
                         <input type="hidden" name="paymentDate" value="${paymentDate}">
+                        <input type="hidden" name="formatedPaymentDate" value="${formatedPaymentDate}">
                         <input class="outSum" type="hidden" name="outSum" value="">
                         <button type="submit" disabled class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
                     </form>

@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
+use App\Support\Payments\PaymentOutSumNormalizer;
 
 class RobokassaController extends Controller
 {
@@ -123,13 +123,13 @@ class RobokassaController extends Controller
             return response("bad config\n", 500);
         }
 
-        $outSumNorm = $this->normalizeOutSum($outSumRaw);
+        $outSumNorm = PaymentOutSumNormalizer::normalize($outSumRaw);
         if ($outSumNorm === null) {
             Log::warning('Robokassa result: invalid OutSum', ['OutSum' => $outSumRaw, 'InvId' => $invId]);
             return response("bad request\n", 400);
         }
 
-        $expectedSumNorm = $this->normalizeOutSum((string) $intent->out_sum);
+        $expectedSumNorm = PaymentOutSumNormalizer::normalize((string) $intent->out_sum);
         if ($expectedSumNorm === null || $expectedSumNorm !== $outSumNorm) {
             Log::warning('Robokassa result: sum mismatch', [
                 'InvId'         => $invId,
@@ -249,48 +249,6 @@ class RobokassaController extends Controller
         });
 
         return response("OK$invId\n", 200);
-    }
-
-    /**
-     * Нормализуем сумму (Robokassa).
-     * Robokassa может присылать OutSum с 6 знаками после точки (например 2.000000).
-     * Принимаем до 6 знаков и округляем до 2 для сравнения/записи.
-     */
-    private function normalizeOutSum(string $value): ?string
-    {
-        $v = trim(str_replace(',', '.', $value));
-        if ($v === '') {
-            return null;
-        }
-        if (!preg_match('/^\d+(\.\d{1,6})?$/', $v)) {
-            return null;
-        }
-
-        $a = $v;
-        $b = '';
-        if (str_contains($v, '.')) {
-            [$a, $b] = explode('.', $v, 2);
-        }
-
-        $a = ltrim($a, '0');
-        if ($a === '') {
-            $a = '0';
-        }
-
-        $b = str_pad($b, 6, '0');
-        $cents = (int) substr($b, 0, 2);
-        $third = (int) substr($b, 2, 1);
-
-        // округление по 3-ему знаку
-        if ($third >= 5) {
-            $cents++;
-            if ($cents >= 100) {
-                $cents = 0;
-                $a = (string) ((int) $a + 1);
-            }
-        }
-
-        return $a . '.' . str_pad((string) $cents, 2, '0', STR_PAD_LEFT);
     }
 
 }
