@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
-use Carbon\Carbon;
 use App\Services\PartnerContext;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
 
@@ -34,30 +33,16 @@ class PaymentReportController extends AdminBaseController
     //Отчет Платежи
     public function payments(Request $request)
     {
-        // 1) партнёр
         $partnerId = $this->requirePartnerId();
         Log::debug('[payments] Partner ID', ['partnerId' => $partnerId]);
 
-        // 2) включаем лог запросов
-        DB::enableQueryLog();
+        $sumQuery = $this->basePaymentsReportQuery($partnerId);
+        $this->applyPaymentsReportFilters($sumQuery, $request);
+        $totalRaw = $sumQuery->sum('payments.summ');
+        $totalPaidPrice = number_format((float) $totalRaw, 0, '', ' ');
+        Log::debug('[payments] Filtered total (same rules as table)', ['raw' => $totalRaw, 'formatted' => $totalPaidPrice]);
 
-        // 3) считаем сумму
-
-        $totalPaidPrice = DB::table('payments')
-            ->join('users', 'users.id', '=', 'payments.user_id')
-            ->where('users.partner_id', $partnerId)
-            ->sum('payments.summ');
-
-        Log::debug('[payments] Raw total', ['totalPaidPriceRaw' => $totalPaidPrice]);
-
-        // 4) SQL‑лог
-        Log::debug('[payments] Executed query', DB::getQueryLog()[0] ?? []);
-
-        // 5) форматируем сумму
-        $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
-        Log::debug('[payments] Formatted total', ['totalPaidPrice' => $totalPaidPrice]);
-
-        // 6) проверяем, включена ли оплата T-Bank
+        // проверяем, включена ли оплата T-Bank
         $tbankPs = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
         $tbankEnabled = $tbankPs ? true : false;
 
@@ -77,6 +62,22 @@ class PaymentReportController extends AdminBaseController
                 'paymentsFilterTeam' => $paymentsFilterTeam,
             ]
         );
+    }
+
+    /**
+     * Сумма платежей по тем же фильтрам, что и таблица (для шапки после «Применить» без перезагрузки страницы).
+     */
+    public function paymentsTotal(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        $q = $this->basePaymentsReportQuery($partnerId);
+        $this->applyPaymentsReportFilters($q, $request);
+        $raw = $q->sum('payments.summ');
+
+        return response()->json([
+            'total_formatted' => number_format((float) $raw, 0, '', ' '),
+            'total_raw' => (float) $raw,
+        ]);
     }
 
     /**
@@ -211,22 +212,15 @@ class PaymentReportController extends AdminBaseController
         ];
     }
 
-    //Данные для отчета Платежи
-    public function getPayments(Request $request)
+    /**
+     * Базовый запрос отчёта «Платежи» (те же join'ы и поля, что и в getPayments).
+     * Нужен для DataTables, суммы в шапке и любых агрегатов по тем же правилам фильтрации.
+     */
+    private function basePaymentsReportQuery(int $partnerId)
     {
-        if (! $request->ajax()) {
-            abort(404);
-        }
-
-        $partnerId = $this->requirePartnerId();
-
-        $hasOrder = is_array($request->input('order')) && count($request->input('order')) > 0;
-
-        // Базовый запрос: только нужный партнёр, без get()
         // В интерфейсе "Чек" показываются два независимых чека:
         // - income (оплата) => receipt_url
         // - income_return (возврат) => return_receipt_url
-        // Поэтому нужно выбирать "последний" чек отдельно по каждому типу.
         $latestIncomeReceiptSub = FiscalReceipt::query()
             ->select('payment_id', DB::raw('MAX(id) as latest_id'))
             ->whereNotNull('payment_id')
@@ -239,7 +233,7 @@ class PaymentReportController extends AdminBaseController
             ->where('type', FiscalReceipt::TYPE_INCOME_RETURN)
             ->groupBy('payment_id');
 
-        $paymentsQuery = Payment::query()
+        return Payment::query()
             ->with(['user.team'])
             ->join('users', 'users.id', '=', 'payments.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
@@ -272,6 +266,20 @@ class PaymentReportController extends AdminBaseController
                 'pi_tbank.payment_method_webhook as intent_payment_method_webhook',
                 'pi_tbank.payment_method as intent_payment_method_init'
             );
+    }
+
+    //Данные для отчета Платежи
+    public function getPayments(Request $request)
+    {
+        if (! $request->ajax()) {
+            abort(404);
+        }
+
+        $partnerId = $this->requirePartnerId();
+
+        $hasOrder = is_array($request->input('order')) && count($request->input('order')) > 0;
+
+        $paymentsQuery = $this->basePaymentsReportQuery($partnerId);
 
         $this->applyPaymentsReportFilters($paymentsQuery, $request);
 
@@ -664,56 +672,42 @@ class PaymentReportController extends AdminBaseController
                     ? 'tbank'
                     : 'robokassa';
 
+                // В отчёте возврат только для T-Bank (Robokassa — без кнопки в UI)
+                if ($provider === 'robokassa') {
+                    return '';
+                }
+
                 // Последний рефанд по этому платежу
                 $refund = Refund::query()
                     ->where('payment_id', $row->id)
                     ->orderByDesc('id')
                     ->first();
 
-                // Находим intent для провайдера
-                $robokassaIntent = null;
                 $tbankIntent = null;
+                $pidStr = (is_string($row->payment_id) || is_numeric($row->payment_id))
+                    ? (string) $row->payment_id
+                    : '';
 
-                if ($provider === 'robokassa') {
-                    $invStr = (is_string($row->payment_number) || is_numeric($row->payment_number))
+                if ($pidStr === '' || !ctype_digit($pidStr)) {
+                    $pidStr = (is_string($row->payment_number) || is_numeric($row->payment_number))
                         ? (string) $row->payment_number
                         : '';
-
-                    if ($invStr !== '' && ctype_digit($invStr)) {
-                        $robokassaIntent = PaymentIntent::query()
-                            ->where('provider', 'robokassa')
-                            ->where('partner_id', (int) $partnerId)
-                            ->where('provider_inv_id', (int) $invStr)
-                            ->orderByDesc('id')
-                            ->first();
-                    }
-                } else {
-                    // T-Bank
-                    $pidStr = (is_string($row->payment_id) || is_numeric($row->payment_id))
-                        ? (string) $row->payment_id
-                        : '';
-
-                    if ($pidStr === '' || !ctype_digit($pidStr)) {
-                        $pidStr = (is_string($row->payment_number) || is_numeric($row->payment_number))
-                            ? (string) $row->payment_number
-                            : '';
-                    }
-
-                    if ($pidStr !== '' && ctype_digit($pidStr)) {
-                        $tbankIntent = PaymentIntent::query()
-                            ->where('provider', 'tbank')
-                            ->where('partner_id', (int) $partnerId)
-                            ->where(function ($q) use ($pidStr) {
-                                $pid = (int) $pidStr;
-                                $q->where('provider_inv_id', $pid)
-                                    ->orWhere('tbank_payment_id', $pid);
-                            })
-                            ->orderByDesc('id')
-                            ->first();
-                    }
                 }
 
-                $intent = $provider === 'tbank' ? $tbankIntent : $robokassaIntent;
+                if ($pidStr !== '' && ctype_digit($pidStr)) {
+                    $tbankIntent = PaymentIntent::query()
+                        ->where('provider', 'tbank')
+                        ->where('partner_id', (int) $partnerId)
+                        ->where(function ($q) use ($pidStr) {
+                            $pid = (int) $pidStr;
+                            $q->where('provider_inv_id', $pid)
+                                ->orWhere('tbank_payment_id', $pid);
+                        })
+                        ->orderByDesc('id')
+                        ->first();
+                }
+
+                $intent = $tbankIntent;
 
                 $disabled = false;
                 $title = '';
@@ -728,29 +722,15 @@ class PaymentReportController extends AdminBaseController
                 if (! $disabled) {
                     if (! $intent) {
                         $disabled = true;
-                        $title = $provider === 'tbank'
-                            ? 'Нет данных T-Bank (intent не найден)'
-                            : 'Нет данных Robokassa (intent не найден)';
+                        $title = 'Нет данных T-Bank (intent не найден)';
                     } elseif ((string) $intent->status !== 'paid') {
                         $disabled = true;
                         $title = 'Платёж не в статусе paid';
                     }
                 }
 
-                // Robokassa: лимит 7 дней
-                if (! $disabled && $provider === 'robokassa') {
-                    $paidAt = $intent && $intent->paid_at
-                        ? Carbon::parse($intent->paid_at)
-                        : ($row->operation_date ? Carbon::parse($row->operation_date) : null);
-
-                    if ($paidAt && $paidAt->copy()->addDays(7)->lt(now())) {
-                        $disabled = true;
-                        $title = 'Прошло больше 7 дней';
-                    }
-                }
-
                 // T-Bank: запрет возврата, если по этой оплате выплата уже ушла в банк (только через tinkoff_payments).
-                if (! $disabled && $provider === 'tbank' && $tbankIntent) {
+                if (! $disabled && $tbankIntent) {
                     $tpPidStr = (is_string($row->payment_id) || is_numeric($row->payment_id))
                         ? (string) $row->payment_id
                         : '';
@@ -796,7 +776,7 @@ class PaymentReportController extends AdminBaseController
                     'type="button"',
                     'class="btn btn-sm btn-outline-danger js-refund-btn"',
                     'data-payment-id="' . (int) $row->id . '"',
-                    'data-provider="' . e((string) $provider) . '"',
+                    'data-provider="tbank"',
                     'data-amount="' . e((string) $amount) . '"',
                     'data-user="' . e((string) ($row->user_name ?? '')) . '"',
                     'data-month="' . e((string) ($row->payment_month ?? '')) . '"',
@@ -809,7 +789,7 @@ class PaymentReportController extends AdminBaseController
                 $buttonHtml = '<button ' . implode(' ', $btnAttrs) . '>Возврат</button>';
 
                 $historyButtonHtml = '';
-                if ($provider === 'tbank' && $canViewTbankHistory) {
+                if ($canViewTbankHistory) {
                     $historyButtonHtml =
                         '<button type="button" class="btn btn-sm btn-outline-secondary ms-1 js-tbank-history-btn" ' .
                         'data-payment-id="' . (int) $row->id . '" ' .

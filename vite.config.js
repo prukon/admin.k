@@ -16,6 +16,7 @@ export default defineConfig({
                 'resources/css/landing.css',
                 'resources/css/blog.css',
                 'resources/css/user.css',
+                'resources/css/payments-report.css',
 
 
                 'resources/js/common-scripts.js', //выпил

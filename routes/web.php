@@ -188,6 +188,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         //Отчеты -> Платежи
         Route::get('/admin/reports/payments', [PaymentReportController::class, 'payments'])->name('payments');
         Route::get('/admin/reports/getPayments', [PaymentReportController::class, 'getPayments'])->name('payments.getPayments');
+        Route::get('/admin/reports/payments/total', [PaymentReportController::class, 'paymentsTotal'])->name('reports.payments.total');
         Route::get('/admin/reports/payments/users-search', [PaymentReportController::class, 'usersSearch'])->name('reports.payments.users.search');
         Route::get('/admin/reports/payments/teams-search', [PaymentReportController::class, 'teamsSearch'])->name('reports.payments.teams.search');
         Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])->name('payments.refund')->whereNumber('payment');

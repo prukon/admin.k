@@ -64,7 +64,7 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
-     * (P0) Сумма totalPaidPrice учитывает только текущего партнёра.
+     * (P0) Сумма totalPaidPrice учитывает только текущего партнёра (без фильтров — все оплаты партнёра).
      * (P1) Форматирование totalPaidPrice (разделители тысяч).
      */
     public function test_payments_page_totalPaidPrice_uses_only_current_partner_payments_and_is_formatted(): void
@@ -103,6 +103,65 @@ class PaymentReportTest extends CrmTestCase
         $response
             ->assertOk()
             ->assertViewHas('totalPaidPrice', $expectedFormatted);
+    }
+
+    /**
+     * Сумма в шапке с фильтром в query-string совпадает с суммой отфильтрованных платежей.
+     */
+    public function test_payments_page_totalPaidPrice_respects_filter_user_id_in_query(): void
+    {
+        $paymentMine = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'summ' => 1111,
+        ]);
+
+        $otherUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        Payment::factory()->create([
+            'user_id' => $otherUser->id,
+            'summ' => 9999,
+        ]);
+
+        $expectedFormatted = number_format($paymentMine->summ, 0, '', ' ');
+
+        $response = $this->get(route('payments', [
+            'filter_user_id' => (string) $this->user->id,
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertViewHas('totalPaidPrice', $expectedFormatted);
+    }
+
+    /**
+     * JSON: та же сумма, что и в шапке, по тем же параметрам фильтрации.
+     */
+    public function test_reports_payments_total_endpoint_matches_filtered_sum(): void
+    {
+        Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'summ' => 100,
+        ]);
+
+        $otherUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        Payment::factory()->create([
+            'user_id' => $otherUser->id,
+            'summ' => 400,
+        ]);
+
+        $response = $this->getJson(route('reports.payments.total', [
+            'filter_user_id' => (string) $this->user->id,
+        ]));
+
+        $response->assertOk();
+        $json = $response->json();
+        $this->assertSame(number_format(100, 0, '', ' '), $json['total_formatted']);
+        $this->assertEquals(100, (float) ($json['total_raw'] ?? 0));
     }
 
     /**

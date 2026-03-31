@@ -12,23 +12,54 @@
         }
     }
 @endphp
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
-    <h4 class="text-start mb-0">Платежи</h4>
+<div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+    <div class="card-body px-3 py-3">
+        <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Платежи</h1>
+            <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
+                <div class="payments-report-total-inline payments-report-total-stat text-end" id="paymentsReportTotalStat">
+                    <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
+                    <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                        <span class="payments-report-total-value-inner">
+                            <span class="payments-report-total-amount">{{ $totalPaidPrice }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#paymentsReportFiltersCollapse"
+                        aria-expanded="{{ $payHasActiveFilters ? 'true' : 'false' }}"
+                        aria-controls="paymentsReportFiltersCollapse"
+                        id="paymentsReportFiltersToggle">
+                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                        <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                    </span>
+                    <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                    <i class="fas fa-chevron-down payments-report-toolbar-chevron"
+                       aria-hidden="true"></i>
+                </button>
 
-    {{-- Dropdown "Поля списка" --}}
-    <div class="dropdown">
-        <button class="btn btn-outline-secondary dropdown-toggle"
-                type="button"
-                id="columnsDropdownPayments"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-                title="Поля списка">
-            <i class="fas fa-table-columns"></i>
-        </button>
+                <div class="dropdown payments-report-toolbar-dropdown">
+                    <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                            type="button"
+                            id="columnsDropdownPayments"
+                            data-bs-toggle="dropdown"
+                            data-bs-auto-close="outside"
+                            aria-expanded="false"
+                            aria-haspopup="true"
+                            title="Какие колонки показывать в таблице">
+                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                            <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                        </span>
+                        <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                        <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                    </button>
 
-        <div class="dropdown-menu p-3"
-             aria-labelledby="columnsDropdownPayments"
-             style="min-width: 240px;">
+                    <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                         aria-labelledby="columnsDropdownPayments">
+                        <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
 
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
@@ -179,29 +210,16 @@
                 <label class="form-check-label" for="payColRefundStatus">Статус возврата</label>
             </div>
 
+                    </div>
+                </div>
+            </div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="mb-2">
-    <button class="payments-report-filters-toggle d-inline-flex align-items-center gap-2"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#paymentsReportFiltersCollapse"
-            aria-expanded="{{ $payHasActiveFilters ? 'true' : 'false' }}"
-            aria-controls="paymentsReportFiltersCollapse"
-            id="paymentsReportFiltersToggle">
-        <span class="payments-report-filters-icon-wrap" aria-hidden="true">
-            <i class="fas fa-sliders-h payments-report-filters-main-icon"></i>
-        </span>
-        <span class="payments-report-filters-label">Фильтры</span>
-        <i class="fas {{ $payHasActiveFilters ? 'fa-chevron-up' : 'fa-chevron-down' }} payments-report-filters-chevron"
-           aria-hidden="true"></i>
-    </button>
-</div>
-
-<div class="collapse {{ $payHasActiveFilters ? 'show' : '' }} mb-3" id="paymentsReportFiltersCollapse">
-    <form id="payments-report-filters" method="GET" action="/admin/reports/payments" class="border rounded p-3 bg-light">
+<div class="collapse {{ $payHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="paymentsReportFiltersCollapse">
+    <form id="payments-report-filters" method="GET" action="/admin/reports/payments" class="border rounded p-2 p-md-3 bg-light">
         <div class="row g-2 align-items-end">
             <div class="col-12 col-md-3">
                 <label class="form-label" for="pay-filter-user">Ученик</label>
@@ -273,19 +291,14 @@
                     <option value="refund_pending" {{ $fpRefund === 'refund_pending' ? 'selected' : '' }}>Возврат (в процессе)</option>
                 </select>
             </div>
-            <div class="col-12 col-md-auto d-flex flex-wrap align-items-end gap-2 ms-md-auto">
-                <button class="btn btn-primary" type="submit">Применить</button>
-                <button class="btn btn-outline-secondary" type="button" id="paymentsReportFiltersResetBtn">Сброс</button>
+            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
+                <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="paymentsReportFiltersResetBtn">Сброс</button>
             </div>
         </div>
     </form>
 </div>
 
-<div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
-    <span class="fw-bold">Общая сумма платежей:</span>
-
-    <span class="fw-bold"> {{$totalPaidPrice}} руб</span>
-</div>
 <table class="table table-bordered" id="payments-table">
     <thead>
     <tr>
@@ -401,104 +414,7 @@
 </div>
 @endcan
 
-<style>
-    .return-receipt-link {
-        text-decoration: none;
-    }
-
-    .return-receipt-icon {
-        color: #ffc107; /* bootstrap warning */
-        transition: color .15s ease, transform .15s ease;
-    }
-
-    .return-receipt-link:hover .return-receipt-icon {
-        color: #ff9800;
-        transform: translateY(-1px);
-    }
-
-    .pay-cell-datetime {
-        display: inline-flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.2rem;
-        padding: 0.15rem 0;
-        line-height: 1.25;
-        min-width: 5.5rem;
-    }
-
-    .pay-cell-datetime__date {
-        white-space: nowrap;
-    }
-
-    .pay-cell-datetime__time {
-        font-size: 0.8125rem;
-        font-variant-numeric: tabular-nums;
-        color: var(--bs-secondary-color, #6c757d);
-        white-space: nowrap;
-    }
-
-    .payments-report-filters-toggle {
-        cursor: pointer;
-        user-select: none;
-        padding: 0.45rem 0.9rem 0.45rem 0.45rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        line-height: 1.25;
-        color: var(--bs-body-color);
-        background: linear-gradient(180deg, #fff 0%, var(--bs-light, #f8f9fa) 100%);
-        border: 1px solid var(--bs-border-color, #dee2e6);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-    }
-
-    .payments-report-filters-toggle:hover {
-        border-color: #b6d4fe;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        color: var(--bs-body-color);
-        background: #fff;
-    }
-
-    .payments-report-filters-toggle:focus-visible {
-        outline: 0;
-        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-    }
-
-    .payments-report-filters-toggle[aria-expanded="true"] {
-        border-color: #86b7fe;
-        background: #f0f7ff;
-    }
-
-    .payments-report-filters-icon-wrap {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2.25rem;
-        height: 2.25rem;
-        border-radius: 0.4rem;
-        background: var(--bs-primary-bg-subtle, #cfe2ff);
-        color: var(--bs-primary, #0d6efd);
-    }
-
-    .payments-report-filters-main-icon {
-        font-size: 0.95rem;
-        line-height: 1;
-    }
-
-    .payments-report-filters-label {
-        letter-spacing: 0.02em;
-    }
-
-    .payments-report-filters-chevron {
-        font-size: 0.7rem;
-        opacity: 0.65;
-        margin-left: 0.15rem;
-    }
-
-    /* Select2 в блоке фильтров (как на /cabinet) */
-    .payments-report-filter-select2 {
-        width: 100% !important;
-    }
-</style>
+@vite(['resources/css/payments-report.css'])
 
 @section('scripts')
     <script type="text/javascript">
@@ -513,21 +429,131 @@
             ]);
 
             var $payFiltersForm = $('#payments-report-filters');
-            var $payFiltersCollapse = $('#paymentsReportFiltersCollapse');
-            var $payFiltersToggle = $('#paymentsReportFiltersToggle');
-            var $payFiltersChevron = $payFiltersToggle.find('.payments-report-filters-chevron');
-
-            $payFiltersCollapse.on('shown.bs.collapse', function () {
-                $payFiltersToggle.attr('aria-expanded', 'true');
-                $payFiltersChevron.removeClass('fa-chevron-down').addClass('fa-chevron-up');
-            });
-            $payFiltersCollapse.on('hidden.bs.collapse', function () {
-                $payFiltersToggle.attr('aria-expanded', 'false');
-                $payFiltersChevron.removeClass('fa-chevron-up').addClass('fa-chevron-down');
-            });
 
             var $payFilterUser = $('#pay-filter-user');
             var $payFilterTeam = $('#pay-filter-team');
+            var $paymentsReportTotalAmount = $('.payments-report-total-amount');
+            var $paymentsReportTotalStat = $('#paymentsReportTotalStat');
+            var $paymentsReportTotalValueInner = $('.payments-report-total-value-inner');
+
+            function paymentsReportParseTotalToInt(str) {
+                return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
+            }
+
+            function paymentsReportFormatTotalSpaces(n) {
+                var v = Math.round(Number(n));
+                if (isNaN(v)) {
+                    return '0';
+                }
+                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+            }
+
+            function paymentsReportAnimateTotalChange(prevText, nextText, nextRaw) {
+                var $amount = $paymentsReportTotalAmount;
+                if (!$amount.length) {
+                    return;
+                }
+                var nextVal = typeof nextRaw === 'number' && !isNaN(nextRaw)
+                    ? Math.round(nextRaw)
+                    : paymentsReportParseTotalToInt(nextText);
+                var prevVal = paymentsReportParseTotalToInt(prevText);
+
+                var runFlashAndPop = function () {
+                    if ($paymentsReportTotalStat.length) {
+                        $paymentsReportTotalStat.removeClass('payments-report-total-stat--flash');
+                        void $paymentsReportTotalStat[0].offsetWidth;
+                        $paymentsReportTotalStat.addClass('payments-report-total-stat--flash');
+                    }
+                    if ($paymentsReportTotalValueInner.length) {
+                        $paymentsReportTotalValueInner.removeClass('payments-report-total-value-inner--pop');
+                        void $paymentsReportTotalValueInner[0].offsetWidth;
+                        $paymentsReportTotalValueInner.addClass('payments-report-total-value-inner--pop');
+                    }
+                };
+
+                var prefersReduced = window.matchMedia
+                    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                if (prefersReduced || prevText === nextText) {
+                    $amount.text(nextText);
+                    if (!prefersReduced && prevText !== nextText) {
+                        runFlashAndPop();
+                    }
+                    return;
+                }
+
+                if (prevVal === nextVal) {
+                    $amount.text(nextText);
+                    runFlashAndPop();
+                    return;
+                }
+
+                var duration = 480;
+                var start = null;
+
+                function easeInOutQuad(t) {
+                    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                }
+
+                function step(ts) {
+                    if (start === null) {
+                        start = ts;
+                    }
+                    var elapsed = ts - start;
+                    var t = Math.min(1, elapsed / duration);
+                    var eased = easeInOutQuad(t);
+                    var cur = Math.round(prevVal + (nextVal - prevVal) * eased);
+                    $amount.text(paymentsReportFormatTotalSpaces(cur));
+                    if (t < 1) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        $amount.text(nextText);
+                    }
+                }
+
+                runFlashAndPop();
+                window.requestAnimationFrame(step);
+            }
+
+            function paymentsReportFilterParams() {
+                var uid = $payFiltersForm.find('[name="filter_user_id"]').val() || '';
+                var tid = $payFiltersForm.find('[name="filter_team_id"]').val() || '';
+                return {
+                    filter_user_id: uid,
+                    filter_team_id: tid,
+                    user_name: uid ? '' : (payReportLegacyFilters.user_name || ''),
+                    team_title: tid ? '' : (payReportLegacyFilters.team_title || ''),
+                    payment_month: $payFiltersForm.find('[name="payment_month"]').val(),
+                    operation_date_from: $payFiltersForm.find('[name="operation_date_from"]').val(),
+                    operation_date_to: $payFiltersForm.find('[name="operation_date_to"]').val(),
+                    payment_provider: $payFiltersForm.find('[name="payment_provider"]').val(),
+                    payment_method: $payFiltersForm.find('[name="payment_method"]').val(),
+                    payment_refund_status: $payFiltersForm.find('[name="payment_refund_status"]').val()
+                };
+            }
+
+            function refreshPaymentsReportTotal() {
+                var prevText = $paymentsReportTotalAmount.length ? $paymentsReportTotalAmount.text() : '';
+                if ($paymentsReportTotalStat.length) {
+                    $paymentsReportTotalStat.addClass('payments-report-total-stat--loading');
+                }
+                $.get(@json(route('reports.payments.total')), paymentsReportFilterParams())
+                    .done(function (res) {
+                        if ($paymentsReportTotalStat.length) {
+                            $paymentsReportTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                        if (!res || res.total_formatted === undefined || !$paymentsReportTotalAmount.length) {
+                            return;
+                        }
+                        var nextText = res.total_formatted;
+                        paymentsReportAnimateTotalChange(prevText, nextText, res.total_raw);
+                    })
+                    .fail(function () {
+                        if ($paymentsReportTotalStat.length) {
+                            $paymentsReportTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                    });
+            }
 
             function initPaymentsReportFilterSelect2($el) {
                 var searchUrl = $el.data('search-url');
@@ -955,16 +981,10 @@ columns.push(
     ajax: {
         url: "{{ route('payments.getPayments') }}",
         data: function (d) {
-            d.filter_user_id = $payFiltersForm.find('[name="filter_user_id"]').val() || '';
-            d.filter_team_id = $payFiltersForm.find('[name="filter_team_id"]').val() || '';
-            d.user_name = d.filter_user_id ? '' : (payReportLegacyFilters.user_name || '');
-            d.team_title = d.filter_team_id ? '' : (payReportLegacyFilters.team_title || '');
-            d.payment_month = $payFiltersForm.find('[name="payment_month"]').val();
-            d.operation_date_from = $payFiltersForm.find('[name="operation_date_from"]').val();
-            d.operation_date_to = $payFiltersForm.find('[name="operation_date_to"]').val();
-            d.payment_provider = $payFiltersForm.find('[name="payment_provider"]').val();
-            d.payment_method = $payFiltersForm.find('[name="payment_method"]').val();
-            d.payment_refund_status = $payFiltersForm.find('[name="payment_refund_status"]').val();
+            var f = paymentsReportFilterParams();
+            Object.keys(f).forEach(function (k) {
+                d[k] = f[k];
+            });
         }
     },
     columns: columns,
@@ -1005,6 +1025,7 @@ columns.push(
 
             $payFiltersForm.on('submit', function (e) {
                 e.preventDefault();
+                refreshPaymentsReportTotal();
                 table.ajax.reload();
             });
 
@@ -1014,6 +1035,7 @@ columns.push(
                 payReportLegacyFilters.team_title = '';
                 $payFilterUser.val(null).trigger('change');
                 $payFilterTeam.val(null).trigger('change');
+                refreshPaymentsReportTotal();
                 table.ajax.reload();
             });
 
