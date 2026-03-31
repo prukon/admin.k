@@ -230,6 +230,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware(['can:reports.payment.intents.view'])->group(function () {
         Route::get('/admin/reports/payment-intents', [PaymentIntentReportController::class, 'paymentIntents'])->name('reports.payment-intents.index');
         Route::get('/admin/reports/getPaymentIntents', [PaymentIntentReportController::class, 'getPaymentIntents'])->name('reports.payment-intents.data');
+        Route::get('/admin/reports/payment-intents/total', [PaymentIntentReportController::class, 'total'])->name('reports.payment-intents.total');
+        Route::get('/admin/reports/payment-intents/partners-search', [PaymentIntentReportController::class, 'partnersSearch'])->name('reports.payment-intents.partners.search');
+        Route::get('/admin/reports/payment-intents/users-search', [PaymentIntentReportController::class, 'usersSearch'])->name('reports.payment-intents.users.search');
+        Route::get('/admin/reports/payment-intents/columns-settings', [PaymentIntentReportController::class, 'getColumnsSettings']);
+        Route::post('/admin/reports/payment-intents/columns-settings', [PaymentIntentReportController::class, 'saveColumnsSettings']);
     });
 
     // Отчёты -> "Чеки" (fiscal_receipts)

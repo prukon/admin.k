@@ -1,5 +1,5 @@
 @php
-    $piFilterKeys = ['inv_id', 'partner_title', 'user_name', 'provider', 'status', 'created_from', 'created_to', 'paid_from', 'paid_to'];
+    $piFilterKeys = ['inv_id', 'partner_id', 'user_id', 'partner_title', 'user_name', 'provider', 'status', 'created_from', 'created_to', 'paid_from', 'paid_to'];
     $piHasActiveFilters = false;
     foreach ($piFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -9,27 +9,113 @@
         }
     }
 @endphp
-<h4 class="pt-3 text-start">Платежные запросы</h4>
+@vite(['resources/css/payments-report.css'])
 
-<div class="mb-2">
-    <button class="payment-intents-filters-toggle d-inline-flex align-items-center gap-2"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#paymentIntentsFiltersCollapse"
-            aria-expanded="{{ $piHasActiveFilters ? 'true' : 'false' }}"
-            aria-controls="paymentIntentsFiltersCollapse"
-            id="paymentIntentsFiltersToggle">
-        <span class="payment-intents-filters-icon-wrap" aria-hidden="true">
-            <i class="fas fa-sliders-h payment-intents-filters-main-icon"></i>
-        </span>
-        <span class="payment-intents-filters-label">Фильтры</span>
-        <i class="fas {{ $piHasActiveFilters ? 'fa-chevron-up' : 'fa-chevron-down' }} payment-intents-filters-chevron"
-           aria-hidden="true"></i>
-    </button>
+<div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+    <div class="card-body px-3 py-3">
+        <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Платежные запросы</h1>
+            <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
+                <div class="payments-report-total-inline payments-report-total-stat text-end" id="paymentIntentsReportTotalStat">
+                    <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
+                    <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                        <span class="payments-report-total-value-inner">
+                            <span class="payments-report-total-amount">{{ $totalPaidPrice ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                    <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#paymentIntentsFiltersCollapse"
+                            aria-expanded="{{ $piHasActiveFilters ? 'true' : 'false' }}"
+                            aria-controls="paymentIntentsFiltersCollapse"
+                            id="paymentIntentsFiltersToggle">
+                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                            <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                        </span>
+                        <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                        <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                    </button>
+
+                    <div class="dropdown payments-report-toolbar-dropdown">
+                        <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                id="columnsDropdownPaymentIntents"
+                                data-bs-toggle="dropdown"
+                                data-bs-auto-close="outside"
+                                aria-expanded="false"
+                                aria-haspopup="true"
+                                title="Какие колонки показывать в таблице">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
+
+                        <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                             aria-labelledby="columnsDropdownPaymentIntents">
+                            <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColId" data-column-key="id" data-column-index="0" checked>
+                                <label class="form-check-label" for="piColId">№</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColProviderInvId" data-column-key="provider_inv_id" data-column-index="1" checked>
+                                <label class="form-check-label" for="piColProviderInvId">ID провайдера</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColPartner" data-column-key="partner" data-column-index="2" checked>
+                                <label class="form-check-label" for="piColPartner">Партнер</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColUser" data-column-key="user" data-column-index="3" checked>
+                                <label class="form-check-label" for="piColUser">Пользователь</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColProvider" data-column-key="provider" data-column-index="4" checked>
+                                <label class="form-check-label" for="piColProvider">Провайдер</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColMethod" data-column-key="payment_method_webhook_label" data-column-index="5" checked>
+                                <label class="form-check-label" for="piColMethod">Способ оплаты</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColStatus" data-column-key="status" data-column-index="6" checked>
+                                <label class="form-check-label" for="piColStatus">Статус</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColOutSum" data-column-key="out_sum" data-column-index="7" checked>
+                                <label class="form-check-label" for="piColOutSum">Сумма платежа</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColPaymentDate" data-column-key="payment_date" data-column-index="8" checked>
+                                <label class="form-check-label" for="piColPaymentDate">Оплаченный месяц</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColCreatedAt" data-column-key="created_at" data-column-index="9" checked>
+                                <label class="form-check-label" for="piColCreatedAt">Создано</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColPaidAt" data-column-key="paid_at" data-column-index="10" checked>
+                                <label class="form-check-label" for="piColPaidAt">Дата оплаты</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColMeta" data-column-key="meta" data-column-index="11" checked>
+                                <label class="form-check-label" for="piColMeta">Мета</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="collapse {{ $piHasActiveFilters ? 'show' : '' }} mb-3" id="paymentIntentsFiltersCollapse">
-    <form id="payment-intents-filters" method="GET" action="/admin/reports/payment-intents" class="border rounded p-3 bg-light">
+<div class="collapse {{ $piHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="paymentIntentsFiltersCollapse">
+    <form id="payment-intents-filters" method="GET" action="{{ route('reports.payment-intents.index') }}" class="border rounded p-2 p-md-3 bg-light">
         <div class="row g-2 align-items-end">
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pi-filter-inv-id">№</label>
@@ -38,13 +124,29 @@
             </div>
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pi-filter-partner">Партнер</label>
-                <input class="form-control" id="pi-filter-partner" name="partner_title"
-                       value="{{ $filters['partner_title'] ?? '' }}" placeholder="Фрагмент названия">
+                <select class="form-select payments-report-filter-select2"
+                        id="pi-filter-partner"
+                        name="partner_id"
+                        data-placeholder="Все партнеры"
+                        data-search-url="{{ route('reports.payment-intents.partners.search') }}">
+                    <option value=""></option>
+                    @if(!empty($piFilterPartner))
+                        <option value="{{ $piFilterPartner['id'] }}" selected>{{ $piFilterPartner['text'] }}</option>
+                    @endif
+                </select>
             </div>
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pi-filter-user">Пользователь</label>
-                <input class="form-control" id="pi-filter-user" name="user_name"
-                       value="{{ $filters['user_name'] ?? '' }}" placeholder="Имя или фамилия">
+                <select class="form-select payments-report-filter-select2"
+                        id="pi-filter-user"
+                        name="user_id"
+                        data-placeholder="Все пользователи"
+                        data-search-url="{{ route('reports.payment-intents.users.search') }}">
+                    <option value=""></option>
+                    @if(!empty($piFilterUser))
+                        <option value="{{ $piFilterUser['id'] }}" selected>{{ $piFilterUser['text'] }}</option>
+                    @endif
+                </select>
             </div>
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pi-filter-provider">Провайдер</label>
@@ -87,9 +189,9 @@
                 <input class="form-control" id="pi-filter-paid-to" type="date" name="paid_to"
                        value="{{ $filters['paid_to'] ?? '' }}">
             </div>
-            <div class="col-12 col-md-auto d-flex flex-wrap align-items-end gap-2 ms-md-auto">
-                <button class="btn btn-primary" type="submit">Применить</button>
-                <button class="btn btn-outline-secondary" type="button" id="paymentIntentsResetBtn">Сброс</button>
+            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
+                <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="paymentIntentsResetBtn">Сброс</button>
             </div>
         </div>
     </form>
@@ -115,63 +217,6 @@
         font-variant-numeric: tabular-nums;
         color: var(--bs-secondary-color, #6c757d);
         white-space: nowrap;
-    }
-
-    .payment-intents-filters-toggle {
-        cursor: pointer;
-        user-select: none;
-        padding: 0.45rem 0.9rem 0.45rem 0.45rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        line-height: 1.25;
-        color: var(--bs-body-color);
-        background: linear-gradient(180deg, #fff 0%, var(--bs-light, #f8f9fa) 100%);
-        border: 1px solid var(--bs-border-color, #dee2e6);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-    }
-
-    .payment-intents-filters-toggle:hover {
-        border-color: #b6d4fe;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        color: var(--bs-body-color);
-        background: #fff;
-    }
-
-    .payment-intents-filters-toggle:focus-visible {
-        outline: 0;
-        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-    }
-
-    .payment-intents-filters-toggle[aria-expanded="true"] {
-        border-color: #86b7fe;
-        background: #f0f7ff;
-    }
-
-    .payment-intents-filters-icon-wrap {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2.25rem;
-        height: 2.25rem;
-        border-radius: 0.4rem;
-        background: var(--bs-primary-bg-subtle, #cfe2ff);
-        color: var(--bs-primary, #0d6efd);
-    }
-
-    .payment-intents-filters-main-icon {
-        font-size: 0.95rem;
-        line-height: 1;
-    }
-
-    .payment-intents-filters-label {
-        letter-spacing: 0.02em;
-    }
-
-    .payment-intents-filters-chevron {
-        font-size: 0.7rem;
-        opacity: 0.65;
-        margin-left: 0.15rem;
     }
 
     #payment-intents-table th.payment-intent-meta-th,
@@ -242,18 +287,168 @@
     <script type="text/javascript">
         $(function () {
             var $form = $('#payment-intents-filters');
-            var $collapse = $('#paymentIntentsFiltersCollapse');
-            var $toggle = $('#paymentIntentsFiltersToggle');
-            var $chevron = $toggle.find('.payment-intents-filters-chevron');
+            var $piFilterPartner = $('#pi-filter-partner');
+            var $piFilterUser = $('#pi-filter-user');
+            var $piTotalAmount = $('.payments-report-total-amount');
+            var $piTotalStat = $('#paymentIntentsReportTotalStat');
+            var $piTotalValueInner = $('.payments-report-total-value-inner');
 
-            $collapse.on('shown.bs.collapse', function () {
-                $toggle.attr('aria-expanded', 'true');
-                $chevron.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+            function initPaymentsReportFilterSelect2($el, extraParamsFn) {
+                var searchUrl = $el.data('search-url');
+                if (!$el.length || !searchUrl) {
+                    return;
+                }
+                $el.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $el.data('placeholder') || '',
+                    allowClear: true,
+                    ajax: {
+                        url: searchUrl,
+                        delay: 250,
+                        data: function (params) {
+                            var payload = {q: params.term || ''};
+                            if (typeof extraParamsFn === 'function') {
+                                var extra = extraParamsFn() || {};
+                                Object.keys(extra).forEach(function (k) {
+                                    payload[k] = extra[k];
+                                });
+                            }
+                            return payload;
+                        },
+                        processResults: function (data) {
+                            return data;
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            }
+
+            initPaymentsReportFilterSelect2($piFilterPartner);
+            initPaymentsReportFilterSelect2($piFilterUser, function () {
+                return {
+                    partner_id: $piFilterPartner.val() || ''
+                };
             });
-            $collapse.on('hidden.bs.collapse', function () {
-                $toggle.attr('aria-expanded', 'false');
-                $chevron.removeClass('fa-chevron-up').addClass('fa-chevron-down');
-            });
+
+            function piParseTotalToInt(str) {
+                return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
+            }
+
+            function piFormatTotalSpaces(n) {
+                var v = Math.round(Number(n));
+                if (isNaN(v)) {
+                    return '0';
+                }
+                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+            }
+
+            function piAnimateTotalChange(prevText, nextText, nextRaw) {
+                var $amount = $piTotalAmount;
+                if (!$amount.length) {
+                    return;
+                }
+
+                var nextVal = typeof nextRaw === 'number' && !isNaN(nextRaw)
+                    ? Math.round(nextRaw)
+                    : piParseTotalToInt(nextText);
+                var prevVal = piParseTotalToInt(prevText);
+
+                var runFlashAndPop = function () {
+                    if ($piTotalStat.length) {
+                        $piTotalStat.removeClass('payments-report-total-stat--flash');
+                        void $piTotalStat[0].offsetWidth;
+                        $piTotalStat.addClass('payments-report-total-stat--flash');
+                    }
+                    if ($piTotalValueInner.length) {
+                        $piTotalValueInner.removeClass('payments-report-total-value-inner--pop');
+                        void $piTotalValueInner[0].offsetWidth;
+                        $piTotalValueInner.addClass('payments-report-total-value-inner--pop');
+                    }
+                };
+
+                var prefersReduced = window.matchMedia
+                    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                if (prefersReduced || prevText === nextText) {
+                    $amount.text(nextText);
+                    if (!prefersReduced && prevText !== nextText) {
+                        runFlashAndPop();
+                    }
+                    return;
+                }
+
+                if (prevVal === nextVal) {
+                    $amount.text(nextText);
+                    runFlashAndPop();
+                    return;
+                }
+
+                var duration = 480;
+                var start = null;
+
+                function easeInOutQuad(t) {
+                    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                }
+
+                function step(ts) {
+                    if (start === null) {
+                        start = ts;
+                    }
+                    var elapsed = ts - start;
+                    var t = Math.min(1, elapsed / duration);
+                    var eased = easeInOutQuad(t);
+                    var cur = Math.round(prevVal + (nextVal - prevVal) * eased);
+                    $amount.text(piFormatTotalSpaces(cur));
+                    if (t < 1) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        $amount.text(nextText);
+                    }
+                }
+
+                runFlashAndPop();
+                window.requestAnimationFrame(step);
+            }
+
+            function piFilterParams() {
+                return {
+                    inv_id: $form.find('[name="inv_id"]').val() || '',
+                    partner_id: $form.find('[name="partner_id"]').val() || '',
+                    user_id: $form.find('[name="user_id"]').val() || '',
+                    partner_title: '',
+                    user_name: '',
+                    provider: $form.find('[name="provider"]').val() || '',
+                    status: $form.find('[name="status"]').val() || '',
+                    created_from: $form.find('[name="created_from"]').val() || '',
+                    created_to: $form.find('[name="created_to"]').val() || '',
+                    paid_from: $form.find('[name="paid_from"]').val() || '',
+                    paid_to: $form.find('[name="paid_to"]').val() || ''
+                };
+            }
+
+            function refreshPiTotal() {
+                var prevText = $piTotalAmount.length ? $piTotalAmount.text() : '';
+                if ($piTotalStat.length) {
+                    $piTotalStat.addClass('payments-report-total-stat--loading');
+                }
+                $.get(@json(route('reports.payment-intents.total')), piFilterParams())
+                    .done(function (res) {
+                        if ($piTotalStat.length) {
+                            $piTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                        if (!res || res.total_formatted === undefined || !$piTotalAmount.length) {
+                            return;
+                        }
+                        var nextText = res.total_formatted;
+                        piAnimateTotalChange(prevText, nextText, res.total_raw);
+                    })
+                    .fail(function () {
+                        if ($piTotalStat.length) {
+                            $piTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                    });
+            }
 
             function dtLanguageRu() {
                 return {
@@ -387,15 +582,10 @@
                 ajax: {
                     url: "{{ route('reports.payment-intents.data') }}",
                     data: function (d) {
-                        d.inv_id = $form.find('[name="inv_id"]').val();
-                        d.partner_title = $form.find('[name="partner_title"]').val();
-                        d.user_name = $form.find('[name="user_name"]').val();
-                        d.provider = $form.find('[name="provider"]').val();
-                        d.status = $form.find('[name="status"]').val();
-                        d.created_from = $form.find('[name="created_from"]').val();
-                        d.created_to = $form.find('[name="created_to"]').val();
-                        d.paid_from = $form.find('[name="paid_from"]').val();
-                        d.paid_to = $form.find('[name="paid_to"]').val();
+                        var extra = piFilterParams();
+                        Object.keys(extra).forEach(function (key) {
+                            d[key] = extra[key];
+                        });
                     }
                 },
                 columnDefs: [
@@ -530,6 +720,94 @@
                 language: dtLanguageRu()
             });
 
+            var defaultColumnsVisibility = {
+                id: true,
+                provider_inv_id: true,
+                partner: true,
+                user: true,
+                provider: true,
+                payment_method_webhook_label: true,
+                status: true,
+                out_sum: true,
+                payment_date: true,
+                created_at: true,
+                paid_at: true,
+                meta: true
+            };
+
+            var columnsMap = {
+                id: 0,
+                provider_inv_id: 1,
+                partner: 2,
+                user: 3,
+                provider: 4,
+                payment_method_webhook_label: 5,
+                status: 6,
+                out_sum: 7,
+                payment_date: 8,
+                created_at: 9,
+                paid_at: 10,
+                meta: 11
+            };
+
+            function toBool(val, fallback) {
+                if (fallback === undefined) fallback = true;
+                if (val === undefined || val === null) return fallback;
+                if (typeof val === 'boolean') return val;
+                if (typeof val === 'number') return val === 1;
+                if (typeof val === 'string') {
+                    var v = val.toLowerCase().trim();
+                    if (v === 'true' || v === '1') return true;
+                    if (v === 'false' || v === '0') return false;
+                }
+                return fallback;
+            }
+
+            function applyVisibleColumns(cfg) {
+                Object.keys(columnsMap).forEach(function (key) {
+                    var idx = columnsMap[key];
+                    var visible = toBool(cfg[key], defaultColumnsVisibility[key]);
+                    table.column(idx).visible(visible, false);
+                    $('.payment-intents-column-toggle[data-column-key="' + key + '"]').prop('checked', visible);
+                });
+                table.columns.adjust().draw(false);
+            }
+
+            var currentColumnsConfig = $.extend({}, defaultColumnsVisibility);
+
+            $.get('/admin/reports/payment-intents/columns-settings')
+                .done(function (saved) {
+                    if (saved && typeof saved === 'object') {
+                        currentColumnsConfig = $.extend({}, defaultColumnsVisibility, saved);
+                    }
+                    applyVisibleColumns(currentColumnsConfig);
+                })
+                .fail(function () {
+                    applyVisibleColumns(currentColumnsConfig);
+                });
+
+            $('.payment-intents-column-toggle').on('change', function () {
+                var key = $(this).data('column-key');
+                var isChecked = $(this).is(':checked');
+                if (!key) return;
+
+                currentColumnsConfig[key] = isChecked ? 1 : 0;
+                applyVisibleColumns(currentColumnsConfig);
+
+                $.ajax({
+                    url: '/admin/reports/payment-intents/columns-settings',
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        columns: currentColumnsConfig
+                    },
+                    success: function () {},
+                    error: function () {
+                        console.error('Не удалось сохранить настройки колонок');
+                    }
+                });
+            });
+
             var metaModalEl = document.getElementById('paymentIntentMetaModal');
             var metaModal = metaModalEl && typeof bootstrap !== 'undefined'
                 ? bootstrap.Modal.getOrCreateInstance(metaModalEl)
@@ -561,11 +839,15 @@
 
             $form.on('submit', function (e) {
                 e.preventDefault();
+                refreshPiTotal();
                 table.ajax.reload();
             });
 
             $('#paymentIntentsResetBtn').on('click', function () {
                 $form[0].reset();
+                $piFilterPartner.val(null).trigger('change');
+                $piFilterUser.val(null).trigger('change');
+                refreshPiTotal();
                 table.ajax.reload();
             });
         });
