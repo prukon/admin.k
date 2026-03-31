@@ -58,6 +58,28 @@ class PaymentMonthlyReportController extends AdminBaseController
     }
 
     /**
+     * Сумма платежей по тем же фильтрам, что и таблица (шапка без перезагрузки страницы).
+     */
+    public function total(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $totalQuery = DB::table('payments')
+            ->join('users', 'users.id', '=', 'payments.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->where('users.partner_id', $partnerId);
+
+        $this->applyMonthlyReportFilters($totalQuery, $request);
+
+        $raw = $totalQuery->sum('payments.summ');
+
+        return response()->json([
+            'total_formatted' => number_format((float) $raw, 0, '', ' '),
+            'total_raw'       => (float) $raw,
+        ]);
+    }
+
+    /**
      * Сводка по месяцам.
      * Режим задаётся параметром ?mode=operation|subscription.
      *

@@ -49,6 +49,29 @@ class LtvReportController extends AdminBaseController
     }
 
     /**
+     * Сумма платежей по тем же фильтрам, что и таблица (шапка без перезагрузки страницы).
+     */
+    public function total(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $totalQuery = DB::table('payments')
+            ->join('users', 'users.id', '=', 'payments.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->where('payments.summ', '>', 0)
+            ->where('users.partner_id', $partnerId);
+
+        $this->applyLtvReportFilters($totalQuery, $request, false);
+
+        $raw = $totalQuery->sum('payments.summ');
+
+        return response()->json([
+            'total_formatted' => number_format((float) $raw, 0, '', ' '),
+            'total_raw'       => (float) $raw,
+        ]);
+    }
+
+    /**
      * Данные для основной таблицы LTV (агрегация по ученикам).
      *
      * Формат строк:

@@ -180,8 +180,131 @@
 
             var currentMode = @json($groupMode);
 
+            var $payMonthlyFiltersForm = $('#payments-monthly-filters');
             var $payMonthlyFilterUser = $('#pay-monthly-filter-user');
             var $payMonthlyFilterTeam = $('#pay-monthly-filter-team');
+            var $paymentsMonthlyReportTotalAmount = $('.payments-report-total-amount');
+            var $paymentsMonthlyReportTotalStat = $('#paymentsMonthlyReportTotalStat');
+            var $paymentsMonthlyReportTotalValueInner = $('.payments-report-total-value-inner');
+
+            function paymentsMonthlyReportParseTotalToInt(str) {
+                return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
+            }
+
+            function paymentsMonthlyReportFormatTotalSpaces(n) {
+                var v = Math.round(Number(n));
+                if (isNaN(v)) {
+                    return '0';
+                }
+                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+            }
+
+            function paymentsMonthlyReportAnimateTotalChange(prevText, nextText, nextRaw) {
+                var $amount = $paymentsMonthlyReportTotalAmount;
+                if (!$amount.length) {
+                    return;
+                }
+
+                var nextVal = typeof nextRaw === 'number' && !isNaN(nextRaw)
+                    ? Math.round(nextRaw)
+                    : paymentsMonthlyReportParseTotalToInt(nextText);
+                var prevVal = paymentsMonthlyReportParseTotalToInt(prevText);
+
+                var runFlashAndPop = function () {
+                    if ($paymentsMonthlyReportTotalStat.length) {
+                        $paymentsMonthlyReportTotalStat.removeClass('payments-report-total-stat--flash');
+                        void $paymentsMonthlyReportTotalStat[0].offsetWidth;
+                        $paymentsMonthlyReportTotalStat.addClass('payments-report-total-stat--flash');
+                    }
+                    if ($paymentsMonthlyReportTotalValueInner.length) {
+                        $paymentsMonthlyReportTotalValueInner.removeClass('payments-report-total-value-inner--pop');
+                        void $paymentsMonthlyReportTotalValueInner[0].offsetWidth;
+                        $paymentsMonthlyReportTotalValueInner.addClass('payments-report-total-value-inner--pop');
+                    }
+                };
+
+                var prefersReduced = window.matchMedia
+                    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                if (prefersReduced || prevText === nextText) {
+                    $amount.text(nextText);
+                    if (!prefersReduced && prevText !== nextText) {
+                        runFlashAndPop();
+                    }
+                    return;
+                }
+
+                if (prevVal === nextVal) {
+                    $amount.text(nextText);
+                    runFlashAndPop();
+                    return;
+                }
+
+                var duration = 480;
+                var start = null;
+
+                function easeInOutQuad(t) {
+                    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                }
+
+                function step(ts) {
+                    if (start === null) {
+                        start = ts;
+                    }
+                    var elapsed = ts - start;
+                    var t = Math.min(1, elapsed / duration);
+                    var eased = easeInOutQuad(t);
+                    var cur = Math.round(prevVal + (nextVal - prevVal) * eased);
+                    $amount.text(paymentsMonthlyReportFormatTotalSpaces(cur));
+                    if (t < 1) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        $amount.text(nextText);
+                    }
+                }
+
+                runFlashAndPop();
+                window.requestAnimationFrame(step);
+            }
+
+            function paymentsMonthlyFilterParams() {
+                var uid = $payMonthlyFiltersForm.find('[name=\"filter_user_id\"]').val() || '';
+                var tid = $payMonthlyFiltersForm.find('[name=\"filter_team_id\"]').val() || '';
+                return {
+                    mode: currentMode,
+                    filter_user_id: uid,
+                    filter_team_id: tid,
+                    user_name: '',
+                    team_title: '',
+                    payment_month: $payMonthlyFiltersForm.find('[name=\"payment_month\"]').val() || '',
+                    operation_date_from: $payMonthlyFiltersForm.find('[name=\"operation_date_from\"]').val() || '',
+                    operation_date_to: $payMonthlyFiltersForm.find('[name=\"operation_date_to\"]').val() || '',
+                    payment_provider: $payMonthlyFiltersForm.find('[name=\"payment_provider\"]').val() || ''
+                };
+            }
+
+            function refreshPaymentsMonthlyReportTotal() {
+                var prevText = $paymentsMonthlyReportTotalAmount.length ? $paymentsMonthlyReportTotalAmount.text() : '';
+                if ($paymentsMonthlyReportTotalStat.length) {
+                    $paymentsMonthlyReportTotalStat.addClass('payments-report-total-stat--loading');
+                }
+                $.get(@json(route('reports.payments.monthly.total')), paymentsMonthlyFilterParams())
+                    .done(function (res) {
+                        if ($paymentsMonthlyReportTotalStat.length) {
+                            $paymentsMonthlyReportTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                        if (!res || res.total_formatted === undefined || !$paymentsMonthlyReportTotalAmount.length) {
+                            return;
+                        }
+                        var nextText = res.total_formatted;
+                        paymentsMonthlyReportAnimateTotalChange(prevText, nextText, res.total_raw);
+                    })
+                    .fail(function () {
+                        if ($paymentsMonthlyReportTotalStat.length) {
+                            $paymentsMonthlyReportTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                    });
+            }
 
             function initPaymentsReportFilterSelect2($el) {
                 var searchUrl = $el.data('search-url');
@@ -210,21 +333,23 @@
             initPaymentsReportFilterSelect2($payMonthlyFilterUser);
             initPaymentsReportFilterSelect2($payMonthlyFilterTeam);
 
-            $('#paymentsMonthlyFiltersResetBtn').on('click', function () {
-                window.location.href = @json(route('reports.payments.monthly'));
+            $payMonthlyFiltersForm.on('submit', function (e) {
+                e.preventDefault();
+                refreshPaymentsMonthlyReportTotal();
+                monthlyTable.ajax.reload();
             });
 
-            function monthlyQueryParams() {
-                var params = {};
-                if (window.location.search) {
-                    var sp = new URLSearchParams(window.location.search);
-                    sp.forEach(function (value, key) {
-                        params[key] = value;
-                    });
-                }
-                params.mode = currentMode;
-                return params;
-            }
+            $('#paymentsMonthlyFiltersResetBtn').on('click', function () {
+                $payMonthlyFiltersForm[0].reset();
+                $payMonthlyFilterUser.val(null).trigger('change');
+                $payMonthlyFilterTeam.val(null).trigger('change');
+                currentMode = 'subscription';
+                $('#payments-monthly-mode-hidden').val(currentMode);
+                $('.js-group-mode-btn').removeClass('active');
+                $('.js-group-mode-btn[data-mode=\"subscription\"]').addClass('active');
+                refreshPaymentsMonthlyReportTotal();
+                monthlyTable.ajax.reload();
+            });
 
             var monthlyTable = $('#payments-monthly-table').DataTable({
                 processing: true,
@@ -233,7 +358,7 @@
                     url: '/admin/reports/payments/monthly/data',
                     type: 'GET',
                     data: function (d) {
-                        var extra = monthlyQueryParams();
+                        var extra = paymentsMonthlyFilterParams();
                         Object.keys(extra).forEach(function (key) {
                             d[key] = extra[key];
                         });
@@ -323,12 +448,7 @@
                 $('.js-group-mode-btn').removeClass('active');
                 btn.addClass('active');
 
-                try {
-                    var url = new URL(window.location.href);
-                    url.searchParams.set('mode', currentMode);
-                    window.history.replaceState({}, '', url);
-                } catch (e) {}
-
+                refreshPaymentsMonthlyReportTotal();
                 monthlyTable.ajax.reload(null, true);
             });
 
@@ -354,7 +474,7 @@
                 var monthKey = data.month_key;
                 var monthText = data.month_title;
 
-                var detailData = monthlyQueryParams();
+                var detailData = paymentsMonthlyFilterParams();
 
                 $.ajax({
                     url: '/admin/reports/payments/monthly/' + monthKey + '/payments',

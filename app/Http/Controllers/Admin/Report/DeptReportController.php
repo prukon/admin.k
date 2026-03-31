@@ -54,6 +54,35 @@ class DeptReportController extends AdminBaseController
         ]);
     }
 
+    /**
+     * Сумма задолженности по тем же фильтрам, что и таблица (шапка без перезагрузки страницы).
+     */
+    public function debtsTotal(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
+        $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
+
+        $totalQuery = DB::table('users_prices')
+            ->join('users', 'users.id', '=', 'users_prices.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->where('users_prices.is_paid', 0)
+            ->where('users.is_enabled', 1)
+            ->where('users_prices.price', '>', 0)
+            ->where('users_prices.new_month', '<', $currentMonth)
+            ->where('users.partner_id', $partnerId);
+
+        $this->applyDebtReportFilters($totalQuery, $request);
+
+        $raw = $totalQuery->sum('users_prices.price');
+
+        return response()->json([
+            'total_formatted' => number_format((float) $raw, 0, '', ' '),
+            'total_raw'       => (float) $raw,
+        ]);
+    }
+
     //Данные для отчета Задолженности
     public function getDebts(Request $request)
     {

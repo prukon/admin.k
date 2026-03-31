@@ -147,8 +147,92 @@
         }
 
         $(function () {
+            var $debtFiltersForm = $('#debt-report-filters');
             var $debtFilterUser = $('#pay-debt-filter-user');
             var $debtFilterTeam = $('#pay-debt-filter-team');
+            var $debtReportTotalAmount = $('.payments-report-total-amount');
+            var $debtReportTotalStat = $('#debtReportTotalStat');
+            var $debtReportTotalValueInner = $('.payments-report-total-value-inner');
+
+            function debtReportParseTotalToInt(str) {
+                return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
+            }
+
+            function debtReportFormatTotalSpaces(n) {
+                var v = Math.round(Number(n));
+                if (isNaN(v)) {
+                    return '0';
+                }
+                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+            }
+
+            function debtReportAnimateTotalChange(prevText, nextText, nextRaw) {
+                var $amount = $debtReportTotalAmount;
+                if (!$amount.length) {
+                    return;
+                }
+
+                var nextVal = typeof nextRaw === 'number' && !isNaN(nextRaw)
+                    ? Math.round(nextRaw)
+                    : debtReportParseTotalToInt(nextText);
+                var prevVal = debtReportParseTotalToInt(prevText);
+
+                var runFlashAndPop = function () {
+                    if ($debtReportTotalStat.length) {
+                        $debtReportTotalStat.removeClass('payments-report-total-stat--flash');
+                        void $debtReportTotalStat[0].offsetWidth;
+                        $debtReportTotalStat.addClass('payments-report-total-stat--flash');
+                    }
+                    if ($debtReportTotalValueInner.length) {
+                        $debtReportTotalValueInner.removeClass('payments-report-total-value-inner--pop');
+                        void $debtReportTotalValueInner[0].offsetWidth;
+                        $debtReportTotalValueInner.addClass('payments-report-total-value-inner--pop');
+                    }
+                };
+
+                var prefersReduced = window.matchMedia
+                    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                if (prefersReduced || prevText === nextText) {
+                    $amount.text(nextText);
+                    if (!prefersReduced && prevText !== nextText) {
+                        runFlashAndPop();
+                    }
+                    return;
+                }
+
+                if (prevVal === nextVal) {
+                    $amount.text(nextText);
+                    runFlashAndPop();
+                    return;
+                }
+
+                var duration = 480;
+                var start = null;
+
+                function easeInOutQuad(t) {
+                    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                }
+
+                function step(ts) {
+                    if (start === null) {
+                        start = ts;
+                    }
+                    var elapsed = ts - start;
+                    var t = Math.min(1, elapsed / duration);
+                    var eased = easeInOutQuad(t);
+                    var cur = Math.round(prevVal + (nextVal - prevVal) * eased);
+                    $amount.text(debtReportFormatTotalSpaces(cur));
+                    if (t < 1) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        $amount.text(nextText);
+                    }
+                }
+
+                runFlashAndPop();
+                window.requestAnimationFrame(step);
+            }
 
             function initPaymentsReportFilterSelect2($el) {
                 var searchUrl = $el.data('search-url');
@@ -177,19 +261,39 @@
             initPaymentsReportFilterSelect2($debtFilterUser);
             initPaymentsReportFilterSelect2($debtFilterTeam);
 
-            $('#debtReportFiltersResetBtn').on('click', function () {
-                window.location.href = @json(route('debts'));
-            });
+            function debtReportFilterParams() {
+                var uid = $debtFiltersForm.find('[name="filter_user_id"]').val() || '';
+                var tid = $debtFiltersForm.find('[name="filter_team_id"]').val() || '';
+                return {
+                    filter_user_id: uid,
+                    filter_team_id: tid,
+                    user_name: '',
+                    team_title: '',
+                    debt_month: $debtFiltersForm.find('[name="debt_month"]').val() || ''
+                };
+            }
 
-            function debtQueryParams() {
-                var params = {};
-                if (window.location.search) {
-                    var sp = new URLSearchParams(window.location.search);
-                    sp.forEach(function (value, key) {
-                        params[key] = value;
-                    });
+            function refreshDebtReportTotal() {
+                var prevText = $debtReportTotalAmount.length ? $debtReportTotalAmount.text() : '';
+                if ($debtReportTotalStat.length) {
+                    $debtReportTotalStat.addClass('payments-report-total-stat--loading');
                 }
-                return params;
+                $.get(@json(route('reports.debts.total')), debtReportFilterParams())
+                    .done(function (res) {
+                        if ($debtReportTotalStat.length) {
+                            $debtReportTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                        if (!res || res.total_formatted === undefined || !$debtReportTotalAmount.length) {
+                            return;
+                        }
+                        var nextText = res.total_formatted;
+                        debtReportAnimateTotalChange(prevText, nextText, res.total_raw);
+                    })
+                    .fail(function () {
+                        if ($debtReportTotalStat.length) {
+                            $debtReportTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                    });
             }
 
             var table = $('#debts-table').DataTable({
@@ -199,7 +303,7 @@
                     url: "{{ route('debts.getDebts') }}",
                     type: 'GET',
                     data: function (d) {
-                        var extra = debtQueryParams();
+                        var extra = debtReportFilterParams();
                         Object.keys(extra).forEach(function (key) {
                             d[key] = extra[key];
                         });
@@ -263,6 +367,20 @@
                         "sortDescending": ": активировать для сортировки столбца по убыванию"
                     }
                 }
+            });
+
+            $debtFiltersForm.on('submit', function (e) {
+                e.preventDefault();
+                refreshDebtReportTotal();
+                table.ajax.reload();
+            });
+
+            $('#debtReportFiltersResetBtn').on('click', function () {
+                $debtFiltersForm[0].reset();
+                $debtFilterUser.val(null).trigger('change');
+                $debtFilterTeam.val(null).trigger('change');
+                refreshDebtReportTotal();
+                table.ajax.reload();
             });
 
             $('.debt-column-toggle').on('change', function () {

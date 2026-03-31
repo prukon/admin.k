@@ -178,8 +178,130 @@
     <script type="text/javascript">
         $(function() {
 
+            var $ltvFiltersForm = $('#ltv-report-filters');
             var $ltvFilterUser = $('#pay-ltv-filter-user');
             var $ltvFilterTeam = $('#pay-ltv-filter-team');
+            var $ltvReportTotalAmount = $('.payments-report-total-amount');
+            var $ltvReportTotalStat = $('#ltvReportTotalStat');
+            var $ltvReportTotalValueInner = $('.payments-report-total-value-inner');
+
+            function ltvReportParseTotalToInt(str) {
+                return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
+            }
+
+            function ltvReportFormatTotalSpaces(n) {
+                var v = Math.round(Number(n));
+                if (isNaN(v)) {
+                    return '0';
+                }
+                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+            }
+
+            function ltvReportAnimateTotalChange(prevText, nextText, nextRaw) {
+                var $amount = $ltvReportTotalAmount;
+                if (!$amount.length) {
+                    return;
+                }
+
+                var nextVal = typeof nextRaw === 'number' && !isNaN(nextRaw)
+                    ? Math.round(nextRaw)
+                    : ltvReportParseTotalToInt(nextText);
+                var prevVal = ltvReportParseTotalToInt(prevText);
+
+                var runFlashAndPop = function () {
+                    if ($ltvReportTotalStat.length) {
+                        $ltvReportTotalStat.removeClass('payments-report-total-stat--flash');
+                        void $ltvReportTotalStat[0].offsetWidth;
+                        $ltvReportTotalStat.addClass('payments-report-total-stat--flash');
+                    }
+                    if ($ltvReportTotalValueInner.length) {
+                        $ltvReportTotalValueInner.removeClass('payments-report-total-value-inner--pop');
+                        void $ltvReportTotalValueInner[0].offsetWidth;
+                        $ltvReportTotalValueInner.addClass('payments-report-total-value-inner--pop');
+                    }
+                };
+
+                var prefersReduced = window.matchMedia
+                    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                if (prefersReduced || prevText === nextText) {
+                    $amount.text(nextText);
+                    if (!prefersReduced && prevText !== nextText) {
+                        runFlashAndPop();
+                    }
+                    return;
+                }
+
+                if (prevVal === nextVal) {
+                    $amount.text(nextText);
+                    runFlashAndPop();
+                    return;
+                }
+
+                var duration = 480;
+                var start = null;
+
+                function easeInOutQuad(t) {
+                    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                }
+
+                function step(ts) {
+                    if (start === null) {
+                        start = ts;
+                    }
+                    var elapsed = ts - start;
+                    var t = Math.min(1, elapsed / duration);
+                    var eased = easeInOutQuad(t);
+                    var cur = Math.round(prevVal + (nextVal - prevVal) * eased);
+                    $amount.text(ltvReportFormatTotalSpaces(cur));
+                    if (t < 1) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        $amount.text(nextText);
+                    }
+                }
+
+                runFlashAndPop();
+                window.requestAnimationFrame(step);
+            }
+
+            function ltvReportFilterParams() {
+                var uid = $ltvFiltersForm.find('[name="filter_user_id"]').val() || '';
+                var tid = $ltvFiltersForm.find('[name="filter_team_id"]').val() || '';
+                return {
+                    filter_user_id: uid,
+                    filter_team_id: tid,
+                    user_name: '',
+                    team_title: '',
+                    payment_month: $ltvFiltersForm.find('[name="payment_month"]').val() || '',
+                    operation_date_from: $ltvFiltersForm.find('[name="operation_date_from"]').val() || '',
+                    operation_date_to: $ltvFiltersForm.find('[name="operation_date_to"]').val() || '',
+                    payment_provider: $ltvFiltersForm.find('[name="payment_provider"]').val() || ''
+                };
+            }
+
+            function refreshLtvReportTotal() {
+                var prevText = $ltvReportTotalAmount.length ? $ltvReportTotalAmount.text() : '';
+                if ($ltvReportTotalStat.length) {
+                    $ltvReportTotalStat.addClass('payments-report-total-stat--loading');
+                }
+                $.get(@json(route('reports.ltv.total')), ltvReportFilterParams())
+                    .done(function (res) {
+                        if ($ltvReportTotalStat.length) {
+                            $ltvReportTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                        if (!res || res.total_formatted === undefined || !$ltvReportTotalAmount.length) {
+                            return;
+                        }
+                        var nextText = res.total_formatted;
+                        ltvReportAnimateTotalChange(prevText, nextText, res.total_raw);
+                    })
+                    .fail(function () {
+                        if ($ltvReportTotalStat.length) {
+                            $ltvReportTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                    });
+            }
 
             function initPaymentsReportFilterSelect2($el) {
                 var searchUrl = $el.data('search-url');
@@ -208,21 +330,6 @@
             initPaymentsReportFilterSelect2($ltvFilterUser);
             initPaymentsReportFilterSelect2($ltvFilterTeam);
 
-            $('#ltvReportFiltersResetBtn').on('click', function () {
-                window.location.href = @json(route('reports.ltv'));
-            });
-
-            function ltvQueryParams() {
-                var params = {};
-                if (window.location.search) {
-                    var sp = new URLSearchParams(window.location.search);
-                    sp.forEach(function (value, key) {
-                        params[key] = value;
-                    });
-                }
-                return params;
-            }
-
             var ltvTable = $('#ltv-table').DataTable({
                 processing: true,
                 serverSide: true,
@@ -230,7 +337,7 @@
                     url: '/admin/reports/ltv/data',
                     type: 'GET',
                     data: function (d) {
-                        var extra = ltvQueryParams();
+                        var extra = ltvReportFilterParams();
                         Object.keys(extra).forEach(function (key) {
                             d[key] = extra[key];
                         });
@@ -339,6 +446,20 @@
                         "sortDescending": ": активировать для сортировки столбца по убыванию"
                     }
                 }
+            });
+
+            $ltvFiltersForm.on('submit', function (e) {
+                e.preventDefault();
+                refreshLtvReportTotal();
+                ltvTable.ajax.reload();
+            });
+
+            $('#ltvReportFiltersResetBtn').on('click', function () {
+                $ltvFiltersForm[0].reset();
+                $ltvFilterUser.val(null).trigger('change');
+                $ltvFilterTeam.val(null).trigger('change');
+                refreshLtvReportTotal();
+                ltvTable.ajax.reload();
             });
 
             $('.ltv-column-toggle').on('change', function () {
@@ -497,7 +618,7 @@
                     url: '/admin/reports/ltv/' + userId + '/payments',
                     type: 'GET',
                     dataType: 'json',
-                    data: ltvQueryParams(),
+                    data: ltvReportFilterParams(),
                     success: function(resp) {
                         var html = buildDetailsHtml(resp.payments || [], userName, teamTitle);
                         tr.next('tr').find('div.details-container').replaceWith(html);

@@ -201,12 +201,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/admin/reports/payments/columns-settings', [PaymentReportController::class, 'saveColumnsSettings']);
         //Отчеты -> Задолженности
         Route::get('/admin/reports/debts', [DeptReportController::class, 'debts'])->name('debts');
+        Route::get('/admin/reports/debts/total', [DeptReportController::class, 'debtsTotal'])->name('reports.debts.total');
         Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
 
 
 
         // Страница отчёта LTV (вкладка)
         Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('reports.ltv');
+        Route::get('/admin/reports/ltv/total', [LtvReportController::class, 'total'])->name('reports.ltv.total');
         // DataTables — список пользователей с LTV
         Route::get('/admin/reports/ltv/data', [LtvReportController::class, 'getLtv'])->name('reports.ltv.data');
         // Детализация — платежи конкретного пользователя (раскрытие строки)
@@ -217,6 +219,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
         // Новая вкладка "Платежи по месяцам"
         Route::get('/admin/reports/payments/monthly', [PaymentMonthlyReportController::class, 'index'])->name('reports.payments.monthly');
+        Route::get('/admin/reports/payments/monthly/total', [PaymentMonthlyReportController::class, 'total'])->name('reports.payments.monthly.total');
         // Данные для таблицы "месяцы"
         Route::get('/admin/reports/payments/monthly/data', [PaymentMonthlyReportController::class, 'getMonths'])->name('reports.payments.monthly.data');
         // Детализация по конкретному месяцу (формат yearMonth: 2025-01)
