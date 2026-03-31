@@ -240,6 +240,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // Отчёты -> "Чеки" (fiscal_receipts)
     Route::middleware(['can:reports.fiscal.receipts.view'])->group(function () {
         Route::get('/admin/reports/fiscal-receipts', [FiscalReceiptReportController::class, 'index'])->name('reports.fiscal-receipts.index');
+        Route::get('/admin/reports/fiscal-receipts/total', [FiscalReceiptReportController::class, 'total'])->name('reports.fiscal-receipts.total');
+        Route::get('/admin/reports/fiscal-receipts/partners-search', [FiscalReceiptReportController::class, 'partnersSearch'])->name('reports.fiscal-receipts.partners.search');
         Route::get('/admin/reports/fiscal-receipts/data', [FiscalReceiptReportController::class, 'data'])->name('reports.fiscal-receipts.data');
         Route::get('/admin/reports/fiscal-receipts/columns-settings', [FiscalReceiptReportController::class, 'getColumnsSettings']);
         Route::post('/admin/reports/fiscal-receipts/columns-settings', [FiscalReceiptReportController::class, 'saveColumnsSettings']);

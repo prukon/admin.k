@@ -81,6 +81,8 @@
                     <!-- Контент вкладки чеки -->
                     @include('admin.report.fiscal_receipts', [
                         'filters' => $filters ?? [],
+                        'totalPaidPrice' => $totalPaidPrice ?? '0',
+                        'frFilterPartner' => $frFilterPartner ?? null,
                     ])
                 @endif
             </div>

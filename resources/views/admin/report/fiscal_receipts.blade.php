@@ -9,96 +9,125 @@
         }
     }
 @endphp
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
-    <h4 class="text-start mb-0">Чеки</h4>
+@vite(['resources/css/payments-report.css'])
 
-    <div class="dropdown">
-        <button class="btn btn-outline-secondary dropdown-toggle"
-                type="button"
-                id="columnsDropdownFiscalReceipts"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-                title="Поля списка">
-            <i class="fas fa-table-columns"></i>
-        </button>
+<div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+    <div class="card-body px-3 py-3">
+        <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Чеки</h1>
+            <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
+                <div class="payments-report-total-inline payments-report-total-stat text-end" id="fiscalReceiptsReportTotalStat">
+                    <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
+                    <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                        <span class="payments-report-total-value-inner">
+                            <span class="payments-report-total-amount">{{ $totalPaidPrice ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                    <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#fiscalReceiptsFiltersCollapse"
+                            aria-expanded="{{ $frHasActiveFilters ? 'true' : 'false' }}"
+                            aria-controls="fiscalReceiptsFiltersCollapse"
+                            id="fiscalReceiptsFiltersToggle">
+                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                            <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                        </span>
+                        <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                        <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                    </button>
 
-        <div class="dropdown-menu p-3"
-             aria-labelledby="columnsDropdownFiscalReceipts"
-             style="min-width: 260px;">
-            <div class="form-check">
-                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="partner" id="frColPartner" checked>
-                <label class="form-check-label" for="frColPartner">Партнер</label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="payment_intent_id" id="frColIntent" checked>
-                <label class="form-check-label" for="frColIntent">PaymentIntent</label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="payment_id" id="frColPayment" checked>
-                <label class="form-check-label" for="frColPayment">Payment</label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="external_id" id="frColExternalId" checked>
-                <label class="form-check-label" for="frColExternalId">External ID</label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="error" id="frColError" checked>
-                <label class="form-check-label" for="frColError">Ошибки</label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="request_payload" id="frColRequest" checked>
-                <label class="form-check-label" for="frColRequest">Request Payload</label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="response_payload" id="frColResponse" checked>
-                <label class="form-check-label" for="frColResponse">Response Payload</label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="webhook_payload" id="frColWebhook" checked>
-                <label class="form-check-label" for="frColWebhook">Webhook Payload</label>
+                    <div class="dropdown payments-report-toolbar-dropdown">
+                        <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                id="columnsDropdownFiscalReceipts"
+                                data-bs-toggle="dropdown"
+                                data-bs-auto-close="outside"
+                                aria-expanded="false"
+                                aria-haspopup="true"
+                                title="Какие колонки показывать в таблице">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
+
+                        <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                             aria-labelledby="columnsDropdownFiscalReceipts">
+                            <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
+                            <div class="form-check">
+                                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="partner" id="frColPartner" checked>
+                                <label class="form-check-label" for="frColPartner">Партнер</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="payment_intent_id" id="frColIntent" checked>
+                                <label class="form-check-label" for="frColIntent">PaymentIntent</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="payment_id" id="frColPayment" checked>
+                                <label class="form-check-label" for="frColPayment">Payment</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="external_id" id="frColExternalId" checked>
+                                <label class="form-check-label" for="frColExternalId">External ID</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="error" id="frColError" checked>
+                                <label class="form-check-label" for="frColError">Ошибки</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="request_payload" id="frColRequest" checked>
+                                <label class="form-check-label" for="frColRequest">Request Payload</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="response_payload" id="frColResponse" checked>
+                                <label class="form-check-label" for="frColResponse">Response Payload</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input fiscal-receipts-column-toggle" type="checkbox" data-column-key="webhook_payload" id="frColWebhook" checked>
+                                <label class="form-check-label" for="frColWebhook">Webhook Payload</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="mb-2">
-    <button class="fiscal-receipts-filters-toggle d-inline-flex align-items-center gap-2"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#fiscalReceiptsFiltersCollapse"
-            aria-expanded="{{ $frHasActiveFilters ? 'true' : 'false' }}"
-            aria-controls="fiscalReceiptsFiltersCollapse"
-            id="fiscalReceiptsFiltersToggle">
-        <span class="fiscal-receipts-filters-icon-wrap" aria-hidden="true">
-            <i class="fas fa-sliders-h fiscal-receipts-filters-main-icon"></i>
-        </span>
-        <span class="fiscal-receipts-filters-label">Фильтры</span>
-        <i class="fas {{ $frHasActiveFilters ? 'fa-chevron-up' : 'fa-chevron-down' }} fiscal-receipts-filters-chevron"
-           aria-hidden="true"></i>
-    </button>
-</div>
-
-<div class="collapse {{ $frHasActiveFilters ? 'show' : '' }} mb-3" id="fiscalReceiptsFiltersCollapse">
-    <form id="fiscal-receipts-filters" method="GET" action="/admin/reports/fiscal-receipts" class="border rounded p-3 bg-light">
+<div class="collapse {{ $frHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="fiscalReceiptsFiltersCollapse">
+    <form id="fiscal-receipts-filters" method="GET" action="{{ route('reports.fiscal-receipts.index') }}" class="border rounded p-2 p-md-3 bg-light">
         <div class="row g-2 align-items-end">
             <div class="col-12 col-md-2">
                 <label class="form-label">ID</label>
                 <input class="form-control" name="id" value="{{ $filters['id'] ?? '' }}" placeholder="1">
             </div>
             <div class="col-12 col-md-2">
-                <label class="form-label">PaymentIntent ID</label>
+                <label class="form-label">PaymentIntent</label>
                 <input class="form-control" name="payment_intent_id" value="{{ $filters['payment_intent_id'] ?? '' }}" placeholder="123">
             </div>
             <div class="col-12 col-md-2">
-                <label class="form-label">Payment ID</label>
+                <label class="form-label">Payment</label>
                 <input class="form-control" name="payment_id" value="{{ $filters['payment_id'] ?? '' }}" placeholder="456">
             </div>
             <div class="col-12 col-md-2">
-                <label class="form-label">Partner ID</label>
-                <input class="form-control" name="partner_id" value="{{ $filters['partner_id'] ?? '' }}" placeholder="1">
+                <label class="form-label" for="fr-filter-partner">Партнер</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="fr-filter-partner"
+                        name="partner_id"
+                        data-placeholder="Все партнеры"
+                        data-search-url="{{ route('reports.fiscal-receipts.partners.search') }}">
+                    <option value=""></option>
+                    @if(!empty($frFilterPartner))
+                        <option value="{{ $frFilterPartner['id'] }}" selected>{{ $frFilterPartner['text'] }}</option>
+                    @endif
+                </select>
             </div>
             <div class="col-12 col-md-2">
-                <label class="form-label">Type</label>
+                <label class="form-label">Тип</label>
                 @php($type = $filters['type'] ?? '')
                 <select class="form-select" name="type">
                     <option value="">—</option>
@@ -107,7 +136,7 @@
                 </select>
             </div>
             <div class="col-12 col-md-2">
-                <label class="form-label">Status</label>
+                <label class="form-label">Статус</label>
                 @php($status = $filters['status'] ?? '')
                 <select class="form-select" name="status">
                     <option value="">—</option>
@@ -124,95 +153,36 @@
             </div>
 
             <div class="col-12 col-md-2">
-                <label class="form-label">Created from</label>
+                <label class="form-label">Создано: с</label>
                 <input class="form-control" type="date" name="created_from" value="{{ $filters['created_from'] ?? '' }}">
             </div>
             <div class="col-12 col-md-2">
-                <label class="form-label">Created to</label>
+                <label class="form-label">Создано: по</label>
                 <input class="form-control" type="date" name="created_to" value="{{ $filters['created_to'] ?? '' }}">
             </div>
             <div class="col-12 col-md-2">
-                <label class="form-label">Processed from</label>
+                <label class="form-label">Обработано: с</label>
                 <input class="form-control" type="date" name="processed_from" value="{{ $filters['processed_from'] ?? '' }}">
             </div>
             <div class="col-12 col-md-2">
-                <label class="form-label">Processed to</label>
+                <label class="form-label">Обработано: по</label>
                 <input class="form-control" type="date" name="processed_to" value="{{ $filters['processed_to'] ?? '' }}">
             </div>
             <div class="col-12 col-md-2">
-                <label class="form-label">Failed from</label>
+                <label class="form-label">Время сбоя: с</label>
                 <input class="form-control" type="date" name="failed_from" value="{{ $filters['failed_from'] ?? '' }}">
             </div>
             <div class="col-12 col-md-2">
-                <label class="form-label">Failed to</label>
+                <label class="form-label">Время сбоя: по</label>
                 <input class="form-control" type="date" name="failed_to" value="{{ $filters['failed_to'] ?? '' }}">
             </div>
-            <div class="col-12 col-md-auto d-flex flex-wrap align-items-end gap-2 ms-md-auto">
-                <button class="btn btn-primary" type="submit">Фильтр</button>
-                <button class="btn btn-outline-secondary" type="button" id="fiscalReceiptsResetBtn">Сброс</button>
+            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
+                <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="fiscalReceiptsResetBtn">Сброс</button>
             </div>
         </div>
     </form>
 </div>
-
-<style>
-    .fiscal-receipts-filters-toggle {
-        cursor: pointer;
-        user-select: none;
-        padding: 0.45rem 0.9rem 0.45rem 0.45rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        line-height: 1.25;
-        color: var(--bs-body-color);
-        background: linear-gradient(180deg, #fff 0%, var(--bs-light, #f8f9fa) 100%);
-        border: 1px solid var(--bs-border-color, #dee2e6);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-    }
-
-    .fiscal-receipts-filters-toggle:hover {
-        border-color: #b6d4fe;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        color: var(--bs-body-color);
-        background: #fff;
-    }
-
-    .fiscal-receipts-filters-toggle:focus-visible {
-        outline: 0;
-        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-    }
-
-    .fiscal-receipts-filters-toggle[aria-expanded="true"] {
-        border-color: #86b7fe;
-        background: #f0f7ff;
-    }
-
-    .fiscal-receipts-filters-icon-wrap {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2.25rem;
-        height: 2.25rem;
-        border-radius: 0.4rem;
-        background: var(--bs-primary-bg-subtle, #cfe2ff);
-        color: var(--bs-primary, #0d6efd);
-    }
-
-    .fiscal-receipts-filters-main-icon {
-        font-size: 0.95rem;
-        line-height: 1;
-    }
-
-    .fiscal-receipts-filters-label {
-        letter-spacing: 0.02em;
-    }
-
-    .fiscal-receipts-filters-chevron {
-        font-size: 0.7rem;
-        opacity: 0.65;
-        margin-left: 0.15rem;
-    }
-</style>
 
 <div class="table-responsive">
     <table class="table table-bordered" id="fiscal-receipts-table">
@@ -243,18 +213,156 @@
     <script type="text/javascript">
         $(function () {
             var $form = $('#fiscal-receipts-filters');
-            var $frCollapse = $('#fiscalReceiptsFiltersCollapse');
-            var $frToggle = $('#fiscalReceiptsFiltersToggle');
-            var $frChevron = $frToggle.find('.fiscal-receipts-filters-chevron');
+            var $frFilterPartner = $('#fr-filter-partner');
+            var $frTotalAmount = $('.payments-report-total-amount');
+            var $frTotalStat = $('#fiscalReceiptsReportTotalStat');
+            var $frTotalValueInner = $('.payments-report-total-value-inner');
 
-            $frCollapse.on('shown.bs.collapse', function () {
-                $frToggle.attr('aria-expanded', 'true');
-                $frChevron.removeClass('fa-chevron-down').addClass('fa-chevron-up');
-            });
-            $frCollapse.on('hidden.bs.collapse', function () {
-                $frToggle.attr('aria-expanded', 'false');
-                $frChevron.removeClass('fa-chevron-up').addClass('fa-chevron-down');
-            });
+            function initPaymentsReportFilterSelect2($el) {
+                var searchUrl = $el.data('search-url');
+                if (!$el.length || !searchUrl) {
+                    return;
+                }
+                $el.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $el.data('placeholder') || '',
+                    allowClear: true,
+                    ajax: {
+                        url: searchUrl,
+                        delay: 250,
+                        data: function (params) {
+                            return {q: params.term || ''};
+                        },
+                        processResults: function (data) {
+                            return data;
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            }
+
+            initPaymentsReportFilterSelect2($frFilterPartner);
+
+            function frParseTotalToInt(str) {
+                return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
+            }
+
+            function frFormatTotalSpaces(n) {
+                var v = Math.round(Number(n));
+                if (isNaN(v)) {
+                    return '0';
+                }
+                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+            }
+
+            function frAnimateTotalChange(prevText, nextText, nextRaw) {
+                var $amount = $frTotalAmount;
+                if (!$amount.length) {
+                    return;
+                }
+
+                var nextVal = typeof nextRaw === 'number' && !isNaN(nextRaw)
+                    ? Math.round(nextRaw)
+                    : frParseTotalToInt(nextText);
+                var prevVal = frParseTotalToInt(prevText);
+
+                var runFlashAndPop = function () {
+                    if ($frTotalStat.length) {
+                        $frTotalStat.removeClass('payments-report-total-stat--flash');
+                        void $frTotalStat[0].offsetWidth;
+                        $frTotalStat.addClass('payments-report-total-stat--flash');
+                    }
+                    if ($frTotalValueInner.length) {
+                        $frTotalValueInner.removeClass('payments-report-total-value-inner--pop');
+                        void $frTotalValueInner[0].offsetWidth;
+                        $frTotalValueInner.addClass('payments-report-total-value-inner--pop');
+                    }
+                };
+
+                var prefersReduced = window.matchMedia
+                    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                if (prefersReduced || prevText === nextText) {
+                    $amount.text(nextText);
+                    if (!prefersReduced && prevText !== nextText) {
+                        runFlashAndPop();
+                    }
+                    return;
+                }
+
+                if (prevVal === nextVal) {
+                    $amount.text(nextText);
+                    runFlashAndPop();
+                    return;
+                }
+
+                var duration = 480;
+                var start = null;
+
+                function easeInOutQuad(t) {
+                    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                }
+
+                function step(ts) {
+                    if (start === null) {
+                        start = ts;
+                    }
+                    var elapsed = ts - start;
+                    var t = Math.min(1, elapsed / duration);
+                    var eased = easeInOutQuad(t);
+                    var cur = Math.round(prevVal + (nextVal - prevVal) * eased);
+                    $amount.text(frFormatTotalSpaces(cur));
+                    if (t < 1) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        $amount.text(nextText);
+                    }
+                }
+
+                runFlashAndPop();
+                window.requestAnimationFrame(step);
+            }
+
+            function frFilterParams() {
+                return {
+                    id: $form.find('[name="id"]').val() || '',
+                    payment_intent_id: $form.find('[name="payment_intent_id"]').val() || '',
+                    payment_id: $form.find('[name="payment_id"]').val() || '',
+                    partner_id: $form.find('[name="partner_id"]').val() || '',
+                    type: $form.find('[name="type"]').val() || '',
+                    status: $form.find('[name="status"]').val() || '',
+                    external_id: $form.find('[name="external_id"]').val() || '',
+                    created_from: $form.find('[name="created_from"]').val() || '',
+                    created_to: $form.find('[name="created_to"]').val() || '',
+                    processed_from: $form.find('[name="processed_from"]').val() || '',
+                    processed_to: $form.find('[name="processed_to"]').val() || '',
+                    failed_from: $form.find('[name="failed_from"]').val() || '',
+                    failed_to: $form.find('[name="failed_to"]').val() || ''
+                };
+            }
+
+            function refreshFiscalReceiptsTotal() {
+                var prevText = $frTotalAmount.length ? $frTotalAmount.text() : '';
+                if ($frTotalStat.length) {
+                    $frTotalStat.addClass('payments-report-total-stat--loading');
+                }
+                $.get(@json(route('reports.fiscal-receipts.total')), frFilterParams())
+                    .done(function (res) {
+                        if ($frTotalStat.length) {
+                            $frTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                        if (!res || res.total_formatted === undefined || !$frTotalAmount.length) {
+                            return;
+                        }
+                        frAnimateTotalChange(prevText, res.total_formatted, res.total_raw);
+                    })
+                    .fail(function () {
+                        if ($frTotalStat.length) {
+                            $frTotalStat.removeClass('payments-report-total-stat--loading');
+                        }
+                    });
+            }
 
             var defaultColumnsVisibility = {
                 partner: true,
@@ -356,19 +464,10 @@
                 ajax: {
                     url: "{{ route('reports.fiscal-receipts.data') }}",
                     data: function (d) {
-                        d.id = $form.find('[name="id"]').val();
-                        d.payment_intent_id = $form.find('[name="payment_intent_id"]').val();
-                        d.payment_id = $form.find('[name="payment_id"]').val();
-                        d.partner_id = $form.find('[name="partner_id"]').val();
-                        d.type = $form.find('[name="type"]').val();
-                        d.status = $form.find('[name="status"]').val();
-                        d.external_id = $form.find('[name="external_id"]').val();
-                        d.created_from = $form.find('[name="created_from"]').val();
-                        d.created_to = $form.find('[name="created_to"]').val();
-                        d.processed_from = $form.find('[name="processed_from"]').val();
-                        d.processed_to = $form.find('[name="processed_to"]').val();
-                        d.failed_from = $form.find('[name="failed_from"]').val();
-                        d.failed_to = $form.find('[name="failed_to"]').val();
+                        var extra = frFilterParams();
+                        Object.keys(extra).forEach(function (key) {
+                            d[key] = extra[key];
+                        });
                     }
                 },
                 columns: [
@@ -469,10 +568,10 @@
                 Object.keys(columnsMap).forEach(function (key) {
                     var colIndex = columnsMap[key];
                     var isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-                    table.column(colIndex).visible(isVisible);
+                    table.column(colIndex).visible(isVisible, false);
                     $('.fiscal-receipts-column-toggle[data-column-key="' + key + '"]').prop('checked', isVisible);
                 });
-                table.columns.adjust();
+                table.columns.adjust().draw(false);
             }
 
             function loadColumnsConfigFromServer() {
@@ -513,6 +612,10 @@
                     data: {
                         _token: '{{ csrf_token() }}',
                         columns: currentColumnsConfig
+                    },
+                    success: function () {},
+                    error: function () {
+                        console.error('Не удалось сохранить настройки колонок');
                     }
                 });
             });
@@ -563,11 +666,14 @@
 
             $form.on('submit', function (e) {
                 e.preventDefault();
+                refreshFiscalReceiptsTotal();
                 table.ajax.reload();
             });
 
             $('#fiscalReceiptsResetBtn').on('click', function () {
                 $form[0].reset();
+                $frFilterPartner.val(null).trigger('change');
+                refreshFiscalReceiptsTotal();
                 table.ajax.reload();
             });
         });
