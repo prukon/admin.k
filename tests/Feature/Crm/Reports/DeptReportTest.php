@@ -349,6 +349,57 @@ class DeptReportTest extends CrmTestCase
     }
 
     /**
+     * [P0] /admin/reports/debts/total отдаёт сумму задолженности по тем же фильтрам.
+     */
+    public function test_debts_total_endpoint_returns_formatted_and_raw_sum(): void
+    {
+        // В CrmTestCase current_partner установлен, но права reports.view нет → дадим superadmin для доступа.
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        // Долги текущего партнёра
+        DB::table('users_prices')->insert([
+            [
+                'user_id' => $this->user->id,
+                'price' => 1000,
+                'is_paid' => 0,
+                // Ставим далёкие месяцы, чтобы точно попасть под new_month < currentMonth
+                'new_month' => '2020-01-01',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'user_id' => $this->user->id,
+                'price' => 2000,
+                'is_paid' => 0,
+                'new_month' => '2020-02-01',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        // Чужой партнёр — не должен попасть
+        DB::table('users_prices')->insert([
+            'user_id' => $this->foreignUser->id,
+            'price' => 9999,
+            'is_paid' => 0,
+            'new_month' => now()->subMonths(1)->format('Y-m-01'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $expectedRaw = 3000.0;
+        $expectedFormatted = number_format($expectedRaw, 0, '', ' ');
+
+        $this->get(route('reports.debts.total'))
+            ->assertOk()
+            ->assertJson([
+                'total_formatted' => $expectedFormatted,
+                'total_raw' => $expectedRaw,
+            ]);
+    }
+
+    /**
      * 11. [P3] Поведение formatedDate при некорректном формате месяца
      */
     public function test_formatedDate_returns_null_for_invalid_month_string(): void

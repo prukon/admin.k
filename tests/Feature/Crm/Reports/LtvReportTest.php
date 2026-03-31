@@ -45,6 +45,43 @@ class LtvReportTest extends CrmTestCase
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertOk();
+
+        $this->get(route('reports.ltv.total'))
+            ->assertOk()
+            ->assertJsonStructure(['total_formatted', 'total_raw']);
+    }
+
+    /**
+     * [P0] /admin/reports/ltv/total считает sum(payments.summ) по фильтрам текущего партнёра.
+     */
+    public function test_ltv_total_endpoint_returns_correct_sum(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'summ' => 1111,
+        ]);
+        Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'summ' => 2222,
+        ]);
+
+        Payment::factory()->create([
+            'user_id' => $this->foreignUser->id,
+            'summ' => 9999,
+        ]);
+
+        $expectedRaw = 3333.0;
+        $expectedFormatted = number_format($expectedRaw, 0, '', ' ');
+
+        $this->get(route('reports.ltv.total'))
+            ->assertOk()
+            ->assertJson([
+                'total_formatted' => $expectedFormatted,
+                'total_raw' => $expectedRaw,
+            ]);
     }
     
 

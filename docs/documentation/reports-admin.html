@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: отчёты (админка) — фильтры/AJAX/колонки/суммы</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Отчёты (админка): фильтры/AJAX/колонки/суммы</h1>
+  <div class="small">Файл: <code>/docs/documentation/reports-admin.html</code> · <a href="/docs/documentation">список разделов</a> (<code>/doc</code>)</div>
+
+  <h2>1) Общие принципы UI/UX</h2>
+  <div class="note">
+    Начиная с 2026‑03, отчёты админки приводятся к единому каркасу (как в “Платежи”):
+    <ul>
+      <li>верхняя панель: заголовок + “Общая сумма” + кнопки “Фильтры”/“Колонки”</li>
+      <li>применение фильтров <b>без перезагрузки страницы</b>: <code>preventDefault()</code> → <code>table.ajax.reload()</code></li>
+      <li>“Общая сумма” обновляется через отдельный endpoint <code>…/total</code> и меняется <b>с анимацией</b></li>
+      <li>настройки колонок сохраняются <b>для текущего пользователя</b> в <code>user_table_settings</code> (если отчёт поддерживает “Колонки”)</li>
+    </ul>
+  </div>
+
+  <h2>2) Права доступа (middleware can:…)</h2>
+  <div class="note">
+    Важно: разные отчёты находятся в разных группах прав. Без соответствующего permission ответ будет <b>403</b> (страница и все AJAX endpoints).
+  </div>
+  <ul>
+    <li><b><code>reports.view</code></b> — отчёты в группе <code>/admin/reports/*</code> (Платежи, Задолженности, LTV, Платежи по месяцам).</li>
+    <li><b><code>reports.payment.intents.view</code></b> — отчёт “Платежные запросы”.</li>
+    <li><b><code>reports.fiscal.receipts.view</code></b> — отчёт “Чеки”.</li>
+  </ul>
+  <div class="note">
+    Модель прав в разрезе партнёра: <a href="/docs/documentation/partners-permissions.html">partners-permissions</a>.
+  </div>
+
+  <h2>3) Отчёт “Задолженности”</h2>
+  <ul>
+    <li><b>Страница</b>: <code>/admin/reports/debts</code> (middleware <code>can:reports.view</code>)</li>
+    <li><b>DataTables</b>: <code>GET /admin/reports/getDebts</code> (AJAX)</li>
+    <li><b>Общая сумма</b>: <code>GET /admin/reports/debts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
+  </ul>
+
+  <h2>4) Отчёт “Платежи по ученикам (LTV)”</h2>
+  <ul>
+    <li><b>Страница</b>: <code>/admin/reports/ltv</code> (middleware <code>can:reports.view</code>)</li>
+    <li><b>DataTables</b>: <code>GET /admin/reports/ltv/data</code> (AJAX)</li>
+    <li><b>Детализация</b>: <code>GET /admin/reports/ltv/{user}/payments</code> (AJAX)</li>
+    <li><b>Общая сумма</b>: <code>GET /admin/reports/ltv/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
+  </ul>
+  <div class="note">
+    “Общая сумма” в LTV — это <code>sum(payments.summ)</code> по тем же фильтрам (и по текущему партнёру), что и таблица.
+  </div>
+
+  <h2>5) Отчёт “Платежи по месяцам”</h2>
+  <ul>
+    <li><b>Страница</b>: <code>/admin/reports/payments/monthly</code> (middleware <code>can:reports.view</code>)</li>
+    <li><b>DataTables (месяцы)</b>: <code>GET /admin/reports/payments/monthly/data</code> (AJAX)</li>
+    <li><b>Детализация месяца</b>: <code>GET /admin/reports/payments/monthly/{yearMonth}/payments</code> (AJAX)</li>
+    <li><b>Общая сумма</b>: <code>GET /admin/reports/payments/monthly/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
+  </ul>
+  <div class="note">
+    Режим группировки (по дате операции / по месяцу абонемента) в UI хранится в форме/JS и не обязан отражаться в URL.
+    В запросы DataTables/детализации/total передаётся параметр <code>mode</code>.
+  </div>
+
+  <h2>6) Отчёт “Платежные запросы” (payment_intents)</h2>
+  <ul>
+    <li><b>Страница</b>: <code>/admin/reports/payment-intents</code> (middleware <code>can:reports.payment.intents.view</code>)</li>
+    <li><b>DataTables</b>: <code>GET /admin/reports/getPaymentIntents</code> (AJAX)</li>
+    <li><b>Общая сумма</b>: <code>GET /admin/reports/payment-intents/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
+    <li><b>Колонки (настройки)</b>:
+      <ul>
+        <li><code>GET /admin/reports/payment-intents/columns-settings</code></li>
+        <li><code>POST /admin/reports/payment-intents/columns-settings</code> (<code>columns: {key: true/false}</code>)</li>
+        <li>Хранение: <code>user_table_settings.table_key = reports_payment_intents</code></li>
+      </ul>
+    </li>
+    <li><b>Select2</b>:
+      <ul>
+        <li><code>GET /admin/reports/payment-intents/partners-search</code> → <code>{ results: [{id,text}] }</code></li>
+        <li><code>GET /admin/reports/payment-intents/users-search</code> → <code>{ results: [{id,text}] }</code> (поддерживает <code>partner_id</code>)</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>7) Отчёт “Чеки” (fiscal_receipts)</h2>
+  <ul>
+    <li><b>Страница</b>: <code>/admin/reports/fiscal-receipts</code> (middleware <code>can:reports.fiscal.receipts.view</code>)</li>
+    <li><b>DataTables</b>: <code>GET /admin/reports/fiscal-receipts/data</code> (AJAX)</li>
+    <li><b>Общая сумма</b>: <code>GET /admin/reports/fiscal-receipts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>, считает <code>sum(fiscal_receipts.amount)</code>)</li>
+    <li><b>Колонки (настройки)</b>:
+      <ul>
+        <li><code>GET /admin/reports/fiscal-receipts/columns-settings</code></li>
+        <li><code>POST /admin/reports/fiscal-receipts/columns-settings</code> (<code>columns: {key: true/false}</code>)</li>
+        <li>Хранение: <code>user_table_settings.table_key = reports_fiscal_receipts</code></li>
+      </ul>
+    </li>
+    <li><b>Select2</b>: <code>GET /admin/reports/fiscal-receipts/partners-search</code> → <code>{ results: [{id,text}] }</code></li>
+  </ul>
+
+  <h2>8) Автотесты</h2>
+  <div class="note">
+    Feature‑тесты покрывают: контроль доступа, работу total endpoints, columns-settings, Select2 search.
+  </div>
+  <ul>
+    <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code>)</li>
+    <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code>)</li>
+    <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code></li>
+    <li><code>tests/Feature/Crm/Reports/PaymentIntentsReportTest.php</code></li>
+    <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code></li>
+  </ul>
+  <pre><code>php artisan test --env=testing --filter "(DeptReportTest|LtvReportTest|PaymentMonthlyReportTest|PaymentIntentsReportTest|FiscalReceiptsReportTest)"</code></pre>
+</div>
+</body>
+</html>
+

@@ -2,8 +2,94 @@
 
 @section('content')
     <div class="main-content text-start">
-        <h4 class="pt-3">Выплаты T‑Bank</h4>
-        <hr>
+        @vite(['resources/css/payments-report.css'])
+
+        <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+            <div class="card-body px-3 py-3">
+                <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+                    <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Выплаты T‑Bank</h1>
+                    <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
+                        <div class="payments-report-total-inline payments-report-total-stat text-end" id="tbankPayoutsTotalStat">
+                            <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
+                            <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                                <span class="payments-report-total-value-inner">
+                                    <span class="payments-report-total-amount">{{ $totalPayoutAmountFormatted ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                            <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#tbankPayoutsFiltersCollapse"
+                                    aria-expanded="false"
+                                    aria-controls="tbankPayoutsFiltersCollapse"
+                                    id="tbankPayoutsFiltersToggle">
+                                <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                    <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                                </span>
+                                <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                                <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                            </button>
+
+                            <div class="dropdown payments-report-toolbar-dropdown">
+                                <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                        type="button"
+                                        id="columnsDropdown"
+                                        data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"
+                                        aria-expanded="false"
+                                        aria-haspopup="true"
+                                        title="Какие колонки показывать в таблице">
+                                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                        <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                                    </span>
+                                    <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                                    <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                                </button>
+
+                                <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                                     aria-labelledby="columnsDropdown">
+                                    <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
+                                    @php
+                                        $cols = [
+                                            'id' => 'ID',
+                                            'status' => 'Статус',
+                                            'source' => 'Источник',
+                                            'partner' => 'Партнёр',
+                                            'payer' => 'Плательщик',
+                                            'initiator' => 'Инициатор',
+                                            'payment' => 'Платёж',
+                                            'deal_id' => 'DealId',
+                                            'gross' => 'Сумма платежа',
+                                            'bank_fee' => 'Комиссия банка',
+                                            'platform_fee' => 'Комиссия Платформы',
+                                            'net' => 'Сумма выплаты',
+                                            'when_to_run' => 'Запланирована',
+                                            'created_at' => 'Создана',
+                                            'completed_at' => 'Завершена',
+                                            'tinkoff_payout_payment_id' => 'T‑Bank payout PaymentId',
+                                            'actions' => 'Действия',
+                                        ];
+                                    @endphp
+                                    @foreach($cols as $key => $label)
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="{{ $key }}"
+                                                   id="col_{{ $key }}"
+                                                   checked>
+                                            <label class="form-check-label" for="col_{{ $key }}">{{ $label }}</label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="alert alert-light border mb-3 py-2">
             <div class="small">
@@ -69,127 +155,132 @@
             </div>
         @endif
 
-        <div class="row gy-2 align-items-end">
-            <div class="col-12 col-lg-8">
-                <div class="d-flex flex-wrap gap-2 align-items-center">
+        <div class="collapse mb-2 mb-md-3" id="tbankPayoutsFiltersCollapse">
+            <form id="tbank-payouts-filters" class="border rounded p-2 p-md-3 bg-light">
+                <div class="row g-2 align-items-end">
                     @if(!empty($isSuperadmin))
-                        <select id="filter-partner" class="form-select width-170">
-                            <option value="">Все партнёры</option>
-                            @foreach($partners as $p)
-                                <option value="{{ $p->id }}">{{ $p->title }}</option>
-                            @endforeach
-                        </select>
+                        <div class="col-12 col-md-3 col-lg-2">
+                            <label class="form-label" for="filter-partner">Партнёр</label>
+                            <select id="filter-partner"
+                                    class="form-select payments-report-filter-select2"
+                                    data-placeholder="Все партнёры"
+                                    data-search-url="/admin/tinkoff/payouts/partners-search">
+                                <option value=""></option>
+                            </select>
+                        </div>
                     @endif
 
-                    <select id="filter-status" class="form-select width-170">
-                        <option value="">Все статусы</option>
-                        <option value="INITIATED">INITIATED</option>
-                        <option value="NEW">NEW</option>
-                        <option value="AUTHORIZING">AUTHORIZING</option>
-                        <option value="CHECKING">CHECKING</option>
-                        <option value="CREDIT_CHECKING">CREDIT_CHECKING</option>
-                        <option value="CHECKED">CHECKED</option>
-                        <option value="COMPLETING">COMPLETING</option>
-                        <option value="COMPLETED">COMPLETED</option>
-                        <option value="REJECTED">REJECTED</option>
-                    </select>
-
-                    <select id="filter-source" class="form-select width-170">
-                        <option value="">Любой источник</option>
-                        <option value="auto">auto</option>
-                        <option value="manual">manual</option>
-                        <option value="delayed">delayed</option>
-                        <option value="scheduled">scheduled</option>
-                    </select>
-
-                    <input id="filter-payer" class="form-control width-170" type="text" placeholder="Плательщик: id/ФИО/тел/email">
-                    <input id="filter-initiator" class="form-control width-170" type="text" placeholder="Инициатор: id/ФИО/тел/email">
-                </div>
-
-                <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
-                    <input id="filter-created-from" class="form-control width-170" type="date" title="Создана с">
-                    <input id="filter-created-to" class="form-control width-170" type="date" title="Создана по">
-
-                    <input id="filter-run-from" class="form-control width-170" type="date" title="Запланирована с">
-                    <input id="filter-run-to" class="form-control width-170" type="date" title="Запланирована по">
-
-                    <input id="filter-completed-from" class="form-control width-170" type="date" title="Завершена с">
-                    <input id="filter-completed-to" class="form-control width-170" type="date" title="Завершена по">
-                </div>
-
-                <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
-                    <input id="filter-gross-min" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Сумма платежа от (₽)">
-                    <input id="filter-gross-max" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Сумма платежа до (₽)">
-                    <input id="filter-net-min" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Сумма выплаты от (₽)">
-                    <input id="filter-net-max" class="form-control width-170" type="number" step="0.01" min="0" placeholder="Сумма выплаты до (₽)">
-
-                    <div class="form-check ms-1">
-                        <input class="form-check-input" type="checkbox" value="1" id="filter-stuck-only">
-                        <label class="form-check-label" for="filter-stuck-only">Застрявшие</label>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-status">Статус</label>
+                        <select id="filter-status" class="form-select">
+                            <option value="">Все статусы</option>
+                            <option value="INITIATED">INITIATED</option>
+                            <option value="NEW">NEW</option>
+                            <option value="AUTHORIZING">AUTHORIZING</option>
+                            <option value="CHECKING">CHECKING</option>
+                            <option value="CREDIT_CHECKING">CREDIT_CHECKING</option>
+                            <option value="CHECKED">CHECKED</option>
+                            <option value="COMPLETING">COMPLETING</option>
+                            <option value="COMPLETED">COMPLETED</option>
+                            <option value="REJECTED">REJECTED</option>
+                        </select>
                     </div>
-                    <input id="filter-stuck-minutes" class="form-control width-170" type="number" min="1" value="60" title="Сколько минут без обновления">
-                </div>
 
-                <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
-                    <input id="filter-deal-id" class="form-control width-170" type="text" placeholder="DealId">
-                    <input id="filter-tinkoff-payment-id" class="form-control width-170" type="number" min="1" placeholder="ID платежа (в системе)">
-                    <input id="filter-payout-payment-id" class="form-control width-170" type="text" placeholder="T‑Bank payout PaymentId">
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-source">Источник</label>
+                        <select id="filter-source" class="form-select">
+                            <option value="">Любой</option>
+                            <option value="auto">auto</option>
+                            <option value="manual">manual</option>
+                            <option value="delayed">delayed</option>
+                            <option value="scheduled">scheduled</option>
+                        </select>
+                    </div>
 
-                    <button id="filter-apply" class="btn btn-primary">Найти</button>
-                    <button id="filter-reset" class="btn btn-secondary">Сбросить</button>
-                </div>
-            </div>
+                    <div class="col-12 col-md-3 col-lg-3">
+                        <label class="form-label" for="filter-payer">Плательщик</label>
+                        <select id="filter-payer"
+                                class="form-select payments-report-filter-select2"
+                                data-placeholder="Все плательщики"
+                                data-search-url="/admin/tinkoff/payouts/payers-search">
+                            <option value=""></option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-3">
+                        <label class="form-label" for="filter-initiator">Инициатор</label>
+                        <input id="filter-initiator" class="form-control" type="text" placeholder="id/ФИО/тел/email">
+                    </div>
 
-            <div class="col-12 col-lg-4 text-lg-end">
-                <div class="dropdown d-inline-block">
-                    <button class="btn btn-outline-secondary dropdown-toggle"
-                            type="button"
-                            id="columnsDropdown"
-                            data-bs-toggle="dropdown"
-                            aria-expanded="false"
-                            title="Поля списка">
-                        <i class="fa-solid fa-table-columns"></i> Колонки
-                    </button>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-created-from">Создана: с</label>
+                        <input id="filter-created-from" class="form-control" type="date">
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-created-to">Создана: по</label>
+                        <input id="filter-created-to" class="form-control" type="date">
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-run-from">Запланирована: с</label>
+                        <input id="filter-run-from" class="form-control" type="date">
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-run-to">Запланирована: по</label>
+                        <input id="filter-run-to" class="form-control" type="date">
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-completed-from">Завершена: с</label>
+                        <input id="filter-completed-from" class="form-control" type="date">
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-completed-to">Завершена: по</label>
+                        <input id="filter-completed-to" class="form-control" type="date">
+                    </div>
 
-                    <div class="dropdown-menu p-3" aria-labelledby="columnsDropdown" style="min-width: 260px; max-height: 60vh; overflow:auto;">
-                        @php
-                            $cols = [
-                                'id' => 'ID',
-                                'status' => 'Статус',
-                                'source' => 'Источник',
-                                'partner' => 'Партнёр',
-                                'payer' => 'Плательщик',
-                                'initiator' => 'Инициатор',
-                                'payment' => 'Платёж',
-                                'deal_id' => 'DealId',
-                                'gross' => 'Сумма платежа',
-                                'bank_fee' => 'Комиссия банка',
-                                'platform_fee' => 'Комиссия Платформы',
-                                'net' => 'Сумма выплаты',
-                                'when_to_run' => 'Запланирована',
-                                'created_at' => 'Создана',
-                                'completed_at' => 'Завершена',
-                                'tinkoff_payout_payment_id' => 'T‑Bank payout PaymentId',
-                                'actions' => 'Действия',
-                            ];
-                        @endphp
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-gross-min">Сумма платежа от (₽)</label>
+                        <input id="filter-gross-min" class="form-control" type="number" step="0.01" min="0">
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-gross-max">Сумма платежа до (₽)</label>
+                        <input id="filter-gross-max" class="form-control" type="number" step="0.01" min="0">
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-net-min">Сумма выплаты от (₽)</label>
+                        <input id="filter-net-min" class="form-control" type="number" step="0.01" min="0">
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-net-max">Сумма выплаты до (₽)</label>
+                        <input id="filter-net-max" class="form-control" type="number" step="0.01" min="0">
+                    </div>
 
-                        @foreach($cols as $key => $label)
-                            <div class="form-check">
-                                <input class="form-check-input column-toggle"
-                                       type="checkbox"
-                                       data-column-key="{{ $key }}"
-                                       id="col_{{ $key }}"
-                                       checked>
-                                <label class="form-check-label" for="col_{{ $key }}">{{ $label }}</label>
-                            </div>
-                        @endforeach
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-deal-id">DealId</label>
+                        <input id="filter-deal-id" class="form-control" type="text">
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-tinkoff-payment-id">ID платежа (в системе)</label>
+                        <input id="filter-tinkoff-payment-id" class="form-control" type="number" min="1">
+                    </div>
+                    <div class="col-12 col-md-3 col-lg-2">
+                        <label class="form-label" for="filter-payout-payment-id">T‑Bank payout PaymentId</label>
+                        <input id="filter-payout-payment-id" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-12 col-md-3 col-lg-3 d-flex align-items-end gap-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="filter-stuck-only">
+                            <label class="form-check-label" for="filter-stuck-only">Застрявшие</label>
+                        </div>
+                        <input id="filter-stuck-minutes" class="form-control" type="number" min="1" value="60" title="Сколько минут без обновления">
+                    </div>
+
+                    <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                        <button class="btn btn-primary payments-report-filters-submit" type="submit" id="filter-apply">Применить</button>
+                        <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="filter-reset">Сброс</button>
                     </div>
                 </div>
-            </div>
+            </form>
         </div>
-
-        <hr>
 
         <div class="table-responsive">
             <table id="payouts-table" class="table table-striped table-bordered align-middle w-100">
@@ -224,6 +315,157 @@
 @section('scripts')
     <script>
         $(document).ready(function () {
+            var $filtersForm = $('#tbank-payouts-filters');
+            var $totalAmount = $('#tbankPayoutsTotalStat .payments-report-total-amount');
+            var $totalStat = $('#tbankPayoutsTotalStat');
+            var $totalValueInner = $('#tbankPayoutsTotalStat .payments-report-total-value-inner');
+            var $filterPartner = $('#filter-partner');
+            var $filterPayer = $('#filter-payer');
+
+            function initSelect2($el, extraParamsFn) {
+                var url = $el.data('search-url');
+                if (!$el.length || !url) return;
+                $el.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $el.data('placeholder') || '',
+                    allowClear: true,
+                    ajax: {
+                        url: url,
+                        delay: 250,
+                        data: function (params) {
+                            var payload = {q: params.term || ''};
+                            if (typeof extraParamsFn === 'function') {
+                                var extra = extraParamsFn() || {};
+                                Object.keys(extra).forEach(function (k) { payload[k] = extra[k]; });
+                            }
+                            return payload;
+                        },
+                        processResults: function (data) {
+                            return data;
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            }
+
+            @if(!empty($isSuperadmin))
+            initSelect2($filterPartner);
+            @endif
+            initSelect2($filterPayer, function () {
+                var pid = '';
+                @if(!empty($isSuperadmin))
+                pid = $filterPartner.val() || '';
+                @endif
+                return {partner_id: pid};
+            });
+
+            function parseTotalToInt(str) {
+                return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
+            }
+
+            function formatTotalSpaces(n) {
+                var v = Math.round(Number(n));
+                if (isNaN(v)) return '0';
+                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+            }
+
+            function animateTotalChange(prevText, nextText, nextRaw) {
+                if (!$totalAmount.length) return;
+
+                var nextVal = typeof nextRaw === 'number' && !isNaN(nextRaw) ? Math.round(nextRaw) : parseTotalToInt(nextText);
+                var prevVal = parseTotalToInt(prevText);
+
+                var runFlashAndPop = function () {
+                    if ($totalStat.length) {
+                        $totalStat.removeClass('payments-report-total-stat--flash');
+                        void $totalStat[0].offsetWidth;
+                        $totalStat.addClass('payments-report-total-stat--flash');
+                    }
+                    if ($totalValueInner.length) {
+                        $totalValueInner.removeClass('payments-report-total-value-inner--pop');
+                        void $totalValueInner[0].offsetWidth;
+                        $totalValueInner.addClass('payments-report-total-value-inner--pop');
+                    }
+                };
+
+                var prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                if (prefersReduced || prevText === nextText) {
+                    $totalAmount.text(nextText);
+                    if (!prefersReduced && prevText !== nextText) runFlashAndPop();
+                    return;
+                }
+
+                if (prevVal === nextVal) {
+                    $totalAmount.text(nextText);
+                    runFlashAndPop();
+                    return;
+                }
+
+                var duration = 480;
+                var start = null;
+
+                function easeInOutQuad(t) {
+                    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                }
+
+                function step(ts) {
+                    if (start === null) start = ts;
+                    var elapsed = ts - start;
+                    var t = Math.min(1, elapsed / duration);
+                    var eased = easeInOutQuad(t);
+                    var cur = Math.round(prevVal + (nextVal - prevVal) * eased);
+                    $totalAmount.text(formatTotalSpaces(cur));
+                    if (t < 1) window.requestAnimationFrame(step);
+                    else $totalAmount.text(nextText);
+                }
+
+                runFlashAndPop();
+                window.requestAnimationFrame(step);
+            }
+
+            function filterParams() {
+                var p = {};
+                @if(!empty($isSuperadmin))
+                p.partner_id = $filterPartner.val() || '';
+                @endif
+                p.status = $('#filter-status').val() || '';
+                p.source = $('#filter-source').val() || '';
+                p.payer_id = $filterPayer.val() || '';
+                p.payer_query = '';
+                p.initiator_query = $('#filter-initiator').val() || '';
+                p.created_from = $('#filter-created-from').val() || '';
+                p.created_to = $('#filter-created-to').val() || '';
+                p.run_from = $('#filter-run-from').val() || '';
+                p.run_to = $('#filter-run-to').val() || '';
+                p.completed_from = $('#filter-completed-from').val() || '';
+                p.completed_to = $('#filter-completed-to').val() || '';
+                p.gross_min = $('#filter-gross-min').val() || '';
+                p.gross_max = $('#filter-gross-max').val() || '';
+                p.net_min = $('#filter-net-min').val() || '';
+                p.net_max = $('#filter-net-max').val() || '';
+                p.deal_id = $('#filter-deal-id').val() || '';
+                p.tinkoff_payment_id = $('#filter-tinkoff-payment-id').val() || '';
+                p.tinkoff_payout_payment_id = $('#filter-payout-payment-id').val() || '';
+                p.stuck_only = $('#filter-stuck-only').is(':checked') ? 1 : 0;
+                p.stuck_minutes = $('#filter-stuck-minutes').val() || '';
+                return p;
+            }
+
+            function refreshTotal() {
+                var prevText = $totalAmount.length ? $totalAmount.text() : '';
+                if ($totalStat.length) $totalStat.addClass('payments-report-total-stat--loading');
+                $.get('/admin/tinkoff/payouts/total', filterParams())
+                    .done(function (res) {
+                        if ($totalStat.length) $totalStat.removeClass('payments-report-total-stat--loading');
+                        if (!res || res.total_formatted === undefined || !$totalAmount.length) return;
+                        animateTotalChange(prevText, res.total_formatted, res.total_raw);
+                    })
+                    .fail(function () {
+                        if ($totalStat.length) $totalStat.removeClass('payments-report-total-stat--loading');
+                    });
+            }
+
             const defaultColumnsVisibility = {
                 id: true,
                 status: true,
@@ -290,33 +532,10 @@
                     url: '/admin/tinkoff/payouts/data',
                     type: 'GET',
                     data: function (d) {
-                        @if(!empty($isSuperadmin))
-                        d.partner_id = $('#filter-partner').val();
-                        @endif
-                        d.status = $('#filter-status').val();
-                        d.source = $('#filter-source').val();
-
-                        d.payer_query = $('#filter-payer').val();
-                        d.initiator_query = $('#filter-initiator').val();
-
-                        d.created_from = $('#filter-created-from').val();
-                        d.created_to = $('#filter-created-to').val();
-                        d.run_from = $('#filter-run-from').val();
-                        d.run_to = $('#filter-run-to').val();
-                        d.completed_from = $('#filter-completed-from').val();
-                        d.completed_to = $('#filter-completed-to').val();
-
-                        d.gross_min = $('#filter-gross-min').val();
-                        d.gross_max = $('#filter-gross-max').val();
-                        d.net_min = $('#filter-net-min').val();
-                        d.net_max = $('#filter-net-max').val();
-
-                        d.deal_id = $('#filter-deal-id').val();
-                        d.tinkoff_payment_id = $('#filter-tinkoff-payment-id').val();
-                        d.tinkoff_payout_payment_id = $('#filter-payout-payment-id').val();
-
-                        d.stuck_only = $('#filter-stuck-only').is(':checked') ? 1 : 0;
-                        d.stuck_minutes = $('#filter-stuck-minutes').val();
+                        var extra = filterParams();
+                        Object.keys(extra).forEach(function (k) {
+                            d[k] = extra[k];
+                        });
                     }
                 },
                 language: {
@@ -410,9 +629,10 @@
                     const colIndex = columnsMap[key];
                     const column = table.column(colIndex);
                     const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-                    column.visible(isVisible);
+                    column.visible(isVisible, false);
                     $('.column-toggle[data-column-key="' + key + '"]').prop('checked', isVisible);
                 });
+                table.columns.adjust().draw(false);
             }
 
             function loadColumnsConfigFromServer() {
@@ -460,17 +680,19 @@
                 saveColumnsConfigToServer(currentColumnsConfig);
             });
 
-            $('#filter-apply').on('click', function () {
+            $filtersForm.on('submit', function (e) {
+                e.preventDefault();
+                refreshTotal();
                 table.ajax.reload();
             });
 
             $('#filter-reset').on('click', function () {
                 @if(!empty($isSuperadmin))
-                $('#filter-partner').val('');
+                $filterPartner.val(null).trigger('change');
                 @endif
                 $('#filter-status').val('');
                 $('#filter-source').val('');
-                $('#filter-payer').val('');
+                $filterPayer.val(null).trigger('change');
                 $('#filter-initiator').val('');
                 $('#filter-created-from').val('');
                 $('#filter-created-to').val('');
@@ -487,6 +709,7 @@
                 $('#filter-deal-id').val('');
                 $('#filter-tinkoff-payment-id').val('');
                 $('#filter-payout-payment-id').val('');
+                refreshTotal();
                 table.ajax.reload();
             });
         });

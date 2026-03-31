@@ -51,6 +51,10 @@ abstract class CrmTestCase extends TestCase
         // Переключаем cache на in-memory store.
         config(['cache.default' => 'array']);
 
+        // В некоторых окружениях storage/logs может быть недоступен для записи.
+        // Переключаем логирование на errorlog, чтобы тесты не падали из-за прав на файл laravel.log.
+        config(['logging.default' => 'errorlog']);
+
         // В некоторых окружениях storage/ может быть недоступен для записи тестовым процессом.
         // Переносим compiled Blade views в системный tmp (writable).
         // Важно: используем уникальную папку на каждый прогон.

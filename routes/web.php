@@ -581,6 +581,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // Админка: список выплат + карточка (DataTables)
         Route::get('/admin/tinkoff/payouts', [TinkoffAdminPayoutController::class, 'index']);
         Route::get('/admin/tinkoff/payouts/data', [TinkoffAdminPayoutController::class, 'data']);
+        Route::get('/admin/tinkoff/payouts/total', [TinkoffAdminPayoutController::class, 'total']);
+        Route::get('/admin/tinkoff/payouts/partners-search', [TinkoffAdminPayoutController::class, 'partnersSearch']);
+        Route::get('/admin/tinkoff/payouts/payers-search', [TinkoffAdminPayoutController::class, 'payersSearch']);
 
         // Настройки отображения колонок
         Route::get('/admin/tinkoff/payouts/columns-settings', [TinkoffPayoutTableSettingsController::class, 'getColumnsSettings']);

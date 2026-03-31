@@ -40,8 +40,11 @@
   <ul>
     <li><code>GET /admin/tinkoff/payouts</code> — HTML: таблица выплат (DataTables), фильтры, информационные блоки.</li>
     <li><code>GET /admin/tinkoff/payouts/data</code> — JSON для DataTables (валидация через <code>TinkoffPayoutsDataTableRequest</code>).</li>
-    <li><code>GET /admin/tinkoff/payouts/columns-settings</code> — JSON: сохранённые видимые колонки таблицы (per user, ключ <code>tinkoff_payouts_index</code>).</li>
-    <li><code>POST /admin/tinkoff/payouts/columns-settings</code> — тело JSON <code>{"columns":{"column_key":true|false,...}}</code> → <code>{"success":true}</code>.</li>
+    <li><code>GET /admin/tinkoff/payouts/total</code> — JSON: сумма выплат по текущим фильтрам (<code>{ total_formatted, total_raw }</code>).</li>
+    <li><code>GET /admin/tinkoff/payouts/partners-search</code> — Select2: поиск партнёров (только <code>superadmin</code>), ответ <code>{ results: [{id,text}] }</code>.</li>
+    <li><code>GET /admin/tinkoff/payouts/payers-search</code> — Select2: поиск плательщиков (users) в рамках партнёра, ответ <code>{ results: [{id,text}] }</code>. Поддерживает <code>partner_id</code> для superadmin.</li>
+    <li><code>GET /admin/tinkoff/payouts/columns-settings</code> — JSON: сохранённые видимые колонки таблицы (per user, ключ <code>tinkoff_payouts_index</code>, контроллер <code>TinkoffPayoutTableSettingsController</code>).</li>
+    <li><code>POST /admin/tinkoff/payouts/columns-settings</code> — тело JSON <code>{"columns":{"column_key":true|false,...}}</code> → <code>{"success":true}</code> (контроллер <code>TinkoffPayoutTableSettingsController</code>).</li>
     <li><code>GET /admin/tinkoff/payouts/{id}</code> — карточка выплаты (<code>id</code> — число).</li>
     <li><code>POST /tinkoff/payouts/{deal}/pay-now</code> и <code>POST /tinkoff/payouts/{deal}/delay</code> — ручной запуск и отложенная выплата по <code>deal_id</code> (тот же permission).</li>
   </ul>
@@ -79,6 +82,7 @@
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsIndexAutoInfoTest.php</code> — блоки автовыплат, интервал, просроченные на index.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankAdminPayoutsAccessFeatureTest.php</code> — 403 без <code>tbank.payouts.manage</code>; 200 для index, data, columns-settings, show; 404 чужой выплаты; изоляция строк в DataTables; superadmin + <code>partner_id</code>.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankAdminPayoutsAjaxFeatureTest.php</code> — новый функционал: endpoint <code>/total</code>, фильтр <code>payer_id</code>, Select2 endpoints <code>partners-search</code>/<code>payers-search</code>.</li>
     <li>Ручные действия <code>pay-now</code> / <code>delay</code> — <code>TbankPayoutManualTest.php</code> и см. <a href="./tbank.html#tests">tbank.html → тесты</a>.</li>
   </ul>
 

@@ -7,6 +7,8 @@ use App\Models\PaymentSystem;
 use App\Models\TinkoffPayout;
 use App\Services\Tinkoff\TinkoffPayoutsService;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsDataTableRequest;
+use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsSelect2PartnersSearchRequest;
+use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsSelect2UsersSearchRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -18,10 +20,11 @@ class TinkoffAdminPayoutController extends Controller
     {
         $actor = auth()->user();
         $isSuperadmin = $actor instanceof User && $actor->hasRole('superadmin');
+        $currentPartnerId = (int) app('current_partner')->id;
 
         $partners = $isSuperadmin
             ? Partner::orderBy('title')->get(['id', 'title'])
-            : Partner::query()->whereKey((int) app('current_partner')->id)->get(['id', 'title']);
+            : Partner::query()->whereKey($currentPartnerId)->get(['id', 'title']);
 
         $paymentSystems = PaymentSystem::query()
             ->where('name', 'tbank')
@@ -42,6 +45,10 @@ class TinkoffAdminPayoutController extends Controller
             ->limit(25)
             ->get();
 
+        $totalCents = $this->basePayoutsTotalsQuery($isSuperadmin, $currentPartnerId)->sum(DB::raw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount)'));
+        $totalRub = (float) round(((int) $totalCents) / 100);
+        $totalPayoutAmountFormatted = number_format($totalRub, 0, '', ' ');
+
         return view('tinkoff.payouts.index', compact(
             'partners',
             'isSuperadmin',
@@ -49,8 +56,93 @@ class TinkoffAdminPayoutController extends Controller
             'partnersWithAuto',
             'scheduledIntervalMinutes',
             'overdueScheduledPayoutsCount',
-            'overdueScheduledPayouts'
+            'overdueScheduledPayouts',
+            'totalPayoutAmountFormatted'
         ));
+    }
+
+    /**
+     * Select2: поиск партнёров по названию (только для superadmin).
+     */
+    public function partnersSearch(TinkoffPayoutsSelect2PartnersSearchRequest $request)
+    {
+        $actor = auth()->user();
+        $isSuperadmin = $actor instanceof User && $actor->hasRole('superadmin');
+        if (!$isSuperadmin) {
+            abort(403);
+        }
+
+        $q = (string) ($request->validated()['q'] ?? '');
+
+        $partners = Partner::query()
+            ->when($q !== '', fn ($qq) => $qq->where('title', 'like', '%'.$q.'%'))
+            ->orderBy('title')
+            ->limit(50)
+            ->get(['id', 'title']);
+
+        $results = $partners->map(static function (Partner $p) {
+            return [
+                'id' => $p->id,
+                'text' => (string) ($p->title ?? ''),
+            ];
+        });
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
+     * Select2: поиск плательщиков (users) по ФИО/почте/телефону, в рамках партнёра (или выбранного partner_id).
+     */
+    public function payersSearch(TinkoffPayoutsSelect2UsersSearchRequest $request)
+    {
+        $actor = auth()->user();
+        $isSuperadmin = $actor instanceof User && $actor->hasRole('superadmin');
+        $currentPartnerId = (int) app('current_partner')->id;
+
+        $v = $request->validated();
+        $q = (string) ($v['q'] ?? '');
+
+        $partnerId = (int) ($v['partner_id'] ?? 0);
+        if (!$isSuperadmin) {
+            $partnerId = $currentPartnerId;
+        } elseif ($partnerId <= 0) {
+            $partnerId = $currentPartnerId;
+        }
+
+        $users = User::query()
+            ->where('partner_id', $partnerId)
+            ->when($q !== '', function ($qq) use ($q) {
+                $needle = '%'.$q.'%';
+                $qq->where(function ($w) use ($needle) {
+                    $w->where('name', 'like', $needle)
+                        ->orWhere('lastname', 'like', $needle)
+                        ->orWhere('email', 'like', $needle)
+                        ->orWhere('phone', 'like', $needle);
+                });
+            })
+            ->orderBy('lastname')
+            ->orderBy('name')
+            ->limit(50)
+            ->get(['id', 'name', 'lastname', 'email', 'phone', 'partner_id']);
+
+        $results = $users->map(function (User $u) {
+            $fio = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+            $tail = trim(implode(' · ', array_filter([
+                $u->email ? (string) $u->email : null,
+                $u->phone ? (string) $u->phone : null,
+            ])));
+            $text = $fio !== '' ? $fio : ('#'.$u->id);
+            if ($tail !== '') {
+                $text .= ' ('.$tail.')';
+            }
+            return [
+                'id' => $u->id,
+                'text' => $text,
+                'partner_id' => (int) $u->partner_id,
+            ];
+        });
+
+        return response()->json(['results' => $results]);
     }
 
     public function show(int $id, TinkoffPayoutsService $svc)
@@ -121,114 +213,10 @@ class TinkoffAdminPayoutController extends Controller
                 'initiator.id as initiator_id',
             ]);
 
-        if (!$isSuperadmin) {
-            $baseQuery->where('tinkoff_payouts.partner_id', $currentPartnerId);
-        } else {
-            // фильтр по партнёру доступен только супер-админу
-            if ($request->filled('partner_id') && ctype_digit((string) $validated['partner_id'])) {
-                $baseQuery->where('tinkoff_payouts.partner_id', (int) $validated['partner_id']);
-            }
-        }
-
-        if (!empty($validated['status'])) {
-            $baseQuery->where('tinkoff_payouts.status', $validated['status']);
-        }
-        if (!empty($validated['source'])) {
-            $baseQuery->where('tinkoff_payouts.source', $validated['source']);
-        }
-        if (!empty($validated['deal_id'])) {
-            $baseQuery->where('tinkoff_payouts.deal_id', $validated['deal_id']);
-        }
-        if (!empty($validated['tinkoff_payout_payment_id'])) {
-            $baseQuery->where('tinkoff_payouts.tinkoff_payout_payment_id', $validated['tinkoff_payout_payment_id']);
-        }
-        if (!empty($validated['tinkoff_payment_id'])) {
-            $baseQuery->where('tinkoff_payouts.payment_id', (int) $validated['tinkoff_payment_id']);
-        }
-
-        // Плательщик
-        $payerQ = trim((string) ($validated['payer_query'] ?? ''));
-        if ($payerQ !== '') {
-            $baseQuery->where(function ($q) use ($payerQ) {
-                if (ctype_digit($payerQ)) {
-                    $q->orWhere('payer.id', (int) $payerQ);
-                }
-                $like = '%' . $payerQ . '%';
-                $q->orWhere('payer.name', 'like', $like)
-                    ->orWhere('payer.lastname', 'like', $like)
-                    ->orWhere('payer.email', 'like', $like)
-                    ->orWhere('payer.phone', 'like', $like);
-            });
-        }
-
-        // Инициатор
-        $initQ = trim((string) ($validated['initiator_query'] ?? ''));
-        if ($initQ !== '') {
-            $baseQuery->where(function ($q) use ($initQ) {
-                if (ctype_digit($initQ)) {
-                    $q->orWhere('initiator.id', (int) $initQ);
-                }
-                $like = '%' . $initQ . '%';
-                $q->orWhere('initiator.name', 'like', $like)
-                    ->orWhere('initiator.lastname', 'like', $like)
-                    ->orWhere('initiator.email', 'like', $like)
-                    ->orWhere('initiator.phone', 'like', $like);
-            });
-        }
-
-        // Даты
-        if (!empty($validated['created_from'])) {
-            $baseQuery->where('tinkoff_payouts.created_at', '>=', Carbon::parse($validated['created_from'])->startOfDay());
-        }
-        if (!empty($validated['created_to'])) {
-            $baseQuery->where('tinkoff_payouts.created_at', '<=', Carbon::parse($validated['created_to'])->endOfDay());
-        }
-        if (!empty($validated['run_from'])) {
-            $baseQuery->where('tinkoff_payouts.when_to_run', '>=', Carbon::parse($validated['run_from'])->startOfDay());
-        }
-        if (!empty($validated['run_to'])) {
-            $baseQuery->where('tinkoff_payouts.when_to_run', '<=', Carbon::parse($validated['run_to'])->endOfDay());
-        }
-        if (!empty($validated['completed_from'])) {
-            $baseQuery->where('tinkoff_payouts.completed_at', '>=', Carbon::parse($validated['completed_from'])->startOfDay());
-        }
-        if (!empty($validated['completed_to'])) {
-            $baseQuery->where('tinkoff_payouts.completed_at', '<=', Carbon::parse($validated['completed_to'])->endOfDay());
-        }
-
-        // Диапазоны сумм (в рублях) -> копейки
-        if (isset($validated['gross_min'])) {
-            $min = (int) round(((float) $validated['gross_min']) * 100);
-            $baseQuery->whereRaw('COALESCE(tinkoff_payouts.gross_amount, tinkoff_payments.amount) >= ?', [$min]);
-        }
-        if (isset($validated['gross_max'])) {
-            $max = (int) round(((float) $validated['gross_max']) * 100);
-            $baseQuery->whereRaw('COALESCE(tinkoff_payouts.gross_amount, tinkoff_payments.amount) <= ?', [$max]);
-        }
-        if (isset($validated['net_min'])) {
-            $min = (int) round(((float) $validated['net_min']) * 100);
-            $baseQuery->whereRaw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount) >= ?', [$min]);
-        }
-        if (isset($validated['net_max'])) {
-            $max = (int) round(((float) $validated['net_max']) * 100);
-            $baseQuery->whereRaw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount) <= ?', [$max]);
-        }
-
-        // "Застрявшие"
-        if ($request->boolean('stuck_only')) {
-            $minutes = (int) ($validated['stuck_minutes'] ?? 60);
-            $baseQuery->whereIn('tinkoff_payouts.status', [
-                'INITIATED', 'NEW', 'AUTHORIZING', 'CHECKING', 'CREDIT_CHECKING', 'COMPLETING',
-            ])->where('tinkoff_payouts.updated_at', '<=', now()->subMinutes($minutes));
-        }
+        $this->applyPayoutsFilters($baseQuery, $request, $validated, $isSuperadmin, $currentPartnerId);
 
         // Общее количество (без фильтров) в рамках доступа
-        $totalQuery = TinkoffPayout::query();
-        if (!$isSuperadmin) {
-            $totalQuery->where('partner_id', $currentPartnerId);
-        } elseif ($request->filled('partner_id') && ctype_digit((string) $validated['partner_id'])) {
-            $totalQuery->where('partner_id', (int) $validated['partner_id']);
-        }
+        $totalQuery = $this->basePayoutsTotalsQuery($isSuperadmin, $currentPartnerId, $validated);
         $totalRecords = (clone $totalQuery)->count();
 
         $recordsFiltered = (clone $baseQuery)->count();
@@ -358,6 +346,150 @@ class TinkoffAdminPayoutController extends Controller
             'recordsFiltered' => $recordsFiltered,
             'data' => $data,
         ]);
+    }
+
+    /**
+     * AJAX: сумма выплат по текущим фильтрам (как в отчётах).
+     * Возвращает сумму в рублях (целые), чтобы на фронте анимация совпадала с “Платежи”.
+     */
+    public function total(TinkoffPayoutsDataTableRequest $request)
+    {
+        $validated = $request->validated();
+
+        $actor = auth()->user();
+        $isSuperadmin = $actor instanceof User && $actor->hasRole('superadmin');
+        $currentPartnerId = (int) app('current_partner')->id;
+
+        $q = TinkoffPayout::query()
+            ->leftJoin('partners', 'partners.id', '=', 'tinkoff_payouts.partner_id')
+            ->leftJoin('tinkoff_payments', 'tinkoff_payments.id', '=', 'tinkoff_payouts.payment_id')
+            ->leftJoin('users as payer', 'payer.id', '=', 'tinkoff_payouts.payer_user_id')
+            ->leftJoin('users as initiator', 'initiator.id', '=', 'tinkoff_payouts.initiated_by_user_id');
+
+        $this->applyPayoutsFilters($q, $request, $validated, $isSuperadmin, $currentPartnerId);
+
+        $sumCents = (int) $q->sum(DB::raw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount)'));
+        $rawRub = (float) round($sumCents / 100);
+
+        return response()->json([
+            'total_formatted' => number_format($rawRub, 0, '', ' '),
+            'total_raw' => $rawRub,
+        ]);
+    }
+
+    private function basePayoutsTotalsQuery(bool $isSuperadmin, int $currentPartnerId, array $validated = [])
+    {
+        $q = TinkoffPayout::query();
+
+        if (!$isSuperadmin) {
+            $q->where('partner_id', $currentPartnerId);
+        } elseif (!empty($validated['partner_id']) && ctype_digit((string) $validated['partner_id'])) {
+            $q->where('partner_id', (int) $validated['partner_id']);
+        }
+
+        return $q;
+    }
+
+    private function applyPayoutsFilters($q, Request $request, array $validated, bool $isSuperadmin, int $currentPartnerId): void
+    {
+        if (!$isSuperadmin) {
+            $q->where('tinkoff_payouts.partner_id', $currentPartnerId);
+        } else {
+            if ($request->filled('partner_id') && ctype_digit((string) ($validated['partner_id'] ?? ''))) {
+                $q->where('tinkoff_payouts.partner_id', (int) $validated['partner_id']);
+            }
+        }
+
+        if (!empty($validated['status'])) {
+            $q->where('tinkoff_payouts.status', $validated['status']);
+        }
+        if (!empty($validated['source'])) {
+            $q->where('tinkoff_payouts.source', $validated['source']);
+        }
+        if (!empty($validated['deal_id'])) {
+            $q->where('tinkoff_payouts.deal_id', $validated['deal_id']);
+        }
+        if (!empty($validated['tinkoff_payout_payment_id'])) {
+            $q->where('tinkoff_payouts.tinkoff_payout_payment_id', $validated['tinkoff_payout_payment_id']);
+        }
+        if (!empty($validated['tinkoff_payment_id'])) {
+            $q->where('tinkoff_payouts.payment_id', (int) $validated['tinkoff_payment_id']);
+        }
+
+        if (!empty($validated['payer_id'])) {
+            $q->where('tinkoff_payouts.payer_user_id', (int) $validated['payer_id']);
+        } else {
+            $payerQ = trim((string) ($validated['payer_query'] ?? ''));
+            if ($payerQ !== '') {
+                $q->where(function ($w) use ($payerQ) {
+                    if (ctype_digit($payerQ)) {
+                        $w->orWhere('payer.id', (int) $payerQ);
+                    }
+                    $like = '%' . $payerQ . '%';
+                    $w->orWhere('payer.name', 'like', $like)
+                        ->orWhere('payer.lastname', 'like', $like)
+                        ->orWhere('payer.email', 'like', $like)
+                        ->orWhere('payer.phone', 'like', $like);
+                });
+            }
+        }
+
+        $initQ = trim((string) ($validated['initiator_query'] ?? ''));
+        if ($initQ !== '') {
+            $q->where(function ($w) use ($initQ) {
+                if (ctype_digit($initQ)) {
+                    $w->orWhere('initiator.id', (int) $initQ);
+                }
+                $like = '%' . $initQ . '%';
+                $w->orWhere('initiator.name', 'like', $like)
+                    ->orWhere('initiator.lastname', 'like', $like)
+                    ->orWhere('initiator.email', 'like', $like)
+                    ->orWhere('initiator.phone', 'like', $like);
+            });
+        }
+
+        if (!empty($validated['created_from'])) {
+            $q->where('tinkoff_payouts.created_at', '>=', Carbon::parse($validated['created_from'])->startOfDay());
+        }
+        if (!empty($validated['created_to'])) {
+            $q->where('tinkoff_payouts.created_at', '<=', Carbon::parse($validated['created_to'])->endOfDay());
+        }
+        if (!empty($validated['run_from'])) {
+            $q->where('tinkoff_payouts.when_to_run', '>=', Carbon::parse($validated['run_from'])->startOfDay());
+        }
+        if (!empty($validated['run_to'])) {
+            $q->where('tinkoff_payouts.when_to_run', '<=', Carbon::parse($validated['run_to'])->endOfDay());
+        }
+        if (!empty($validated['completed_from'])) {
+            $q->where('tinkoff_payouts.completed_at', '>=', Carbon::parse($validated['completed_from'])->startOfDay());
+        }
+        if (!empty($validated['completed_to'])) {
+            $q->where('tinkoff_payouts.completed_at', '<=', Carbon::parse($validated['completed_to'])->endOfDay());
+        }
+
+        if (isset($validated['gross_min'])) {
+            $min = (int) round(((float) $validated['gross_min']) * 100);
+            $q->whereRaw('COALESCE(tinkoff_payouts.gross_amount, tinkoff_payments.amount) >= ?', [$min]);
+        }
+        if (isset($validated['gross_max'])) {
+            $max = (int) round(((float) $validated['gross_max']) * 100);
+            $q->whereRaw('COALESCE(tinkoff_payouts.gross_amount, tinkoff_payments.amount) <= ?', [$max]);
+        }
+        if (isset($validated['net_min'])) {
+            $min = (int) round(((float) $validated['net_min']) * 100);
+            $q->whereRaw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount) >= ?', [$min]);
+        }
+        if (isset($validated['net_max'])) {
+            $max = (int) round(((float) $validated['net_max']) * 100);
+            $q->whereRaw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount) <= ?', [$max]);
+        }
+
+        if ($request->boolean('stuck_only')) {
+            $minutes = (int) ($validated['stuck_minutes'] ?? 60);
+            $q->whereIn('tinkoff_payouts.status', [
+                'INITIATED', 'NEW', 'AUTHORIZING', 'CHECKING', 'CREDIT_CHECKING', 'COMPLETING',
+            ])->where('tinkoff_payouts.updated_at', '<=', now()->subMinutes($minutes));
+        }
     }
 }
 

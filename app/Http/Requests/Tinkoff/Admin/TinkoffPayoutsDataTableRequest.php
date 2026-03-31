@@ -25,6 +25,7 @@ class TinkoffPayoutsDataTableRequest extends FormRequest
             'tinkoff_payout_payment_id' => ['nullable', 'string', 'max:64'],
             'tinkoff_payment_id' => ['nullable', 'integer', 'min:1'],
 
+            'payer_id' => ['nullable', 'integer', 'min:1'],
             'payer_query' => ['nullable', 'string', 'max:255'],
             'initiator_query' => ['nullable', 'string', 'max:255'],
 
@@ -54,6 +55,7 @@ class TinkoffPayoutsDataTableRequest extends FormRequest
             'deal_id' => 'DealId',
             'tinkoff_payout_payment_id' => 'T‑Bank payout PaymentId',
             'tinkoff_payment_id' => 'ID платежа (в системе)',
+            'payer_id' => 'Плательщик',
             'payer_query' => 'Плательщик',
             'initiator_query' => 'Инициатор',
             'created_from' => 'Создана с',
