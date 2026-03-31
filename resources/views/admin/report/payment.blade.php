@@ -133,50 +133,13 @@
                 <label class="form-check-label" for="payColReceipt">Чек</label>
             </div>
 
-         @if($tbankEnabled ?? false)
-
-            <div class="form-check">
-                <input class="form-check-input payments-column-toggle"
-                       type="checkbox"
-                       data-column-key="bank_commission_total"
-                       id="payColBankCommission"
-                       checked
-                       @if(!$canAdditional) disabled @endif
-                       @if(!$canAdditional) title="Доступно по праву reports.additional.value.view" @endif>
-                <label class="form-check-label" for="payColBankCommission">Комиссия банка</label>
-            </div>
-
-            <div class="form-check">
-                <input class="form-check-input payments-column-toggle"
-                       type="checkbox"
-                       data-column-key="platform_commission"
-                       id="payColPlatformCommission"
-                       checked
-                       @if(!$canAdditional) disabled @endif
-                       @if(!$canAdditional) title="Доступно по праву reports.additional.value.view" @endif>
-                <label class="form-check-label" for="payColPlatformCommission">Комиссия платформы</label>
-            </div>
-
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
                        type="checkbox"
                        data-column-key="commission_total"
                        id="payColCommissionTotal"
-                       checked
-                       @if(!$canAdditional) disabled @endif
-                       @if(!$canAdditional) title="Доступно по праву reports.additional.value.view" @endif>
+                       checked>
                 <label class="form-check-label" for="payColCommissionTotal">Комиссия</label>
-            </div>
-
-            <div class="form-check">
-                <input class="form-check-input payments-column-toggle"
-                       type="checkbox"
-                       data-column-key="net_to_partner"
-                       id="payColNetToPartner"
-                       checked
-                       @if(!$canAdditional) disabled @endif
-                       @if(!$canAdditional) title="Доступно по праву reports.additional.value.view" @endif>
-                <label class="form-check-label" for="payColNetToPartner">К выплате</label>
             </div>
 
             <div class="form-check">
@@ -187,6 +150,37 @@
                        checked>
                 <label class="form-check-label" for="payColPayout">Выплата</label>
             </div>
+
+         @if($tbankEnabled ?? false)
+
+            @if($canAdditional)
+                <div class="form-check">
+                    <input class="form-check-input payments-column-toggle"
+                           type="checkbox"
+                           data-column-key="bank_commission_total"
+                           id="payColBankCommission"
+                           checked>
+                    <label class="form-check-label" for="payColBankCommission">Комиссия банка</label>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input payments-column-toggle"
+                           type="checkbox"
+                           data-column-key="platform_commission"
+                           id="payColPlatformCommission"
+                           checked>
+                    <label class="form-check-label" for="payColPlatformCommission">Комиссия платформы</label>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input payments-column-toggle"
+                           type="checkbox"
+                           data-column-key="net_to_partner"
+                           id="payColNetToPartner"
+                           checked>
+                    <label class="form-check-label" for="payColNetToPartner">К выплате</label>
+                </div>
+            @endif
 @endif
 
 
@@ -199,16 +193,16 @@
                 <label class="form-check-label" for="payColActions">Действия</label>
             </div>
 
-            <div class="form-check">
-                <input class="form-check-input payments-column-toggle"
-                       type="checkbox"
-                       data-column-key="refund_status"
-                       id="payColRefundStatus"
-                       checked
-                       @if(!$canAdditional) disabled @endif
-                       @if(!$canAdditional) title="Доступно по праву reports.additional.value.view" @endif>
-                <label class="form-check-label" for="payColRefundStatus">Статус возврата</label>
-            </div>
+            @if($canAdditional)
+                <div class="form-check">
+                    <input class="form-check-input payments-column-toggle"
+                           type="checkbox"
+                           data-column-key="refund_status"
+                           id="payColRefundStatus"
+                           checked>
+                    <label class="form-check-label" for="payColRefundStatus">Статус возврата</label>
+                </div>
+            @endif
 
                     </div>
                 </div>
@@ -311,13 +305,16 @@
         <th>Провайдер</th>
         <th>Способ оплаты</th>
         <th>Чек</th>
-            @if($tbankEnabled ?? false)
-        <th>Комиссия банка</th>
-        <th>Комиссия платформы</th>
-        <th>Комиссия</th>
-        <th>К выплате</th>
-        <th>Выплата</th>
-            @endif
+        @if($tbankEnabled ?? false)
+            <th>Комиссия банка</th>
+            <th>Комиссия платформы</th>
+            <th>Комиссия</th>
+            <th>К выплате</th>
+            <th>Выплата</th>
+        @else
+            <th>Комиссия</th>
+            <th>Выплата</th>
+        @endif
 
         <th>Действия</th>
         <th>Статус возврата</th>
@@ -591,9 +588,9 @@
     payment_provider: true,
     payment_method_label: true,
     receipt: true,
-    payout_amount: tbankEnabled,
+    commission_total: true,
+    payout_amount: true,
     net_to_partner: tbankEnabled && canAdditional,
-    commission_total: tbankEnabled && canAdditional,
     bank_commission_total: tbankEnabled && canAdditional,
     platform_commission: tbankEnabled && canAdditional,
     refund_status: canAdditional,
@@ -603,7 +600,6 @@
             const additionalColumnsKeys = [
                 'bank_commission_total',
                 'platform_commission',
-                'commission_total',
                 'net_to_partner',
                 'refund_status',
             ];
@@ -637,8 +633,10 @@
     payment_provider: 6,
     payment_method_label: 7,
     receipt: 8,
-    refund_action: 9,
-    refund_status: 10
+    commission_total: 9,
+    payout_amount: 10,
+    refund_action: 11,
+    refund_status: 12
 };
 
             function toBool(val, fallback = true) {
@@ -885,7 +883,6 @@ const columns = [
     }
 ];
 
-// Добавляем T-Bank колонки только если включен T-Bank
 if (tbankEnabled) {
     columns.push(
         {
@@ -917,21 +914,29 @@ if (tbankEnabled) {
                 }
                 return `${formatNumber(Math.round(parseFloat(data)))} руб`;
             }
-        },
-        {
-            data: 'commission_total',
-            name: 'commission_total',
-            render: function (data, type, row) {
-                if (data === null || data === undefined || data === '') return '';
-                if (type !== 'display') return parseFloat(data);
-                function formatNumber(number) {
-                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                }
-                const title = 'Суммарные удержания по тарифу и комиссии банка';
-                const total = formatNumber(Math.round(parseFloat(data)));
-                return `<span title="${title}">${total} руб</span>`;
+        }
+    );
+}
+
+columns.push(
+    {
+        data: 'commission_total',
+        name: 'commission_total',
+        render: function (data, type, row) {
+            if (data === null || data === undefined || data === '') return '';
+            if (type !== 'display') return parseFloat(data);
+            function formatNumber(number) {
+                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
             }
-        },
+            const title = 'Суммарные удержания по тарифу и комиссии банка';
+            const total = formatNumber(Math.round(parseFloat(data)));
+            return `<span title="${title}">${total} руб</span>`;
+        }
+    }
+);
+
+if (tbankEnabled) {
+    columns.push(
         {
             data: 'net_to_partner',
             name: 'net_to_partner',
@@ -943,21 +948,24 @@ if (tbankEnabled) {
                 }
                 return `${formatNumber(Math.round(parseFloat(data)))} руб`;
             }
-        },
-        {
-            data: 'payout_amount',
-            name: 'payout_amount',
-            render: function (data, type, row) {
-                if (data === null || data === undefined || data === '') return '';
-                if (type !== 'display') return parseFloat(data);
-                function formatNumber(number) {
-                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                }
-                return `${formatNumber(Math.round(parseFloat(data)))} руб`;
-            }
         }
     );
 }
+
+columns.push(
+    {
+        data: 'payout_amount',
+        name: 'payout_amount',
+        render: function (data, type, row) {
+            if (data === null || data === undefined || data === '') return '';
+            if (type !== 'display') return parseFloat(data);
+            function formatNumber(number) {
+                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            }
+            return `${formatNumber(Math.round(parseFloat(data)))} руб`;
+        }
+    }
+);
 
 columns.push(
     {data: 'refund_action', name: 'refund_action', orderable: false, searchable: false},

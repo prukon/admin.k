@@ -318,7 +318,10 @@ class PaymentReportController extends AdminBaseController
             ]);
         };
 
-        $canViewTbankHistory = Auth::user()?->can('viewing.all.logs') ?? false;
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+        $canViewTbankHistory = $authUser?->can('viewing.all.logs') ?? false;
+        $canAdditional = $authUser?->can('reports.additional.value.view') ?? false;
 
         return DataTables::of($paymentsQuery)
             ->addIndexColumn()
@@ -444,7 +447,11 @@ class PaymentReportController extends AdminBaseController
 
                 return round(((int) $payout->amount) / 100, 2);
             })
-            ->addColumn('bank_commission_total', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents) {
+            ->addColumn('bank_commission_total', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents, $canAdditional) {
+                if (! $canAdditional) {
+                    return null;
+                }
+
                 // Только T-Bank. Если платёж явно не T-Bank — null.
                 if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
                     return null;
@@ -479,7 +486,11 @@ class PaymentReportController extends AdminBaseController
 
                 return round(($bankAcceptFee + $bankPayoutFee) / 100, 2);
             })
-            ->addColumn('bank_commission_acquiring', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents) {
+            ->addColumn('bank_commission_acquiring', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents, $canAdditional) {
+                if (! $canAdditional) {
+                    return null;
+                }
+
                 if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
                     return null;
                 }
@@ -507,7 +518,11 @@ class PaymentReportController extends AdminBaseController
 
                 return round($bankAcceptFee / 100, 2);
             })
-            ->addColumn('bank_commission_payout', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents) {
+            ->addColumn('bank_commission_payout', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents, $canAdditional) {
+                if (! $canAdditional) {
+                    return null;
+                }
+
                 if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
                     return null;
                 }
@@ -535,7 +550,11 @@ class PaymentReportController extends AdminBaseController
 
                 return round($bankPayoutFee / 100, 2);
             })
-            ->addColumn('platform_commission', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents) {
+            ->addColumn('platform_commission', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents, $canAdditional) {
+                if (! $canAdditional) {
+                    return null;
+                }
+
                 if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
                     return null;
                 }
@@ -613,7 +632,11 @@ class PaymentReportController extends AdminBaseController
 
                 return round(($bankAcceptFee + $bankPayoutFee + $platformFee) / 100, 2);
             })
-            ->addColumn('net_to_partner', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents) {
+            ->addColumn('net_to_partner', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents, $canAdditional) {
+                if (! $canAdditional) {
+                    return null;
+                }
+
                 if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
                     return null;
                 }
@@ -658,7 +681,11 @@ class PaymentReportController extends AdminBaseController
                 $net = $grossCents - $bankAcceptFee - $bankPayoutFee - $platformFee;
                 return round(max(0, $net) / 100, 2);
             })
-            ->addColumn('refund_status', function (Payment $row) {
+            ->addColumn('refund_status', function (Payment $row) use ($canAdditional) {
+                if (! $canAdditional) {
+                    return '';
+                }
+
                 $refund = Refund::query()
                     ->where('payment_id', $row->id)
                     ->orderByDesc('id')
@@ -1080,6 +1107,9 @@ class PaymentReportController extends AdminBaseController
     public function getColumnsSettings()
     {
         $userId = Auth::id();
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+        $canAdditional = $authUser?->can('reports.additional.value.view') ?? false;
 
         $settings = UserTableSetting::where('user_id', $userId)
             ->where('table_key', 'reports_payments')
@@ -1089,6 +1119,12 @@ class PaymentReportController extends AdminBaseController
 
         if (!is_array($columns)) {
             $columns = [];
+        }
+
+        if (! $canAdditional) {
+            foreach (['bank_commission_total', 'platform_commission', 'net_to_partner', 'refund_status'] as $k) {
+                unset($columns[$k]);
+            }
         }
 
         return response()->json($columns);
@@ -1101,6 +1137,9 @@ class PaymentReportController extends AdminBaseController
     public function saveColumnsSettings(Request $request)
     {
         $userId = Auth::id();
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+        $canAdditional = $authUser?->can('reports.additional.value.view') ?? false;
 
         $data = $request->validate([
             'columns' => 'required|array',
@@ -1115,6 +1154,12 @@ class PaymentReportController extends AdminBaseController
                 $bool = false;
             }
             $normalized[$key] = $bool;
+        }
+
+        if (! $canAdditional) {
+            foreach (['bank_commission_total', 'platform_commission', 'net_to_partner', 'refund_status'] as $k) {
+                $normalized[$k] = false;
+            }
         }
 
         UserTableSetting::updateOrCreate(
