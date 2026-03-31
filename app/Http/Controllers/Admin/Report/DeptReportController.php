@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
-use App\Models\Payment;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -21,27 +20,38 @@ class DeptReportController extends AdminBaseController
     }
 
     //Отчет Задолженности
-    public function debts()
+    public function debts(Request $request)
     {
         $partnerId = $this->requirePartnerId();
+        $filters = $request->query();
 
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
 
+        $totalQuery = DB::table('users_prices')
+            ->join('users', 'users.id', '=', 'users_prices.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->where('users_prices.is_paid', 0)
+            ->where('users.is_enabled', 1)
+            ->where('users_prices.price', '>', 0)
+            ->where('users_prices.new_month', '<', $currentMonth)
+            ->where('users.partner_id', $partnerId);
 
-        $totalUnpaidPrice = DB::table('users_prices')
-            ->join('users', 'users.id', '=', 'users_prices.user_id')   // INNER JOIN с users
-            ->where('users_prices.is_paid', 0)                         // счет не оплачен
-            ->where('users.is_enabled', 1)                             // пользователь активен
-            ->where('users_prices.price', '>', 0)                      // цена положительна
-            ->where('users_prices.new_month', '<', $currentMonth)      // месяц в прошлом
-            ->where('users.partner_id', $partnerId)                             // партнёр = 1
-            ->sum('users_prices.price');                               // суммируем
+        $this->applyDebtReportFilters($totalQuery, $request);
 
-        $totalUnpaidPrice = number_format($totalUnpaidPrice, 0, '', ' ');
+        $totalRaw = $totalQuery->sum('users_prices.price');
+        $totalUnpaidPrice = number_format((float) $totalRaw, 0, '', ' ');
 
-        return view('admin.report.index', ['activeTab' => 'debt'],
-            compact("totalUnpaidPrice"));
+        $paymentsFilterUser = $this->resolveDebtFilterUserLabel($partnerId, $filters);
+        $paymentsFilterTeam = $this->resolveDebtFilterTeamLabel($partnerId, $filters);
+
+        return view('admin.report.index', [
+            'activeTab'          => 'debt',
+            'totalUnpaidPrice'   => $totalUnpaidPrice,
+            'filters'            => $filters,
+            'paymentsFilterUser' => $paymentsFilterUser,
+            'paymentsFilterTeam' => $paymentsFilterTeam,
+        ]);
     }
 
     //Данные для отчета Задолженности
@@ -52,56 +62,125 @@ class DeptReportController extends AdminBaseController
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
 
-//         dd($currentMonth);
         if ($request->ajax()) {
-
-
-
-
-            $usersWithUnpaidPrices = DB::table('users_prices')
+            $base = DB::table('users_prices')
                 ->join('users', 'users.id', '=', 'users_prices.user_id')
+                ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
                 ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
                 ->addSelect('users.id as user_id', 'users_prices.new_month', 'users_prices.price')
                 ->where('users_prices.is_paid', 0)
                 ->where('users.is_enabled', 1)
                 ->where('users_prices.price', '>', 0)
                 ->where('users_prices.new_month', '<', $currentMonth)
-                ->where('users.partner_id', $partnerId)
-                ->get();
+                ->where('users.partner_id', $partnerId);
+
+            $this->applyDebtReportFilters($base, $request);
+
+            $usersWithUnpaidPrices = $base->get();
 
             return DataTables::of($usersWithUnpaidPrices)
                 ->addIndexColumn()
-                ->addColumn('month', fn($row) => $row->new_month)
-    ->addColumn('price', fn($row) => (float)$row->price)
-    ->make(true);
-
-
-            // Добавляем проверку на наличие данных
-            if ($usersWithUnpaidPrices->isEmpty()) {
-                // Возвращаем пустую таблицу, но в корректном формате для DataTables
-                return response()->json([
-                    'draw' => $request->get('draw'), // draw должен быть передан DataTables
-                    'recordsTotal' => 0,
-                    'recordsFiltered' => 0,
-                    'data' => [] // Пустой массив данных
-                ]);
-            }
-
-            return DataTables::of($usersWithUnpaidPrices)
-                ->addIndexColumn()
-//                ->addColumn('user_name', function ($row) {
-//                    return $row->user_name ? $row->user_name : 'Без имени'; // Проверяем наличие имени пользователя
-//                })
-                ->addColumn('month', function ($row) {
-                    return $row->new_month; // Месяц
-                })
-                ->addColumn('price', function ($row) {
-//                    return number_format($row->price, 2) . ' руб'; // Формат цены
-
-                    return (float)$row->price;
-                })
+                ->addColumn('month', fn ($row) => $row->new_month)
+                ->addColumn('price', fn ($row) => (float) $row->price)
                 ->make(true);
         }
+
+        abort(404);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function applyDebtReportFilters($query, Request $request): void
+    {
+        $filterUserId = $request->query('filter_user_id');
+        if ($filterUserId !== null && $filterUserId !== '' && ctype_digit((string) $filterUserId)) {
+            $uid = (int) $filterUserId;
+            if ($uid > 0) {
+                $query->where('users.id', $uid);
+            }
+        } elseif ($request->filled('user_name')) {
+            $needle = '%'.trim((string) $request->query('user_name')).'%';
+            $query->whereRaw("CONCAT_WS(' ', users.lastname, users.name) LIKE ?", [$needle]);
+        }
+
+        $filterTeamId = $request->query('filter_team_id');
+        if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
+            $tid = (int) $filterTeamId;
+            if ($tid > 0) {
+                $query->where('users.team_id', $tid);
+            }
+        } elseif ($request->filled('team_title')) {
+            $like = '%'.trim((string) $request->query('team_title')).'%';
+            $query->where('teams.title', 'like', $like);
+        }
+
+        if ($request->filled('debt_month')) {
+            $ym = trim((string) $request->query('debt_month'));
+            if (preg_match('/^\d{4}-\d{2}$/', $ym) === 1) {
+                $query->where('users_prices.new_month', 'like', $ym.'%');
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolveDebtFilterUserLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_user_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $uid = (int) $raw;
+        if ($uid <= 0) {
+            return null;
+        }
+
+        $u = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('id', $uid)
+            ->first(['id', 'name', 'lastname']);
+
+        if (! $u) {
+            return null;
+        }
+
+        $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
+        return [
+            'id'   => $u->id,
+            'text' => $text !== '' ? $text : '—',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolveDebtFilterTeamLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_team_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $tid = (int) $raw;
+        if ($tid <= 0) {
+            return null;
+        }
+
+        $t = Team::query()
+            ->where('partner_id', $partnerId)
+            ->where('id', $tid)
+            ->first(['id', 'title']);
+
+        if (! $t) {
+            return null;
+        }
+
+        return [
+            'id'   => $t->id,
+            'text' => (string) ($t->title ?? ''),
+        ];
     }
 
     public function formatedDate($month)

@@ -1,8 +1,129 @@
-<h4 class="pt-3 text-start">Задолженности</h4>
-<div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
-    <span class="fw-bold">Общая сумма задолженности: </span>
-    <span class="fw-bold">{{$totalUnpaidPrice}} руб</span>
+@php
+    $filters = $filters ?? [];
+    $paymentsFilterUser = $paymentsFilterUser ?? null;
+    $paymentsFilterTeam = $paymentsFilterTeam ?? null;
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'user_name', 'team_title', 'debt_month'];
+    $payHasActiveFilters = false;
+    foreach ($payFilterKeys as $k) {
+        $v = $filters[$k] ?? null;
+        if ($v !== null && $v !== '') {
+            $payHasActiveFilters = true;
+            break;
+        }
+    }
+@endphp
+
+@vite(['resources/css/payments-report.css'])
+
+<div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+    <div class="card-body px-3 py-3">
+        <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Задолженности</h1>
+            <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
+                <div class="payments-report-total-inline payments-report-total-stat text-end" id="debtReportTotalStat">
+                    <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
+                    <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                        <span class="payments-report-total-value-inner">
+                            <span class="payments-report-total-amount">{{ $totalUnpaidPrice }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                    <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#debtReportFiltersCollapse"
+                            aria-expanded="{{ $payHasActiveFilters ? 'true' : 'false' }}"
+                            aria-controls="debtReportFiltersCollapse"
+                            id="debtReportFiltersToggle">
+                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                            <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                        </span>
+                        <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                        <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                    </button>
+
+                    <div class="dropdown payments-report-toolbar-dropdown">
+                        <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                id="columnsDropdownDebtReport"
+                                data-bs-toggle="dropdown"
+                                data-bs-auto-close="outside"
+                                aria-expanded="false"
+                                aria-haspopup="true"
+                                title="Какие колонки показывать в таблице">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
+
+                        <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                             aria-labelledby="columnsDropdownDebtReport">
+                            <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
+                            <div class="form-check">
+                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColName" data-column-index="1" checked>
+                                <label class="form-check-label" for="debtColName">Имя пользователя</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColMonth" data-column-index="2" checked>
+                                <label class="form-check-label" for="debtColMonth">Месяц</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColPrice" data-column-index="3" checked>
+                                <label class="form-check-label" for="debtColPrice">Сумма</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<div class="collapse {{ $payHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="debtReportFiltersCollapse">
+    <form id="debt-report-filters" method="GET" action="{{ route('debts') }}" class="border rounded p-2 p-md-3 bg-light">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-debt-filter-user">Ученик</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-debt-filter-user"
+                        name="filter_user_id"
+                        data-placeholder="Все ученики"
+                        data-search-url="{{ route('reports.payments.users.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterUser)
+                        <option value="{{ $paymentsFilterUser['id'] }}" selected>{{ $paymentsFilterUser['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-debt-filter-team">Группа</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-debt-filter-team"
+                        name="filter_team_id"
+                        data-placeholder="Все группы"
+                        data-search-url="{{ route('reports.payments.teams.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterTeam)
+                        <option value="{{ $paymentsFilterTeam['id'] }}" selected>{{ $paymentsFilterTeam['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-debt-filter-debt-month">Месяц задолженности</label>
+                <input class="form-control" id="pay-debt-filter-debt-month" type="month" name="debt_month"
+                       value="{{ $filters['debt_month'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
+                <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="debtReportFiltersResetBtn">Сброс</button>
+            </div>
+        </div>
+    </form>
+</div>
+
 <table class="table table-bordered" id="debts-table">
     <thead>
     <tr>
@@ -16,77 +137,114 @@
 
 @section('scripts')
     <script type="text/javascript">
-        // Функция для форматирования даты
         function formatDateToMonthYear(dateStr) {
-            // Преобразуем строку в объект Date
             var date = new Date(dateStr);
-            // Определяем массив названий месяцев
             var months = [
                 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
                 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
             ];
-            // Форматируем дату в нужный вид "Месяц Год"
             return months[date.getMonth()] + ' ' + date.getFullYear();
         }
 
         $(function () {
+            var $debtFilterUser = $('#pay-debt-filter-user');
+            var $debtFilterTeam = $('#pay-debt-filter-team');
+
+            function initPaymentsReportFilterSelect2($el) {
+                var searchUrl = $el.data('search-url');
+                if (!$el.length || !searchUrl) {
+                    return;
+                }
+                $el.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $el.data('placeholder') || '',
+                    allowClear: true,
+                    ajax: {
+                        url: searchUrl,
+                        delay: 250,
+                        data: function (params) {
+                            return {q: params.term || ''};
+                        },
+                        processResults: function (data) {
+                            return data;
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            }
+
+            initPaymentsReportFilterSelect2($debtFilterUser);
+            initPaymentsReportFilterSelect2($debtFilterTeam);
+
+            $('#debtReportFiltersResetBtn').on('click', function () {
+                window.location.href = @json(route('debts'));
+            });
+
+            function debtQueryParams() {
+                var params = {};
+                if (window.location.search) {
+                    var sp = new URLSearchParams(window.location.search);
+                    sp.forEach(function (value, key) {
+                        params[key] = value;
+                    });
+                }
+                return params;
+            }
+
             var table = $('#debts-table').DataTable({
                 processing: true,
                 serverSide: true,
-                ajax: "{{ route('debts.getDebts') }}",
+                ajax: {
+                    url: "{{ route('debts.getDebts') }}",
+                    type: 'GET',
+                    data: function (d) {
+                        var extra = debtQueryParams();
+                        Object.keys(extra).forEach(function (key) {
+                            d[key] = extra[key];
+                        });
+                    }
+                },
                 columns: [
                     {data: 'DT_RowIndex', name: 'DT_RowIndex'},
-
                     {
                         data: null,
                         name: 'user_name',
                         render: function (data, type, row) {
                             if (row.user_id) {
                                 return row.user_name;
-                            } else {
-                                return row.user_name ? row.user_name : 'Без имени';
                             }
+                            return row.user_name ? row.user_name : 'Без имени';
                         }
                     },
-
                     {
                         data: 'month',
                         name: 'month',
                         render: function (data, type, row) {
-                            // Преобразуем дату с помощью функции formatDateToMonthYear
                             return formatDateToMonthYear(row.month);
                         }
                     },
-
-                                   {
+                    {
                         data: 'price',
                         name: 'price',
                         render: function (data, type, row) {
                             if (type === 'display') {
-                                // Функция для форматирования числа с запятыми
                                 function formatNumber(number) {
                                     return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                                 }
-
-                                const formattedPrice = formatNumber(row.price);
-                                return `${formattedPrice} руб`; // Отображение значения с символом рубля
+                                var formattedPrice = formatNumber(row.price);
+                                return formattedPrice + ' руб';
                             }
-                            return parseFloat(row.price); // Для сортировки возвращаем число
+                            return parseFloat(row.price);
                         }
                     }
-
-
                 ],
                 order: [[2, 'asc']],
                 scrollX: true,
-                fixedColumns: {
-                    leftColumns: 2
-                },
                 language: {
                     "processing": "Обработка...",
                     "search": "",
                     "searchPlaceholder": "Поиск...",
-
                     "lengthMenu": "Показать _MENU_",
                     "info": "С _START_ до _END_ из _TOTAL_ записей",
                     "infoEmpty": "С 0 до 0 из 0 записей",
@@ -105,6 +263,14 @@
                         "sortDescending": ": активировать для сортировки столбца по убыванию"
                     }
                 }
+            });
+
+            $('.debt-column-toggle').on('change', function () {
+                var idx = parseInt($(this).data('column-index'), 10);
+                if (isNaN(idx)) {
+                    return;
+                }
+                table.column(idx).visible($(this).is(':checked'));
             });
         });
     </script>

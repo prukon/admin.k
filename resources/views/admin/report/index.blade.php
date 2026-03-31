@@ -59,8 +59,12 @@
                         'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
                     ])
                 @elseif($activeTab === 'debt')
-                    <!-- Контент вкладки задолженности -->
-                    @include('admin.report.debt', ['totalUnpaidPrice' => $totalUnpaidPrice])
+                    @include('admin.report.debt', [
+                        'totalUnpaidPrice' => $totalUnpaidPrice,
+                        'filters' => $filters ?? [],
+                        'paymentsFilterUser' => $paymentsFilterUser ?? null,
+                        'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
+                    ])
                 @elseif($activeTab === 'ltv')
                     @include('admin.report.ltv', [
                         'totalPaidPrice' => $totalPaidPrice,
