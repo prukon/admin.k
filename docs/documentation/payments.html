@@ -71,6 +71,7 @@
   <ul>
     <li><b>user_id</b></li>
     <li><b>new_month</b>: дата <code>YYYY-MM-01</code></li>
+    <li><b>price</b>: начисленная сумма к оплате за месяц (строка/число в рублях; для витрины оплаты и Init — источник истины после нормализации)</li>
     <li><b>is_paid</b>: 0/1</li>
   </ul>
 
@@ -102,6 +103,36 @@
     </li>
   </ol>
 
+  <h3 id="vitrina-payment">3.1.1 Витрина «Оплата» ученика: <code>POST /payment</code> → <code>TransactionController@index</code></h3>
+  <div class="note">
+    <b>Маршрут</b>: имя <code>payment</code>, метод <code>POST</code> (открывается из кабинета, не через прямой GET).
+    <br><b>Доступ</b>: middleware <code>can:paying.classes</code> (плюс общие <code>auth</code> и <code>2fa</code> для кабинета). Без права — <b>403</b>.
+    <br><b>Шаблон</b>: <code>resources/views/payment/paymentUser.blade.php</code>.
+  </div>
+  <p><b>Назначение:</b> показать период, итоговую сумму и кнопки Робокассы / T‑Bank (карта и СБП) для <b>месячного абонемента</b> или ввода суммы для сценариев без привязки к месяцу из календаря (если так передаётся форма).</p>
+  <ul>
+    <li><b>Поля формы с дашборда</b> (генерируются в <code>resources/views/dashboard.blade.php</code>):
+      <ul>
+        <li><code>paymentDate</code> — подпись для человека, например <code>Март 2026</code>;</li>
+        <li><code>formatedPaymentDate</code> — канонический первый день месяца: <code>YYYY-MM-01</code> (рекомендуется всегда передавать с витрины, чтобы не зависеть от парсинга русской строки);</li>
+        <li><code>outSum</code> — может дублировать цену для старых сценариев; для <b>месячного периода</b> на сервере <b>не используется</b> как источник истины.</li>
+      </ul>
+    </li>
+    <li><b>Период на сервере</b>: если пришёл валидный <code>formatedPaymentDate</code> (<code>YYYY-MM-DD</code>), он имеет приоритет; иначе строка <code>paymentDate</code> разбирается через <code>TransactionController::formatedDate</code> (русское «Месяц Год» → <code>YYYY-MM-01</code>).
+      Для разбора используется <code>DateTime::createFromFormat('!F Y', …)</code>: префикс <code>!</code> обязателен, иначе PHP подставляет «сегодняшний» день в неполную дату и короткие месяцы (например февраль) могут сместиться в следующий календарный месяц.
+    </li>
+    <li><b>Сумма для месячного абонемента</b> берётся только из <code>users_prices</code> для пары <code>(user_id, new_month)</code>:
+      сервис <code>App\Services\Payments\UserPriceMonthlyFeePaymentResolver</code> (метод <code>resolveOrAbort</code>).
+      Нормализация строки суммы до формата копеек — <code>App\Support\Payments\PaymentOutSumNormalizer</code>.
+      Если начисления за выбранный месяц нет или сумма некорректна — ответы <b>403</b> / <b>422</b> с понятным текстом (не подмена суммы из POST).
+    </li>
+    <li><b>Отображение «Итого»</b> на странице: целые рубли с разбивкой тысяч (копейки только во внутренних полях форм для провайдера).</li>
+    <li><b>Согласованность с Init</b>: те же правила суммы и периода применяются при старте оплаты — <code>TransactionController::pay</code> (Робокасса), <code>TinkoffPaymentController::create</code> / <code>createSbp</code> (T‑Bank): при наличии месячного периода сумма снова читается из <code>users_prices</code>, а не из пользовательского <code>outSum</code>.</li>
+  </ul>
+  <div class="ok">
+    <b>Итог:</b> для <code>monthly_fee</code> подделать сумму через форму нельзя: и экран, и редирект в Робокассу/T‑Bank используют цену из БД.
+  </div>
+
   <h3>3.2 Разовая оплата (<code>club_fee</code>/<code>uniform</code>/<code>camp</code>)</h3>
   <ol>
     <li>Создаём <code>payables</code>:
@@ -125,9 +156,9 @@
     <b>Правило, чтобы ничего не затиралось:</b> каждая разовая оплата = новая строка в <code>payables</code> (и новый <code>payment_intent</code>).
   </div>
 
-  <h3>3.2.1 Страница оплаты клубного взноса (<code>/payment/clubFee</code>)</h3>
+  <h3>3.2.1 Страница оплаты клубного взноса (<code>/payment/club-fee</code>)</h3>
   <div class="note">
-    <b>Маршрут</b>: <code>GET /payment/clubFee</code> → <code>TransactionController@clubFee</code>
+    <b>Маршрут</b>: <code>GET/POST /payment/club-fee</code> (имя <code>clubFee</code>) → <code>TransactionController@clubFee</code>
     <br><b>Шаблон</b>: <code>resources/views/payment/clubFee.blade.php</code>
   </div>
   <ul>
@@ -165,7 +196,7 @@
     чтобы обработчик мог связать webhook с нашей БД даже при гонке (webhook пришёл раньше сохранения <code>tbank_payment_id</code>/<code>tbank_order_id</code> в <code>payment_intents</code>).
   </div>
   <ol>
-    <li>На странице <code>/payment</code> метод T‑Bank показываем только если:
+    <li>На странице выбора оплаты (<code>POST /payment</code>, см. п. 3.1.1) метод T‑Bank показываем только если:
       <ul>
         <li>в <code>payment_systems</code> для текущего партнёра есть запись <code>name=tbank</code> и она “подключена” (ключи заполнены)</li>
         <li>у партнёра есть <code>partners.tinkoff_partner_id</code> (ShopCode/PartnerId из sm-register)</li>
@@ -238,6 +269,7 @@
     <li><b>Почему не прошёл webhook</b>: логи + <code>payment_intents</code></li>
     <li><b>Факт денег</b>: <code>payments</code></li>
     <li><b>Оплата месяца</b>: <code>users_prices</code></li>
+    <li><b>Автопроверки витрины и суммы из БД</b>: feature‑тесты <code>tests/Feature/Crm/Payments/UserClassPaymentFlowTest.php</code> (доступ <code>paying.classes</code>, <code>POST /payment</code>, Робокасса/T‑Bank при месячном периоде).</li>
   </ul>
 
   <h2>7) Онлайн‑чеки в отчётах по платежам</h2>

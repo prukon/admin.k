@@ -156,6 +156,10 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     Источник истины для оплачиваемого месяца: <code>payables.month</code>. Поле <code>DATA.month</code> используется для трассировки и диагностики.
     <br>Для устойчивости к гонкам webhook’ов обработчик также использует <code>Data.payment_intent_id</code>, если webhook пришёл раньше сохранения <code>tbank_payment_id</code>/<code>tbank_order_id</code> в <code>payment_intents</code>.
   </div>
+  <div class="note">
+    <b>Сумма в Init для месячного абонемента:</b> до вызова банка создаётся <code>payables</code> с суммой из <code>users_prices</code> (сервис <code>UserPriceMonthlyFeePaymentResolver</code>, нормализация <code>PaymentOutSumNormalizer</code>). Значение <code>outSum</code> в POST формы для сценария с <code>formatedPaymentDate</code> не задаёт итоговую сумму — она пересчитывается на сервере так же, как на витрине <code>POST /payment</code>.
+    См. <a href="/docs/documentation/payments#vitrina-payment">документ «Оплаты» → п. 3.1.1</a>.
+  </div>
 
   <h2 id="sbp-qr-ui">7) Оплата СБП (QR) в интерфейсе kidscrm</h2>
   <div class="note">
