@@ -44,7 +44,13 @@
             <div class="tab-content">
                 @if ($activeTab === 'payment')
                     <!-- Контент вкладки платежи -->
-                    @include('admin.report.payment', ['totalPaidPrice' => $totalPaidPrice])
+                    @include('admin.report.payment', [
+                        'totalPaidPrice' => $totalPaidPrice,
+                        'tbankEnabled' => $tbankEnabled ?? false,
+                        'filters' => $filters ?? [],
+                        'paymentsFilterUser' => $paymentsFilterUser ?? null,
+                        'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
+                    ])
                 @elseif($activeTab === 'payment-monthly')
                     {{-- НОВЫЙ partial --}}
                     @include('admin.report.payment_monthly', [

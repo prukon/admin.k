@@ -1223,6 +1223,68 @@ class PaymentReportTest extends CrmTestCase
             ->assertJsonFragment(['message' => 'refund_created']);
     }
 
+    public function test_reports_payments_users_search_scoped_to_partner_and_matches_name_or_lastname(): void
+    {
+        $otherPartner = Partner::factory()->create();
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Анна',
+            'lastname' => 'УникальнаяФамилия',
+        ]);
+        User::factory()->create([
+            'partner_id' => $otherPartner->id,
+            'name' => 'Анна',
+            'lastname' => 'УникальнаяФамилия',
+        ]);
+
+        $response = $this->getJson(route('reports.payments.users.search', ['q' => 'Уникальн']));
+        $response->assertOk();
+        $response->assertJsonStructure(['results']);
+        $ids = collect($response->json('results'))->pluck('id')->all();
+        $this->assertContains($student->id, $ids);
+        $this->assertCount(1, $ids);
+    }
+
+    public function test_reports_payments_teams_search_scoped_to_partner(): void
+    {
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Группа Уникальная ' . uniqid(),
+        ]);
+        Team::factory()->create([
+            'partner_id' => Partner::factory()->create()->id,
+            'title' => $team->title,
+        ]);
+
+        $response = $this->getJson(route('reports.payments.teams.search', ['q' => 'Уникальная']));
+        $response->assertOk();
+        $ids = collect($response->json('results'))->pluck('id')->all();
+        $this->assertContains($team->id, $ids);
+        $this->assertCount(1, $ids);
+    }
+
+    public function test_get_payments_filters_by_filter_user_id(): void
+    {
+        $u = User::factory()->create(['partner_id' => $this->partner->id]);
+        $other = User::factory()->create(['partner_id' => $this->partner->id]);
+
+        $pMine = Payment::factory()->create(['user_id' => $u->id]);
+        Payment::factory()->create(['user_id' => $other->id]);
+
+        $params = array_merge($this->dataTablesBaseParams(), [
+            'filter_user_id' => (string) $u->id,
+        ]);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments', $params));
+
+        $response->assertOk();
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertSame($pMine->id, $data[0]['id'] ?? null);
+    }
+
     private function grantPermissionToCurrentUserRole(string $permissionName): void
     {
         $now = now();

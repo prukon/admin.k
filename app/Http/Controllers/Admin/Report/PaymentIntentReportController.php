@@ -54,12 +54,27 @@ class PaymentIntentReportController extends AdminBaseController
             $q->where('provider', (string) $request->query('provider'));
         }
 
-        if ($request->filled('partner_id') && ctype_digit((string) $request->query('partner_id'))) {
-            $q->where('partner_id', (int) $request->query('partner_id'));
+        if ($request->filled('partner_title')) {
+            $needle = trim((string) $request->query('partner_title'));
+            if ($needle !== '') {
+                $like = '%'.$needle.'%';
+                $q->whereHas('partner', function ($sub) use ($like) {
+                    $sub->where('partners.title', 'like', $like);
+                });
+            }
         }
 
-        if ($request->filled('user_id') && ctype_digit((string) $request->query('user_id'))) {
-            $q->where('user_id', (int) $request->query('user_id'));
+        if ($request->filled('user_name')) {
+            $needle = trim((string) $request->query('user_name'));
+            if ($needle !== '') {
+                $like = '%'.$needle.'%';
+                $q->whereHas('user', function ($sub) use ($like) {
+                    $sub->where(function ($w) use ($like) {
+                        $w->where('users.name', 'like', $like)
+                            ->orWhere('users.lastname', 'like', $like);
+                    });
+                });
+            }
         }
 
         if ($request->filled('created_from')) {
@@ -87,11 +102,6 @@ class PaymentIntentReportController extends AdminBaseController
             })
             ->addColumn('user_name', function (PaymentIntent $intent) {
                 return (string) ($intent->user->full_name ?? ($intent->user->name ?? ''));
-            })
-            ->addColumn('payment_method_label', function (PaymentIntent $intent) {
-                return $this->paymentIntentMethodLabel(
-                    $intent->payment_method_webhook ?? $intent->payment_method
-                );
             })
             ->addColumn('payment_method_webhook_label', function (PaymentIntent $intent) {
                 return $this->paymentIntentMethodLabel($intent->payment_method_webhook);

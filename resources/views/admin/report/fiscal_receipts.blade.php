@@ -1,3 +1,14 @@
+@php
+    $frFilterKeys = ['id', 'payment_intent_id', 'payment_id', 'partner_id', 'type', 'status', 'external_id', 'created_from', 'created_to', 'processed_from', 'processed_to', 'failed_from', 'failed_to'];
+    $frHasActiveFilters = false;
+    foreach ($frFilterKeys as $k) {
+        $v = $filters[$k] ?? null;
+        if ($v !== null && $v !== '') {
+            $frHasActiveFilters = true;
+            break;
+        }
+    }
+@endphp
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
     <h4 class="text-start mb-0">Чеки</h4>
 
@@ -8,7 +19,7 @@
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
                 title="Поля списка">
-            <i class="fa-solid fa-table-columns"></i>
+            <i class="fas fa-table-columns"></i>
         </button>
 
         <div class="dropdown-menu p-3"
@@ -50,103 +61,179 @@
     </div>
 </div>
 
-<form id="fiscal-receipts-filters" method="GET" action="/admin/reports/fiscal-receipts" class="mb-3 mt-3">
-    <div class="row g-2 align-items-end">
-        <div class="col-12 col-md-2">
-            <label class="form-label">ID</label>
-            <input class="form-control" name="id" value="{{ $filters['id'] ?? '' }}" placeholder="1">
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">PaymentIntent ID</label>
-            <input class="form-control" name="payment_intent_id" value="{{ $filters['payment_intent_id'] ?? '' }}" placeholder="123">
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Payment ID</label>
-            <input class="form-control" name="payment_id" value="{{ $filters['payment_id'] ?? '' }}" placeholder="456">
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Partner ID</label>
-            <input class="form-control" name="partner_id" value="{{ $filters['partner_id'] ?? '' }}" placeholder="1">
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Type</label>
-            @php($type = $filters['type'] ?? '')
-            <select class="form-select" name="type">
-                <option value="">—</option>
-                <option value="income" {{ $type === 'income' ? 'selected' : '' }}>income</option>
-                <option value="income_return" {{ $type === 'income_return' ? 'selected' : '' }}>income_return</option>
-            </select>
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Status</label>
-            @php($status = $filters['status'] ?? '')
-            <select class="form-select" name="status">
-                <option value="">—</option>
-                <option value="pending" {{ $status === 'pending' ? 'selected' : '' }}>pending</option>
-                <option value="queued" {{ $status === 'queued' ? 'selected' : '' }}>queued</option>
-                <option value="processed" {{ $status === 'processed' ? 'selected' : '' }}>processed</option>
-                <option value="error" {{ $status === 'error' ? 'selected' : '' }}>error</option>
-            </select>
-        </div>
+<div class="mb-2">
+    <button class="fiscal-receipts-filters-toggle d-inline-flex align-items-center gap-2"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#fiscalReceiptsFiltersCollapse"
+            aria-expanded="{{ $frHasActiveFilters ? 'true' : 'false' }}"
+            aria-controls="fiscalReceiptsFiltersCollapse"
+            id="fiscalReceiptsFiltersToggle">
+        <span class="fiscal-receipts-filters-icon-wrap" aria-hidden="true">
+            <i class="fas fa-sliders-h fiscal-receipts-filters-main-icon"></i>
+        </span>
+        <span class="fiscal-receipts-filters-label">Фильтры</span>
+        <i class="fas {{ $frHasActiveFilters ? 'fa-chevron-up' : 'fa-chevron-down' }} fiscal-receipts-filters-chevron"
+           aria-hidden="true"></i>
+    </button>
+</div>
 
-        <div class="col-12 col-md-3">
-            <label class="form-label">External ID</label>
-            <input class="form-control" name="external_id" value="{{ $filters['external_id'] ?? '' }}" placeholder="CloudKassir Id">
-        </div>
-        <div class="col-12 col-md-2">
-            <button class="btn btn-primary w-100" type="submit">Фильтр</button>
-        </div>
-        <div class="col-12 col-md-2">
-            <button class="btn btn-outline-secondary w-100" type="button" id="fiscalReceiptsResetBtn">Сброс</button>
-        </div>
+<div class="collapse {{ $frHasActiveFilters ? 'show' : '' }} mb-3" id="fiscalReceiptsFiltersCollapse">
+    <form id="fiscal-receipts-filters" method="GET" action="/admin/reports/fiscal-receipts" class="border rounded p-3 bg-light">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-2">
+                <label class="form-label">ID</label>
+                <input class="form-control" name="id" value="{{ $filters['id'] ?? '' }}" placeholder="1">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label">PaymentIntent ID</label>
+                <input class="form-control" name="payment_intent_id" value="{{ $filters['payment_intent_id'] ?? '' }}" placeholder="123">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label">Payment ID</label>
+                <input class="form-control" name="payment_id" value="{{ $filters['payment_id'] ?? '' }}" placeholder="456">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label">Partner ID</label>
+                <input class="form-control" name="partner_id" value="{{ $filters['partner_id'] ?? '' }}" placeholder="1">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label">Type</label>
+                @php($type = $filters['type'] ?? '')
+                <select class="form-select" name="type">
+                    <option value="">—</option>
+                    <option value="income" {{ $type === 'income' ? 'selected' : '' }}>income</option>
+                    <option value="income_return" {{ $type === 'income_return' ? 'selected' : '' }}>income_return</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label">Status</label>
+                @php($status = $filters['status'] ?? '')
+                <select class="form-select" name="status">
+                    <option value="">—</option>
+                    <option value="pending" {{ $status === 'pending' ? 'selected' : '' }}>pending</option>
+                    <option value="queued" {{ $status === 'queued' ? 'selected' : '' }}>queued</option>
+                    <option value="processed" {{ $status === 'processed' ? 'selected' : '' }}>processed</option>
+                    <option value="error" {{ $status === 'error' ? 'selected' : '' }}>error</option>
+                </select>
+            </div>
 
-        <div class="col-12 col-md-2">
-            <label class="form-label">Created from</label>
-            <input class="form-control" type="date" name="created_from" value="{{ $filters['created_from'] ?? '' }}">
+            <div class="col-12 col-md-3">
+                <label class="form-label">External ID</label>
+                <input class="form-control" name="external_id" value="{{ $filters['external_id'] ?? '' }}" placeholder="CloudKassir Id">
+            </div>
+
+            <div class="col-12 col-md-2">
+                <label class="form-label">Created from</label>
+                <input class="form-control" type="date" name="created_from" value="{{ $filters['created_from'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label">Created to</label>
+                <input class="form-control" type="date" name="created_to" value="{{ $filters['created_to'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label">Processed from</label>
+                <input class="form-control" type="date" name="processed_from" value="{{ $filters['processed_from'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label">Processed to</label>
+                <input class="form-control" type="date" name="processed_to" value="{{ $filters['processed_to'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label">Failed from</label>
+                <input class="form-control" type="date" name="failed_from" value="{{ $filters['failed_from'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label">Failed to</label>
+                <input class="form-control" type="date" name="failed_to" value="{{ $filters['failed_to'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-auto d-flex flex-wrap align-items-end gap-2 ms-md-auto">
+                <button class="btn btn-primary" type="submit">Фильтр</button>
+                <button class="btn btn-outline-secondary" type="button" id="fiscalReceiptsResetBtn">Сброс</button>
+            </div>
         </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Created to</label>
-            <input class="form-control" type="date" name="created_to" value="{{ $filters['created_to'] ?? '' }}">
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Processed from</label>
-            <input class="form-control" type="date" name="processed_from" value="{{ $filters['processed_from'] ?? '' }}">
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Processed to</label>
-            <input class="form-control" type="date" name="processed_to" value="{{ $filters['processed_to'] ?? '' }}">
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Failed from</label>
-            <input class="form-control" type="date" name="failed_from" value="{{ $filters['failed_from'] ?? '' }}">
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Failed to</label>
-            <input class="form-control" type="date" name="failed_to" value="{{ $filters['failed_to'] ?? '' }}">
-        </div>
-    </div>
-</form>
+    </form>
+</div>
+
+<style>
+    .fiscal-receipts-filters-toggle {
+        cursor: pointer;
+        user-select: none;
+        padding: 0.45rem 0.9rem 0.45rem 0.45rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        line-height: 1.25;
+        color: var(--bs-body-color);
+        background: linear-gradient(180deg, #fff 0%, var(--bs-light, #f8f9fa) 100%);
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .fiscal-receipts-filters-toggle:hover {
+        border-color: #b6d4fe;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        color: var(--bs-body-color);
+        background: #fff;
+    }
+
+    .fiscal-receipts-filters-toggle:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .fiscal-receipts-filters-toggle[aria-expanded="true"] {
+        border-color: #86b7fe;
+        background: #f0f7ff;
+    }
+
+    .fiscal-receipts-filters-icon-wrap {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.4rem;
+        background: var(--bs-primary-bg-subtle, #cfe2ff);
+        color: var(--bs-primary, #0d6efd);
+    }
+
+    .fiscal-receipts-filters-main-icon {
+        font-size: 0.95rem;
+        line-height: 1;
+    }
+
+    .fiscal-receipts-filters-label {
+        letter-spacing: 0.02em;
+    }
+
+    .fiscal-receipts-filters-chevron {
+        font-size: 0.7rem;
+        opacity: 0.65;
+        margin-left: 0.15rem;
+    }
+</style>
 
 <div class="table-responsive">
     <table class="table table-bordered" id="fiscal-receipts-table">
         <thead>
         <tr>
             <th>ID</th>
-            <th>Partner</th>
+            <th>Партнер</th>
             <th>PaymentIntent</th>
             <th>Payment</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Amount</th>
+            <th>Тип</th>
+            <th>Статус</th>
+            <th>Сумма</th>
             <th>External ID</th>
-            <th>Error</th>
+            <th>Ошибка</th>
             <th>Request Payload</th>
             <th>Response Payload</th>
             <th>Webhook Payload</th>
-            <th>Created</th>
-            <th>Queued</th>
-            <th>Processed</th>
-            <th>Failed</th>
+            <th>Создано</th>
+            <th>В очереди</th>
+            <th>Обработано</th>
+            <th>Время сбоя</th>
         </tr>
         </thead>
     </table>
@@ -156,6 +243,18 @@
     <script type="text/javascript">
         $(function () {
             var $form = $('#fiscal-receipts-filters');
+            var $frCollapse = $('#fiscalReceiptsFiltersCollapse');
+            var $frToggle = $('#fiscalReceiptsFiltersToggle');
+            var $frChevron = $frToggle.find('.fiscal-receipts-filters-chevron');
+
+            $frCollapse.on('shown.bs.collapse', function () {
+                $frToggle.attr('aria-expanded', 'true');
+                $frChevron.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+            });
+            $frCollapse.on('hidden.bs.collapse', function () {
+                $frToggle.attr('aria-expanded', 'false');
+                $frChevron.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            });
 
             var defaultColumnsVisibility = {
                 partner: true,
@@ -244,7 +343,7 @@
                     '<div class="d-flex align-items-start gap-1 fiscal-payload-cell">' +
                         '<span class="small flex-grow-1" style="min-width:0">' + short + '</span>' +
                         '<button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0 js-copy-fiscal-payload" title="Копировать ' + title + '">' +
-                            '<i class="fa-solid fa-copy" aria-hidden="true"></i>' +
+                            '<i class="fas fa-copy" aria-hidden="true"></i>' +
                             '<span class="visually-hidden">Копировать</span>' +
                         '</button>' +
                         '<span class="fiscal-payload-full d-none">' + safe + '</span>' +
@@ -301,8 +400,10 @@
                         name: 'amount',
                         render: function (data, type, row) {
                             if (type !== 'display') return data;
-                            var formatted = formatAmount(data);
-                            return formatted ? (formatted + ' руб') : '';
+                            if (data === null || data === undefined || data === '') return '';
+                            var n = Math.round(parseFloat(data));
+                            if (isNaN(n)) return '';
+                            return formatAmount(n) + ' руб';
                         }
                     },
                     {data: 'external_id', name: 'external_id'},
@@ -425,7 +526,7 @@
                 var origHtml = $btn.html();
 
                 function flashOk() {
-                    $btn.prop('disabled', true).html('<i class="fa-solid fa-check text-success" aria-hidden="true"></i>');
+                    $btn.prop('disabled', true).html('<i class="fas fa-check text-success" aria-hidden="true"></i>');
                     setTimeout(function () {
                         $btn.prop('disabled', false).html(origHtml);
                     }, 1500);

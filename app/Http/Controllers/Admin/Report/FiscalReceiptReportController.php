@@ -36,32 +36,32 @@ class FiscalReceiptReportController extends AdminBaseController
             $query->where('partner_id', (int) $partnerId);
         }
 
-        if ($request->filled('id') && ctype_digit((string) $request->query('id'))) {
-            $query->where('id', (int) $request->query('id'));
+        if ($request->filled('id') && ctype_digit((string) $request->input('id'))) {
+            $query->where('id', (int) $request->input('id'));
         }
 
-        if ($request->filled('payment_intent_id') && ctype_digit((string) $request->query('payment_intent_id'))) {
-            $query->where('payment_intent_id', (int) $request->query('payment_intent_id'));
+        if ($request->filled('payment_intent_id') && ctype_digit((string) $request->input('payment_intent_id'))) {
+            $query->where('payment_intent_id', (int) $request->input('payment_intent_id'));
         }
 
-        if ($request->filled('payment_id') && ctype_digit((string) $request->query('payment_id'))) {
-            $query->where('payment_id', (int) $request->query('payment_id'));
+        if ($request->filled('payment_id') && ctype_digit((string) $request->input('payment_id'))) {
+            $query->where('payment_id', (int) $request->input('payment_id'));
         }
 
-        if ($request->filled('partner_id') && ctype_digit((string) $request->query('partner_id'))) {
-            $query->where('partner_id', (int) $request->query('partner_id'));
+        if ($request->filled('partner_id') && ctype_digit((string) $request->input('partner_id'))) {
+            $query->where('partner_id', (int) $request->input('partner_id'));
         }
 
         if ($request->filled('type')) {
-            $query->where('type', (string) $request->query('type'));
+            $query->where('type', (string) $request->input('type'));
         }
 
         if ($request->filled('status')) {
-            $query->where('status', (string) $request->query('status'));
+            $query->where('status', (string) $request->input('status'));
         }
 
         if ($request->filled('external_id')) {
-            $query->where('external_id', trim((string) $request->query('external_id')));
+            $query->where('external_id', trim((string) $request->input('external_id')));
         }
 
         $this->applyDateRangeFilter($query, $request, 'created_at', 'created_from', 'created_to');
@@ -134,11 +134,11 @@ class FiscalReceiptReportController extends AdminBaseController
     private function applyDateRangeFilter($query, Request $request, string $column, string $fromField, string $toField): void
     {
         if ($request->filled($fromField)) {
-            $query->whereDate($column, '>=', (string) $request->query($fromField));
+            $query->whereDate($column, '>=', (string) $request->input($fromField));
         }
 
         if ($request->filled($toField)) {
-            $query->whereDate($column, '<=', (string) $request->query($toField));
+            $query->whereDate($column, '<=', (string) $request->input($toField));
         }
     }
 

@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Carbon\Carbon;
 use App\Services\PartnerContext;
+use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
 
 
 class PaymentReportController extends AdminBaseController
@@ -31,7 +32,7 @@ class PaymentReportController extends AdminBaseController
     }
 
     //Отчет Платежи
-    public function payments()
+    public function payments(Request $request)
     {
         // 1) партнёр
         $partnerId = $this->requirePartnerId();
@@ -60,15 +61,154 @@ class PaymentReportController extends AdminBaseController
         $tbankPs = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
         $tbankEnabled = $tbankPs ? true : false;
 
+        $filters = $request->query();
+        $paymentsFilterUser = $this->resolvePaymentsFilterUserLabel($partnerId, $filters);
+        $paymentsFilterTeam = $this->resolvePaymentsFilterTeamLabel($partnerId, $filters);
+
         // 7) представление
         return view(
             'admin.report.index',
             [
                 'activeTab' => 'payment',
                 'totalPaidPrice' => $totalPaidPrice,
-                'tbankEnabled' => $tbankEnabled
+                'tbankEnabled' => $tbankEnabled,
+                'filters' => $filters,
+                'paymentsFilterUser' => $paymentsFilterUser,
+                'paymentsFilterTeam' => $paymentsFilterTeam,
             ]
         );
+    }
+
+    /**
+     * Select2: поиск учеников текущего партнёра (имя и фамилия, поиск по обоим полям).
+     */
+    public function usersSearch(PaymentsReportSelect2SearchRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        $q = (string) ($request->validated()['q'] ?? '');
+
+        $users = User::query()
+            ->where('users.partner_id', $partnerId)
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->when($q !== '', function ($qq) use ($q) {
+                $needle = '%'.$q.'%';
+                $qq->where(function ($w) use ($needle) {
+                    $w->where('users.name', 'like', $needle)
+                        ->orWhere('users.lastname', 'like', $needle);
+                });
+            })
+            ->orderBy('users.lastname')
+            ->orderBy('users.name')
+            ->limit(50)
+            ->get([
+                'users.id',
+                'users.name',
+                'users.lastname',
+                'users.team_id',
+                'teams.title as team_title',
+            ]);
+
+        $results = $users->map(function ($u) {
+            $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
+            return [
+                'id' => $u->id,
+                'text' => $text !== '' ? $text : '—',
+                'name' => $u->name,
+                'lastname' => $u->lastname,
+                'team_id' => $u->team_id,
+                'team_title' => $u->team_title,
+            ];
+        });
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
+     * Select2: поиск групп (команд) текущего партнёра по названию.
+     */
+    public function teamsSearch(PaymentsReportSelect2SearchRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        $q = (string) ($request->validated()['q'] ?? '');
+
+        $teams = Team::query()
+            ->where('partner_id', $partnerId)
+            ->when($q !== '', function ($qq) use ($q) {
+                $qq->where('title', 'like', '%'.$q.'%');
+            })
+            ->orderBy('title')
+            ->limit(50)
+            ->get(['id', 'title']);
+
+        $results = $teams->map(static function (Team $t) {
+            return [
+                'id' => $t->id,
+                'text' => (string) ($t->title ?? ''),
+            ];
+        });
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolvePaymentsFilterUserLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_user_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $uid = (int) $raw;
+        if ($uid <= 0) {
+            return null;
+        }
+
+        $u = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('id', $uid)
+            ->first(['id', 'name', 'lastname']);
+
+        if (! $u) {
+            return null;
+        }
+
+        $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
+        return [
+            'id' => $u->id,
+            'text' => $text !== '' ? $text : '—',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolvePaymentsFilterTeamLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_team_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $tid = (int) $raw;
+        if ($tid <= 0) {
+            return null;
+        }
+
+        $t = Team::query()
+            ->where('partner_id', $partnerId)
+            ->where('id', $tid)
+            ->first(['id', 'title']);
+
+        if (! $t) {
+            return null;
+        }
+
+        return [
+            'id' => $t->id,
+            'text' => (string) ($t->title ?? ''),
+        ];
     }
 
     //Данные для отчета Платежи
@@ -132,6 +272,8 @@ class PaymentReportController extends AdminBaseController
                 'pi_tbank.payment_method_webhook as intent_payment_method_webhook',
                 'pi_tbank.payment_method as intent_payment_method_init'
             );
+
+        $this->applyPaymentsReportFilters($paymentsQuery, $request);
 
         // Дефолтная сортировка, если фронт не передал order (например, после кастомизаций таблицы)
         if (! $hasOrder) {
@@ -685,6 +827,117 @@ class PaymentReportController extends AdminBaseController
             })
             ->rawColumns(['refund_action'])
             ->make(true);
+    }
+
+    private function applyPaymentsReportFilters($paymentsQuery, Request $request): void
+    {
+        $filterUserId = $request->query('filter_user_id');
+        if ($filterUserId !== null && $filterUserId !== '' && ctype_digit((string) $filterUserId)) {
+            $uid = (int) $filterUserId;
+            if ($uid > 0) {
+                $paymentsQuery->where('users.id', $uid);
+            }
+        } elseif ($request->filled('user_name')) {
+            $needle = '%'.trim((string) $request->query('user_name')).'%';
+            $paymentsQuery->where(function ($q) use ($needle) {
+                $q->whereRaw("CONCAT_WS(' ', users.lastname, users.name) LIKE ?", [$needle])
+                    ->orWhere('payments.user_name', 'like', $needle);
+            });
+        }
+
+        $filterTeamId = $request->query('filter_team_id');
+        if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
+            $tid = (int) $filterTeamId;
+            if ($tid > 0) {
+                $paymentsQuery->where('users.team_id', $tid);
+            }
+        } elseif ($request->filled('team_title')) {
+            $like = '%'.trim((string) $request->query('team_title')).'%';
+            $paymentsQuery->where('teams.title', 'like', $like);
+        }
+
+        if ($request->filled('payment_month')) {
+            $ym = trim((string) $request->query('payment_month'));
+            if (preg_match('/^\d{4}-\d{2}$/', $ym) === 1) {
+                $paymentsQuery->where('payments.payment_month', 'like', $ym.'%');
+            }
+        }
+
+        if ($request->filled('operation_date_from')) {
+            $paymentsQuery->whereDate('payments.operation_date', '>=', (string) $request->query('operation_date_from'));
+        }
+        if ($request->filled('operation_date_to')) {
+            $paymentsQuery->whereDate('payments.operation_date', '<=', (string) $request->query('operation_date_to'));
+        }
+
+        if ($request->filled('payment_provider')) {
+            $p = (string) $request->query('payment_provider');
+            if ($p === 'tbank') {
+                $paymentsQuery->where(function ($w) {
+                    $w->where(function ($x) {
+                        $x->whereNotNull('payments.deal_id')->where('payments.deal_id', '<>', '');
+                    })->orWhere(function ($x) {
+                        $x->whereNotNull('payments.payment_id')->where('payments.payment_id', '<>', '');
+                    })->orWhere(function ($x) {
+                        $x->whereNotNull('payments.payment_status')->where('payments.payment_status', '<>', '');
+                    });
+                });
+            } elseif ($p === 'robokassa') {
+                $paymentsQuery->where(function ($w) {
+                    $w->where(function ($x) {
+                        $x->whereNull('payments.deal_id')->orWhere('payments.deal_id', '=', '');
+                    })->where(function ($x) {
+                        $x->whereNull('payments.payment_id')->orWhere('payments.payment_id', '=', '');
+                    })->where(function ($x) {
+                        $x->whereNull('payments.payment_status')->orWhere('payments.payment_status', '=', '');
+                    });
+                });
+            }
+        }
+
+        if ($request->filled('payment_method')) {
+            $m = (string) $request->query('payment_method');
+            $paymentsQuery->where(function ($q) use ($m) {
+                $q->where('pi_tbank.payment_method_webhook', $m)
+                    ->orWhere(function ($q2) use ($m) {
+                        $q2->where(function ($q3) {
+                            $q3->whereNull('pi_tbank.payment_method_webhook')
+                                ->orWhere('pi_tbank.payment_method_webhook', '=', '');
+                        })->where('pi_tbank.payment_method', $m);
+                    });
+            });
+        }
+
+        if ($request->filled('payment_refund_status')) {
+            $s = (string) $request->query('payment_refund_status');
+            if ($s === 'refunded') {
+                $paymentsQuery->whereExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('refunds')
+                        ->whereColumn('refunds.payment_id', 'payments.id')
+                        ->where('refunds.status', 'succeeded');
+                });
+            } elseif ($s === 'refund_pending') {
+                $paymentsQuery->whereExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('refunds')
+                        ->whereColumn('refunds.payment_id', 'payments.id')
+                        ->where('refunds.status', 'pending');
+                })->whereNotExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('refunds')
+                        ->whereColumn('refunds.payment_id', 'payments.id')
+                        ->where('refunds.status', 'succeeded');
+                });
+            } elseif ($s === 'no_refund') {
+                $paymentsQuery->whereNotExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('refunds')
+                        ->whereColumn('refunds.payment_id', 'payments.id')
+                        ->whereIn('refunds.status', ['pending', 'succeeded']);
+                });
+            }
+        }
     }
 
     /**

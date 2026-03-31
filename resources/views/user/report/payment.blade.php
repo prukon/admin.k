@@ -19,7 +19,7 @@
                         <th>Группа</th>
                         <th>Сумма платежа</th>
                         <th>Оплаченный месяц</th>
-                        <th>Дата и время платежа</th>
+                        <th>Дата платежа</th>
                         <th>Провайдер</th>
                         <th>Способ оплаты</th>
                         <th>Чек</th>
@@ -44,6 +44,27 @@
     .return-receipt-link:hover .return-receipt-icon {
         color: #ff9800;
         transform: translateY(-1px);
+    }
+
+    .pay-cell-datetime {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+        padding: 0.15rem 0;
+        line-height: 1.25;
+        min-width: 5.5rem;
+    }
+
+    .pay-cell-datetime__date {
+        white-space: nowrap;
+    }
+
+    .pay-cell-datetime__time {
+        font-size: 0.8125rem;
+        font-variant-numeric: tabular-nums;
+        color: var(--bs-secondary-color, #6c757d);
+        white-space: nowrap;
     }
 </style>
 
@@ -104,17 +125,31 @@
                         data: 'operation_date',
                         name: 'operation_date',
                         render: function (data, type, row) {
-                            if (data) {
-                                var date = new Date(data);
-                                var day = ("0" + date.getDate()).slice(-2);
-                                var month = ("0" + (date.getMonth() + 1)).slice(-2);
-                                var year = date.getFullYear();
-                                var hours = ("0" + date.getHours()).slice(-2);
-                                var minutes = ("0" + date.getMinutes()).slice(-2);
-                                var seconds = ("0" + date.getSeconds()).slice(-2);
-                                return day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes + ':' + seconds;
+                            if (!data) {
+                                return data;
                             }
-                            return data;
+                            if (type !== 'display') {
+                                return data;
+                            }
+                            var date = new Date(data);
+                            if (isNaN(date.getTime())) {
+                                return data;
+                            }
+                            var day = ("0" + date.getDate()).slice(-2);
+                            var month = ("0" + (date.getMonth() + 1)).slice(-2);
+                            var year = date.getFullYear();
+                            var hours = ("0" + date.getHours()).slice(-2);
+                            var minutes = ("0" + date.getMinutes()).slice(-2);
+                            var seconds = ("0" + date.getSeconds()).slice(-2);
+                            var dateLine = day + '.' + month + '.' + year;
+                            var timeLine = hours + ':' + minutes + ':' + seconds;
+                            return (
+                                '<div class="pay-cell-datetime" role="text" aria-label="' +
+                                dateLine + ', ' + timeLine + '">' +
+                                '<span class="pay-cell-datetime__date">' + dateLine + '</span>' +
+                                '<span class="pay-cell-datetime__time">' + timeLine + '</span>' +
+                                '</div>'
+                            );
                         }
                     },
                     {
@@ -179,12 +214,12 @@
                             if (row.has_receipt && row.receipt_url) {
                                 incomeHtml =
                                     '<a href="' + row.receipt_url + '" target="_blank" rel="noopener noreferrer" title="' + incomeTitle + '" aria-label="Чек сформирован">' +
-                                    '<i class="fa-solid fa-receipt text-primary"></i>' +
+                                    '<i class="fas fa-receipt text-primary"></i>' +
                                     '</a>';
                             } else {
                                 incomeHtml =
                                     '<span title="' + incomeTitle + '" aria-label="Чек не сформирован">' +
-                                    '<i class="fa-solid fa-receipt text-secondary"></i>' +
+                                    '<i class="fas fa-receipt text-secondary"></i>' +
                                     '</span>';
                             }
 
@@ -193,7 +228,7 @@
                                 returnHtml =
                                     '<a href="' + returnReceiptUrl + '" target="_blank" rel="noopener noreferrer" ' +
                                     'class="return-receipt-link" title="Чек возврата" aria-label="Чек возврата">' +
-                                    '<i class="fa-solid fa-receipt return-receipt-icon"></i>' +
+                                    '<i class="fas fa-receipt return-receipt-icon"></i>' +
                                     '</a>';
                             }
 
@@ -201,7 +236,7 @@
                         }
                     }
                 ],
-                order: [[5, 'desc']], // Колонка «Дата и время платежа»
+                order: [[5, 'desc']], // Колонка «Дата платежа»
 
                 scrollX: true,
                 fixedColumns: {

@@ -1,3 +1,17 @@
+@php
+    $canAdditional = auth()->user() && auth()->user()->can('reports.additional.value.view');
+    $paymentsFilterUser = $paymentsFilterUser ?? null;
+    $paymentsFilterTeam = $paymentsFilterTeam ?? null;
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'payment_refund_status'];
+    $payHasActiveFilters = false;
+    foreach ($payFilterKeys as $k) {
+        $v = $filters[$k] ?? null;
+        if ($v !== null && $v !== '') {
+            $payHasActiveFilters = true;
+            break;
+        }
+    }
+@endphp
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
     <h4 class="text-start mb-0">Платежи</h4>
 
@@ -9,15 +23,12 @@
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
                 title="Поля списка">
-            <i class="fa-solid fa-table-columns"></i>
+            <i class="fas fa-table-columns"></i>
         </button>
 
         <div class="dropdown-menu p-3"
              aria-labelledby="columnsDropdownPayments"
              style="min-width: 240px;">
-            @php
-                $canAdditional = auth()->user() && auth()->user()->can('reports.additional.value.view');
-            @endphp
 
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
@@ -61,7 +72,7 @@
                        data-column-key="operation_date"
                        id="payColDate"
                        checked>
-                <label class="form-check-label" for="payColDate">Дата и время платежа</label>
+                <label class="form-check-label" for="payColDate">Дата платежа</label>
             </div>
 
             <div class="form-check">
@@ -171,6 +182,105 @@
         </div>
     </div>
 </div>
+
+<div class="mb-2">
+    <button class="payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#paymentsReportFiltersCollapse"
+            aria-expanded="{{ $payHasActiveFilters ? 'true' : 'false' }}"
+            aria-controls="paymentsReportFiltersCollapse"
+            id="paymentsReportFiltersToggle">
+        <span class="payments-report-filters-icon-wrap" aria-hidden="true">
+            <i class="fas fa-sliders-h payments-report-filters-main-icon"></i>
+        </span>
+        <span class="payments-report-filters-label">Фильтры</span>
+        <i class="fas {{ $payHasActiveFilters ? 'fa-chevron-up' : 'fa-chevron-down' }} payments-report-filters-chevron"
+           aria-hidden="true"></i>
+    </button>
+</div>
+
+<div class="collapse {{ $payHasActiveFilters ? 'show' : '' }} mb-3" id="paymentsReportFiltersCollapse">
+    <form id="payments-report-filters" method="GET" action="/admin/reports/payments" class="border rounded p-3 bg-light">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-filter-user">Ученик</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-filter-user"
+                        name="filter_user_id"
+                        data-placeholder="Все ученики"
+                        data-search-url="{{ route('reports.payments.users.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterUser)
+                        <option value="{{ $paymentsFilterUser['id'] }}" selected>{{ $paymentsFilterUser['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-filter-team">Группа</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-filter-team"
+                        name="filter_team_id"
+                        data-placeholder="Все группы"
+                        data-search-url="{{ route('reports.payments.teams.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterTeam)
+                        <option value="{{ $paymentsFilterTeam['id'] }}" selected>{{ $paymentsFilterTeam['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-filter-payment-month">Оплаченный месяц</label>
+                <input class="form-control" id="pay-filter-payment-month" type="month" name="payment_month"
+                       value="{{ $filters['payment_month'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-filter-op-from">Дата платежа: с</label>
+                <input class="form-control" id="pay-filter-op-from" type="date" name="operation_date_from"
+                       value="{{ $filters['operation_date_from'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-filter-op-to">Дата платежа: по</label>
+                <input class="form-control" id="pay-filter-op-to" type="date" name="operation_date_to"
+                       value="{{ $filters['operation_date_to'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-filter-provider">Провайдер</label>
+                @php($fpProvider = $filters['payment_provider'] ?? '')
+                <select class="form-select" id="pay-filter-provider" name="payment_provider">
+                    <option value="">—</option>
+                    <option value="tbank" {{ $fpProvider === 'tbank' ? 'selected' : '' }}>T-Bank</option>
+                    <option value="robokassa" {{ $fpProvider === 'robokassa' ? 'selected' : '' }}>Robokassa</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-filter-method">Способ оплаты</label>
+                @php($fpMethod = $filters['payment_method'] ?? '')
+                <select class="form-select" id="pay-filter-method" name="payment_method">
+                    <option value="">—</option>
+                    <option value="card" {{ $fpMethod === 'card' ? 'selected' : '' }}>Карта</option>
+                    <option value="sbp_qr" {{ $fpMethod === 'sbp_qr' ? 'selected' : '' }}>QR (СБП)</option>
+                    <option value="tpay" {{ $fpMethod === 'tpay' ? 'selected' : '' }}>T‑Pay</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-filter-refund-status">Статус платежа</label>
+                @php($fpRefund = $filters['payment_refund_status'] ?? '')
+                <select class="form-select" id="pay-filter-refund-status" name="payment_refund_status">
+                    <option value="">—</option>
+                    <option value="no_refund" {{ $fpRefund === 'no_refund' ? 'selected' : '' }}>Оплата</option>
+                    <option value="refunded" {{ $fpRefund === 'refunded' ? 'selected' : '' }}>Возврат</option>
+                    <option value="refund_pending" {{ $fpRefund === 'refund_pending' ? 'selected' : '' }}>Возврат (в процессе)</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-auto d-flex flex-wrap align-items-end gap-2 ms-md-auto">
+                <button class="btn btn-primary" type="submit">Применить</button>
+                <button class="btn btn-outline-secondary" type="button" id="paymentsReportFiltersResetBtn">Сброс</button>
+            </div>
+        </div>
+    </form>
+</div>
+
 <div class="sum-dept-wrap alert alert-warning d-flex justify-content-between align-items-center p-3 mt-3 mb-3 rounded">
     <span class="fw-bold">Общая сумма платежей:</span>
 
@@ -184,7 +294,7 @@
         <th>Группа</th>
         <th>Сумма платежа</th>
         <th>Оплаченный месяц</th>
-        <th>Дата и время платежа</th>
+        <th>Дата платежа</th>
         <th>Провайдер</th>
         <th>Способ оплаты</th>
         <th>Чек</th>
@@ -305,6 +415,89 @@
         color: #ff9800;
         transform: translateY(-1px);
     }
+
+    .pay-cell-datetime {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+        padding: 0.15rem 0;
+        line-height: 1.25;
+        min-width: 5.5rem;
+    }
+
+    .pay-cell-datetime__date {
+        white-space: nowrap;
+    }
+
+    .pay-cell-datetime__time {
+        font-size: 0.8125rem;
+        font-variant-numeric: tabular-nums;
+        color: var(--bs-secondary-color, #6c757d);
+        white-space: nowrap;
+    }
+
+    .payments-report-filters-toggle {
+        cursor: pointer;
+        user-select: none;
+        padding: 0.45rem 0.9rem 0.45rem 0.45rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        line-height: 1.25;
+        color: var(--bs-body-color);
+        background: linear-gradient(180deg, #fff 0%, var(--bs-light, #f8f9fa) 100%);
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .payments-report-filters-toggle:hover {
+        border-color: #b6d4fe;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        color: var(--bs-body-color);
+        background: #fff;
+    }
+
+    .payments-report-filters-toggle:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .payments-report-filters-toggle[aria-expanded="true"] {
+        border-color: #86b7fe;
+        background: #f0f7ff;
+    }
+
+    .payments-report-filters-icon-wrap {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.4rem;
+        background: var(--bs-primary-bg-subtle, #cfe2ff);
+        color: var(--bs-primary, #0d6efd);
+    }
+
+    .payments-report-filters-main-icon {
+        font-size: 0.95rem;
+        line-height: 1;
+    }
+
+    .payments-report-filters-label {
+        letter-spacing: 0.02em;
+    }
+
+    .payments-report-filters-chevron {
+        font-size: 0.7rem;
+        opacity: 0.65;
+        margin-left: 0.15rem;
+    }
+
+    /* Select2 в блоке фильтров (как на /cabinet) */
+    .payments-report-filter-select2 {
+        width: 100% !important;
+    }
 </style>
 
 @section('scripts')
@@ -313,6 +506,55 @@
             const canAdditional = @json($canAdditional);
             const tbankEnabled = @json($tbankEnabled ?? false);
 
+            /** Совместимость со старыми ссылками ?user_name= / ?team_title= (без filter_*_id) */
+            var payReportLegacyFilters = @json([
+                'user_name' => (! empty($filters['user_name']) && empty($filters['filter_user_id'] ?? null)) ? (string) $filters['user_name'] : '',
+                'team_title' => (! empty($filters['team_title']) && empty($filters['filter_team_id'] ?? null)) ? (string) $filters['team_title'] : '',
+            ]);
+
+            var $payFiltersForm = $('#payments-report-filters');
+            var $payFiltersCollapse = $('#paymentsReportFiltersCollapse');
+            var $payFiltersToggle = $('#paymentsReportFiltersToggle');
+            var $payFiltersChevron = $payFiltersToggle.find('.payments-report-filters-chevron');
+
+            $payFiltersCollapse.on('shown.bs.collapse', function () {
+                $payFiltersToggle.attr('aria-expanded', 'true');
+                $payFiltersChevron.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+            });
+            $payFiltersCollapse.on('hidden.bs.collapse', function () {
+                $payFiltersToggle.attr('aria-expanded', 'false');
+                $payFiltersChevron.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            });
+
+            var $payFilterUser = $('#pay-filter-user');
+            var $payFilterTeam = $('#pay-filter-team');
+
+            function initPaymentsReportFilterSelect2($el) {
+                var searchUrl = $el.data('search-url');
+                if (!$el.length || !searchUrl) {
+                    return;
+                }
+                $el.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $el.data('placeholder') || '',
+                    allowClear: true,
+                    ajax: {
+                        url: searchUrl,
+                        delay: 250,
+                        data: function (params) {
+                            return {q: params.term || ''};
+                        },
+                        processResults: function (data) {
+                            return data;
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            }
+
+            initPaymentsReportFilterSelect2($payFilterUser);
+            initPaymentsReportFilterSelect2($payFilterTeam);
 
             const defaultColumnsVisibility = {
     user_name: true,
@@ -507,17 +749,31 @@ const columns = [
         data: 'operation_date',
         name: 'operation_date',
         render: function (data, type, row) {
-            if (data) {
-                var date = new Date(data);
-                var day = ("0" + date.getDate()).slice(-2);
-                var month = ("0" + (date.getMonth() + 1)).slice(-2);
-                var year = date.getFullYear();
-                var hours = ("0" + date.getHours()).slice(-2);
-                var minutes = ("0" + date.getMinutes()).slice(-2);
-                var seconds = ("0" + date.getSeconds()).slice(-2);
-                return day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes + ':' + seconds;
+            if (!data) {
+                return data;
             }
-            return data;
+            if (type !== 'display') {
+                return data;
+            }
+            var date = new Date(data);
+            if (isNaN(date.getTime())) {
+                return data;
+            }
+            var day = ("0" + date.getDate()).slice(-2);
+            var month = ("0" + (date.getMonth() + 1)).slice(-2);
+            var year = date.getFullYear();
+            var hours = ("0" + date.getHours()).slice(-2);
+            var minutes = ("0" + date.getMinutes()).slice(-2);
+            var seconds = ("0" + date.getSeconds()).slice(-2);
+            var dateLine = day + '.' + month + '.' + year;
+            var timeLine = hours + ':' + minutes + ':' + seconds;
+            return (
+                '<div class="pay-cell-datetime" role="text" aria-label="' +
+                dateLine + ', ' + timeLine + '">' +
+                '<span class="pay-cell-datetime__date">' + dateLine + '</span>' +
+                '<span class="pay-cell-datetime__time">' + timeLine + '</span>' +
+                '</div>'
+            );
         }
     },
     {
@@ -579,12 +835,12 @@ const columns = [
                 if (row.has_receipt && row.receipt_url) {
                     incomeHtml =
                         '<a href="' + row.receipt_url + '" target="_blank" rel="noopener noreferrer" title="' + incomeTitle + '" aria-label="Чек сформирован">' +
-                        '<i class="fa-solid fa-receipt text-primary"></i>' +
+                        '<i class="fas fa-receipt text-primary"></i>' +
                         '</a>';
                 } else {
                     incomeHtml =
                         '<span title="' + incomeTitle + '" aria-label="Чек не сформирован">' +
-                        '<i class="fa-solid fa-receipt text-secondary"></i>' +
+                        '<i class="fas fa-receipt text-secondary"></i>' +
                         '</span>';
                 }
 
@@ -594,7 +850,7 @@ const columns = [
                     returnHtml =
                         '<a href="' + returnReceiptUrl + '" target="_blank" rel="noopener noreferrer" ' +
                         'class="return-receipt-link" title="Чек возврата" aria-label="Чек возврата">' +
-                        '<i class="fa-solid fa-receipt return-receipt-icon"></i>' +
+                        '<i class="fas fa-receipt return-receipt-icon"></i>' +
                         '</a>';
                 }
 
@@ -696,7 +952,21 @@ columns.push(
             var table = $('#payments-table').DataTable({
     processing: true,
     serverSide: true,
-    ajax: "{{ route('payments.getPayments') }}",
+    ajax: {
+        url: "{{ route('payments.getPayments') }}",
+        data: function (d) {
+            d.filter_user_id = $payFiltersForm.find('[name="filter_user_id"]').val() || '';
+            d.filter_team_id = $payFiltersForm.find('[name="filter_team_id"]').val() || '';
+            d.user_name = d.filter_user_id ? '' : (payReportLegacyFilters.user_name || '');
+            d.team_title = d.filter_team_id ? '' : (payReportLegacyFilters.team_title || '');
+            d.payment_month = $payFiltersForm.find('[name="payment_month"]').val();
+            d.operation_date_from = $payFiltersForm.find('[name="operation_date_from"]').val();
+            d.operation_date_to = $payFiltersForm.find('[name="operation_date_to"]').val();
+            d.payment_provider = $payFiltersForm.find('[name="payment_provider"]').val();
+            d.payment_method = $payFiltersForm.find('[name="payment_method"]').val();
+            d.payment_refund_status = $payFiltersForm.find('[name="payment_refund_status"]').val();
+        }
+    },
     columns: columns,
     order: [[5, 'desc']], // По умолчанию: ближайшие платежи сверху (по дате)
 
@@ -732,6 +1002,20 @@ columns.push(
 
             // после инициализации — подгружаем конфиг из БД
             loadColumnsConfigFromServer();
+
+            $payFiltersForm.on('submit', function (e) {
+                e.preventDefault();
+                table.ajax.reload();
+            });
+
+            $('#paymentsReportFiltersResetBtn').on('click', function () {
+                $payFiltersForm[0].reset();
+                payReportLegacyFilters.user_name = '';
+                payReportLegacyFilters.team_title = '';
+                $payFilterUser.val(null).trigger('change');
+                $payFilterTeam.val(null).trigger('change');
+                table.ajax.reload();
+            });
 
             // --- Обработчик чекбоксов "Поля списка" ---
             $('.payments-column-toggle').on('change', function () {
