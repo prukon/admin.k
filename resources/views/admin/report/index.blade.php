@@ -62,8 +62,12 @@
                     <!-- Контент вкладки задолженности -->
                     @include('admin.report.debt', ['totalUnpaidPrice' => $totalUnpaidPrice])
                 @elseif($activeTab === 'ltv')
-                    <!-- Контент вкладки ltv -->
-                    @include('admin.report.ltv', [])
+                    @include('admin.report.ltv', [
+                        'totalPaidPrice' => $totalPaidPrice,
+                        'filters' => $filters ?? [],
+                        'paymentsFilterUser' => $paymentsFilterUser ?? null,
+                        'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
+                    ])
                 @elseif($activeTab === 'payment-intents')
                     <!-- Контент вкладки платежные запросы -->
                     @include('admin.report.payment_intents', [

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Models\Team;
+use App\Models\User;
 use App\Services\PartnerContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,9 +21,31 @@ class LtvReportController extends AdminBaseController
     /**
      * Страница отчёта LTV (подключается через admin.report.index, вкладка LTV).
      */
-    public function ltv()
+    public function ltv(Request $request)
     {
-        return view('admin.report.index', ['activeTab' => 'ltv']);
+        $partnerId = $this->requirePartnerId();
+        $filters = $request->query();
+
+        $totalQuery = DB::table('payments')
+            ->join('users', 'users.id', '=', 'payments.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->where('payments.summ', '>', 0)
+            ->where('users.partner_id', $partnerId);
+        $this->applyLtvReportFilters($totalQuery, $request, false);
+
+        $totalRaw = $totalQuery->sum('payments.summ');
+        $totalPaidPrice = number_format((float) $totalRaw, 0, '', ' ');
+
+        $paymentsFilterUser = $this->resolveLtvFilterUserLabel($partnerId, $filters);
+        $paymentsFilterTeam = $this->resolveLtvFilterTeamLabel($partnerId, $filters);
+
+        return view('admin.report.index', [
+            'activeTab'          => 'ltv',
+            'totalPaidPrice'     => $totalPaidPrice,
+            'filters'            => $filters,
+            'paymentsFilterUser' => $paymentsFilterUser,
+            'paymentsFilterTeam' => $paymentsFilterTeam,
+        ]);
     }
 
     /**
@@ -50,8 +74,11 @@ class LtvReportController extends AdminBaseController
             ->join('users', 'users.id', '=', 'payments.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('payments.summ', '>', 0)
-            ->where('users.partner_id', $partnerId)
-            ->selectRaw("
+            ->where('users.partner_id', $partnerId);
+
+        $this->applyLtvReportFilters($baseQuery, $request, false);
+
+        $baseQuery->selectRaw("
                 users.id as user_id,
                 TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) as user_name,
                 teams.title as team_title,
@@ -109,8 +136,11 @@ class LtvReportController extends AdminBaseController
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId)
             ->where('users.id', $userId)
-            ->where('payments.summ', '>', 0)
-            ->selectRaw("
+            ->where('payments.summ', '>', 0);
+
+        $this->applyLtvReportFilters($payments, $request, true);
+
+        $paymentRows = $payments->selectRaw("
                 payments.id,
                 payments.summ,
                 payments.payment_month,
@@ -125,7 +155,7 @@ class LtvReportController extends AdminBaseController
             ->orderBy('payments.operation_date', 'desc')
             ->get();
 
-        $items = $payments->map(function ($row) {
+        $items = $paymentRows->map(function ($row) {
             $provider = (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status))
                 ? 'tbank'
                 : 'robokassa';
@@ -185,5 +215,139 @@ class LtvReportController extends AdminBaseController
             Log::error('Ошибка преобразования даты: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Фильтры отчёта LTV (как у «Платежи по месяцам»). Для детализации по ученику — без фильтра по ученику/группе.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $paymentsQuery
+     */
+    private function applyLtvReportFilters($paymentsQuery, Request $request, bool $forSingleUserDetail): void
+    {
+        if (! $forSingleUserDetail) {
+            $filterUserId = $request->query('filter_user_id');
+            if ($filterUserId !== null && $filterUserId !== '' && ctype_digit((string) $filterUserId)) {
+                $uid = (int) $filterUserId;
+                if ($uid > 0) {
+                    $paymentsQuery->where('users.id', $uid);
+                }
+            } elseif ($request->filled('user_name')) {
+                $needle = '%'.trim((string) $request->query('user_name')).'%';
+                $paymentsQuery->where(function ($q) use ($needle) {
+                    $q->whereRaw("CONCAT_WS(' ', users.lastname, users.name) LIKE ?", [$needle])
+                        ->orWhere('payments.user_name', 'like', $needle);
+                });
+            }
+
+            $filterTeamId = $request->query('filter_team_id');
+            if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
+                $tid = (int) $filterTeamId;
+                if ($tid > 0) {
+                    $paymentsQuery->where('users.team_id', $tid);
+                }
+            } elseif ($request->filled('team_title')) {
+                $like = '%'.trim((string) $request->query('team_title')).'%';
+                $paymentsQuery->where('teams.title', 'like', $like);
+            }
+        }
+
+        if ($request->filled('payment_month')) {
+            $ym = trim((string) $request->query('payment_month'));
+            if (preg_match('/^\d{4}-\d{2}$/', $ym) === 1) {
+                $paymentsQuery->where('payments.payment_month', 'like', $ym.'%');
+            }
+        }
+
+        if ($request->filled('operation_date_from')) {
+            $paymentsQuery->whereDate('payments.operation_date', '>=', (string) $request->query('operation_date_from'));
+        }
+        if ($request->filled('operation_date_to')) {
+            $paymentsQuery->whereDate('payments.operation_date', '<=', (string) $request->query('operation_date_to'));
+        }
+
+        if ($request->filled('payment_provider')) {
+            $p = (string) $request->query('payment_provider');
+            if ($p === 'tbank') {
+                $paymentsQuery->where(function ($w) {
+                    $w->where(function ($x) {
+                        $x->whereNotNull('payments.deal_id')->where('payments.deal_id', '<>', '');
+                    })->orWhere(function ($x) {
+                        $x->whereNotNull('payments.payment_id')->where('payments.payment_id', '<>', '');
+                    })->orWhere(function ($x) {
+                        $x->whereNotNull('payments.payment_status')->where('payments.payment_status', '<>', '');
+                    });
+                });
+            } elseif ($p === 'robokassa') {
+                $paymentsQuery->where(function ($w) {
+                    $w->where(function ($x) {
+                        $x->whereNull('payments.deal_id')->orWhere('payments.deal_id', '=', '');
+                    })->where(function ($x) {
+                        $x->whereNull('payments.payment_id')->orWhere('payments.payment_id', '=', '');
+                    })->where(function ($x) {
+                        $x->whereNull('payments.payment_status')->orWhere('payments.payment_status', '=', '');
+                    });
+                });
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolveLtvFilterUserLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_user_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $uid = (int) $raw;
+        if ($uid <= 0) {
+            return null;
+        }
+
+        $u = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('id', $uid)
+            ->first(['id', 'name', 'lastname']);
+
+        if (! $u) {
+            return null;
+        }
+
+        $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
+        return [
+            'id'   => $u->id,
+            'text' => $text !== '' ? $text : '—',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolveLtvFilterTeamLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_team_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $tid = (int) $raw;
+        if ($tid <= 0) {
+            return null;
+        }
+
+        $t = Team::query()
+            ->where('partner_id', $partnerId)
+            ->where('id', $tid)
+            ->first(['id', 'title']);
+
+        if (! $t) {
+            return null;
+        }
+
+        return [
+            'id'   => $t->id,
+            'text' => (string) ($t->title ?? ''),
+        ];
     }
 }

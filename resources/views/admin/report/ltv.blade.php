@@ -1,8 +1,165 @@
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
-    <h4 class="text-start mb-3 ">Платежи по ученикам</h4>
+@php
+    $filters = $filters ?? [];
+    $paymentsFilterUser = $paymentsFilterUser ?? null;
+    $paymentsFilterTeam = $paymentsFilterTeam ?? null;
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
+    $payHasActiveFilters = false;
+    foreach ($payFilterKeys as $k) {
+        $v = $filters[$k] ?? null;
+        if ($v !== null && $v !== '') {
+            $payHasActiveFilters = true;
+            break;
+        }
+    }
+@endphp
+
+@vite(['resources/css/payments-report.css'])
+
+<div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+    <div class="card-body px-3 py-3">
+        <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Платежи по ученикам</h1>
+            <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
+                <div class="payments-report-total-inline payments-report-total-stat text-end" id="ltvReportTotalStat">
+                    <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
+                    <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                        <span class="payments-report-total-value-inner">
+                            <span class="payments-report-total-amount">{{ $totalPaidPrice }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                    <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#ltvReportFiltersCollapse"
+                            aria-expanded="{{ $payHasActiveFilters ? 'true' : 'false' }}"
+                            aria-controls="ltvReportFiltersCollapse"
+                            id="ltvReportFiltersToggle">
+                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                            <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                        </span>
+                        <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                        <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                    </button>
+
+                    <div class="dropdown payments-report-toolbar-dropdown">
+                        <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                id="columnsDropdownLtvReport"
+                                data-bs-toggle="dropdown"
+                                data-bs-auto-close="outside"
+                                aria-expanded="false"
+                                aria-haspopup="true"
+                                title="Какие колонки показывать в таблице">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
+
+                        <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                             aria-labelledby="columnsDropdownLtvReport">
+                            <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
+                            <div class="form-check">
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColName" data-column-index="1" checked>
+                                <label class="form-check-label" for="ltvColName">ФИО</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColTeam" data-column-index="2" checked>
+                                <label class="form-check-label" for="ltvColTeam">Группа</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColSum" data-column-index="3" checked>
+                                <label class="form-check-label" for="ltvColSum">Сумма</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColCount" data-column-index="4" checked>
+                                <label class="form-check-label" for="ltvColCount">Кол-во платежей</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColFirst" data-column-index="5" checked>
+                                <label class="form-check-label" for="ltvColFirst">Перв. платёж</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColLast" data-column-index="6" checked>
+                                <label class="form-check-label" for="ltvColLast">Посл. платёж</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColStatus" data-column-index="7" checked>
+                                <label class="form-check-label" for="ltvColStatus">Статус</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<table class="table table-bordered mt-3" id="ltv-table">
+<div class="collapse {{ $payHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="ltvReportFiltersCollapse">
+    <form id="ltv-report-filters" method="GET" action="{{ route('reports.ltv') }}" class="border rounded p-2 p-md-3 bg-light">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-ltv-filter-user">Ученик</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-ltv-filter-user"
+                        name="filter_user_id"
+                        data-placeholder="Все ученики"
+                        data-search-url="{{ route('reports.payments.users.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterUser)
+                        <option value="{{ $paymentsFilterUser['id'] }}" selected>{{ $paymentsFilterUser['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-ltv-filter-team">Группа</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-ltv-filter-team"
+                        name="filter_team_id"
+                        data-placeholder="Все группы"
+                        data-search-url="{{ route('reports.payments.teams.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterTeam)
+                        <option value="{{ $paymentsFilterTeam['id'] }}" selected>{{ $paymentsFilterTeam['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-ltv-filter-payment-month">Оплаченный месяц</label>
+                <input class="form-control" id="pay-ltv-filter-payment-month" type="month" name="payment_month"
+                       value="{{ $filters['payment_month'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-ltv-filter-op-from">Дата платежа: с</label>
+                <input class="form-control" id="pay-ltv-filter-op-from" type="date" name="operation_date_from"
+                       value="{{ $filters['operation_date_from'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-ltv-filter-op-to">Дата платежа: по</label>
+                <input class="form-control" id="pay-ltv-filter-op-to" type="date" name="operation_date_to"
+                       value="{{ $filters['operation_date_to'] ?? '' }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-ltv-filter-provider">Провайдер</label>
+                @php($fpProvider = $filters['payment_provider'] ?? '')
+                <select class="form-select" id="pay-ltv-filter-provider" name="payment_provider">
+                    <option value="">—</option>
+                    <option value="tbank" {{ $fpProvider === 'tbank' ? 'selected' : '' }}>T-Bank</option>
+                    <option value="robokassa" {{ $fpProvider === 'robokassa' ? 'selected' : '' }}>Robokassa</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
+                <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="ltvReportFiltersResetBtn">Сброс</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<table class="table table-bordered" id="ltv-table">
     <thead>
         <tr>
             <th style="width: 60px;"></th>
@@ -21,11 +178,64 @@
     <script type="text/javascript">
         $(function() {
 
-            // Основная таблица LTV
+            var $ltvFilterUser = $('#pay-ltv-filter-user');
+            var $ltvFilterTeam = $('#pay-ltv-filter-team');
+
+            function initPaymentsReportFilterSelect2($el) {
+                var searchUrl = $el.data('search-url');
+                if (!$el.length || !searchUrl) {
+                    return;
+                }
+                $el.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $el.data('placeholder') || '',
+                    allowClear: true,
+                    ajax: {
+                        url: searchUrl,
+                        delay: 250,
+                        data: function (params) {
+                            return {q: params.term || ''};
+                        },
+                        processResults: function (data) {
+                            return data;
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            }
+
+            initPaymentsReportFilterSelect2($ltvFilterUser);
+            initPaymentsReportFilterSelect2($ltvFilterTeam);
+
+            $('#ltvReportFiltersResetBtn').on('click', function () {
+                window.location.href = @json(route('reports.ltv'));
+            });
+
+            function ltvQueryParams() {
+                var params = {};
+                if (window.location.search) {
+                    var sp = new URLSearchParams(window.location.search);
+                    sp.forEach(function (value, key) {
+                        params[key] = value;
+                    });
+                }
+                return params;
+            }
+
             var ltvTable = $('#ltv-table').DataTable({
                 processing: true,
                 serverSide: true,
-                ajax: '/admin/reports/ltv/data',
+                ajax: {
+                    url: '/admin/reports/ltv/data',
+                    type: 'GET',
+                    data: function (d) {
+                        var extra = ltvQueryParams();
+                        Object.keys(extra).forEach(function (key) {
+                            d[key] = extra[key];
+                        });
+                    }
+                },
                 columns: [{
                         data: null,
                         className: 'details-control text-center',
@@ -96,7 +306,6 @@
                             return '<span class="badge bg-secondary">Отключен</span>';
                         }
                     },
-                    // техническая колонка, чтобы легко доставать id
                     {
                         data: 'user_id',
                         name: 'user_id',
@@ -104,7 +313,6 @@
                         searchable: false
                     }
                 ],
-                // индексы: 0 – кнопка, 1 – ФИО, 2 – Группа, 3 – LTV
                 order: [
                     [3, 'desc']
                 ],
@@ -133,17 +341,23 @@
                 }
             });
 
+            $('.ltv-column-toggle').on('change', function () {
+                var idx = parseInt($(this).data('column-index'), 10);
+                if (isNaN(idx)) {
+                    return;
+                }
+                ltvTable.column(idx).visible($(this).is(':checked'));
+            });
 
             function formatSubscriptionMonth(raw) {
                 if (!raw) return '';
 
-                // ожидаем формат YYYY-MM-DD
                 var re = /^\d{4}-\d{2}-\d{2}$/;
                 if (!re.test(raw)) {
                     return raw;
                 }
 
-                var parts = raw.split('-'); // [YYYY, MM, DD]
+                var parts = raw.split('-');
                 var year = parts[0];
                 var monthNum = parseInt(parts[1], 10);
 
@@ -167,14 +381,6 @@
                 return monthName + ' ' + year;
             }
 
-
-            /**
-             * Строим HTML вложенного блока с платежами.
-             *
-             * payments   — массив платежей из /admin/reports/ltv/{user}/payments
-             * userName   — ФИО из родительской строки
-             * teamTitle  — группа из родительской строки
-             */
             function buildDetailsHtml(payments, userName, teamTitle) {
                 var safeUserName = userName || 'Без имени';
                 var safeTeam = teamTitle || 'Без команды';
@@ -189,7 +395,6 @@
                         '</div>';
                 }
 
-                // считаем итого
                 var totalSum = payments.reduce(function(acc, p) {
                     return acc + (parseFloat(p.summ || 0) || 0);
                 }, 0);
@@ -265,7 +470,6 @@
                 return html;
             }
 
-            // Обработчик раскрытия/сворачивания строк LTV
             $('#ltv-table tbody').on('click', 'td.details-control button', function(e) {
                 e.stopPropagation();
 
@@ -274,7 +478,6 @@
                 var row = ltvTable.row(tr);
 
                 if (row.child.isShown()) {
-                    // свернуть
                     row.child.hide();
                     tr.removeClass('shown');
                     btn.find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
@@ -286,7 +489,6 @@
                 var userName = data.user_name;
                 var teamTitle = data.team_title;
 
-                // показываем заглушку "Загрузка..."
                 row.child('<div class="p-3 details-container">Загрузка...</div>').show();
                 tr.addClass('shown');
                 btn.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
@@ -295,6 +497,7 @@
                     url: '/admin/reports/ltv/' + userId + '/payments',
                     type: 'GET',
                     dataType: 'json',
+                    data: ltvQueryParams(),
                     success: function(resp) {
                         var html = buildDetailsHtml(resp.payments || [], userName, teamTitle);
                         tr.next('tr').find('div.details-container').replaceWith(html);
