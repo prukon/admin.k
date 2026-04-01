@@ -1,4 +1,4 @@
-@php
+@@php
     $frFilterKeys = ['id', 'payment_intent_id', 'payment_id', 'partner_id', 'type', 'status', 'external_id', 'created_from', 'created_to', 'processed_from', 'processed_to', 'failed_from', 'failed_to'];
     $frHasActiveFilters = false;
     foreach ($frFilterKeys as $k) {
@@ -93,6 +93,71 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .pay-cell-datetime {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+        padding: 0.15rem 0;
+        line-height: 1.25;
+        min-width: 5.5rem;
+    }
+
+    .pay-cell-datetime__date {
+        white-space: nowrap;
+    }
+
+    .pay-cell-datetime__time {
+        font-size: 0.8125rem;
+        font-variant-numeric: tabular-nums;
+        color: var(--bs-secondary-color, #6c757d);
+        white-space: nowrap;
+    }
+
+    #fiscal-receipts-table th.fiscal-payload-th,
+    #fiscal-receipts-table td.fiscal-payload-td {
+        width: 1%;
+        max-width: 7rem;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .fiscal-payload-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .fiscal-payload-modal-pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 0.8125rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+</style>
+
+<div class="modal fade" id="fiscalPayloadModal" tabindex="-1" aria-labelledby="fiscalPayloadModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="fiscalPayloadModalLabel">Payload</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <pre class="fiscal-payload-modal-pre mb-0"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary js-copy-fiscal-payload-modal">
+                    <i class="fas fa-copy me-1" aria-hidden="true"></i>Копировать
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
     </div>
@@ -197,9 +262,9 @@
             <th>Сумма</th>
             <th>External ID</th>
             <th>Ошибка</th>
-            <th>Request Payload</th>
-            <th>Response Payload</th>
-            <th>Webhook Payload</th>
+            <th class="fiscal-payload-th">Request Payload</th>
+            <th class="fiscal-payload-th">Response Payload</th>
+            <th class="fiscal-payload-th">Webhook Payload</th>
             <th>Создано</th>
             <th>В очереди</th>
             <th>Обработано</th>
@@ -438,24 +503,97 @@
                 return '<span class="badge bg-light text-dark">' + $('<div/>').text(s).html() + '</span>';
             }
 
-            function renderPayloadCell(payloadText, title) {
+            function formatPayloadPretty(text) {
+                var t = String(text).trim();
+                if (!t) return '';
+                try {
+                    return JSON.stringify(JSON.parse(t), null, 2);
+                } catch (e) {
+                    return t;
+                }
+            }
+
+            function renderDateTimeTwoLines(data, type) {
+                if (!data) return data;
+                if (type !== 'display') return data;
+                var date = new Date(data);
+                if (isNaN(date.getTime())) return data;
+                var day = ("0" + date.getDate()).slice(-2);
+                var month = ("0" + (date.getMonth() + 1)).slice(-2);
+                var year = date.getFullYear();
+                var hours = ("0" + date.getHours()).slice(-2);
+                var minutes = ("0" + date.getMinutes()).slice(-2);
+                var seconds = ("0" + date.getSeconds()).slice(-2);
+                var dateLine = day + '.' + month + '.' + year;
+                var timeLine = hours + ':' + minutes + ':' + seconds;
+                return (
+                    '<div class="pay-cell-datetime" role="text" aria-label="' +
+                    dateLine + ', ' + timeLine + '">' +
+                    '<span class="pay-cell-datetime__date">' + dateLine + '</span>' +
+                    '<span class="pay-cell-datetime__time">' + timeLine + '</span>' +
+                    '</div>'
+                );
+            }
+
+            function flashCopyButton($btn) {
+                var origHtml = $btn.html();
+                $btn.prop('disabled', true).html('<i class="fas fa-check text-success" aria-hidden="true"></i>');
+                setTimeout(function () {
+                    $btn.prop('disabled', false).html(origHtml);
+                }, 1500);
+            }
+
+            function copyTextToClipboard(text, $btnForFlash) {
+                function copyViaTextarea() {
+                    var ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.setAttribute('readonly', '');
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try {
+                        if (document.execCommand('copy') && $btnForFlash) {
+                            flashCopyButton($btnForFlash);
+                        }
+                    } catch (err) {
+                        alert('Не удалось скопировать');
+                    }
+                    document.body.removeChild(ta);
+                }
+
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                    navigator.clipboard.writeText(text).then(function () {
+                        if ($btnForFlash) flashCopyButton($btnForFlash);
+                    }).catch(function () {
+                        copyViaTextarea();
+                    });
+                } else {
+                    copyViaTextarea();
+                }
+            }
+
+            function renderPayloadActions(payloadText, title) {
                 if (!payloadText) {
                     return '<span class="text-muted">—</span>';
                 }
 
                 var text = String(payloadText);
                 var safe = $('<div/>').text(text).html();
-                var short = safe.length > 180 ? (safe.slice(0, 180) + '...') : safe;
 
-                return '' +
-                    '<div class="d-flex align-items-start gap-1 fiscal-payload-cell">' +
-                        '<span class="small flex-grow-1" style="min-width:0">' + short + '</span>' +
-                        '<button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0 js-copy-fiscal-payload" title="Копировать ' + title + '">' +
-                            '<i class="fas fa-copy" aria-hidden="true"></i>' +
-                            '<span class="visually-hidden">Копировать</span>' +
-                        '</button>' +
-                        '<span class="fiscal-payload-full d-none">' + safe + '</span>' +
-                    '</div>';
+                return (
+                    '<div class="fiscal-payload-actions fiscal-payload-cell" data-title="' + $('<div/>').text(title).html() + '">' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary js-show-fiscal-payload" title="Показать">' +
+                    '<i class="fas fa-eye" aria-hidden="true"></i>' +
+                    '<span class="visually-hidden">Показать</span>' +
+                    '</button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary js-copy-fiscal-payload" title="Копировать">' +
+                    '<i class="fas fa-copy" aria-hidden="true"></i>' +
+                    '<span class="visually-hidden">Копировать</span>' +
+                    '</button>' +
+                    '<span class="fiscal-payload-full d-none">' + safe + '</span>' +
+                    '</div>'
+                );
             }
 
             var table = $('#fiscal-receipts-table').DataTable({
@@ -532,7 +670,7 @@
                         orderable: false,
                         render: function (data, type, row) {
                             if (type !== 'display') return data || '';
-                            return renderPayloadCell(data, 'Request');
+                            return renderPayloadActions(data, 'Request Payload');
                         }
                     },
                     {
@@ -541,7 +679,7 @@
                         orderable: false,
                         render: function (data, type, row) {
                             if (type !== 'display') return data || '';
-                            return renderPayloadCell(data, 'Response');
+                            return renderPayloadActions(data, 'Response Payload');
                         }
                     },
                     {
@@ -550,11 +688,23 @@
                         orderable: false,
                         render: function (data, type, row) {
                             if (type !== 'display') return data || '';
-                            return renderPayloadCell(data, 'Webhook');
+                            return renderPayloadActions(data, 'Webhook Payload');
                         }
                     },
-                    {data: 'created_at', name: 'created_at'},
-                    {data: 'queued_at', name: 'queued_at'},
+                    {
+                        data: 'created_at',
+                        name: 'created_at',
+                        render: function (data, type, row) {
+                            return renderDateTimeTwoLines(data, type);
+                        }
+                    },
+                    {
+                        data: 'queued_at',
+                        name: 'queued_at',
+                        render: function (data, type, row) {
+                            return renderDateTimeTwoLines(data, type);
+                        }
+                    },
                     {data: 'processed_at', name: 'processed_at'},
                     {data: 'failed_at', name: 'failed_at'}
                 ],
@@ -562,6 +712,12 @@
                 scrollX: true,
                 fixedColumns: {leftColumns: 2},
                 language: dtLanguageRu()
+            });
+
+            table.on('draw', function () {
+                $('#fiscal-receipts-table td:nth-child(10), ' +
+                  '#fiscal-receipts-table td:nth-child(11), ' +
+                  '#fiscal-receipts-table td:nth-child(12)').addClass('fiscal-payload-td');
             });
 
             function applyVisibleColumns(config) {
@@ -620,48 +776,35 @@
                 });
             });
 
-            $('#fiscal-receipts-table').on('click', '.js-copy-fiscal-payload', function (e) {
+            var payloadModalEl = document.getElementById('fiscalPayloadModal');
+            var payloadModal = payloadModalEl && typeof bootstrap !== 'undefined'
+                ? bootstrap.Modal.getOrCreateInstance(payloadModalEl)
+                : null;
+
+            $('#fiscal-receipts-table').on('click', '.js-show-fiscal-payload', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 var $cell = $(this).closest('.fiscal-payload-cell');
                 var full = $cell.find('.fiscal-payload-full').text();
-                var $btn = $(this);
-                var origHtml = $btn.html();
-
-                function flashOk() {
-                    $btn.prop('disabled', true).html('<i class="fas fa-check text-success" aria-hidden="true"></i>');
-                    setTimeout(function () {
-                        $btn.prop('disabled', false).html(origHtml);
-                    }, 1500);
+                var title = $cell.data('title') || 'Payload';
+                $('#fiscalPayloadModalLabel').text(title);
+                $('#fiscalPayloadModal .fiscal-payload-modal-pre').text(formatPayloadPretty(full));
+                if (payloadModal) {
+                    payloadModal.show();
                 }
+            });
 
-                function copyViaTextarea() {
-                    var ta = document.createElement('textarea');
-                    ta.value = full;
-                    ta.setAttribute('readonly', '');
-                    ta.style.position = 'fixed';
-                    ta.style.left = '-9999px';
-                    document.body.appendChild(ta);
-                    ta.select();
-                    try {
-                        if (document.execCommand('copy')) {
-                            flashOk();
-                        } else {
-                            alert('Не удалось скопировать payload');
-                        }
-                    } catch (err) {
-                        alert('Не удалось скопировать payload');
-                    }
-                    document.body.removeChild(ta);
-                }
+            $('#fiscal-receipts-table').on('click', '.js-copy-fiscal-payload', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var full = $(this).closest('.fiscal-payload-cell').find('.fiscal-payload-full').text();
+                copyTextToClipboard(full, $(this));
+            });
 
-                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-                    navigator.clipboard.writeText(full).then(flashOk).catch(function () {
-                        copyViaTextarea();
-                    });
-                } else {
-                    copyViaTextarea();
-                }
+            $(document).on('click', '.js-copy-fiscal-payload-modal', function (e) {
+                e.preventDefault();
+                var t = $('#fiscalPayloadModal .fiscal-payload-modal-pre').text();
+                copyTextToClipboard(t, $(this));
             });
 
             $form.on('submit', function (e) {
