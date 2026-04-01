@@ -160,6 +160,8 @@ class PaymentReportTest extends CrmTestCase
 
         $response->assertOk();
         $json = $response->json();
+        $this->assertSame(number_format(100, 0, '', ' '), $json['sum_payments_formatted']);
+        $this->assertEquals(100, (float) ($json['sum_payments_raw'] ?? 0));
         $this->assertSame(number_format(100, 0, '', ' '), $json['total_formatted']);
         $this->assertEquals(100, (float) ($json['total_raw'] ?? 0));
     }

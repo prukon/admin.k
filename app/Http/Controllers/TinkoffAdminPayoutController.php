@@ -45,9 +45,7 @@ class TinkoffAdminPayoutController extends Controller
             ->limit(25)
             ->get();
 
-        $totalCents = $this->basePayoutsTotalsQuery($isSuperadmin, $currentPartnerId)->sum(DB::raw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount)'));
-        $totalRub = (float) round(((int) $totalCents) / 100);
-        $totalPayoutAmountFormatted = number_format($totalRub, 0, '', ' ');
+        $toolbarTotals = $this->computeToolbarTotals(request(), [], $isSuperadmin, $currentPartnerId);
 
         return view('tinkoff.payouts.index', compact(
             'partners',
@@ -57,7 +55,7 @@ class TinkoffAdminPayoutController extends Controller
             'scheduledIntervalMinutes',
             'overdueScheduledPayoutsCount',
             'overdueScheduledPayouts',
-            'totalPayoutAmountFormatted'
+            'toolbarTotals'
         ));
     }
 
@@ -360,21 +358,61 @@ class TinkoffAdminPayoutController extends Controller
         $isSuperadmin = $actor instanceof User && $actor->hasRole('superadmin');
         $currentPartnerId = (int) app('current_partner')->id;
 
-        $q = TinkoffPayout::query()
+        $totals = $this->computeToolbarTotals($request, $validated, $isSuperadmin, $currentPartnerId);
+
+        return response()->json([
+            'payments_total_formatted' => $totals['payments']['formatted'],
+            'payments_total_raw' => $totals['payments']['raw'],
+            'payouts_total_formatted' => $totals['payouts']['formatted'],
+            'payouts_total_raw' => $totals['payouts']['raw'],
+            'platform_fee_total_formatted' => $totals['platform_fee']['formatted'],
+            'platform_fee_total_raw' => $totals['platform_fee']['raw'],
+            // Совместимость: раньше «общая сумма» = сумма выплат (net)
+            'total_formatted' => $totals['payouts']['formatted'],
+            'total_raw' => $totals['payouts']['raw'],
+        ]);
+    }
+
+    /**
+     * Итоги для тулбара: сумма платежей (gross), сумма выплат (net), комиссия платформы — в копейках из БД, в ответе — целые рубли.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array{payments: array{formatted: string, raw: float}, payouts: array{formatted: string, raw: float}, platform_fee: array{formatted: string, raw: float}}
+     */
+    private function computeToolbarTotals(Request $request, array $validated, bool $isSuperadmin, int $currentPartnerId): array
+    {
+        $q = $this->payoutsListQueryWithJoins();
+        $this->applyPayoutsFilters($q, $request, $validated, $isSuperadmin, $currentPartnerId);
+
+        $row = (clone $q)->selectRaw('
+            COALESCE(SUM(COALESCE(tinkoff_payouts.gross_amount, tinkoff_payments.amount)), 0) as gross_cents,
+            COALESCE(SUM(COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount)), 0) as net_cents,
+            COALESCE(SUM(COALESCE(tinkoff_payouts.platform_fee, 0)), 0) as platform_cents
+        ')->first();
+
+        $fmt = static function (int $cents): array {
+            $rub = (float) round($cents / 100);
+
+            return [
+                'formatted' => number_format($rub, 0, '', ' '),
+                'raw' => $rub,
+            ];
+        };
+
+        return [
+            'payments' => $fmt((int) ($row->gross_cents ?? 0)),
+            'payouts' => $fmt((int) ($row->net_cents ?? 0)),
+            'platform_fee' => $fmt((int) ($row->platform_cents ?? 0)),
+        ];
+    }
+
+    private function payoutsListQueryWithJoins()
+    {
+        return TinkoffPayout::query()
             ->leftJoin('partners', 'partners.id', '=', 'tinkoff_payouts.partner_id')
             ->leftJoin('tinkoff_payments', 'tinkoff_payments.id', '=', 'tinkoff_payouts.payment_id')
             ->leftJoin('users as payer', 'payer.id', '=', 'tinkoff_payouts.payer_user_id')
             ->leftJoin('users as initiator', 'initiator.id', '=', 'tinkoff_payouts.initiated_by_user_id');
-
-        $this->applyPayoutsFilters($q, $request, $validated, $isSuperadmin, $currentPartnerId);
-
-        $sumCents = (int) $q->sum(DB::raw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount)'));
-        $rawRub = (float) round($sumCents / 100);
-
-        return response()->json([
-            'total_formatted' => number_format($rawRub, 0, '', ' '),
-            'total_raw' => $rawRub,
-        ]);
     }
 
     private function basePayoutsTotalsQuery(bool $isSuperadmin, int $currentPartnerId, array $validated = [])

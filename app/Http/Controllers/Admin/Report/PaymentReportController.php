@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
@@ -36,11 +37,17 @@ class PaymentReportController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
         Log::debug('[payments] Partner ID', ['partnerId' => $partnerId]);
 
-        $sumQuery = $this->basePaymentsReportQuery($partnerId);
-        $this->applyPaymentsReportFilters($sumQuery, $request);
-        $totalRaw = $sumQuery->sum('payments.summ');
-        $totalPaidPrice = number_format((float) $totalRaw, 0, '', ' ');
-        Log::debug('[payments] Filtered total (same rules as table)', ['raw' => $totalRaw, 'formatted' => $totalPaidPrice]);
+        $aggregates = $this->computePaymentsReportToolbarAggregates($partnerId, $request);
+        Log::debug('[payments] Toolbar aggregates (same filters as table)', ['aggregates' => $aggregates]);
+
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+        $canToolbarNetToPartner = $authUser?->can('reports.payments.totals.net_to_partner.view') ?? false;
+        $canToolbarPayoutAmount = $authUser?->can('reports.payments.totals.payout_amount.view') ?? false;
+        $canToolbarPlatformCommission = $authUser?->can('reports.payments.totals.platform_commission.view') ?? false;
+
+        $paymentsToolbar = $this->formatPaymentsToolbarPayload($aggregates, $canToolbarNetToPartner, $canToolbarPayoutAmount, $canToolbarPlatformCommission);
+        $totalPaidPrice = $paymentsToolbar['sum_payments_formatted'];
 
         // проверяем, включена ли оплата T-Bank
         $tbankPs = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
@@ -56,6 +63,10 @@ class PaymentReportController extends AdminBaseController
             [
                 'activeTab' => 'payment',
                 'totalPaidPrice' => $totalPaidPrice,
+                'paymentsToolbar' => $paymentsToolbar,
+                'canPaymentsToolbarNetToPartner' => $canToolbarNetToPartner,
+                'canPaymentsToolbarPayoutAmount' => $canToolbarPayoutAmount,
+                'canPaymentsToolbarPlatformCommission' => $canToolbarPlatformCommission,
                 'tbankEnabled' => $tbankEnabled,
                 'filters' => $filters,
                 'paymentsFilterUser' => $paymentsFilterUser,
@@ -70,14 +81,34 @@ class PaymentReportController extends AdminBaseController
     public function paymentsTotal(Request $request)
     {
         $partnerId = $this->requirePartnerId();
-        $q = $this->basePaymentsReportQuery($partnerId);
-        $this->applyPaymentsReportFilters($q, $request);
-        $raw = $q->sum('payments.summ');
+        $aggregates = $this->computePaymentsReportToolbarAggregates($partnerId, $request);
 
-        return response()->json([
-            'total_formatted' => number_format((float) $raw, 0, '', ' '),
-            'total_raw' => (float) $raw,
-        ]);
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        $payload = [
+            'sum_payments_formatted' => number_format(round($aggregates['sum_payments']), 0, '', ' '),
+            'sum_payments_raw' => (float) round($aggregates['sum_payments'], 2),
+        ];
+
+        if ($user?->can('reports.payments.totals.net_to_partner.view')) {
+            $payload['net_to_partner_formatted'] = number_format(round($aggregates['net_to_partner']), 0, '', ' ');
+            $payload['net_to_partner_raw'] = (float) round($aggregates['net_to_partner'], 2);
+        }
+        if ($user?->can('reports.payments.totals.payout_amount.view')) {
+            $payload['payout_amount_formatted'] = number_format(round($aggregates['payout_amount']), 0, '', ' ');
+            $payload['payout_amount_raw'] = (float) round($aggregates['payout_amount'], 2);
+        }
+        if ($user?->can('reports.payments.totals.platform_commission.view')) {
+            $payload['platform_commission_formatted'] = number_format(round($aggregates['platform_commission']), 0, '', ' ');
+            $payload['platform_commission_raw'] = (float) round($aggregates['platform_commission'], 2);
+        }
+
+        // Совместимость: раньше total_* = сумма платежей
+        $payload['total_formatted'] = $payload['sum_payments_formatted'];
+        $payload['total_raw'] = $payload['sum_payments_raw'];
+
+        return response()->json($payload);
     }
 
     /**
@@ -945,6 +976,211 @@ class PaymentReportController extends AdminBaseController
                 });
             }
         }
+    }
+
+    /**
+     * Агрегаты для шапки отчёта «Платежи» (те же фильтры и строки, что и таблица).
+     * net_to_partner / platform_commission — та же формула, что в getPayments; payout_amount — из tinkoff_payouts COMPLETED.
+     *
+     * @return array{sum_payments: float, net_to_partner: float, platform_commission: float, payout_amount: float}
+     */
+    private function computePaymentsReportToolbarAggregates(int $partnerId, Request $request): array
+    {
+        $q = $this->basePaymentsReportQuery($partnerId);
+        $this->applyPaymentsReportFilters($q, $request);
+
+        $sumPayments = (float) (clone $q)->sum('payments.summ');
+
+        $commissionRules = $this->tinkoffCommissionRulesForPaymentsReport();
+
+        $netSum = 0.0;
+        $platformSum = 0.0;
+        $payoutSum = 0.0;
+
+        $rowQuery = clone $q;
+        $rowQuery->orderBy('payments.id');
+
+        $rowQuery->chunk(500, function ($payments) use ($partnerId, $commissionRules, &$netSum, &$platformSum, &$payoutSum): void {
+            foreach ($payments as $payment) {
+                /** @var Payment $payment */
+                $net = $this->paymentRowNetToPartnerAmount($payment, $partnerId, $commissionRules);
+                if ($net !== null) {
+                    $netSum += $net;
+                }
+                $plat = $this->paymentRowPlatformCommissionAmount($payment, $partnerId, $commissionRules);
+                if ($plat !== null) {
+                    $platformSum += $plat;
+                }
+                $payout = $this->paymentRowPayoutAmountRub($payment, $partnerId);
+                if ($payout !== null) {
+                    $payoutSum += $payout;
+                }
+            }
+        });
+
+        return [
+            'sum_payments' => $sumPayments,
+            'net_to_partner' => $netSum,
+            'platform_commission' => $platformSum,
+            'payout_amount' => $payoutSum,
+        ];
+    }
+
+    /**
+     * @param  array{sum_payments: float, net_to_partner: float, platform_commission: float, payout_amount: float}  $aggregates
+     * @return array<string, string>
+     */
+    private function formatPaymentsToolbarPayload(array $aggregates, bool $canNet, bool $canPayout, bool $canPlatform): array
+    {
+        $out = [
+            'sum_payments_formatted' => number_format(round($aggregates['sum_payments']), 0, '', ' '),
+            'sum_payments_raw' => (float) round($aggregates['sum_payments'], 2),
+        ];
+
+        if ($canNet) {
+            $out['net_to_partner_formatted'] = number_format(round($aggregates['net_to_partner']), 0, '', ' ');
+            $out['net_to_partner_raw'] = (float) round($aggregates['net_to_partner'], 2);
+        }
+        if ($canPayout) {
+            $out['payout_amount_formatted'] = number_format(round($aggregates['payout_amount']), 0, '', ' ');
+            $out['payout_amount_raw'] = (float) round($aggregates['payout_amount'], 2);
+        }
+        if ($canPlatform) {
+            $out['platform_commission_formatted'] = number_format(round($aggregates['platform_commission']), 0, '', ' ');
+            $out['platform_commission_raw'] = (float) round($aggregates['platform_commission'], 2);
+        }
+
+        return $out;
+    }
+
+    private function tinkoffCommissionRulesForPaymentsReport(): Collection
+    {
+        return TinkoffCommissionRule::query()
+            ->where('is_enabled', true)
+            ->orderByRaw('partner_id is null, method is null')
+            ->get();
+    }
+
+    private function calcFeeCentsToolbar(int $amountCents, float $percent, float $minFixedRub): int
+    {
+        $fee = (int) round($amountCents * ($percent / 100));
+        $min = (int) round($minFixedRub * 100);
+
+        return max($fee, $min);
+    }
+
+    private function pickCommissionRuleForToolbar(Collection $commissionRules, int $pid, ?string $method): TinkoffCommissionRule
+    {
+        /** @var TinkoffCommissionRule|null $chosen */
+        $chosen = $commissionRules->first(function (TinkoffCommissionRule $r) use ($pid, $method) {
+            $partnerOk = ($r->partner_id === null) || ((int) $r->partner_id === $pid);
+            $methodOk = ($r->method === null) || ((string) $r->method === (string) $method);
+
+            return $partnerOk && $methodOk;
+        });
+
+        return $chosen ?: new TinkoffCommissionRule([
+            'acquiring_percent' => 2.49,
+            'acquiring_min_fixed' => 3.49,
+            'payout_percent' => 0.10,
+            'payout_min_fixed' => 0.00,
+            'platform_percent' => 0.00,
+            'platform_min_fixed' => 0.00,
+        ]);
+    }
+
+    private function paymentRowTbankMethod(Payment $row, int $partnerId): ?string
+    {
+        if (empty($row->deal_id)) {
+            return null;
+        }
+
+        $tp = TinkoffPayment::query()
+            ->where('partner_id', (int) $partnerId)
+            ->where('deal_id', $row->deal_id)
+            ->orderByDesc('id')
+            ->first();
+
+        return $tp ? (string) ($tp->method ?? null) : null;
+    }
+
+    /**
+     * Синхронно с addColumn net_to_partner в getPayments.
+     */
+    private function paymentRowNetToPartnerAmount(Payment $row, int $partnerId, Collection $commissionRules): ?float
+    {
+        if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+            return null;
+        }
+
+        $grossCents = (int) round(((float) $row->summ) * 100);
+        $method = $this->paymentRowTbankMethod($row, $partnerId);
+        $rule = $this->pickCommissionRuleForToolbar($commissionRules, (int) $partnerId, $method);
+
+        $bankAcceptFee = $this->calcFeeCentsToolbar(
+            $grossCents,
+            (float) ($rule->acquiring_percent ?? 2.49),
+            (float) ($rule->acquiring_min_fixed ?? 3.49)
+        );
+        $bankPayoutFee = $this->calcFeeCentsToolbar(
+            $grossCents,
+            (float) ($rule->payout_percent ?? 0.10),
+            (float) ($rule->payout_min_fixed ?? 0.00)
+        );
+        $platformFee = $this->calcFeeCentsToolbar(
+            $grossCents,
+            (float) ($rule->platform_percent ?? 0.00),
+            (float) ($rule->platform_min_fixed ?? 0.00)
+        );
+
+        $net = $grossCents - $bankAcceptFee - $bankPayoutFee - $platformFee;
+
+        return round(max(0, $net) / 100, 2);
+    }
+
+    /**
+     * Синхронно с addColumn platform_commission в getPayments.
+     */
+    private function paymentRowPlatformCommissionAmount(Payment $row, int $partnerId, Collection $commissionRules): ?float
+    {
+        if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+            return null;
+        }
+
+        $grossCents = (int) round(((float) $row->summ) * 100);
+        $method = $this->paymentRowTbankMethod($row, $partnerId);
+        $rule = $this->pickCommissionRuleForToolbar($commissionRules, (int) $partnerId, $method);
+
+        $platformFee = $this->calcFeeCentsToolbar(
+            $grossCents,
+            (float) ($rule->platform_percent ?? 0.00),
+            (float) ($rule->platform_min_fixed ?? 0.00)
+        );
+
+        return round($platformFee / 100, 2);
+    }
+
+    /**
+     * Синхронно с addColumn payout_amount в getPayments.
+     */
+    private function paymentRowPayoutAmountRub(Payment $row, int $partnerId): ?float
+    {
+        if (empty($row->deal_id)) {
+            return null;
+        }
+
+        $payout = TinkoffPayout::query()
+            ->where('partner_id', (int) $partnerId)
+            ->where('deal_id', $row->deal_id)
+            ->where('status', 'COMPLETED')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $payout) {
+            return null;
+        }
+
+        return round(((int) $payout->amount) / 100, 2);
     }
 
     /**

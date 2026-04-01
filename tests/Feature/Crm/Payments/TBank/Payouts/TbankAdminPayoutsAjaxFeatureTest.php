@@ -95,6 +95,16 @@ class TbankAdminPayoutsAjaxFeatureTest extends CrmTestCase
             ->assertJson([
                 'total_formatted' => $expectedFormatted,
                 'total_raw' => $expectedRawRub,
+                'payouts_total_formatted' => $expectedFormatted,
+                'payouts_total_raw' => $expectedRawRub,
+            ])
+            ->assertJsonStructure([
+                'payments_total_formatted',
+                'payments_total_raw',
+                'payouts_total_formatted',
+                'payouts_total_raw',
+                'platform_fee_total_formatted',
+                'platform_fee_total_raw',
             ]);
     }
 

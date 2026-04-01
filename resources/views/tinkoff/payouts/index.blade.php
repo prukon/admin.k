@@ -9,12 +9,36 @@
                 <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
                     <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Выплаты T‑Bank</h1>
                     <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
-                        <div class="payments-report-total-inline payments-report-total-stat text-end" id="tbankPayoutsTotalStat">
-                            <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
-                            <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
-                                <span class="payments-report-total-value-inner">
-                                    <span class="payments-report-total-amount">{{ $totalPayoutAmountFormatted ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
-                                </span>
+                        @php
+                            $tt = $toolbarTotals ?? [];
+                            $ttPay = $tt['payments']['formatted'] ?? '0';
+                            $ttPayout = $tt['payouts']['formatted'] ?? '0';
+                            $ttPlat = $tt['platform_fee']['formatted'] ?? '0';
+                        @endphp
+                        <div class="d-flex flex-wrap align-items-end justify-content-end gap-3 gap-md-4" id="tbankPayoutsToolbarTotals">
+                            <div class="payments-report-total-inline payments-report-total-stat text-end" id="tbankPayoutsPaymentsStat">
+                                <div class="payments-report-total-label text-muted small mb-0">Сумма платежей</div>
+                                <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                                    <span class="payments-report-total-value-inner">
+                                        <span class="payments-report-total-amount">{{ $ttPay }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="payments-report-total-inline payments-report-total-stat text-end" id="tbankPayoutsPayoutsStat">
+                                <div class="payments-report-total-label text-muted small mb-0">Сумма выплат</div>
+                                <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                                    <span class="payments-report-total-value-inner">
+                                        <span class="payments-report-total-amount">{{ $ttPayout }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="payments-report-total-inline payments-report-total-stat text-end" id="tbankPayoutsPlatformStat">
+                                <div class="payments-report-total-label text-muted small mb-0">Комиссия платформы</div>
+                                <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                                    <span class="payments-report-total-value-inner">
+                                        <span class="payments-report-total-amount">{{ $ttPlat }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
@@ -316,9 +340,10 @@
     <script>
         $(document).ready(function () {
             var $filtersForm = $('#tbank-payouts-filters');
-            var $totalAmount = $('#tbankPayoutsTotalStat .payments-report-total-amount');
-            var $totalStat = $('#tbankPayoutsTotalStat');
-            var $totalValueInner = $('#tbankPayoutsTotalStat .payments-report-total-value-inner');
+            var $toolbarTotalsRoot = $('#tbankPayoutsToolbarTotals');
+            var $statPayments = $('#tbankPayoutsPaymentsStat');
+            var $statPayouts = $('#tbankPayoutsPayoutsStat');
+            var $statPlatform = $('#tbankPayoutsPlatformStat');
             var $filterPartner = $('#filter-partner');
             var $filterPayer = $('#filter-payer');
 
@@ -370,34 +395,36 @@
                 return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
             }
 
-            function animateTotalChange(prevText, nextText, nextRaw) {
-                if (!$totalAmount.length) return;
+            function animateToolbarStat($statRoot, prevText, nextText, nextRaw) {
+                var $amount = $statRoot.find('.payments-report-total-amount');
+                if (!$amount.length) return;
 
                 var nextVal = typeof nextRaw === 'number' && !isNaN(nextRaw) ? Math.round(nextRaw) : parseTotalToInt(nextText);
                 var prevVal = parseTotalToInt(prevText);
 
                 var runFlashAndPop = function () {
-                    if ($totalStat.length) {
-                        $totalStat.removeClass('payments-report-total-stat--flash');
-                        void $totalStat[0].offsetWidth;
-                        $totalStat.addClass('payments-report-total-stat--flash');
+                    if ($statRoot.length) {
+                        $statRoot.removeClass('payments-report-total-stat--flash');
+                        void $statRoot[0].offsetWidth;
+                        $statRoot.addClass('payments-report-total-stat--flash');
                     }
-                    if ($totalValueInner.length) {
-                        $totalValueInner.removeClass('payments-report-total-value-inner--pop');
-                        void $totalValueInner[0].offsetWidth;
-                        $totalValueInner.addClass('payments-report-total-value-inner--pop');
+                    var $valueInner = $statRoot.find('.payments-report-total-value-inner');
+                    if ($valueInner.length) {
+                        $valueInner.removeClass('payments-report-total-value-inner--pop');
+                        void $valueInner[0].offsetWidth;
+                        $valueInner.addClass('payments-report-total-value-inner--pop');
                     }
                 };
 
                 var prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
                 if (prefersReduced || prevText === nextText) {
-                    $totalAmount.text(nextText);
+                    $amount.text(nextText);
                     if (!prefersReduced && prevText !== nextText) runFlashAndPop();
                     return;
                 }
 
                 if (prevVal === nextVal) {
-                    $totalAmount.text(nextText);
+                    $amount.text(nextText);
                     runFlashAndPop();
                     return;
                 }
@@ -415,9 +442,9 @@
                     var t = Math.min(1, elapsed / duration);
                     var eased = easeInOutQuad(t);
                     var cur = Math.round(prevVal + (nextVal - prevVal) * eased);
-                    $totalAmount.text(formatTotalSpaces(cur));
+                    $amount.text(formatTotalSpaces(cur));
                     if (t < 1) window.requestAnimationFrame(step);
-                    else $totalAmount.text(nextText);
+                    else $amount.text(nextText);
                 }
 
                 runFlashAndPop();
@@ -498,16 +525,26 @@
             }
 
             function refreshTotal() {
-                var prevText = $totalAmount.length ? $totalAmount.text() : '';
-                if ($totalStat.length) $totalStat.addClass('payments-report-total-stat--loading');
+                var prevPay = $statPayments.find('.payments-report-total-amount').text();
+                var prevPayout = $statPayouts.find('.payments-report-total-amount').text();
+                var prevPlat = $statPlatform.find('.payments-report-total-amount').text();
+                if ($toolbarTotalsRoot.length) {
+                    $toolbarTotalsRoot.find('.payments-report-total-stat').addClass('payments-report-total-stat--loading');
+                }
                 $.get('/admin/tinkoff/payouts/total', filterParams())
                     .done(function (res) {
-                        if ($totalStat.length) $totalStat.removeClass('payments-report-total-stat--loading');
-                        if (!res || res.total_formatted === undefined || !$totalAmount.length) return;
-                        animateTotalChange(prevText, res.total_formatted, res.total_raw);
+                        if ($toolbarTotalsRoot.length) {
+                            $toolbarTotalsRoot.find('.payments-report-total-stat').removeClass('payments-report-total-stat--loading');
+                        }
+                        if (!res || res.payments_total_formatted === undefined) return;
+                        animateToolbarStat($statPayments, prevPay, res.payments_total_formatted, res.payments_total_raw);
+                        animateToolbarStat($statPayouts, prevPayout, res.payouts_total_formatted, res.payouts_total_raw);
+                        animateToolbarStat($statPlatform, prevPlat, res.platform_fee_total_formatted, res.platform_fee_total_raw);
                     })
                     .fail(function () {
-                        if ($totalStat.length) $totalStat.removeClass('payments-report-total-stat--loading');
+                        if ($toolbarTotalsRoot.length) {
+                            $toolbarTotalsRoot.find('.payments-report-total-stat').removeClass('payments-report-total-stat--loading');
+                        }
                     });
             }
 

@@ -46,6 +46,10 @@
                     <!-- Контент вкладки платежи -->
                     @include('admin.report.payment', [
                         'totalPaidPrice' => $totalPaidPrice,
+                        'paymentsToolbar' => $paymentsToolbar ?? null,
+                        'canPaymentsToolbarNetToPartner' => $canPaymentsToolbarNetToPartner ?? false,
+                        'canPaymentsToolbarPayoutAmount' => $canPaymentsToolbarPayoutAmount ?? false,
+                        'canPaymentsToolbarPlatformCommission' => $canPaymentsToolbarPlatformCommission ?? false,
                         'tbankEnabled' => $tbankEnabled ?? false,
                         'filters' => $filters ?? [],
                         'paymentsFilterUser' => $paymentsFilterUser ?? null,

@@ -87,6 +87,17 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('reports.additional.value.view');
         });
 
+        // Отчёт «Платежи» — итоги в шапке (скрытые пермишены в БД)
+        Gate::define('reports.payments.totals.net_to_partner.view', function (User $user) {
+            return $user->hasPermission('reports.payments.totals.net_to_partner.view');
+        });
+        Gate::define('reports.payments.totals.payout_amount.view', function (User $user) {
+            return $user->hasPermission('reports.payments.totals.payout_amount.view');
+        });
+        Gate::define('reports.payments.totals.platform_commission.view', function (User $user) {
+            return $user->hasPermission('reports.payments.totals.platform_commission.view');
+        });
+
         // Мои платежи
         Gate::define('myPayments.view', function (User $user) {
             return $user->hasPermission('myPayments.view');

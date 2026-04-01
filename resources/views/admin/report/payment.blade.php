@@ -1,5 +1,10 @@
 @php
     $canAdditional = auth()->user() && auth()->user()->can('reports.additional.value.view');
+    $pt = $paymentsToolbar ?? [];
+    $ptSum = $pt['sum_payments_formatted'] ?? ($totalPaidPrice ?? '0');
+    $canPaymentsToolbarNetToPartner = $canPaymentsToolbarNetToPartner ?? false;
+    $canPaymentsToolbarPayoutAmount = $canPaymentsToolbarPayoutAmount ?? false;
+    $canPaymentsToolbarPlatformCommission = $canPaymentsToolbarPlatformCommission ?? false;
     $paymentsFilterUser = $paymentsFilterUser ?? null;
     $paymentsFilterTeam = $paymentsFilterTeam ?? null;
     $payFilterKeys = ['filter_user_id', 'filter_team_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'payment_refund_status'];
@@ -17,13 +22,45 @@
         <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
             <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Платежи</h1>
             <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
-                <div class="payments-report-total-inline payments-report-total-stat text-end" id="paymentsReportTotalStat">
-                    <div class="payments-report-total-label text-muted small mb-0">Общая сумма</div>
-                    <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
-                        <span class="payments-report-total-value-inner">
-                            <span class="payments-report-total-amount">{{ $totalPaidPrice }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
-                        </span>
+                <div class="d-flex flex-wrap align-items-end justify-content-end gap-3 gap-md-4" id="paymentsReportToolbarTotals">
+                    <div class="payments-report-total-inline payments-report-total-stat text-end" id="paymentsReportSumPaymentsStat">
+                        <div class="payments-report-total-label text-muted small mb-0">Сумма платежей</div>
+                        <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                            <span class="payments-report-total-value-inner">
+                                <span class="payments-report-total-amount">{{ $ptSum }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                            </span>
+                        </div>
                     </div>
+                    @if($canPaymentsToolbarNetToPartner)
+                        <div class="payments-report-total-inline payments-report-total-stat text-end" id="paymentsReportNetToPartnerStat">
+                            <div class="payments-report-total-label text-muted small mb-0">К выплате</div>
+                            <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                                <span class="payments-report-total-value-inner">
+                                    <span class="payments-report-total-amount">{{ $pt['net_to_partner_formatted'] ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                </span>
+                            </div>
+                        </div>
+                    @endif
+                    @if($canPaymentsToolbarPayoutAmount)
+                        <div class="payments-report-total-inline payments-report-total-stat text-end" id="paymentsReportPayoutAmountStat">
+                            <div class="payments-report-total-label text-muted small mb-0">Выплата</div>
+                            <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                                <span class="payments-report-total-value-inner">
+                                    <span class="payments-report-total-amount">{{ $pt['payout_amount_formatted'] ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                </span>
+                            </div>
+                        </div>
+                    @endif
+                    @if($canPaymentsToolbarPlatformCommission)
+                        <div class="payments-report-total-inline payments-report-total-stat text-end" id="paymentsReportPlatformCommissionStat">
+                            <div class="payments-report-total-label text-muted small mb-0">Комиссия платформы</div>
+                            <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
+                                <span class="payments-report-total-value-inner">
+                                    <span class="payments-report-total-amount">{{ $pt['platform_commission_formatted'] ?? '0' }}</span><span class="payments-report-total-currency fw-normal text-muted ms-1">руб</span>
+                                </span>
+                            </div>
+                        </div>
+                    @endif
                 </div>
                 <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
                 <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
@@ -418,6 +455,11 @@
         $(function () {
             const canAdditional = @json($canAdditional);
             const tbankEnabled = @json($tbankEnabled ?? false);
+            const paymentsToolbarFlags = {
+                net: @json($canPaymentsToolbarNetToPartner),
+                payout: @json($canPaymentsToolbarPayoutAmount),
+                platform: @json($canPaymentsToolbarPlatformCommission)
+            };
 
             /** Совместимость со старыми ссылками ?user_name= / ?team_title= (без filter_*_id) */
             var payReportLegacyFilters = @json([
@@ -429,9 +471,11 @@
 
             var $payFilterUser = $('#pay-filter-user');
             var $payFilterTeam = $('#pay-filter-team');
-            var $paymentsReportTotalAmount = $('.payments-report-total-amount');
-            var $paymentsReportTotalStat = $('#paymentsReportTotalStat');
-            var $paymentsReportTotalValueInner = $('.payments-report-total-value-inner');
+            var $paymentsToolbarRoot = $('#paymentsReportToolbarTotals');
+            var $statSumPayments = $('#paymentsReportSumPaymentsStat');
+            var $statNetToPartner = $('#paymentsReportNetToPartnerStat');
+            var $statPayoutAmount = $('#paymentsReportPayoutAmountStat');
+            var $statPlatformCommission = $('#paymentsReportPlatformCommissionStat');
 
             function paymentsReportParseTotalToInt(str) {
                 return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
@@ -445,8 +489,8 @@
                 return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
             }
 
-            function paymentsReportAnimateTotalChange(prevText, nextText, nextRaw) {
-                var $amount = $paymentsReportTotalAmount;
+            function paymentsReportAnimateStatChange($statRoot, prevText, nextText, nextRaw) {
+                var $amount = $statRoot.find('.payments-report-total-amount');
                 if (!$amount.length) {
                     return;
                 }
@@ -456,15 +500,16 @@
                 var prevVal = paymentsReportParseTotalToInt(prevText);
 
                 var runFlashAndPop = function () {
-                    if ($paymentsReportTotalStat.length) {
-                        $paymentsReportTotalStat.removeClass('payments-report-total-stat--flash');
-                        void $paymentsReportTotalStat[0].offsetWidth;
-                        $paymentsReportTotalStat.addClass('payments-report-total-stat--flash');
+                    if ($statRoot.length) {
+                        $statRoot.removeClass('payments-report-total-stat--flash');
+                        void $statRoot[0].offsetWidth;
+                        $statRoot.addClass('payments-report-total-stat--flash');
                     }
-                    if ($paymentsReportTotalValueInner.length) {
-                        $paymentsReportTotalValueInner.removeClass('payments-report-total-value-inner--pop');
-                        void $paymentsReportTotalValueInner[0].offsetWidth;
-                        $paymentsReportTotalValueInner.addClass('payments-report-total-value-inner--pop');
+                    var $valueInner = $statRoot.find('.payments-report-total-value-inner');
+                    if ($valueInner.length) {
+                        $valueInner.removeClass('payments-report-total-value-inner--pop');
+                        void $valueInner[0].offsetWidth;
+                        $valueInner.addClass('payments-report-total-value-inner--pop');
                     }
                 };
 
@@ -530,24 +575,35 @@
             }
 
             function refreshPaymentsReportTotal() {
-                var prevText = $paymentsReportTotalAmount.length ? $paymentsReportTotalAmount.text() : '';
-                if ($paymentsReportTotalStat.length) {
-                    $paymentsReportTotalStat.addClass('payments-report-total-stat--loading');
+                var prevSum = $statSumPayments.find('.payments-report-total-amount').text();
+                var prevNet = $statNetToPartner.length ? $statNetToPartner.find('.payments-report-total-amount').text() : '';
+                var prevPayout = $statPayoutAmount.length ? $statPayoutAmount.find('.payments-report-total-amount').text() : '';
+                var prevPlat = $statPlatformCommission.length ? $statPlatformCommission.find('.payments-report-total-amount').text() : '';
+                if ($paymentsToolbarRoot.length) {
+                    $paymentsToolbarRoot.find('.payments-report-total-stat').addClass('payments-report-total-stat--loading');
                 }
                 $.get(@json(route('reports.payments.total')), paymentsReportFilterParams())
                     .done(function (res) {
-                        if ($paymentsReportTotalStat.length) {
-                            $paymentsReportTotalStat.removeClass('payments-report-total-stat--loading');
+                        if ($paymentsToolbarRoot.length) {
+                            $paymentsToolbarRoot.find('.payments-report-total-stat').removeClass('payments-report-total-stat--loading');
                         }
-                        if (!res || res.total_formatted === undefined || !$paymentsReportTotalAmount.length) {
+                        if (!res || res.sum_payments_formatted === undefined || !$statSumPayments.length) {
                             return;
                         }
-                        var nextText = res.total_formatted;
-                        paymentsReportAnimateTotalChange(prevText, nextText, res.total_raw);
+                        paymentsReportAnimateStatChange($statSumPayments, prevSum, res.sum_payments_formatted, res.sum_payments_raw);
+                        if (paymentsToolbarFlags.net && $statNetToPartner.length && res.net_to_partner_formatted !== undefined) {
+                            paymentsReportAnimateStatChange($statNetToPartner, prevNet, res.net_to_partner_formatted, res.net_to_partner_raw);
+                        }
+                        if (paymentsToolbarFlags.payout && $statPayoutAmount.length && res.payout_amount_formatted !== undefined) {
+                            paymentsReportAnimateStatChange($statPayoutAmount, prevPayout, res.payout_amount_formatted, res.payout_amount_raw);
+                        }
+                        if (paymentsToolbarFlags.platform && $statPlatformCommission.length && res.platform_commission_formatted !== undefined) {
+                            paymentsReportAnimateStatChange($statPlatformCommission, prevPlat, res.platform_commission_formatted, res.platform_commission_raw);
+                        }
                     })
                     .fail(function () {
-                        if ($paymentsReportTotalStat.length) {
-                            $paymentsReportTotalStat.removeClass('payments-report-total-stat--loading');
+                        if ($paymentsToolbarRoot.length) {
+                            $paymentsToolbarRoot.find('.payments-report-total-stat').removeClass('payments-report-total-stat--loading');
                         }
                     });
             }
