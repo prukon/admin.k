@@ -431,8 +431,25 @@
                 if (type !== 'display') {
                     return data;
                 }
-                var date = new Date(data);
-                if (isNaN(date.getTime())) {
+                var date = null;
+                var parsed = new Date(data);
+                if (!isNaN(parsed.getTime())) {
+                    date = parsed;
+                } else {
+                    // Бэкенд отдаёт Carbon::format('d.m.Y H:i') — браузер часто не парсит это в Date.
+                    var m = String(data).trim().match(/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?$/);
+                    if (m) {
+                        date = new Date(
+                            parseInt(m[3], 10),
+                            parseInt(m[2], 10) - 1,
+                            parseInt(m[1], 10),
+                            parseInt(m[4], 10),
+                            parseInt(m[5], 10),
+                            m[6] !== undefined ? parseInt(m[6], 10) : 0
+                        );
+                    }
+                }
+                if (!date || isNaN(date.getTime())) {
                     return data;
                 }
                 var day = ("0" + date.getDate()).slice(-2);

@@ -35,6 +35,7 @@ class FiscalReceiptReportController extends AdminBaseController
             'filters' => $filters,
             'totalPaidPrice' => $totalPaidPrice,
             'frFilterPartner' => $frFilterPartner,
+            'frHasActiveFilters' => $this->fiscalReceiptsHasActiveFilters($filters),
         ]);
     }
 
@@ -214,6 +215,27 @@ class FiscalReceiptReportController extends AdminBaseController
         }
 
         return $value->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * Есть ли непустые query-параметры фильтров вкладки «Чеки» (для раскрытия блока фильтров).
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private function fiscalReceiptsHasActiveFilters(array $filters): bool
+    {
+        $keys = [
+            'id', 'payment_intent_id', 'payment_id', 'partner_id', 'type', 'status', 'external_id',
+            'created_from', 'created_to', 'processed_from', 'processed_to', 'failed_from', 'failed_to',
+        ];
+        foreach ($keys as $k) {
+            $v = $filters[$k] ?? null;
+            if ($v !== null && $v !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -83,6 +83,7 @@
                         'filters' => $filters ?? [],
                         'totalPaidPrice' => $totalPaidPrice ?? '0',
                         'frFilterPartner' => $frFilterPartner ?? null,
+                        'frHasActiveFilters' => $frHasActiveFilters ?? false,
                     ])
                 @endif
             </div>

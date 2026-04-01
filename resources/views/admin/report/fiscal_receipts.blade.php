@@ -1,14 +1,3 @@
-@@php
-    $frFilterKeys = ['id', 'payment_intent_id', 'payment_id', 'partner_id', 'type', 'status', 'external_id', 'created_from', 'created_to', 'processed_from', 'processed_to', 'failed_from', 'failed_to'];
-    $frHasActiveFilters = false;
-    foreach ($frFilterKeys as $k) {
-        $v = $filters[$k] ?? null;
-        if ($v !== null && $v !== '') {
-            $frHasActiveFilters = true;
-            break;
-        }
-    }
-@endphp
 @vite(['resources/css/payments-report.css'])
 
 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
