@@ -424,6 +424,34 @@
                 window.requestAnimationFrame(step);
             }
 
+            function renderPayCellDatetime(data, type) {
+                if (!data) {
+                    return data;
+                }
+                if (type !== 'display') {
+                    return data;
+                }
+                var date = new Date(data);
+                if (isNaN(date.getTime())) {
+                    return data;
+                }
+                var day = ("0" + date.getDate()).slice(-2);
+                var month = ("0" + (date.getMonth() + 1)).slice(-2);
+                var year = date.getFullYear();
+                var hours = ("0" + date.getHours()).slice(-2);
+                var minutes = ("0" + date.getMinutes()).slice(-2);
+                var seconds = ("0" + date.getSeconds()).slice(-2);
+                var dateLine = day + '.' + month + '.' + year;
+                var timeLine = hours + ':' + minutes + ':' + seconds;
+                return (
+                    '<div class="pay-cell-datetime" role="text" aria-label="' +
+                    dateLine + ', ' + timeLine + '">' +
+                    '<span class="pay-cell-datetime__date">' + dateLine + '</span>' +
+                    '<span class="pay-cell-datetime__time">' + timeLine + '</span>' +
+                    '</div>'
+                );
+            }
+
             function filterParams() {
                 var p = {};
                 @if(!empty($isSuperadmin))
@@ -607,9 +635,27 @@
                     {data: 'bank_fee', name: 'bank_fee', className: 'text-end', defaultContent: ''},
                     {data: 'platform_fee', name: 'platform_fee', className: 'text-end', defaultContent: ''},
                     {data: 'net', name: 'net', className: 'text-end', defaultContent: ''},
-                    {data: 'when_to_run', name: 'when_to_run', className: 'text-nowrap', defaultContent: ''},
-                    {data: 'created_at', name: 'created_at', className: 'text-nowrap', defaultContent: ''},
-                    {data: 'completed_at', name: 'completed_at', className: 'text-nowrap', defaultContent: ''},
+                    {
+                        data: 'when_to_run',
+                        name: 'when_to_run',
+                        className: 'text-nowrap',
+                        defaultContent: '',
+                        render: renderPayCellDatetime
+                    },
+                    {
+                        data: 'created_at',
+                        name: 'created_at',
+                        className: 'text-nowrap',
+                        defaultContent: '',
+                        render: renderPayCellDatetime
+                    },
+                    {
+                        data: 'completed_at',
+                        name: 'completed_at',
+                        className: 'text-nowrap',
+                        defaultContent: '',
+                        render: renderPayCellDatetime
+                    },
                     {data: 'tinkoff_payout_payment_id', name: 'tinkoff_payout_payment_id', defaultContent: ''},
                     {
                         data: null,
