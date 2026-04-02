@@ -480,8 +480,31 @@
                 return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
             }
 
+            /**
+             * Снимает HTML-сущности (&quot; и т.д.), если meta пришла экранированной.
+             */
+            function decodeHtmlEntitiesSafe(input) {
+                var s = String(input);
+                if (s.indexOf('&') === -1) {
+                    return s;
+                }
+                var prev;
+                var guard = 0;
+                do {
+                    prev = s;
+                    s = s
+                        .replace(/&amp;/g, '&')
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#0*39;/g, "'")
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>');
+                    guard++;
+                } while (s !== prev && guard < 5);
+                return s;
+            }
+
             function formatMetaPretty(text) {
-                var t = String(text).trim();
+                var t = decodeHtmlEntitiesSafe(String(text)).trim();
                 if (!t) return '';
                 try {
                     return JSON.stringify(JSON.parse(t), null, 2);
@@ -697,7 +720,8 @@
                             if (type !== 'display') {
                                 return text;
                             }
-                            var safe = $('<div/>').text(text).html();
+                            var pretty = formatMetaPretty(text);
+                            var safe = $('<div/>').text(pretty).html();
                             return (
                                 '<div class="payment-intent-meta-actions payment-intent-meta-cell">' +
                                 '<button type="button" class="btn btn-sm btn-outline-secondary js-show-payment-intent-meta" title="Показать">' +
