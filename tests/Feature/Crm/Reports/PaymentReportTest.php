@@ -12,6 +12,7 @@ use App\Models\TinkoffCommissionRule;
 use App\Models\User;
 use App\Models\UserTableSetting;
 use App\Models\PaymentIntent;
+use App\Models\Refund;
 use App\Models\TinkoffPayout;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -718,6 +719,8 @@ class PaymentReportTest extends CrmTestCase
      */
     public function test_getPayments_commissions_and_net_to_partner_are_calculated_for_tbank_payments(): void
     {
+        $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
+
         // Создаём правило комиссий для текущего партнёра
         $rule = new TinkoffCommissionRule();
         $rule->partner_id = $this->partner->id;
@@ -799,6 +802,360 @@ class PaymentReportTest extends CrmTestCase
         $this->assertNull($robokassaRow['bank_commission_total']);
         $this->assertNull($robokassaRow['commission_total']);
         $this->assertNull($robokassaRow['net_to_partner']);
+    }
+
+    /**
+     * (P0) Блокирующий возврат (последний refund pending|succeeded): комиссии и «к выплате» не считаются, payout_amount сохраняется.
+     */
+    public function test_getPayments_blocking_refund_nulls_commissions_and_net_preserves_payout_amount(): void
+    {
+        $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
+
+        $rule = new TinkoffCommissionRule();
+        $rule->partner_id = $this->partner->id;
+        $rule->method = null;
+        $rule->is_enabled = true;
+        $rule->acquiring_percent = 2.5;
+        $rule->acquiring_min_fixed = 3.5;
+        $rule->payout_percent = 1.0;
+        $rule->payout_min_fixed = 0.0;
+        $rule->platform_percent = 5.0;
+        $rule->platform_min_fixed = 1.0;
+        $rule->min_fixed = 0.0;
+        $rule->save();
+
+        $dealId = 'deal-blocking-refund-'.uniqid();
+
+        $payment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 1000.00,
+            'deal_id' => $dealId,
+            'payment_id' => null,
+            'payment_status' => null,
+        ]);
+
+        TinkoffPayout::create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => $dealId,
+            'amount' => 50_000,
+            'is_final' => 1,
+            'status' => 'COMPLETED',
+        ]);
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount' => '1000.00',
+            'currency' => 'RUB',
+            'status' => 'paid',
+        ]);
+
+        Refund::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'payment_id' => $payment->id,
+            'amount' => '1000.00',
+            'currency' => 'RUB',
+            'status' => 'succeeded',
+            'provider' => 'tbank',
+        ]);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'));
+
+        $response->assertOk();
+        $row = collect($response->json('data') ?? [])->firstWhere('id', $payment->id);
+        $this->assertNotNull($row);
+
+        $this->assertSame('succeeded', (string) ($row['refund_status'] ?? ''));
+        $this->assertNull($row['bank_commission_total']);
+        $this->assertNull($row['bank_commission_acquiring']);
+        $this->assertNull($row['bank_commission_payout']);
+        $this->assertNull($row['platform_commission']);
+        $this->assertNull($row['commission_total']);
+        $this->assertNull($row['net_to_partner']);
+        $this->assertEquals(500.0, (float) ($row['payout_amount'] ?? 0));
+    }
+
+    /**
+     * (P1) Статус pending у последнего возврата тоже блокирует расчётные колонки.
+     */
+    public function test_getPayments_pending_refund_blocks_commissions_and_net(): void
+    {
+        $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
+
+        $rule = new TinkoffCommissionRule();
+        $rule->partner_id = $this->partner->id;
+        $rule->method = null;
+        $rule->is_enabled = true;
+        $rule->acquiring_percent = 2.5;
+        $rule->acquiring_min_fixed = 3.5;
+        $rule->payout_percent = 1.0;
+        $rule->payout_min_fixed = 0.0;
+        $rule->platform_percent = 2.0;
+        $rule->platform_min_fixed = 0.0;
+        $rule->min_fixed = 0.0;
+        $rule->save();
+
+        $payment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 500.00,
+            'deal_id' => 'deal-pending-refund-'.uniqid(),
+            'payment_id' => '77',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount' => '500.00',
+            'currency' => 'RUB',
+            'status' => 'paid',
+        ]);
+
+        Refund::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'payment_id' => $payment->id,
+            'amount' => '500.00',
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'provider' => 'tbank',
+        ]);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'));
+
+        $response->assertOk();
+        $row = collect($response->json('data') ?? [])->firstWhere('id', $payment->id);
+        $this->assertNotNull($row);
+
+        $this->assertSame('pending', (string) ($row['refund_status'] ?? ''));
+        $this->assertNull($row['bank_commission_total']);
+        $this->assertNull($row['net_to_partner']);
+        $this->assertNull($row['commission_total']);
+    }
+
+    /**
+     * (P1) Если последний по id возврат failed, расчётные комиссии снова считаются (даже при более раннем succeeded).
+     */
+    public function test_getPayments_latest_refund_failed_restores_commission_columns_after_older_succeeded(): void
+    {
+        $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
+
+        $rule = new TinkoffCommissionRule();
+        $rule->partner_id = $this->partner->id;
+        $rule->method = null;
+        $rule->is_enabled = true;
+        $rule->acquiring_percent = 2.5;
+        $rule->acquiring_min_fixed = 3.5;
+        $rule->payout_percent = 1.0;
+        $rule->payout_min_fixed = 0.0;
+        $rule->platform_percent = 5.0;
+        $rule->platform_min_fixed = 1.0;
+        $rule->min_fixed = 0.0;
+        $rule->save();
+
+        $payment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 1000.00,
+            'deal_id' => 'deal-failed-latest-'.uniqid(),
+            'payment_id' => null,
+            'payment_status' => null,
+        ]);
+
+        $payableA = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount' => '1000.00',
+            'currency' => 'RUB',
+            'status' => 'paid',
+        ]);
+
+        Refund::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payableA->id,
+            'payment_id' => $payment->id,
+            'amount' => '1000.00',
+            'currency' => 'RUB',
+            'status' => 'succeeded',
+            'provider' => 'tbank',
+        ]);
+
+        $payableB = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount' => '1000.00',
+            'currency' => 'RUB',
+            'status' => 'paid',
+        ]);
+
+        Refund::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payableB->id,
+            'payment_id' => $payment->id,
+            'amount' => '1000.00',
+            'currency' => 'RUB',
+            'status' => 'failed',
+            'provider' => 'tbank',
+        ]);
+
+        $grossCents = (int) round($payment->summ * 100);
+        $bankAcceptFee = max(
+            (int) round($grossCents * ($rule->acquiring_percent / 100)),
+            (int) round($rule->acquiring_min_fixed * 100)
+        );
+        $bankPayoutFee = max(
+            (int) round($grossCents * ($rule->payout_percent / 100)),
+            (int) round($rule->payout_min_fixed * 100)
+        );
+        $platformFee = max(
+            (int) round($grossCents * ($rule->platform_percent / 100)),
+            (int) round($rule->platform_min_fixed * 100)
+        );
+        $expectedBankTotal = round(($bankAcceptFee + $bankPayoutFee) / 100, 2);
+        $expectedCommissionAll = round(($bankAcceptFee + $bankPayoutFee + $platformFee) / 100, 2);
+        $expectedNet = round(max(0, $grossCents - $bankAcceptFee - $bankPayoutFee - $platformFee) / 100, 2);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'));
+
+        $response->assertOk();
+        $row = collect($response->json('data') ?? [])->firstWhere('id', $payment->id);
+        $this->assertNotNull($row);
+
+        $this->assertSame('failed', (string) ($row['refund_status'] ?? ''));
+        $this->assertEquals($expectedBankTotal, (float) $row['bank_commission_total']);
+        $this->assertEquals($expectedCommissionAll, (float) $row['commission_total']);
+        $this->assertEquals($expectedNet, (float) $row['net_to_partner']);
+    }
+
+    /**
+     * (P1) Шапка total: net и platform_commission без строк с блокирующим возвратом; payout_amount по-прежнему суммирует COMPLETED.
+     */
+    public function test_reports_payments_total_excludes_net_and_platform_for_blocking_refund_but_keeps_payout_sum(): void
+    {
+        foreach (
+            [
+                'reports.payments.totals.net_to_partner.view',
+                'reports.payments.totals.payout_amount.view',
+                'reports.payments.totals.platform_commission.view',
+            ] as $perm
+        ) {
+            $this->grantPermissionToCurrentUserRole($perm);
+        }
+
+        $rule = new TinkoffCommissionRule();
+        $rule->partner_id = $this->partner->id;
+        $rule->method = null;
+        $rule->is_enabled = true;
+        $rule->acquiring_percent = 2.5;
+        $rule->acquiring_min_fixed = 3.5;
+        $rule->payout_percent = 1.0;
+        $rule->payout_min_fixed = 0.0;
+        $rule->platform_percent = 5.0;
+        $rule->platform_min_fixed = 1.0;
+        $rule->min_fixed = 0.0;
+        $rule->save();
+
+        $dealNoRefund = 'deal-toolbar-a-'.uniqid();
+        $dealRefunded = 'deal-toolbar-b-'.uniqid();
+
+        $paymentOk = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 1000.00,
+            'deal_id' => $dealNoRefund,
+            'payment_id' => null,
+            'payment_status' => null,
+        ]);
+
+        $paymentRefunded = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 1000.00,
+            'deal_id' => $dealRefunded,
+            'payment_id' => null,
+            'payment_status' => null,
+        ]);
+
+        TinkoffPayout::create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => $dealNoRefund,
+            'amount' => 10_000,
+            'is_final' => 1,
+            'status' => 'COMPLETED',
+        ]);
+
+        TinkoffPayout::create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => $dealRefunded,
+            'amount' => 20_000,
+            'is_final' => 1,
+            'status' => 'COMPLETED',
+        ]);
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'club_fee',
+            'amount' => '1000.00',
+            'currency' => 'RUB',
+            'status' => 'paid',
+        ]);
+
+        Refund::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'payment_id' => $paymentRefunded->id,
+            'amount' => '1000.00',
+            'currency' => 'RUB',
+            'status' => 'succeeded',
+            'provider' => 'tbank',
+        ]);
+
+        $grossCents = (int) round($paymentOk->summ * 100);
+        $bankAcceptFee = max(
+            (int) round($grossCents * ($rule->acquiring_percent / 100)),
+            (int) round($rule->acquiring_min_fixed * 100)
+        );
+        $bankPayoutFee = max(
+            (int) round($grossCents * ($rule->payout_percent / 100)),
+            (int) round($rule->payout_min_fixed * 100)
+        );
+        $platformFee = max(
+            (int) round($grossCents * ($rule->platform_percent / 100)),
+            (int) round($rule->platform_min_fixed * 100)
+        );
+        $expectedNetOnlyOk = round(max(0, $grossCents - $bankAcceptFee - $bankPayoutFee - $platformFee) / 100, 2);
+        $expectedPlatformOnlyOk = round($platformFee / 100, 2);
+        $expectedPayoutSum = 100.0 + 200.0;
+
+        $response = $this->getJson(route('reports.payments.total'));
+
+        $response->assertOk();
+        $json = $response->json();
+        $this->assertEquals($expectedNetOnlyOk, (float) ($json['net_to_partner_raw'] ?? 0));
+        $this->assertEquals($expectedPlatformOnlyOk, (float) ($json['platform_commission_raw'] ?? 0));
+        $this->assertEquals($expectedPayoutSum, (float) ($json['payout_amount_raw'] ?? 0));
     }
 
     /**
@@ -976,7 +1333,13 @@ class PaymentReportTest extends CrmTestCase
             ->first();
 
         $this->assertNotNull($setting);
-        $this->assertSame($payload['columns'], $setting->columns);
+        $expected = $payload['columns'] + [
+            'bank_commission_total' => false,
+            'platform_commission' => false,
+            'net_to_partner' => false,
+            'refund_status' => false,
+        ];
+        $this->assertSame($expected, $setting->columns);
     }
 
     /**
@@ -1006,19 +1369,21 @@ class PaymentReportTest extends CrmTestCase
             ->where('table_key', 'reports_payments')
             ->firstOrFail();
 
-        $this->assertSame(
-            [
-                'col_true_string' => true,
-                'col_false_string' => false,
-                'col_one' => true,
-                'col_zero' => false,
-                'col_int_one' => true,
-                'col_int_zero' => false,
-                'col_null' => false,
-                'col_garbage' => false,
-            ],
-            $setting->columns
-        );
+        $expected = [
+            'col_true_string' => true,
+            'col_false_string' => false,
+            'col_one' => true,
+            'col_zero' => false,
+            'col_int_one' => true,
+            'col_int_zero' => false,
+            'col_null' => false,
+            'col_garbage' => false,
+            'bank_commission_total' => false,
+            'platform_commission' => false,
+            'net_to_partner' => false,
+            'refund_status' => false,
+        ];
+        $this->assertSame($expected, $setting->columns);
     }
 
     /**
@@ -1137,7 +1502,9 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
-     * (P1) Чекбоксы колонок комиссий / к выплате / статус возврата: disabled без reports.additional.value.view.
+     * (P1) Без reports.additional.value.view чекбоксы «чувствительных» колонок не выводятся в меню (Blade).
+     *
+     * Колонки «Комиссия» (сводно) и «Выплата» остаются в разметке и не помечены disabled на сервере.
      */
     public function test_payments_page_sensitive_column_toggles_disabled_without_reports_additional_value_permission(): void
     {
@@ -1152,14 +1519,14 @@ class PaymentReportTest extends CrmTestCase
             [
                 'payColBankCommission',
                 'payColPlatformCommission',
-                'payColCommissionTotal',
                 'payColNetToPartner',
                 'payColRefundStatus',
             ] as $inputId
         ) {
-            $this->assertCheckboxInputHasDisabledAttribute($html, $inputId, true);
+            $this->assertStringNotContainsString('id="' . $inputId . '"', $html, 'Не должно быть чекбокса #' . $inputId);
         }
 
+        $this->assertCheckboxInputHasDisabledAttribute($html, 'payColCommissionTotal', false);
         $this->assertCheckboxInputHasDisabledAttribute($html, 'payColPayout', false);
     }
 
@@ -1282,6 +1649,61 @@ class PaymentReportTest extends CrmTestCase
             ->postJson(route('payments.refund', ['payment' => $paymentRefund->id]), [])
             ->assertOk()
             ->assertJsonFragment(['message' => 'refund_created']);
+    }
+
+    /**
+     * (P0) Контроль доступа: при полном наборе прав все основные HTTP-эндпоинты отчёта «Платежи» отвечают 200.
+     *
+     * Дополняет test_payments_report_page_and_all_endpoints_return_200_for_fully_authorized_user:
+     * total, поиск учеников/групп, JSON-шапка без фильтров.
+     */
+    public function test_payments_report_all_http_entrypoints_return_200_with_full_permission_bundle(): void
+    {
+        foreach (
+            [
+                'viewing.all.logs',
+                'reports.additional.value.view',
+                'reports.payments.totals.net_to_partner.view',
+                'reports.payments.totals.payout_amount.view',
+                'reports.payments.totals.platform_commission.view',
+            ] as $perm
+        ) {
+            $this->grantPermissionToCurrentUserRole($perm);
+        }
+
+        $ps = new PaymentSystem();
+        $ps->partner_id = $this->partner->id;
+        $ps->name = 'tbank';
+        $ps->save();
+
+        $this->get(route('payments'))->assertOk();
+
+        $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'))
+            ->assertOk();
+
+        $this->getJson(route('reports.payments.total'))->assertOk();
+
+        $this->getJson(route('reports.payments.users.search', ['q' => '']))->assertOk();
+        $this->getJson(route('reports.payments.teams.search', ['q' => '']))->assertOk();
+
+        $this->get('/admin/reports/payments/columns-settings')->assertOk();
+
+        $this->postJson('/admin/reports/payments/columns-settings', [
+            'columns' => ['user_name' => true],
+        ])->assertOk();
+
+        $paymentHistory = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 100.00,
+            'deal_id' => 'deal-http-surface-'.uniqid(),
+            'payment_id' => '888001',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        $this->get(route('payments.tbankHistory', ['payment' => $paymentHistory->id]))->assertOk();
     }
 
     public function test_reports_payments_users_search_scoped_to_partner_and_matches_name_or_lastname(): void

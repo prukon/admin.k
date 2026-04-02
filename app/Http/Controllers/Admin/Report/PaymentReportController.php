@@ -296,7 +296,37 @@ class PaymentReportController extends AdminBaseController
                 'fiscal_return_receipt.status as fiscal_return_receipt_status',
                 'pi_tbank.payment_method_webhook as intent_payment_method_webhook',
                 'pi_tbank.payment_method as intent_payment_method_init'
-            );
+            )
+            ->addSelect([
+                'latest_refund_status' => Refund::query()
+                    ->select('refunds.status')
+                    ->whereColumn('refunds.payment_id', 'payments.id')
+                    ->orderByDesc('refunds.id')
+                    ->limit(1),
+            ]);
+    }
+
+    /**
+     * Последний по id возврат в pending/succeeded: расчётные комиссии и «к выплате» не показываем.
+     */
+    private function paymentRowHasBlockingRefund(Payment $row): bool
+    {
+        $status = null;
+        $attrs = $row->getAttributes();
+        if (array_key_exists('latest_refund_status', $attrs)) {
+            $status = $attrs['latest_refund_status'];
+        } else {
+            $status = Refund::query()
+                ->where('payment_id', $row->id)
+                ->orderByDesc('id')
+                ->value('status');
+        }
+
+        if ($status === null || $status === '') {
+            return false;
+        }
+
+        return in_array((string) $status, ['pending', 'succeeded'], true);
     }
 
     //Данные для отчета Платежи
@@ -488,6 +518,10 @@ class PaymentReportController extends AdminBaseController
                     return null;
                 }
 
+                if ($this->paymentRowHasBlockingRefund($row)) {
+                    return null;
+                }
+
                 $grossCents = (int) round(((float) $row->summ) * 100);
 
                 // method из TinkoffPayment
@@ -526,6 +560,10 @@ class PaymentReportController extends AdminBaseController
                     return null;
                 }
 
+                if ($this->paymentRowHasBlockingRefund($row)) {
+                    return null;
+                }
+
                 $grossCents = (int) round(((float) $row->summ) * 100);
 
                 $method = null;
@@ -555,6 +593,10 @@ class PaymentReportController extends AdminBaseController
                 }
 
                 if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+                    return null;
+                }
+
+                if ($this->paymentRowHasBlockingRefund($row)) {
                     return null;
                 }
 
@@ -590,6 +632,10 @@ class PaymentReportController extends AdminBaseController
                     return null;
                 }
 
+                if ($this->paymentRowHasBlockingRefund($row)) {
+                    return null;
+                }
+
                 $grossCents = (int) round(((float) $row->summ) * 100);
 
                 $method = null;
@@ -621,6 +667,10 @@ class PaymentReportController extends AdminBaseController
             })
             ->addColumn('commission_total', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents) {
                 if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+                    return null;
+                }
+
+                if ($this->paymentRowHasBlockingRefund($row)) {
                     return null;
                 }
 
@@ -672,6 +722,10 @@ class PaymentReportController extends AdminBaseController
                     return null;
                 }
 
+                if ($this->paymentRowHasBlockingRefund($row)) {
+                    return null;
+                }
+
                 $grossCents = (int) round(((float) $row->summ) * 100);
 
                 $method = null;
@@ -717,6 +771,13 @@ class PaymentReportController extends AdminBaseController
                     return '';
                 }
 
+                $attrs = $row->getAttributes();
+                if (array_key_exists('latest_refund_status', $attrs)) {
+                    $v = $attrs['latest_refund_status'];
+
+                    return ($v !== null && $v !== '') ? (string) $v : '';
+                }
+
                 $refund = Refund::query()
                     ->where('payment_id', $row->id)
                     ->orderByDesc('id')
@@ -734,12 +795,6 @@ class PaymentReportController extends AdminBaseController
                 if ($provider === 'robokassa') {
                     return '';
                 }
-
-                // Последний рефанд по этому платежу
-                $refund = Refund::query()
-                    ->where('payment_id', $row->id)
-                    ->orderByDesc('id')
-                    ->first();
 
                 $tbankIntent = null;
                 $pidStr = (is_string($row->payment_id) || is_numeric($row->payment_id))
@@ -770,9 +825,16 @@ class PaymentReportController extends AdminBaseController
                 $disabled = false;
                 $title = '';
 
-                if ($refund && in_array((string) $refund->status, ['pending', 'succeeded'], true)) {
+                if ($this->paymentRowHasBlockingRefund($row)) {
                     $disabled = true;
-                    $title = (string) $refund->status === 'pending'
+                    $attrs = $row->getAttributes();
+                    $st = (array_key_exists('latest_refund_status', $attrs) && $attrs['latest_refund_status'] !== null && $attrs['latest_refund_status'] !== '')
+                        ? (string) $attrs['latest_refund_status']
+                        : (string) (Refund::query()
+                            ->where('payment_id', $row->id)
+                            ->orderByDesc('id')
+                            ->value('status') ?? '');
+                    $title = $st === 'pending'
                         ? 'Возврат уже в обработке'
                         : 'Платёж уже возвращён';
                 }
@@ -980,7 +1042,7 @@ class PaymentReportController extends AdminBaseController
 
     /**
      * Агрегаты для шапки отчёта «Платежи» (те же фильтры и строки, что и таблица).
-     * net_to_partner / platform_commission — та же формула, что в getPayments; payout_amount — из tinkoff_payouts COMPLETED.
+     * net_to_partner / platform_commission — та же формула, что в getPayments (строки с возвратом pending/succeeded не суммируются); payout_amount — из tinkoff_payouts COMPLETED.
      *
      * @return array{sum_payments: float, net_to_partner: float, platform_commission: float, payout_amount: float}
      */
@@ -1113,6 +1175,10 @@ class PaymentReportController extends AdminBaseController
             return null;
         }
 
+        if ($this->paymentRowHasBlockingRefund($row)) {
+            return null;
+        }
+
         $grossCents = (int) round(((float) $row->summ) * 100);
         $method = $this->paymentRowTbankMethod($row, $partnerId);
         $rule = $this->pickCommissionRuleForToolbar($commissionRules, (int) $partnerId, $method);
@@ -1144,6 +1210,10 @@ class PaymentReportController extends AdminBaseController
     private function paymentRowPlatformCommissionAmount(Payment $row, int $partnerId, Collection $commissionRules): ?float
     {
         if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+            return null;
+        }
+
+        if ($this->paymentRowHasBlockingRefund($row)) {
             return null;
         }
 
