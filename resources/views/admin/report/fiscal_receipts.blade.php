@@ -117,6 +117,29 @@
         vertical-align: middle;
     }
 
+    #fiscal-receipts-table th.fiscal-payload-th--json,
+    #fiscal-receipts-table td.fiscal-payload-td--json {
+        max-width: 26rem;
+        min-width: 12rem;
+        white-space: normal;
+        vertical-align: top;
+    }
+
+    .fiscal-payload-preview {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 0.75rem;
+        line-height: 1.35;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 14rem;
+        overflow: auto;
+        margin: 0 0 0.35rem 0;
+        padding: 0.35rem 0.45rem;
+        background: var(--bs-tertiary-bg, #f8f9fa);
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: 0.25rem;
+    }
+
     .fiscal-payload-actions {
         display: inline-flex;
         align-items: center;
@@ -251,8 +274,8 @@
             <th>Сумма</th>
             <th>External ID</th>
             <th>Ошибка</th>
-            <th class="fiscal-payload-th">Request Payload</th>
-            <th class="fiscal-payload-th">Response Payload</th>
+            <th class="fiscal-payload-th fiscal-payload-th--json">Request Payload</th>
+            <th class="fiscal-payload-th fiscal-payload-th--json">Response Payload</th>
             <th class="fiscal-payload-th">Webhook Payload</th>
             <th>Создано</th>
             <th>В очереди</th>
@@ -492,13 +515,45 @@
                 return '<span class="badge bg-light text-dark">' + $('<div/>').text(s).html() + '</span>';
             }
 
+            /**
+             * Снимает HTML-сущности (например &quot;), если payload пришёл экранированным.
+             * Порядок: сначала &amp;, чтобы корректно обработать двойное экранирование.
+             */
+            function decodeHtmlEntitiesSafe(input) {
+                var s = String(input);
+                if (s.indexOf('&') === -1) {
+                    return s;
+                }
+                var prev;
+                var guard = 0;
+                do {
+                    prev = s;
+                    s = s
+                        .replace(/&amp;/g, '&')
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#0*39;/g, "'")
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>');
+                    guard++;
+                } while (s !== prev && guard < 5);
+                return s;
+            }
+
             function formatPayloadPretty(text) {
-                var t = String(text).trim();
+                var t = decodeHtmlEntitiesSafe(String(text)).trim();
                 if (!t) return '';
                 try {
                     return JSON.stringify(JSON.parse(t), null, 2);
                 } catch (e) {
                     return t;
+                }
+            }
+
+            function prettyJsonOrDecoded(decoded) {
+                try {
+                    return JSON.stringify(JSON.parse(decoded), null, 2);
+                } catch (e) {
+                    return decoded;
                 }
             }
 
@@ -562,13 +617,45 @@
                 }
             }
 
+            /**
+             * Request / Response: в ячейке — отформатированный JSON (текст экранируется, без innerHTML от сырого payload).
+             */
+            function renderJsonPayloadCell(payloadText, title) {
+                if (!payloadText) {
+                    return '<span class="text-muted">—</span>';
+                }
+
+                var decoded = decodeHtmlEntitiesSafe(String(payloadText)).trim();
+                var displayText = prettyJsonOrDecoded(decoded);
+                var safeDisplay = $('<div/>').text(displayText).html();
+                var safeTitle = $('<div/>').text(title).html();
+                var safeCopy = $('<div/>').text(displayText).html();
+
+                return (
+                    '<div class="fiscal-payload-cell fiscal-payload-cell--json" data-title="' + safeTitle + '">' +
+                    '<pre class="fiscal-payload-preview" role="region" aria-label="' + safeTitle + '">' + safeDisplay + '</pre>' +
+                    '<div class="fiscal-payload-actions">' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary js-show-fiscal-payload" title="Показать">' +
+                    '<i class="fas fa-eye" aria-hidden="true"></i>' +
+                    '<span class="visually-hidden">Показать</span>' +
+                    '</button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary js-copy-fiscal-payload" title="Копировать">' +
+                    '<i class="fas fa-copy" aria-hidden="true"></i>' +
+                    '<span class="visually-hidden">Копировать</span>' +
+                    '</button>' +
+                    '</div>' +
+                    '<span class="fiscal-payload-full d-none">' + safeCopy + '</span>' +
+                    '</div>'
+                );
+            }
+
             function renderPayloadActions(payloadText, title) {
                 if (!payloadText) {
                     return '<span class="text-muted">—</span>';
                 }
 
-                var text = String(payloadText);
-                var safe = $('<div/>').text(text).html();
+                var decoded = decodeHtmlEntitiesSafe(String(payloadText)).trim();
+                var safe = $('<div/>').text(decoded).html();
 
                 return (
                     '<div class="fiscal-payload-actions fiscal-payload-cell" data-title="' + $('<div/>').text(title).html() + '">' +
@@ -659,7 +746,7 @@
                         orderable: false,
                         render: function (data, type, row) {
                             if (type !== 'display') return data || '';
-                            return renderPayloadActions(data, 'Request Payload');
+                            return renderJsonPayloadCell(data, 'Request Payload');
                         }
                     },
                     {
@@ -668,7 +755,7 @@
                         orderable: false,
                         render: function (data, type, row) {
                             if (type !== 'display') return data || '';
-                            return renderPayloadActions(data, 'Response Payload');
+                            return renderJsonPayloadCell(data, 'Response Payload');
                         }
                     },
                     {
@@ -705,8 +792,8 @@
 
             table.on('draw', function () {
                 $('#fiscal-receipts-table td:nth-child(10), ' +
-                  '#fiscal-receipts-table td:nth-child(11), ' +
-                  '#fiscal-receipts-table td:nth-child(12)').addClass('fiscal-payload-td');
+                  '#fiscal-receipts-table td:nth-child(11)').addClass('fiscal-payload-td fiscal-payload-td--json');
+                $('#fiscal-receipts-table td:nth-child(12)').addClass('fiscal-payload-td');
             });
 
             function applyVisibleColumns(config) {
