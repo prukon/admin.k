@@ -102,4 +102,55 @@ class TbankPayoutDuplicatePreventionTest extends CrmTestCase
         $this->assertNotNull($payout->id);
         $this->assertSame(2, TinkoffPayout::where('payment_id', $payment->id)->count());
     }
+
+    public function test_createAndRunPayout_auto_second_call_returns_same_row_without_duplicate(): void
+    {
+        $payment = $this->createPaymentWithPartner();
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, '/e2c/v2/Init')) {
+                return Http::response(['Success' => true, 'PaymentId' => 8101], 200);
+            }
+            if (str_contains($url, '/e2c/v2/Payment')) {
+                return Http::response(['Success' => true, 'Status' => 'COMPLETED'], 200);
+            }
+            if (str_contains($url, '/e2c/v2/GetState')) {
+                return Http::response(['Success' => true, 'Status' => 'COMPLETED'], 200);
+            }
+            return Http::response([], 200);
+        });
+
+        $svc = app(TinkoffPayoutsService::class);
+
+        $first = $svc->createAndRunPayout($payment, true, null, 'auto', null);
+        $second = $svc->createAndRunPayout($payment, true, null, 'auto', null);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame(1, TinkoffPayout::where('payment_id', $payment->id)->count());
+    }
+
+    public function test_createAndRunPayout_auto_does_not_create_new_when_last_is_rejected(): void
+    {
+        $payment = $this->createPaymentWithPartner();
+
+        $rejected = TinkoffPayout::create([
+            'payment_id' => $payment->id,
+            'partner_id' => $this->partner->id,
+            'deal_id' => $payment->deal_id,
+            'amount' => 9500,
+            'status' => 'REJECTED',
+            'source' => 'auto',
+            'completed_at' => now(),
+        ]);
+
+        Http::fake();
+
+        $svc = app(TinkoffPayoutsService::class);
+        $result = $svc->createAndRunPayout($payment, true, null, 'auto', null);
+
+        $this->assertSame($rejected->id, $result->id);
+        $this->assertSame(1, TinkoffPayout::where('payment_id', $payment->id)->count());
+        Http::assertNothingSent();
+    }
 }

@@ -9,6 +9,7 @@ use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class TinkoffPayoutsService
@@ -86,6 +87,19 @@ class TinkoffPayoutsService
                 ->lockForUpdate()
                 ->orderByDesc('id')
                 ->first();
+
+            // Автовыплата из вебхука: не более одной строки на платёж — повторные CONFIRMED не плодят выплаты
+            // и не делают «вторую попытку» после REJECTED (повтор только вручную).
+            if ($source === 'auto' && $existing) {
+                Log::channel('tinkoff')->info('[auto-payout skipped: payout already exists]', [
+                    'payment_id' => (int) $payment->id,
+                    'existing_payout_id' => (int) $existing->id,
+                    'existing_status' => (string) $existing->status,
+                ]);
+
+                return $existing;
+            }
+
             if ($existing && (string) $existing->status !== 'REJECTED') {
                 // Ручной override: если была запланирована выплата, а сейчас жмём "выплатить сейчас" —
                 // запускаем её немедленно и фиксируем инициатора.
