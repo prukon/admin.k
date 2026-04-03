@@ -244,7 +244,9 @@
     }
 
     #payment-intents-table th.payment-intent-meta-th,
-    #payment-intents-table td.payment-intent-meta-td {
+    #payment-intents-table td.payment-intent-meta-td,
+    #payment-intents-table th.payment-intent-client-ua-th,
+    #payment-intents-table td.payment-intent-client-ua-td {
         width: 1%;
         max-width: 5.5rem;
         white-space: nowrap;
@@ -264,15 +266,25 @@
         word-break: break-word;
     }
 
-    #payment-intents-table th.payment-intent-client-ua-th,
-    #payment-intents-table td.payment-intent-client-ua-td,
+    /* Одинаковые правила для th и td — иначе при scrollX у DataTables разъезжаются ширины шапки и тела */
     #payment-intents-table th.payment-intent-client-ref-th,
     #payment-intents-table td.payment-intent-client-ref-td {
-        max-width: 14rem;
+        min-width: 6rem;
+        max-width: 12rem;
         white-space: normal;
         word-break: break-word;
         vertical-align: middle;
         font-size: 0.8125rem;
+    }
+
+    #payment-intents-table_wrapper .dataTables_scrollHead table,
+    #payment-intents-table_wrapper .dataTables_scrollBody table {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    #payment-intents-table_wrapper .dataTables_scrollHead {
+        overflow: hidden !important;
     }
 </style>
 
@@ -705,6 +717,12 @@
                 columnDefs: [
                     {targets: -1, className: 'payment-intent-meta-td'}
                 ],
+                initComplete: function () {
+                    this.api().columns.adjust();
+                },
+                drawCallback: function () {
+                    this.api().columns.adjust();
+                },
                 columns: [
                     {data: 'id', name: 'id'},
                     {data: 'provider_inv_id', name: 'provider_inv_id'},
@@ -845,9 +863,30 @@
                     {
                         data: 'client_user_agent',
                         name: 'client_user_agent',
+                        orderable: false,
                         className: 'payment-intent-client-ua-td',
                         render: function (data, type, row) {
-                            return renderClientLongText(data, type, 120);
+                            if (!data) {
+                                return '';
+                            }
+                            var text = String(data);
+                            if (type !== 'display') {
+                                return text;
+                            }
+                            var safe = $('<div/>').text(text).html();
+                            return (
+                                '<div class="payment-intent-meta-actions payment-intent-ua-cell">' +
+                                '<button type="button" class="btn btn-sm btn-outline-secondary js-show-payment-intent-ua" title="Показать">' +
+                                '<i class="fas fa-eye" aria-hidden="true"></i>' +
+                                '<span class="visually-hidden">Показать</span>' +
+                                '</button>' +
+                                '<button type="button" class="btn btn-sm btn-outline-secondary js-copy-payment-intent-ua" title="Копировать">' +
+                                '<i class="fas fa-copy" aria-hidden="true"></i>' +
+                                '<span class="visually-hidden">Копировать</span>' +
+                                '</button>' +
+                                '<span class="payment-intent-ua-full d-none">' + safe + '</span>' +
+                                '</div>'
+                            );
                         }
                     },
                     {
@@ -1015,7 +1054,20 @@
                 e.stopPropagation();
                 var full = $(this).closest('.payment-intent-meta-cell').find('.payment-intent-meta-full').text();
                 var $pre = $('#paymentIntentMetaModal .payment-intent-meta-modal-pre');
+                $('#paymentIntentMetaModalLabel').text('Мета');
                 $pre.text(formatMetaPretty(full));
+                if (metaModal) {
+                    metaModal.show();
+                }
+            });
+
+            $('#payment-intents-table').on('click', '.js-show-payment-intent-ua', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var full = $(this).closest('.payment-intent-ua-cell').find('.payment-intent-ua-full').text();
+                var $pre = $('#paymentIntentMetaModal .payment-intent-meta-modal-pre');
+                $('#paymentIntentMetaModalLabel').text('User-Agent');
+                $pre.text(full);
                 if (metaModal) {
                     metaModal.show();
                 }
@@ -1025,6 +1077,13 @@
                 e.preventDefault();
                 e.stopPropagation();
                 var full = $(this).closest('.payment-intent-meta-cell').find('.payment-intent-meta-full').text();
+                copyTextToClipboard(full, $(this));
+            });
+
+            $('#payment-intents-table').on('click', '.js-copy-payment-intent-ua', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var full = $(this).closest('.payment-intent-ua-cell').find('.payment-intent-ua-full').text();
                 copyTextToClipboard(full, $(this));
             });
 
