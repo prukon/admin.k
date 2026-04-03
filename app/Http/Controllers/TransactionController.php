@@ -3,24 +3,16 @@
 namespace App\Http\Controllers;
 
 //use App\Models\ClientPayment;
-use App\Models\Partner;
-use App\Models\PartnerPayment;
 
-use App\Models\Payment;
-use App\Models\PaymentIntent;
 use App\Models\Payable;
+use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
-use App\Models\Team;
-use App\Models\User;
-use App\Models\UserPrice;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\PaymentService;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
 use App\Support\Payments\PaymentOutSumNormalizer;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class TransactionController extends Controller
 {
@@ -50,7 +42,7 @@ class TransactionController extends Controller
         // Разделение строки на месяц и год
         $parts = explode(' ', $month);
         if (count($parts) === 2 && isset($months[$parts[0]])) {
-            $month = $months[$parts[0]] . ' ' . $parts[1]; // Замена русского месяца на английский
+            $month = $months[$parts[0]].' '.$parts[1]; // Замена русского месяца на английский
         } else {
             return null; // Если формат не соответствует "Месяц Год", возвращаем null
         }
@@ -63,9 +55,11 @@ class TransactionController extends Controller
             if ($date) {
                 return $date->format('Y-m-01');
             }
+
             return null; // Возвращаем null, если не удалось преобразовать
         } catch (\Exception $e) {
-            Log::error('Ошибка преобразования даты: ' . $e->getMessage());
+            Log::error('Ошибка преобразования даты: '.$e->getMessage());
+
             return null;
         }
     }
@@ -153,7 +147,7 @@ class TransactionController extends Controller
                 abort(422, 'Некорректная сумма');
             }
             $paymentDate = 'Клубный взнос';
-            if (!$request->has('formatedPaymentDate')) {
+            if (! $request->has('formatedPaymentDate')) {
                 Log::warning('formatedPaymentDate отсутствует в запросе');
             }
         }
@@ -163,7 +157,7 @@ class TransactionController extends Controller
             ->where('name', 'robokassa')
             ->first();
 
-        if (!$paymentSystem || !$paymentSystem->is_connected) {
+        if (! $paymentSystem || ! $paymentSystem->is_connected) {
             Log::error('Попытка оплаты, но Робокасса не подключена или не настроена');
             abort(500, 'Платёжная система не подключена');
         }
@@ -172,7 +166,7 @@ class TransactionController extends Controller
         $mrhLogin = $settings['merchant_login'] ?? null;
         $mrhPass1 = $settings['password1'] ?? null;
 
-        if (!$mrhLogin || !$mrhPass1) {
+        if (! $mrhLogin || ! $mrhPass1) {
             Log::error('Отсутствуют обязательные параметры для Робокассы');
             abort(500, 'Ошибка конфигурации платёжной системы');
         }
@@ -189,28 +183,28 @@ class TransactionController extends Controller
 
         $payable = Payable::create([
             'partner_id' => $partnerId,
-            'user_id'    => $userId,
-            'type'       => $type,
-            'amount'     => $outSum,
-            'currency'   => 'RUB',
-            'status'     => 'pending',
-            'month'      => $month,
-            'meta'       => $payableMeta,
+            'user_id' => $userId,
+            'type' => $type,
+            'amount' => $outSum,
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'month' => $month,
+            'meta' => $payableMeta,
         ]);
 
         // Создаём intent на стороне нашей системы и используем его для сопоставления вебхуков.
-        $intent = PaymentIntent::create([
-            'partner_id'   => $partnerId,
-            'user_id'      => $userId,
-            'payable_id'   => $payable->id,
-            'provider'     => 'robokassa',
-            'status'       => 'pending',
-            'out_sum'      => $outSum,
+        $intent = PaymentIntent::create(array_merge([
+            'partner_id' => $partnerId,
+            'user_id' => $userId,
+            'payable_id' => $payable->id,
+            'provider' => 'robokassa',
+            'status' => 'pending',
+            'out_sum' => $outSum,
             'payment_date' => $paymentDate,
-            'meta'         => json_encode([
+            'meta' => json_encode([
                 'user_name' => $userName,
             ], JSON_UNESCAPED_UNICODE),
-        ]);
+        ], PaymentIntentClientContext::fromRequest($request)));
 
         // На всякий случай (защита от future-regressions с fillable)
         if (empty($intent->payable_id)) {
@@ -225,7 +219,7 @@ class TransactionController extends Controller
         $intent->save();
 
         $invId = (string) $providerInvId;
-        $isTest = !empty($settings['test_mode']); // для Robokassa IsTest
+        $isTest = ! empty($settings['test_mode']); // для Robokassa IsTest
         $receiptJson = [
             'items' => [
                 [
@@ -246,35 +240,36 @@ class TransactionController extends Controller
         $signature = md5("$mrhLogin:$outSum:$invId:$receipt:$mrhPass1:Shp_paymentDate=$paymentDate:Shp_userId=$userId");
 
         // Формируем URL оплаты
-        $paymentUrl = "https://auth.robokassa.ru/Merchant/Index.aspx?" . http_build_query([
-                'MerchantLogin'    => $mrhLogin,
-                'OutSum'           => $outSum,
-                'InvId'            => $invId,
-                'Description'      => $description,
-                'Shp_paymentDate'  => $paymentDate,
-                'Shp_userId'       => $userId,
-                'SignatureValue'   => $signature,
-                'Receipt'          => $receipt,
-                'IsTest'           => $isTest ? 1 : 0,
-            ]);
+        $paymentUrl = 'https://auth.robokassa.ru/Merchant/Index.aspx?'.http_build_query([
+            'MerchantLogin' => $mrhLogin,
+            'OutSum' => $outSum,
+            'InvId' => $invId,
+            'Description' => $description,
+            'Shp_paymentDate' => $paymentDate,
+            'Shp_userId' => $userId,
+            'SignatureValue' => $signature,
+            'Receipt' => $receipt,
+            'IsTest' => $isTest ? 1 : 0,
+        ]);
 
         return redirect()->to($paymentUrl);
     }
 
-//    Успешная оплата (для юзеров и партнеров)
+    //    Успешная оплата (для юзеров и партнеров)
     public function success(Request $request)
     {
         return view('payment.success'); // Предполагается, что у вас есть такой вид
     }
 
-//    Неудачная оплата (для юзеров и партнеров)
+    //    Неудачная оплата (для юзеров и партнеров)
     public function fail(Request $request)
     {
         Log::error('Переход на страницу неудачной оплаты', $request->all());
+
         return view('payment.fail'); // Предполагается, что у вас есть такой вид
     }
 
-        //Страница Клубный взнос
+    //Страница Клубный взнос
     public function clubFee(Request $request, PaymentService $paymentService)
     {
         $curPartner = app('current_partner');
@@ -300,14 +295,4 @@ class TransactionController extends Controller
             'tbankSbpAvailable'
         ));
     }
-
 }
-
-
-
-
-
-
-
-
-

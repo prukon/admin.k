@@ -103,7 +103,31 @@
                                 <label class="form-check-label" for="piColPaidAt">Дата оплаты</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColMeta" data-column-key="meta" data-column-index="11" checked>
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColDeviceType" data-column-key="client_device_type" data-column-index="11" checked>
+                                <label class="form-check-label" for="piColDeviceType">Тип устройства</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientOs" data-column-key="client_os" data-column-index="12" checked>
+                                <label class="form-check-label" for="piColClientOs">ОС</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientBrowser" data-column-key="client_browser" data-column-index="13" checked>
+                                <label class="form-check-label" for="piColClientBrowser">Браузер</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientUa" data-column-key="client_user_agent" data-column-index="14" checked>
+                                <label class="form-check-label" for="piColClientUa">User-Agent</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientIp" data-column-key="client_ip" data-column-index="15" checked>
+                                <label class="form-check-label" for="piColClientIp">IP</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColClientRef" data-column-key="client_referrer" data-column-index="16" checked>
+                                <label class="form-check-label" for="piColClientRef">Referrer</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input payment-intents-column-toggle" type="checkbox" id="piColMeta" data-column-key="meta" data-column-index="17" checked>
                                 <label class="form-check-label" for="piColMeta">Мета</label>
                             </div>
                         </div>
@@ -239,6 +263,17 @@
         white-space: pre-wrap;
         word-break: break-word;
     }
+
+    #payment-intents-table th.payment-intent-client-ua-th,
+    #payment-intents-table td.payment-intent-client-ua-td,
+    #payment-intents-table th.payment-intent-client-ref-th,
+    #payment-intents-table td.payment-intent-client-ref-td {
+        max-width: 14rem;
+        white-space: normal;
+        word-break: break-word;
+        vertical-align: middle;
+        font-size: 0.8125rem;
+    }
 </style>
 
 <div class="modal fade" id="paymentIntentMetaModal" tabindex="-1" aria-labelledby="paymentIntentMetaModalLabel"
@@ -277,6 +312,12 @@
             <th>Оплаченный месяц</th>
             <th>Создано</th>
             <th>Дата оплаты</th>
+            <th>Тип устройства</th>
+            <th>ОС</th>
+            <th>Браузер</th>
+            <th class="payment-intent-client-ua-th">User-Agent</th>
+            <th>IP</th>
+            <th class="payment-intent-client-ref-th">Referrer</th>
             <th class="payment-intent-meta-th">Мета</th>
         </tr>
         </thead>
@@ -561,6 +602,56 @@
                 return '<span class="badge bg-light text-dark">' + $('<div/>').text(s).html() + '</span>';
             }
 
+            function formatClientDeviceTypeLabel(code) {
+                if (!code) return '';
+                var c = String(code);
+                var map = {
+                    mobile: 'мобильное',
+                    tablet: 'планшет',
+                    desktop: 'ПК',
+                    bot: 'бот',
+                    unknown: 'неизвестно'
+                };
+                return map[c] || c;
+            }
+
+            function joinClientOsBrowserParts(family, version) {
+                var a = family ? String(family).trim() : '';
+                var b = version ? String(version).trim() : '';
+                if (a && b) {
+                    return a + ' ' + b;
+                }
+                return a || b || '';
+            }
+
+            function escapeHtmlAttr(s) {
+                return String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            }
+
+            function renderClientLongText(data, type, maxPreview) {
+                if (data === null || data === undefined) {
+                    data = '';
+                }
+                var text = String(data);
+                if (type !== 'display') {
+                    return text;
+                }
+                if (!text) {
+                    return '<span class="text-muted">—</span>';
+                }
+                var preview = text;
+                if (maxPreview && preview.length > maxPreview) {
+                    preview = preview.slice(0, maxPreview) + '…';
+                }
+                var safePreview = $('<div/>').text(preview).html();
+                return '<span title="' + escapeHtmlAttr(text) + '">' + safePreview + '</span>';
+            }
+
             function flashCopyButton($btn) {
                 var origHtml = $btn.html();
                 $btn.prop('disabled', true).html('<i class="fas fa-check text-success" aria-hidden="true"></i>');
@@ -711,6 +802,76 @@
                         }
                     },
                     {
+                        data: 'client_device_type',
+                        name: 'client_device_type',
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            if (!data) {
+                                return '<span class="text-muted">—</span>';
+                            }
+                            return $('<div/>').text(formatClientDeviceTypeLabel(data)).html();
+                        }
+                    },
+                    {
+                        data: null,
+                        name: 'client_os_family',
+                        render: function (data, type, row) {
+                            var joined = joinClientOsBrowserParts(row.client_os_family, row.client_os_version);
+                            if (type !== 'display') {
+                                return joined;
+                            }
+                            if (!joined) {
+                                return '<span class="text-muted">—</span>';
+                            }
+                            return $('<div/>').text(joined).html();
+                        }
+                    },
+                    {
+                        data: null,
+                        name: 'client_browser_family',
+                        render: function (data, type, row) {
+                            var joined = joinClientOsBrowserParts(row.client_browser_family, row.client_browser_version);
+                            if (type !== 'display') {
+                                return joined;
+                            }
+                            if (!joined) {
+                                return '<span class="text-muted">—</span>';
+                            }
+                            return $('<div/>').text(joined).html();
+                        }
+                    },
+                    {
+                        data: 'client_user_agent',
+                        name: 'client_user_agent',
+                        className: 'payment-intent-client-ua-td',
+                        render: function (data, type, row) {
+                            return renderClientLongText(data, type, 120);
+                        }
+                    },
+                    {
+                        data: 'client_ip',
+                        name: 'client_ip',
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            if (!data) {
+                                return '<span class="text-muted">—</span>';
+                            }
+                            return $('<div/>').text(String(data)).html();
+                        }
+                    },
+                    {
+                        data: 'client_referrer',
+                        name: 'client_referrer',
+                        className: 'payment-intent-client-ref-td',
+                        render: function (data, type, row) {
+                            return renderClientLongText(data, type, 80);
+                        }
+                    },
+                    {
                         data: 'meta',
                         name: 'meta',
                         orderable: false,
@@ -756,6 +917,12 @@
                 payment_date: true,
                 created_at: true,
                 paid_at: true,
+                client_device_type: true,
+                client_os: true,
+                client_browser: true,
+                client_user_agent: true,
+                client_ip: true,
+                client_referrer: true,
                 meta: true
             };
 
@@ -771,7 +938,13 @@
                 payment_date: 8,
                 created_at: 9,
                 paid_at: 10,
-                meta: 11
+                client_device_type: 11,
+                client_os: 12,
+                client_browser: 13,
+                client_user_agent: 14,
+                client_ip: 15,
+                client_referrer: 16,
+                meta: 17
             };
 
             function toBool(val, fallback) {

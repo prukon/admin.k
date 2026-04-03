@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Tinkoff\CreatePaymentRequest;
 use App\Http\Requests\Tinkoff\CreateSbpPaymentRequest;
-use Illuminate\Http\Request;
-use App\Models\PaymentIntent;
 use App\Models\Payable;
+use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
+use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
 use App\Services\Tinkoff\TinkoffPaymentsService;
 use App\Support\Payments\PaymentOutSumNormalizer;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class TinkoffPaymentController extends Controller
@@ -18,14 +19,15 @@ class TinkoffPaymentController extends Controller
     public function create2(Request $r, TinkoffPaymentsService $svc)
     {
         // TODO: получить partner_id/amount/method из твоей формы
-        $partnerId = (int)$r->input('partner_id');
-        $amount = (int)$r->input('amount'); // копейки
+        $partnerId = (int) $r->input('partner_id');
+        $amount = (int) $r->input('amount'); // копейки
         $method = $r->input('method'); // card/sbp/tpay
         $payment = $svc->initPayment($partnerId, $amount, $method);
 
         if ($payment->payment_url) {
             return redirect()->away($payment->payment_url);
         }
+
         return back()->with('error', 'Не удалось инициализировать оплату');
     }
 
@@ -35,7 +37,7 @@ class TinkoffPaymentController extends Controller
 
         // Показываем метод оплаты только если он реально настроен
         $ps = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
-        if (!$ps || !$ps->is_connected) {
+        if (! $ps || ! $ps->is_connected) {
             return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена для текущего партнёра']);
         }
         if (empty(app('current_partner')->tinkoff_partner_id)) {
@@ -80,13 +82,13 @@ class TinkoffPaymentController extends Controller
 
         $payable = Payable::create([
             'partner_id' => $partnerId,
-            'user_id'    => $userId,
-            'type'       => $type,
-            'amount'     => $outSum,
-            'currency'   => 'RUB',
-            'status'     => 'pending',
-            'month'      => $month,
-            'meta'       => $payableMeta,
+            'user_id' => $userId,
+            'type' => $type,
+            'amount' => $outSum,
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'month' => $month,
+            'meta' => $payableMeta,
         ]);
 
         $bankMethod = (string) ($r->input('method') ?: 'card');
@@ -96,19 +98,19 @@ class TinkoffPaymentController extends Controller
             default => 'card',
         };
 
-        $intent = PaymentIntent::create([
-            'partner_id'      => $partnerId,
-            'user_id'         => $userId,
-            'payable_id'      => $payable->id,
-            'provider'        => 'tbank',
-            'payment_method'  => $intentPaymentMethod,
-            'status'          => 'pending',
-            'out_sum'         => $outSum,
-            'payment_date'    => $paymentDate,
-            'meta'            => json_encode([
+        $intent = PaymentIntent::create(array_merge([
+            'partner_id' => $partnerId,
+            'user_id' => $userId,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'payment_method' => $intentPaymentMethod,
+            'status' => 'pending',
+            'out_sum' => $outSum,
+            'payment_date' => $paymentDate,
+            'meta' => json_encode([
                 'user_name' => $userName,
             ], JSON_UNESCAPED_UNICODE),
-        ]);
+        ], PaymentIntentClientContext::fromRequest($r)));
 
         // One-stage (PayType=O) + DATA.month для трассировки
         $payment = $svc->initPayment($partnerId, $amountCents, $bankMethod, [
@@ -118,7 +120,7 @@ class TinkoffPaymentController extends Controller
             'user_id' => (string) $userId,
         ]);
 
-        if (!$payment->payment_url || empty($payment->tinkoff_payment_id)) {
+        if (! $payment->payment_url || empty($payment->tinkoff_payment_id)) {
             return back()->withErrors(['tinkoff' => 'Не удалось инициализировать оплату T‑Bank']);
         }
 
@@ -141,7 +143,7 @@ class TinkoffPaymentController extends Controller
 
         // Показываем метод оплаты только если он реально настроен
         $ps = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
-        if (!$ps || !$ps->is_connected) {
+        if (! $ps || ! $ps->is_connected) {
             return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена для текущего партнёра']);
         }
         if (empty(app('current_partner')->tinkoff_partner_id)) {
@@ -190,29 +192,29 @@ class TinkoffPaymentController extends Controller
 
         $payable = Payable::create([
             'partner_id' => $partnerId,
-            'user_id'    => $userId,
-            'type'       => $type,
-            'amount'     => $outSum,
-            'currency'   => 'RUB',
-            'status'     => 'pending',
-            'month'      => $month,
-            'meta'       => $payableMeta,
+            'user_id' => $userId,
+            'type' => $type,
+            'amount' => $outSum,
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'month' => $month,
+            'meta' => $payableMeta,
         ]);
 
-        $intent = PaymentIntent::create([
-            'partner_id'      => $partnerId,
-            'user_id'         => $userId,
-            'payable_id'      => $payable->id,
-            'provider'        => 'tbank',
-            'payment_method'  => 'sbp_qr',
-            'status'          => 'pending',
-            'out_sum'         => $outSum,
-            'payment_date'    => $paymentDate,
-            'meta'            => json_encode([
+        $intent = PaymentIntent::create(array_merge([
+            'partner_id' => $partnerId,
+            'user_id' => $userId,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'payment_method' => 'sbp_qr',
+            'status' => 'pending',
+            'out_sum' => $outSum,
+            'payment_date' => $paymentDate,
+            'meta' => json_encode([
                 'user_name' => $userName,
                 'method' => 'sbp',
             ], JSON_UNESCAPED_UNICODE),
-        ]);
+        ], PaymentIntentClientContext::fromRequest($r)));
 
         $payment = $svc->initPayment($partnerId, $amountCents, 'sbp', [
             'month' => $month ?: null,

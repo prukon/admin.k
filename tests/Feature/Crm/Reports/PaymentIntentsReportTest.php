@@ -155,5 +155,41 @@ class PaymentIntentsReportTest extends CrmTestCase
         $ids = collect($usersJson['results'])->pluck('id')->all();
         $this->assertContains($u->id, $ids);
     }
-}
 
+    /**
+     * [P1] DataTables JSON содержит поля клиентского контекста для отчёта и SQL-джойнов.
+     */
+    public function test_payment_intents_datatable_includes_client_context_fields(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $intent = PaymentIntent::factory()->create([
+            'partner_id' => $this->partner->id,
+            'provider' => 'tbank',
+            'client_device_type' => 'mobile',
+            'client_os_family' => 'iOS',
+            'client_os_version' => '17.0',
+            'client_browser_family' => 'Safari',
+            'client_browser_version' => '17',
+            'client_user_agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+            'client_ip' => '192.0.2.10',
+            'client_referrer' => 'https://kidscrm.example/pay',
+        ]);
+
+        $json = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.payment-intents.data', ['draw' => 1]))
+            ->assertOk()
+            ->json();
+
+        $this->assertArrayHasKey('data', $json);
+        $row = collect($json['data'])->firstWhere('id', $intent->id);
+        $this->assertIsArray($row);
+        $this->assertSame('mobile', $row['client_device_type']);
+        $this->assertSame('iOS', $row['client_os_family']);
+        $this->assertSame('Safari', $row['client_browser_family']);
+        $this->assertStringContainsString('iPhone', (string) $row['client_user_agent']);
+        $this->assertSame('192.0.2.10', $row['client_ip']);
+        $this->assertStringContainsString('kidscrm.example', (string) $row['client_referrer']);
+    }
+}
