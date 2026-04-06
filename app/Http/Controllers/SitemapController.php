@@ -62,9 +62,9 @@ class SitemapController extends Controller
             'lastmod' => now()->toAtomString(),
         ];
 
-        // Публичная оферта (общая)
+        // Публичная оферта
         $urls[] = [
-            'loc' => url('/oferta'),
+            'loc' => url('/public-offerta'),
             'changefreq' => 'yearly',
             'priority' => '0.3',
             'lastmod' => now()->toAtomString(),
@@ -72,15 +72,7 @@ class SitemapController extends Controller
 
         // Политика конфиденциальности
         $urls[] = [
-            'loc' => url('/privacy-policy'),
-            'changefreq' => 'yearly',
-            'priority' => '0.3',
-            'lastmod' => now()->toAtomString(),
-        ];
-
-        // Пользовательское соглашение
-        $urls[] = [
-            'loc' => url('/terms'),
+            'loc' => url('/policy'),
             'changefreq' => 'yearly',
             'priority' => '0.3',
             'lastmod' => now()->toAtomString(),
@@ -130,6 +122,7 @@ class SitemapController extends Controller
         // В sitemap осознанно НЕ добавляем:
         // - /contact/send (POST, служебный маршрут формы)
         // - /partner/oferta (партнерская оферта, не для поисковой выдачи)
+        // - страницы входа / сброса пароля; публичного /terms в маршрутах нет
 
         $xml = view('sitemap.xml', [
             'urls' => $urls,

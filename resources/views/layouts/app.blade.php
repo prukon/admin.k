@@ -11,6 +11,8 @@
     {{--    <title>{{ config('app.name', 'Laravel') }}</title>--}}
     <title>@yield('title', config('app.name'))</title>
 
+    @stack('meta')
+
     @include('includes.favicons')
 
     <!-- Fonts -->

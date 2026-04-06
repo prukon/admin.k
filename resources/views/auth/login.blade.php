@@ -1,6 +1,10 @@
 @extends('layouts.app')
 {{--@extends('layouts.landingPage')--}}
 
+@push('meta')
+    <meta name="robots" content="noindex, nofollow">
+@endpush
+
 @section('content')
     <div class="container">
         <div class="row justify-content-center">
