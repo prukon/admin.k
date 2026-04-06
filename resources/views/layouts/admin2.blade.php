@@ -220,15 +220,18 @@
                     <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
                         @csrf
                         <div>
-                            <select name="partner_id" class="form-select @error('partner_id') is-invalid @enderror"
-                                onchange="this.form.submit()">
-                                @foreach (App\Models\Partner::query()->orderBy('title')->get(['id', 'title']) as $partner)
-                                    <option value="{{ $partner->id }}"
-                                        {{ session('current_partner') == $partner->id ? 'selected' : '' }}>
-                                        {{ $partner->title }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <div class="d-flex align-items-center flex-nowrap gap-2">
+                                <select name="partner_id" class="form-select @error('partner_id') is-invalid @enderror"
+                                    onchange="this.form.submit()">
+                                    @foreach ($partnerSwitchOptions as $partner)
+                                        <option value="{{ $partner->id }}"
+                                            {{ session('current_partner') == $partner->id ? 'selected' : '' }}>
+                                            {{ $partner->title }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <span class="text-muted small text-nowrap">{{ $partnerSwitchActiveCount }}</span>
+                            </div>
                             @error('partner_id')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
@@ -339,7 +342,7 @@
                         {{--                    <h6> Id: {{auth()->user()->id}}</h6> --}}
                         <h6> Почта: {{ auth()->user()->email }}</h6>
                         {{--                    <h6> Роль: {{auth()->user()->role->label}}</h6> --}}
-                        Роль: {{ optional(auth()->user()->role)->label ?? 'Не указана' }}
+                       <h6> Роль: {{ optional(auth()->user()->role)->label ?? 'Не указана' }} </h6>
 
 
                         @can('servicePayments.view')
@@ -349,7 +352,7 @@
                                 $isFuture = now()->lessThan($parsedDate);
                             @endphp
 
-                            <h6>
+                            {{-- <h6>
                                 Оплачено до:
                                 <a href="/partner-payment/history">
                                     <span class="badge {{ $isFuture ? 'badge-success' : 'badge-danger' }} latestEndDate">
@@ -357,7 +360,7 @@
                                     </span>
                                 </a>
 
-                            </h6>
+                            </h6> --}}
                         @endcan
 
 

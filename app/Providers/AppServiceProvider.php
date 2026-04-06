@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\PartnerContext;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 
@@ -72,7 +73,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with('latestEndDate', $latestEndDate);
         });
 
-        // Баланс партнера
+        // Баланс партнера; список активных партнёров для переключателя (только при праве partner.switch)
         View::composer('layouts.admin2', function ($view) {
 
             $balance = 0.0;
@@ -86,8 +87,18 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
 
+            $partnerSwitchOptions = collect();
+            $partnerSwitchActiveCount = 0;
+
+            if (Auth::check() && Gate::allows('partner.switch')) {
+                $partnerSwitchOptions = Partner::active()->orderBy('title')->get(['id', 'title']);
+                $partnerSwitchActiveCount = $partnerSwitchOptions->count();
+            }
+
             $view->with([
                 'partnerWalletBalance' => $balance,
+                'partnerSwitchOptions' => $partnerSwitchOptions,
+                'partnerSwitchActiveCount' => $partnerSwitchActiveCount,
             ]);
         });
 

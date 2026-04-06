@@ -5,6 +5,7 @@ namespace App\Http\Requests\Partner;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rule;
 
 class SwitchPartnerRequest extends FormRequest
 {
@@ -15,8 +16,14 @@ class SwitchPartnerRequest extends FormRequest
 
     public function rules(): array
     {
-        return [ 
-            'partner_id' => ['required', 'integer', 'exists:partners,id'],
+        return [
+            'partner_id' => [
+                'required',
+                'integer',
+                Rule::exists('partners', 'id')->where(function ($query) {
+                    $query->where('is_enabled', true)->whereNull('deleted_at');
+                }),
+            ],
         ];
     }
 

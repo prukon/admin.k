@@ -85,6 +85,7 @@
                                             'payer' => 'Плательщик',
                                             'initiator' => 'Инициатор',
                                             'payment' => 'Платёж',
+                                            'provider_inv_id' => 'ID провайдера',
                                             'deal_id' => 'DealId',
                                             'gross' => 'Сумма платежа',
                                             'bank_fee' => 'Комиссия банка',
@@ -318,6 +319,7 @@
                     <th>Плательщик</th>
                     <th>Инициатор</th>
                     <th>Платёж</th>
+                    <th>ID провайдера</th>
                     <th>DealId</th>
                     <th>Сумма платежа</th>
                     <th>Комиссия банка</th>
@@ -556,6 +558,7 @@
                 payer: true,
                 initiator: true,
                 payment: true,
+                provider_inv_id: true,
                 deal_id: true,
                 gross: true,
                 bank_fee: true,
@@ -579,16 +582,17 @@
                 payer: 5,
                 initiator: 6,
                 payment: 7,
-                deal_id: 8,
-                gross: 9,
-                bank_fee: 10,
-                platform_fee: 11,
-                net: 12,
-                when_to_run: 13,
-                created_at: 14,
-                completed_at: 15,
-                tinkoff_payout_payment_id: 16,
-                actions: 17
+                provider_inv_id: 8,
+                deal_id: 9,
+                gross: 10,
+                bank_fee: 11,
+                platform_fee: 12,
+                net: 13,
+                when_to_run: 14,
+                created_at: 15,
+                completed_at: 16,
+                tinkoff_payout_payment_id: 17,
+                actions: 18
             };
 
             function toBool(val, fallback = true) {
@@ -683,6 +687,12 @@
                             if (!data) return '—';
                             return '<a href="/admin/tinkoff/payments/' + data + '" target="_blank">#' + data + '</a>';
                         }
+                    },
+                    {
+                        data: 'provider_inv_id',
+                        name: 'provider_inv_id',
+                        className: 'text-center tabular-nums',
+                        defaultContent: '—'
                     },
                     {data: 'deal_id', name: 'deal_id', defaultContent: ''},
                     {data: 'gross', name: 'gross', className: 'text-end', defaultContent: ''},

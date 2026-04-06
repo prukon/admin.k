@@ -213,4 +213,12 @@ class Partner extends Model
         return $q->where('is_registered', 0);
     }
 
+    /**
+     * Партнёры, доступные для контекста админки: включён флаг активности, не в корзине (soft delete).
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_enabled', true);
+    }
+
 }

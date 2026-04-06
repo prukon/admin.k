@@ -93,29 +93,17 @@
                     </li>
                 </ul>
 
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-center flex-row gap-2">
                     @guest
                         @if (Route::has('login'))
-                            <li class="nav-item dropdown">
-                                <a class="btn btn-primary dropdown-toggle me-2"
-                                   href="#"
-                                   id="publicAuthDropdown"
-                                   role="button"
-                                   data-bs-toggle="dropdown"
-                                   aria-expanded="false">
-                                    Войти
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="publicAuthDropdown">
-                                    <li>
-                                        <a class="dropdown-item" href="{{ route('login') }}">Войти</a>
-                                    </li>
-                                    @if (Route::has('partner.register'))
-                                        <li>
-                                            <a class="dropdown-item" href="{{ route('partner.register') }}">Регистрация</a>
-                                        </li>
-                                    @endif
-                                </ul>
+                            <li class="nav-item">
+                                <a class="btn btn-primary" href="{{ route('login') }}">Войти</a>
                             </li>
+                            @if (Route::has('partner.register'))
+                                <li class="nav-item">
+                                    <a class="btn btn-outline-primary" href="{{ route('partner.register') }}">Регистрация</a>
+                                </li>
+                            @endif
                         @endif
                     @else
                         <li class="nav-item dropdown">

@@ -192,6 +192,11 @@ class TinkoffAdminPayoutController extends Controller
         $baseQuery = TinkoffPayout::query()
             ->leftJoin('partners', 'partners.id', '=', 'tinkoff_payouts.partner_id')
             ->leftJoin('tinkoff_payments', 'tinkoff_payments.id', '=', 'tinkoff_payouts.payment_id')
+            ->leftJoin('payment_intents as pi_tbank', function ($join) {
+                $join->on('pi_tbank.tbank_order_id', '=', 'tinkoff_payments.order_id')
+                    ->whereColumn('pi_tbank.partner_id', 'tinkoff_payments.partner_id')
+                    ->where('pi_tbank.provider', 'tbank');
+            })
             ->leftJoin('users as payer', 'payer.id', '=', 'tinkoff_payouts.payer_user_id')
             ->leftJoin('users as initiator', 'initiator.id', '=', 'tinkoff_payouts.initiated_by_user_id')
             ->select([
@@ -201,6 +206,7 @@ class TinkoffAdminPayoutController extends Controller
                 'tinkoff_payments.status as payment_status',
                 'tinkoff_payments.tinkoff_payment_id as tbank_payment_id',
                 'tinkoff_payments.amount as payment_amount',
+                'pi_tbank.provider_inv_id as payment_provider_inv_id',
                 DB::raw("TRIM(CONCAT(COALESCE(payer.lastname,''),' ',COALESCE(payer.name,''))) as payer_name"),
                 'payer.email as payer_email',
                 'payer.phone as payer_phone',
@@ -250,31 +256,37 @@ class TinkoffAdminPayoutController extends Controller
                 case 7: // payment id
                     $baseQuery->orderBy('tinkoff_payouts.payment_id', $orderDir);
                     break;
-                case 8: // deal_id
+                case 8: // provider_inv_id (payment_intents)
+                    $baseQuery->orderBy('pi_tbank.provider_inv_id', $orderDir);
+                    break;
+                case 9: // deal_id
                     $baseQuery->orderBy('tinkoff_payouts.deal_id', $orderDir);
                     break;
-                case 9: // gross
+                case 10: // gross
                     $baseQuery->orderByRaw('COALESCE(tinkoff_payouts.gross_amount, tinkoff_payments.amount) ' . $orderDir);
                     break;
-                case 10: // bank fee (приём + выплата)
+                case 11: // bank fee (приём + выплата)
                     $baseQuery->orderByRaw(
                         '(COALESCE(tinkoff_payouts.bank_accept_fee, 0) + COALESCE(tinkoff_payouts.bank_payout_fee, 0)) ' . $orderDir
                     );
                     break;
-                case 11: // platform fee
+                case 12: // platform fee
                     $baseQuery->orderBy('tinkoff_payouts.platform_fee', $orderDir);
                     break;
-                case 12: // net
+                case 13: // net
                     $baseQuery->orderByRaw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount) ' . $orderDir);
                     break;
-                case 13: // when_to_run
+                case 14: // when_to_run
                     $baseQuery->orderBy('tinkoff_payouts.when_to_run', $orderDir);
                     break;
-                case 14: // created_at
+                case 15: // created_at
                     $baseQuery->orderBy('tinkoff_payouts.created_at', $orderDir);
                     break;
-                case 15: // completed_at
+                case 16: // completed_at
                     $baseQuery->orderBy('tinkoff_payouts.completed_at', $orderDir);
+                    break;
+                case 17: // tinkoff_payout_payment_id
+                    $baseQuery->orderBy('tinkoff_payouts.tinkoff_payout_payment_id', $orderDir);
                     break;
                 default:
                     $baseQuery->orderByDesc('tinkoff_payouts.id');
@@ -326,6 +338,9 @@ class TinkoffAdminPayoutController extends Controller
                 'payer' => $payerLabel,
                 'initiator' => $initLabel,
                 'payment_id' => (int) ($row->payment_id ?? 0),
+                'provider_inv_id' => $row->payment_provider_inv_id !== null && $row->payment_provider_inv_id !== ''
+                    ? (string) $row->payment_provider_inv_id
+                    : '—',
                 'deal_id' => (string) ($row->deal_id ?? ''),
                 'gross' => $fmtRubWhole($row->gross_amount ?? $row->payment_amount ?? null),
                 'bank_fee' => $bankFeeCents === null ? '' : $fmtRubWhole($bankFeeCents),

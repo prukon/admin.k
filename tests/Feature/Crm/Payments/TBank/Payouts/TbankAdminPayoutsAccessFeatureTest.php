@@ -53,28 +53,17 @@ class TbankAdminPayoutsAccessFeatureTest extends CrmTestCase
 
         $this->get('/admin/tinkoff/payouts')->assertForbidden();
         $this->get('/admin/tinkoff/payouts/data')->assertForbidden();
+        $this->get('/admin/tinkoff/payouts/total')->assertForbidden();
         $this->get('/admin/tinkoff/payouts/columns-settings')->assertForbidden();
         $this->postJson('/admin/tinkoff/payouts/columns-settings', ['columns' => ['status' => true]])->assertForbidden();
+        $this->get('/admin/tinkoff/payouts/payers-search?q=')->assertForbidden();
+        $this->get('/admin/tinkoff/payouts/partners-search?q=a')->assertForbidden();
         $this->get('/admin/tinkoff/payouts/1')->assertForbidden();
     }
 
     public function test_tbank_payouts_endpoints_return_200_when_allowed(): void
     {
         $this->grantPayoutManageToUser($this->user);
-
-        $this->get('/admin/tinkoff/payouts')->assertOk();
-
-        $this->get('/admin/tinkoff/payouts/data?draw=1&start=0&length=10')
-            ->assertOk()
-            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
-
-        $this->get('/admin/tinkoff/payouts/columns-settings')->assertOk();
-
-        $this->postJson('/admin/tinkoff/payouts/columns-settings', [
-            'columns' => ['status' => true],
-        ])
-            ->assertOk()
-            ->assertJsonPath('success', true);
 
         $payout = TinkoffPayout::query()->create([
             'payment_id' => null,
@@ -88,7 +77,72 @@ class TbankAdminPayoutsAccessFeatureTest extends CrmTestCase
             'completed_at' => null,
         ]);
 
+        $this->get('/admin/tinkoff/payouts')->assertOk();
+
+        $this->get('/admin/tinkoff/payouts/total')->assertOk()->assertJsonStructure([
+            'payments_total_formatted',
+            'payments_total_raw',
+            'payouts_total_formatted',
+            'payouts_total_raw',
+            'platform_fee_total_formatted',
+            'platform_fee_total_raw',
+        ]);
+
+        $this->get('/admin/tinkoff/payouts/data?draw=1&start=0&length=10')
+            ->assertOk()
+            ->assertJsonStructure([
+                'draw',
+                'recordsTotal',
+                'recordsFiltered',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'status',
+                        'source',
+                        'partner',
+                        'payer',
+                        'initiator',
+                        'payment_id',
+                        'provider_inv_id',
+                        'deal_id',
+                        'gross',
+                        'bank_fee',
+                        'platform_fee',
+                        'net',
+                        'when_to_run',
+                        'created_at',
+                        'completed_at',
+                        'tinkoff_payout_payment_id',
+                    ],
+                ],
+            ]);
+
+        $this->get('/admin/tinkoff/payouts/columns-settings')->assertOk();
+
+        $this->postJson('/admin/tinkoff/payouts/columns-settings', [
+            'columns' => ['status' => true],
+        ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->get('/admin/tinkoff/payouts/payers-search?q=')->assertOk()->assertJsonStructure(['results']);
+
         $this->get('/admin/tinkoff/payouts/' . $payout->id)->assertOk();
+    }
+
+    /**
+     * Superadmin с tbank.payouts.manage видит partners-search (остальным ролям — 403 в контроллере).
+     */
+    public function test_tbank_payouts_partners_search_returns_200_for_superadmin_with_manage_permission(): void
+    {
+        $this->asSuperadmin();
+        $this->grantPayoutManageToUser($this->user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->user->load('role');
+
+        $this->get('/admin/tinkoff/payouts/partners-search?q=')
+            ->assertOk()
+            ->assertJsonStructure(['results']);
     }
 
     public function test_tbank_payouts_show_returns_404_for_other_partner_payout(): void
