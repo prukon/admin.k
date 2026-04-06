@@ -47,6 +47,8 @@
     <meta name="twitter:description" content="{{ $pageTwitterDescription }}" />
     <meta name="twitter:image" content="{{ $pageTwitterImage }}" />
 
+    @include('includes.json-ld-landing')
+
     @stack('head')
     @include('includes.favicons')
 
