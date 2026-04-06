@@ -96,8 +96,25 @@
                 <ul class="navbar-nav ms-auto">
                     @guest
                         @if (Route::has('login'))
-                            <li class="nav-item">
-                                <a class="btn btn-primary me-2" href="{{ route('login') }}">Войти</a>
+                            <li class="nav-item dropdown">
+                                <a class="btn btn-primary dropdown-toggle me-2"
+                                   href="#"
+                                   id="publicAuthDropdown"
+                                   role="button"
+                                   data-bs-toggle="dropdown"
+                                   aria-expanded="false">
+                                    Войти
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="publicAuthDropdown">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ route('login') }}">Войти</a>
+                                    </li>
+                                    @if (Route::has('partner.register'))
+                                        <li>
+                                            <a class="dropdown-item" href="{{ route('partner.register') }}">Регистрация</a>
+                                        </li>
+                                    @endif
+                                </ul>
                             </li>
                         @endif
                     @else
@@ -209,7 +226,10 @@
                 <div class="public-nav-drawer__auth">
                     @guest
                         @if (Route::has('login'))
-                            <a class="btn btn-primary w-100" href="{{ route('login') }}">Войти</a>
+                            <a class="btn btn-primary w-100 mb-2" href="{{ route('login') }}">Войти</a>
+                            @if (Route::has('partner.register'))
+                                <a class="btn btn-outline-primary w-100" href="{{ route('partner.register') }}">Регистрация</a>
+                            @endif
                         @endif
                     @else
                         <div class="public-nav-drawer__user text-muted small mb-2">{{ $navUserLabel }}</div>

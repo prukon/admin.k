@@ -109,6 +109,8 @@ class PartnerFactory extends Factory
             'bank_details_last_updated_at' => null,
 
             'sm_details_template' => null,
+
+            'registration_verified_at' => null,
         ];
     }
 }

@@ -34,6 +34,7 @@ class Partner extends Model
         /** Код ставки НДС CloudKassir (Items.Vat); null — не облагается */
         'vat' => 'integer',
 
+        'registration_verified_at' => 'datetime',
     ];
 
 

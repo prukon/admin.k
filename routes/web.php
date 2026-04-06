@@ -39,6 +39,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\User\Report\ReportController;
 use App\Http\Controllers\DocumentationController;
 use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\GuestPartnerRegistrationController;
 
 
 use App\Http\Middleware\VerifyCsrfToken;
@@ -131,6 +132,14 @@ Route::get('/_debug/request', [RequestDebugController::class, 'show'])
 
 //landing Page 
 Route::view('/', 'landing.index')->name('landing.home');
+
+Route::middleware('guest')->group(function () {
+    Route::get('/partner/register', [GuestPartnerRegistrationController::class, 'create'])
+        ->name('partner.register');
+    Route::post('/partner/register', [GuestPartnerRegistrationController::class, 'store'])
+        ->middleware('throttle:partner-registration-ip')
+        ->name('partner.register.store');
+});
 Route::view('/crm-dlya-futbolnoy-sekcii', 'landing.seo.football')->name('landing.seo.football');
 Route::view('/crm-dlya-tancevalnoy-studii', 'landing.seo.dance')->name('landing.dance');
 Route::view('/crm-dlya-shkoly-edinoborstv', 'landing.seo.martial-arts')->name('landing.martial-arts');
@@ -144,7 +153,7 @@ Route::post('/contact/send', [LandingPageController::class, 'contactSend'])->nam
 //Страница Публичная оферта
 Route::view('/public-offerta', 'landing.agreements.public-offerta')->name('public-offerta');
  //Страница Политика конфиденциальности
- Route::view('/policy', 'landing.agreements.policy')->name('policy');
+ Route::view('  ', 'landing.agreements.policy')->name('policy');
  
 
  
