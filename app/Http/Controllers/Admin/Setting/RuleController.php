@@ -21,14 +21,17 @@ use App\Models\Permission;
 use Illuminate\Support\Str;               // ← вот это
 use App\Models\PermissionGroup;
 use App\Services\PartnerContext;
+use App\Services\Roles\AssignPartnerRolePermissionsFromConfig;
 
 
 class RuleController extends AdminBaseController
 {
     //ВКЛАДКА РОЛИ
 
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AssignPartnerRolePermissionsFromConfig $assignPartnerRolePermissionsFromConfig,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -223,10 +226,15 @@ class RuleController extends AdminBaseController
             'order_by'   => $maxOrderBy + 10,
         ]);
 
-        // 7) Сохраняем и привязываем к партнёру
-        DB::transaction(function () use ($role, $partnerId) {
+        // 7) Сохраняем, привязываем к партнёру, базовые права как у admin из role_base_permissions
+        $permissionIds = [];
+
+        DB::transaction(function () use ($role, $partnerId, &$permissionIds) {
             $role->save();
             $role->partners()->attach($partnerId);
+
+            $permissionIds = $this->assignPartnerRolePermissionsFromConfig
+                ->assignFromConfigRoleKey($role->id, $partnerId, 'admin')['permission_ids'];
 
             MyLog::create([
                 'type'        => 700,
@@ -239,8 +247,9 @@ class RuleController extends AdminBaseController
         });
 
         return response()->json([
-            'success' => true,
-            'role'    => $role,
+            'success'        => true,
+            'role'           => $role,
+            'permission_ids' => $permissionIds,
         ]);
     }
 

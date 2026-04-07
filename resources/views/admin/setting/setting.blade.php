@@ -33,6 +33,7 @@
         </tr>
         </thead>
         <tbody>
+        @can('settings.registration.manage')
         <tr>
             <td>Регистрация на сайте</td>
             <td>
@@ -56,6 +57,7 @@
                 <button id="btnRegistrationActivity" class="btn btn-primary">Применить</button>
             </td>
         </tr>
+        @endcan
 
         {{-- НОВОЕ: Обязательная 2FA для администраторов --}}
         @can('settings.force2fa.admins')
@@ -379,6 +381,7 @@
                 showLogModal("{{ route('settings.logs.data') }}");
             @endcan
 
+            @can('settings.registration.manage')
             // Вызов модалки Активность регистрации
             $(document).on('click', '#btnRegistrationActivity', function () {
                 showConfirmDeleteModal(
@@ -408,6 +411,7 @@
                     }
                 );
             });
+            @endcan
 
             // Вызов  Текст уведомления
             $(document).on('click', '#btnTextForUsers', function () {

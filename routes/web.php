@@ -377,7 +377,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/settings/queues/restart', [SettingController::class, 'queueRestart'])
             ->middleware('can:settings.queues.manage')
             ->name('admin.setting.queues.restart');
-        Route::patch('admin/settings/registration-activity', [SettingController::class, 'registrationActivity'])->name('registrationActivity');
+        Route::patch('admin/settings/registration-activity', [SettingController::class, 'registrationActivity'])
+            ->middleware('can:settings.registration.manage')
+            ->name('registrationActivity');
         Route::post('admin/settings/text-for-users', [SettingController::class, 'textForUsers'])->name('textForUsers');
         Route::post('settings/save-menu-items', [SettingController::class, 'saveMenuItems'])->name('settings.saveMenuItems');
         Route::post('settings/save-social-menu-items', [SettingController::class, 'saveSocialItems'])->name('settings.saveSocialItems');

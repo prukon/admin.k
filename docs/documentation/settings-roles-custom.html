@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: настройки — кастомные роли и стартовый набор прав</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Настройки: кастомные роли и стартовый набор прав</h1>
+  <div class="small">Файл: <code>/docs/documentation/settings-roles-custom.html</code> · см. также
+    <a href="/docs/documentation/partners-permissions">партнёры и базовые роли user/admin</a></div>
+
+  <div class="note">
+    <b>Назначение.</b> В админке на вкладке «Настройки → Права и роли» можно создать <b>новую несистемную роль</b> для текущего партнёра.
+    При создании ей автоматически назначается стартовый набор permissions по списку <code>roles.admin</code> из конфига
+    <code>/config/role_base_permissions.php</code> — в том же смысле «как у администратора по умолчанию», но только для новой роли и только в контексте <code>partner_id</code> (см. ниже).
+  </div>
+
+  <h2>1) Где в интерфейсе и маршруты</h2>
+  <ul>
+    <li>Страница: <code>GET /admin/settings/rules</code> (внутри общей страницы настроек, вкладка «Права и роли»).</li>
+    <li>Создание роли: <code>POST /admin/setting/role/create</code> (AJAX, имя маршрута <code>admin.setting.role.create</code>).</li>
+    <li>Переключение одного права у роли: <code>POST /admin/setting/rule/toggle</code>.</li>
+    <li>Удаление кастомной роли: <code>DELETE /admin/setting/role/delete</code>.</li>
+    <li>Логи вкладки (DataTables): <code>GET /admin/setting/rules/logs-data</code>.</li>
+  </ul>
+  <div class="warn">
+    Системную роль через эту форму создать нельзя: в UI создаётся обычная роль с <code>is_sistem = 0</code>.
+  </div>
+
+  <h2>2) Доступ (авторизация)</h2>
+  <ul>
+    <li>Все перечисленные маршруты обёрнуты в middleware <code>can:settings.roles.view</code> (см. <code>/routes/web.php</code>).</li>
+    <li>Право <code>settings.roles.view</code> входит в базовый набор для роли <code>admin</code> в <code>role_base_permissions.php</code> и проставляется в разрезе партнёра через <code>permission_role</code>, как описано в
+      <a href="/docs/documentation/partners-permissions">документе про партнёров и базовые роли</a>.</li>
+    <li>Пользователь с ролью <code>superadmin</code> проходит проверки Gate без ограничений (см. <code>Gate::before</code> в <code>AuthServiceProvider</code>).</li>
+  </ul>
+
+  <h2>3) Как назначаются права при создании роли</h2>
+  <ul>
+    <li>Источник имён: <code>config('role_base_permissions.roles.admin')</code> — тот же массив, что используется для базовой роли <code>admin</code> при сидировании (<code>AdminRoleBasePermissionsSeeder</code>).</li>
+    <li>Записи создаются в <code>permission_role</code> с полями <code>role_id</code> (новая роль), <code>permission_id</code>, <code>partner_id</code> (текущий партнёр из контекста). Так же, как при ручном включении чекбокса на той же странице.</li>
+    <li>Вставка идемпотентна: используется <code>insertOrIgnore</code>, уникальность по тройке <code>(partner_id, role_id, permission_id)</code> (см. раздел про UNIQUE в документе по партнёрам).</li>
+  </ul>
+
+  <h3>3.1 Отличия от сидеров и от создания партнёра</h3>
+  <ul>
+    <li><b>Сидеры</b> (<code>AdminRoleBasePermissionsSeeder</code>): при отсутствии в БД хотя бы одного имени из конфига сидер падает с ошибкой (fail-fast).</li>
+    <li><b>Создание партнёра</b>: при создании записи партнёра также fail-fast, если в справочнике нет нужных permissions.</li>
+    <li><b>Создание кастомной роли в UI</b>: если имя из конфига не найдено в таблице <code>permissions</code>, оно <b>пропускается</b>, создание роли не отменяется; в Laravel-лог пишется предупреждение (<code>Log::warning</code>) с перечислением пропущенных имён. Отдельные записи в <code>my_logs</code> на массовое назначение прав не создаются.</li>
+  </ul>
+
+  <h2>4) Реализация в коде</h2>
+  <ul>
+    <li>Контроллер: <code>/app/Http/Controllers/Admin/Setting/RuleController.php</code>, метод <code>createRole</code>.</li>
+    <li>Сервис: <code>/app/Services/Roles/AssignPartnerRolePermissionsFromConfig.php</code> — разбор конфига, сопоставление с <code>permissions</code>, предупреждение по пропускам, вставка в <code>permission_role</code>.</li>
+    <li>Разметка и скрипт вкладки: <code>/resources/views/admin/setting/rule.blade.php</code>.</li>
+  </ul>
+
+  <h2>5) Ответ API при создании роли</h2>
+  <div class="note">
+    JSON содержит поля <code>success</code>, <code>role</code> (модель роли) и <code>permission_ids</code> — список идентификаторов permissions, реально назначенных для текущего партнёра.
+    Клиент обновляет таблицу чекбоксов и список ролей в модальном окне <b>без полной перезагрузки страницы</b> (модал успеха без <code>location.reload()</code>).
+  </div>
+
+  <h2>6) Автотесты</h2>
+  <div class="note">
+    Фичтесты:
+  </div>
+  <ul>
+    <li><code>/tests/Feature/Crm/RuleControllerTest.php</code> — создание роли, базовые <code>permission_ids</code>, пустой конфиг, неизвестные имена в конфиге и вызов <code>Log::warning</code>, коллизии имён.</li>
+    <li><code>/tests/Feature/Crm/Settings/RulesSettingsAccessControlTest.php</code> — 403 без права <code>settings.roles.view</code>, 200 для администратора партнёра на странице и JSON-ручках.</li>
+  </ul>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/RuleControllerTest.php tests/Feature/Crm/Settings/RulesSettingsAccessControlTest.php</code></pre>
+
+  <p class="small"><a href="/docs/documentation">К списку разделов</a> · короткая ссылка на оглавление: <code>/doc</code></p>
+</div>
+</body>
+</html>

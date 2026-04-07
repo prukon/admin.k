@@ -155,6 +155,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('settings.view');
         });
 
+        // Настройки: вкл/выкл регистрации на сайте (партнёр)
+        Gate::define('settings.registration.manage', function (User $user) {
+            return $user->hasPermission('settings.registration.manage');
+        });
+
         // Страница "Настройки -> Права и роли"
         Gate::define('settings.roles.view', function (User $user) {
             return $user->hasPermission('settings.roles.view');

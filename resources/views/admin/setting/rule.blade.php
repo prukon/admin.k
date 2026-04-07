@@ -331,6 +331,75 @@
 @section('scripts')
     <script>
         $(function () {
+            const rulesTabIsSuperadmin = @json(auth()->user()?->role?->name === 'superadmin');
+
+            function appendRoleColumnToPermissionTables(role, permissionIds) {
+                const idSet = new Set((permissionIds || []).map(function (x) { return Number(x); }));
+                const roleId = Number(role.id);
+                const label = role.label || role.name || '';
+
+                $('#permission-accordion table.perm-table').each(function () {
+                    const $table = $(this);
+                    const $theadRow = $table.find('thead tr').first();
+                    const $th = $('<th>').addClass('text-center');
+                    $th.text(label);
+                    if (rulesTabIsSuperadmin && role.is_visible === false) {
+                        $th.append($('<br>'));
+                        $th.append($('<span>').addClass('badge bg-warning text-dark ms-2').text('Невидимое'));
+                    }
+                    $theadRow.append($th);
+
+                    $table.find('tbody tr').each(function () {
+                        const $tr = $(this);
+                        const $firstCb = $tr.find('.permission-checkbox').first();
+                        if (!$firstCb.length) {
+                            const $tdColspan = $tr.find('td[colspan]');
+                            if ($tdColspan.length) {
+                                const c = parseInt($tdColspan.attr('colspan'), 10) || 1;
+                                $tdColspan.attr('colspan', String(c + 1));
+                            }
+                            return;
+                        }
+                        const permissionId = Number($firstCb.data('permission-id'));
+                        const groupId = $firstCb.data('group-id');
+                        const $td = $('<td>').addClass('text-center');
+                        const $input = $('<input>', {type: 'checkbox', 'class': 'permission-checkbox'});
+                        $input.attr('data-role-id', roleId);
+                        $input.attr('data-permission-id', permissionId);
+                        $input.attr('data-group-id', groupId);
+                        $input.prop('checked', idSet.has(permissionId));
+                        $td.append($input);
+                        $tr.append($td);
+                    });
+                });
+            }
+
+            function appendRoleToRolesTable(role) {
+                const $tbody = $('#rolesTable tbody');
+                const n = $tbody.find('tr').length + 1;
+                const $tr = $('<tr>').attr('data-role-id', role.id);
+                $tr.append($('<td>').text(String(n)));
+                const $nameTd = $('<td>');
+                $nameTd.text(role.label || role.name || '');
+                if (rulesTabIsSuperadmin && role.is_visible === false) {
+                    $nameTd.append(' ');
+                    $nameTd.append($('<span>').addClass('badge bg-warning text-dark ms-2').text('Невидимое'));
+                }
+                $tr.append($nameTd);
+                const $delTd = $('<td>');
+                if (!role.is_sistem) {
+                    $delTd.append(
+                        $('<button>').addClass('btn btn-danger btn-sm delete-role')
+                            .attr('data-role-id', role.id)
+                            .text('Удалить')
+                    );
+                } else {
+                    $delTd.append($('<small>').addClass('text-muted').text('Системная роль'));
+                }
+                $tr.append($delTd);
+                $tbody.append($tr);
+            }
+
             // чекбокс: единичное изменение права
             $(document).on('change', '.permission-checkbox', function () {
                 const $cb = $(this);
@@ -398,7 +467,12 @@
                             data: formData,
                             success: (response) => {
                                 if (response.success) {
-                                    showSuccessModal("Создание роли", "Роль успешно создана.", 1);
+                                    if (response.role) {
+                                        appendRoleColumnToPermissionTables(response.role, response.permission_ids || []);
+                                        appendRoleToRolesTable(response.role);
+                                    }
+                                    $('#roleName').val('');
+                                    showSuccessModal("Создание роли", "Роль успешно создана.", 0);
                                 } else {
                                     $('#error-modal-message').text(response.message || 'Ошибка при создании роли!');
                                     eroorRespone(response);

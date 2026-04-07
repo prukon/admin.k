@@ -119,6 +119,7 @@ class SettingsControllerTest extends CrmTestCase
     public function test_registration_activity_patch_updates_setting_and_creates_log(): void
     {
         $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('settings.registration.manage');
 
         $beforeLogs = MyLog::query()->where('action', 70)->where('partner_id', $this->partner->id)->count();
 
@@ -136,6 +137,15 @@ class SettingsControllerTest extends CrmTestCase
 
         $afterLogs = MyLog::query()->where('action', 70)->where('partner_id', $this->partner->id)->count();
         $this->assertSame($beforeLogs + 1, $afterLogs);
+    }
+
+    public function test_registration_activity_patch_requires_registration_manage_permission(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+
+        $this->patchJson(route('registrationActivity'), [
+            'isRegistrationActivity' => true,
+        ])->assertForbidden();
     }
 
     public function test_text_for_users_accepts_json_and_creates_log(): void

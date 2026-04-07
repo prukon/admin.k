@@ -7,7 +7,9 @@ use App\Models\Partner;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RuleControllerTest extends CrmTestCase
 {
@@ -211,12 +213,26 @@ class RuleControllerTest extends CrmTestCase
             ->where('partner_id', $this->partner->id)
             ->count();
 
+        $adminBaselineNames = config('role_base_permissions.roles.admin', []);
+        $adminBaselineNames = is_array($adminBaselineNames) ? $adminBaselineNames : [];
+        $expectedPermissionIds = Permission::query()
+            ->whereIn('name', $adminBaselineNames)
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
         $res = $this->postJson(route('admin.setting.role.create'), [
             'name' => 'Моя роль',
-        ])->assertOk()->assertJson(['success' => true]);
+        ])->assertOk()
+            ->assertJson(['success' => true])
+            ->assertJsonStructure(['role', 'permission_ids']);
 
         $roleId = $res->json('role.id');
         $this->assertNotEmpty($roleId);
+
+        $this->assertEqualsCanonicalizing($expectedPermissionIds, $res->json('permission_ids'));
 
         $role = Role::findOrFail($roleId);
 
@@ -228,12 +244,95 @@ class RuleControllerTest extends CrmTestCase
             'role_id'    => $role->id,
         ]);
 
+        foreach ($expectedPermissionIds as $permissionId) {
+            $this->assertDatabaseHas('permission_role', [
+                'role_id'       => $role->id,
+                'permission_id' => $permissionId,
+                'partner_id'    => $this->partner->id,
+            ]);
+        }
+
         $after = MyLog::where('type', 700)
             ->where('action', 710)
             ->where('partner_id', $this->partner->id)
             ->count();
 
         $this->assertSame($before + 1, $after);
+    }
+
+    public function test_create_role_skips_unknown_config_permission_names_and_logs_warning(): void
+    {
+        $this->makeSuperadmin();
+
+        $fakeName = '__nonexistent_permission_rule_test__';
+        $original = config('role_base_permissions.roles.admin', []);
+
+        Config::set('role_base_permissions.roles.admin', array_merge($original, [$fakeName]));
+
+        try {
+            Log::spy();
+
+            $adminBaselineNames = config('role_base_permissions.roles.admin', []);
+            $adminBaselineNames = is_array($adminBaselineNames) ? $adminBaselineNames : [];
+            $expectedPermissionIds = Permission::query()
+                ->whereIn('name', $adminBaselineNames)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+
+            $res = $this->postJson(route('admin.setting.role.create'), [
+                'name' => 'Роль с лишним именем в конфиге',
+            ])
+                ->assertOk()
+                ->assertJson(['success' => true])
+                ->assertJsonStructure(['role', 'permission_ids']);
+
+            $this->assertEqualsCanonicalizing($expectedPermissionIds, $res->json('permission_ids'));
+
+            Log::shouldHaveReceived('warning')
+                ->withArgs(function (string $message, array $context) use ($fakeName) {
+                    return str_contains($message, 'не найдены')
+                        && in_array($fakeName, $context['missing_permission_names'] ?? [], true);
+                })
+                ->atLeast()
+                ->once();
+        } finally {
+            Config::set('role_base_permissions.roles.admin', $original);
+        }
+    }
+
+    public function test_create_role_assigns_no_permissions_when_admin_baseline_config_is_empty(): void
+    {
+        $this->makeSuperadmin();
+
+        $original = config('role_base_permissions.roles.admin', []);
+        Config::set('role_base_permissions.roles.admin', []);
+
+        try {
+            $res = $this->postJson(route('admin.setting.role.create'), [
+                'name' => 'Роль без базовых прав',
+            ])
+                ->assertOk()
+                ->assertJson([
+                    'success'        => true,
+                    'permission_ids' => [],
+                ])
+                ->assertJsonStructure(['role']);
+
+            $roleId = (int) $res->json('role.id');
+            $this->assertGreaterThan(0, $roleId);
+
+            $this->assertSame(
+                0,
+                (int) DB::table('permission_role')
+                    ->where('role_id', $roleId)
+                    ->where('partner_id', $this->partner->id)
+                    ->count()
+            );
+        } finally {
+            Config::set('role_base_permissions.roles.admin', $original);
+        }
     }
 
     public function test_create_role_generates_unique_machine_name_on_conflict(): void
@@ -246,13 +345,26 @@ class RuleControllerTest extends CrmTestCase
 
         $this->assertNotEmpty($r1['name'] ?? null);
 
-        $r2 = $this->postJson(route('admin.setting.role.create'), ['name' => 'Одинаковая роль'])
+        $adminBaselineNames = config('role_base_permissions.roles.admin', []);
+        $adminBaselineNames = is_array($adminBaselineNames) ? $adminBaselineNames : [];
+        $expectedPermissionIds = Permission::query()
+            ->whereIn('name', $adminBaselineNames)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $res2 = $this->postJson(route('admin.setting.role.create'), ['name' => 'Одинаковая роль'])
             ->assertOk()
-            ->json('role');
+            ->assertJsonStructure(['role', 'permission_ids']);
+
+        $r2 = $res2->json('role');
 
         $this->assertNotEmpty($r2['name'] ?? null);
 
         $this->assertNotSame($r1['name'], $r2['name']);
+
+        $this->assertEqualsCanonicalizing($expectedPermissionIds, $res2->json('permission_ids'));
     }
 
     public function test_delete_role_forbids_system_role(): void

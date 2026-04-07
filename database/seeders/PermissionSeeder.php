@@ -81,15 +81,16 @@ class PermissionSeeder extends Seeder
             // ['name' => 'change_history',                 'description' => 'Просмотр истории изменений',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 180],
             // ['name' => 'manage_roles',                   'description' => 'Управление ролями',                              'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 190],
             // ['name' => 'setting_payment_systems',        'description' => 'Настройка платежных систем',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 200],
-            ['name' => 'payment.method.robokassa',       'description' => 'Способ оплаты «Робокасса»',                      'group_slug' => 'paymentMethods', 'is_visible' => 1, 'sort_order' => 10],
-            ['name' => 'payment.method.tbankCard',       'description' => 'Способ оплаты «Т‑Банк» (карта, мультирасчёты)',  'group_slug' => 'paymentMethods', 'is_visible' => 1, 'sort_order' => 20],
-            ['name' => 'payment.method.tbankSBP',        'description' => 'Способ оплаты «Т‑Банк» (СБП / QR)',               'group_slug' => 'paymentMethods', 'is_visible' => 1, 'sort_order' => 30],
+            ['name' => 'payment.method.robokassa',       'description' => 'Способ оплаты «Робокасса»',                      'group_slug' => 'paymentMethods', 'is_visible' => 0, 'sort_order' => 10],
+            ['name' => 'payment.method.tbankCard',       'description' => 'Способ оплаты «Т‑Банк» (карта, мультирасчёты)',  'group_slug' => 'paymentMethods', 'is_visible' => 0, 'sort_order' => 20],
+            ['name' => 'payment.method.tbankSBP',        'description' => 'Способ оплаты «Т‑Банк» (СБП / QR)',               'group_slug' => 'paymentMethods', 'is_visible' => 0, 'sort_order' => 30],
             ['name' => 'manage.payment.method.tbank',   'description' => 'Управление интеграцией оплаты "Т-Банк" (админ)', 'group_slug' => 'paymentMethods', 'is_visible' => 0, 'sort_order' => 40],
             ['name' => 'tbank.payouts.manage',           'description' => 'Управление выплатами T‑Bank (бухгалтер)',        'group_slug' => 'paymentMethods', 'is_visible' => 0, 'sort_order' => 50],
             ['name' => 'viewing.all.logs',               'description' => 'Просмотр всех логов',                            'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 210],
             ['name' => 'settings.commission',            'description' => 'Настройка комиссий ТБанк',                       'group_slug' => 'paymentMethods', 'is_visible' => 0, 'sort_order' => 60],
             ['name' => 'settings.force2fa.admins',       'description' => 'Управление обязательной 2FA для админов',         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 221],
             ['name' => 'settings.queues.manage',         'description' => 'Управление очередями (restart worker)',          'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 222],
+            ['name' => 'settings.registration.manage',   'description' => 'Настройки: регистрация на сайте (вкл/выкл)',       'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 223],
         ];
 
         // Готовим данные для upsert: name как уникальный ключ, created_at задаём только "на создание"

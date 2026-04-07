@@ -116,129 +116,13 @@
     <li>Проверяют идемпотентность и наличие UNIQUE по тройке (MySQL/MariaDB)</li>
   </ul>
   <pre><code>php artisan test --env=testing --filter PartnerBasePermissionsTest</code></pre>
+
+  <h2>7) Кастомные роли в админке</h2>
+  <div class="note">
+    Отдельный сценарий: администратор создаёт <b>новую</b> (несистемную) роль на вкладке «Права и роли».
+    Стартовый набор прав для такой роли берётся из того же конфига, ключ <code>roles.admin</code>, но логика и ограничения отличаются от сидеров и от автопроставления при создании партнёра — см.
+    <a href="/docs/documentation/settings-roles-custom">Настройки: кастомные роли и стартовый набор прав</a>.
+  </div>
 </div>
 </body>
 </html>
-
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Документация: партнёры — базовые роли и права по умолчанию</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
-    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
-    h1 { font-size: 26px; margin: 0 0 8px; }
-    h2 { font-size: 18px; margin-top: 28px; }
-    h3 { font-size: 15px; margin-top: 18px; }
-    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
-    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
-    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
-    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
-    ul, ol { margin: 8px 0 8px 20px; }
-    .small { color: #555; font-size: 13px; }
-  </style>
-</head>
-<body>
-<div class="wrap">
-  <h1>Партнёры: базовые роли и права по умолчанию</h1>
-  <div class="small">Файл: <code>/docs/documentation/partners-permissions.html</code></div>
-
-  <div class="note">
-    Цель: при создании нового партнёра (школы) автоматически назначать базовые permissions
-    системным ролям <code>user</code> и <code>admin</code> <b>в рамках этого партнёра</b>.
-  </div>
-
-  <h2>1) Как устроены роли/права (важно)</h2>
-  <ul>
-    <li><b>Системные роли</b>: <code>roles.name = user/admin</code> существуют один раз в системе (общие для всех партнёров).</li>
-    <li><b>Права</b>: <code>permissions</code> — единый справочник имён permissions.</li>
-    <li><b>Назначение прав ролям делается в разрезе партнёра</b> через pivot-таблицу <code>permission_role</code>:
-      <ul>
-        <li><code>permission_role.partner_id</code></li>
-        <li><code>permission_role.role_id</code></li>
-        <li><code>permission_role.permission_id</code></li>
-      </ul>
-    </li>
-  </ul>
-
-  <div class="warn">
-    Это не “классический” Spatie-permission по умолчанию (где <code>role_has_permissions</code> глобальный).
-    В kidscrm права роли могут отличаться между партнёрами, поэтому ключевой контекст — <code>partner_id</code>.
-  </div>
-
-  <h2>2) Источник истины: конфиг базовых прав</h2>
-  <div class="note">
-    Списки базовых permissions для ролей <code>user</code> и <code>admin</code> живут в конфиге:
-    <br><code>/config/role_base_permissions.php</code>
-  </div>
-  <ul>
-    <li><b>Почему конфиг</b>: один источник правды для модели (автопроставление), сидеров и тестов.</li>
-    <li><b>Важно</b>: если включён <code>config:cache</code>, после деплоя нужно обновить кеш конфигов.</li>
-  </ul>
-
-  <h2>3) Автопроставление при создании партнёра</h2>
-  <div class="note">
-    Реализация сделана “прямо в модели” партнёра:
-    <br><code>/app/Models/Partner.php</code> (хуки <code>creating</code> и <code>created</code> в <code>booted()</code>).
-  </div>
-
-  <h3>3.1 Fail-fast в <code>creating</code> (без “полупартнёра”)</h3>
-  <ul>
-    <li>Перед вставкой партнёра проверяем, что <b>все</b> permissions из конфига реально существуют в <code>permissions</code>.</li>
-    <li>Если чего-то нет — бросаем <code>RuntimeException</code> и создание партнёра прерывается
-      (строка в <code>partners</code> не появится).</li>
-  </ul>
-
-  <h3>3.2 Назначение в <code>created</code></h3>
-  <ul>
-    <li>Для нового <code>partner_id</code> берём:
-      <ul>
-        <li><code>role_id</code> для ролей <code>user</code> и <code>admin</code></li>
-        <li><code>permission_id</code> по спискам имён из конфига</li>
-      </ul>
-    </li>
-    <li>Вставляем строки в <code>permission_role</code> пачкой (bulk insert) и идемпотентно через <code>insertOrIgnore</code>.</li>
-  </ul>
-
-  <h2>4) Ограничение на дубли: UNIQUE по тройке</h2>
-  <div class="note">
-    В <code>permission_role</code> должен существовать уникальный индекс на:
-    <code>(partner_id, role_id, permission_id)</code>.
-  </div>
-  <ul>
-    <li>Это гарантирует отсутствие дублей и корректную идемпотентность.</li>
-    <li>Добавлена миграция-страховка: <code>/database/migrations/2026_02_19_000001_ensure_permission_role_unique_triplet.php</code>
-      (для MySQL/MariaDB, с дедупликацией при необходимости).</li>
-  </ul>
-
-  <h2>5) Сидеры базовых прав (dev/test сценарии)</h2>
-  <div class="note">
-    Сидеры используют тот же конфиг и заполняют <code>permission_role</code> для <b>всех</b> партнёров в БД:
-  </div>
-  <ul>
-    <li><code>/database/seeders/UserRoleBasePermissionsSeeder.php</code></li>
-    <li><code>/database/seeders/AdminRoleBasePermissionsSeeder.php</code></li>
-  </ul>
-  <ul>
-    <li>Оба сидера “fail-fast”: если permissions из конфига отсутствуют — сидер падает с ошибкой.</li>
-  </ul>
-
-  <h2>6) Автотесты</h2>
-  <div class="note">
-    Фичтесты на это поведение:
-    <br><code>/tests/Feature/Crm/Permissions/PartnerBasePermissionsTest.php</code>
-  </div>
-  <ul>
-    <li>Проверяют автопроставление для <code>user</code>/<code>admin</code> по конфигу</li>
-    <li>Проверяют изоляцию между партнёрами</li>
-    <li>Проверяют fail-fast без “полупартнёра”</li>
-    <li>Проверяют идемпотентность и наличие UNIQUE по тройке (MySQL/MariaDB)</li>
-  </ul>
-  <pre><code>php artisan test --env=testing --filter PartnerBasePermissionsTest</code></pre>
-</div>
-</body>
-</html>
-
