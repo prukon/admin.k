@@ -283,7 +283,7 @@
                                 <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
                                 <button type="submit" class="btn payment-btn-secondary">Оплатить картой</button>
                             </form>
-                            <div class="pay-fee">Комиссия: показывается банком</div>
+                            <div class="pay-fee">Без комиссии</div>
                         </div>
                     @endif
 
