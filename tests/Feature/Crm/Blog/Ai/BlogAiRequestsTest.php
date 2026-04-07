@@ -13,22 +13,10 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
-use Tests\Feature\Crm\CrmTestCase;
+use Tests\Feature\Crm\Blog\BlogAdminFeatureTestCase;
 
-class BlogAiRequestsTest extends CrmTestCase
+class BlogAiRequestsTest extends BlogAdminFeatureTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->withSession([
-            'current_partner' => $this->partner->id,
-            '2fa:passed' => true,
-        ]);
-
-        $this->asAdmin();
-    }
-
     private function setGlobalSetting(string $name, ?string $text): void
     {
         Setting::query()->updateOrCreate(

@@ -5,22 +5,8 @@ namespace Tests\Feature\Crm\Blog;
 use App\Models\BlogCategory;
 use App\Models\BlogPost;
 use Illuminate\Support\Str;
-use Tests\Feature\Crm\CrmTestCase;
-
-class BlogCategoriesCrudTest extends CrmTestCase
+class BlogCategoriesCrudTest extends BlogAdminFeatureTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->withSession([
-            'current_partner' => $this->partner->id,
-            '2fa:passed' => true,
-        ]);
-
-        $this->asAdmin();
-    }
-
     public function test_index_and_create_pages_open_with_200(): void
     {
         $this->get(route('admin.blog.categories.index'))

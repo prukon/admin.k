@@ -36,6 +36,18 @@ class UserClassPaymentFlowTest extends CrmTestCase
         ]);
     }
 
+    private function grantRobokassaPaymentPermission(): void
+    {
+        $permId = $this->permissionId('payment.method.robokassa');
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->user->role_id,
+            'permission_id' => $permId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     /**
      * Неавторизованный запрос перенаправляется (нет доступа к POST /payment).
      */
@@ -149,10 +161,31 @@ class UserClassPaymentFlowTest extends CrmTestCase
     }
 
     /**
+     * Без права payment.method.robokassa редирект на оплату недоступен, даже при настроенной ПС и начислении.
+     */
+    public function test_robokassa_pay_forbidden_without_robokassa_method_permission(): void
+    {
+        PaymentSystem::factory()
+            ->robokassa()
+            ->create(['partner_id' => $this->partner->id]);
+
+        UserPrice::factory()
+            ->forUserAndMonth((int) $this->user->id, '2026-07-01', 2500, false)
+            ->create();
+
+        $this->post(route('payment.pay'), [
+            'formatedPaymentDate' => '2026-07-01',
+            'outSum' => '1.00',
+        ])->assertForbidden();
+    }
+
+    /**
      * Robokassa: при месячном периоде сумма в редиректе из БД, не из POST.
      */
     public function test_robokassa_pay_redirect_contains_resolved_out_sum_for_monthly(): void
     {
+        $this->grantRobokassaPaymentPermission();
+
         PaymentSystem::factory()
             ->robokassa()
             ->create(['partner_id' => $this->partner->id]);

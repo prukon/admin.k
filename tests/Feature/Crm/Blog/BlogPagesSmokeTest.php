@@ -7,22 +7,8 @@ use App\Models\BlogAiGeneratedImage;
 use App\Models\BlogCategory;
 use App\Models\BlogPost;
 use Illuminate\Support\Str;
-use Tests\Feature\Crm\CrmTestCase;
-
-class BlogPagesSmokeTest extends CrmTestCase
+class BlogPagesSmokeTest extends BlogAdminFeatureTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->withSession([
-            'current_partner' => $this->partner->id,
-            '2fa:passed' => true,
-        ]);
-
-        $this->asAdmin();
-    }
-
     public function test_public_blog_pages_open_with_200_when_data_exists(): void
     {
         $category = BlogCategory::query()->create([

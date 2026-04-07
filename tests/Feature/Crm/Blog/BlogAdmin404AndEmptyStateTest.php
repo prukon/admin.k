@@ -7,22 +7,8 @@ use App\Models\BlogAiGeneration;
 use App\Models\BlogCategory;
 use App\Models\BlogPost;
 use Illuminate\Support\Str;
-use Tests\Feature\Crm\CrmTestCase;
-
-class BlogAdmin404AndEmptyStateTest extends CrmTestCase
+class BlogAdmin404AndEmptyStateTest extends BlogAdminFeatureTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->withSession([
-            'current_partner' => $this->partner->id,
-            '2fa:passed' => true,
-        ]);
-
-        $this->asAdmin();
-    }
-
     public function test_admin_pages_open_with_200_on_empty_database(): void
     {
         $this->get(route('admin.blog.posts.index'))

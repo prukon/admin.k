@@ -5,22 +5,8 @@ namespace Tests\Feature\Crm\Blog;
 use App\Models\BlogCategory;
 use App\Models\BlogPost;
 use Illuminate\Support\Str;
-use Tests\Feature\Crm\CrmTestCase;
-
-class BlogPostsIndexFiltersTest extends CrmTestCase
+class BlogPostsIndexFiltersTest extends BlogAdminFeatureTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->withSession([
-            'current_partner' => $this->partner->id,
-            '2fa:passed' => true,
-        ]);
-
-        $this->asAdmin();
-    }
-
     public function test_index_filters_by_status_category_and_q(): void
     {
         $catA = BlogCategory::query()->create([

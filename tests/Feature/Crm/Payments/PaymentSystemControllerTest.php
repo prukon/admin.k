@@ -11,7 +11,10 @@ use Tests\Feature\Crm\CrmTestCase;
 
 class PaymentSystemControllerTest extends CrmTestCase
 {
-    private const PERM_VIEW    = 'settings.paymentSystems.view';
+    private const PERM_VIEW = 'settings.paymentSystems.view';
+
+    /** Право на настройку/использование способа «Робокасса» (см. PaymentSystemController::authorizePaymentSystemMethod). */
+    private const PERM_ROBOKASSA_METHOD = 'payment.method.robokassa';
 
     protected User $actor;
 
@@ -62,6 +65,28 @@ class PaymentSystemControllerTest extends CrmTestCase
     {
         $this->postJson(route('payment-systems.store'), [
             'name' => 'robokassa',
+            'merchant_login' => 'login',
+        ])->assertStatus(403);
+    }
+
+    /**
+     * Страница платёжных систем доступна по settings.paymentSystems.view, но сохранение Robokassa требует ещё payment.method.robokassa.
+     */
+    public function test_store_robokassa_forbidden_without_method_permission_even_with_settings_view(): void
+    {
+        $role = $this->createRole();
+        $this->grantPermissionToRoleForPartner($role->id, $this->partner->id, self::PERM_VIEW);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $role->id,
+        ]);
+
+        $this->actingAs($user);
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->postJson(route('payment-systems.store'), [
+            'name'           => 'robokassa',
             'merchant_login' => 'login',
         ])->assertStatus(403);
     }
@@ -151,6 +176,7 @@ class PaymentSystemControllerTest extends CrmTestCase
     public function test_store_creates_robokassa_settings(): void
     {
         $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_ROBOKASSA_METHOD);
 
         $payload = [
             'name'           => 'robokassa',
@@ -198,6 +224,7 @@ class PaymentSystemControllerTest extends CrmTestCase
     public function test_store_keeps_old_password3_if_not_provided(): void
     {
         $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_ROBOKASSA_METHOD);
 
         $ps = PaymentSystem::factory()->create([
             'partner_id' => $this->partner->id,

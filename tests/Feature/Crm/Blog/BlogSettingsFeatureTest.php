@@ -6,22 +6,8 @@ use App\Models\Setting;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Tests\Feature\Crm\CrmTestCase;
-
-class BlogSettingsFeatureTest extends CrmTestCase
+class BlogSettingsFeatureTest extends BlogAdminFeatureTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->withSession([
-            'current_partner' => $this->partner->id,
-            '2fa:passed' => true,
-        ]);
-
-        $this->asAdmin();
-    }
-
     public function test_edit_page_opens_with_200(): void
     {
         $this->get(route('admin.blog.settings.edit'))
