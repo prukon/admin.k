@@ -135,10 +135,11 @@ return [
         ],
 
         'tinkoff' => [
-            // Важно: файловые логи могут ломать бизнес-операции при проблемах с правами.
-            // Для интеграции с T‑Bank пишем в error_log (без файлов в storage/logs).
-            'driver' => 'errorlog',
-            'level' => 'debug',
+            'driver' => 'daily',
+            'path' => storage_path('logs/tbank/tbank.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 365,
+            'replace_placeholders' => true,
         ],
 
         'cloudkassir' => [

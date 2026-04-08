@@ -239,7 +239,7 @@ class TinkoffPaymentController extends Controller
 
     public function success($order)
     {
-        Log::info('tbank.return', [
+        Log::channel('tinkoff')->info('tbank.return', [
             'event' => 'success',
             'order' => (string) $order,
             'auth' => auth()->check(),
@@ -253,7 +253,7 @@ class TinkoffPaymentController extends Controller
 
     public function fail($order)
     {
-        Log::info('tbank.return', [
+        Log::channel('tinkoff')->info('tbank.return', [
             'event' => 'fail',
             'order' => (string) $order,
             'auth' => auth()->check(),
