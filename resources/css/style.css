@@ -1215,6 +1215,21 @@ a.disabled {
 
 #left_bar .wrap-team {
     text-align: left;
+    align-items: center;
+}
+
+#left_bar .wrap-team .team-buttons {
+    align-items: center;
+}
+
+/* Строка группы, для которой открыт список учеников справа («Подробно») */
+#left_bar .wrap-team.wrap-team--active {
+    background-color: rgba(243, 161, 43, 0.12);
+    box-shadow: inset 4px 0 0 0 #f3a12b;
+    border-radius: 0.25rem;
+    padding-left: 0.35rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
 }
 
 #scheduleTable .schedule-cell i {

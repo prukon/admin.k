@@ -229,15 +229,17 @@
 
         $(document).ready(function () {
 
-            // выбор ученика слева (клик по всей строке wrap-team)
+            // выбор ученика слева (клик по строке или «Подробно» — визуал как на вкладке «По месяцам»)
             $('#left_bar').on('click', '.user-row', function () {
                 const row      = $(this);
                 const userId   = row.attr('data-user-id');
                 const userName = row.attr('data-user-name') || '';
                 const teamName = row.attr('data-team-name') || '';
 
-                $('#left_bar .user-row').removeClass('active');
-                row.addClass('active');
+                $('#left_bar .user-row').removeClass('wrap-team--active');
+                $('#left_bar .detail').removeClass('action-button');
+                row.addClass('wrap-team--active');
+                row.find('.detail').addClass('action-button');
 
                 currentUserId = userId;
 
@@ -292,27 +294,40 @@
                     return;
                 }
 
-                $.ajax({
-                    url: '/admin/setting-prices/user-year-prices/save',
-                    method: 'POST',
-                    data: {
-                        user_id: userId,
-                        year: year,
-                        prices: payload,
-                        _token: token
-                    },
-                    success: function (response) {
-                        if (response.success) {
-                            showToast('Изменения сохранены.', false);
-                            loadUserYearPrices();
-                        } else {
-                            showToast(response.message || 'Не удалось сохранить изменения.', true);
-                        }
-                    },
-                    error: function () {
-                        showToast('Ошибка при сохранении изменений.', true);
+                const $saveBtn = $('#save-user-year-prices');
+
+                showConfirmDeleteModal(
+                    'Установка цен по ученику',
+                    'Вы уверены, что хотите применить изменения?',
+                    function () {
+                        $saveBtn.prop('disabled', true);
+
+                        $.ajax({
+                            url: '/admin/setting-prices/user-year-prices/save',
+                            method: 'POST',
+                            data: {
+                                user_id: userId,
+                                year: year,
+                                prices: payload,
+                                _token: token
+                            },
+                            success: function (response) {
+                                if (response.success) {
+                                    showToast('Изменения сохранены.', false);
+                                    loadUserYearPrices();
+                                } else {
+                                    showToast(response.message || 'Не удалось сохранить изменения.', true);
+                                }
+                            },
+                            error: function () {
+                                showToast('Ошибка при сохранении изменений.', true);
+                            },
+                            complete: function () {
+                                $saveBtn.prop('disabled', false);
+                            }
+                        });
                     }
-                });
+                );
             });
         });
     })();

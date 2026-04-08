@@ -8,23 +8,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let usersPrice = []; // Объявляем переменную вне всех функций, чтобы она была доступна глобально
 
+    /** Снять выделение строки группы (вкладка «По месяцам»). */
+    function clearTeamRowHighlight() {
+        document.querySelectorAll('#left_bar .wrap-team').forEach(function (el) {
+            el.classList.remove('wrap-team--active');
+        });
+    }
+
     // AJAX ПОДРОБНО. Получение списка пользователей
-    const detailButtons = document.querySelectorAll('.detail');
+    const detailButtons = document.querySelectorAll('#left_bar .detail');
     for (let i = 0; i < detailButtons.length; i++) {
         let button = detailButtons[i];
         button.addEventListener('click', function () {
 
-            // Сначала удаляем класс 'action-button' у всех кнопок
-            detailButtons.forEach(btn => btn.classList.remove('action-button'));
+            const parentDiv = this.closest('.wrap-team');
 
-            // Добавляем класс 'action-button' только к текущей нажатой кнопке
+            // Снимаем подсветку кнопки «Подробно» и строки группы у всех строк
+            detailButtons.forEach(btn => btn.classList.remove('action-button'));
+            clearTeamRowHighlight();
+
             button.classList.add('action-button');
+            if (parentDiv) {
+                parentDiv.classList.add('wrap-team--active');
+            }
 
             const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
             document.querySelector('#right_bar .btn-setting-prices').setAttribute('disabled', 'disabled');
-            // Находим родительский div (родителя с классом 'wrap-team')
-            const parentDiv = this.closest('.wrap-team');
-            // Выводим id родительского div в консоль
             if (parentDiv) {
 
                 $.ajax({
@@ -90,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     //AJAX Кнопка ОК. Установка цен группе и юзерам.
     // Вешаем обработчики на кнопки с классом .ok
-    const okButtons = document.querySelectorAll('.ok');
+    const okButtons = document.querySelectorAll('#left_bar .ok');
     for (let i = 0; i < okButtons.length; i++) {
         let button = okButtons[i];
         button.addEventListener('click', function () {
@@ -152,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Получаем массив команд и их цен
                 let teamsData = [];
-                document.querySelectorAll('.wrap-team').forEach(function (teamElement) {
+                document.querySelectorAll('#left_bar .wrap-team').forEach(function (teamElement) {
                     let teamName = teamElement.querySelector('.team-name').textContent.trim();
                     let teamId = teamElement.id;
                     let teamPrice = teamElement.querySelector('.team-price input').value;
