@@ -59,12 +59,16 @@
                             <div class="col text-end">{{ roubles($breakdown['gross']) }} ₽</div>
                         </div>
                         <div class="row text-nowrap">
-                            <div class="col">Банк (приём 2.49% мин 3.49 ₽)</div>
+                            <div class="col">Комиссия оплаты</div>
                             <div class="col text-end">− {{ roubles($breakdown['bankAccept']) }} ₽</div>
                         </div>
                         <div class="row text-nowrap">
-                            <div class="col">Банк (выплата ЮЛ 0.1%)</div>
-                            <div class="col text-end">− {{ roubles($breakdown['bankPayout']) }} ₽</div>
+                            <div class="col">Комиссия выплаты</div>
+                            <div class="col text-end">
+                                @if(!empty($hasCompletedPayout))
+                                    − {{ roubles($breakdown['bankPayout']) }} ₽
+                                @endif
+                            </div>
                         </div>
                         <div class="row text-nowrap">
                             <div class="col">Моя комиссия</div>

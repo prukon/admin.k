@@ -69,11 +69,11 @@
                             <div class="col text-end">{{ roubles($breakdown['gross'] ?? null) }} ₽</div>
                         </div>
                         <div class="row text-nowrap">
-                            <div class="col">Банк (приём)</div>
+                            <div class="col">Комиссия оплаты</div>
                             <div class="col text-end">− {{ roubles($breakdown['bankAccept'] ?? null) }} ₽</div>
                         </div>
                         <div class="row text-nowrap">
-                            <div class="col">Банк (выплата)</div>
+                            <div class="col">Комиссия выплаты</div>
                             <div class="col text-end">− {{ roubles($breakdown['bankPayout'] ?? null) }} ₽</div>
                         </div>
                         <div class="row text-nowrap">

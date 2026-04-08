@@ -7,7 +7,6 @@ use App\Models\FiscalReceipt;
 use App\Models\UserTableSetting;
 use App\Models\Payment;
 use App\Models\PaymentIntent;
-use App\Models\PaymentSystem;
 use App\Models\Refund;
 use App\Models\Team;
 use App\Models\TinkoffCommissionRule;
@@ -49,10 +48,6 @@ class PaymentReportController extends AdminBaseController
         $paymentsToolbar = $this->formatPaymentsToolbarPayload($aggregates, $canToolbarNetToPartner, $canToolbarPayoutAmount, $canToolbarPlatformCommission);
         $totalPaidPrice = $paymentsToolbar['sum_payments_formatted'];
 
-        // проверяем, включена ли оплата T-Bank
-        $tbankPs = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
-        $tbankEnabled = $tbankPs ? true : false;
-
         $filters = $request->query();
         $paymentsFilterUser = $this->resolvePaymentsFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolvePaymentsFilterTeamLabel($partnerId, $filters);
@@ -67,7 +62,6 @@ class PaymentReportController extends AdminBaseController
                 'canPaymentsToolbarNetToPartner' => $canToolbarNetToPartner,
                 'canPaymentsToolbarPayoutAmount' => $canToolbarPayoutAmount,
                 'canPaymentsToolbarPlatformCommission' => $canToolbarPlatformCommission,
-                'tbankEnabled' => $tbankEnabled,
                 'filters' => $filters,
                 'paymentsFilterUser' => $paymentsFilterUser,
                 'paymentsFilterTeam' => $paymentsFilterTeam,
@@ -329,6 +323,129 @@ class PaymentReportController extends AdminBaseController
         return in_array((string) $status, ['pending', 'succeeded'], true);
     }
 
+    /**
+     * Успешная выплата по deal_id (как для payout_amount в отчёте).
+     */
+    private function paymentRowHasCompletedTbankPayout(Payment $row, int $partnerId): bool
+    {
+        if (empty($row->deal_id)) {
+            return false;
+        }
+
+        return TinkoffPayout::query()
+            ->where('partner_id', (int) $partnerId)
+            ->where('deal_id', $row->deal_id)
+            ->where('status', 'COMPLETED')
+            ->exists();
+    }
+
+    /**
+     * Платёж относится к T‑Bank (те же признаки, что и в addColumn payment_provider).
+     */
+    private function paymentRowIsTbankPayment(Payment $row): bool
+    {
+        return ! empty($row->deal_id) || ! empty($row->payment_id) || ! empty($row->payment_status);
+    }
+
+    /**
+     * SQL: последний по id возврат в pending/succeeded (как paymentRowHasBlockingRefund).
+     */
+    private function sqlPaymentsReportHasBlockingRefund(): string
+    {
+        return 'EXISTS (
+            SELECT 1 FROM refunds rf
+            WHERE rf.payment_id = payments.id
+              AND rf.status IN (\'pending\', \'succeeded\')
+              AND rf.id = (SELECT MAX(rf2.id) FROM refunds rf2 WHERE rf2.payment_id = payments.id)
+        )';
+    }
+
+    /**
+     * SQL: строка отчёта — T‑Bank.
+     */
+    private function sqlPaymentsReportIsTbankRow(): string
+    {
+        return '(
+            (payments.deal_id IS NOT NULL AND TRIM(payments.deal_id) <> \'\')
+            OR (payments.payment_id IS NOT NULL AND TRIM(CAST(payments.payment_id AS CHAR)) <> \'\')
+            OR (payments.payment_status IS NOT NULL AND TRIM(CAST(payments.payment_status AS CHAR)) <> \'\')
+        )';
+    }
+
+    /**
+     * SQL: комиссия за оплату (эквайринг), копейки; NULL если строка не T‑Bank / блокирующий возврат.
+     */
+    private function sqlPaymentsReportBankAcceptFeeCentsNullable(int $partnerId): string
+    {
+        $pid = (int) $partnerId;
+        $isTbank = $this->sqlPaymentsReportIsTbankRow();
+        $blocking = $this->sqlPaymentsReportHasBlockingRefund();
+
+        return "(
+            CASE
+                WHEN {$isTbank} AND NOT ({$blocking}) THEN (
+                    SELECT GREATEST(
+                        ROUND(ROUND(payments.summ * 100) * COALESCE(r.acquiring_percent, 2.49) / 100),
+                        ROUND(COALESCE(r.acquiring_min_fixed, 3.49) * 100)
+                    )
+                    FROM tinkoff_commission_rules r
+                    WHERE r.is_enabled = 1
+                      AND (r.partner_id IS NULL OR r.partner_id = {$pid})
+                      AND (
+                        r.method IS NULL OR r.method = (
+                            SELECT tp.method FROM tinkoff_payments tp
+                            WHERE tp.deal_id = payments.deal_id AND tp.partner_id = payments.partner_id
+                            ORDER BY tp.id DESC LIMIT 1
+                        )
+                      )
+                    ORDER BY (r.partner_id IS NOT NULL) DESC, (r.method IS NOT NULL) DESC, r.id DESC
+                    LIMIT 1
+                )
+                ELSE NULL
+            END
+        )";
+    }
+
+    /**
+     * SQL: комиссия за выплату, копейки; NULL если нет завершённой выплаты / не T‑Bank / блокирующий возврат.
+     */
+    private function sqlPaymentsReportBankPayoutFeeCentsNullable(int $partnerId): string
+    {
+        $pid = (int) $partnerId;
+        $isTbank = $this->sqlPaymentsReportIsTbankRow();
+        $blocking = $this->sqlPaymentsReportHasBlockingRefund();
+        $hasPayout = "EXISTS (
+            SELECT 1 FROM tinkoff_payouts tpayout
+            WHERE tpayout.partner_id = {$pid}
+              AND tpayout.deal_id = payments.deal_id
+              AND tpayout.status = 'COMPLETED'
+        )";
+
+        return "(
+            CASE
+                WHEN {$isTbank} AND NOT ({$blocking}) AND ({$hasPayout}) THEN (
+                    SELECT GREATEST(
+                        ROUND(ROUND(payments.summ * 100) * COALESCE(r.payout_percent, 0.10) / 100),
+                        ROUND(COALESCE(r.payout_min_fixed, 0.00) * 100)
+                    )
+                    FROM tinkoff_commission_rules r
+                    WHERE r.is_enabled = 1
+                      AND (r.partner_id IS NULL OR r.partner_id = {$pid})
+                      AND (
+                        r.method IS NULL OR r.method = (
+                            SELECT tp.method FROM tinkoff_payments tp
+                            WHERE tp.deal_id = payments.deal_id AND tp.partner_id = payments.partner_id
+                            ORDER BY tp.id DESC LIMIT 1
+                        )
+                      )
+                    ORDER BY (r.partner_id IS NOT NULL) DESC, (r.method IS NOT NULL) DESC, r.id DESC
+                    LIMIT 1
+                )
+                ELSE NULL
+            END
+        )";
+    }
+
     //Данные для отчета Платежи
     public function getPayments(Request $request)
     {
@@ -342,7 +459,7 @@ class PaymentReportController extends AdminBaseController
 
         $paymentsQuery = $this->basePaymentsReportQuery($partnerId);
 
-        $this->applyPaymentsReportFilters($paymentsQuery, $request);
+        $this->applyPaymentsReportFilters($paymentsQuery, $request, $partnerId);
 
         // Дефолтная сортировка, если фронт не передал order (например, после кастомизаций таблицы)
         if (! $hasOrder) {
@@ -489,6 +606,18 @@ class PaymentReportController extends AdminBaseController
                 $query->orderByRaw("CASE WHEN COALESCE($expr, $expr2) IS NULL THEN 1 ELSE 0 END asc");
                 $query->orderByRaw("COALESCE($expr, $expr2) $dir");
             })
+            ->orderColumn('bank_commission_acquiring', function ($query, $order) use ($partnerId) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $expr = $this->sqlPaymentsReportBankAcceptFeeCentsNullable($partnerId);
+                $query->orderByRaw("({$expr}) IS NULL ASC");
+                $query->orderByRaw("({$expr}) {$dir}");
+            })
+            ->orderColumn('bank_commission_payout', function ($query, $order) use ($partnerId) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $expr = $this->sqlPaymentsReportBankPayoutFeeCentsNullable($partnerId);
+                $query->orderByRaw("({$expr}) IS NULL ASC");
+                $query->orderByRaw("({$expr}) {$dir}");
+            })
             ->addColumn('payout_amount', function (Payment $row) use ($partnerId) {
                 // Только T-Bank, только после успешной выплаты (COMPLETED)
                 if (empty($row->deal_id)) {
@@ -508,55 +637,12 @@ class PaymentReportController extends AdminBaseController
 
                 return round(((int) $payout->amount) / 100, 2);
             })
-            ->addColumn('bank_commission_total', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents, $canAdditional) {
-                if (! $canAdditional) {
-                    return null;
-                }
-
-                // Только T-Bank. Если платёж явно не T-Bank — null.
-                if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
-                    return null;
-                }
-
-                if ($this->paymentRowHasBlockingRefund($row)) {
-                    return null;
-                }
-
-                $grossCents = (int) round(((float) $row->summ) * 100);
-
-                // method из TinkoffPayment
-                $method = null;
-                if (! empty($row->deal_id)) {
-                    $tp = TinkoffPayment::query()
-                        ->where('partner_id', (int) $partnerId)
-                        ->where('deal_id', $row->deal_id)
-                        ->orderByDesc('id')
-                        ->first();
-
-                    $method = $tp ? (string) ($tp->method ?? null) : null;
-                }
-
-                $rule = $pickCommissionRule((int) $partnerId, $method);
-
-                $bankAcceptFee = $calcFeeCents(
-                    $grossCents,
-                    (float) ($rule->acquiring_percent ?? 2.49),
-                    (float) ($rule->acquiring_min_fixed ?? 3.49)
-                );
-                $bankPayoutFee = $calcFeeCents(
-                    $grossCents,
-                    (float) ($rule->payout_percent ?? 0.10),
-                    (float) ($rule->payout_min_fixed ?? 0.00)
-                );
-
-                return round(($bankAcceptFee + $bankPayoutFee) / 100, 2);
-            })
             ->addColumn('bank_commission_acquiring', function (Payment $row) use ($partnerId, $pickCommissionRule, $calcFeeCents, $canAdditional) {
                 if (! $canAdditional) {
                     return null;
                 }
 
-                if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+                if (! $this->paymentRowIsTbankPayment($row)) {
                     return null;
                 }
 
@@ -592,11 +678,15 @@ class PaymentReportController extends AdminBaseController
                     return null;
                 }
 
-                if (empty($row->deal_id) && empty($row->payment_id) && empty($row->payment_status)) {
+                if (! $this->paymentRowIsTbankPayment($row)) {
                     return null;
                 }
 
                 if ($this->paymentRowHasBlockingRefund($row)) {
+                    return null;
+                }
+
+                if (! $this->paymentRowHasCompletedTbankPayout($row, $partnerId)) {
                     return null;
                 }
 
@@ -929,7 +1019,7 @@ class PaymentReportController extends AdminBaseController
             ->make(true);
     }
 
-    private function applyPaymentsReportFilters($paymentsQuery, Request $request): void
+    private function applyPaymentsReportFilters($paymentsQuery, Request $request, int $partnerId): void
     {
         $filterUserId = $request->query('filter_user_id');
         if ($filterUserId !== null && $filterUserId !== '' && ctype_digit((string) $filterUserId)) {
@@ -1038,6 +1128,32 @@ class PaymentReportController extends AdminBaseController
                 });
             }
         }
+
+        $acqMin = $request->query('bank_commission_acquiring_min');
+        if ($acqMin !== null && $acqMin !== '' && is_numeric($acqMin)) {
+            $minCents = (int) round(((float) $acqMin) * 100);
+            $expr = $this->sqlPaymentsReportBankAcceptFeeCentsNullable($partnerId);
+            $paymentsQuery->whereRaw('('.$expr.') >= ?', [$minCents]);
+        }
+        $acqMax = $request->query('bank_commission_acquiring_max');
+        if ($acqMax !== null && $acqMax !== '' && is_numeric($acqMax)) {
+            $maxCents = (int) round(((float) $acqMax) * 100);
+            $expr = $this->sqlPaymentsReportBankAcceptFeeCentsNullable($partnerId);
+            $paymentsQuery->whereRaw('('.$expr.') <= ?', [$maxCents]);
+        }
+
+        $payMin = $request->query('bank_commission_payout_min');
+        if ($payMin !== null && $payMin !== '' && is_numeric($payMin)) {
+            $minCents = (int) round(((float) $payMin) * 100);
+            $expr = $this->sqlPaymentsReportBankPayoutFeeCentsNullable($partnerId);
+            $paymentsQuery->whereRaw('('.$expr.') >= ?', [$minCents]);
+        }
+        $payMax = $request->query('bank_commission_payout_max');
+        if ($payMax !== null && $payMax !== '' && is_numeric($payMax)) {
+            $maxCents = (int) round(((float) $payMax) * 100);
+            $expr = $this->sqlPaymentsReportBankPayoutFeeCentsNullable($partnerId);
+            $paymentsQuery->whereRaw('('.$expr.') <= ?', [$maxCents]);
+        }
     }
 
     /**
@@ -1049,7 +1165,7 @@ class PaymentReportController extends AdminBaseController
     private function computePaymentsReportToolbarAggregates(int $partnerId, Request $request): array
     {
         $q = $this->basePaymentsReportQuery($partnerId);
-        $this->applyPaymentsReportFilters($q, $request);
+        $this->applyPaymentsReportFilters($q, $request, $partnerId);
 
         $sumPayments = (float) (clone $q)->sum('payments.summ');
 
@@ -1427,10 +1543,19 @@ class PaymentReportController extends AdminBaseController
             $columns = [];
         }
 
+        if (array_key_exists('bank_commission_total', $columns)) {
+            $v = $columns['bank_commission_total'];
+            $columns['bank_commission_acquiring'] = $v;
+            $columns['bank_commission_payout'] = $v;
+            unset($columns['bank_commission_total']);
+        }
+
         if (! $canAdditional) {
-            foreach (['bank_commission_total', 'platform_commission', 'net_to_partner', 'refund_status'] as $k) {
+            foreach (['bank_commission_acquiring', 'bank_commission_payout', 'platform_commission', 'net_to_partner', 'refund_status'] as $k) {
                 unset($columns[$k]);
             }
+        } else {
+            unset($columns['commission_total']);
         }
 
         return response()->json($columns);
@@ -1463,9 +1588,15 @@ class PaymentReportController extends AdminBaseController
         }
 
         if (! $canAdditional) {
-            foreach (['bank_commission_total', 'platform_commission', 'net_to_partner', 'refund_status'] as $k) {
+            foreach (['bank_commission_acquiring', 'bank_commission_payout', 'platform_commission', 'net_to_partner', 'refund_status'] as $k) {
                 $normalized[$k] = false;
             }
+        }
+
+        unset($normalized['bank_commission_total']);
+
+        if ($canAdditional) {
+            unset($normalized['commission_total']);
         }
 
         UserTableSetting::updateOrCreate(

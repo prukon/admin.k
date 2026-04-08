@@ -168,29 +168,6 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
-     * (P1) Флаг tbankEnabled зависит от настроек платёжной системы.
-     */
-    public function test_payments_page_tbankEnabled_depends_on_payment_system_settings(): void
-    {
-        // 1) Когда настройки tbank отсутствуют
-        $response = $this->get(route('payments'));
-        $response
-            ->assertOk()
-            ->assertViewHas('tbankEnabled', false);
-
-        // 2) Когда есть PaymentSystem с name = 'tbank' для текущего партнёра
-        $ps = new PaymentSystem();
-        $ps->partner_id = $this->partner->id;
-        $ps->name = 'tbank';
-        $ps->save();
-
-        $response = $this->get(route('payments'));
-        $response
-            ->assertOk()
-            ->assertViewHas('tbankEnabled', true);
-    }
-
-    /**
      * (P0) Только AJAX-доступ к getPayments.
      */
     public function test_getPayments_requires_ajax_request(): void
@@ -713,7 +690,7 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
-     * (P1) bank_commission_total — базовый сценарий расчёта.
+     * (P1) bank_commission_acquiring / bank_commission_payout — базовый сценарий расчёта.
      * (P1) Колонка commission_total (bank + platform).
      * (P1) Колонка net_to_partner.
      */
@@ -763,9 +740,18 @@ class PaymentReportTest extends CrmTestCase
             (int)round($rule->platform_min_fixed * 100)
         );
 
-        $expectedBankTotal = round(($bankAcceptFee + $bankPayoutFee) / 100, 2);
+        $expectedBankAcquiring = round($bankAcceptFee / 100, 2);
+        $expectedBankPayout = round($bankPayoutFee / 100, 2);
         $expectedCommissionAll = round(($bankAcceptFee + $bankPayoutFee + $platformFee) / 100, 2);
         $expectedNet = round(max(0, $grossCents - $bankAcceptFee - $bankPayoutFee - $platformFee) / 100, 2);
+
+        TinkoffPayout::query()->create([
+            'partner_id' => $this->partner->id,
+            'deal_id' => '999',
+            'amount' => 50_000,
+            'is_final' => 1,
+            'status' => 'COMPLETED',
+        ]);
 
         $response = $this
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
@@ -777,7 +763,8 @@ class PaymentReportTest extends CrmTestCase
         $row = $data->firstWhere('id', $payment->id);
         $this->assertNotNull($row, 'Не найден платёж в выдаче getPayments.');
 
-        $this->assertEquals($expectedBankTotal, (float)$row['bank_commission_total']);
+        $this->assertEquals($expectedBankAcquiring, (float) $row['bank_commission_acquiring']);
+        $this->assertEquals($expectedBankPayout, (float) $row['bank_commission_payout']);
         $this->assertEquals($expectedCommissionAll, (float)$row['commission_total']);
         $this->assertEquals($expectedNet, (float)$row['net_to_partner']);
 
@@ -799,7 +786,8 @@ class PaymentReportTest extends CrmTestCase
         $robokassaRow = $data->firstWhere('id', $robokassaPayment->id);
         $this->assertNotNull($robokassaRow);
 
-        $this->assertNull($robokassaRow['bank_commission_total']);
+        $this->assertNull($robokassaRow['bank_commission_acquiring']);
+        $this->assertNull($robokassaRow['bank_commission_payout']);
         $this->assertNull($robokassaRow['commission_total']);
         $this->assertNull($robokassaRow['net_to_partner']);
     }
@@ -873,7 +861,6 @@ class PaymentReportTest extends CrmTestCase
         $this->assertNotNull($row);
 
         $this->assertSame('succeeded', (string) ($row['refund_status'] ?? ''));
-        $this->assertNull($row['bank_commission_total']);
         $this->assertNull($row['bank_commission_acquiring']);
         $this->assertNull($row['bank_commission_payout']);
         $this->assertNull($row['platform_commission']);
@@ -940,7 +927,8 @@ class PaymentReportTest extends CrmTestCase
         $this->assertNotNull($row);
 
         $this->assertSame('pending', (string) ($row['refund_status'] ?? ''));
-        $this->assertNull($row['bank_commission_total']);
+        $this->assertNull($row['bank_commission_acquiring']);
+        $this->assertNull($row['bank_commission_payout']);
         $this->assertNull($row['net_to_partner']);
         $this->assertNull($row['commission_total']);
     }
@@ -1027,9 +1015,18 @@ class PaymentReportTest extends CrmTestCase
             (int) round($grossCents * ($rule->platform_percent / 100)),
             (int) round($rule->platform_min_fixed * 100)
         );
-        $expectedBankTotal = round(($bankAcceptFee + $bankPayoutFee) / 100, 2);
+        $expectedBankAcquiring = round($bankAcceptFee / 100, 2);
+        $expectedBankPayout = round($bankPayoutFee / 100, 2);
         $expectedCommissionAll = round(($bankAcceptFee + $bankPayoutFee + $platformFee) / 100, 2);
         $expectedNet = round(max(0, $grossCents - $bankAcceptFee - $bankPayoutFee - $platformFee) / 100, 2);
+
+        TinkoffPayout::query()->create([
+            'partner_id' => $this->partner->id,
+            'deal_id' => $payment->deal_id,
+            'amount' => 50_000,
+            'is_final' => 1,
+            'status' => 'COMPLETED',
+        ]);
 
         $response = $this
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
@@ -1040,7 +1037,8 @@ class PaymentReportTest extends CrmTestCase
         $this->assertNotNull($row);
 
         $this->assertSame('failed', (string) ($row['refund_status'] ?? ''));
-        $this->assertEquals($expectedBankTotal, (float) $row['bank_commission_total']);
+        $this->assertEquals($expectedBankAcquiring, (float) $row['bank_commission_acquiring']);
+        $this->assertEquals($expectedBankPayout, (float) $row['bank_commission_payout']);
         $this->assertEquals($expectedCommissionAll, (float) $row['commission_total']);
         $this->assertEquals($expectedNet, (float) $row['net_to_partner']);
     }
@@ -1334,7 +1332,8 @@ class PaymentReportTest extends CrmTestCase
 
         $this->assertNotNull($setting);
         $expected = $payload['columns'] + [
-            'bank_commission_total' => false,
+            'bank_commission_acquiring' => false,
+            'bank_commission_payout' => false,
             'platform_commission' => false,
             'net_to_partner' => false,
             'refund_status' => false,
@@ -1378,7 +1377,8 @@ class PaymentReportTest extends CrmTestCase
             'col_int_zero' => false,
             'col_null' => false,
             'col_garbage' => false,
-            'bank_commission_total' => false,
+            'bank_commission_acquiring' => false,
+            'bank_commission_payout' => false,
             'platform_commission' => false,
             'net_to_partner' => false,
             'refund_status' => false,
@@ -1517,7 +1517,8 @@ class PaymentReportTest extends CrmTestCase
 
         foreach (
             [
-                'payColBankCommission',
+                'payColBankCommissionAcq',
+                'payColBankCommissionPayout',
                 'payColPlatformCommission',
                 'payColNetToPartner',
                 'payColRefundStatus',
@@ -1546,15 +1547,17 @@ class PaymentReportTest extends CrmTestCase
 
         foreach (
             [
-                'payColBankCommission',
+                'payColBankCommissionAcq',
+                'payColBankCommissionPayout',
                 'payColPlatformCommission',
-                'payColCommissionTotal',
                 'payColNetToPartner',
                 'payColRefundStatus',
             ] as $inputId
         ) {
             $this->assertCheckboxInputHasDisabledAttribute($html, $inputId, false);
         }
+
+        $this->assertStringNotContainsString('id="payColCommissionTotal"', $html);
     }
 
     /**
@@ -1585,7 +1588,8 @@ class PaymentReportTest extends CrmTestCase
             'columns' => [
                 'user_name' => true,
                 'receipt' => true,
-                'bank_commission_total' => true,
+                'bank_commission_acquiring' => true,
+                'bank_commission_payout' => true,
                 'refund_status' => true,
             ],
         ])->assertOk();

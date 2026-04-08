@@ -24,6 +24,13 @@ class TinkoffPayoutTableSettingsController extends Controller
             $columns = [];
         }
 
+        if (array_key_exists('bank_fee', $columns)) {
+            $v = $columns['bank_fee'];
+            $columns['bank_accept_fee'] = $v;
+            $columns['bank_payout_fee'] = $v;
+            unset($columns['bank_fee']);
+        }
+
         return response()->json($columns);
     }
 
@@ -45,6 +52,8 @@ class TinkoffPayoutTableSettingsController extends Controller
             }
             $normalized[$key] = $bool;
         }
+
+        unset($normalized['bank_fee']);
 
         UserTableSetting::updateOrCreate(
             [

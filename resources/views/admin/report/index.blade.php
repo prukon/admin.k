@@ -50,7 +50,6 @@
                         'canPaymentsToolbarNetToPartner' => $canPaymentsToolbarNetToPartner ?? false,
                         'canPaymentsToolbarPayoutAmount' => $canPaymentsToolbarPayoutAmount ?? false,
                         'canPaymentsToolbarPlatformCommission' => $canPaymentsToolbarPlatformCommission ?? false,
-                        'tbankEnabled' => $tbankEnabled ?? false,
                         'filters' => $filters ?? [],
                         'paymentsFilterUser' => $paymentsFilterUser ?? null,
                         'paymentsFilterTeam' => $paymentsFilterTeam ?? null,

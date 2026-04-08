@@ -7,7 +7,7 @@
     $canPaymentsToolbarPlatformCommission = $canPaymentsToolbarPlatformCommission ?? false;
     $paymentsFilterUser = $paymentsFilterUser ?? null;
     $paymentsFilterTeam = $paymentsFilterTeam ?? null;
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'payment_refund_status'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -170,14 +170,16 @@
                 <label class="form-check-label" for="payColReceipt">Чек</label>
             </div>
 
-            <div class="form-check">
-                <input class="form-check-input payments-column-toggle"
-                       type="checkbox"
-                       data-column-key="commission_total"
-                       id="payColCommissionTotal"
-                       checked>
-                <label class="form-check-label" for="payColCommissionTotal">Комиссия</label>
-            </div>
+            @if(!$canAdditional)
+                <div class="form-check">
+                    <input class="form-check-input payments-column-toggle"
+                           type="checkbox"
+                           data-column-key="commission_total"
+                           id="payColCommissionTotal"
+                           checked>
+                    <label class="form-check-label" for="payColCommissionTotal">Комиссия</label>
+                </div>
+            @endif
 
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
@@ -188,16 +190,23 @@
                 <label class="form-check-label" for="payColPayout">Выплата</label>
             </div>
 
-         @if($tbankEnabled ?? false)
-
             @if($canAdditional)
                 <div class="form-check">
                     <input class="form-check-input payments-column-toggle"
                            type="checkbox"
-                           data-column-key="bank_commission_total"
-                           id="payColBankCommission"
+                           data-column-key="bank_commission_acquiring"
+                           id="payColBankCommissionAcq"
                            checked>
-                    <label class="form-check-label" for="payColBankCommission">Комиссия банка</label>
+                    <label class="form-check-label" for="payColBankCommissionAcq">Комиссия оплаты</label>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input payments-column-toggle"
+                           type="checkbox"
+                           data-column-key="bank_commission_payout"
+                           id="payColBankCommissionPayout"
+                           checked>
+                    <label class="form-check-label" for="payColBankCommissionPayout">Комиссия выплаты</label>
                 </div>
 
                 <div class="form-check">
@@ -218,8 +227,6 @@
                     <label class="form-check-label" for="payColNetToPartner">К выплате</label>
                 </div>
             @endif
-@endif
-
 
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
@@ -322,7 +329,29 @@
                     <option value="refund_pending" {{ $fpRefund === 'refund_pending' ? 'selected' : '' }}>Возврат (в процессе)</option>
                 </select>
             </div>
-            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                    @if($canAdditional)
+                <div class="col-12 col-md-3 col-lg-2">
+                    <label class="form-label" for="pay-filter-bank-acq-min">Комиссия оплаты от (₽)</label>
+                    <input class="form-control" id="pay-filter-bank-acq-min" type="number" step="0.01" min="0" name="bank_commission_acquiring_min"
+                           value="{{ $filters['bank_commission_acquiring_min'] ?? '' }}">
+                </div>
+                <div class="col-12 col-md-3 col-lg-2">
+                    <label class="form-label" for="pay-filter-bank-acq-max">Комиссия оплаты до (₽)</label>
+                    <input class="form-control" id="pay-filter-bank-acq-max" type="number" step="0.01" min="0" name="bank_commission_acquiring_max"
+                           value="{{ $filters['bank_commission_acquiring_max'] ?? '' }}">
+                </div>
+                <div class="col-12 col-md-3 col-lg-2">
+                    <label class="form-label" for="pay-filter-bank-pay-min">Комиссия выплаты от (₽)</label>
+                    <input class="form-control" id="pay-filter-bank-pay-min" type="number" step="0.01" min="0" name="bank_commission_payout_min"
+                           value="{{ $filters['bank_commission_payout_min'] ?? '' }}">
+                </div>
+                <div class="col-12 col-md-3 col-lg-2">
+                    <label class="form-label" for="pay-filter-bank-pay-max">Комиссия выплаты до (₽)</label>
+                    <input class="form-control" id="pay-filter-bank-pay-max" type="number" step="0.01" min="0" name="bank_commission_payout_max"
+                           value="{{ $filters['bank_commission_payout_max'] ?? '' }}">
+                </div>
+            @endif
+                    <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                 <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
                 <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="paymentsReportFiltersResetBtn">Сброс</button>
             </div>
@@ -342,10 +371,10 @@
         <th>Провайдер</th>
         <th>Способ оплаты</th>
         <th>Чек</th>
-        @if($tbankEnabled ?? false)
-            <th>Комиссия банка</th>
+        @if($canAdditional)
+            <th>Комиссия оплаты</th>
+            <th>Комиссия выплаты</th>
             <th>Комиссия платформы</th>
-            <th>Комиссия</th>
             <th>К выплате</th>
             <th>Выплата</th>
         @else
@@ -454,7 +483,6 @@
     <script type="text/javascript">
         $(function () {
             const canAdditional = @json($canAdditional);
-            const tbankEnabled = @json($tbankEnabled ?? false);
             const paymentsToolbarFlags = {
                 net: @json($canPaymentsToolbarNetToPartner),
                 payout: @json($canPaymentsToolbarPayoutAmount),
@@ -570,7 +598,11 @@
                     operation_date_to: $payFiltersForm.find('[name="operation_date_to"]').val(),
                     payment_provider: $payFiltersForm.find('[name="payment_provider"]').val(),
                     payment_method: $payFiltersForm.find('[name="payment_method"]').val(),
-                    payment_refund_status: $payFiltersForm.find('[name="payment_refund_status"]').val()
+                    payment_refund_status: $payFiltersForm.find('[name="payment_refund_status"]').val(),
+                    bank_commission_acquiring_min: $payFiltersForm.find('[name="bank_commission_acquiring_min"]').val(),
+                    bank_commission_acquiring_max: $payFiltersForm.find('[name="bank_commission_acquiring_max"]').val(),
+                    bank_commission_payout_min: $payFiltersForm.find('[name="bank_commission_payout_min"]').val(),
+                    bank_commission_payout_max: $payFiltersForm.find('[name="bank_commission_payout_max"]').val()
                 };
             }
 
@@ -644,17 +676,19 @@
     payment_provider: true,
     payment_method_label: true,
     receipt: true,
-    commission_total: true,
+    commission_total: !canAdditional,
     payout_amount: true,
-    net_to_partner: tbankEnabled && canAdditional,
-    bank_commission_total: tbankEnabled && canAdditional,
-    platform_commission: tbankEnabled && canAdditional,
+    net_to_partner: canAdditional,
+    bank_commission_acquiring: canAdditional,
+    bank_commission_payout: canAdditional,
+    platform_commission: canAdditional,
     refund_status: canAdditional,
     refund_action: true
             };
 
             const additionalColumnsKeys = [
-                'bank_commission_total',
+                'bank_commission_acquiring',
+                'bank_commission_payout',
                 'platform_commission',
                 'net_to_partner',
                 'refund_status',
@@ -664,7 +698,7 @@
 
             // Маппинг ключей на индексы колонок DataTables
             // 0 – № (DT_RowIndex) всегда видна, не настраиваем
-     const columnsMap = tbankEnabled ? {
+     const columnsMap = canAdditional ? {
     user_name: 1,
     team_title: 2,
     summ: 3,
@@ -673,9 +707,9 @@
     payment_provider: 6,
     payment_method_label: 7,
     receipt: 8,
-    bank_commission_total: 9,
-    platform_commission: 10,
-    commission_total: 11,
+    bank_commission_acquiring: 9,
+    bank_commission_payout: 10,
+    platform_commission: 11,
     net_to_partner: 12,
     payout_amount: 13,
     refund_action: 14,
@@ -779,7 +813,7 @@
             }
 
             
-// Формируем массив колонок в зависимости от tbankEnabled
+// Расширенная сетка колонок комиссий — при праве reports.additional.value.view (canAdditional)
 const columns = [
     {data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false},
     {
@@ -939,24 +973,34 @@ const columns = [
     }
 ];
 
-if (tbankEnabled) {
+if (canAdditional) {
+    function formatMoneyRubCell(data, type) {
+        if (data === null || data === undefined || data === '') {
+            return '';
+        }
+        if (type !== 'display') {
+            return parseFloat(data);
+        }
+        function formatNumber(number) {
+            return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        return formatNumber(Math.round(parseFloat(data))) + ' руб';
+    }
     columns.push(
         {
-            data: 'bank_commission_total',
-            name: 'bank_commission_total',
+            data: 'bank_commission_acquiring',
+            name: 'bank_commission_acquiring',
+            searchable: false,
             render: function (data, type, row) {
-                if (data === null || data === undefined || data === '') return '';
-                if (type !== 'display') return parseFloat(data);
-
-                function formatNumber(number) {
-                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                }
-
-                const acq = row.bank_commission_acquiring;
-                const payout = row.bank_commission_payout;
-                const title = `Эквайринг: ${acq !== null && acq !== undefined ? formatNumber(Math.round(parseFloat(acq))) : ''} руб&#10;Выплата: ${payout !== null && payout !== undefined ? formatNumber(Math.round(parseFloat(payout))) : ''} руб`;
-                const total = formatNumber(Math.round(parseFloat(data)));
-                return `<span title="${title}">${total} руб</span>`;
+                return formatMoneyRubCell(data, type);
+            }
+        },
+        {
+            data: 'bank_commission_payout',
+            name: 'bank_commission_payout',
+            searchable: false,
+            render: function (data, type, row) {
+                return formatMoneyRubCell(data, type);
             }
         },
         {
@@ -974,24 +1018,26 @@ if (tbankEnabled) {
     );
 }
 
-columns.push(
-    {
-        data: 'commission_total',
-        name: 'commission_total',
-        render: function (data, type, row) {
-            if (data === null || data === undefined || data === '') return '';
-            if (type !== 'display') return parseFloat(data);
-            function formatNumber(number) {
-                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+if (!canAdditional) {
+    columns.push(
+        {
+            data: 'commission_total',
+            name: 'commission_total',
+            render: function (data, type, row) {
+                if (data === null || data === undefined || data === '') return '';
+                if (type !== 'display') return parseFloat(data);
+                function formatNumber(number) {
+                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                }
+                const title = 'Суммарные удержания по тарифу и комиссии банка';
+                const total = formatNumber(Math.round(parseFloat(data)));
+                return `<span title="${title}">${total} руб</span>`;
             }
-            const title = 'Суммарные удержания по тарифу и комиссии банка';
-            const total = formatNumber(Math.round(parseFloat(data)));
-            return `<span title="${title}">${total} руб</span>`;
         }
-    }
-);
+    );
+}
 
-if (tbankEnabled) {
+if (canAdditional) {
     columns.push(
         {
             data: 'net_to_partner',
@@ -1099,6 +1145,7 @@ columns.push(
                 payReportLegacyFilters.team_title = '';
                 $payFilterUser.val(null).trigger('change');
                 $payFilterTeam.val(null).trigger('change');
+                $payFiltersForm.find('[name="bank_commission_acquiring_min"],[name="bank_commission_acquiring_max"],[name="bank_commission_payout_min"],[name="bank_commission_payout_max"]').val('');
                 refreshPaymentsReportTotal();
                 table.ajax.reload();
             });

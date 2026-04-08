@@ -265,27 +265,28 @@ class TinkoffAdminPayoutController extends Controller
                 case 10: // gross
                     $baseQuery->orderByRaw('COALESCE(tinkoff_payouts.gross_amount, tinkoff_payments.amount) ' . $orderDir);
                     break;
-                case 11: // bank fee (приём + выплата)
-                    $baseQuery->orderByRaw(
-                        '(COALESCE(tinkoff_payouts.bank_accept_fee, 0) + COALESCE(tinkoff_payouts.bank_payout_fee, 0)) ' . $orderDir
-                    );
+                case 11: // комиссия оплаты (эквайринг)
+                    $baseQuery->orderByRaw('COALESCE(tinkoff_payouts.bank_accept_fee, 0) ' . $orderDir);
                     break;
-                case 12: // platform fee
+                case 12: // комиссия выплаты
+                    $baseQuery->orderByRaw('COALESCE(tinkoff_payouts.bank_payout_fee, 0) ' . $orderDir);
+                    break;
+                case 13: // platform fee
                     $baseQuery->orderBy('tinkoff_payouts.platform_fee', $orderDir);
                     break;
-                case 13: // net
+                case 14: // net
                     $baseQuery->orderByRaw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount) ' . $orderDir);
                     break;
-                case 14: // when_to_run
+                case 15: // when_to_run
                     $baseQuery->orderBy('tinkoff_payouts.when_to_run', $orderDir);
                     break;
-                case 15: // created_at
+                case 16: // created_at
                     $baseQuery->orderBy('tinkoff_payouts.created_at', $orderDir);
                     break;
-                case 16: // completed_at
+                case 17: // completed_at
                     $baseQuery->orderBy('tinkoff_payouts.completed_at', $orderDir);
                     break;
-                case 17: // tinkoff_payout_payment_id
+                case 18: // tinkoff_payout_payment_id
                     $baseQuery->orderBy('tinkoff_payouts.tinkoff_payout_payment_id', $orderDir);
                     break;
                 default:
@@ -325,11 +326,6 @@ class TinkoffAdminPayoutController extends Controller
                 $initLabel = '—';
             }
 
-            $bankFeeCents = null;
-            if ($row->bank_accept_fee !== null || $row->bank_payout_fee !== null) {
-                $bankFeeCents = (int) ($row->bank_accept_fee ?? 0) + (int) ($row->bank_payout_fee ?? 0);
-            }
-
             return [
                 'id' => (int) $row->id,
                 'status' => (string) $row->status,
@@ -343,7 +339,8 @@ class TinkoffAdminPayoutController extends Controller
                     : '—',
                 'deal_id' => (string) ($row->deal_id ?? ''),
                 'gross' => $fmtRubWhole($row->gross_amount ?? $row->payment_amount ?? null),
-                'bank_fee' => $bankFeeCents === null ? '' : $fmtRubWhole($bankFeeCents),
+                'bank_accept_fee' => $fmtRubWhole($row->bank_accept_fee ?? null),
+                'bank_payout_fee' => $fmtRubWhole($row->bank_payout_fee ?? null),
                 'platform_fee' => $fmtRubWhole($row->platform_fee ?? null),
                 'net' => $fmtRubWhole($row->net_amount ?? $row->amount ?? null),
                 'when_to_run' => $row->when_to_run ? Carbon::parse($row->when_to_run)->format('d.m.Y H:i') : '',

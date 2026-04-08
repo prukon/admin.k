@@ -88,7 +88,8 @@
                                             'provider_inv_id' => 'ID провайдера',
                                             'deal_id' => 'DealId',
                                             'gross' => 'Сумма платежа',
-                                            'bank_fee' => 'Комиссия банка',
+                                            'bank_accept_fee' => 'Комиссия оплаты',
+                                            'bank_payout_fee' => 'Комиссия выплаты',
                                             'platform_fee' => 'Комиссия Платформы',
                                             'net' => 'Сумма выплаты',
                                             'when_to_run' => 'Запланирована',
@@ -322,7 +323,8 @@
                     <th>ID провайдера</th>
                     <th>DealId</th>
                     <th>Сумма платежа</th>
-                    <th>Комиссия банка</th>
+                    <th>Комиссия оплаты</th>
+                    <th>Комиссия выплаты</th>
                     <th>Комиссия Платформы</th>
                     <th>Сумма выплаты</th>
                     <th>Запланирована</th>
@@ -561,7 +563,8 @@
                 provider_inv_id: true,
                 deal_id: true,
                 gross: true,
-                bank_fee: true,
+                bank_accept_fee: true,
+                bank_payout_fee: true,
                 platform_fee: true,
                 net: true,
                 when_to_run: true,
@@ -585,14 +588,15 @@
                 provider_inv_id: 8,
                 deal_id: 9,
                 gross: 10,
-                bank_fee: 11,
-                platform_fee: 12,
-                net: 13,
-                when_to_run: 14,
-                created_at: 15,
-                completed_at: 16,
-                tinkoff_payout_payment_id: 17,
-                actions: 18
+                bank_accept_fee: 11,
+                bank_payout_fee: 12,
+                platform_fee: 13,
+                net: 14,
+                when_to_run: 15,
+                created_at: 16,
+                completed_at: 17,
+                tinkoff_payout_payment_id: 18,
+                actions: 19
             };
 
             function toBool(val, fallback = true) {
@@ -696,7 +700,8 @@
                     },
                     {data: 'deal_id', name: 'deal_id', defaultContent: ''},
                     {data: 'gross', name: 'gross', className: 'text-end', defaultContent: ''},
-                    {data: 'bank_fee', name: 'bank_fee', className: 'text-end', defaultContent: ''},
+                    {data: 'bank_accept_fee', name: 'bank_accept_fee', className: 'text-end', defaultContent: ''},
+                    {data: 'bank_payout_fee', name: 'bank_payout_fee', className: 'text-end', defaultContent: ''},
                     {data: 'platform_fee', name: 'platform_fee', className: 'text-end', defaultContent: ''},
                     {data: 'net', name: 'net', className: 'text-end', defaultContent: ''},
                     {
