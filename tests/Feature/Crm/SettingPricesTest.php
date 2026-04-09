@@ -95,6 +95,7 @@ class SettingPricesTest extends CrmTestCase
                 'success',
                 'usersTeam',
                 'usersPrice',
+                'can_manage_manual_paid',
             ]);
 
         // setTeamPrice
@@ -1042,5 +1043,226 @@ class SettingPricesTest extends CrmTestCase
         foreach ($json['data'] as $row) {
             $this->assertEquals(1, $row['type']);
         }
+    }
+
+    /** @test */
+    public function manual_paid_returns_403_without_hidden_permission()
+    {
+        $this->asAdmin();
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'deleted_at' => null,
+        ]);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
+            'is_enabled' => true,
+        ]);
+
+        UserPrice::query()->create([
+            'user_id'   => $user->id,
+            'new_month' => '2024-09-01',
+            'price'     => 1000,
+            'is_paid'   => 0,
+        ]);
+
+        $this->postJson(route('setting-prices.manual-paid'), [
+            'user_id'      => $user->id,
+            'selectedDate' => 'Сентябрь 2024',
+            'mode'         => 'paid',
+            'comment'      => 'Комментарий для ручной отметки оплаты',
+        ])->assertStatus(403);
+    }
+
+    /** @test */
+    public function manual_paid_returns_422_when_users_prices_row_missing()
+    {
+        $this->asSuperadmin();
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'deleted_at' => null,
+        ]);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
+            'is_enabled' => true,
+        ]);
+
+        $res = $this->postJson(route('setting-prices.manual-paid'), [
+            'user_id'      => $user->id,
+            'selectedDate' => 'Сентябрь 2024',
+            'mode'         => 'paid',
+            'comment'      => 'Комментарий для ручной отметки оплаты',
+        ])->assertStatus(422);
+
+        $msg = data_get($res->json(), 'errors.record.0');
+        $this->assertIsString($msg);
+        $this->assertNotSame('', $msg);
+    }
+
+    /** @test */
+    public function manual_paid_rejects_clear_mode_after_removal()
+    {
+        $this->asSuperadmin();
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'deleted_at' => null,
+        ]);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
+            'is_enabled' => true,
+        ]);
+
+        UserPrice::query()->create([
+            'user_id'   => $user->id,
+            'new_month' => '2024-09-01',
+            'price'     => 1000,
+            'is_paid'   => 0,
+        ]);
+
+        $this->postJson(route('setting-prices.manual-paid'), [
+            'user_id'      => $user->id,
+            'selectedDate' => 'Сентябрь 2024',
+            'mode'         => 'clear',
+            'comment'      => 'Попытка сброса ручной пометки',
+        ])->assertStatus(422);
+    }
+
+    /** @test */
+    public function manual_paid_superadmin_sets_flag_and_writes_log()
+    {
+        $this->asSuperadmin();
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'deleted_at' => null,
+        ]);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
+            'is_enabled' => true,
+        ]);
+
+        $row = UserPrice::query()->create([
+            'user_id'   => $user->id,
+            'new_month' => '2024-09-01',
+            'price'     => 1000,
+            'is_paid'   => 0,
+        ]);
+
+        $this->postJson(route('setting-prices.manual-paid'), [
+            'user_id'      => $user->id,
+            'selectedDate' => 'Сентябрь 2024',
+            'mode'         => 'paid',
+            'comment'      => 'Комментарий для ручной отметки оплаты',
+        ])->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('user_price.user_id', $user->id);
+
+        $this->assertDatabaseHas('users_prices', [
+            'id'             => $row->id,
+            'user_id'        => $user->id,
+            'is_manual_paid' => 1,
+        ]);
+
+        $this->assertDatabaseHas('my_logs', [
+            'type'   => 1,
+            'action' => 14,
+            'user_id'=> $user->id,
+        ]);
+    }
+
+    /** @test */
+    public function user_year_prices_includes_manual_flags_and_can_manage_permission()
+    {
+        $this->asAdmin();
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'deleted_at' => null,
+        ]);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
+            'is_enabled' => true,
+        ]);
+
+        UserPrice::query()->create([
+            'user_id'   => $user->id,
+            'new_month' => '2024-03-01',
+            'price'     => 500,
+            'is_paid'   => 0,
+        ]);
+
+        $this->postJson(route('setting-prices.user-year-prices'), [
+            'user_id' => $user->id,
+            'year'    => 2024,
+        ])->assertStatus(200)
+            ->assertJsonPath('can_manage_manual_paid', false)
+            ->assertJsonStructure([
+                'success',
+                'can_manage_manual_paid',
+                'months' => [
+                    '*' => [
+                        'month',
+                        'month_label',
+                        'new_month',
+                        'price',
+                        'is_paid',
+                        'is_manual_paid',
+                        'effective_is_paid',
+                        'has_price_row',
+                        'manual_paid_note',
+                    ],
+                ],
+            ]);
+
+        $json = $this->postJson(route('setting-prices.user-year-prices'), [
+            'user_id' => $user->id,
+            'year'    => 2024,
+        ])->json();
+
+        $march = collect($json['months'])->firstWhere('new_month', '2024-03-01');
+        $this->assertNotNull($march);
+        $this->assertTrue($march['has_price_row']);
+        $this->assertFalse($march['effective_is_paid']);
+    }
+
+    /** @test */
+    public function get_team_price_includes_can_manage_manual_paid_flag()
+    {
+        $this->asAdmin();
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'deleted_at' => null,
+        ]);
+
+        User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
+            'is_enabled' => true,
+        ]);
+
+        $this->postJson(route('getTeamPrice'), [
+            'teamId'       => $team->id,
+            'selectedDate' => 'Сентябрь 2024',
+        ])->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'usersTeam',
+                'usersPrice',
+                'can_manage_manual_paid',
+            ])
+            ->assertJsonPath('can_manage_manual_paid', false);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\SetManualUserPricePaidRequest;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\Partner;
 use App\Models\Setting;
@@ -279,19 +280,137 @@ class SettingPricesController extends AdminBaseController
             $usersPrice[] = $userPrice;
         }
 
-        \Log::info('$usersPrice:', array_map(function ($item) {
-            return $item->toArray();
-        }, $usersPrice));
-
         if ($usersTeam->count() > 0) {
             return response()->json([
-                'success'    => true,
-                'usersTeam'  => $usersTeam,
-                'usersPrice' => $usersPrice,
+                'success'                  => true,
+                'usersTeam'                => $usersTeam,
+                'usersPrice'               => $usersPrice,
+                'can_manage_manual_paid'   => $request->user()->can('setPrices.manualPaid.manage'),
             ]);
         }
 
         return response()->json(['success' => false]);
+    }
+
+    /**
+     * Ручная отметка оплаты месяца (не меняет автоматический is_paid из платежей).
+     */
+    public function setManualPaid(SetManualUserPricePaidRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $userId       = (int) $request->validated('user_id');
+        $selectedDate = $request->validated('selectedDate');
+        $mode         = $request->validated('mode');
+        $comment      = trim($request->validated('comment'));
+
+        $monthDate = $this->formatedDate($selectedDate);
+
+        $user = User::with('team')->find($userId);
+
+        if (!$user || !$user->team || (int) $user->team->partner_id !== $partnerId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ученик не найден или недоступен в контексте текущего партнёра.',
+            ], 404);
+        }
+
+        /** @var UserPrice|null $row */
+        $row = UserPrice::where('user_id', $userId)
+            ->where('new_month', $monthDate)
+            ->first();
+
+        if (!$row) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Нет записи цены за выбранный месяц для этого ученика.',
+                'errors'  => [
+                    'record' => [
+                        'Сначала задайте цену за период (через «Подробно» по группе или установку цены), чтобы в базе появилась строка начисления за месяц.',
+                    ],
+                ],
+            ], 422);
+        }
+
+        $studentLabel = $user->full_name;
+
+        $beforeManual = $row->is_manual_paid;
+        $beforeAuto   = (bool) $row->is_paid;
+        $beforeEff    = $row->effective_is_paid;
+
+        $authorId = auth()->id();
+
+        DB::transaction(function () use ($row, $mode, $comment, $authorId, $studentLabel, $selectedDate, $monthDate, $userId, $beforeManual, $beforeAuto, $beforeEff) {
+
+            if ($mode === 'paid') {
+                $row->forceFill([
+                    'is_manual_paid'  => true,
+                    'manual_paid_by'  => $authorId,
+                    'manual_paid_at'  => now(),
+                    'manual_paid_note'=> $comment,
+                ]);
+            } else {
+                $row->forceFill([
+                    'is_manual_paid'  => false,
+                    'manual_paid_by'  => $authorId,
+                    'manual_paid_at'  => now(),
+                    'manual_paid_note'=> $comment,
+                ]);
+            }
+
+            $row->save();
+            $row->refresh();
+
+            $afterEff = $row->effective_is_paid;
+            $afterMan = $row->is_manual_paid;
+
+            $modeRu = $mode === 'paid'
+                ? 'установлено «оплачено» (ручная пометка)'
+                : 'установлено «не оплачено» (ручная пометка)';
+
+            $describeManual = static function ($v): string {
+                if ($v === null) {
+                    return 'нет (смотрим авто is_paid)';
+                }
+
+                return $v ? 'да (ручн.: оплачено)' : 'да (ручн.: не оплачено)';
+            };
+
+            $description = sprintf(
+                'Ручная отметка оплаты месяца. %s. Ученик: %s (#%d). Период: %s (%s). До: эффективно %s; авто is_paid=%s; ручной флаг: %s. После: эффективно %s; авто is_paid=%s; ручной флаг: %s. Комментарий: %s',
+                $modeRu,
+                $studentLabel,
+                $userId,
+                $selectedDate,
+                $monthDate,
+                $beforeEff ? 'оплачено' : 'не оплачено',
+                $beforeAuto ? '1' : '0',
+                $describeManual($beforeManual),
+                $afterEff ? 'оплачено' : 'не оплачено',
+                $row->is_paid ? '1' : '0',
+                $describeManual($afterMan),
+                $comment
+            );
+
+            MyLog::create([
+                'type'         => 1,
+                'action'       => 14,
+                'user_id'      => $userId,
+                'target_type'  => UserPrice::class,
+                'target_id'    => $row->id,
+                'target_label' => $studentLabel,
+                'description'  => $description,
+                'created_at'   => now(),
+            ]);
+        });
+
+        $row->refresh();
+        $row->load('user');
+
+        return response()->json([
+            'success'    => true,
+            'user_price' => $row,
+        ]);
     }
 
     // AJAX SELECT DATE. Обработчик изменения месяца (общий селект наверху)
@@ -699,16 +818,23 @@ class SettingPricesController extends AdminBaseController
             $monthLabel  = $this->ruMonthName($m);
 
             $months[] = [
-                'month'       => $m,
-                'month_label' => $monthLabel,
-                'new_month'   => $dateStr,
-                'price'       => $priceRow ? (int) $priceRow->price : 0,
-                'is_paid'     => $priceRow ? (bool) $priceRow->is_paid : false,
+                'month'             => $m,
+                'month_label'       => $monthLabel,
+                'new_month'         => $dateStr,
+                'price'             => $priceRow ? (int) $priceRow->price : 0,
+                'is_paid'           => $priceRow ? (bool) $priceRow->is_paid : false,
+                'is_manual_paid'    => $priceRow ? $priceRow->is_manual_paid : null,
+                'effective_is_paid' => $priceRow ? (bool) $priceRow->effective_is_paid : false,
+                'has_price_row'     => $priceRow !== null,
+                'manual_paid_note'  => $priceRow && $priceRow->manual_paid_note
+                    ? (string) $priceRow->manual_paid_note
+                    : null,
             ];
         }
 
         return response()->json([
-            'success' => true,
+            'success'                => true,
+            'can_manage_manual_paid' => $request->user()->can('setPrices.manualPaid.manage'),
             'user'    => [
                 'id'        => $user->id,
                 'name'      => $user->name,
@@ -770,7 +896,11 @@ class SettingPricesController extends AdminBaseController
                 $monthLabel = $this->ruMonthName($monthInt) . ' ' . $year;
 
                 if ($userPrice) {
-                    if (!$userPrice->is_paid && (int) $userPrice->price !== $price) {
+                    if ($userPrice->effective_is_paid) {
+                        continue;
+                    }
+
+                    if ((int) $userPrice->price !== $price) {
                         $userPrice->update([
                             'price' => $price,
                         ]);

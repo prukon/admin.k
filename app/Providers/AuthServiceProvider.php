@@ -113,6 +113,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('setPrices.view');
         });
 
+        // Установка цен — ручная отметка «оплачен месяц» (скрытый пермишн)
+        Gate::define('setPrices.manualPaid.manage', function (User $user) {
+            return $user->hasPermission('setPrices.manualPaid.manage');
+        });
+
         // Журнал расписания
         Gate::define('schedule.view', function (User $user) {
             return $user->hasPermission('schedule.view');

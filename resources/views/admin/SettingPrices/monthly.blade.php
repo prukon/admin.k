@@ -3,6 +3,7 @@
 
 
     <div class="container setting-price-wrap">
+        @include('includes.modal.manualUserPricePaidModal')
         <hr>
         <div class="buttons text-start">
             <button type="button" class="btn btn-primary" id="logs" data-bs-toggle="modal"

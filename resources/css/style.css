@@ -353,7 +353,8 @@ footer .social-networks {
 
 #wrap-bars .team-price input, #wrap-bars .user-price input {
     /*width: 100px;*/
-    width: 90%;
+    width: 80%;
+    max-width: 6.5rem;
     border: 1px solid #ced4da;
     border-radius: 5px;
     font-size: 12px;
@@ -370,6 +371,158 @@ footer .social-networks {
 #right_bar .display-none {
     display: none;
 
+}
+
+/* Установка цен: одна строка — ФИО (trunc), цена, шильдик, иконки (вкладка «по месяцам», #right_bar) */
+#right_bar .wrap-users .setting-prices-monthly-row {
+    min-width: 0;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-name-col {
+    min-width: 0;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-name-text {
+    display: block;
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 13px;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-check {
+    width: 1.1rem;
+    flex: 0 0 1.1rem;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-price-input {
+    width: 10ch;
+    min-width: 10ch;
+    max-width: 10ch;
+    padding-left: 0.3rem;
+    padding-right: 0.3rem;
+    text-align: right;
+}
+
+/* Фиксированная ширина под «Не оплачено», чтобы инпуты выстраивались в одну колонку */
+#right_bar .wrap-users .setting-prices-monthly-badge-wrap {
+    flex: 0 0 6rem;
+    width: 6rem;
+    min-width: 6rem;
+    max-width: 6rem;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-badge-wrap .badge {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    padding: 0.28em 0.45em;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-edit-wrap {
+    flex: 0 0 1.5rem;
+    width: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-edit-wrap .btn {
+    line-height: 1;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-edit-btn {
+    min-width: 0;
+    padding: 0 !important;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-status-view {
+    flex-wrap: nowrap;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-edit-panel .setting-prices-monthly-paid-select {
+    max-width: 8.5rem;
+    min-width: 0;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-status {
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-edit-panel {
+    max-width: 100%;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-edit-panel .d-flex {
+    min-width: 0;
+}
+
+/* Вкладка «по ученикам»: та же однострочная сетка, что и «по месяцам» */
+#right_bar .wrap-users .user-prices-year-table {
+    min-width: 0;
+}
+
+#right_bar .wrap-users .user-prices-year-header-price {
+    width: 10ch;
+    min-width: 10ch;
+    max-width: 10ch;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+#right_bar .wrap-users .user-prices-year-header-status {
+    flex: 0 0 auto;
+    width: calc(6rem + 0.25rem + 1.5rem);
+    min-width: calc(6rem + 0.25rem + 1.5rem);
+    text-align: right;
+}
+
+.manual-paid-block .form-select {
+    min-width: 0;
+}
+
+@media (max-width: 767.98px) {
+    #wrap-bars .team-buttons {
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
+    #wrap-bars .team-buttons .btn {
+        flex: 1 1 auto;
+    }
+}
+
+/* Вкладка «По ученикам»: ручная отметка и подсказка к комментарию */
+.user-price-badge-wrap .user-manual-info-icon {
+    position: absolute;
+    top: -0.4rem;
+    right: -0.55rem;
+    font-size: 0.7rem;
+    cursor: help;
+    line-height: 1;
+    color: #f3a12b;
+}
+
+.user-price-manual-edit,
+.user-price-manual-edit i {
+    color: #f3a12b !important;
+}
+
+.user-price-manual-edit:hover,
+.user-price-manual-edit:focus {
+    color: #d89020 !important;
+}
+
+.user-price-edit-cancel i.fa-times {
+    font-size: 12px;
+    line-height: 1;
 }
 
 .display-none {

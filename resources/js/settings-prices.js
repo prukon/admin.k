@@ -1,21 +1,280 @@
+import './setting-prices-manual-paid-modal.js';
+
 document.addEventListener('DOMContentLoaded', function () {
-    // Установка CSRF-токена для всех AJAX-запросов
     $.ajaxSetup({
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         }
     });
 
-    let usersPrice = []; // Объявляем переменную вне всех функций, чтобы она была доступна глобально
+    let usersPrice = [];
+    let lastCanManageManualPaid = false;
+    let lastUsersTeam = [];
+    /** @type {string|null} */
+    let editingMonthlyUserId = null;
 
-    /** Снять выделение строки группы (вкладка «По месяцам»). */
+    function escapeAttr(s) {
+        if (s == null || s === '') {
+            return '';
+        }
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function getSelectedMonthLabel() {
+        const sel = document.getElementById('single-select-date');
+        if (!sel || !sel.options[sel.selectedIndex]) {
+            return '';
+        }
+        return sel.options[sel.selectedIndex].textContent;
+    }
+
     function clearTeamRowHighlight() {
         document.querySelectorAll('#left_bar .wrap-team').forEach(function (el) {
             el.classList.remove('wrap-team--active');
         });
     }
 
-    // AJAX ПОДРОБНО. Получение списка пользователей
+    function effectivePaidFromUserPrice(row) {
+        if (typeof row.effective_is_paid !== 'undefined') {
+            return !!row.effective_is_paid;
+        }
+        return !!row.is_paid;
+    }
+
+    function postManualPaid(userId, selectedDate, mode, comment, errorEl) {
+        const csrf = $('meta[name="csrf-token"]').attr('content');
+        return $.ajax({
+            url: '/admin/setting-prices/manual-paid',
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json',
+            },
+            data: JSON.stringify({
+                user_id: userId,
+                selectedDate: selectedDate,
+                mode: mode,
+                comment: comment
+            })
+        }).done(function (res) {
+            if (res && res.success && res.user_price) {
+                const updated = res.user_price;
+                const idx = usersPrice.findIndex(function (u) {
+                    return String(u.user_id) === String(updated.user_id);
+                });
+                if (idx >= 0) {
+                    usersPrice[idx] = updated;
+                }
+                editingMonthlyUserId = null;
+                renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
+                if (errorEl) {
+                    errorEl.style.display = 'none';
+                    errorEl.textContent = '';
+                }
+            }
+        }).fail(function (xhr) {
+            let msg = 'Не удалось сохранить ручную отметку.';
+            if (xhr.responseJSON) {
+                if (xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                const errs = xhr.responseJSON.errors;
+                if (errs && errs.record && errs.record[0]) {
+                    msg = errs.record[0];
+                }
+                if (errs && errs.comment && errs.comment[0]) {
+                    msg = errs.comment[0];
+                }
+            }
+            if (errorEl) {
+                errorEl.style.display = 'block';
+                errorEl.textContent = msg;
+            } else {
+                console.error(msg);
+            }
+        });
+    }
+
+    function renderUsersRightColumn(usersTeam, usersPriceList, canManage) {
+        lastCanManageManualPaid = !!canManage;
+        lastUsersTeam = usersTeam || [];
+        const rightBar = $('.wrap-users');
+        rightBar.empty();
+
+        try {
+            rightBar.attr('data-users-team-json', JSON.stringify(usersTeam || []));
+        } catch (e) {
+            rightBar.removeAttr('data-users-team-json');
+        }
+
+        const selectedDate = getSelectedMonthLabel();
+        rightBar.attr('data-selected-date', selectedDate);
+
+        for (let i = 0; i < usersPriceList.length; i++) {
+            const up = usersPriceList[i];
+            const userTeam = usersTeam.find(team => team.id === up.user_id);
+
+            const eff = effectivePaidFromUserPrice(up);
+            const checkClass = eff ? '' : 'display-none';
+            const inputDisabled = eff ? 'disabled' : '';
+
+            const last = (userTeam && userTeam.lastname) ? String(userTeam.lastname).trim() : '';
+            const first = (userTeam && userTeam.name) ? String(userTeam.name).trim() : '';
+            const userNameFormatted = (i + 1) + '. ' + ((last || first) ? `${last} ${first}`.trim() : 'Имя не найдено');
+
+            const uid = userTeam ? String(userTeam.id) : '';
+            const hasManual = up.is_manual_paid !== null && up.is_manual_paid !== undefined;
+            const noteRaw = (up.manual_paid_note != null && String(up.manual_paid_note).trim() !== '')
+                ? String(up.manual_paid_note)
+                : '';
+            const noteForTitle = hasManual
+                ? (noteRaw !== '' ? noteRaw : 'Комментарий к ручному изменению не заполнен.')
+                : '';
+
+            let infoIcon = '';
+            if (hasManual) {
+                infoIcon = '<i class="fa fa-info-circle user-manual-info-icon" title="' + escapeAttr(noteForTitle) + '" aria-label="Комментарий к ручной отметке оплаты"></i>';
+            }
+
+            const namePlain = (i + 1) + '. ' + ((last || first) ? `${last} ${first}`.trim() : 'Имя не найдено');
+
+            let pencilHtml = '';
+            if (canManage && uid) {
+                pencilHtml = '<button type="button" class="btn btn-link btn-sm p-0 user-price-manual-edit setting-prices-monthly-edit-btn" data-user-id="' + uid + '" title="Изменить статус оплаты">' +
+                    '<i class="fa fa-edit" aria-hidden="true"></i></button>';
+            }
+
+            const statusBadgeClass = eff ? 'bg-success' : 'bg-secondary';
+            const statusBadgeText = eff ? 'Оплачено' : 'Не оплачено';
+
+            /** При праве на ручную отметку достаточно шильдиков — дублирующую галочку не показываем */
+            const showPaidCheckmark = !canManage;
+
+            const isEditing = uid && editingMonthlyUserId !== null && String(editingMonthlyUserId) === uid;
+
+            let statusCellHtml = '';
+            if (isEditing) {
+                const selVal = eff ? '1' : '0';
+                statusCellHtml =
+                    '<div class="user-price-status-edit setting-prices-monthly-edit-panel">' +
+                    '<div class="d-flex flex-nowrap align-items-center gap-1 justify-content-end">' +
+                    '<select class="form-select form-select-sm user-manual-paid-select setting-prices-monthly-paid-select" data-initial="' + selVal + '" aria-label="Статус оплаты">' +
+                    '<option value="1"' + (eff ? ' selected' : '') + '>Оплачено</option>' +
+                    '<option value="0"' + (!eff ? ' selected' : '') + '>Не оплачено</option>' +
+                    '</select>' +
+                    '<button type="button" class="btn btn-sm btn-danger user-price-edit-cancel d-inline-flex align-items-center justify-content-center px-2" title="Отмена" aria-label="Отмена">' +
+                    '<i class="fa fa-times" aria-hidden="true"></i>' +
+                    '</button>' +
+                    '</div>' +
+                    '<div class="manual-paid-error small text-danger mt-1" style="display:none"></div>' +
+                    '</div>';
+            } else {
+                statusCellHtml =
+                    '<div class="user-price-status-view setting-prices-monthly-status-view d-flex align-items-center flex-nowrap gap-1">' +
+                    '<div class="user-price-badge-wrap position-relative setting-prices-monthly-badge-wrap">' +
+                    '<span class="badge ' + statusBadgeClass + '">' + statusBadgeText + '</span>' +
+                    infoIcon +
+                    '</div>' +
+                    '<div class="setting-prices-monthly-edit-wrap">' + pencilHtml + '</div>' +
+                    '</div>';
+            }
+
+            const checkColHtml = showPaidCheckmark
+                ? '<div class="setting-prices-monthly-check flex-shrink-0 d-flex align-items-center justify-content-center">' +
+                    '<span class="fa fa-check ' + checkClass + ' green-check" aria-hidden="true" title="' + (eff ? 'Месяц считается оплаченным' : 'Не оплачено') + '"></span>' +
+                    '</div>'
+                : '';
+
+            const userBlock = `
+                        <div class="setting-prices-user-card mb-2 pb-2 border-bottom" data-user-id="${uid}">
+                            <div class="setting-prices-monthly-row d-flex align-items-center gap-1 gap-md-2 flex-nowrap w-100 min-w-0">
+                                <div class="setting-prices-monthly-name-col d-flex align-items-center min-w-0 flex-grow-1 gap-1">
+                                    <span id="${uid}" class="user-name setting-prices-monthly-name-text text-truncate" title="${escapeAttr(namePlain)}">${userNameFormatted}</span>
+                                </div>
+                                ${checkColHtml}
+                                <div class="setting-prices-monthly-price flex-shrink-0">
+                                    <input type="number" class="form-control form-control-sm setting-prices-monthly-price-input" value="${up.price}" ${inputDisabled} aria-label="Цена">
+                                </div>
+                                <div class="setting-prices-monthly-status flex-shrink-0 min-w-0">
+                                    ${statusCellHtml}
+                                </div>
+                            </div>
+                        </div>`;
+
+            rightBar.append(userBlock);
+        }
+
+        document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
+    }
+
+    $(document).on('click', '#right_bar .wrap-users .user-price-manual-edit', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const uid = $(this).attr('data-user-id');
+        if (!uid) {
+            return;
+        }
+
+        if (String(editingMonthlyUserId) === String(uid)) {
+            editingMonthlyUserId = null;
+            renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
+            return;
+        }
+
+        if (editingMonthlyUserId) {
+            editingMonthlyUserId = uid;
+            renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
+            return;
+        }
+
+        editingMonthlyUserId = uid;
+        renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
+    });
+
+    $(document).on('click', '#right_bar .wrap-users .user-price-edit-cancel', function (e) {
+        e.preventDefault();
+        editingMonthlyUserId = null;
+        renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
+    });
+
+    $(document).on('change', '#right_bar .wrap-users .user-manual-paid-select', function () {
+        const $sel = $(this);
+        const $card = $sel.closest('.setting-prices-user-card');
+        const userId = $card.attr('data-user-id');
+        const val = $sel.val();
+        const initial = $sel.data('initial');
+
+        if (String(val) === String(initial)) {
+            return;
+        }
+
+        const selectedDate = getSelectedMonthLabel();
+        const mode = val === '1' ? 'paid' : 'unpaid';
+        const labelWant = val === '1' ? 'оплачено' : 'не оплачено';
+        const errBox = $card.find('.manual-paid-error')[0];
+
+        $sel.val(initial);
+
+        if (typeof window.showManualPaidCommentModal !== 'function') {
+            console.error('showManualPaidCommentModal not available');
+            return;
+        }
+
+        window.showManualPaidCommentModal(
+            'Подтверждение',
+            'Будет установлен статус: «' + labelWant + '». Укажите комментарий.',
+            function (comment) {
+                postManualPaid(userId, selectedDate, mode, comment, errBox);
+            }
+        );
+    });
+
     const detailButtons = document.querySelectorAll('#left_bar .detail');
     for (let i = 0; i < detailButtons.length; i++) {
         let button = detailButtons[i];
@@ -23,7 +282,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const parentDiv = this.closest('.wrap-team');
 
-            // Снимаем подсветку кнопки «Подробно» и строки группы у всех строк
             detailButtons.forEach(btn => btn.classList.remove('action-button'));
             clearTeamRowHighlight();
 
@@ -32,59 +290,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 parentDiv.classList.add('wrap-team--active');
             }
 
-            const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+            const selectedDate = getSelectedMonthLabel();
             document.querySelector('#right_bar .btn-setting-prices').setAttribute('disabled', 'disabled');
+            editingMonthlyUserId = null;
+
+            const csrf = $('meta[name="csrf-token"]').attr('content');
             if (parentDiv) {
 
                 $.ajax({
                     url: '/admin/setting-prices/get-team-price',
                     method: 'POST',
-                    contentType: 'application/json', // Указываем тип контента JSON
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                    },
                     data: JSON.stringify({
                         teamId: parentDiv.id,
                         selectedDate: selectedDate
                     }),
                     success: function (response) {
                         if (response.success) {
-                            //Обновление списка пользователей справа
-                            let updateUserListRightBar = function () {
-
-                                usersPrice = response.usersPrice;
-                                var usersTeam = response.usersTeam;
-
-                                let rightBar = $('.wrap-users');
-                                rightBar.empty();
-
-                                for (let i = 0; i < usersPrice.length; i++) {
-                                    let userTeam = usersTeam.find(team => team.id === usersPrice[i].user_id);
-
-                                    let checkClass = usersPrice[i].is_paid ? '' : 'display-none';
-                                    let inputDisabled = usersPrice[i].is_paid ? 'disabled' : '';
-
-                                    // Добавляем нумерацию: (i + 1) + '. ' + имя
-                                    // let userNameFormatted = (i + 1) + '. ' + (userTeam ? userTeam.name : 'Имя не найдено');
-                                    let userNameFormatted = (i + 1) + '. ' + (userTeam ? [userTeam.lastname, userTeam.name].filter(Boolean).join(' ').trim() : 'Имя не найдено');
-
-                                    let userBlock = `
-                        <div class="row mb-2">
-                            <div id="${userTeam ? userTeam.id : 'Имя не найдено'}" class="user-name col-6 text-start">${userNameFormatted}</div>
-                            <div class="user-price col-4">
-                                <input type="number" value="${usersPrice[i].price}" ${inputDisabled}>
-                            </div>
-                            <div class="check col-2">
-                                <span class="fa fa-check ${checkClass} green-check" aria-hidden="true"></span>
-                            </div>
-                        </div>
-                    `;
-                                    // console.log(userBlock);
-                                    rightBar.append(userBlock);
-                                }
-
-                                // Активируем кнопку после загрузки пользователей
-                                document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
-                            }
-
-                            updateUserListRightBar();
+                            usersPrice = response.usersPrice;
+                            const usersTeam = response.usersTeam;
+                            const canManage = !!response.can_manage_manual_paid;
+                            renderUsersRightColumn(usersTeam, usersPrice, canManage);
                         }
                     },
                     error: function (xhr, status, error) {
@@ -97,8 +328,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    //AJAX Кнопка ОК. Установка цен группе и юзерам.
-    // Вешаем обработчики на кнопки с классом .ok
     const okButtons = document.querySelectorAll('#left_bar .ok');
     for (let i = 0; i < okButtons.length; i++) {
         let button = okButtons[i];
@@ -106,23 +335,24 @@ document.addEventListener('DOMContentLoaded', function () {
             const parentDiv = this.closest('.wrap-team');
             const teamPriceInput = parentDiv.querySelector('.team-price input');
             const teamPrice = teamPriceInput.value;
-            // Ваш уже полученный select
-            const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+            const selectedDate = getSelectedMonthLabel();
 
-            // Убираем старый класс
             teamPriceInput.classList.remove('animated-input');
 
-            // Если элемент есть, вызываем модалку и передаём логику в confirmCallback
             if (parentDiv) {
                 showConfirmDeleteModal(
                     'Подтвердите действие',
                     'Вы действительно хотите установить цену для этой команды?',
                     function () {
-                        // Весь AJAX-запрос исполняется внутри этого колбэка
+                        const csrf = $('meta[name="csrf-token"]').attr('content');
                         $.ajax({
                             url: '/admin/setting-prices/set-team-price',
                             method: 'POST',
                             contentType: 'application/json',
+                            headers: {
+                                'X-CSRF-TOKEN': csrf,
+                                'Accept': 'application/json',
+                            },
                             data: JSON.stringify({
                                 teamId: parentDiv.id,
                                 teamPrice: teamPrice,
@@ -130,14 +360,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             }),
                             success: function (response) {
                                 if (response.success) {
-                                    // Возвращаем класс при успешном ответе
                                     teamPriceInput.classList.add('animated-input');
-
-                                    // Можно использовать полученные данные из ответа
-                                    var teamPrice = response.teamPrice;
-                                    var selectedDate = response.selectedDate;
-                                    var teamId = response.teamId;
-                                    // Если нужно что-то сделать с этими данными — делайте тут
                                 }
                             }
                         });
@@ -147,19 +370,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    //ПРИМЕНИТЬ СЛЕВА. Установка цен всем группам
     $('.set-price-all-teams').on('click', function () {
         showConfirmDeleteModal(
             "Установка цена всем группам",
             "Вы уверены, что хотите применить изменения?", function () {
-                // ----
-                // Выполняем действия только после подтверждения
-                const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+                const selectedDate = getSelectedMonthLabel();
 
-                // Выключаем кнопку
                 document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
 
-                // Получаем массив команд и их цен
                 let teamsData = [];
                 document.querySelectorAll('#left_bar .wrap-team').forEach(function (teamElement) {
                     let teamName = teamElement.querySelector('.team-name').textContent.trim();
@@ -177,18 +395,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
+                const csrf = $('meta[name="csrf-token"]').attr('content');
                 $.ajax({
                     url: '/admin/setting-prices/set-price-all-teams',
-                    method: 'POST',  // Меняем метод на POST
-                    contentType: 'application/json', // Указываем тип контента JSON
-                    data: JSON.stringify({ // Передаём данные в теле запроса в формате JSON
+                    method: 'POST',
+                    contentType: 'application/json',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                    },
+                    data: JSON.stringify({
                         selectedDate: selectedDate,
                         teamsData: teamsData
                     }),
-                    success: function (response) {
+                    success: function () {
                         showSuccessModal("Установка цен всем группам", "Цены  всем группам успешно обновлены.", 1);
                     },
-                    error: function (xhr, status, error) {
+                    error: function () {
                         $('#errorModal').modal('show');
                     }
                 });
@@ -197,43 +420,40 @@ document.addEventListener('DOMContentLoaded', function () {
         );
     });
 
-    // ПРИМЕНИТЬ СПРАВА. Установка цен всем ученикам
     $('#set-price-all-users').on('click', function () {
         showConfirmDeleteModal(
             "Установка цен в одной группе",
             "Вы уверены, что хотите применить изменения?", function () {
 
-                // Выбранная дата
-                const selectedDate = document.getElementById('single-select-date').options[selectElement.selectedIndex].textContent;
+                const selectedDate = getSelectedMonthLabel();
 
-                console.log("до фунцкции");
-                console.log(usersPrice);
-                // Функция для обновления цен пользователей
-                let updateUsersPrice = function (usersPrice) {
-                    const userRows = document.querySelectorAll('.wrap-users .mb-2');
-                    for (let i = 0; i < usersPrice.length; i++) {
+                let updateUsersPrice = function (usersPriceLocal) {
+                    const userRows = document.querySelectorAll('.wrap-users .setting-prices-user-card');
+                    for (let i = 0; i < usersPriceLocal.length; i++) {
                         for (let j = 0; j < userRows.length; j++) {
-                            let userId = userRows[j].querySelector('.user-name').getAttribute('id');
-                            let price = userRows[j].querySelector('.user-price input').value;
-                            if (usersPrice[i].user_id == userId) {
-                                // Обновляем цену пользователя с фронта в usersPrice
-                                usersPrice[i].price = price;
+                            let userId = userRows[j].getAttribute('data-user-id');
+                            let priceInput = userRows[j].querySelector('.setting-prices-monthly-price-input');
+                            let price = priceInput ? priceInput.value : null;
+                            if (price !== null && String(usersPriceLocal[i].user_id) === String(userId)) {
+                                usersPriceLocal[i].price = price;
                             }
                         }
                     }
-                    console.log("функция");
-                    console.log(usersPrice);
-                    return usersPrice;
+                    return usersPriceLocal;
                 };
 
-                // Обновляем данные о ценах пользователей
                 usersPrice = updateUsersPrice(usersPrice);
 
+                const csrf = $('meta[name="csrf-token"]').attr('content');
                 $.ajax({
                     url: '/admin/setting-prices/set-price-all-users',
                     method: 'POST',
                     contentType: 'application/json',
                     dataType: 'json',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                    },
                     data: JSON.stringify({
                         selectedDate: selectedDate,
                         usersPrice: usersPrice,
@@ -245,55 +465,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         showSuccessModal("Установка цен в одной группе", "Цены ученикам в выбранной группе успешно обновлены.");
 
-                        // Добавляем юзеров с ценами в колонку справа
-                        let apendUserWithPrice = function () {
-                            let rightBar = $('.wrap-users');
-                            rightBar.empty();
-                            for (let i = 0; i < usersPrice.length; i++) {
-                                let isPaidClass = usersPrice[i].is_paid == 0 ? 'display-none' : '';
-                                let inputClass = usersPrice[i].is_paid == 0 ? 'animated-input' : '';
-                                let inputDisabled = usersPrice[i].is_paid == 1 ? 'disabled' : '';
-
-                                // Добавляем порядковый номер
-                                const userNumber = i + 1; // Нумерация с 1
-                                // const userName = usersPrice[i].user?.name ?? 'Неизвестный';
-
-                                // Безопасно собираем "Фамилия Имя" с запасными вариантами
-                                const first = (usersPrice[i].user?.name || '').trim();
-                                const last = (usersPrice[i].user?.lastname || '').trim();
-                                const userName = (last || first) ? `${last} ${first}`.trim() : 'Неизвестный';
-
-
-                                //             let userBlock = `
-                                //     <div class="row mb-2">
-                                //         <div id="${usersPrice[i].user_id}" class="user-name col-6">${userNumber}. ${userName}</div>
-                                //         <div class="user-price col-4">
-                                //             <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
-                                //         </div>
-                                //         <div class="check col-2">
-                                //             <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
-                                //         </div>
-                                //     </div>
-                                // `;
-
-                                let userBlock = `
-                      <div class="row mb-2">
-                         <div id="${usersPrice[i].user_id}" class="user-name col-6">${userNumber}. ${userName}</div>
-                         <div class="user-price col-4">
-                         <input class="${inputClass}" type="number" value="${usersPrice[i].price}" ${inputDisabled}>
-                         </div>
-                          <div class="check col-2">
-                          <span class="fa fa-check ${isPaidClass} green-check" aria-hidden="true"></span>
-                         </div>
-                      </div>
-                            `;
-
-
-                                rightBar.append(userBlock);
-                                document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
-                            }
-                        };
-                        apendUserWithPrice();
+                        editingMonthlyUserId = null;
+                        const wrap = document.querySelector('#right_bar .wrap-users');
+                        let usersTeam = [];
+                        try {
+                            const json = wrap && wrap.getAttribute('data-users-team-json');
+                            usersTeam = json ? JSON.parse(json) : [];
+                        } catch (e) {
+                            usersTeam = [];
+                        }
+                        renderUsersRightColumn(usersTeam, usersPrice, lastCanManageManualPaid);
                     },
                     error: function (xhr, status, error) {
                         console.log('Error:', error);
