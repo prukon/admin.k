@@ -156,9 +156,6 @@ Route::view('/public-offerta', 'landing.agreements.public-offerta')->name('publi
  Route::view('  ', 'landing.agreements.policy')->name('policy');
  
 
- 
-
-
 // Blog (публичный)
 Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/category/{slug}', [\App\Http\Controllers\BlogController::class, 'category'])->name('blog.category');
@@ -180,7 +177,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/security/phone/resend-old', [PhoneChangeController::class, 'resendOld'])->name('security.phone.resend_old');
     Route::post('/security/phone/resend-new', [PhoneChangeController::class, 'resendNew'])->name('security.phone.resend_new');
 });
-
+ 
 
 // -----------auth', '2fa-----------
 Route::middleware(['auth', '2fa'])->group(function () {
