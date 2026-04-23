@@ -31,17 +31,30 @@ phpunit.xml.cache
 !.env.example
 .env.backup
 
-# storage и логи (каталоги будут существовать благодаря своим .gitignore)
+# storage и логи (runtime-файлы игнорим, но "якорные" .gitignore — отслеживаем)
 storage/*.key
 storage/debugbar/
-storage/framework/
-storage/logs/
+
+# Важно: нельзя игнорировать каталог целиком, иначе нельзя "разигнорить" файл внутри.
+storage/framework/*
+!storage/framework/cache/
+!storage/framework/cache/.gitignore
+!storage/framework/cache/data/
+!storage/framework/cache/data/.gitignore
+!storage/framework/sessions/
+!storage/framework/sessions/.gitignore
+!storage/framework/views/
+!storage/framework/views/.gitignore
+
+storage/logs/*
+!storage/logs/.gitignore
 
 # Если хотите оставить только symlink, не файлы:
 public/storage
 
 # bootstrap cache (оставляем .gitignore в каталоге)
 bootstrap/cache/*
+!bootstrap/cache/.gitignore
 
 # Homestead / Valet / прочее локальное
 Homestead.yaml
