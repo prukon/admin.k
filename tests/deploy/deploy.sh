@@ -53,6 +53,64 @@ run() {
   fi
 }
 
+# Staging: dev ∈ www-data; после chown у группы часто только r-x на каталогах — без g+w IDE/агент
+# не пишет в app/, database/ и т.д. Каталоги 2775, файлы 664; setgid — новые подкаталоги с группой www-data.
+# vendor/ и node_modules/ сюда не входят.
+test_fix_group_writable_for_dev() {
+  local root="$1"
+  local d
+  local -a trees=(
+    app
+    database
+    resources
+    routes
+    config
+    bootstrap
+    public
+    docs
+    storage
+  )
+  if [[ -d "${root}/lang" ]]; then
+    trees+=("lang")
+  fi
+
+  echo "==> [test] права для dev (www-data: g+rw; каталоги 2775=setgid+rwx, файлы 664)"
+  for d in "${trees[@]}"; do
+    if [[ -d "${root}/${d}" ]]; then
+      echo "    -> ${d}/"
+      run sudo find "${root}/${d}" -type d -exec chmod 2775 {} \;
+      run sudo find "${root}/${d}" -type f -exec chmod 664 {} \;
+    fi
+  done
+  # tests/ обрабатываем отдельно: не вешать 664 на tests/deploy/* (там .sh с +x)
+  if [[ -d "${root}/tests" ]]; then
+    echo "    -> tests/ (кроме tests/deploy/*: файлы 664, скрипты deploy — 775)"
+    run sudo find "${root}/tests" -type d -exec chmod 2775 {} \;
+    run sudo find "${root}/tests" -type f ! -path "${root}/tests/deploy/*" -exec chmod 664 {} \;
+    if [[ -d "${root}/tests/deploy" ]]; then
+      shopt -s nullglob
+      for f in "${root}/tests/deploy"/*.sh; do
+        if [[ -f "$f" ]]; then
+          run sudo chmod 775 "$f"
+        fi
+      done
+      shopt -u nullglob
+    fi
+  fi
+  for f in artisan composer.json composer.lock package.json package-lock.json phpunit.xml phpstan.neon pint.json vite.config.js; do
+    if [[ -f "${root}/${f}" ]]; then
+      run sudo chmod 664 "${root}/${f}"
+    fi
+  done
+  shopt -s nullglob
+  for f in "${root}"/install_*.php "${root}"/MIGRATION_*.php; do
+    if [[ -f "$f" ]]; then
+      run sudo chmod 664 "$f"
+    fi
+  done
+  shopt -u nullglob
+}
+
 # Читает значение ключа из .env (первая подходящая строка), без подстановки shell.
 read_env() {
   local file="$1" key="$2" line val
@@ -184,6 +242,8 @@ if [[ "$MODE" == "test" ]]; then
 
   echo "==> [test] chown проекта (sudo)"
   run sudo chown -R prukon:www-data "${ROOT}"
+
+  test_fix_group_writable_for_dev "$ROOT"
 
   if [[ -d "${BLOG_DIR}" ]]; then
     echo "==> [test] права на storage/app/public/blog"
