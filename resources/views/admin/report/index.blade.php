@@ -38,6 +38,13 @@
                             href="/admin/reports/fiscal-receipts" role="tab">Чеки</a>
                     </li>
                 @endcan
+
+                @can('reports.emails.view')
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {{ $activeTab == 'emails' ? 'active' : '' }}"
+                            href="/admin/reports/emails" role="tab">Исходящие письма</a>
+                    </li>
+                @endcan
             </ul>
 
 
@@ -87,6 +94,14 @@
                         'totalPaidPrice' => $totalPaidPrice ?? '0',
                         'frFilterPartner' => $frFilterPartner ?? null,
                         'frHasActiveFilters' => $frHasActiveFilters ?? false,
+                    ])
+                @elseif($activeTab === 'emails')
+                    <!-- Контент вкладки "Исходящие письма" -->
+                    @include('admin.report.outgoing_emails', [
+                        'filters' => $filters ?? [],
+                        'emailsToolbar' => $emailsToolbar ?? null,
+                        'emailsFilterMailable' => $emailsFilterMailable ?? null,
+                        'emailsHasActiveFilters' => $emailsHasActiveFilters ?? false,
                     ])
                 @endif
             </div>

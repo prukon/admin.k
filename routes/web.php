@@ -64,6 +64,7 @@ use App\Http\Controllers\Debug\RequestDebugController;
 use App\Http\Middleware\DebugRequestAccess;
 use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
 use App\Http\Controllers\Admin\Report\FiscalReceiptReportController;
+use App\Http\Controllers\Admin\Report\OutgoingEmailReportController;
 use App\Http\Controllers\Admin\UserAvatarController;
 use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
 use App\Http\Controllers\Admin\Report\PaymentMonthlyReportController;
@@ -251,6 +252,17 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/fiscal-receipts/data', [FiscalReceiptReportController::class, 'data'])->name('reports.fiscal-receipts.data');
         Route::get('/admin/reports/fiscal-receipts/columns-settings', [FiscalReceiptReportController::class, 'getColumnsSettings']);
         Route::post('/admin/reports/fiscal-receipts/columns-settings', [FiscalReceiptReportController::class, 'saveColumnsSettings']);
+    });
+
+    // Отчёты -> "Исходящие письма"
+    Route::middleware(['can:reports.emails.view'])->group(function () {
+        Route::get('/admin/reports/emails', [OutgoingEmailReportController::class, 'index'])->name('reports.emails.index');
+        Route::get('/admin/reports/emails/total', [OutgoingEmailReportController::class, 'total'])->name('reports.emails.total');
+        Route::get('/admin/reports/emails/data', [OutgoingEmailReportController::class, 'data'])->name('reports.emails.data');
+        Route::get('/admin/reports/emails/mailable-classes-search', [OutgoingEmailReportController::class, 'mailableClassesSearch'])->name('reports.emails.mailable.classes.search');
+        Route::get('/admin/reports/emails/columns-settings', [OutgoingEmailReportController::class, 'getColumnsSettings']);
+        Route::post('/admin/reports/emails/columns-settings', [OutgoingEmailReportController::class, 'saveColumnsSettings']);
+        Route::get('/admin/reports/emails/{log}', [OutgoingEmailReportController::class, 'show'])->whereNumber('log')->name('reports.emails.show');
     });
 
     //Мои платежи (feature test +)

@@ -82,6 +82,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('reports.payment.intents.view');
         });
 
+        // Отчёты -> вкладка "Исходящие письма"
+        Gate::define('reports.emails.view', function (User $user) {
+            return $user->hasPermission('reports.emails.view');
+        });
+
         // Отчёты -> доп. значения (комиссии/нетто и т.п.)
         Gate::define('reports.additional.value.view', function (User $user) {
             return $user->hasPermission('reports.additional.value.view');

@@ -21,6 +21,13 @@ class EventServiceProvider extends ServiceProvider
         \Illuminate\Auth\Events\Login::class => [
             \App\Listeners\LogUserLogin::class,
         ],
+        // Лог исходящих писем (см. отчёт /admin/reports/emails).
+        \Illuminate\Mail\Events\MessageSending::class => [
+            [\App\Listeners\LogOutgoingEmail::class, 'sending'],
+        ],
+        \Illuminate\Mail\Events\MessageSent::class => [
+            [\App\Listeners\LogOutgoingEmail::class, 'sent'],
+        ],
     ];
  
 

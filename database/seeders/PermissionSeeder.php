@@ -27,6 +27,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'reports.view',                   'description' => 'Страница "Отчеты"',                             'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 15],
             ['name' => 'reports.payment.intents.view',   'description' => 'Страница "Платежные запросы"',                  'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'reports.fiscal.receipts.view',   'description' => 'Страница "Чеки"',                               'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
+            ['name' => 'reports.emails.view',            'description' => 'Страница "Исходящие письма"',                  'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'reports.additional.value.view',  'description' => 'Страница "Отчеты (доп. значения)"',             'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 17],
             ['name' => 'reports.payments.totals.net_to_partner.view', 'description' => 'Отчёт «Платежи»: итог «К выплате» в шапке', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 18],
             ['name' => 'reports.payments.totals.payout_amount.view', 'description' => 'Отчёт «Платежи»: итог «Выплата» в шапке', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 19],

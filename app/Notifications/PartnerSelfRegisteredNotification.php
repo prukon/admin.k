@@ -35,9 +35,15 @@ class PartnerSelfRegisteredNotification extends Notification implements ShouldQu
     public function toMail(object $notifiable): MailMessage
     {
         $cabinetUrl = url('/cabinet');
+        $partnerId = (int) $this->partner->id;
 
         return (new MailMessage)
             ->subject('Регистрация школы на kidscrm.online')
+            ->withSymfonyMessage(function ($message) use ($partnerId): void {
+                if ($partnerId > 0) {
+                    $message->getHeaders()->addTextHeader('X-Partner-Id', (string) $partnerId);
+                }
+            })
             ->greeting('Здравствуйте!')
             ->line('Регистрация прошла успешно. Ниже ключевые данные:')
             ->lines([
