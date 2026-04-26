@@ -3,6 +3,7 @@
 // namespace Tests\Feature;
 namespace Tests\Feature\Public;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Mail\NewContactSubmission;
 use App\Models\ContactSubmission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,6 +14,12 @@ use Tests\TestCase;
 class ContactSendTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+    }
 
     /**
      * Успешная отправка заявки с валидными данными и пройденной reCAPTCHA.
