@@ -143,13 +143,12 @@
                         {{-- Поле "email" --}}
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
-                                <label for="edit-email" class="form-label">Адрес электронной почты*</label>
+                                <label for="edit-email" class="form-label">Email</label>
                                 <input
                                         type="email"
                                         id="edit-email"
                                         name="email"
                                         class="form-control"
-                                        required
                                         @cannot('users.email.update') disabled aria-disabled="true" @endcannot
                                 >
                                 @cannot('users.email.update')

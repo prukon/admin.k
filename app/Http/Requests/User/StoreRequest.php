@@ -20,7 +20,7 @@ class StoreRequest extends FormRequest
             'team_id'     => 'nullable|integer|exists:teams,id', // было string — ставим integer + exists
             'start_date'  => 'nullable|date',
 
-            'email'       => 'required|string|email|max:255|unique:users,email',
+            'email'       => 'nullable|email|max:255|unique:users,email',
             'password'    => 'required|string|min:8|max:255',
 
             'is_enabled'  => 'sometimes|boolean', // чекбокс может не прийти
@@ -54,7 +54,6 @@ class StoreRequest extends FormRequest
             'lastname.string'       => 'Фамилия должна быть строкой.',
             'lastname.max'          => 'Фамилия не должно превышать :max символов.',
 
-            'email.required'    => 'Пожалуйста, введите адрес электронной почты.',
             'email.email'       => 'Введите корректный адрес электронной почты.',
             'email.unique'      => 'Этот адрес электронной почты уже зарегистрирован.',
 

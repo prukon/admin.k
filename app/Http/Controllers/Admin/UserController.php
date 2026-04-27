@@ -237,7 +237,7 @@ class UserController extends AdminBaseController
                 'birthday'     => $user->birthday
                     ? Carbon::parse($user->birthday)->format('d.m.Y')
                     : '',
-                'email'        => $user->email,
+                'email'        => $user->email ?? '',
                 'phone'        => $user->phone,
                 'status_label' => $user->is_enabled ? 'Активен' : 'Неактивен',
                 'is_enabled'   => (int) $user->is_enabled,
@@ -315,6 +315,10 @@ class UserController extends AdminBaseController
             ]);
         });
 
+        if (!$user) {
+            abort(500, 'Не удалось создать пользователя.');
+        }
+
         // 3) Ответ для AJAX (без лишних повторных запросов и с безопасными доступами)
         if ($request->ajax()) {
             $birthdayFormatted   = $user->birthday
@@ -332,7 +336,7 @@ class UserController extends AdminBaseController
                     'birthday'   => $birthdayFormatted,
                     'start_date' => $startDateFormatted,
                     'team'       => $teamTitleForLog,
-                    'email'      => $user->email,
+                    'email'      => $user->email ?? '',
                     'is_enabled' => $user->is_enabled ? 'Да' : 'Нет',
                 ],
             ], 200);

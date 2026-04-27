@@ -101,7 +101,7 @@
 
             {{-- Поле "Email" --}}
             <div class="mb-3">
-                <label for="email" class="form-label">Адрес электронной почты*</label>
+                <label for="email" class="form-label">Адрес электронной почты (необязательно)</label>
                 <input
                         type="email"
                         id="email"

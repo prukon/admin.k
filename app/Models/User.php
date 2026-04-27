@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
+use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable
 
@@ -72,7 +73,22 @@ class User extends Authenticatable
     //Восстановление пароля через емаил
     public function sendPasswordResetNotification($token)
     {
+        if (!$this->email) {
+            Log::info('Password reset skipped: user has no email', [
+                'user_id' => $this->id,
+            ]);
+            return;
+        }
         $this->notify(new ResetPasswordNotification($token));
+    }
+
+    /**
+     * Mail routing for Laravel Notifications.
+     * Если email отсутствует — mail-уведомления не отправляем (и не падаем).
+     */
+    public function routeNotificationForMail($notification = null): ?string
+    {
+        return $this->email ?: null;
     }
 
     public function partner()

@@ -43,6 +43,14 @@ class UpdateRequest extends FormRequest
             'is_enabled' => $resolvedIsEnabled,
         ]);
 
+        // Разрешаем очищать email: пустая строка -> null, чтобы nullable+email работали корректно.
+        if ($this->has('email') && is_string($this->input('email'))) {
+            $email = trim($this->input('email'));
+            $this->merge([
+                'email' => $email !== '' ? $email : null,
+            ]);
+        }
+
 //        Log::info('UpdateRequest: prepareForValidation', [
 //            'editor_user_id'        => optional($this->user())->id,
 //            'target_user_id'        => optional($targetUser)->id,
@@ -98,7 +106,13 @@ class UpdateRequest extends FormRequest
         }
 
         if ($this->user()->can('users.email.update')) {
-            $rules['email'] = ['sometimes', 'required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($targetUserId),];
+            $rules['email'] = [
+                'sometimes',
+                'nullable',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($targetUserId),
+            ];
         }
 
         if ($this->user()->can('users.phone.update')) {

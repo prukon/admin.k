@@ -36,7 +36,7 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="email" class="form-label">Email*</label>
+                        <label for="email" class="form-label">Email</label>
                         <input type="email" name="email" class="form-control" id="email">
                     </div>
                     <div class="mb-3 wrap-cur-password">

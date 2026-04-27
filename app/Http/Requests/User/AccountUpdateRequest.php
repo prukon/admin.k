@@ -45,6 +45,14 @@ class AccountUpdateRequest extends FormRequest
             'two_factor_enabled' => $resolvedTwoFactorEnabled,
             'is_enabled'         => $resolvedIsEnabled,
         ]);
+
+        // Разрешаем очищать email: пустая строка -> null, чтобы nullable+email работали корректно.
+        if ($this->has('email') && is_string($this->input('email'))) {
+            $email = trim($this->input('email'));
+            $this->merge([
+                'email' => $email !== '' ? $email : null,
+            ]);
+        }
     }
 
     /**
@@ -83,7 +91,7 @@ class AccountUpdateRequest extends FormRequest
 
 
         if ($this->user()->can('account.user.email.update')) {
-            $rules['email'] = ['sometimes', 'required', 'string', 'email', 'max:255',
+            $rules['email'] = ['sometimes', 'nullable', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($targetUserId),
             ];
         }
