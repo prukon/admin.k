@@ -23,6 +23,7 @@ return [
             'dashboard.view',
             'reports.view',
             'setPrices.view',
+            'setPrices.abonements.view',
             'schedule.view',
             'users.view',
             'groups.view',

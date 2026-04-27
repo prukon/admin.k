@@ -15,6 +15,14 @@
                     <a class="nav-link {{ $activeTab == 'users' ? 'active' : '' }}" href="/admin/setting-prices/users"
                         role="tab">По ученикам</a>
                 </li>
+
+                {{-- Абонементы (кастомные периоды) --}}
+                @can('setPrices.abonements.view')
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {{ $activeTab == 'abonements' ? 'active' : '' }}" href="/admin/setting-prices/abonements"
+                            role="tab">Абонементы</a>
+                    </li>
+                @endcan
             </ul>
 
 
@@ -30,6 +38,10 @@
                         'teamPrices' => $teamPrices,
                         'allTeams' => $allTeams,
                         'monthString' => $monthString,
+                    ])
+                @elseif($activeTab === 'abonements')
+                    @include('admin.SettingPrices.abonements', [
+                        'users' => $users ?? collect(),
                     ])
                 @endif
             </div>

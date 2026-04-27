@@ -10,6 +10,7 @@ use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
+use App\Models\UserPeriodPrice;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
@@ -204,6 +205,20 @@ class RobokassaController extends Controller
                         'InvId' => $invId,
                         'payable_id' => $payable->id,
                         'month' => $month,
+                    ]);
+                }
+            } elseif ((string) $payable->type === 'abonement_fee') {
+                $pid = $payable->meta['user_period_price_id'] ?? null;
+                $pidInt = is_numeric($pid) ? (int) $pid : 0;
+                if ($pidInt > 0) {
+                    UserPeriodPrice::query()
+                        ->whereKey($pidInt)
+                        ->update(['is_paid' => 1]);
+                } else {
+                    Log::warning('Robokassa result: abonement_fee without user_period_price_id in payable.meta', [
+                        'InvId' => $invId,
+                        'payable_id' => $payable->id,
+                        'meta' => $payable->meta,
                     ]);
                 }
             }

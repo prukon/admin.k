@@ -214,6 +214,10 @@ class CloudKassirReceiptBuilder
             return 'Абонемент';
         }
 
+        if ($payable->type === 'abonement_fee') {
+            return 'Абонемент (период)';
+        }
+
         if ($payable->type === 'club_fee') {
             return 'Клубный взнос';
         }

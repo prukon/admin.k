@@ -138,6 +138,9 @@
 @section('scripts')
     <script type="text/javascript">
         function formatDateToMonthYear(dateStr) {
+            if (String(dateStr || '').indexOf('—') !== -1) {
+                return dateStr;
+            }
             var date = new Date(dateStr);
             var months = [
                 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',

@@ -196,6 +196,82 @@ footer .social-networks {
     margin-bottom: 30px;
 }
 
+.abonements-block {
+    margin-bottom: 30px;
+}
+
+.abonements-block .abonements-season {
+    margin-top: 20px;
+    border: 1px solid #f3a12b;
+    position: relative;
+}
+
+.abonements-block .abonements-header {
+    position: absolute;
+    left: 40px;
+    top: -12px;
+    background: #f4f6f9;
+    padding: 0 10px;
+    font-weight: 800;
+    color: #8e1c13;
+}
+
+.abonements-block .abonement_price {
+    border-style: dotted;
+    border-width: 1px 1px 1px 1px;
+    border-color: #f3a12b;
+    padding-top: 25px;
+    padding-bottom: 25px;
+    margin-right: 15px;
+    margin-left: 15px;
+    margin-bottom: 15px;
+    margin-top: 15px;
+    width: 100%;
+    max-width: 220px;
+    display: block;
+}
+
+.abonements-block .price-value,
+.abonements-block .hide-currency {
+    color: #8e1c13;
+    font-weight: 900;
+    font-size: 36px;
+    line-height: 43px;
+    text-align: center;
+    width: auto;
+}
+
+.abonements-block .new-price-description {
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 22px;
+    color: #817f8a;
+    margin-top: 5px;
+    text-align: center;
+}
+
+.abonements-block .abonement-note {
+    margin-top: 4px;
+    font-weight: 700;
+    color: #8e1c13;
+}
+
+.abonements-block .new-main-button {
+    width: 90%;
+    margin-top: 15px;
+    border-color: #f3a12b;
+}
+
+.abonements-block .new-main-button:hover {
+    background-color: #f3a12b;
+    color: white;
+    border-color: white;
+}
+
+.abonements-block .buttonPaided {
+    background-color: #f3a12b;
+}
+
 .seasons .season {
     /*text-align: center;*/
     margin-top: 20px;

@@ -8,6 +8,7 @@ use App\Models\PaymentSystem;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\UserPrice;
+use App\Models\UserPeriodPrice;
 use App\Models\MyLog;
 use App\Models\TinkoffPayment;
 use Illuminate\Support\Facades\DB;
@@ -388,6 +389,20 @@ class TinkoffPaymentsService
                             ['is_paid' => 1]
                         );
                     }
+                } elseif ((string) $payable->type === 'abonement_fee') {
+                    $pid = $payable->meta['user_period_price_id'] ?? null;
+                    $pidInt = is_numeric($pid) ? (int) $pid : 0;
+                    if ($pidInt > 0) {
+                        UserPeriodPrice::query()
+                            ->whereKey($pidInt)
+                            ->update(['is_paid' => 1]);
+                    } else {
+                        Log::channel('tinkoff')->warning('[abonement_fee missing user_period_price_id]', [
+                            'payable_id' => (int) $payable->id,
+                            'meta' => $payable->meta,
+                            'intent_id' => (int) $locked->id,
+                        ]);
+                    }
                 }
 
                 $user = User::find((int) $locked->user_id);
@@ -404,7 +419,14 @@ class TinkoffPaymentsService
                         'user_name'       => ($user?->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
                         'team_title'      => $teamName,
                         'operation_date'  => $currentDateTime,
-                        'payment_month'   => (string) ($payable->type === 'monthly_fee' ? ($payable->month?->format('Y-m-d') ?? '') : 'Клубный взнос'),
+                        'payment_month'   => (string) (
+                            $payable->type === 'monthly_fee'
+                                ? ($payable->month?->format('Y-m-d') ?? '')
+                                : ($payable->type === 'abonement_fee'
+                                    ? 'Абонемент'
+                                    : 'Клубный взнос'
+                                )
+                        ),
                         'summ'            => (string) $locked->out_sum,
                         'deal_id'         => $payment->deal_id ?: null,
                         'payment_id'      => (string) ($webhook['PaymentId'] ?? null),

@@ -12,14 +12,19 @@ use App\Models\TeamPrice;
 use App\Models\UserPrice;
 use App\Models\User;
 use App\Models\Weekday;
+use App\Models\UserPeriodPrice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use App\Models\MyLog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Str;
 use App\Support\BuildsLogTable;
 use App\Services\PartnerContext;
+use App\Http\Requests\Admin\UserPeriodPriceStoreRequest;
+use App\Http\Requests\Admin\SetManualUserPeriodPricePaidRequest;
+use Illuminate\Support\Carbon as SupportCarbon;
 
 class SettingPricesController extends AdminBaseController
 {
@@ -88,7 +93,7 @@ class SettingPricesController extends AdminBaseController
                 return $dbMonth;
             }
         } catch (\Throwable $e) {
-            \Log::warning('Не удалось прочитать месяц цен из settings', [
+            Log::warning('Не удалось прочитать месяц цен из settings', [
                 'partner_id' => $partnerId,
                 'error'      => $e->getMessage(),
             ]);
@@ -119,7 +124,7 @@ class SettingPricesController extends AdminBaseController
                 ]
             );
         } catch (\Throwable $e) {
-            \Log::warning('Не удалось сохранить месяц цен в settings', [
+            Log::warning('Не удалось сохранить месяц цен в settings', [
                 'partner_id'   => $partnerId,
                 'month_string' => $monthString,
                 'error'        => $e->getMessage(),
@@ -231,6 +236,208 @@ class SettingPricesController extends AdminBaseController
                 'users'       => $users,
             ]
         );
+    }
+
+    public function abonements()
+    {
+        $partnerId = $this->requirePartnerId();
+        if (!request()->user()?->can('setPrices.abonements.view')) {
+            abort(403);
+        }
+
+        // Команды/месяц тут не используются, но index.blade.php ожидает общий формат — пробрасываем пустое/минимальное.
+        $allTeams = $this->getPartnerTeamsOrdered();
+        $monthString = $this->getCurrentMonthString($partnerId);
+        $monthDate = $this->formatedDate($monthString);
+        $this->ensureTeamPricesForMonth($allTeams, $monthDate);
+        $teamPrices = $this->getTeamPricesForMonth($partnerId, $monthDate);
+
+        $users = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->orderBy('lastname')
+            ->orderBy('name')
+            ->get(['id', 'name', 'lastname']);
+
+        return view('admin.SettingPrices.index', [
+            'activeTab' => 'abonements',
+            'teamPrices' => $teamPrices,
+            'allTeams' => $allTeams,
+            'monthString' => $monthString,
+            'users' => $users,
+        ]);
+    }
+
+    public function abonementsData(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        if (!$request->user()?->can('setPrices.abonements.view')) {
+            abort(403);
+        }
+
+        $q = UserPeriodPrice::query()
+            ->where('user_period_prices.partner_id', $partnerId)
+            ->join('users', 'users.id', '=', 'user_period_prices.user_id')
+            ->select([
+                'user_period_prices.id',
+                'user_period_prices.user_id',
+                'user_period_prices.date_start',
+                'user_period_prices.date_end',
+                DB::raw('ROUND(user_period_prices.amount) as amount'),
+                'user_period_prices.is_paid',
+                'user_period_prices.is_manual_paid',
+                'user_period_prices.manual_paid_note',
+                DB::raw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name"),
+                DB::raw("CASE WHEN user_period_prices.is_manual_paid IS NULL THEN user_period_prices.is_paid ELSE user_period_prices.is_manual_paid END as effective_is_paid"),
+            ]);
+
+        return DataTables::of($q)
+            ->addColumn('period', function ($row) {
+                $start = $row->date_start ? SupportCarbon::parse((string) $row->date_start)->format('Y-m-d') : '';
+                $end = $row->date_end ? SupportCarbon::parse((string) $row->date_end)->format('Y-m-d') : '';
+                return trim($start) . ' — ' . trim($end);
+            })
+            ->addColumn('status', function ($row) {
+                $paid = (bool) $row->effective_is_paid;
+                $note = (string) ($row->manual_paid_note ?? '');
+                $title = $note !== '' ? e($note) : '';
+
+                $badgeClass = $paid ? 'bg-success' : 'bg-secondary';
+                $badgeText = $paid ? 'Оплачено' : 'Не оплачено';
+
+                $infoIcon = '';
+                if (($row->is_manual_paid ?? null) !== null) {
+                    $infoIcon = '<i class="fa fa-info-circle user-manual-info-icon" '
+                        .'title="'.$title.'" '
+                        .'aria-label="Комментарий к ручной отметке оплаты"></i>';
+                }
+
+                return '<div class="setting-prices-monthly-status-view d-flex align-items-center flex-nowrap gap-1">'
+                    .'<div class="setting-prices-monthly-badge-wrap position-relative">'
+                    .'<span class="badge '.$badgeClass.'">'.$badgeText.'</span>'
+                    .$infoIcon
+                    .'</div>'
+                    .'</div>';
+            })
+            ->addColumn('actions', function ($row) use ($request) {
+                $canManual = $request->user()?->can('setPrices.manualPaid.manage') ?? false;
+                if (! $canManual) {
+                    return '';
+                }
+
+                $paid = (bool) $row->effective_is_paid;
+                $btnPaid = '<button type="button" class="btn btn-sm btn-outline-success me-1" data-abonement-action="mark_paid" data-id="'.(int) $row->id.'">Оплачено</button>';
+                $btnUnpaid = '<button type="button" class="btn btn-sm btn-outline-secondary" data-abonement-action="mark_unpaid" data-id="'.(int) $row->id.'">Не оплачено</button>';
+                return $paid ? $btnUnpaid : ($btnPaid . $btnUnpaid);
+            })
+            ->rawColumns(['status', 'actions'])
+            ->make(true);
+    }
+
+    /**
+     * Select2: поиск учеников текущего партнёра (для абонементов).
+     */
+    public function abonementsUsersSearch(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        if (!$request->user()?->can('setPrices.abonements.view')) {
+            abort(403);
+        }
+        $q = trim((string) $request->query('q', ''));
+
+        $users = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%'.$q.'%';
+                $query->whereRaw("CONCAT_WS(' ', lastname, name) LIKE ?", [$like]);
+            })
+            ->orderBy('lastname')
+            ->orderBy('name')
+            ->limit(30)
+            ->get(['id', 'name', 'lastname']);
+
+        $results = $users->map(function ($u) {
+            $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+            return [
+                'id' => (int) $u->id,
+                'text' => $text !== '' ? $text : ('#'.$u->id),
+            ];
+        })->values();
+
+        return response()->json([
+            'results' => $results,
+        ]);
+    }
+
+    public function storeAbonement(UserPeriodPriceStoreRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        if (!request()->user()?->can('setPrices.abonements.view')) {
+            abort(403);
+        }
+
+        $data = $request->validated();
+
+        $row = UserPeriodPrice::create([
+            'partner_id' => $partnerId,
+            'user_id' => (int) $data['user_id'],
+            'date_start' => $data['date_start'],
+            'date_end' => $data['date_end'],
+            'amount' => (string) $data['amount'],
+            'note' => $data['note'] ?? null,
+            'is_paid' => false,
+        ]);
+
+        $row->refresh();
+
+        return response()->json([
+            'success' => true,
+            'abonement' => $row,
+        ]);
+    }
+
+    public function setManualPaidAbonement(int $id, SetManualUserPeriodPricePaidRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        if (!request()->user()?->can('setPrices.abonements.view')) {
+            abort(403);
+        }
+
+        $mode = (string) $request->validated('mode');
+        $comment = trim((string) $request->validated('comment'));
+
+        /** @var UserPeriodPrice|null $row */
+        $row = UserPeriodPrice::query()
+            ->whereKey($id)
+            ->where('partner_id', $partnerId)
+            ->first();
+
+        if (! $row) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Абонемент не найден или недоступен в контексте текущего партнёра.',
+            ], 404);
+        }
+
+        $authorId = auth()->id();
+
+        DB::transaction(function () use ($row, $mode, $comment, $authorId) {
+            $row->forceFill([
+                'is_manual_paid' => ($mode === 'paid'),
+                'manual_paid_by' => $authorId,
+                'manual_paid_at' => now(),
+                'manual_paid_note' => $comment,
+            ]);
+            $row->save();
+        });
+
+        $row->refresh();
+
+        return response()->json([
+            'success' => true,
+            'abonement' => $row,
+        ]);
     }
 
     // AJAX ПОДРОБНО. Получение списка пользователей по группе (вкладка "по месяцам")
@@ -577,7 +784,7 @@ class SettingPricesController extends AdminBaseController
                     ->first();
 
                 if (!$team) {
-                    \Log::warning('setPriceAllTeams: команда не найдена или не принадлежит текущему партнёру', [
+                    Log::warning('setPriceAllTeams: команда не найдена или не принадлежит текущему партнёру', [
                         'teamId'    => $teamId,
                         'partnerId' => $partnerId,
                     ]);
@@ -665,7 +872,7 @@ class SettingPricesController extends AdminBaseController
                 $user = User::with('team')->find($userId);
 
                 if (!$user || !$user->team || (int) $user->team->partner_id !== (int) $partnerId) {
-                    \Log::warning('setPriceAllUsers: попытка изменить цену пользователя не своего партнёра', [
+                    Log::warning('setPriceAllUsers: попытка изменить цену пользователя не своего партнёра', [
                         'user_id'   => $userId,
                         'partnerId' => $partnerId,
                     ]);

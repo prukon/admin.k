@@ -12,6 +12,7 @@ use App\Models\TeamPrice;
 use App\Models\TeamWeekday;
 use App\Models\User;
 use App\Models\UserField;
+use App\Models\UserPeriodPrice;
 use App\Models\UserPrice;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
@@ -53,6 +54,13 @@ class DashboardController extends Controller
         $scheduleUserArray = ScheduleUser::where('user_id', $curUser->id)->get()->toArray();
         $userPriceArray = UserPrice::where('user_id', $curUser->id)->get()->toArray();
 
+        $userAbonements = UserPeriodPrice::query()
+            ->where('partner_id', $partnerId)
+            ->where('user_id', (int) $curUser->id)
+            ->orderByDesc('date_start')
+            ->orderByDesc('id')
+            ->get();
+
         $textForUsers = Setting::where('name', 'textForUsers')
             ->where('partner_id', $partnerId)
             ->first();
@@ -71,6 +79,7 @@ class DashboardController extends Controller
             "scheduleUser",
             "scheduleUserArray",
             "userPriceArray",
+            "userAbonements",
             "textForUsers",
             "userFields",
             "userFieldValues",

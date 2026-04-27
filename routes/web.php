@@ -290,6 +290,12 @@ Route::middleware(['auth', '2fa'])->group(function () {
     
         Route::get('admin/setting-prices/monthly', [SettingPricesController::class, 'monthly'])->name('admin.settingPrices.indexMenu');
         Route::get('admin/setting-prices/users', [SettingPricesController::class, 'users'])->name('admin.settingPrices.users');
+        Route::middleware('can:setPrices.abonements.view')->group(function () {
+            Route::get('admin/setting-prices/abonements', [SettingPricesController::class, 'abonements'])->name('admin.settingPrices.abonements');
+            Route::get('admin/setting-prices/abonements/data', [SettingPricesController::class, 'abonementsData'])->name('admin.settingPrices.abonements.data');
+            Route::get('admin/setting-prices/abonements/users-search', [SettingPricesController::class, 'abonementsUsersSearch'])->name('admin.settingPrices.abonements.users-search');
+            Route::post('admin/setting-prices/abonements', [SettingPricesController::class, 'storeAbonement'])->name('admin.settingPrices.abonements.store');
+        });
    
 
         Route::post('admin/setting-prices/user-year-prices', [SettingPricesController::class, 'userYearPrices'])->name('setting-prices.user-year-prices');
@@ -298,6 +304,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/setting-prices/manual-paid', [SettingPricesController::class, 'setManualPaid'])
             ->middleware('can:setPrices.manualPaid.manage')
             ->name('setting-prices.manual-paid');
+
+        Route::post('admin/setting-prices/abonements/{id}/manual-paid', [SettingPricesController::class, 'setManualPaidAbonement'])
+            ->middleware('can:setPrices.manualPaid.manage')
+            ->whereNumber('id')
+            ->name('setting-prices.abonements.manual-paid');
     });
 
     //Журнал расписания

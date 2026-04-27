@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Carbon\Carbon;
 use App\Services\PartnerContext;
+use App\Models\UserPeriodPrice;
 
 class DeptReportController extends AdminBaseController
 {
@@ -28,7 +29,7 @@ class DeptReportController extends AdminBaseController
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
 
-        $totalQuery = DB::table('users_prices')
+        $totalMonthly = DB::table('users_prices')
             ->join('users', 'users.id', '=', 'users_prices.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users_prices.is_paid', 0)
@@ -37,10 +38,23 @@ class DeptReportController extends AdminBaseController
             ->where('users_prices.new_month', '<', $currentMonth)
             ->where('users.partner_id', $partnerId);
 
-        $this->applyDebtReportFilters($totalQuery, $request);
+        $this->applyDebtReportFilters($totalMonthly, $request);
 
-        $totalRaw = $totalQuery->sum('users_prices.price');
-        $totalUnpaidPrice = number_format((float) $totalRaw, 0, '', ' ');
+        $today = Carbon::now()->format('Y-m-d');
+
+        $totalPeriods = DB::table('user_period_prices')
+            ->join('users', 'users.id', '=', 'user_period_prices.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->where('user_period_prices.partner_id', $partnerId)
+            ->where('user_period_prices.is_paid', 0)
+            ->where('users.is_enabled', 1)
+            ->where('user_period_prices.amount', '>', 0)
+            ->where('user_period_prices.date_end', '<', $today);
+
+        $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request);
+
+        $totalRaw = (float) $totalMonthly->sum('users_prices.price') + (float) $totalPeriods->sum('user_period_prices.amount');
+        $totalUnpaidPrice = number_format($totalRaw, 0, '', ' ');
 
         $paymentsFilterUser = $this->resolveDebtFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolveDebtFilterTeamLabel($partnerId, $filters);
@@ -64,7 +78,7 @@ class DeptReportController extends AdminBaseController
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
 
-        $totalQuery = DB::table('users_prices')
+        $totalMonthly = DB::table('users_prices')
             ->join('users', 'users.id', '=', 'users_prices.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users_prices.is_paid', 0)
@@ -73,9 +87,21 @@ class DeptReportController extends AdminBaseController
             ->where('users_prices.new_month', '<', $currentMonth)
             ->where('users.partner_id', $partnerId);
 
-        $this->applyDebtReportFilters($totalQuery, $request);
+        $this->applyDebtReportFilters($totalMonthly, $request);
 
-        $raw = $totalQuery->sum('users_prices.price');
+        $today = Carbon::now()->format('Y-m-d');
+        $totalPeriods = DB::table('user_period_prices')
+            ->join('users', 'users.id', '=', 'user_period_prices.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->where('user_period_prices.partner_id', $partnerId)
+            ->where('user_period_prices.is_paid', 0)
+            ->where('users.is_enabled', 1)
+            ->where('user_period_prices.amount', '>', 0)
+            ->where('user_period_prices.date_end', '<', $today);
+
+        $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request);
+
+        $raw = (float) $totalMonthly->sum('users_prices.price') + (float) $totalPeriods->sum('user_period_prices.amount');
 
         return response()->json([
             'total_formatted' => number_format((float) $raw, 0, '', ' '),
@@ -90,26 +116,51 @@ class DeptReportController extends AdminBaseController
 
         $currentMonth = Carbon::now()->locale('ru')->isoFormat('MMMM YYYY');
         $currentMonth = $this->formatedDate($currentMonth) ?? Carbon::now()->format('Y-m-01');
+        $today = Carbon::now()->format('Y-m-d');
 
         if ($request->ajax()) {
-            $base = DB::table('users_prices')
+            $monthly = DB::table('users_prices')
                 ->join('users', 'users.id', '=', 'users_prices.user_id')
                 ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
                 ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
-                ->addSelect('users.id as user_id', 'users_prices.new_month', 'users_prices.price')
+                ->addSelect(
+                    'users.id as user_id',
+                    DB::raw('users_prices.new_month as month'),
+                    DB::raw('users_prices.price as price'),
+                    DB::raw('0 as is_period')
+                )
                 ->where('users_prices.is_paid', 0)
                 ->where('users.is_enabled', 1)
                 ->where('users_prices.price', '>', 0)
                 ->where('users_prices.new_month', '<', $currentMonth)
                 ->where('users.partner_id', $partnerId);
 
-            $this->applyDebtReportFilters($base, $request);
+            $this->applyDebtReportFilters($monthly, $request);
 
-            $usersWithUnpaidPrices = $base->get();
+            $periods = DB::table('user_period_prices')
+                ->join('users', 'users.id', '=', 'user_period_prices.user_id')
+                ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+                ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
+                ->addSelect(
+                    'users.id as user_id',
+                    DB::raw("CONCAT(user_period_prices.date_start, ' — ', user_period_prices.date_end) as month"),
+                    DB::raw('user_period_prices.amount as price'),
+                    DB::raw('1 as is_period')
+                )
+                ->where('user_period_prices.partner_id', $partnerId)
+                ->where('user_period_prices.is_paid', 0)
+                ->where('users.is_enabled', 1)
+                ->where('user_period_prices.amount', '>', 0)
+                ->where('user_period_prices.date_end', '<', $today);
 
-            return DataTables::of($usersWithUnpaidPrices)
+            $this->applyDebtReportFiltersForPeriodPrices($periods, $request);
+
+            $union = $monthly->unionAll($periods);
+            $base = DB::query()->fromSub($union, 'debts');
+
+            return DataTables::of($base)
                 ->addIndexColumn()
-                ->addColumn('month', fn ($row) => $row->new_month)
+                ->addColumn('month', fn ($row) => $row->month)
                 ->addColumn('price', fn ($row) => (float) $row->price)
                 ->make(true);
         }
@@ -148,6 +199,47 @@ class DeptReportController extends AdminBaseController
             $ym = trim((string) $request->query('debt_month'));
             if (preg_match('/^\d{4}-\d{2}$/', $ym) === 1) {
                 $query->where('users_prices.new_month', 'like', $ym.'%');
+            }
+        }
+    }
+
+    /**
+     * Фильтры отчёта задолженности для user_period_prices.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function applyDebtReportFiltersForPeriodPrices($query, Request $request): void
+    {
+        $filterUserId = $request->query('filter_user_id');
+        if ($filterUserId !== null && $filterUserId !== '' && ctype_digit((string) $filterUserId)) {
+            $uid = (int) $filterUserId;
+            if ($uid > 0) {
+                $query->where('users.id', $uid);
+            }
+        } elseif ($request->filled('user_name')) {
+            $needle = '%'.trim((string) $request->query('user_name')).'%';
+            $query->whereRaw("CONCAT_WS(' ', users.lastname, users.name) LIKE ?", [$needle]);
+        }
+
+        $filterTeamId = $request->query('filter_team_id');
+        if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
+            $tid = (int) $filterTeamId;
+            if ($tid > 0) {
+                $query->where('users.team_id', $tid);
+            }
+        } elseif ($request->filled('team_title')) {
+            $like = '%'.trim((string) $request->query('team_title')).'%';
+            $query->where('teams.title', 'like', $like);
+        }
+
+        // debt_month применяем по start/end месяцу
+        if ($request->filled('debt_month')) {
+            $ym = trim((string) $request->query('debt_month'));
+            if (preg_match('/^\d{4}-\d{2}$/', $ym) === 1) {
+                $query->where(function ($q) use ($ym) {
+                    $q->where('user_period_prices.date_start', 'like', $ym.'%')
+                        ->orWhere('user_period_prices.date_end', 'like', $ym.'%');
+                });
             }
         }
     }

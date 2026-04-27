@@ -32,10 +32,12 @@
                         <option value="">Выберите пользователя</option>
 
                         @foreach ($allUsersSelect as $index => $user)
-                            @php($fullName = $user->full_name ?? trim(($user->lastname ?? '').' '.($user->name ?? '')))
+                            @php
+                                $fullName = $user->full_name ?? trim(($user->lastname ?? '').' '.($user->name ?? ''));
+                            @endphp
                             <option
-                                    value="{{ $user->id }}"             {{-- обычно в value кладут id --}}
-                            label="{{ $fullName }}"
+                                    value="{{ $user->id }}"
+                                    label="{{ $fullName }}"
                                     data-user-id="{{ $user->id }}"
                             >
                                 {{ $index + 1 }}. {{ $fullName }}
@@ -169,6 +171,83 @@
                 <div class="context-menu-item" data-action="remove-freeze">Удаление заморозки</div>
             </div>
         </div>
+
+        {{-- Абонементы (кастомные периоды) --}}
+        @can('setPrices.abonements.view')
+        @if(isset($userAbonements) && $userAbonements->count() > 0)
+            <div class="row abonements abonements-block mt-3 mb-3">
+                <div class="col-12">
+                    <div class="abonements-season">
+                        <div class="abonements-header">Абонементы</div>
+                        <div class="row justify-content-center align-items-center abonements-items">
+                            @foreach($userAbonements as $a)
+                                @php
+                                    $startIso = $a->date_start ? \Carbon\Carbon::parse($a->date_start)->format('Y-m-d') : '';
+                                    $endIso = $a->date_end ? \Carbon\Carbon::parse($a->date_end)->format('Y-m-d') : '';
+
+                                    $startRu = $a->date_start
+                                        ? \Carbon\Carbon::parse($a->date_start)->format('d.m.Y')
+                                        : '';
+                                    $endRu = $a->date_end
+                                        ? \Carbon\Carbon::parse($a->date_end)->format('d.m.Y')
+                                        : '';
+
+                                    $note = (string) ($a->note ?? '');
+                                    $amountNormalized = number_format((float) $a->amount, 2, '.', '');
+                                    $amountDisplay = number_format((float) $a->amount, 0, ',', ' ');
+                                    $paid = (bool) ($a->effective_is_paid ?? false);
+                                    $periodRu = trim($startRu . ' - ' . $endRu);
+                                    $paymentDateLabel = trim("Абонемент: {$periodRu}" . ($note !== '' ? " ({$note})" : ''));
+                                @endphp
+
+                                <div class="abonement_price col-3">
+                                    <div class="row align-items-center justify-content-center">
+                                        <span class="price-value">{{ $amountDisplay }}</span>
+                                        <span class="hide-currency">₽</span>
+                                    </div>
+                                    <div class="row justify-content-center align-items-center">
+                                        <div class="new-price-description">
+                                            <div>{{ $periodRu }}</div>
+                                            @if($note !== '')
+                                                <div class="abonement-note">{{ $note }}</div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="row new-main-button-wrap">
+                                        <div class="justify-content-center align-items-center">
+                                            @can('paying.classes')
+                                                <form action="{{ route('payment') }}" method="POST">
+                                                    @csrf
+                                                    <input type="hidden" name="payment_kind" value="abonement">
+                                                    <input type="hidden" name="abonement_id" value="{{ (int) $a->id }}">
+                                                    <input type="hidden" name="abonement_date_start" value="{{ $startIso }}">
+                                                    <input type="hidden" name="abonement_date_end" value="{{ $endIso }}">
+                                                    <input type="hidden" name="abonement_note" value="{{ $note }}">
+
+                                                    <input type="hidden" name="paymentDate" value="{{ $paymentDateLabel }}">
+                                                    <input class="outSum" type="hidden" name="outSum" value="{{ $amountNormalized }}">
+
+                                                    <button type="submit"
+                                                            {{ $paid ? 'disabled' : '' }}
+                                                            class="btn btn-lg btn-bd-primary new-main-button {{ $paid ? 'buttonPaided' : '' }}">
+                                                        {{ $paid ? 'Оплачено' : 'Оплатить' }}
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <button type="button" disabled class="btn btn-lg btn-bd-primary new-main-button {{ $paid ? 'buttonPaided' : '' }}">
+                                                    {{ $paid ? 'Оплачено' : 'Оплатить' }}
+                                                </button>
+                                            @endcan
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+        @endcan
 
         {{--Сезоны--}}
         <div class="row seasons">
