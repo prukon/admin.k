@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
+use App\Models\UserPeriodPrice;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\PaymentService;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
@@ -67,8 +68,12 @@ class TransactionController extends Controller
     //Станица выбора оплат (Юзер)
     public function index(Request $request, PaymentService $paymentService)
     {
+        $this->authorize('paying.classes');
+
         $paymentDate = (string) $request->input('paymentDate', '');
         $outSum = (string) $request->input('outSum', '');
+        $paymentKind = (string) $request->input('payment_kind', '');
+        $userPeriodPriceId = $request->filled('abonement_id') ? (int) $request->input('abonement_id') : null;
 
         $formatedPaymentDate = null;
         $rawFmt = $request->input('formatedPaymentDate');
@@ -82,6 +87,29 @@ class TransactionController extends Controller
         $partnerId = (int) $curPartner->id;
 
         $user = $request->user();
+
+        // Периодный абонемент (user_period_prices): сумма и связка ТОЛЬКО из БД.
+        if ($paymentKind === 'abonement') {
+            $upp = null;
+            if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
+                $upp = UserPeriodPrice::query()
+                    ->whereKey($userPeriodPriceId)
+                    ->where('partner_id', $partnerId)
+                    ->where('user_id', (int) $user->id)
+                    ->first();
+            }
+            if (!$upp) {
+                abort(404, 'Абонемент не найден');
+            }
+            if ((bool) $upp->effective_is_paid) {
+                abort(422, 'Абонемент уже оплачен');
+            }
+
+            $outSum = number_format((float) $upp->amount, 2, '.', '');
+            $paymentDate = $paymentDate !== '' ? $paymentDate : 'Абонемент';
+            // Важно: не считаем это monthly_fee, чтобы не попасть в ветку users_prices.
+            $formatedPaymentDate = null;
+        }
 
         // Месячный абонемент: сумма на экране и в скрытых полях — из users_prices (как при Init оплаты).
         if ($formatedPaymentDate !== null) {
@@ -112,6 +140,8 @@ class TransactionController extends Controller
             'robokassaAvailable',
             'tbankAvailable',
             'tbankSbpAvailable',
+            'paymentKind',
+            'userPeriodPriceId',
         ));
     }
 
@@ -126,12 +156,34 @@ class TransactionController extends Controller
 
         $partnerId = (int) app('current_partner')->id;
 
+        $paymentKind = (string) $request->input('payment_kind', '');
+        $userPeriodPriceId = $request->filled('abonement_id') ? (int) $request->input('abonement_id') : null;
+
         $rawFmt = $request->input('formatedPaymentDate');
         $hasMonthly = $request->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
 
-        if ($hasMonthly) {
+        if ($paymentKind === 'abonement') {
+            $upp = null;
+            if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
+                $upp = UserPeriodPrice::query()
+                    ->whereKey($userPeriodPriceId)
+                    ->where('partner_id', $partnerId)
+                    ->where('user_id', $userId)
+                    ->first();
+            }
+            if (!$upp) {
+                abort(404, 'Абонемент не найден');
+            }
+            if ((bool) $upp->effective_is_paid) {
+                abort(422, 'Абонемент уже оплачен');
+            }
+
+            $outSum = number_format((float) $upp->amount, 2, '.', '');
+            $paymentDate = (string) $request->input('paymentDate', 'Абонемент');
+            $hasMonthly = false;
+        } elseif ($hasMonthly) {
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 $partnerId,
@@ -172,13 +224,17 @@ class TransactionController extends Controller
         }
 
         // Создаём Payable (доменная "покупка")
-        $type = $hasMonthly ? 'monthly_fee' : 'club_fee';
+        $type = $paymentKind === 'abonement'
+            ? 'abonement_fee_period'
+            : ($hasMonthly ? 'monthly_fee' : 'club_fee');
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
             // paymentDate уже в формате YYYY-MM-01
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
+        } elseif ($type === 'abonement_fee_period') {
+            $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         }
 
         $payable = Payable::create([

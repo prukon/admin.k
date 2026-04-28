@@ -214,7 +214,7 @@ class CloudKassirReceiptBuilder
             return 'Абонемент';
         }
 
-        if ($payable->type === 'abonement_fee') {
+        if (in_array((string) $payable->type, ['abonement_fee', 'abonement_fee_period'], true)) {
             return 'Абонемент (период)';
         }
 

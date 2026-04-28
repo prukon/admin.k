@@ -389,7 +389,7 @@ class TinkoffPaymentsService
                             ['is_paid' => 1]
                         );
                     }
-                } elseif ((string) $payable->type === 'abonement_fee') {
+                } elseif (in_array((string) $payable->type, ['abonement_fee', 'abonement_fee_period'], true)) {
                     $pid = $payable->meta['user_period_price_id'] ?? null;
                     $pidInt = is_numeric($pid) ? (int) $pid : 0;
                     if ($pidInt > 0) {
@@ -422,7 +422,7 @@ class TinkoffPaymentsService
                         'payment_month'   => (string) (
                             $payable->type === 'monthly_fee'
                                 ? ($payable->month?->format('Y-m-d') ?? '')
-                                : ($payable->type === 'abonement_fee'
+                                : (in_array((string) $payable->type, ['abonement_fee', 'abonement_fee_period'], true)
                                     ? 'Абонемент'
                                     : 'Клубный взнос'
                                 )

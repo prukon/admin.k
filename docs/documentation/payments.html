@@ -42,7 +42,7 @@
 
   <h3><code>payables</code> (доменная покупка)</h3>
   <ul>
-    <li><b>type</b>: <code>monthly_fee</code>, <code>club_fee</code>, <code>uniform</code>, <code>camp</code></li>
+    <li><b>type</b>: <code>monthly_fee</code>, <code>club_fee</code>, <code>abonement_fee_period</code>, <code>uniform</code>, <code>camp</code></li>
     <li><b>amount/currency</b>: сумма и валюта</li>
     <li><b>status</b>: <code>pending</code> → <code>paid</code> (дальше возможны refund-статусы)</li>
     <li><b>month</b> (только для <code>monthly_fee</code>): дата <code>YYYY-MM-01</code></li>
@@ -155,6 +155,32 @@
   <div class="ok">
     <b>Правило, чтобы ничего не затиралось:</b> каждая разовая оплата = новая строка в <code>payables</code> (и новый <code>payment_intent</code>).
   </div>
+
+  <h3>3.3 Периодный абонемент (кастомные даты) (<code>type=abonement_fee_period</code>)</h3>
+  <div class="note">
+    <b>Источник истины для суммы:</b> <code>user_period_prices.amount</code>. Сумма из POST (<code>outSum</code>) не используется как источник истины.
+    <br><b>Связка:</b> в <code>payables.meta</code> хранится <code>user_period_price_id</code>.
+    <br><b>Состояние оплаты:</b> при успешном webhook выставляем <code>user_period_prices.is_paid=1</code>.
+    <br><b>Переходный период:</b> обработчики webhooks поддерживают и исторический тип <code>abonement_fee</code>.
+  </div>
+  <ol>
+    <li>С дашборда в <code>POST /payment</code> передаются <code>payment_kind=abonement</code> и <code>abonement_id</code> (= <code>user_period_prices.id</code>).</li>
+    <li>На витрине оплаты (<code>TransactionController@index</code>) запись <code>user_period_prices</code> проверяется на принадлежность текущему партнёру и пользователю; если абонемент уже оплачен — возвращаем <b>422</b>.</li>
+    <li>При старте оплаты (Robokassa / T‑Bank) создаём:
+      <ul>
+        <li><code>payables.type=abonement_fee_period</code>, <code>meta.user_period_price_id</code></li>
+        <li><code>payment_intents</code> с <code>payable_id</code></li>
+      </ul>
+    </li>
+    <li>При успешном webhook:
+      <ul>
+        <li><code>payment_intents.status=paid</code></li>
+        <li><code>payables.status=paid</code></li>
+        <li><code>user_period_prices.is_paid=1</code> по <code>meta.user_period_price_id</code></li>
+        <li>создаём запись в <code>payments</code> для отчётов</li>
+      </ul>
+    </li>
+  </ol>
 
   <h3>3.2.1 Страница оплаты клубного взноса (<code>/payment/club-fee</code>)</h3>
   <div class="note">

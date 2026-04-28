@@ -8,6 +8,7 @@ use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffPayment;
 use App\Models\UserPrice;
+use App\Models\UserPeriodPrice;
 use App\Services\Tinkoff\TinkoffSignature;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
@@ -362,6 +363,75 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'payment_number' => '55555',
             'payment_month' => '2024-09-01',
         ]);
+    }
+
+    public function test_webhook_confirmed_abonement_fee_period_marks_user_period_price_paid(): void
+    {
+        $this->setupTbankKeysForPartner('TERM', 'PWD');
+
+        TinkoffPayment::create([
+            'order_id' => 'order-a1',
+            'partner_id' => $this->partner->id,
+            'amount' => 32100,
+            'method' => 'card',
+            'status' => 'FORM',
+        ]);
+
+        $upp = UserPeriodPrice::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'date_start' => '2026-11-01',
+            'date_end' => '2026-11-30',
+            'amount' => '321.00',
+            'is_paid' => 0,
+        ]);
+
+        $payable = Payable::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'type' => 'abonement_fee_period',
+            'amount' => '321.00',
+            'currency' => 'RUB',
+            'status' => 'pending',
+            'meta' => [
+                'user_period_price_id' => $upp->id,
+            ],
+        ]);
+
+        $intent = PaymentIntent::create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => $payable->id,
+            'provider' => 'tbank',
+            'status' => 'pending',
+            'out_sum' => '321.00',
+            'payment_date' => 'Абонемент',
+            'tbank_order_id' => 'order-a1',
+        ]);
+
+        $payload = $this->makeWebhookPayload([
+            'TerminalKey' => 'TERM',
+            'OrderId' => 'order-a1',
+            'PaymentId' => 66666,
+            'Status' => 'CONFIRMED',
+            'Data' => [
+                'payment_intent_id' => (string) $intent->id,
+                'payable_id' => (string) $payable->id,
+                'user_id' => (string) $this->user->id,
+                'user_period_price_id' => (string) $upp->id,
+                'payment_kind' => 'abonement',
+            ],
+        ], 'PWD');
+
+        $this->post('/webhooks/tinkoff/payments', $payload)->assertOk();
+
+        $intent->refresh();
+        $payable->refresh();
+        $upp->refresh();
+
+        $this->assertSame('paid', (string) $intent->status);
+        $this->assertSame('paid', (string) $payable->status);
+        $this->assertTrue((bool) $upp->is_paid);
     }
 }
 

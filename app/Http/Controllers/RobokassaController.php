@@ -207,7 +207,7 @@ class RobokassaController extends Controller
                         'month' => $month,
                     ]);
                 }
-            } elseif ((string) $payable->type === 'abonement_fee') {
+            } elseif (in_array((string) $payable->type, ['abonement_fee', 'abonement_fee_period'], true)) {
                 $pid = $payable->meta['user_period_price_id'] ?? null;
                 $pidInt = is_numeric($pid) ? (int) $pid : 0;
                 if ($pidInt > 0) {

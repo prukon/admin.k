@@ -7,6 +7,7 @@ use App\Http\Requests\Tinkoff\CreateSbpPaymentRequest;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
+use App\Models\UserPeriodPrice;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
 use App\Services\Tinkoff\TinkoffPaymentsService;
@@ -48,12 +49,34 @@ class TinkoffPaymentController extends Controller
         $userId = (int) $user->id;
         $userName = (string) ($user->name ?? '');
 
+        $paymentKind = (string) $r->input('payment_kind', '');
+        $userPeriodPriceId = $r->filled('abonement_id') ? (int) $r->input('abonement_id') : null;
+
         $rawFmt = $r->input('formatedPaymentDate');
         $hasMonthly = $r->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
 
-        if ($hasMonthly) {
+        if ($paymentKind === 'abonement') {
+            $upp = null;
+            if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
+                $upp = UserPeriodPrice::query()
+                    ->whereKey($userPeriodPriceId)
+                    ->where('partner_id', $partnerId)
+                    ->where('user_id', $userId)
+                    ->first();
+            }
+            if (!$upp) {
+                return back()->withErrors(['tinkoff' => 'Абонемент не найден']);
+            }
+            if ((bool) $upp->effective_is_paid) {
+                return back()->withErrors(['tinkoff' => 'Абонемент уже оплачен']);
+            }
+
+            $outSum = number_format((float) $upp->amount, 2, '.', '');
+            $paymentDate = (string) $r->input('paymentDate', 'Абонемент');
+            $hasMonthly = false;
+        } elseif ($hasMonthly) {
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 (int) $partnerId,
@@ -72,12 +95,16 @@ class TinkoffPaymentController extends Controller
 
         $amountCents = (int) round(((float) $outSum) * 100);
 
-        $type = $hasMonthly ? 'monthly_fee' : 'club_fee';
+        $type = $paymentKind === 'abonement'
+            ? 'abonement_fee_period'
+            : ($hasMonthly ? 'monthly_fee' : 'club_fee');
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
+        } elseif ($type === 'abonement_fee_period') {
+            $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         }
 
         $payable = Payable::create([
@@ -118,6 +145,8 @@ class TinkoffPaymentController extends Controller
             'payable_id' => (string) $payable->id,
             'payment_intent_id' => (string) $intent->id,
             'user_id' => (string) $userId,
+            'payment_kind' => $paymentKind !== '' ? $paymentKind : null,
+            'user_period_price_id' => $userPeriodPriceId ? (string) $userPeriodPriceId : null,
         ]);
 
         if (! $payment->payment_url || empty($payment->tinkoff_payment_id)) {
@@ -154,12 +183,34 @@ class TinkoffPaymentController extends Controller
         $userId = (int) $user->id;
         $userName = (string) ($user->name ?? '');
 
+        $paymentKind = (string) $r->input('payment_kind', '');
+        $userPeriodPriceId = $r->filled('abonement_id') ? (int) $r->input('abonement_id') : null;
+
         $rawFmt = $r->input('formatedPaymentDate');
         $hasMonthly = $r->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
 
-        if ($hasMonthly) {
+        if ($paymentKind === 'abonement') {
+            $upp = null;
+            if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
+                $upp = UserPeriodPrice::query()
+                    ->whereKey($userPeriodPriceId)
+                    ->where('partner_id', $partnerId)
+                    ->where('user_id', $userId)
+                    ->first();
+            }
+            if (!$upp) {
+                return back()->withErrors(['tinkoff' => 'Абонемент не найден']);
+            }
+            if ((bool) $upp->effective_is_paid) {
+                return back()->withErrors(['tinkoff' => 'Абонемент уже оплачен']);
+            }
+
+            $outSum = number_format((float) $upp->amount, 2, '.', '');
+            $paymentDate = (string) $r->input('paymentDate', 'Абонемент');
+            $hasMonthly = false;
+        } elseif ($hasMonthly) {
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 (int) $partnerId,
@@ -182,12 +233,16 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']);
         }
 
-        $type = $hasMonthly ? 'monthly_fee' : 'club_fee';
+        $type = $paymentKind === 'abonement'
+            ? 'abonement_fee_period'
+            : ($hasMonthly ? 'monthly_fee' : 'club_fee');
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
+        } elseif ($type === 'abonement_fee_period') {
+            $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         }
 
         $payable = Payable::create([
@@ -221,6 +276,8 @@ class TinkoffPaymentController extends Controller
             'payable_id' => (string) $payable->id,
             'payment_intent_id' => (string) $intent->id,
             'user_id' => (string) $userId,
+            'payment_kind' => $paymentKind !== '' ? $paymentKind : null,
+            'user_period_price_id' => $userPeriodPriceId ? (string) $userPeriodPriceId : null,
         ]);
 
         if (empty($payment->tinkoff_payment_id)) {

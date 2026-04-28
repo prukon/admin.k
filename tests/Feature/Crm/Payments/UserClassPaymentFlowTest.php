@@ -4,7 +4,9 @@ namespace Tests\Feature\Crm\Payments;
 
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
+use App\Models\Payable;
 use App\Models\UserPrice;
+use App\Models\UserPeriodPrice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
@@ -46,6 +48,32 @@ class UserClassPaymentFlowTest extends CrmTestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    public function test_payment_index_ok_and_out_sum_comes_from_user_period_prices_when_abonement(): void
+    {
+        $upp = UserPeriodPrice::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'date_start' => '2026-09-01',
+            'date_end' => '2026-09-30',
+            'amount' => '777.00',
+            'is_paid' => 0,
+        ]);
+
+        $response = $this->post(route('payment'), [
+            'payment_kind' => 'abonement',
+            'abonement_id' => $upp->id,
+            'paymentDate' => 'Абонемент: 01.09.2026 - 30.09.2026',
+            'outSum' => '1.00',
+        ]);
+
+        $response->assertOk();
+        $response->assertViewIs('payment.paymentUser');
+        $response->assertViewHas('outSum', '777.00');
+        $response->assertViewHas('paymentKind', 'abonement');
+        $response->assertViewHas('userPeriodPriceId', (int) $upp->id);
+        $response->assertViewHas('formatedPaymentDate', null);
     }
 
     /**
@@ -252,6 +280,68 @@ class UserClassPaymentFlowTest extends CrmTestCase
 
         $response->assertRedirect();
         $this->assertSame(12300, (int) $capturedAmount, 'Amount в копейках должен соответствовать цене из users_prices');
+    }
+
+    public function test_tinkoff_card_init_uses_amount_from_user_period_prices_when_abonement_and_sends_user_period_price_id_in_data(): void
+    {
+        $this->grantTbankCardPermission();
+
+        $this->partner->tinkoff_partner_id = 'SHOP-TEST';
+        $this->partner->save();
+
+        PaymentSystem::create([
+            'partner_id' => $this->partner->id,
+            'name' => 'tbank',
+            'test_mode' => 1,
+            'is_enabled' => true,
+            'settings' => [
+                'terminal_key' => 'TERM_TEST',
+                'token_password' => 'PWD_TEST',
+                'e2c_terminal_key' => 'E2C_TERM',
+                'e2c_token_password' => 'E2C_PWD',
+            ],
+        ]);
+
+        $upp = UserPeriodPrice::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'date_start' => '2026-10-01',
+            'date_end' => '2026-10-31',
+            'amount' => '321.00',
+            'is_paid' => 0,
+        ]);
+
+        $capturedAmount = null;
+        $capturedData = null;
+        Http::fake(function ($request) use (&$capturedAmount, &$capturedData) {
+            if (str_contains($request->url(), '/v2/Init')) {
+                $capturedAmount = $request->data()['Amount'] ?? null;
+                $capturedData = $request->data()['DATA'] ?? null;
+                return Http::response([
+                    'Success' => true,
+                    'PaymentId' => 888002,
+                    'PaymentURL' => 'https://example.test/pay-abonement',
+                ], 200);
+            }
+            return Http::response(['Success' => false], 500);
+        });
+
+        $response = $this->post(route('payment.tinkoff.pay'), [
+            'payment_kind' => 'abonement',
+            'abonement_id' => $upp->id,
+            'paymentDate' => 'Абонемент',
+            'outSum' => '1.00',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertSame(32100, (int) $capturedAmount);
+        $this->assertIsArray($capturedData);
+        $this->assertSame((string) $upp->id, (string) ($capturedData['user_period_price_id'] ?? ''));
+
+        $payable = Payable::query()->latest('id')->first();
+        $this->assertNotNull($payable);
+        $this->assertSame('abonement_fee_period', (string) $payable->type);
+        $this->assertSame((int) $upp->id, (int) ($payable->meta['user_period_price_id'] ?? 0));
     }
 
     /**
