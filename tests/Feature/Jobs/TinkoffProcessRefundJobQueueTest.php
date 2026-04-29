@@ -9,7 +9,7 @@ use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\Refund;
-use App\Models\UserPeriodPrice;
+use App\Models\UserCustomPayment;
 use App\Models\UserPrice;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -187,7 +187,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
 
         $userId = 1003;
 
-        $upp = UserPeriodPrice::query()->create([
+        $upp = UserCustomPayment::query()->create([
             'partner_id' => $partner->id,
             'user_id' => $userId,
             'date_start' => '2026-11-01',
@@ -258,7 +258,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
         $this->assertSame('refunded', (string) $payable->status);
         $this->assertSame(0, (int) $upp->is_paid);
 
-        $this->assertDatabaseHas('user_period_prices', [
+        $this->assertDatabaseHas('user_custom_payment', [
             'id' => $upp->id,
             'is_paid' => 0,
         ]);

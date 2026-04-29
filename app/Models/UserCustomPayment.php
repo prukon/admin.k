@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-final class UserPeriodPrice extends Model
+final class UserCustomPayment extends Model
 {
     use HasFactory;
 
-    protected $table = 'user_period_prices';
+    protected $table = 'user_custom_payment';
 
     protected $guarded = [];
 

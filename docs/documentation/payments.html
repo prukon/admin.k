@@ -158,13 +158,13 @@
 
   <h3>3.3 Дополнительный платеж (кастомные даты) (<code>type=custom_payment_fee</code>)</h3>
   <div class="note">
-    <b>Источник истины для суммы:</b> <code>user_period_prices.amount</code>. Сумма из POST (<code>outSum</code>) не используется как источник истины.
+    <b>Источник истины для суммы:</b> <code>user_custom_payment.amount</code>. Сумма из POST (<code>outSum</code>) не используется как источник истины.
     <br><b>Связка:</b> в <code>payables.meta</code> хранится <code>user_period_price_id</code>.
-    <br><b>Состояние оплаты:</b> при успешном webhook выставляем <code>user_period_prices.is_paid=1</code>.
+    <br><b>Состояние оплаты:</b> при успешном webhook выставляем <code>user_custom_payment.is_paid=1</code>.
   </div>
   <ol>
-    <li>С дашборда в <code>POST /payment</code> передаются <code>payment_kind=custom_payment</code> и <code>custom_payment_id</code> (= <code>user_period_prices.id</code>).</li>
-    <li>На витрине оплаты (<code>TransactionController@index</code>) запись <code>user_period_prices</code> проверяется на принадлежность текущему партнёру и пользователю; если дополнительный платеж уже оплачен — возвращаем <b>422</b>.</li>
+    <li>С дашборда в <code>POST /payment</code> передаются <code>payment_kind=custom_payment</code> и <code>custom_payment_id</code> (= <code>user_custom_payment.id</code>).</li>
+    <li>На витрине оплаты (<code>TransactionController@index</code>) запись <code>user_custom_payment</code> проверяется на принадлежность текущему партнёру и пользователю; если дополнительный платеж уже оплачен — возвращаем <b>422</b>.</li>
     <li>При старте оплаты (Robokassa / T‑Bank) создаём:
       <ul>
         <li><code>payables.type=custom_payment_fee</code>, <code>meta.user_period_price_id</code></li>
@@ -175,7 +175,7 @@
       <ul>
         <li><code>payment_intents.status=paid</code></li>
         <li><code>payables.status=paid</code></li>
-        <li><code>user_period_prices.is_paid=1</code> по <code>meta.user_period_price_id</code></li>
+        <li><code>user_custom_payment.is_paid=1</code> по <code>meta.user_period_price_id</code></li>
         <li>создаём запись в <code>payments</code> для отчётов</li>
       </ul>
     </li>

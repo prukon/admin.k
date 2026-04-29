@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
-use App\Models\UserPeriodPrice;
+use App\Models\UserCustomPayment;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\PaymentService;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
@@ -92,7 +92,7 @@ class TransactionController extends Controller
         if ($paymentKind === 'custom_payment') {
             $upp = null;
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
-                $upp = UserPeriodPrice::query()
+                $upp = UserCustomPayment::query()
                     ->whereKey($userPeriodPriceId)
                     ->where('partner_id', $partnerId)
                     ->where('user_id', (int) $user->id)
@@ -167,7 +167,7 @@ class TransactionController extends Controller
         if ($paymentKind === 'custom_payment') {
             $upp = null;
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
-                $upp = UserPeriodPrice::query()
+                $upp = UserCustomPayment::query()
                     ->whereKey($userPeriodPriceId)
                     ->where('partner_id', $partnerId)
                     ->where('user_id', $userId)

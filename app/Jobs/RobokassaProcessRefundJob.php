@@ -6,7 +6,7 @@ use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\Refund;
-use App\Models\UserPeriodPrice;
+use App\Models\UserCustomPayment;
 use App\Models\UserPrice;
 use App\Services\Robokassa\RobokassaRefundService;
 use Illuminate\Bus\Queueable;
@@ -172,7 +172,7 @@ class RobokassaProcessRefundJob implements ShouldQueue
             $pidInt = is_numeric($pid) ? (int) $pid : 0;
 
             if ($pidInt > 0) {
-                UserPeriodPrice::query()
+                UserCustomPayment::query()
                     ->whereKey($pidInt)
                     ->update(['is_paid' => 0]);
             } else {

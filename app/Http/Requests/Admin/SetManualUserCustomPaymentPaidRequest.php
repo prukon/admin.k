@@ -5,7 +5,7 @@ namespace App\Http\Requests\Admin;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-final class SetManualUserPeriodPricePaidRequest extends FormRequest
+final class SetManualUserCustomPaymentPaidRequest extends FormRequest
 {
     public function authorize(): bool
     {

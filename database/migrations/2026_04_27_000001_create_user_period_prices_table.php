@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('user_period_prices', function (Blueprint $table) {
+        Schema::create('user_custom_payment', function (Blueprint $table) {
             $table->id();
 
             $table->unsignedBigInteger('partner_id')->index();
@@ -37,7 +37,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('user_period_prices');
+        Schema::dropIfExists('user_custom_payment');
     }
 };
 

@@ -8,7 +8,7 @@ use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffPayment;
 use App\Models\UserPrice;
-use App\Models\UserPeriodPrice;
+use App\Models\UserCustomPayment;
 use App\Services\Tinkoff\TinkoffSignature;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
@@ -377,7 +377,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'status' => 'FORM',
         ]);
 
-        $upp = UserPeriodPrice::query()->create([
+        $upp = UserCustomPayment::query()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'date_start' => '2026-11-01',

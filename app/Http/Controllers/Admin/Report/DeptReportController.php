@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Carbon\Carbon;
 use App\Services\PartnerContext;
-use App\Models\UserPeriodPrice;
+use App\Models\UserCustomPayment;
 
 class DeptReportController extends AdminBaseController
 {
@@ -42,18 +42,18 @@ class DeptReportController extends AdminBaseController
 
         $today = Carbon::now()->format('Y-m-d');
 
-        $totalPeriods = DB::table('user_period_prices')
-            ->join('users', 'users.id', '=', 'user_period_prices.user_id')
+        $totalPeriods = DB::table('user_custom_payment')
+            ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
-            ->where('user_period_prices.partner_id', $partnerId)
-            ->where('user_period_prices.is_paid', 0)
+            ->where('user_custom_payment.partner_id', $partnerId)
+            ->where('user_custom_payment.is_paid', 0)
             ->where('users.is_enabled', 1)
-            ->where('user_period_prices.amount', '>', 0)
-            ->where('user_period_prices.date_end', '<', $today);
+            ->where('user_custom_payment.amount', '>', 0)
+            ->where('user_custom_payment.date_end', '<', $today);
 
         $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request);
 
-        $totalRaw = (float) $totalMonthly->sum('users_prices.price') + (float) $totalPeriods->sum('user_period_prices.amount');
+        $totalRaw = (float) $totalMonthly->sum('users_prices.price') + (float) $totalPeriods->sum('user_custom_payment.amount');
         $totalUnpaidPrice = number_format($totalRaw, 0, '', ' ');
 
         $paymentsFilterUser = $this->resolveDebtFilterUserLabel($partnerId, $filters);
@@ -90,18 +90,18 @@ class DeptReportController extends AdminBaseController
         $this->applyDebtReportFilters($totalMonthly, $request);
 
         $today = Carbon::now()->format('Y-m-d');
-        $totalPeriods = DB::table('user_period_prices')
-            ->join('users', 'users.id', '=', 'user_period_prices.user_id')
+        $totalPeriods = DB::table('user_custom_payment')
+            ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
-            ->where('user_period_prices.partner_id', $partnerId)
-            ->where('user_period_prices.is_paid', 0)
+            ->where('user_custom_payment.partner_id', $partnerId)
+            ->where('user_custom_payment.is_paid', 0)
             ->where('users.is_enabled', 1)
-            ->where('user_period_prices.amount', '>', 0)
-            ->where('user_period_prices.date_end', '<', $today);
+            ->where('user_custom_payment.amount', '>', 0)
+            ->where('user_custom_payment.date_end', '<', $today);
 
         $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request);
 
-        $raw = (float) $totalMonthly->sum('users_prices.price') + (float) $totalPeriods->sum('user_period_prices.amount');
+        $raw = (float) $totalMonthly->sum('users_prices.price') + (float) $totalPeriods->sum('user_custom_payment.amount');
 
         return response()->json([
             'total_formatted' => number_format((float) $raw, 0, '', ' '),
@@ -137,21 +137,21 @@ class DeptReportController extends AdminBaseController
 
             $this->applyDebtReportFilters($monthly, $request);
 
-            $periods = DB::table('user_period_prices')
-                ->join('users', 'users.id', '=', 'user_period_prices.user_id')
+            $periods = DB::table('user_custom_payment')
+                ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
                 ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
                 ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
                 ->addSelect(
                     'users.id as user_id',
-                    DB::raw("CONCAT(user_period_prices.date_start, ' — ', user_period_prices.date_end) as month"),
-                    DB::raw('user_period_prices.amount as price'),
+                    DB::raw("CONCAT(user_custom_payment.date_start, ' — ', user_custom_payment.date_end) as month"),
+                    DB::raw('user_custom_payment.amount as price'),
                     DB::raw('1 as is_period')
                 )
-                ->where('user_period_prices.partner_id', $partnerId)
-                ->where('user_period_prices.is_paid', 0)
+                ->where('user_custom_payment.partner_id', $partnerId)
+                ->where('user_custom_payment.is_paid', 0)
                 ->where('users.is_enabled', 1)
-                ->where('user_period_prices.amount', '>', 0)
-                ->where('user_period_prices.date_end', '<', $today);
+                ->where('user_custom_payment.amount', '>', 0)
+                ->where('user_custom_payment.date_end', '<', $today);
 
             $this->applyDebtReportFiltersForPeriodPrices($periods, $request);
 
@@ -204,7 +204,7 @@ class DeptReportController extends AdminBaseController
     }
 
     /**
-     * Фильтры отчёта задолженности для user_period_prices.
+     * Фильтры отчёта задолженности для user_custom_payment.
      *
      * @param  \Illuminate\Database\Query\Builder  $query
      */
@@ -237,8 +237,8 @@ class DeptReportController extends AdminBaseController
             $ym = trim((string) $request->query('debt_month'));
             if (preg_match('/^\d{4}-\d{2}$/', $ym) === 1) {
                 $query->where(function ($q) use ($ym) {
-                    $q->where('user_period_prices.date_start', 'like', $ym.'%')
-                        ->orWhere('user_period_prices.date_end', 'like', $ym.'%');
+                    $q->where('user_custom_payment.date_start', 'like', $ym.'%')
+                        ->orWhere('user_custom_payment.date_end', 'like', $ym.'%');
                 });
             }
         }

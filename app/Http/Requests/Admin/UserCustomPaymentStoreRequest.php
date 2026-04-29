@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-final class UserPeriodPriceStoreRequest extends FormRequest
+final class UserCustomPaymentStoreRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -51,7 +50,7 @@ final class UserPeriodPriceStoreRequest extends FormRequest
             ],
             // композитная уникальность по (user_id, date_start, date_end)
             'uniq_period' => [
-                Rule::unique('user_period_prices', 'id')->where(function ($q) use ($userId, $dateStart, $dateEnd) {
+                Rule::unique('user_custom_payment', 'id')->where(function ($q) use ($userId, $dateStart, $dateEnd) {
                     $q->where('user_id', $userId)
                         ->whereDate('date_start', $dateStart)
                         ->whereDate('date_end', $dateEnd);

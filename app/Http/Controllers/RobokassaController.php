@@ -10,7 +10,7 @@ use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
-use App\Models\UserPeriodPrice;
+use App\Models\UserCustomPayment;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
@@ -211,7 +211,7 @@ class RobokassaController extends Controller
                 $pid = $payable->meta['user_period_price_id'] ?? null;
                 $pidInt = is_numeric($pid) ? (int) $pid : 0;
                 if ($pidInt > 0) {
-                    UserPeriodPrice::query()
+                    UserCustomPayment::query()
                         ->whereKey($pidInt)
                         ->update(['is_paid' => 1]);
                 } else {

@@ -8,7 +8,7 @@ use App\Models\PaymentSystem;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\UserPrice;
-use App\Models\UserPeriodPrice;
+use App\Models\UserCustomPayment;
 use App\Models\MyLog;
 use App\Models\TinkoffPayment;
 use Illuminate\Support\Facades\DB;
@@ -393,7 +393,7 @@ class TinkoffPaymentsService
                     $pid = $payable->meta['user_period_price_id'] ?? null;
                     $pidInt = is_numeric($pid) ? (int) $pid : 0;
                     if ($pidInt > 0) {
-                        UserPeriodPrice::query()
+                        UserCustomPayment::query()
                             ->whereKey($pidInt)
                             ->update(['is_paid' => 1]);
                     } else {

@@ -12,7 +12,7 @@ use App\Models\TeamPrice;
 use App\Models\UserPrice;
 use App\Models\User;
 use App\Models\Weekday;
-use App\Models\UserPeriodPrice;
+use App\Models\UserCustomPayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use App\Models\MyLog;
@@ -22,8 +22,8 @@ use Yajra\DataTables\DataTables;
 use Illuminate\Support\Str;
 use App\Support\BuildsLogTable;
 use App\Services\PartnerContext;
-use App\Http\Requests\Admin\UserPeriodPriceStoreRequest;
-use App\Http\Requests\Admin\SetManualUserPeriodPricePaidRequest;
+use App\Http\Requests\Admin\UserCustomPaymentStoreRequest;
+use App\Http\Requests\Admin\SetManualUserCustomPaymentPaidRequest;
 use Illuminate\Support\Carbon as SupportCarbon;
 
 class SettingPricesController extends AdminBaseController
@@ -275,20 +275,20 @@ class SettingPricesController extends AdminBaseController
             abort(403);
         }
 
-        $q = UserPeriodPrice::query()
-            ->where('user_period_prices.partner_id', $partnerId)
-            ->join('users', 'users.id', '=', 'user_period_prices.user_id')
+        $q = UserCustomPayment::query()
+            ->where('user_custom_payment.partner_id', $partnerId)
+            ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
             ->select([
-                'user_period_prices.id',
-                'user_period_prices.user_id',
-                'user_period_prices.date_start',
-                'user_period_prices.date_end',
-                DB::raw('ROUND(user_period_prices.amount) as amount'),
-                'user_period_prices.is_paid',
-                'user_period_prices.is_manual_paid',
-                'user_period_prices.manual_paid_note',
+                'user_custom_payment.id',
+                'user_custom_payment.user_id',
+                'user_custom_payment.date_start',
+                'user_custom_payment.date_end',
+                DB::raw('ROUND(user_custom_payment.amount) as amount'),
+                'user_custom_payment.is_paid',
+                'user_custom_payment.is_manual_paid',
+                'user_custom_payment.manual_paid_note',
                 DB::raw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name"),
-                DB::raw("CASE WHEN user_period_prices.is_manual_paid IS NULL THEN user_period_prices.is_paid ELSE user_period_prices.is_manual_paid END as effective_is_paid"),
+                DB::raw("CASE WHEN user_custom_payment.is_manual_paid IS NULL THEN user_custom_payment.is_paid ELSE user_custom_payment.is_manual_paid END as effective_is_paid"),
             ]);
 
         return DataTables::of($q)
@@ -370,7 +370,7 @@ class SettingPricesController extends AdminBaseController
         ]);
     }
 
-    public function storeCustomPayment(UserPeriodPriceStoreRequest $request)
+    public function storeCustomPayment(UserCustomPaymentStoreRequest $request)
     {
         $partnerId = $this->requirePartnerId();
         if (!request()->user()?->can('setPrices.customPayments.view')) {
@@ -379,7 +379,7 @@ class SettingPricesController extends AdminBaseController
 
         $data = $request->validated();
 
-        $row = UserPeriodPrice::create([
+        $row = UserCustomPayment::create([
             'partner_id' => $partnerId,
             'user_id' => (int) $data['user_id'],
             'date_start' => $data['date_start'],
@@ -397,7 +397,7 @@ class SettingPricesController extends AdminBaseController
         ]);
     }
 
-    public function setManualPaidCustomPayment(int $id, SetManualUserPeriodPricePaidRequest $request)
+    public function setManualPaidCustomPayment(int $id, SetManualUserCustomPaymentPaidRequest $request)
     {
         $partnerId = $this->requirePartnerId();
         if (!request()->user()?->can('setPrices.customPayments.view')) {
@@ -407,8 +407,8 @@ class SettingPricesController extends AdminBaseController
         $mode = (string) $request->validated('mode');
         $comment = trim((string) $request->validated('comment'));
 
-        /** @var UserPeriodPrice|null $row */
-        $row = UserPeriodPrice::query()
+        /** @var UserCustomPayment|null $row */
+        $row = UserCustomPayment::query()
             ->whereKey($id)
             ->where('partner_id', $partnerId)
             ->first();

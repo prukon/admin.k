@@ -7,7 +7,7 @@ use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\FiscalReceipt;
 use App\Models\Refund;
-use App\Models\UserPeriodPrice;
+use App\Models\UserCustomPayment;
 use App\Models\UserPrice;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Services\Tinkoff\TinkoffSignature;
@@ -166,7 +166,7 @@ class TinkoffProcessRefundJob implements ShouldQueue
             $pidInt = is_numeric($pid) ? (int) $pid : 0;
 
             if ($pidInt > 0) {
-                UserPeriodPrice::query()
+                UserCustomPayment::query()
                     ->whereKey($pidInt)
                     ->update(['is_paid' => 0]);
             } else {

@@ -6,7 +6,7 @@ use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\Payable;
 use App\Models\UserPrice;
-use App\Models\UserPeriodPrice;
+use App\Models\UserCustomPayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
@@ -52,7 +52,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
 
     public function test_payment_index_ok_and_out_sum_comes_from_user_period_prices_when_custom_payment(): void
     {
-        $upp = UserPeriodPrice::query()->create([
+        $upp = UserCustomPayment::query()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'date_start' => '2026-09-01',
@@ -302,7 +302,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
             ],
         ]);
 
-        $upp = UserPeriodPrice::query()->create([
+        $upp = UserCustomPayment::query()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'date_start' => '2026-10-01',
