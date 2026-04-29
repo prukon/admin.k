@@ -4,7 +4,7 @@
     }
 
     function setFieldErrors(errors) {
-        document.querySelectorAll('.abonement-field-error').forEach(function (el) {
+        document.querySelectorAll('.custom-payment-field-error').forEach(function (el) {
             el.style.display = 'none';
             el.textContent = '';
         });
@@ -14,7 +14,7 @@
         Object.keys(errors).forEach(function (field) {
             var msg = (errors[field] && errors[field][0]) ? errors[field][0] : null;
             if (!msg) return;
-            var el = document.querySelector('.abonement-field-error[data-field="' + field + '"]');
+            var el = document.querySelector('.custom-payment-field-error[data-field="' + field + '"]');
             if (!el) return;
             el.textContent = msg;
             el.style.display = 'block';
@@ -33,7 +33,6 @@
             return;
         }
 
-        // используем существующий toast из вкладки users (если он есть), иначе fallback alert
         var toastEl = document.getElementById('priceToast');
         var bodyEl = document.getElementById('priceToastBody');
         if (!toastEl || !bodyEl) {
@@ -47,15 +46,7 @@
         new bootstrap.Toast(toastEl).show();
     }
 
-    function paidBadge(effectivePaid, note) {
-        var cls = effectivePaid ? 'bg-success' : 'bg-secondary';
-        var txt = effectivePaid ? 'Оплачено' : 'Не оплачено';
-        var title = note ? String(note) : '';
-        return '<span class="badge ' + cls + '" title="' + title.replace(/"/g, '&quot;') + '">' + txt + '</span>';
-    }
-
     document.addEventListener('DOMContentLoaded', function () {
-        // ensure global ajax header for JSON posts
         if (window.$) {
             $.ajaxSetup({
                 headers: {
@@ -65,21 +56,20 @@
             });
         }
 
-        // select2 user search
         if (window.$ && $.fn && $.fn.select2) {
-            var $userSelect = $('#abonement-user-id');
+            var $userSelect = $('#custom-payment-user-id');
             if ($userSelect.length) {
                 $userSelect.select2({
                     theme: 'bootstrap-5',
                     width: '100%',
                     placeholder: $userSelect.find('option:first').text() || 'Выберите ученика',
                     allowClear: true,
-                    dropdownParent: $('#abonementCreateModal'),
+                    dropdownParent: $('#customPaymentCreateModal'),
                     ajax: {
-                        url: '/admin/setting-prices/abonements/users-search',
+                        url: '/admin/setting-prices/custom-payments/users-search',
                         delay: 250,
                         data: function (params) {
-                            return {q: params.term || ''};
+                            return { q: params.term || '' };
                         },
                         processResults: function (data) {
                             return data;
@@ -92,17 +82,17 @@
 
         var table = null;
         if (window.$ && $.fn && $.fn.DataTable) {
-            table = $('#abonements-table').DataTable({
+            table = $('#custom-payments-table').DataTable({
                 processing: true,
                 serverSide: true,
                 ajax: {
-                    url: '/admin/setting-prices/abonements/data',
+                    url: '/admin/setting-prices/custom-payments/data',
                     type: 'GET'
                 },
                 columns: [
-                    {data: 'id', name: 'id'},
-                    {data: 'user_name', name: 'user_name'},
-                    {data: 'period', name: 'period', orderable: false, searchable: false},
+                    { data: 'id', name: 'id' },
+                    { data: 'user_name', name: 'user_name' },
+                    { data: 'period', name: 'period', orderable: false, searchable: false },
                     {
                         data: 'amount',
                         name: 'amount',
@@ -114,43 +104,35 @@
                             return v;
                         }
                     },
-                    {data: 'status', name: 'status', orderable: false, searchable: false},
-                    {data: 'actions', name: 'actions', orderable: false, searchable: false},
+                    { data: 'status', name: 'status', orderable: false, searchable: false },
+                    { data: 'actions', name: 'actions', orderable: false, searchable: false },
                 ],
                 order: [[0, 'desc']],
                 scrollX: true,
                 language: {
-                    processing: "Обработка...",
-                    search: "",
-                    searchPlaceholder: "Поиск...",
-                    lengthMenu: "Показать _MENU_",
-                    info: "С _START_ до _END_ из _TOTAL_ записей",
-                    infoEmpty: "С 0 до 0 из 0 записей",
-                    infoFiltered: "(отфильтровано из _MAX_ записей)",
-                    loadingRecords: "Загрузка записей...",
-                    zeroRecords: "Записи отсутствуют.",
-                    emptyTable: "В таблице отсутствуют данные",
-                    paginate: {first: "", previous: "", next: "", last: ""},
+                    processing: 'Обработка...',
+                    search: '',
+                    searchPlaceholder: 'Поиск...',
+                    lengthMenu: 'Показать _MENU_',
+                    info: 'С _START_ до _END_ из _TOTAL_ записей',
+                    infoEmpty: 'С 0 до 0 из 0 записей',
+                    infoFiltered: '(отфильтровано из _MAX_ записей)',
+                    loadingRecords: 'Загрузка записей...',
+                    zeroRecords: 'Записи отсутствуют.',
+                    emptyTable: 'В таблице отсутствуют данные',
+                    paginate: { first: '', previous: '', next: '', last: '' },
                     aria: {
-                        sortAscending: ": активировать для сортировки столбца по возрастанию",
-                        sortDescending: ": активировать для сортировки столбца по убыванию"
+                        sortAscending: ': активировать для сортировки столбца по возрастанию',
+                        sortDescending: ': активировать для сортировки столбца по убыванию'
                     }
                 }
             });
         }
 
-        var reloadBtn = document.getElementById('abonement-reload');
-        if (reloadBtn) {
-            reloadBtn.addEventListener('click', function () {
-                if (table) table.ajax.reload(null, false);
-            });
-        }
-
-        var form = document.getElementById('abonement-create-form');
+        var form = document.getElementById('custom-payment-create-form');
         if (form) {
             form.addEventListener('submit', function (e) {
                 e.preventDefault();
-
                 setFieldErrors(null);
 
                 var payload = {
@@ -161,10 +143,10 @@
                     note: form.querySelector('[name="note"]').value,
                 };
 
-                var btn = document.getElementById('abonement-create-submit');
+                var btn = document.getElementById('custom-payment-create-submit');
                 if (btn) btn.disabled = true;
 
-                fetch('/admin/setting-prices/abonements', {
+                fetch('/admin/setting-prices/custom-payments', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -177,24 +159,22 @@
                         var data = null;
                         try {
                             data = await res.json();
-                        } catch (err) {
-                            // ignore
-                        }
+                        } catch (err) {}
                         if (!res.ok) {
                             if (data && data.errors) {
                                 setFieldErrors(data.errors);
                             }
-                            throw new Error((data && data.message) ? data.message : 'Не удалось создать абонемент.');
+                            throw new Error((data && data.message) ? data.message : 'Не удалось создать дополнительный платеж.');
                         }
                         return data;
                     })
                     .then(function (data) {
-                        toast('Абонемент сохранён.', false);
+                        toast('Дополнительный платеж сохранен.', false);
                         form.reset();
-                        if (window.$ && $('#abonement-user-id').length) {
-                            $('#abonement-user-id').val(null).trigger('change');
+                        if (window.$ && $('#custom-payment-user-id').length) {
+                            $('#custom-payment-user-id').val(null).trigger('change');
                         }
-                        var modalEl = document.getElementById('abonementCreateModal');
+                        var modalEl = document.getElementById('customPaymentCreateModal');
                         if (modalEl && window.bootstrap && bootstrap.Modal) {
                             bootstrap.Modal.getOrCreateInstance(modalEl).hide();
                         }
@@ -209,12 +189,11 @@
             });
         }
 
-        // manual paid actions
         document.addEventListener('click', function (e) {
-            var btn = e.target.closest('[data-abonement-action]');
+            var btn = e.target.closest('[data-custom-payment-action]');
             if (!btn) return;
 
-            var action = btn.getAttribute('data-abonement-action');
+            var action = btn.getAttribute('data-custom-payment-action');
             var id = btn.getAttribute('data-id');
             if (!id) return;
 
@@ -230,7 +209,7 @@
                 'Подтверждение',
                 'Будет установлен статус: «' + labelWant + '». Укажите комментарий.',
                 function (comment) {
-                    fetch('/admin/setting-prices/abonements/' + id + '/manual-paid', {
+                    fetch('/admin/setting-prices/custom-payments/' + id + '/manual-paid', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -251,7 +230,7 @@
                             return data;
                         })
                         .then(function () {
-                            toast('Статус оплаты обновлён.', false);
+                            toast('Статус оплаты обновлен.', false);
                             if (table) table.ajax.reload(null, false);
                         })
                         .catch(function (err) {
@@ -262,4 +241,3 @@
         });
     });
 })();
-

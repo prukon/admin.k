@@ -16,11 +16,11 @@
                         role="tab">По ученикам</a>
                 </li>
 
-                {{-- Абонементы (кастомные периоды) --}}
-                @can('setPrices.abonements.view')
+                {{-- Дополнительные платежи (кастомные периоды) --}}
+                @can('setPrices.customPayments.view')
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link {{ $activeTab == 'abonements' ? 'active' : '' }}" href="/admin/setting-prices/abonements"
-                            role="tab">Абонементы</a>
+                        <a class="nav-link {{ $activeTab == 'custom_payments' ? 'active' : '' }}" href="/admin/setting-prices/custom-payments"
+                            role="tab">Дополнительные платежи</a>
                     </li>
                 @endcan
             </ul>
@@ -39,8 +39,8 @@
                         'allTeams' => $allTeams,
                         'monthString' => $monthString,
                     ])
-                @elseif($activeTab === 'abonements')
-                    @include('admin.SettingPrices.abonements', [
+                @elseif($activeTab === 'custom_payments')
+                    @include('admin.SettingPrices.custom-payments', [
                         'users' => $users ?? collect(),
                     ])
                 @endif

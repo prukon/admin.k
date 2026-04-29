@@ -86,7 +86,7 @@ class CloudKassirReceiptBuilderAgentTest extends CrmTestCase
 
         $this->assertSame('6', $item['AgentSign']);
 
-        $this->assertSame('Абонемент за март', $item['Label']);
+        $this->assertSame('Ежемесячный платеж за март', $item['Label']);
         $this->assertSame('3500.00', $item['Price']);
         $this->assertSame('3500.00', $item['Amount']);
         $this->assertSame(1, $item['Quantity']);

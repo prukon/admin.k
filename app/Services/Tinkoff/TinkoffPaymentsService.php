@@ -389,7 +389,7 @@ class TinkoffPaymentsService
                             ['is_paid' => 1]
                         );
                     }
-                } elseif (in_array((string) $payable->type, ['abonement_fee', 'abonement_fee_period'], true)) {
+                } elseif ((string) $payable->type === 'custom_payment_fee') {
                     $pid = $payable->meta['user_period_price_id'] ?? null;
                     $pidInt = is_numeric($pid) ? (int) $pid : 0;
                     if ($pidInt > 0) {
@@ -397,7 +397,7 @@ class TinkoffPaymentsService
                             ->whereKey($pidInt)
                             ->update(['is_paid' => 1]);
                     } else {
-                        Log::channel('tinkoff')->warning('[abonement_fee missing user_period_price_id]', [
+                        Log::channel('tinkoff')->warning('[custom_payment_fee missing user_period_price_id]', [
                             'payable_id' => (int) $payable->id,
                             'meta' => $payable->meta,
                             'intent_id' => (int) $locked->id,
@@ -422,8 +422,8 @@ class TinkoffPaymentsService
                         'payment_month'   => (string) (
                             $payable->type === 'monthly_fee'
                                 ? ($payable->month?->format('Y-m-d') ?? '')
-                                : (in_array((string) $payable->type, ['abonement_fee', 'abonement_fee_period'], true)
-                                    ? 'Абонемент'
+                                : ((string) $payable->type === 'custom_payment_fee'
+                                    ? 'Дополнительный платеж'
                                     : 'Клубный взнос'
                                 )
                         ),

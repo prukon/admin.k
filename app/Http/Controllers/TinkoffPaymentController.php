@@ -50,14 +50,14 @@ class TinkoffPaymentController extends Controller
         $userName = (string) ($user->name ?? '');
 
         $paymentKind = (string) $r->input('payment_kind', '');
-        $userPeriodPriceId = $r->filled('abonement_id') ? (int) $r->input('abonement_id') : null;
+        $userPeriodPriceId = $r->filled('custom_payment_id') ? (int) $r->input('custom_payment_id') : null;
 
         $rawFmt = $r->input('formatedPaymentDate');
         $hasMonthly = $r->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
 
-        if ($paymentKind === 'abonement') {
+        if ($paymentKind === 'custom_payment') {
             $upp = null;
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
                 $upp = UserPeriodPrice::query()
@@ -67,14 +67,14 @@ class TinkoffPaymentController extends Controller
                     ->first();
             }
             if (!$upp) {
-                return back()->withErrors(['tinkoff' => 'Абонемент не найден']);
+                return back()->withErrors(['tinkoff' => 'Дополнительный платеж не найден']);
             }
             if ((bool) $upp->effective_is_paid) {
-                return back()->withErrors(['tinkoff' => 'Абонемент уже оплачен']);
+                return back()->withErrors(['tinkoff' => 'Дополнительный платеж уже оплачен']);
             }
 
             $outSum = number_format((float) $upp->amount, 2, '.', '');
-            $paymentDate = (string) $r->input('paymentDate', 'Абонемент');
+            $paymentDate = (string) $r->input('paymentDate', 'Дополнительный платеж');
             $hasMonthly = false;
         } elseif ($hasMonthly) {
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
@@ -95,15 +95,15 @@ class TinkoffPaymentController extends Controller
 
         $amountCents = (int) round(((float) $outSum) * 100);
 
-        $type = $paymentKind === 'abonement'
-            ? 'abonement_fee_period'
+        $type = $paymentKind === 'custom_payment'
+            ? 'custom_payment_fee'
             : ($hasMonthly ? 'monthly_fee' : 'club_fee');
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
-        } elseif ($type === 'abonement_fee_period') {
+        } elseif ($type === 'custom_payment_fee') {
             $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         }
 
@@ -184,14 +184,14 @@ class TinkoffPaymentController extends Controller
         $userName = (string) ($user->name ?? '');
 
         $paymentKind = (string) $r->input('payment_kind', '');
-        $userPeriodPriceId = $r->filled('abonement_id') ? (int) $r->input('abonement_id') : null;
+        $userPeriodPriceId = $r->filled('custom_payment_id') ? (int) $r->input('custom_payment_id') : null;
 
         $rawFmt = $r->input('formatedPaymentDate');
         $hasMonthly = $r->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
 
-        if ($paymentKind === 'abonement') {
+        if ($paymentKind === 'custom_payment') {
             $upp = null;
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
                 $upp = UserPeriodPrice::query()
@@ -201,14 +201,14 @@ class TinkoffPaymentController extends Controller
                     ->first();
             }
             if (!$upp) {
-                return back()->withErrors(['tinkoff' => 'Абонемент не найден']);
+                return back()->withErrors(['tinkoff' => 'Дополнительный платеж не найден']);
             }
             if ((bool) $upp->effective_is_paid) {
-                return back()->withErrors(['tinkoff' => 'Абонемент уже оплачен']);
+                return back()->withErrors(['tinkoff' => 'Дополнительный платеж уже оплачен']);
             }
 
             $outSum = number_format((float) $upp->amount, 2, '.', '');
-            $paymentDate = (string) $r->input('paymentDate', 'Абонемент');
+            $paymentDate = (string) $r->input('paymentDate', 'Дополнительный платеж');
             $hasMonthly = false;
         } elseif ($hasMonthly) {
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
@@ -233,15 +233,15 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']);
         }
 
-        $type = $paymentKind === 'abonement'
-            ? 'abonement_fee_period'
+        $type = $paymentKind === 'custom_payment'
+            ? 'custom_payment_fee'
             : ($hasMonthly ? 'monthly_fee' : 'club_fee');
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
-        } elseif ($type === 'abonement_fee_period') {
+        } elseif ($type === 'custom_payment_fee') {
             $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         }
 

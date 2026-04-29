@@ -290,11 +290,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
     
         Route::get('admin/setting-prices/monthly', [SettingPricesController::class, 'monthly'])->name('admin.settingPrices.indexMenu');
         Route::get('admin/setting-prices/users', [SettingPricesController::class, 'users'])->name('admin.settingPrices.users');
-        Route::middleware('can:setPrices.abonements.view')->group(function () {
-            Route::get('admin/setting-prices/abonements', [SettingPricesController::class, 'abonements'])->name('admin.settingPrices.abonements');
-            Route::get('admin/setting-prices/abonements/data', [SettingPricesController::class, 'abonementsData'])->name('admin.settingPrices.abonements.data');
-            Route::get('admin/setting-prices/abonements/users-search', [SettingPricesController::class, 'abonementsUsersSearch'])->name('admin.settingPrices.abonements.users-search');
-            Route::post('admin/setting-prices/abonements', [SettingPricesController::class, 'storeAbonement'])->name('admin.settingPrices.abonements.store');
+        Route::middleware('can:setPrices.customPayments.view')->group(function () {
+            Route::get('admin/setting-prices/custom-payments', [SettingPricesController::class, 'customPayments'])->name('admin.settingPrices.customPayments');
+            Route::get('admin/setting-prices/custom-payments/data', [SettingPricesController::class, 'customPaymentsData'])->name('admin.settingPrices.customPayments.data');
+            Route::get('admin/setting-prices/custom-payments/users-search', [SettingPricesController::class, 'customPaymentsUsersSearch'])->name('admin.settingPrices.customPayments.users-search');
+            Route::post('admin/setting-prices/custom-payments', [SettingPricesController::class, 'storeCustomPayment'])->name('admin.settingPrices.customPayments.store');
         });
    
 
@@ -305,10 +305,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->middleware('can:setPrices.manualPaid.manage')
             ->name('setting-prices.manual-paid');
 
-        Route::post('admin/setting-prices/abonements/{id}/manual-paid', [SettingPricesController::class, 'setManualPaidAbonement'])
+        Route::post('admin/setting-prices/custom-payments/{id}/manual-paid', [SettingPricesController::class, 'setManualPaidCustomPayment'])
             ->middleware('can:setPrices.manualPaid.manage')
             ->whereNumber('id')
-            ->name('setting-prices.abonements.manual-paid');
+            ->name('setting-prices.custom-payments.manual-paid');
     });
 
     //Журнал расписания
@@ -415,7 +415,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/settings/logs-data', [SettingController::class, 'logsData'])->name('settings.logs.data');
     });
 
-    //Страница Настойки- Права (feature test +)
+    //Страница Настройки- Права (feature test +)
     Route::middleware('can:settings.roles.view')->group(function () {
         Route::get('admin/settings/rules', [RuleController::class, 'showRules'])->name('admin.setting.rule');
         Route::post('admin/setting/rule/toggle', [RuleController::class, 'togglePermission'])->name('admin.setting.rule.toggle');

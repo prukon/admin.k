@@ -174,7 +174,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
         $this->assertSame('payment_intent_id_missing', (string) ($refund->meta['failed_reason'] ?? null));
     }
 
-    public function test_refund_job_succeeds_and_marks_user_period_price_unpaid_for_abonement_fee_period(): void
+    public function test_refund_job_succeeds_and_marks_user_period_price_unpaid_for_custom_payment_fee(): void
     {
         $partner = Partner::factory()->create();
 
@@ -199,7 +199,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
         $payable = Payable::create([
             'partner_id' => $partner->id,
             'user_id' => $userId,
-            'type' => 'abonement_fee_period',
+            'type' => 'custom_payment_fee',
             'amount' => 500,
             'currency' => 'RUB',
             'status' => 'paid',

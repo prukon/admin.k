@@ -208,14 +208,14 @@ class CloudKassirReceiptBuilder
             ];
 
             if ($monthNumber && isset($months[$monthNumber])) {
-                return 'Абонемент за ' . $months[$monthNumber];
+            return 'Ежемесячный платеж за ' . $months[$monthNumber];
             }
 
-            return 'Абонемент';
+            return 'Ежемесячный платеж';
         }
 
-        if (in_array((string) $payable->type, ['abonement_fee', 'abonement_fee_period'], true)) {
-            return 'Абонемент (период)';
+        if ((string) $payable->type === 'custom_payment_fee') {
+            return 'Дополнительный платеж';
         }
 
         if ($payable->type === 'club_fee') {

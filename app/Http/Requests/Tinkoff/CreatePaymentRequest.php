@@ -23,9 +23,9 @@ class CreatePaymentRequest extends FormRequest
             // YYYY-MM-01 (месяц оплаты)
             'formatedPaymentDate' => ['nullable', 'string', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
 
-            // периодный абонемент (user_period_prices)
-            'payment_kind' => ['nullable', 'string', 'in:abonement'],
-            'abonement_id' => ['required_if:payment_kind,abonement', 'nullable', 'integer', 'min:1'],
+            // дополнительный платеж (user_period_prices)
+            'payment_kind' => ['nullable', 'string', 'in:custom_payment'],
+            'custom_payment_id' => ['required_if:payment_kind,custom_payment', 'nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -36,15 +36,15 @@ class CreatePaymentRequest extends FormRequest
             'formatedPaymentDate' => 'период оплаты',
             'method' => 'способ оплаты',
             'payment_kind' => 'тип оплаты',
-            'abonement_id' => 'абонемент',
+            'custom_payment_id' => 'дополнительный платеж',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'outSum.required_without' => 'Укажите сумму или период абонемента.',
-            'abonement_id.required_if' => 'Выберите абонемент для оплаты.',
+            'outSum.required_without' => 'Укажите сумму или дополнительный платеж.',
+            'custom_payment_id.required_if' => 'Выберите дополнительный платеж для оплаты.',
         ];
     }
 }

@@ -167,7 +167,7 @@ class RobokassaProcessRefundJob implements ShouldQueue
                     'payable_id' => $payable->id,
                 ]);
             }
-        } elseif ((string) $payable->type === 'abonement_fee_period') {
+        } elseif ((string) $payable->type === 'custom_payment_fee') {
             $pid = $payable->meta['user_period_price_id'] ?? null;
             $pidInt = is_numeric($pid) ? (int) $pid : 0;
 

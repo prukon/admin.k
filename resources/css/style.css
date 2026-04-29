@@ -196,17 +196,17 @@ footer .social-networks {
     margin-bottom: 30px;
 }
 
-.abonements-block {
+.custom-payments-block {
     margin-bottom: 30px;
 }
 
-.abonements-block .abonements-season {
+.custom-payments-block .custom-payments-season {
     margin-top: 20px;
     border: 1px solid #f3a12b;
     position: relative;
 }
 
-.abonements-block .abonements-header {
+.custom-payments-block .custom-payments-header {
     position: absolute;
     left: 40px;
     top: -12px;
@@ -216,7 +216,7 @@ footer .social-networks {
     color: #8e1c13;
 }
 
-.abonements-block .abonement_price {
+.custom-payments-block .custom-payment-price {
     border-style: dotted;
     border-width: 1px 1px 1px 1px;
     border-color: #f3a12b;
@@ -231,8 +231,8 @@ footer .social-networks {
     display: block;
 }
 
-.abonements-block .price-value,
-.abonements-block .hide-currency {
+.custom-payments-block .price-value,
+.custom-payments-block .hide-currency {
     color: #8e1c13;
     font-weight: 900;
     font-size: 36px;
@@ -241,7 +241,7 @@ footer .social-networks {
     width: auto;
 }
 
-.abonements-block .new-price-description {
+.custom-payments-block .new-price-description {
     font-weight: 400;
     font-size: 14px;
     line-height: 22px;
@@ -250,25 +250,25 @@ footer .social-networks {
     text-align: center;
 }
 
-.abonements-block .abonement-note {
+.custom-payments-block .custom-payment-note {
     margin-top: 4px;
     font-weight: 700;
     color: #8e1c13;
 }
 
-.abonements-block .new-main-button {
+.custom-payments-block .new-main-button {
     width: 90%;
     margin-top: 15px;
     border-color: #f3a12b;
 }
 
-.abonements-block .new-main-button:hover {
+.custom-payments-block .new-main-button:hover {
     background-color: #f3a12b;
     color: white;
     border-color: white;
 }
 
-.abonements-block .buttonPaided {
+.custom-payments-block .buttonPaided {
     background-color: #f3a12b;
 }
 

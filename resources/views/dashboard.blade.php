@@ -172,14 +172,14 @@
             </div>
         </div>
 
-        {{-- Абонементы (кастомные периоды) --}}
-        @can('setPrices.abonements.view')
+        {{-- Дополнительные платежи (кастомные периоды) --}}
+        @can('setPrices.customPayments.view')
         @if(isset($userAbonements) && $userAbonements->count() > 0)
-            <div class="row abonements abonements-block mt-3 mb-3">
+            <div class="row custom-payments custom-payments-block mt-3 mb-3">
                 <div class="col-12">
-                    <div class="abonements-season">
-                        <div class="abonements-header">Абонементы</div>
-                        <div class="row justify-content-center align-items-center abonements-items">
+                    <div class="custom-payments-season">
+                        <div class="custom-payments-header">Дополнительные платежи</div>
+                        <div class="row justify-content-center align-items-center custom-payments-items">
                             @foreach($userAbonements as $a)
                                 @php
                                     $startIso = $a->date_start ? \Carbon\Carbon::parse($a->date_start)->format('Y-m-d') : '';
@@ -197,10 +197,10 @@
                                     $amountDisplay = number_format((float) $a->amount, 0, ',', ' ');
                                     $paid = (bool) ($a->effective_is_paid ?? false);
                                     $periodRu = trim($startRu . ' - ' . $endRu);
-                                    $paymentDateLabel = trim("Абонемент: {$periodRu}" . ($note !== '' ? " ({$note})" : ''));
+                                    $paymentDateLabel = trim("Дополнительный платеж: {$periodRu}" . ($note !== '' ? " ({$note})" : ''));
                                 @endphp
 
-                                <div class="abonement_price col-3">
+                                <div class="custom-payment-price col-3">
                                     <div class="row align-items-center justify-content-center">
                                         <span class="price-value">{{ $amountDisplay }}</span>
                                         <span class="hide-currency">₽</span>
@@ -209,7 +209,7 @@
                                         <div class="new-price-description">
                                             <div>{{ $periodRu }}</div>
                                             @if($note !== '')
-                                                <div class="abonement-note">{{ $note }}</div>
+                                                <div class="custom-payment-note">{{ $note }}</div>
                                             @endif
                                         </div>
                                     </div>
@@ -218,11 +218,11 @@
                                             @can('paying.classes')
                                                 <form action="{{ route('payment') }}" method="POST">
                                                     @csrf
-                                                    <input type="hidden" name="payment_kind" value="abonement">
-                                                    <input type="hidden" name="abonement_id" value="{{ (int) $a->id }}">
-                                                    <input type="hidden" name="abonement_date_start" value="{{ $startIso }}">
-                                                    <input type="hidden" name="abonement_date_end" value="{{ $endIso }}">
-                                                    <input type="hidden" name="abonement_note" value="{{ $note }}">
+                                                    <input type="hidden" name="payment_kind" value="custom_payment">
+                                                    <input type="hidden" name="custom_payment_id" value="{{ (int) $a->id }}">
+                                                    <input type="hidden" name="custom_payment_date_start" value="{{ $startIso }}">
+                                                    <input type="hidden" name="custom_payment_date_end" value="{{ $endIso }}">
+                                                    <input type="hidden" name="custom_payment_note" value="{{ $note }}">
 
                                                     <input type="hidden" name="paymentDate" value="{{ $paymentDateLabel }}">
                                                     <input class="outSum" type="hidden" name="outSum" value="{{ $amountNormalized }}">

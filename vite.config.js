@@ -27,7 +27,7 @@ export default defineConfig({
                 'resources/js/schedule.js',
                 // 'resources/js/dashboard-ajax.js',
                 'resources/js/setting-prices-manual-paid-modal.js',
-                'resources/js/setting-prices-abonements.js',
+                'resources/js/setting-prices-custom-payments.js',
                 'resources/js/settings-prices.js',
                 'resources/js/landing.js',
             ],

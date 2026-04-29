@@ -50,7 +50,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
         ]);
     }
 
-    public function test_payment_index_ok_and_out_sum_comes_from_user_period_prices_when_abonement(): void
+    public function test_payment_index_ok_and_out_sum_comes_from_user_period_prices_when_custom_payment(): void
     {
         $upp = UserPeriodPrice::query()->create([
             'partner_id' => $this->partner->id,
@@ -62,16 +62,16 @@ class UserClassPaymentFlowTest extends CrmTestCase
         ]);
 
         $response = $this->post(route('payment'), [
-            'payment_kind' => 'abonement',
-            'abonement_id' => $upp->id,
-            'paymentDate' => 'Абонемент: 01.09.2026 - 30.09.2026',
+            'payment_kind' => 'custom_payment',
+            'custom_payment_id' => $upp->id,
+            'paymentDate' => 'Дополнительный платеж: 01.09.2026 - 30.09.2026',
             'outSum' => '1.00',
         ]);
 
         $response->assertOk();
         $response->assertViewIs('payment.paymentUser');
         $response->assertViewHas('outSum', '777.00');
-        $response->assertViewHas('paymentKind', 'abonement');
+        $response->assertViewHas('paymentKind', 'custom_payment');
         $response->assertViewHas('userPeriodPriceId', (int) $upp->id);
         $response->assertViewHas('formatedPaymentDate', null);
     }
@@ -282,7 +282,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->assertSame(12300, (int) $capturedAmount, 'Amount в копейках должен соответствовать цене из users_prices');
     }
 
-    public function test_tinkoff_card_init_uses_amount_from_user_period_prices_when_abonement_and_sends_user_period_price_id_in_data(): void
+    public function test_tinkoff_card_init_uses_amount_from_user_period_prices_when_custom_payment_and_sends_user_period_price_id_in_data(): void
     {
         $this->grantTbankCardPermission();
 
@@ -320,16 +320,16 @@ class UserClassPaymentFlowTest extends CrmTestCase
                 return Http::response([
                     'Success' => true,
                     'PaymentId' => 888002,
-                    'PaymentURL' => 'https://example.test/pay-abonement',
+                    'PaymentURL' => 'https://example.test/pay-custom-payment',
                 ], 200);
             }
             return Http::response(['Success' => false], 500);
         });
 
         $response = $this->post(route('payment.tinkoff.pay'), [
-            'payment_kind' => 'abonement',
-            'abonement_id' => $upp->id,
-            'paymentDate' => 'Абонемент',
+            'payment_kind' => 'custom_payment',
+            'custom_payment_id' => $upp->id,
+            'paymentDate' => 'Дополнительный платеж',
             'outSum' => '1.00',
         ]);
 
@@ -340,7 +340,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
 
         $payable = Payable::query()->latest('id')->first();
         $this->assertNotNull($payable);
-        $this->assertSame('abonement_fee_period', (string) $payable->type);
+        $this->assertSame('custom_payment_fee', (string) $payable->type);
         $this->assertSame((int) $upp->id, (int) ($payable->meta['user_period_price_id'] ?? 0));
     }
 

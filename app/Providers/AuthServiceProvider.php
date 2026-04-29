@@ -123,9 +123,9 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('setPrices.manualPaid.manage');
         });
 
-        // Абонементы (кастомные периоды): просмотр в установке цен и на консоли
-        Gate::define('setPrices.abonements.view', function (User $user) {
-            return $user->hasPermission('setPrices.abonements.view');
+        // Дополнительные платежи (кастомные периоды): просмотр в установке цен и на консоли
+        Gate::define('setPrices.customPayments.view', function (User $user) {
+            return $user->hasPermission('setPrices.customPayments.view');
         });
 
         // Журнал расписания

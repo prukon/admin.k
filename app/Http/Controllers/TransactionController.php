@@ -73,7 +73,7 @@ class TransactionController extends Controller
         $paymentDate = (string) $request->input('paymentDate', '');
         $outSum = (string) $request->input('outSum', '');
         $paymentKind = (string) $request->input('payment_kind', '');
-        $userPeriodPriceId = $request->filled('abonement_id') ? (int) $request->input('abonement_id') : null;
+        $userPeriodPriceId = $request->filled('custom_payment_id') ? (int) $request->input('custom_payment_id') : null;
 
         $formatedPaymentDate = null;
         $rawFmt = $request->input('formatedPaymentDate');
@@ -88,8 +88,8 @@ class TransactionController extends Controller
 
         $user = $request->user();
 
-        // Периодный абонемент (user_period_prices): сумма и связка ТОЛЬКО из БД.
-        if ($paymentKind === 'abonement') {
+        // Дополнительный платеж (user_period_prices): сумма и связка ТОЛЬКО из БД.
+        if ($paymentKind === 'custom_payment') {
             $upp = null;
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
                 $upp = UserPeriodPrice::query()
@@ -99,14 +99,14 @@ class TransactionController extends Controller
                     ->first();
             }
             if (!$upp) {
-                abort(404, 'Абонемент не найден');
+                abort(404, 'Дополнительный платеж не найден');
             }
             if ((bool) $upp->effective_is_paid) {
-                abort(422, 'Абонемент уже оплачен');
+                abort(422, 'Дополнительный платеж уже оплачен');
             }
 
             $outSum = number_format((float) $upp->amount, 2, '.', '');
-            $paymentDate = $paymentDate !== '' ? $paymentDate : 'Абонемент';
+            $paymentDate = $paymentDate !== '' ? $paymentDate : 'Дополнительный платеж';
             // Важно: не считаем это monthly_fee, чтобы не попасть в ветку users_prices.
             $formatedPaymentDate = null;
         }
@@ -157,14 +157,14 @@ class TransactionController extends Controller
         $partnerId = (int) app('current_partner')->id;
 
         $paymentKind = (string) $request->input('payment_kind', '');
-        $userPeriodPriceId = $request->filled('abonement_id') ? (int) $request->input('abonement_id') : null;
+        $userPeriodPriceId = $request->filled('custom_payment_id') ? (int) $request->input('custom_payment_id') : null;
 
         $rawFmt = $request->input('formatedPaymentDate');
         $hasMonthly = $request->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
 
-        if ($paymentKind === 'abonement') {
+        if ($paymentKind === 'custom_payment') {
             $upp = null;
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
                 $upp = UserPeriodPrice::query()
@@ -174,14 +174,14 @@ class TransactionController extends Controller
                     ->first();
             }
             if (!$upp) {
-                abort(404, 'Абонемент не найден');
+                abort(404, 'Дополнительный платеж не найден');
             }
             if ((bool) $upp->effective_is_paid) {
-                abort(422, 'Абонемент уже оплачен');
+                abort(422, 'Дополнительный платеж уже оплачен');
             }
 
             $outSum = number_format((float) $upp->amount, 2, '.', '');
-            $paymentDate = (string) $request->input('paymentDate', 'Абонемент');
+            $paymentDate = (string) $request->input('paymentDate', 'Дополнительный платеж');
             $hasMonthly = false;
         } elseif ($hasMonthly) {
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
@@ -224,8 +224,8 @@ class TransactionController extends Controller
         }
 
         // Создаём Payable (доменная "покупка")
-        $type = $paymentKind === 'abonement'
-            ? 'abonement_fee_period'
+        $type = $paymentKind === 'custom_payment'
+            ? 'custom_payment_fee'
             : ($hasMonthly ? 'monthly_fee' : 'club_fee');
         $month = null;
         $payableMeta = [];
@@ -233,7 +233,7 @@ class TransactionController extends Controller
             // paymentDate уже в формате YYYY-MM-01
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
-        } elseif ($type === 'abonement_fee_period') {
+        } elseif ($type === 'custom_payment_fee') {
             $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         }
 

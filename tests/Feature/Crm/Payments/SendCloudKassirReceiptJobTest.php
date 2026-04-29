@@ -104,7 +104,7 @@ class SendCloudKassirReceiptJobTest extends CrmTestCase
                 && ($cr['TaxationSystem'] ?? null) === 1
                 && ! array_key_exists('AgentSign', $cr)
                 && ($cr['Items'][0]['AgentSign'] ?? null) === '6'
-                && ($cr['Items'][0]['Label'] ?? null) === 'Абонемент за март'
+                && ($cr['Items'][0]['Label'] ?? null) === 'Ежемесячный платеж за март'
                 && ($cr['Items'][0]['Vat'] ?? null) === 10
                 && ($cr['Items'][0]['AgentData']['PaymentAgentPhone'] ?? null) === '+79110263811'
                 && ($cr['Items'][0]['PurveyorData']['Inn'] ?? null) === '7700000000';

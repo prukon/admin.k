@@ -207,7 +207,7 @@ class RobokassaController extends Controller
                         'month' => $month,
                     ]);
                 }
-            } elseif (in_array((string) $payable->type, ['abonement_fee', 'abonement_fee_period'], true)) {
+            } elseif ((string) $payable->type === 'custom_payment_fee') {
                 $pid = $payable->meta['user_period_price_id'] ?? null;
                 $pidInt = is_numeric($pid) ? (int) $pid : 0;
                 if ($pidInt > 0) {
@@ -215,7 +215,7 @@ class RobokassaController extends Controller
                         ->whereKey($pidInt)
                         ->update(['is_paid' => 1]);
                 } else {
-                    Log::warning('Robokassa result: abonement_fee without user_period_price_id in payable.meta', [
+                    Log::warning('Robokassa result: custom_payment_fee without user_period_price_id in payable.meta', [
                         'InvId' => $invId,
                         'payable_id' => $payable->id,
                         'meta' => $payable->meta,

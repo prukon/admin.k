@@ -135,7 +135,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
         ]);
     }
 
-    public function test_refund_job_succeeds_and_marks_user_period_price_unpaid_for_abonement_fee_period(): void
+    public function test_refund_job_succeeds_and_marks_user_period_price_unpaid_for_custom_payment_fee(): void
     {
         $partner = Partner::factory()->create();
 
@@ -159,7 +159,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
         $payable = Payable::create([
             'partner_id' => $partner->id,
             'user_id' => $userId,
-            'type' => 'abonement_fee_period',
+            'type' => 'custom_payment_fee',
             'amount' => 700,
             'currency' => 'RUB',
             'status' => 'paid',
@@ -183,7 +183,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
             'provider' => 'robokassa',
             'status' => 'paid',
             'out_sum' => $payable->amount,
-            'payment_date' => 'Абонемент',
+            'payment_date' => 'Дополнительный платеж',
         ]);
 
         $refund = Refund::create([

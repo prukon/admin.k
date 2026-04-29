@@ -238,10 +238,10 @@ class SettingPricesController extends AdminBaseController
         );
     }
 
-    public function abonements()
+    public function customPayments()
     {
         $partnerId = $this->requirePartnerId();
-        if (!request()->user()?->can('setPrices.abonements.view')) {
+        if (!request()->user()?->can('setPrices.customPayments.view')) {
             abort(403);
         }
 
@@ -260,7 +260,7 @@ class SettingPricesController extends AdminBaseController
             ->get(['id', 'name', 'lastname']);
 
         return view('admin.SettingPrices.index', [
-            'activeTab' => 'abonements',
+            'activeTab' => 'custom_payments',
             'teamPrices' => $teamPrices,
             'allTeams' => $allTeams,
             'monthString' => $monthString,
@@ -268,10 +268,10 @@ class SettingPricesController extends AdminBaseController
         ]);
     }
 
-    public function abonementsData(Request $request)
+    public function customPaymentsData(Request $request)
     {
         $partnerId = $this->requirePartnerId();
-        if (!$request->user()?->can('setPrices.abonements.view')) {
+        if (!$request->user()?->can('setPrices.customPayments.view')) {
             abort(403);
         }
 
@@ -326,8 +326,8 @@ class SettingPricesController extends AdminBaseController
                 }
 
                 $paid = (bool) $row->effective_is_paid;
-                $btnPaid = '<button type="button" class="btn btn-sm btn-outline-success me-1" data-abonement-action="mark_paid" data-id="'.(int) $row->id.'">Оплачено</button>';
-                $btnUnpaid = '<button type="button" class="btn btn-sm btn-outline-secondary" data-abonement-action="mark_unpaid" data-id="'.(int) $row->id.'">Не оплачено</button>';
+                $btnPaid = '<button type="button" class="btn btn-sm btn-outline-success me-1" data-custom-payment-action="mark_paid" data-id="'.(int) $row->id.'">Оплачено</button>';
+                $btnUnpaid = '<button type="button" class="btn btn-sm btn-outline-secondary" data-custom-payment-action="mark_unpaid" data-id="'.(int) $row->id.'">Не оплачено</button>';
                 return $paid ? $btnUnpaid : ($btnPaid . $btnUnpaid);
             })
             ->rawColumns(['status', 'actions'])
@@ -335,12 +335,12 @@ class SettingPricesController extends AdminBaseController
     }
 
     /**
-     * Select2: поиск учеников текущего партнёра (для абонементов).
+     * Select2: поиск учеников текущего партнёра (для дополнительных платежей).
      */
-    public function abonementsUsersSearch(Request $request)
+    public function customPaymentsUsersSearch(Request $request)
     {
         $partnerId = $this->requirePartnerId();
-        if (!$request->user()?->can('setPrices.abonements.view')) {
+        if (!$request->user()?->can('setPrices.customPayments.view')) {
             abort(403);
         }
         $q = trim((string) $request->query('q', ''));
@@ -370,10 +370,10 @@ class SettingPricesController extends AdminBaseController
         ]);
     }
 
-    public function storeAbonement(UserPeriodPriceStoreRequest $request)
+    public function storeCustomPayment(UserPeriodPriceStoreRequest $request)
     {
         $partnerId = $this->requirePartnerId();
-        if (!request()->user()?->can('setPrices.abonements.view')) {
+        if (!request()->user()?->can('setPrices.customPayments.view')) {
             abort(403);
         }
 
@@ -393,14 +393,14 @@ class SettingPricesController extends AdminBaseController
 
         return response()->json([
             'success' => true,
-            'abonement' => $row,
+            'custom_payment' => $row,
         ]);
     }
 
-    public function setManualPaidAbonement(int $id, SetManualUserPeriodPricePaidRequest $request)
+    public function setManualPaidCustomPayment(int $id, SetManualUserPeriodPricePaidRequest $request)
     {
         $partnerId = $this->requirePartnerId();
-        if (!request()->user()?->can('setPrices.abonements.view')) {
+        if (!request()->user()?->can('setPrices.customPayments.view')) {
             abort(403);
         }
 
@@ -416,7 +416,7 @@ class SettingPricesController extends AdminBaseController
         if (! $row) {
             return response()->json([
                 'success' => false,
-                'message' => 'Абонемент не найден или недоступен в контексте текущего партнёра.',
+                'message' => 'Дополнительный платеж не найден или недоступен в контексте текущего партнёра.',
             ], 404);
         }
 
@@ -436,7 +436,7 @@ class SettingPricesController extends AdminBaseController
 
         return response()->json([
             'success' => true,
-            'abonement' => $row,
+            'custom_payment' => $row,
         ]);
     }
 

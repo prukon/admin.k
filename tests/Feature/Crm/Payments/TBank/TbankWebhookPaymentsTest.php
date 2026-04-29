@@ -365,7 +365,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
         ]);
     }
 
-    public function test_webhook_confirmed_abonement_fee_period_marks_user_period_price_paid(): void
+    public function test_webhook_confirmed_custom_payment_fee_marks_user_period_price_paid(): void
     {
         $this->setupTbankKeysForPartner('TERM', 'PWD');
 
@@ -389,7 +389,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
         $payable = Payable::create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'type' => 'abonement_fee_period',
+            'type' => 'custom_payment_fee',
             'amount' => '321.00',
             'currency' => 'RUB',
             'status' => 'pending',
@@ -405,7 +405,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'provider' => 'tbank',
             'status' => 'pending',
             'out_sum' => '321.00',
-            'payment_date' => 'Абонемент',
+            'payment_date' => 'Дополнительный платеж',
             'tbank_order_id' => 'order-a1',
         ]);
 
@@ -419,7 +419,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
                 'payable_id' => (string) $payable->id,
                 'user_id' => (string) $this->user->id,
                 'user_period_price_id' => (string) $upp->id,
-                'payment_kind' => 'abonement',
+                'payment_kind' => 'custom_payment',
             ],
         ], 'PWD');
 
