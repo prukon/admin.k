@@ -7,6 +7,7 @@ use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\FiscalReceipt;
 use App\Models\Refund;
+use App\Models\UserPeriodPrice;
 use App\Models\UserPrice;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Services\Tinkoff\TinkoffSignature;
@@ -139,29 +140,42 @@ class TinkoffProcessRefundJob implements ShouldQueue
         // CloudKassir: создаём чек возврата асинхронно после успешного Cancel в T-Bank.
         $this->tryCreateCloudKassirReturnReceipt($refund);
 
-        if ((string) $payable->type !== 'monthly_fee') {
-            return;
-        }
+        if ((string) $payable->type === 'monthly_fee') {
+            $month = $payable->month?->format('Y-m-d')
+                ?: ($payable->meta['month'] ?? null);
 
-        $month = $payable->month?->format('Y-m-d')
-            ?: ($payable->meta['month'] ?? null);
+            if (is_string($month) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $month) && strtotime($month)) {
+                UserPrice::updateOrCreate(
+                    [
+                        'user_id' => (int) $refund->user_id,
+                        'new_month' => $month,
+                    ],
+                    [
+                        'is_paid' => 0,
+                    ]
+                );
+            } else {
+                Log::warning('T-Bank refund succeeded but month is invalid', [
+                    'refund_id' => $refund->id,
+                    'month' => $month,
+                    'payable_id' => $payable->id,
+                ]);
+            }
+        } elseif ((string) $payable->type === 'abonement_fee_period') {
+            $pid = $payable->meta['user_period_price_id'] ?? null;
+            $pidInt = is_numeric($pid) ? (int) $pid : 0;
 
-        if (is_string($month) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $month) && strtotime($month)) {
-            UserPrice::updateOrCreate(
-                [
-                    'user_id' => (int) $refund->user_id,
-                    'new_month' => $month,
-                ],
-                [
-                    'is_paid' => 0,
-                ]
-            );
-        } else {
-            Log::warning('T-Bank refund succeeded but month is invalid', [
-                'refund_id' => $refund->id,
-                'month' => $month,
-                'payable_id' => $payable->id,
-            ]);
+            if ($pidInt > 0) {
+                UserPeriodPrice::query()
+                    ->whereKey($pidInt)
+                    ->update(['is_paid' => 0]);
+            } else {
+                Log::warning('T-Bank refund succeeded but user_period_price_id missing in payable.meta', [
+                    'refund_id' => $refund->id,
+                    'payable_id' => $payable->id,
+                    'meta' => $payable->meta,
+                ]);
+            }
         }
     }
 

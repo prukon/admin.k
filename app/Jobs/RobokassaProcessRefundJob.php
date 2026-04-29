@@ -6,6 +6,7 @@ use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\Refund;
+use App\Models\UserPeriodPrice;
 use App\Models\UserPrice;
 use App\Services\Robokassa\RobokassaRefundService;
 use Illuminate\Bus\Queueable;
@@ -134,40 +135,53 @@ class RobokassaProcessRefundJob implements ShouldQueue
         $payable->status = 'refunded';
         $payable->save();
 
-        if ((string) $payable->type !== 'monthly_fee') {
-            return;
-        }
+        if ((string) $payable->type === 'monthly_fee') {
+            $month = $payable->month?->format('Y-m-d')
+                ?: ($payable->meta['month'] ?? null);
 
-        $month = $payable->month?->format('Y-m-d')
-            ?: ($payable->meta['month'] ?? null);
-
-        // fallback: из intent (на случай старых данных)
-        if (!is_string($month) || $month === '') {
-            $intentId = (int) ($refund->meta['payment_intent_id'] ?? 0);
-            if ($intentId > 0) {
-                $intent = PaymentIntent::find($intentId);
-                if ($intent && !empty($intent->payment_date)) {
-                    $month = (string) $intent->payment_date;
+            // fallback: из intent (на случай старых данных)
+            if (!is_string($month) || $month === '') {
+                $intentId = (int) ($refund->meta['payment_intent_id'] ?? 0);
+                if ($intentId > 0) {
+                    $intent = PaymentIntent::find($intentId);
+                    if ($intent && !empty($intent->payment_date)) {
+                        $month = (string) $intent->payment_date;
+                    }
                 }
             }
-        }
 
-        if (is_string($month) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $month) && strtotime($month)) {
-            UserPrice::updateOrCreate(
-                [
-                    'user_id' => (int) $refund->user_id,
-                    'new_month' => $month,
-                ],
-                [
-                    'is_paid' => 0,
-                ]
-            );
-        } else {
-            Log::warning('Refund succeeded but month is invalid', [
-                'refund_id' => $refund->id,
-                'month' => $month,
-                'payable_id' => $payable->id,
-            ]);
+            if (is_string($month) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $month) && strtotime($month)) {
+                UserPrice::updateOrCreate(
+                    [
+                        'user_id' => (int) $refund->user_id,
+                        'new_month' => $month,
+                    ],
+                    [
+                        'is_paid' => 0,
+                    ]
+                );
+            } else {
+                Log::warning('Refund succeeded but month is invalid', [
+                    'refund_id' => $refund->id,
+                    'month' => $month,
+                    'payable_id' => $payable->id,
+                ]);
+            }
+        } elseif ((string) $payable->type === 'abonement_fee_period') {
+            $pid = $payable->meta['user_period_price_id'] ?? null;
+            $pidInt = is_numeric($pid) ? (int) $pid : 0;
+
+            if ($pidInt > 0) {
+                UserPeriodPrice::query()
+                    ->whereKey($pidInt)
+                    ->update(['is_paid' => 0]);
+            } else {
+                Log::warning('Refund succeeded but user_period_price_id missing in payable.meta', [
+                    'refund_id' => $refund->id,
+                    'payable_id' => $payable->id,
+                    'meta' => $payable->meta,
+                ]);
+            }
         }
     }
 
