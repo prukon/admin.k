@@ -38,6 +38,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'setPrices.customPayments.view',  'description' => 'Установка цен / Консоль: просмотр дополнительных платежей', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 20],
             ['name' => 'setPrices.manualPaid.manage',    'description' => 'Установка цен: ручная отметка оплаты месяца',    'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 21],
             ['name' => 'schedule.view',                  'description' => 'Страница "Журнал расписания"',                  'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 30],
+            ['name' => 'lessonPackages.view',            'description' => 'Страница "Абонементы"',                         'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 35],
+            ['name' => 'lessonPackages.manage',          'description' => 'Абонементы: создание/редактирование',            'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 36],
             ['name' => 'users.view',                     'description' => 'Страница "Пользователи"',                       'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 40],
             ['name' => 'groups.view',                    'description' => 'Страница "Группы"',                             'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 50],
             ['name' => 'contracts.view',                 'description' => 'Страница "Договоры"',                           'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 51],

@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\SettingPricesController;
 use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\TeamColumnsSettingsController;
 use App\Http\Controllers\Admin\TeamController;
+use App\Http\Controllers\Admin\LessonPackageController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserFieldController;
 use App\Http\Controllers\Admin\UserTableSettingsController;
@@ -319,6 +320,27 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/schedule/user-schedule/{user}', [ScheduleController::class, 'getUserScheduleInfo'])->name('user.schedule.info');
         Route::post('/schedule/user/{user}/set-group', [ScheduleController::class, 'setUserGroup'])->name('user.set.group');
         Route::post('/schedule/user/{user}/update-schedule-range', [ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule');
+    });
+
+    // Абонементы (lesson_packages)
+    Route::middleware('can:lessonPackages.view')->group(function () {
+        Route::get('/admin/lesson-packages', [LessonPackageController::class, 'index'])->name('admin.lesson-packages.index');
+        Route::get('/admin/lesson-packages/assignments', [LessonPackageController::class, 'assignments'])->name('admin.lesson-packages.assignments');
+        Route::get('/admin/lesson-packages/assignments/users-search', [LessonPackageController::class, 'assignmentUsersSearch'])
+            ->name('admin.lesson-packages.assignments.users-search');
+        Route::post('/admin/lesson-packages/assignments', [LessonPackageController::class, 'storeAssignment'])
+            ->middleware('can:lessonPackages.manage')
+            ->name('admin.lesson-packages.assignments.store');
+        Route::post('/admin/lesson-packages', [LessonPackageController::class, 'store'])
+            ->middleware('can:lessonPackages.manage')
+            ->name('admin.lesson-packages.store');
+        Route::get('/admin/lesson-packages/{lessonPackage}', [LessonPackageController::class, 'show'])
+            ->whereNumber('lessonPackage')
+            ->name('admin.lesson-packages.show');
+        Route::put('/admin/lesson-packages/{lessonPackage}', [LessonPackageController::class, 'update'])
+            ->middleware('can:lessonPackages.manage')
+            ->whereNumber('lessonPackage')
+            ->name('admin.lesson-packages.update');
     });
 
     // Статусы

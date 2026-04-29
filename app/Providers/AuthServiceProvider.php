@@ -133,6 +133,14 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('schedule.view');
         });
 
+        // Абонементы (lesson_packages)
+        Gate::define('lessonPackages.view', function (User $user) {
+            return $user->hasPermission('lessonPackages.view');
+        });
+        Gate::define('lessonPackages.manage', function (User $user) {
+            return $user->hasPermission('lessonPackages.manage');
+        });
+
         // Управление пользователями
         Gate::define('users.view', function (User $user) {
             return $user->hasPermission('users.view');

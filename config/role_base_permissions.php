@@ -25,6 +25,8 @@ return [
             'setPrices.view',
             'setPrices.customPayments.view',
             'schedule.view',
+            'lessonPackages.view',
+            'lessonPackages.manage',
             'users.view',
             'groups.view',
             'contracts.view',

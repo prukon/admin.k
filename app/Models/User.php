@@ -96,6 +96,11 @@ class User extends Authenticatable
         return $this->belongsTo(Partner::class, 'partner_id');
     }
 
+    public function lessonPackageAssignments()
+    {
+        return $this->hasMany(\App\Models\UserLessonPackage::class, 'user_id');
+    }
+
     public function hasRole(string $roleName): bool
     {
         return $this->role && $this->role->name === $roleName;
