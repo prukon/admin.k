@@ -11,7 +11,7 @@
         </div>
     @endif
 
-    @can('lessonPackages.manage')
+    @can('lessonPackages.view')
         <div class="card mb-3">
             <div class="card-body">
                 <form method="POST" action="{{ route('admin.lesson-packages.assignments.store') }}" novalidate>

@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\SettingPricesController;
 use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\TeamColumnsSettingsController;
 use App\Http\Controllers\Admin\TeamController;
+use App\Http\Controllers\Admin\LessonOccurrenceStatusController;
 use App\Http\Controllers\Admin\LessonPackageController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserFieldController;
@@ -329,18 +330,28 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/lesson-packages/assignments/users-search', [LessonPackageController::class, 'assignmentUsersSearch'])
             ->name('admin.lesson-packages.assignments.users-search');
         Route::post('/admin/lesson-packages/assignments', [LessonPackageController::class, 'storeAssignment'])
-            ->middleware('can:lessonPackages.manage')
             ->name('admin.lesson-packages.assignments.store');
         Route::post('/admin/lesson-packages', [LessonPackageController::class, 'store'])
-            ->middleware('can:lessonPackages.manage')
             ->name('admin.lesson-packages.store');
         Route::get('/admin/lesson-packages/{lessonPackage}', [LessonPackageController::class, 'show'])
             ->whereNumber('lessonPackage')
             ->name('admin.lesson-packages.show');
         Route::put('/admin/lesson-packages/{lessonPackage}', [LessonPackageController::class, 'update'])
-            ->middleware('can:lessonPackages.manage')
             ->whereNumber('lessonPackage')
             ->name('admin.lesson-packages.update');
+
+        Route::get('/admin/lesson-packages/occurrence-statuses', [LessonOccurrenceStatusController::class, 'index'])
+            ->name('admin.lesson-packages.occurrence-statuses.index');
+        Route::post('/admin/lesson-packages/occurrence-statuses', [LessonOccurrenceStatusController::class, 'store'])
+            ->name('admin.lesson-packages.occurrence-statuses.store');
+        Route::put('/admin/lesson-packages/occurrence-statuses/{lessonOccurrenceStatus}', [LessonOccurrenceStatusController::class, 'update'])
+            ->whereNumber('lessonOccurrenceStatus')
+            ->name('admin.lesson-packages.occurrence-statuses.update');
+        Route::delete('/admin/lesson-packages/occurrence-statuses/{lessonOccurrenceStatus}', [LessonOccurrenceStatusController::class, 'destroy'])
+            ->whereNumber('lessonOccurrenceStatus')
+            ->name('admin.lesson-packages.occurrence-statuses.destroy');
+        Route::post('/admin/lesson-packages/occurrence-statuses/reorder', [LessonOccurrenceStatusController::class, 'reorder'])
+            ->name('admin.lesson-packages.occurrence-statuses.reorder');
     });
 
     // Статусы

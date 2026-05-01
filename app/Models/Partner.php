@@ -8,6 +8,7 @@ use Illuminate\Notifications\Notifiable;
 use App\Models\Traits\Filterable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
+use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use RuntimeException;
 
 class Partner extends Model
@@ -60,6 +61,7 @@ class Partner extends Model
 
         static::created(function (Partner $partner) {
             self::assignBasePermissionsForPartner((int) $partner->id);
+            LessonOccurrenceStatusesSeeder::ensureForPartner((int) $partner->id);
         });
     }
 

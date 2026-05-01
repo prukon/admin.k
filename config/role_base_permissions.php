@@ -28,7 +28,6 @@ return [
             'scheduleSlots.view',
             'scheduleSlots.manage',
             'lessonPackages.view',
-            'lessonPackages.manage',
             'locations.view',
             'locations.manage',
             'users.view',

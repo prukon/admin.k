@@ -15,11 +15,18 @@
                    href="{{ route('admin.lesson-packages.assignments') }}"
                    role="tab">Назначение абонементов</a>
             </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {{ ($activeTab ?? '') === 'occurrence-statuses' ? 'active' : '' }}"
+                   href="{{ route('admin.lesson-packages.occurrence-statuses.index') }}"
+                   role="tab">Статусы занятий</a>
+            </li>
         </ul>
 
         <div class="tab-content">
             @if (($activeTab ?? 'packages') === 'assignments')
                 @include('admin.lessonPackages.tabs.assignments')
+            @elseif (($activeTab ?? '') === 'occurrence-statuses')
+                @include('admin.lessonPackages.tabs.occurrenceStatuses')
             @else
                 @include('admin.lessonPackages.tabs.packages')
             @endif

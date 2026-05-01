@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             PermissionGroupsSeeder::class, // добавляем группы разрешений
             PermissionSeeder::class, // добавляем разрешения
             SocialNetworksSeeder::class, // добавляем социальные сети
+            LessonOccurrenceStatusesSeeder::class, // статусы занятий (абонементы), идемпотентно по партнёрам
         ]);
 
         if (env('SEED_DEV_DATA', false)) {

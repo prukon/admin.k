@@ -2,7 +2,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
         <h4 class="mb-0">Абонементы</h4>
 
-        @can('lessonPackages.manage')
+        @can('lessonPackages.view')
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#lessonPackageCreateModal">
                 Добавить абонемент
             </button>
@@ -29,7 +29,7 @@
                 <th>Стоимость</th>
                 <th>Заморозка</th>
                 <th>Расписание</th>
-                @can('lessonPackages.manage')
+                @can('lessonPackages.view')
                     <th style="width: 140px;">Действия</th>
                 @endcan
             </tr>
@@ -81,7 +81,7 @@
                             @endif
                         @endif
                     </td>
-                    @can('lessonPackages.manage')
+                    @can('lessonPackages.view')
                         <td class="text-end">
                             <button type="button"
                                     class="btn btn-sm btn-outline-primary lesson-package-edit-btn"
@@ -95,7 +95,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="@can('lessonPackages.manage') 9 @else 8 @endcan" class="text-center text-muted">
+                    <td colspan="@can('lessonPackages.view') 9 @else 8 @endcan" class="text-center text-muted">
                         Абонементов пока нет.
                     </td>
                 </tr>
@@ -109,7 +109,7 @@
     </div>
 </div>
 
-@can('lessonPackages.manage')
+@can('lessonPackages.view')
     {{-- Create Modal --}}
     <div class="modal fade" id="lessonPackageCreateModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -301,7 +301,7 @@
     </div>
 @endcan
 
-@can('lessonPackages.manage')
+@can('lessonPackages.view')
     @section('scripts')
         @parent
         <script>

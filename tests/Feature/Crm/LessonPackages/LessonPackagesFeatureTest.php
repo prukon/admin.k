@@ -55,20 +55,9 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             ->assertSee('Абонементы');
     }
 
-    public function test_index_ui_hides_manage_controls_for_view_only(): void
+    public function test_index_ui_shows_modals_and_controls_with_view_permission(): void
     {
         $this->grantPermission('lessonPackages.view');
-
-        $this->get(route('admin.lesson-packages.index'))
-            ->assertOk()
-            ->assertDontSee('Добавить абонемент')
-            ->assertDontSee('Редактировать');
-    }
-
-    public function test_index_ui_shows_modals_and_controls_for_manage(): void
-    {
-        $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
 
         LessonPackage::query()->create([
             'name' => 'Пакет',
@@ -89,9 +78,11 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             ->assertSee('lessonPackageEditModal');
     }
 
-    public function test_store_denied_without_manage_permission(): void
+    public function test_store_denied_without_view_permission(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $user = $this->createUserWithoutPermission('lessonPackages.view');
+        $this->actingAs($user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Тест',
@@ -109,8 +100,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_fixed_creates_package_and_slots(): void
     {
         $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Фикс',
             'schedule_type' => 'fixed',
@@ -156,8 +145,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_flexible_creates_package_without_slots(): void
     {
         $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Гибкий',
             'schedule_type' => 'flexible',
@@ -183,8 +170,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_fixed_validation_requires_slots(): void
     {
         $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Без слотов',
             'schedule_type' => 'fixed',
@@ -200,8 +185,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_freeze_enabled_requires_freeze_days(): void
     {
         $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Заморозка',
             'schedule_type' => 'no_schedule',
@@ -244,9 +227,11 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             ->assertJsonPath('lesson_package.time_slots.0.time_end', '19:00');
     }
 
-    public function test_update_denied_without_manage_permission(): void
+    public function test_update_denied_without_view_permission(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $user = $this->createUserWithoutPermission('lessonPackages.view');
+        $this->actingAs($user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
         $lp = LessonPackage::query()->create([
             'name' => 'Пакет',
@@ -272,8 +257,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_update_rebuilds_slots_for_fixed_package(): void
     {
         $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         $lp = LessonPackage::query()->create([
             'name' => 'Пакет',
             'schedule_type' => 'fixed',
@@ -345,8 +328,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_duplicate_slot_returns_422_with_time_slots_error(): void
     {
         $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Дубли',
             'schedule_type' => 'fixed',
@@ -365,8 +346,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_time_end_must_be_after_time_start(): void
     {
         $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Время',
             'schedule_type' => 'fixed',
@@ -432,25 +411,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
 
-        $this->get(route('admin.lesson-packages.assignments'))
-            ->assertOk()
-            ->assertSee('Назначение абонементов');
-    }
-
-    public function test_assignments_tab_hides_form_for_view_only(): void
-    {
-        $this->grantPermission('lessonPackages.view');
-
-        $this->get(route('admin.lesson-packages.assignments'))
-            ->assertOk()
-            ->assertDontSee('Назначить');
-    }
-
-    public function test_assignments_tab_shows_form_for_manage(): void
-    {
-        $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         LessonPackage::query()->create([
             'name' => 'Пакет',
             'schedule_type' => 'no_schedule',
@@ -464,6 +424,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
 
         $this->get(route('admin.lesson-packages.assignments'))
             ->assertOk()
+            ->assertSee('Назначение абонементов')
             ->assertSee('Назначить')
             ->assertSee('ulp_user_id')
             ->assertSee('ulp_lesson_package_id');
@@ -472,8 +433,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_assignment_creates_user_lesson_package_and_sets_remaining(): void
     {
         $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         $package = LessonPackage::query()->create([
             'name' => 'Пакет 8',
             'schedule_type' => 'no_schedule',
@@ -504,8 +463,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_assignment_flexible_saves_slots_when_provided(): void
     {
         $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         $package = LessonPackage::query()->create([
             'name' => 'Гибкий',
             'schedule_type' => 'flexible',
@@ -547,8 +504,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_assignment_fixed_ignores_slots_payload(): void
     {
         $this->grantPermission('lessonPackages.view');
-        $this->grantPermission('lessonPackages.manage');
-
         $package = LessonPackage::query()->create([
             'name' => 'Фикс',
             'schedule_type' => 'fixed',
@@ -592,9 +547,11 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->assertNotContains((int) $this->foreignUser->id, $ids);
     }
 
-    public function test_store_assignment_denied_without_manage_permission(): void
+    public function test_store_assignment_denied_without_view_permission(): void
     {
-        $this->grantPermission('lessonPackages.view');
+        $user = $this->createUserWithoutPermission('lessonPackages.view');
+        $this->actingAs($user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
         $package = LessonPackage::query()->create([
             'name' => 'Пакет 8',
