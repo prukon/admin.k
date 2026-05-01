@@ -70,12 +70,32 @@
             </li>
         @endcan
 
+        {{--Расписание школы (слоты)--}}
+        @can('scheduleSlots.view')
+            <li class="nav-item">
+                <a href="/admin/team-schedule-slots" class="nav-link">
+                    <i class="nav-icon fa-solid fa-table-cells-large"></i>
+                    <p>Расписание школы</p>
+                </a>
+            </li>
+        @endcan
+
         {{--Абонементы--}}
         @can('lessonPackages.view')
             <li class="nav-item">
                 <a href="/admin/lesson-packages" class="nav-link">
                     <i class="nav-icon fa-solid fa-id-card"></i>
                     <p>Абонементы</p>
+                </a>
+            </li>
+        @endcan
+
+        {{--Локации--}}
+        @can('locations.view')
+            <li class="nav-item">
+                <a href="/admin/locations" class="nav-link">
+                    <i class="nav-icon fa-solid fa-location-dot"></i>
+                    <p>Локации</p>
                 </a>
             </li>
         @endcan

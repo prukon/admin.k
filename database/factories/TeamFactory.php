@@ -48,6 +48,9 @@ class TeamFactory extends Factory
 
             'image' => $this->faker->imageUrl(400, 400, 'sports'),
 
+            'type' => 'group',
+            'default_duration_minutes' => 60,
+
             'is_enabled' => 1,
             'order_by' => random_int(1, 100),
         ];

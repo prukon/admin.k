@@ -133,12 +133,28 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('schedule.view');
         });
 
+        // Расписание школы (слоты)
+        Gate::define('scheduleSlots.view', function (User $user) {
+            return $user->hasPermission('scheduleSlots.view');
+        });
+        Gate::define('scheduleSlots.manage', function (User $user) {
+            return $user->hasPermission('scheduleSlots.manage');
+        });
+
         // Абонементы (lesson_packages)
         Gate::define('lessonPackages.view', function (User $user) {
             return $user->hasPermission('lessonPackages.view');
         });
         Gate::define('lessonPackages.manage', function (User $user) {
             return $user->hasPermission('lessonPackages.manage');
+        });
+
+        // Локации
+        Gate::define('locations.view', function (User $user) {
+            return $user->hasPermission('locations.view');
+        });
+        Gate::define('locations.manage', function (User $user) {
+            return $user->hasPermission('locations.manage');
         });
 
         // Управление пользователями

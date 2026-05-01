@@ -17,6 +17,12 @@ class Team extends Model
     protected $table = 'teams'; //явное указание к какой таблице в БД привязана модель
     protected $guarded = []; //разрешение на изменение данных в таблице
 
+    protected $casts = [
+        'is_enabled' => 'bool',
+        'partner_id' => 'int',
+        'default_duration_minutes' => 'int',
+    ];
+
     public function teamPrices()
     {
         return $this->hasMany(TeamPrice::class, 'team_id', 'id');
@@ -37,5 +43,10 @@ class Team extends Model
     public function partner()
     {
         return $this->belongsTo(Partner::class, 'partner_id');
+    }
+
+    public function scheduleSlots()
+    {
+        return $this->hasMany(TeamScheduleSlot::class, 'team_id');
     }
 }

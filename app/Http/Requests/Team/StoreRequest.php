@@ -23,6 +23,8 @@ class StoreRequest extends FormRequest
     {
         return [
             'title' => 'required|string',
+            'type' => 'required|string|in:group,individual',
+            'default_duration_minutes' => 'nullable|integer|min:1|max:600',
             'weekdays' => 'nullable|array',
             'is_enabled' => 'boolean',
             'order_by' => 'nullable|integer', // Здесь мы указываем, что это может быть null
@@ -34,6 +36,11 @@ class StoreRequest extends FormRequest
         return [
             'title.required' => 'Введите название',
             'title.string' => 'Введите название',
+            'type.required' => 'Укажите тип',
+            'type.in' => 'Некорректный тип',
+            'default_duration_minutes.integer' => 'Длительность должна быть числом (в минутах)',
+            'default_duration_minutes.min' => 'Длительность должна быть больше 0 минут',
+            'default_duration_minutes.max' => 'Длительность слишком большая',
         ];
     }
 

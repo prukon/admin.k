@@ -389,6 +389,40 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/teams/data', [TeamController::class, 'data'])->name('admin.team.data');
     });
 
+    // Локации
+    Route::middleware('can:locations.view')->group(function () {
+        Route::get('admin/locations', [\App\Http\Controllers\Admin\LocationController::class, 'index'])->name('admin.locations.index');
+        Route::get('admin/locations/{location}', [\App\Http\Controllers\Admin\LocationController::class, 'show'])->whereNumber('location')->name('admin.locations.show');
+        Route::post('admin/locations', [\App\Http\Controllers\Admin\LocationController::class, 'store'])
+            ->middleware('can:locations.manage')
+            ->name('admin.locations.store');
+        Route::put('admin/locations/{location}', [\App\Http\Controllers\Admin\LocationController::class, 'update'])
+            ->middleware('can:locations.manage')
+            ->whereNumber('location')
+            ->name('admin.locations.update');
+        Route::delete('admin/locations/{location}', [\App\Http\Controllers\Admin\LocationController::class, 'destroy'])
+            ->middleware('can:locations.manage')
+            ->whereNumber('location')
+            ->name('admin.locations.destroy');
+    });
+
+    // Расписание школы (слоты)
+    Route::middleware('can:scheduleSlots.view')->group(function () {
+        Route::get('admin/team-schedule-slots', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'index'])->name('admin.team-schedule-slots.index');
+        Route::get('admin/team-schedule-slots/{slot}', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'show'])->whereNumber('slot')->name('admin.team-schedule-slots.show');
+        Route::post('admin/team-schedule-slots', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'store'])
+            ->middleware('can:scheduleSlots.manage')
+            ->name('admin.team-schedule-slots.store');
+        Route::put('admin/team-schedule-slots/{slot}', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'update'])
+            ->middleware('can:scheduleSlots.manage')
+            ->whereNumber('slot')
+            ->name('admin.team-schedule-slots.update');
+        Route::delete('admin/team-schedule-slots/{slot}', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'destroy'])
+            ->middleware('can:scheduleSlots.manage')
+            ->whereNumber('slot')
+            ->name('admin.team-schedule-slots.destroy');
+    });
+
     //Группы. Колонки (feature test +)
     Route::middleware('can:groups.view')->group(function () {
         // Настройки отображения колонок

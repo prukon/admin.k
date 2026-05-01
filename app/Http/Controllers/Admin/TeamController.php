@@ -207,6 +207,8 @@ class TeamController extends AdminBaseController
         return response()->json([
             'id'            => $team->id,
             'title'         => $team->title,
+            'type'          => $team->type,
+            'default_duration_minutes' => $team->default_duration_minutes,
             'order_by'      => $team->order_by,
             'is_enabled'    => $team->is_enabled,
             'team_weekdays' => $team->weekdays, // Дни недели, связанные с командой
@@ -269,6 +271,22 @@ class TeamController extends AdminBaseController
             // Название
             if (array_key_exists('title', $data) && $data['title'] !== $oldData->title) {
                 $changes[] = "Название: \"{$oldData->title}\" → \"{$data['title']}\"";
+            }
+
+            // Тип
+            if (array_key_exists('type', $data) && (string) $data['type'] !== (string) $oldData->type) {
+                $oldType = ((string) $oldData->type) === 'individual' ? 'индивидуально' : 'группа';
+                $newType = ((string) $data['type']) === 'individual' ? 'индивидуально' : 'группа';
+                $changes[] = "Тип: {$oldType} → {$newType}";
+            }
+
+            // Длительность по умолчанию
+            if (array_key_exists('default_duration_minutes', $data)) {
+                $oldDur = $oldData->default_duration_minutes ?? 'не указана';
+                $newDur = $data['default_duration_minutes'] ?? 'не указана';
+                if ((string) $oldDur !== (string) $newDur) {
+                    $changes[] = "Длительность по умолчанию (мин): {$oldDur} → {$newDur}";
+                }
             }
 
             // Дни недели

@@ -25,6 +25,27 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="type" class="form-label">Тип*</label>
+                        <select name="type" class="form-control" id="type">
+                            <option value="group" selected>Группа</option>
+                            <option value="individual">Индивидуально (1 на 1)</option>
+                        </select>
+                        <div id="type-error" class="invalid-feedback"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="default_duration_minutes" class="form-label">Длительность по умолчанию (мин)</label>
+                        <input type="number"
+                               min="1"
+                               max="600"
+                               name="default_duration_minutes"
+                               class="form-control"
+                               id="default_duration_minutes"
+                               value="{{ old('default_duration_minutes') }}">
+                        <div id="default_duration_minutes-error" class="invalid-feedback"></div>
+                    </div>
+
+                    <div class="mb-3">
                         <div class="form-group">
                             <label for="weekdays">Расписание*</label>
                             <div id="weekdays">
@@ -103,12 +124,28 @@
                         const titleError = document.getElementById('title-error');
                         titleInput.classList.remove('is-invalid');
                         if (titleError) titleError.textContent = '';
+                        const typeInput = document.getElementById('type');
+                        const typeError = document.getElementById('type-error');
+                        typeInput.classList.remove('is-invalid');
+                        if (typeError) typeError.textContent = '';
+                        const durationInput = document.getElementById('default_duration_minutes');
+                        const durationError = document.getElementById('default_duration_minutes-error');
+                        durationInput.classList.remove('is-invalid');
+                        if (durationError) durationError.textContent = '';
 
                         if (!ok && status === 422) {
                             const errors = data?.errors || {};
                             if (errors.title?.length) {
                                 titleInput.classList.add('is-invalid');
                                 if (titleError) titleError.textContent = errors.title[0];
+                            }
+                            if (errors.type?.length) {
+                                typeInput.classList.add('is-invalid');
+                                if (typeError) typeError.textContent = errors.type[0];
+                            }
+                            if (errors.default_duration_minutes?.length) {
+                                durationInput.classList.add('is-invalid');
+                                if (durationError) durationError.textContent = errors.default_duration_minutes[0];
                             }
                             return;
                         }
