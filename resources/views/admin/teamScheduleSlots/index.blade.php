@@ -20,7 +20,6 @@
                                 <th style="width: 220px">Локация</th>
                             @endcan
                             <th style="width: 230px">Период</th>
-                            <th style="width: 100px" class="text-center">Активен</th>
                             @can('scheduleSlots.manage')
                                 <th style="width: 140px"></th>
                             @endcan
@@ -41,7 +40,6 @@
                                     —
                                     {{ ($s->date_end?->format('Y-m-d') === '9999-12-31') ? '…' : $s->date_end?->format('d.m.Y') }}
                                 </td>
-                                <td class="text-center">{{ $s->is_enabled ? 'Да' : 'Нет' }}</td>
                                 @can('scheduleSlots.manage')
                                     <td class="text-end">
                                         <button type="button"

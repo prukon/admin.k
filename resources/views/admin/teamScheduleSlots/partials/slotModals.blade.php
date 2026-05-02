@@ -113,7 +113,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header py-2 px-3">
-                <h5 class="modal-title mb-0">Редактировать слот</h5>
+                <h5 class="modal-title mb-0">Редактировать занятие</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body px-3">
@@ -186,19 +186,12 @@
                         <label class="form-label mb-1 small">Применить изменения с*</label>
                         <input class="form-control form-control-sm" type="date" name="apply_changes_from" max="{{ $tssDateEndMax }}" required>
                         <div class="invalid-feedback d-block" data-error-for="apply_changes_from"></div>
-                        <p class="small text-muted mb-0 mt-1">Совпадает с началом периода — правится одна запись. Позже начала — старый период усечён, справа создаётся новое правило (день и время могут не совпадать с этой датой).</p>
+                        {{-- <p class="small text-muted mb-0 mt-1">Совпадает с началом периода — правится одна запись. Позже начала — старый период усечён, справа создаётся новое правило (день и время могут не совпадать с этой датой).</p> --}}
                     </div>
-                    <p class="small text-muted js-slot-edit-split-hint d-none mb-2">Начало периода слева фиксировано; группа, время и конец периода ниже относятся к новому отрезку.</p>
-                    <p class="small text-muted mb-2 mb-0">Не позднее {{ \Illuminate\Support\Carbon::parse($tssDateEndMax)->format('d.m.Y') }}.</p>
+                    {{-- <p class="small text-muted js-slot-edit-split-hint d-none mb-2">Начало периода слева фиксировано; группа, время и конец периода ниже относятся к новому отрезку.</p> --}}
+                    {{-- <p class="small text-muted mb-2 mb-0">Не позднее {{ \Illuminate\Support\Carbon::parse($tssDateEndMax)->format('d.m.Y') }}.</p> --}}
 
-                    <div class="mb-0">
-                        <label class="form-label mb-1 small">Активен</label>
-                        <select class="form-control form-control-sm" name="is_enabled">
-                            <option value="1">Да</option>
-                            <option value="0">Нет</option>
-                        </select>
-                        <div class="invalid-feedback d-block" data-error-for="is_enabled"></div>
-                    </div>
+                    <input type="hidden" name="is_enabled" value="1">
                 </form>
                 @can('scheduleSlots.manage')
                     <div id="slotEditOccurrenceMutations" class="d-none border-top pt-2 mt-2">

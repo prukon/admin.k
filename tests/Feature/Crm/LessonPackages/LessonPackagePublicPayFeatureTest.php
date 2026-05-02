@@ -164,6 +164,25 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
         ]);
     }
 
+    public function test_public_pay_qr_state_returns_confirmed_when_assignment_already_paid(): void
+    {
+        $ulp = $this->createUnpaidAssignment();
+        $token = bin2hex(random_bytes(32));
+        UserLessonPackagePublicPayLink::query()->create([
+            'user_lesson_package_id' => $ulp->id,
+            'partner_id' => $this->partner->id,
+            'token' => $token,
+            'expires_at' => now()->addDay(),
+            'tinkoff_payment_id' => '7700995511',
+        ]);
+        UserLessonPackage::query()->whereKey($ulp->id)->update(['is_paid' => true]);
+
+        $this->getJson(route('ulp.public.pay.qr.state', ['token' => $token]))
+            ->assertOk()
+            ->assertJsonPath('Success', true)
+            ->assertJsonPath('Status', 'CONFIRMED');
+    }
+
     public function test_expired_public_link_shows_status_page(): void
     {
         $ulp = $this->createUnpaidAssignment();

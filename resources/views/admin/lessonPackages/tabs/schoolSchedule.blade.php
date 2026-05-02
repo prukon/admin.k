@@ -17,7 +17,7 @@
             <div class="d-flex flex-wrap gap-2 align-items-center">
                 @can('scheduleSlots.manage')
                     <a href="{{ route('admin.team-schedule-slots.index') }}" class="btn btn-outline-secondary btn-sm">
-                        Таблица слотов
+                        Таблица занятий
                     </a>
                 @endcan
             </div>
@@ -29,7 +29,7 @@
             <div class="d-flex flex-column flex-md-row flex-md-wrap align-items-stretch align-items-md-center gap-2 gap-md-3">
                 <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
                     <span class="school-cal__toolbar-k text-muted text-nowrap">Неделя</span>
-                    <div class="btn-group btn-group-sm flex-grow-1" role="group" style="max-width: 22rem">
+                    <div class="btn-group btn-group-sm school-cal__week-nav flex-grow-1" role="group" style="max-width: 22rem">
                         <button type="button" class="btn btn-outline-primary px-2" id="schoolCalPrevWeek" title="Предыдущая">
                             <i class="fas fa-chevron-left"></i>
                         </button>
@@ -213,6 +213,32 @@
         text-transform: uppercase;
         letter-spacing: 0.06em;
         font-weight: 600;
+    }
+    /* Стрелки недели: оранжевый как у .btn-primary в resources/css/style.css (#f3a12b) */
+    .school-cal__week-nav > .btn-outline-primary {
+        color: #f3a12b;
+        border-color: #f3a12b;
+    }
+    .school-cal__week-nav > .btn-outline-primary:hover {
+        color: #fff;
+        background-color: #f3a12b;
+        border-color: #f3a12b;
+    }
+    .school-cal__week-nav > .btn-primary {
+        border-color: #f3a12b;
+    }
+    /* Не даём глобальному .btn-primary:hover убрать рамку (там border-color: white !important) */
+    .school-cal__week-nav > .btn-primary:hover,
+    .school-cal__week-nav > .btn-primary:focus,
+    .school-cal__week-nav > .btn-primary:active,
+    .school-cal__week-nav > .btn-primary:focus-visible {
+        border-color: #f3a12b !important;
+    }
+    /* Сегодня: тонкая рамка как у стрелок (1px), цвет как в админке */
+    .school-cal__day-head--today {
+        border-top: 1px solid #f3a12b;
+        border-left: 1px solid #f3a12b;
+        border-right: 1px solid #f3a12b;
     }
     .school-cal__grid-wrap {
         border-radius: 14px !important;
@@ -498,7 +524,7 @@
                     const ymd = formatYmd(d);
                     const isToday = ymd === today;
                     const dow = d.getDay() === 0 ? 7 : d.getDay();
-                    html += '<div class="school-cal__day-head' + (isToday ? ' border-primary border-2 rounded-top' : '') + '">';
+                    html += '<div class="school-cal__day-head' + (isToday ? ' school-cal__day-head--today rounded-top' : '') + '">';
                     html += '<div class="school-cal__day-name">' + (weekLabels[dow] || '') + '</div>';
                     html += '<div class="school-cal__day-num">' + d.getDate() + '</div>';
                     html += '</div>';

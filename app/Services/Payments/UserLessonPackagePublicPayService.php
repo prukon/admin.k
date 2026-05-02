@@ -335,8 +335,17 @@ final class UserLessonPackagePublicPayService
         }
 
         $ulp = $link->userLessonPackage()->with('user:id,partner_id')->first();
-        if (! $ulp || $ulp->effective_is_paid || (int) $ulp->user->partner_id !== (int) $link->partner_id) {
+        if (! $ulp || (int) $ulp->user->partner_id !== (int) $link->partner_id) {
             return response()->json(['Success' => false, 'Message' => 'Payment not found'], 404);
+        }
+
+        // Webhook помечает абонемент оплаченным до того, как вкладка с QR успевает получить CONFIRMED из GetState.
+        if ($ulp->effective_is_paid) {
+            return response()->json([
+                'Success' => true,
+                'ErrorCode' => '0',
+                'Status' => 'CONFIRMED',
+            ]);
         }
 
         $pid = (string) ($link->tinkoff_payment_id ?? '');
