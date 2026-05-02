@@ -36,6 +36,7 @@ use App\Http\Controllers\TinkoffPaymentController;
 use App\Http\Controllers\TinkoffPayoutController;
 use App\Http\Controllers\TinkoffAdminPayoutController;
 use App\Http\Controllers\TinkoffQrController;
+use App\Http\Controllers\PublicLessonPackagePayController;
 use App\Http\Controllers\TinkoffWebhookController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\User\Report\ReportController;
@@ -340,6 +341,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'destroyAssignment'])
             ->whereNumber('assignment')
             ->name('admin.lesson-packages.assignments.destroy');
+        Route::post('/admin/lesson-packages/assignments/{assignment}/public-pay-link', [LessonPackageController::class, 'issueAssignmentPublicPayLink'])
+            ->whereNumber('assignment')
+            ->name('admin.lesson-packages.assignments.public-pay-link');
         Route::post('/admin/lesson-packages/assignments/{assignment}/manual-paid', [LessonPackageController::class, 'setAssignmentManualPaid'])
             ->middleware('can:lessonPackages.manualPaid.manage')
             ->whereNumber('assignment')
@@ -839,6 +843,22 @@ Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle']
 Route::get('/payments/tinkoff/{order}/success', [TinkoffPaymentController::class, 'success'])->name('payments.tinkoff.success');
 Route::get('/payments/tinkoff/{order}/fail', [TinkoffPaymentController::class, 'fail'])->name('payments.tinkoff.fail');
 Route::post('/webhooks/tinkoff/payments', [TinkoffWebhookController::class, 'payments']);
+
+// Публичная оплата абонемента по СБП (ссылка без авторизации)
+Route::middleware(['throttle:ulp-public-pay'])->group(function () {
+    Route::get('/pay/ulp/{token}', [PublicLessonPackagePayController::class, 'show'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('ulp.public.pay');
+    Route::get('/pay/ulp/{token}/qr/json', [PublicLessonPackagePayController::class, 'qrJson'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('ulp.public.pay.qr.json');
+    Route::get('/pay/ulp/{token}/qr/payload', [PublicLessonPackagePayController::class, 'qrPayload'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('ulp.public.pay.qr.payload');
+    Route::get('/pay/ulp/{token}/qr/state', [PublicLessonPackagePayController::class, 'qrState'])
+        ->where('token', '[a-f0-9]{64}')
+        ->name('ulp.public.pay.qr.state');
+});
 
 //CloudKassir webhook
 Route::post('/webhook/cloudkassir/receipt', [CloudKassirWebhookController::class, 'receipt'])

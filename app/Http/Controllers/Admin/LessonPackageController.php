@@ -10,6 +10,8 @@ use App\Http\Requests\Admin\UpdateUserLessonPackageAssignmentRequest;
 use App\Models\LessonPackage;
 use App\Models\LessonPackageTimeSlot;
 use App\Models\Location;
+use App\Models\Partner;
+use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserLessonPackage;
@@ -17,6 +19,7 @@ use App\Models\UserTeamScheduleSlot;
 use App\Services\PartnerContext;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageAssignmentDeletionService;
+use App\Services\Payments\UserLessonPackagePublicPayService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -293,11 +296,52 @@ final class LessonPackageController extends AdminBaseController
             ->orderBy('name')
             ->get(['id', 'name', 'schedule_type', 'duration_days', 'lessons_count', 'price_cents']);
 
+        $partnerRow = Partner::query()->find($partnerId);
+        $tbankPs = PaymentSystem::query()
+            ->where('partner_id', $partnerId)
+            ->where('name', 'tbank')
+            ->first();
+        // is_connected — аксессор модели, не колонка БД
+        $ulpPublicPayTbankReady = $tbankPs
+            && $tbankPs->is_connected
+            && $partnerRow
+            && trim((string) ($partnerRow->tinkoff_partner_id ?? '')) !== '';
+
         return view('admin.lessonPackages.index', [
             'activeTab' => 'assignments',
             'assignments' => $assignments,
             'packagesList' => $packagesList,
             'weekdays' => self::weekdaysMap(),
+            'ulpPublicPayTbankReady' => $ulpPublicPayTbankReady,
+        ]);
+    }
+
+    public function issueAssignmentPublicPayLink(UserLessonPackage $assignment, UserLessonPackagePublicPayService $service): JsonResponse
+    {
+        $this->authorize('lessonPackages.view');
+        $this->assertAssignmentBelongsToCurrentPartner($assignment);
+
+        if ($assignment->effective_is_paid) {
+            return response()->json(['message' => 'Назначение уже оплачено'], 422);
+        }
+
+        $partnerId = (int) $this->requirePartnerId();
+
+        if (! $service->partnerTbankConfigured($partnerId)) {
+            return response()->json(['message' => 'Оплата T‑Bank не подключена для этого клуба'], 422);
+        }
+
+        try {
+            $service->assertAmountAllowedForSbp($partnerId, (int) $assignment->id);
+        } catch (HttpException $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
+        }
+
+        $assignment->loadMissing('user:id,partner_id');
+        $link = $service->ensureFreshLink($assignment);
+
+        return response()->json([
+            'url' => route('ulp.public.pay', ['token' => $link->token], true),
         ]);
     }
 

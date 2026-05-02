@@ -53,4 +53,44 @@ final class UserLessonPackageFeePaymentResolver
             'payment_label' => 'Абонемент: '.$name.' №'.(int) $ulp->id,
         ];
     }
+
+    /**
+     * Публичная оплата по ссылке: проверка только принадлежности назначения партнёру (без совпадения с текущим пользователем).
+     *
+     * @return array{ulp: UserLessonPackage, out_sum: string, payment_label: string}
+     */
+    public function resolvePublicPayForPartner(int $partnerId, int $ulpId): array
+    {
+        /** @var UserLessonPackage|null $ulp */
+        $ulp = UserLessonPackage::query()
+            ->with(['lessonPackage:id,name', 'user:id,partner_id'])
+            ->whereKey($ulpId)
+            ->first();
+
+        if (! $ulp || ! $ulp->user || (int) $ulp->user->partner_id !== $partnerId) {
+            throw new HttpException(404, 'Назначение абонемента не найдено');
+        }
+
+        if ($ulp->effective_is_paid) {
+            throw new HttpException(422, 'Абонемент уже оплачен');
+        }
+
+        $raw = $ulp->fee_amount;
+        if ($raw === null) {
+            throw new HttpException(422, 'Для назначения не задана сумма к оплате');
+        }
+
+        $normalized = PaymentOutSumNormalizer::normalize((string) $raw);
+        if ($normalized === null || (float) $normalized <= 0) {
+            throw new HttpException(422, 'Некорректная сумма абонемента для оплаты');
+        }
+
+        $name = $ulp->lessonPackage?->name ?? 'Абонемент';
+
+        return [
+            'ulp' => $ulp,
+            'out_sum' => $normalized,
+            'payment_label' => 'Абонемент: '.$name.' №'.(int) $ulp->id,
+        ];
+    }
 }

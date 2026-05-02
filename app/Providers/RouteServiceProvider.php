@@ -36,6 +36,10 @@ RouteServiceProvider extends ServiceProvider
             return Limit::perHour(5)->by($request->ip());
         });
 
+        RateLimiter::for('ulp-public-pay', function (Request $request) {
+            return Limit::perMinute(40)->by($request->ip());
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

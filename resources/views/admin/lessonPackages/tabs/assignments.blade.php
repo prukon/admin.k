@@ -3,6 +3,10 @@
         <h4 class="mb-0">Назначение абонементов</h4>
     </div>
 
+    <div id="ulp-copy-pay-toast" class="alert alert-success py-2 px-3 small d-none mt-2 mb-0" role="status">
+        Ссылка скопирована
+    </div>
+
     <hr>
 
     @if (session('success'))
@@ -93,6 +97,7 @@
                 <th>Остаток</th>
                 <th>Тип</th>
                 @can('lessonPackages.view')
+                    <th class="text-start text-nowrap">Ссылка на оплату</th>
                     <th class="text-start" style="min-width: 200px;">Действия</th>
                 @endcan
             </tr>
@@ -131,6 +136,20 @@
                     </td>
                     @can('lessonPackages.view')
                         <td class="text-start text-nowrap">
+                            @if (!empty($ulpPublicPayTbankReady ?? false) && ! $a->effective_is_paid && (float) ($a->fee_amount ?? 0) >= 10)
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary js-ulp-copy-pay-link"
+                                        data-assignment-id="{{ (int) $a->id }}"
+                                        aria-label="Скопировать ссылку на оплату через СБП"
+                                        title="Скопировать ссылку на оплату через СБП">
+                                    <i class="fas fa-copy me-1" aria-hidden="true"></i>
+                                    Копировать ссылку
+                                </button>
+                            @else
+                                <span class="text-muted small">—</span>
+                            @endif
+                        </td>
+                        <td class="text-start text-nowrap">
                             <button type="button"
                                     class="btn btn-sm btn-outline-primary js-ulp-assignment-edit"
                                     data-assignment-id="{{ (int) $a->id }}">
@@ -148,7 +167,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ auth()->user()?->can('lessonPackages.view') ? 8 : 7 }}" class="text-center text-muted">Назначений пока нет.</td>
+                    <td colspan="{{ auth()->user()?->can('lessonPackages.view') ? 9 : 7 }}" class="text-center text-muted">Назначений пока нет.</td>
                 </tr>
             @endforelse
             </tbody>
@@ -468,6 +487,42 @@
 
                 modalEl.addEventListener('hidden.bs.modal', function () {
                     clearErrors();
+                });
+
+                const copyToast = document.getElementById('ulp-copy-pay-toast');
+                function showCopyToast() {
+                    if (!copyToast) return;
+                    copyToast.classList.remove('d-none');
+                    clearTimeout(copyToast._t);
+                    copyToast._t = setTimeout(function () {
+                        copyToast.classList.add('d-none');
+                    }, 3200);
+                }
+
+                document.querySelectorAll('.js-ulp-copy-pay-link').forEach(function (btn) {
+                    btn.addEventListener('click', async function () {
+                        const id = btn.getAttribute('data-assignment-id');
+                        if (!id) return;
+                        const prevHtml = btn.innerHTML;
+                        btn.disabled = true;
+                        try {
+                            const { ok, status, payload } = await fetchJson(assignmentsBase + '/' + id + '/public-pay-link', {
+                                method: 'POST',
+                                body: '{}',
+                            });
+                            if (!ok || !payload.url) {
+                                window.alert((payload && payload.message) || ('Не удалось получить ссылку (' + status + ')'));
+                                return;
+                            }
+                            await navigator.clipboard.writeText(payload.url);
+                            showCopyToast();
+                        } catch (e) {
+                            window.alert('Не удалось скопировать ссылку.');
+                        } finally {
+                            btn.disabled = false;
+                            btn.innerHTML = prevHtml;
+                        }
+                    });
                 });
             })();
         </script>

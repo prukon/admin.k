@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Config;
 use App\Services\Tinkoff\SmRegisterClient;
+use Carbon\CarbonInterface;
 
 use App\Jobs\SendCloudKassirReceiptJob;
 use App\Models\FiscalReceipt;
@@ -31,7 +32,7 @@ class TinkoffPaymentsService
     ) {
     }
 
-    public function initPayment(int $partnerId, int $amountCents, string $method = null, array $data = []): TinkoffPayment
+    public function initPayment(int $partnerId, int $amountCents, ?string $method = null, array $data = [], ?CarbonInterface $redirectDueDate = null): TinkoffPayment
     {
         $orderId = Str::uuid()->toString();
 
@@ -61,6 +62,10 @@ class TinkoffPaymentsService
             'Language' => 'ru',                   // язык формы
 
         ];
+
+        if ($redirectDueDate !== null) {
+            $payload['RedirectDueDate'] = $redirectDueDate->clone()->utc()->format('Y-m-d\TH:i:s\+0000');
+        }
 
         if (!empty($data)) {
             // Важно: в документации банк возвращает это в уведомлении в параметре Data

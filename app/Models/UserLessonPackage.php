@@ -73,5 +73,10 @@ class UserLessonPackage extends Model
     {
         return $this->hasMany(UserLessonPackageFreeze::class, 'user_lesson_package_id');
     }
+
+    public function publicPayLink(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(UserLessonPackagePublicPayLink::class, 'user_lesson_package_id');
+    }
 }
 
