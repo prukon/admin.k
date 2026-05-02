@@ -64,7 +64,8 @@ class TinkoffPaymentsService
         ];
 
         if ($redirectDueDate !== null) {
-            $payload['RedirectDueDate'] = $redirectDueDate->clone()->utc()->format('Y-m-d\TH:i:s\+0000');
+            // Формат по доке Init: YYYY-MM-DDTHH24:MI:SS+GMT; пример банка: 2016-08-31T12:28:00+03:00 (двоеточие в offset).
+            $payload['RedirectDueDate'] = $redirectDueDate->clone()->utc()->format('Y-m-d\TH:i:sP');
         }
 
         if (!empty($data)) {
