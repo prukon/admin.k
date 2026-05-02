@@ -27,6 +27,7 @@ return [
             // 'schedule.view',
             'scheduleSlots.view',
             'scheduleSlots.manage',
+            'scheduleSlots.table',
             'lessonPackages.view',
             'lessonPackages.manualPaid.manage',
             // 'locations.view',

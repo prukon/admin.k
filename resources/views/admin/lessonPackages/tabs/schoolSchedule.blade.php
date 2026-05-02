@@ -6,24 +6,6 @@
 @endphp
 
 <div class="school-cal">
-    <div class="school-cal__hero mb-4">
-        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-            <div>
-                {{-- <h4 class="school-cal__title mb-1">Расписание школы</h4> --}}
-                {{-- <p class="school-cal__subtitle mb-0 text-muted">
-                    Недельный вид по локации: занятия команд и привязка абонементов к слотам расписания.
-                </p> --}}
-            </div>
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                @can('scheduleSlots.manage')
-                    <a href="{{ route('admin.team-schedule-slots.index') }}" class="btn btn-outline-secondary btn-sm">
-                        Таблица занятий
-                    </a>
-                @endcan
-            </div>
-        </div>
-    </div>
-
     <div class="school-cal__toolbar card border-0 shadow-sm mb-3">
         <div class="card-body py-2 px-3">
             <div class="d-flex flex-column flex-md-row flex-md-wrap align-items-stretch align-items-md-center gap-2 gap-md-3">

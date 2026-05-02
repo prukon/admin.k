@@ -10,6 +10,13 @@
                    href="{{ route('admin.lesson-packages.school-schedule') }}"
                    role="tab">Расписание школы</a>
             </li>
+            @can('scheduleSlots.table')
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link {{ ($activeTab ?? '') === 'team-schedule-slots' ? 'active' : '' }}"
+                       href="{{ route('admin.lesson-packages.team-schedule-slots') }}"
+                       role="tab">Таблица занятий</a>
+                </li>
+            @endcan
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ ($activeTab ?? '') === 'occurrence-statuses' ? 'active' : '' }}"
                    href="{{ route('admin.lesson-packages.occurrence-statuses.index') }}"
@@ -36,6 +43,8 @@
                 @include('admin.lessonPackages.tabs.occurrenceStatuses')
             @elseif (($activeTab ?? '') === 'school-schedule')
                 @include('admin.lessonPackages.tabs.schoolSchedule')
+            @elseif (($activeTab ?? '') === 'team-schedule-slots')
+                @include('admin.lessonPackages.tabs.teamScheduleSlotsTable')
             @else
                 @include('admin.lessonPackages.tabs.packages')
             @endif

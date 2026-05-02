@@ -23,7 +23,19 @@ class TeamScheduleSlotController extends AdminBaseController
         parent::__construct($partnerContext);
     }
 
-    public function index()
+    /**
+     * Вкладка «Таблица занятий» в разделе абонементов (те же данные, что и список слотов).
+     */
+    public function indexForLessonPackagesTab()
+    {
+        return view('admin.lessonPackages.index', array_merge(
+            $this->slotsIndexPageData(),
+            ['activeTab' => 'team-schedule-slots']
+        ));
+    }
+
+    /** @return array<string, mixed> */
+    private function slotsIndexPageData(): array
     {
         $partnerId = $this->requirePartnerId();
 
@@ -55,7 +67,7 @@ class TeamScheduleSlotController extends AdminBaseController
             7 => 'Вс',
         ];
 
-        return view('admin.teamScheduleSlots.index', compact('slots', 'teams', 'locations', 'weekdays'));
+        return compact('slots', 'teams', 'locations', 'weekdays');
     }
 
     public function store(StoreTeamScheduleSlotRequest $request)

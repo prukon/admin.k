@@ -85,12 +85,15 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
+        $this->grantPermission('scheduleSlots.table');
 
         $team = Team::factory()->create(['partner_id' => $this->partner->id]);
 
-        $this->get(route('admin.team-schedule-slots.index'))
+        $this->followingRedirects()
+            ->get(route('admin.team-schedule-slots.index'))
             ->assertOk()
-            ->assertSee('Расписание школы (слоты)');
+            ->assertSee('Расписание школы')
+            ->assertSee('Таблица занятий');
 
         $store = $this->postJson(route('admin.team-schedule-slots.store'), [
             'team_id' => $team->id,

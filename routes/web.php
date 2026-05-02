@@ -389,6 +389,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.school-schedule.assign-flexible');
         Route::post('/admin/lesson-packages/school-schedule/assign-fixed', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'assignFixed'])
             ->name('admin.lesson-packages.school-schedule.assign-fixed');
+
+        Route::get('/admin/lesson-packages/team-schedule-slots', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'indexForLessonPackagesTab'])
+            ->middleware('can:scheduleSlots.table')
+            ->name('admin.lesson-packages.team-schedule-slots');
     });
 
     // Статусы
@@ -455,8 +459,13 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     // Расписание школы (слоты)
+    Route::middleware('can:scheduleSlots.table')->group(function () {
+        Route::get('admin/team-schedule-slots', function () {
+            return redirect()->route('admin.lesson-packages.team-schedule-slots');
+        })->name('admin.team-schedule-slots.index');
+    });
+
     Route::middleware('can:scheduleSlots.view')->group(function () {
-        Route::get('admin/team-schedule-slots', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'index'])->name('admin.team-schedule-slots.index');
         Route::get('admin/team-schedule-slots/{slot}', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'show'])->whereNumber('slot')->name('admin.team-schedule-slots.show');
         Route::post('admin/team-schedule-slots', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'store'])
             ->middleware('can:scheduleSlots.manage')

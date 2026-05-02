@@ -140,6 +140,9 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('scheduleSlots.manage', function (User $user) {
             return $user->hasPermission('scheduleSlots.manage');
         });
+        Gate::define('scheduleSlots.table', function (User $user) {
+            return $user->hasPermission('scheduleSlots.table');
+        });
 
         // Абонементы (lesson_packages)
         Gate::define('lessonPackages.view', function (User $user) {

@@ -41,22 +41,28 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_index_denied_without_view_permission(): void
+    public function test_index_denied_without_table_permission(): void
     {
-        $user = $this->createUserWithoutPermission('scheduleSlots.view');
+        $user = $this->createUserWithoutPermission('scheduleSlots.table');
         $this->actingAs($user);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
         $this->get(route('admin.team-schedule-slots.index'))->assertStatus(403);
     }
 
-    public function test_index_ok_with_view_permission(): void
+    public function test_index_redirects_to_lesson_packages_tab_with_table_permission(): void
     {
-        $this->grantPermission('scheduleSlots.view');
+        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('scheduleSlots.table');
 
         $this->get(route('admin.team-schedule-slots.index'))
+            ->assertRedirect(route('admin.lesson-packages.team-schedule-slots'));
+
+        $this->followingRedirects()
+            ->get(route('admin.team-schedule-slots.index'))
             ->assertOk()
-            ->assertSee('Расписание школы');
+            ->assertSee('Расписание школы')
+            ->assertSee('Таблица занятий');
     }
 
     public function test_store_forbidden_without_manage_permission(): void
