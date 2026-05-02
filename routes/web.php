@@ -352,6 +352,21 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.occurrence-statuses.destroy');
         Route::post('/admin/lesson-packages/occurrence-statuses/reorder', [LessonOccurrenceStatusController::class, 'reorder'])
             ->name('admin.lesson-packages.occurrence-statuses.reorder');
+
+        Route::get('/admin/lesson-packages/school-schedule', [LessonPackageController::class, 'schoolSchedule'])
+            ->name('admin.lesson-packages.school-schedule');
+        Route::get('/admin/lesson-packages/school-schedule/week', [LessonPackageController::class, 'schoolScheduleWeek'])
+            ->name('admin.lesson-packages.school-schedule.week');
+        Route::get('/admin/lesson-packages/school-schedule/fixed-packages', [LessonPackageController::class, 'schoolScheduleFixedPackages'])
+            ->name('admin.lesson-packages.school-schedule.fixed-packages');
+        Route::get('/admin/lesson-packages/school-schedule/flexible-assignments', [LessonPackageController::class, 'schoolScheduleFlexibleAssignments'])
+            ->name('admin.lesson-packages.school-schedule.flexible-assignments');
+        Route::get('/admin/lesson-packages/school-schedule/flexible-users-search', [LessonPackageController::class, 'schoolScheduleFlexibleUsersSearch'])
+            ->name('admin.lesson-packages.school-schedule.flexible-users-search');
+        Route::post('/admin/lesson-packages/school-schedule/assign-flexible', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'assignFlexible'])
+            ->name('admin.lesson-packages.school-schedule.assign-flexible');
+        Route::post('/admin/lesson-packages/school-schedule/assign-fixed', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'assignFixed'])
+            ->name('admin.lesson-packages.school-schedule.assign-fixed');
     });
 
     // Статусы
@@ -432,6 +447,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->middleware('can:scheduleSlots.manage')
             ->whereNumber('slot')
             ->name('admin.team-schedule-slots.destroy');
+        Route::post('admin/team-schedule-slots/{slot}/skip-occurrence', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'skipOccurrence'])
+            ->middleware('can:scheduleSlots.manage')
+            ->whereNumber('slot')
+            ->name('admin.team-schedule-slots.skip-occurrence');
+        Route::post('admin/team-schedule-slots/{slot}/truncate-from-date', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'truncateFromOccurrenceDate'])
+            ->middleware('can:scheduleSlots.manage')
+            ->whereNumber('slot')
+            ->name('admin.team-schedule-slots.truncate-from-date');
     });
 
     //Группы. Колонки (feature test +)

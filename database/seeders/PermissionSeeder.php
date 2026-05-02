@@ -37,7 +37,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'setPrices.view',                 'description' => 'Страница "Установка цен"',                      'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 20],
             ['name' => 'setPrices.customPayments.view',  'description' => 'Установка цен / Консоль: просмотр дополнительных платежей', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 20],
             ['name' => 'setPrices.manualPaid.manage',    'description' => 'Установка цен: ручная отметка оплаты месяца',    'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 21],
-            ['name' => 'schedule.view',                  'description' => 'Страница "Журнал расписания"',                  'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 30],
+            ['name' => 'schedule.view',                  'description' => 'Страница "Журнал расписания"',                  'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 30],
             ['name' => 'scheduleSlots.view',             'description' => 'Страница "Расписание школы (слоты)"',           'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 31],
             ['name' => 'scheduleSlots.manage',           'description' => 'Расписание школы: управление слотами',          'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 32],
             ['name' => 'lessonPackages.view',            'description' => 'Страница "Абонементы"',                         'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 35],

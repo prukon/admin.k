@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Validator;
 
 class StoreTeamScheduleSlotRequest extends FormRequest
@@ -59,6 +60,11 @@ class StoreTeamScheduleSlotRequest extends FormRequest
 
             if ($dateStart !== '' && $dateEnd !== '' && $dateEnd < $dateStart) {
                 $v->errors()->add('date_end', 'Дата окончания периода должна быть не раньше даты начала');
+            }
+
+            $maxEnd = Carbon::today()->addDays(365)->format('Y-m-d');
+            if ($dateEnd !== '' && $dateEnd !== '9999-12-31' && $dateEnd > $maxEnd) {
+                $v->errors()->add('date_end', 'Дата окончания не может быть позже '.$maxEnd.' (не более чем на 365 дней от сегодняшней даты).');
             }
         });
     }

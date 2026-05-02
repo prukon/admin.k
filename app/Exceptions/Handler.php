@@ -88,5 +88,16 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             //
         });
+
+        $this->renderable(function (TeamScheduleSlotConflictException $e, Request $request): ?Response {
+            if (! $request->expectsJson() && ! $request->ajax()) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'conflicts' => $e->conflicts,
+            ], 422);
+        });
     }
 }

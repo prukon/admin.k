@@ -73,7 +73,7 @@
         {{--Расписание школы (слоты)--}}
         @can('scheduleSlots.view')
             <li class="nav-item">
-                <a href="/admin/team-schedule-slots" class="nav-link">
+                <a href="/admin/lesson-packages/school-schedule" class="nav-link">
                     <i class="nav-icon fa-solid fa-table-cells-large"></i>
                     <p>Расписание школы</p>
                 </a>

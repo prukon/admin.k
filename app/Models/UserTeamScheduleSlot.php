@@ -38,6 +38,11 @@ class UserTeamScheduleSlot extends Model
         return $this->belongsTo(TeamScheduleSlot::class, 'team_schedule_slot_id');
     }
 
+    public function userLessonPackage(): BelongsTo
+    {
+        return $this->belongsTo(UserLessonPackage::class, 'user_lesson_package_id');
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

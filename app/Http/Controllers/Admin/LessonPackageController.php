@@ -7,11 +7,16 @@ use App\Http\Requests\Admin\StoreLessonPackageRequest;
 use App\Http\Requests\Admin\StoreUserLessonPackageRequest;
 use App\Models\LessonPackage;
 use App\Models\LessonPackageTimeSlot;
+use App\Models\Location;
+use App\Models\Team;
 use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Models\UserLessonPackageTimeSlot;
 use App\Services\PartnerContext;
+use App\Services\TeamScheduleCalendarService;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +43,172 @@ final class LessonPackageController extends AdminBaseController
             'packages' => $packages,
             'weekdays' => self::weekdaysMap(),
         ]);
+    }
+
+    public function schoolSchedule()
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $locations = Location::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $teams = Team::query()
+            ->where('partner_id', $partnerId)
+            ->orderBy('title')
+            ->get(['id', 'title']);
+
+        return view('admin.lessonPackages.index', [
+            'activeTab' => 'school-schedule',
+            'locations' => $locations,
+            'teams' => $teams,
+            'weekdays' => self::weekdaysMap(),
+        ]);
+    }
+
+    public function schoolScheduleWeek(Request $request, TeamScheduleCalendarService $calendarService): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $weekParam = $request->query('week');
+        $weekMonday = $weekParam
+            ? CarbonImmutable::parse((string) $weekParam)->startOfWeek(Carbon::MONDAY)->startOfDay()
+            : CarbonImmutable::now()->startOfWeek(Carbon::MONDAY)->startOfDay();
+
+        $locationRaw = $request->query('location_id');
+        $locationId = ($locationRaw !== null && $locationRaw !== '') ? (int) $locationRaw : null;
+        if ($locationId === 0) {
+            $locationId = null;
+        }
+
+        $occurrences = $calendarService->occurrencesForWeek($partnerId, $weekMonday, $locationId);
+
+        return response()->json([
+            'week_start' => $weekMonday->toDateString(),
+            'occurrences' => $occurrences,
+        ]);
+    }
+
+    /**
+     * Фиксированные абонементы для модалки назначения с календаря.
+     */
+    public function schoolScheduleFixedPackages(): JsonResponse
+    {
+        $packages = LessonPackage::query()
+            ->where('is_active', true)
+            ->where('schedule_type', 'fixed')
+            ->orderBy('name')
+            ->get(['id', 'name', 'lessons_count', 'duration_days']);
+
+        return response()->json([
+            'packages' => $packages->map(fn (LessonPackage $p) => [
+                'id' => (int) $p->id,
+                'name' => (string) $p->name,
+                'lessons_count' => (int) $p->lessons_count,
+                'duration_days' => (int) $p->duration_days,
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * Активные гибкие назначения ученика (для привязки слота).
+     */
+    public function schoolScheduleFlexibleAssignments(Request $request): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $userId = (int) $request->query('user_id', 0);
+
+        if ($userId < 1) {
+            return response()->json(['assignments' => []]);
+        }
+
+        $userExists = User::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey($userId)
+            ->exists();
+
+        if (! $userExists) {
+            return response()->json(['assignments' => []]);
+        }
+
+        $rows = UserLessonPackage::query()
+            ->with(['lessonPackage:id,name,schedule_type'])
+            ->where('user_id', $userId)
+            ->whereHas('lessonPackage', fn ($q) => $q->where('schedule_type', 'flexible'))
+            ->where('lessons_remaining', '>', 0)
+            ->orderByDesc('id')
+            ->get();
+
+        $assignments = $rows->map(function (UserLessonPackage $ulp) {
+            $name = $ulp->lessonPackage?->name ?? 'Абонемент';
+
+            return [
+                'id' => (int) $ulp->id,
+                'label' => $name.' №'.(int) $ulp->id.' — осталось '.(int) $ulp->lessons_remaining,
+                'lessons_remaining' => (int) $ulp->lessons_remaining,
+                'starts_at' => $ulp->starts_at?->format('Y-m-d'),
+                'ends_at' => $ulp->ends_at?->format('Y-m-d'),
+            ];
+        });
+
+        return response()->json(['assignments' => $assignments]);
+    }
+
+    /**
+     * Select2: ученики с гибким абонементом и положительным остатком занятий (модалка привязки из календаря).
+     */
+    public function schoolScheduleFlexibleUsersSearch(Request $request): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $q = trim((string) $request->query('q', ''));
+
+        $users = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->whereHas('lessonPackageAssignments', function ($query) {
+                $query->where('lessons_remaining', '>', 0)
+                    ->whereHas('lessonPackage', fn ($lq) => $lq->where('schedule_type', 'flexible'));
+            })
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%'.$q.'%';
+                $query->whereRaw("CONCAT_WS(' ', lastname, name) LIKE ?", [$like]);
+            })
+            ->orderBy('lastname')
+            ->orderBy('name')
+            ->limit(30)
+            ->with([
+                'lessonPackageAssignments' => function ($query) {
+                    $query->where('lessons_remaining', '>', 0)
+                        ->whereHas('lessonPackage', fn ($lq) => $lq->where('schedule_type', 'flexible'))
+                        ->with(['lessonPackage:id,name'])
+                        ->orderByDesc('id');
+                },
+            ])
+            ->get(['id', 'name', 'lastname']);
+
+        $results = $users->map(function (User $u) {
+            $base = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+            if ($base === '') {
+                $base = '#'.$u->id;
+            }
+
+            $parts = [];
+            foreach ($u->lessonPackageAssignments as $ulp) {
+                $pkgName = $ulp->lessonPackage?->name ?? 'Абонемент';
+                $parts[] = $pkgName.' — '.(int) $ulp->lessons_remaining.' з.';
+            }
+
+            $text = $parts === [] ? $base : $base.' ('.implode(', ', $parts).')';
+
+            return [
+                'id' => (int) $u->id,
+                'text' => $text,
+            ];
+        })->values();
+
+        return response()->json(['results' => $results]);
     }
 
     public function assignments()
