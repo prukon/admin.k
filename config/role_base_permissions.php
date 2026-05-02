@@ -23,6 +23,7 @@ return [
             'dashboard.view',
             'reports.view',
             'reports.payments.commission_total.view',
+            'reports.payments.payout_amount.column.view',
             'setPrices.view',
             'setPrices.customPayments.view',
             // 'schedule.view',

@@ -501,6 +501,7 @@ class PaymentReportController extends AdminBaseController
         $canViewTbankHistory = $authUser?->can('viewing.all.logs') ?? false;
         $canAdditional = $authUser?->can('reports.additional.value.view') ?? false;
         $canCommissionTotal = $authUser?->can('reports.payments.commission_total.view') ?? false;
+        $canPayoutColumn = $authUser?->can('reports.payments.payout_amount.column.view') ?? false;
 
         return DataTables::of($paymentsQuery)
             ->addIndexColumn()
@@ -619,7 +620,11 @@ class PaymentReportController extends AdminBaseController
                 $query->orderByRaw("({$expr}) IS NULL ASC");
                 $query->orderByRaw("({$expr}) {$dir}");
             })
-            ->addColumn('payout_amount', function (Payment $row) use ($partnerId) {
+            ->addColumn('payout_amount', function (Payment $row) use ($partnerId, $canPayoutColumn) {
+                if (! $canPayoutColumn) {
+                    return null;
+                }
+
                 // Только T-Bank, только после успешной выплаты (COMPLETED)
                 if (empty($row->deal_id)) {
                     return null;
@@ -1538,6 +1543,7 @@ class PaymentReportController extends AdminBaseController
         $authUser = Auth::user();
         $canAdditional = $authUser?->can('reports.additional.value.view') ?? false;
         $canCommissionTotal = $authUser?->can('reports.payments.commission_total.view') ?? false;
+        $canPayoutColumn = $authUser?->can('reports.payments.payout_amount.column.view') ?? false;
 
         $settings = UserTableSetting::where('user_id', $userId)
             ->where('table_key', 'reports_payments')
@@ -1568,6 +1574,10 @@ class PaymentReportController extends AdminBaseController
             unset($columns['commission_total']);
         }
 
+        if (! $canPayoutColumn) {
+            unset($columns['payout_amount']);
+        }
+
         return response()->json($columns);
     }
 
@@ -1582,6 +1592,7 @@ class PaymentReportController extends AdminBaseController
         $authUser = Auth::user();
         $canAdditional = $authUser?->can('reports.additional.value.view') ?? false;
         $canCommissionTotal = $authUser?->can('reports.payments.commission_total.view') ?? false;
+        $canPayoutColumn = $authUser?->can('reports.payments.payout_amount.column.view') ?? false;
 
         $data = $request->validate([
             'columns' => 'required|array',
@@ -1606,6 +1617,10 @@ class PaymentReportController extends AdminBaseController
 
         if (! $canCommissionTotal) {
             $normalized['commission_total'] = false;
+        }
+
+        if (! $canPayoutColumn) {
+            $normalized['payout_amount'] = false;
         }
 
         unset($normalized['bank_commission_total']);

@@ -108,6 +108,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('reports.payments.commission_total.view');
         });
 
+        // Отчёт «Платежи» — колонка «Выплата»
+        Gate::define('reports.payments.payout_amount.column.view', function (User $user) {
+            return $user->hasPermission('reports.payments.payout_amount.column.view');
+        });
+
         // Мои платежи
         Gate::define('myPayments.view', function (User $user) {
             return $user->hasPermission('myPayments.view');

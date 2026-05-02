@@ -33,6 +33,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'reports.payments.totals.payout_amount.view', 'description' => 'Отчёт «Платежи»: итог «Выплата» в шапке', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 19],
             ['name' => 'reports.payments.totals.platform_commission.view', 'description' => 'Отчёт «Платежи»: итог комиссии платформы в шапке', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 20],
             ['name' => 'reports.payments.commission_total.view', 'description' => 'Отчёт «Платежи»: колонка «Комиссия» (сводно)', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 21],
+            ['name' => 'reports.payments.payout_amount.column.view', 'description' => 'Отчёт «Платежи»: колонка «Выплата»', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 22],
             ['name' => 'myPayments.view',                'description' => 'Страница "Мои платежи"',                        'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'myGroup.view',                   'description' => 'Страница "Моя группа"',                         'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 17],
             ['name' => 'setPrices.view',                 'description' => 'Страница "Установка цен"',                      'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 20],

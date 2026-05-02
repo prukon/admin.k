@@ -1,6 +1,7 @@
 @php
     $canAdditional = auth()->user() && auth()->user()->can('reports.additional.value.view');
     $canCommissionTotal = auth()->user() && auth()->user()->can('reports.payments.commission_total.view');
+    $canPayoutColumn = auth()->user() && auth()->user()->can('reports.payments.payout_amount.column.view');
     $pt = $paymentsToolbar ?? [];
     $ptSum = $pt['sum_payments_formatted'] ?? ($totalPaidPrice ?? '0');
     $canPaymentsToolbarNetToPartner = $canPaymentsToolbarNetToPartner ?? false;
@@ -182,14 +183,16 @@
                 </div>
             @endif
 
-            <div class="form-check">
-                <input class="form-check-input payments-column-toggle"
-                       type="checkbox"
-                       data-column-key="payout_amount"
-                       id="payColPayout"
-                       checked>
-                <label class="form-check-label" for="payColPayout">Выплата</label>
-            </div>
+            @if($canPayoutColumn)
+                <div class="form-check">
+                    <input class="form-check-input payments-column-toggle"
+                           type="checkbox"
+                           data-column-key="payout_amount"
+                           id="payColPayout"
+                           checked>
+                    <label class="form-check-label" for="payColPayout">Выплата</label>
+                </div>
+            @endif
 
             @if($canAdditional)
                 <div class="form-check">
@@ -377,12 +380,16 @@
             <th>Комиссия выплаты</th>
             <th>Комиссия платформы</th>
             <th>К выплате</th>
-            <th>Выплата</th>
+            @if($canPayoutColumn)
+                <th>Выплата</th>
+            @endif
         @else
             @if($canCommissionTotal)
                 <th>Комиссия</th>
             @endif
-            <th>Выплата</th>
+            @if($canPayoutColumn)
+                <th>Выплата</th>
+            @endif
         @endif
 
         <th>Действия</th>
@@ -487,6 +494,7 @@
         $(function () {
             const canAdditional = @json($canAdditional);
             const canCommissionTotal = @json($canCommissionTotal);
+            const canPayoutColumn = @json($canPayoutColumn);
             const paymentsToolbarFlags = {
                 net: @json($canPaymentsToolbarNetToPartner),
                 payout: @json($canPaymentsToolbarPayoutAmount),
@@ -681,7 +689,7 @@
     payment_method_label: true,
     receipt: true,
     commission_total: !canAdditional && canCommissionTotal,
-    payout_amount: true,
+    payout_amount: canPayoutColumn,
     net_to_partner: canAdditional,
     bank_commission_acquiring: canAdditional,
     bank_commission_payout: canAdditional,
@@ -702,48 +710,101 @@
 
             // Маппинг ключей на индексы колонок DataTables
             // 0 – № (DT_RowIndex) всегда видна, не настраиваем
-     const columnsMap = canAdditional ? {
-    user_name: 1,
-    team_title: 2,
-    summ: 3,
-    payment_month: 4,
-    operation_date: 5,
-    payment_provider: 6,
-    payment_method_label: 7,
-    receipt: 8,
-    bank_commission_acquiring: 9,
-    bank_commission_payout: 10,
-    platform_commission: 11,
-    net_to_partner: 12,
-    payout_amount: 13,
-    refund_action: 14,
-    refund_status: 15
-} : (canCommissionTotal ? {
-    user_name: 1,
-    team_title: 2,
-    summ: 3,
-    payment_month: 4,
-    operation_date: 5,
-    payment_provider: 6,
-    payment_method_label: 7,
-    receipt: 8,
-    commission_total: 9,
-    payout_amount: 10,
-    refund_action: 11,
-    refund_status: 12
-} : {
-    user_name: 1,
-    team_title: 2,
-    summ: 3,
-    payment_month: 4,
-    operation_date: 5,
-    payment_provider: 6,
-    payment_method_label: 7,
-    receipt: 8,
-    payout_amount: 9,
-    refund_action: 10,
-    refund_status: 11
-});
+            let columnsMap;
+            if (canAdditional) {
+                if (canPayoutColumn) {
+                    columnsMap = {
+                        user_name: 1,
+                        team_title: 2,
+                        summ: 3,
+                        payment_month: 4,
+                        operation_date: 5,
+                        payment_provider: 6,
+                        payment_method_label: 7,
+                        receipt: 8,
+                        bank_commission_acquiring: 9,
+                        bank_commission_payout: 10,
+                        platform_commission: 11,
+                        net_to_partner: 12,
+                        payout_amount: 13,
+                        refund_action: 14,
+                        refund_status: 15
+                    };
+                } else {
+                    columnsMap = {
+                        user_name: 1,
+                        team_title: 2,
+                        summ: 3,
+                        payment_month: 4,
+                        operation_date: 5,
+                        payment_provider: 6,
+                        payment_method_label: 7,
+                        receipt: 8,
+                        bank_commission_acquiring: 9,
+                        bank_commission_payout: 10,
+                        platform_commission: 11,
+                        net_to_partner: 12,
+                        refund_action: 13,
+                        refund_status: 14
+                    };
+                }
+            } else if (canCommissionTotal && canPayoutColumn) {
+                columnsMap = {
+                    user_name: 1,
+                    team_title: 2,
+                    summ: 3,
+                    payment_month: 4,
+                    operation_date: 5,
+                    payment_provider: 6,
+                    payment_method_label: 7,
+                    receipt: 8,
+                    commission_total: 9,
+                    payout_amount: 10,
+                    refund_action: 11,
+                    refund_status: 12
+                };
+            } else if (canCommissionTotal && !canPayoutColumn) {
+                columnsMap = {
+                    user_name: 1,
+                    team_title: 2,
+                    summ: 3,
+                    payment_month: 4,
+                    operation_date: 5,
+                    payment_provider: 6,
+                    payment_method_label: 7,
+                    receipt: 8,
+                    commission_total: 9,
+                    refund_action: 10,
+                    refund_status: 11
+                };
+            } else if (!canCommissionTotal && canPayoutColumn) {
+                columnsMap = {
+                    user_name: 1,
+                    team_title: 2,
+                    summ: 3,
+                    payment_month: 4,
+                    operation_date: 5,
+                    payment_provider: 6,
+                    payment_method_label: 7,
+                    receipt: 8,
+                    payout_amount: 9,
+                    refund_action: 10,
+                    refund_status: 11
+                };
+            } else {
+                columnsMap = {
+                    user_name: 1,
+                    team_title: 2,
+                    summ: 3,
+                    payment_month: 4,
+                    operation_date: 5,
+                    payment_provider: 6,
+                    payment_method_label: 7,
+                    receipt: 8,
+                    refund_action: 9,
+                    refund_status: 10
+                };
+            }
 
             function toBool(val, fallback = true) {
                 if (val === undefined || val === null) return fallback;
@@ -1070,20 +1131,22 @@ if (canAdditional) {
     );
 }
 
-columns.push(
-    {
-        data: 'payout_amount',
-        name: 'payout_amount',
-        render: function (data, type, row) {
-            if (data === null || data === undefined || data === '') return '';
-            if (type !== 'display') return parseFloat(data);
-            function formatNumber(number) {
-                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+if (canPayoutColumn) {
+    columns.push(
+        {
+            data: 'payout_amount',
+            name: 'payout_amount',
+            render: function (data, type, row) {
+                if (data === null || data === undefined || data === '') return '';
+                if (type !== 'display') return parseFloat(data);
+                function formatNumber(number) {
+                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                }
+                return `${formatNumber(Math.round(parseFloat(data)))} руб`;
             }
-            return `${formatNumber(Math.round(parseFloat(data)))} руб`;
         }
-    }
-);
+    );
+}
 
 columns.push(
     {data: 'refund_action', name: 'refund_action', orderable: false, searchable: false},

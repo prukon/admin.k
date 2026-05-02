@@ -1573,6 +1573,53 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
+     * (P1) Без reports.payments.payout_amount.column.view колонка «Выплата» и переключатель не выводятся; payout_amount в JSON пустой.
+     */
+    public function test_payments_report_payout_column_requires_reports_payments_payout_amount_column_permission(): void
+    {
+        $ps = new PaymentSystem();
+        $ps->partner_id = $this->partner->id;
+        $ps->name = 'tbank';
+        $ps->save();
+
+        DB::table('permission_role')->where([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->user->role_id,
+            'permission_id' => $this->permissionId('reports.payments.payout_amount.column.view'),
+        ])->delete();
+
+        $html = $this->get(route('payments'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="payColPayout"', $html);
+        $this->assertStringNotContainsString('<th>Выплата</th>', $html);
+
+        $payment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 1000.00,
+            'deal_id' => 'deal-no-payout-col-perm',
+            'payment_id' => '222',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        TinkoffPayout::query()->create([
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'deal-no-payout-col-perm',
+            'amount' => 50_000,
+            'is_final' => 1,
+            'status' => 'COMPLETED',
+        ]);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'));
+
+        $response->assertOk();
+        $row = collect($response->json('data') ?? [])->firstWhere('id', $payment->id);
+        $this->assertNotNull($row);
+        $this->assertNull($row['payout_amount']);
+    }
+
+    /**
      * (P1) С правом reports.additional.value.view чекбоксы комиссий и статуса возврата не disabled.
      */
     public function test_payments_page_sensitive_column_toggles_enabled_with_reports_additional_value_permission(): void
@@ -1611,6 +1658,7 @@ class PaymentReportTest extends CrmTestCase
         $this->grantPermissionToCurrentUserRole('viewing.all.logs');
         $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
         $this->grantPermissionToCurrentUserRole('reports.payments.commission_total.view');
+        $this->grantPermissionToCurrentUserRole('reports.payments.payout_amount.column.view');
 
         $ps = new PaymentSystem();
         $ps->partner_id = $this->partner->id;
@@ -1710,6 +1758,7 @@ class PaymentReportTest extends CrmTestCase
                 'viewing.all.logs',
                 'reports.additional.value.view',
                 'reports.payments.commission_total.view',
+                'reports.payments.payout_amount.column.view',
                 'reports.payments.totals.net_to_partner.view',
                 'reports.payments.totals.payout_amount.view',
                 'reports.payments.totals.platform_commission.view',
