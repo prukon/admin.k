@@ -10,6 +10,7 @@ use App\Models\PaymentSystem;
 use App\Models\UserCustomPayment;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\PaymentService;
+use App\Services\Payments\UserLessonPackageFeePaymentResolver;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
 use App\Support\Payments\PaymentOutSumNormalizer;
 use Illuminate\Http\Request;
@@ -74,6 +75,7 @@ class TransactionController extends Controller
         $outSum = (string) $request->input('outSum', '');
         $paymentKind = (string) $request->input('payment_kind', '');
         $userPeriodPriceId = $request->filled('custom_payment_id') ? (int) $request->input('custom_payment_id') : null;
+        $userLessonPackageId = $request->filled('user_lesson_package_id') ? (int) $request->input('user_lesson_package_id') : null;
 
         $formatedPaymentDate = null;
         $rawFmt = $request->input('formatedPaymentDate');
@@ -111,6 +113,18 @@ class TransactionController extends Controller
             $formatedPaymentDate = null;
         }
 
+        // Назначенный абонемент: сумма и подпись только из БД (POST outSum не используется).
+        if ($paymentKind === 'lesson_package') {
+            $resolvedLp = app(UserLessonPackageFeePaymentResolver::class)->resolveOrAbort(
+                (int) $user->id,
+                $partnerId,
+                $userLessonPackageId ?? 0,
+            );
+            $outSum = $resolvedLp['out_sum'];
+            $paymentDate = $resolvedLp['payment_label'];
+            $formatedPaymentDate = null;
+        }
+
         // Месячный абонемент: сумма на экране и в скрытых полях — из users_prices (как при Init оплаты).
         if ($formatedPaymentDate !== null) {
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
@@ -142,6 +156,7 @@ class TransactionController extends Controller
             'tbankSbpAvailable',
             'paymentKind',
             'userPeriodPriceId',
+            'userLessonPackageId',
         ));
     }
 
@@ -158,6 +173,7 @@ class TransactionController extends Controller
 
         $paymentKind = (string) $request->input('payment_kind', '');
         $userPeriodPriceId = $request->filled('custom_payment_id') ? (int) $request->input('custom_payment_id') : null;
+        $userLessonPackageId = $request->filled('user_lesson_package_id') ? (int) $request->input('user_lesson_package_id') : null;
 
         $rawFmt = $request->input('formatedPaymentDate');
         $hasMonthly = $request->filled('formatedPaymentDate')
@@ -182,6 +198,16 @@ class TransactionController extends Controller
 
             $outSum = number_format((float) $upp->amount, 2, '.', '');
             $paymentDate = (string) $request->input('paymentDate', 'Дополнительный платеж');
+            $hasMonthly = false;
+        } elseif ($paymentKind === 'lesson_package') {
+            // Сумма payable/intent — только из fee_amount (POST outSum игнорируется).
+            $resolvedLp = app(UserLessonPackageFeePaymentResolver::class)->resolveOrAbort(
+                $userId,
+                $partnerId,
+                $userLessonPackageId ?? 0,
+            );
+            $outSum = $resolvedLp['out_sum'];
+            $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
         } elseif ($hasMonthly) {
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
@@ -226,7 +252,9 @@ class TransactionController extends Controller
         // Создаём Payable (доменная "покупка")
         $type = $paymentKind === 'custom_payment'
             ? 'custom_payment_fee'
-            : ($hasMonthly ? 'monthly_fee' : 'club_fee');
+            : ($paymentKind === 'lesson_package'
+                ? 'lesson_package_fee'
+                : ($hasMonthly ? 'monthly_fee' : 'club_fee'));
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
@@ -235,6 +263,8 @@ class TransactionController extends Controller
             $payableMeta['month'] = $paymentDate;
         } elseif ($type === 'custom_payment_fee') {
             $payableMeta['user_period_price_id'] = $userPeriodPriceId;
+        } elseif ($type === 'lesson_package_fee') {
+            $payableMeta['user_lesson_package_id'] = $userLessonPackageId;
         }
 
         $payable = Payable::create([

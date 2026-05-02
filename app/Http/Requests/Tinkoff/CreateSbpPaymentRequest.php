@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Tinkoff;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CreateSbpPaymentRequest extends FormRequest
 {
@@ -14,12 +15,24 @@ class CreateSbpPaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'outSum' => ['required_without:formatedPaymentDate', 'nullable', 'string', 'max:32'],
+            'outSum' => [
+                Rule::requiredIf(function () {
+                    $kind = (string) $this->input('payment_kind', '');
+                    if ($kind === 'custom_payment' || $kind === 'lesson_package') {
+                        return false;
+                    }
+
+                    return ! $this->filled('formatedPaymentDate');
+                }),
+                'nullable',
+                'string',
+                'max:32',
+            ],
             'formatedPaymentDate' => ['nullable', 'string', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
 
-            // дополнительный платеж (user_period_prices)
-            'payment_kind' => ['nullable', 'string', 'in:custom_payment'],
+            'payment_kind' => ['nullable', 'string', 'in:custom_payment,lesson_package'],
             'custom_payment_id' => ['required_if:payment_kind,custom_payment', 'nullable', 'integer', 'min:1'],
+            'user_lesson_package_id' => ['required_if:payment_kind,lesson_package', 'nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -30,14 +43,16 @@ class CreateSbpPaymentRequest extends FormRequest
             'formatedPaymentDate' => 'период оплаты',
             'payment_kind' => 'тип оплаты',
             'custom_payment_id' => 'дополнительный платеж',
+            'user_lesson_package_id' => 'назначение абонемента',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'outSum.required_without' => 'Укажите сумму или дополнительный платеж.',
+            'outSum.required' => 'Укажите сумму оплаты.',
             'custom_payment_id.required_if' => 'Выберите дополнительный платеж для оплаты.',
+            'user_lesson_package_id.required_if' => 'Выберите абонемент для оплаты.',
         ];
     }
 }

@@ -21,7 +21,6 @@
         <table class="table table-striped table-bordered align-middle w-100">
             <thead>
             <tr>
-                <th>#</th>
                 <th>Название</th>
                 <th>Тип</th>
                 <th>Длительность (дни)</th>
@@ -30,14 +29,13 @@
                 <th>Заморозка</th>
                 <th>Расписание</th>
                 @can('lessonPackages.view')
-                    <th style="width: 140px;">Действия</th>
+                    <th class="text-start" style="min-width: 220px;">Действия</th>
                 @endcan
             </tr>
             </thead>
             <tbody>
             @forelse ($packages as $package)
                 <tr>
-                    <td class="text-center">{{ $package->id }}</td>
                     <td>{{ $package->name }}</td>
                     <td>
                         @if ($package->schedule_type === 'fixed')
@@ -82,20 +80,32 @@
                         @endif
                     </td>
                     @can('lessonPackages.view')
-                        <td class="text-end">
-                            <button type="button"
-                                    class="btn btn-sm btn-outline-primary lesson-package-edit-btn"
-                                    data-id="{{ $package->id }}"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#lessonPackageEditModal">
-                                Редактировать
-                            </button>
+                        <td class="text-start">
+                            <div class="d-flex flex-wrap gap-1 justify-content-start">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary lesson-package-edit-btn"
+                                        data-id="{{ $package->id }}"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#lessonPackageEditModal">
+                                    Изменить
+                                </button>
+                                @if ((int) ($package->partner_assignments_count ?? 0) === 0 && (int) ($package->partner_linked_lessons_count ?? 0) === 0)
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger lesson-package-delete-btn"
+                                            data-id="{{ $package->id }}"
+                                            data-name="{{ $package->name }}"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#lessonPackageDeleteModal">
+                                        Удалить
+                                    </button>
+                                @endif
+                            </div>
                         </td>
                     @endcan
                 </tr>
             @empty
                 <tr>
-                    <td colspan="@can('lessonPackages.view') 9 @else 8 @endcan" class="text-center text-muted">
+                    <td colspan="@can('lessonPackages.view') 8 @else 7 @endcan" class="text-center text-muted">
                         Абонементов пока нет.
                     </td>
                 </tr>
@@ -295,6 +305,27 @@
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Delete confirm --}}
+    <div class="modal fade" id="lessonPackageDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Удаление абонемента</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        Удалить абонемент «<span id="lessonPackageDeleteName"></span>»? Это действие нельзя отменить.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-danger" id="lessonPackageDeleteConfirmBtn">Удалить</button>
                 </div>
             </div>
         </div>
@@ -544,6 +575,39 @@
                             applyValidationErrors(editModalEl, p.errors, 'edit');
                         }
                     }
+                });
+
+                const deleteModalEl = document.getElementById('lessonPackageDeleteModal');
+                const deleteNameEl = document.getElementById('lessonPackageDeleteName');
+                const deleteConfirmBtn = document.getElementById('lessonPackageDeleteConfirmBtn');
+                let deleteTargetId = null;
+
+                document.querySelectorAll('.lesson-package-delete-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        deleteTargetId = btn.getAttribute('data-id');
+                        if (deleteNameEl) {
+                            deleteNameEl.textContent = btn.getAttribute('data-name') || '';
+                        }
+                    });
+                });
+
+                deleteConfirmBtn?.addEventListener('click', async function () {
+                    if (!deleteTargetId) {
+                        return;
+                    }
+                    try {
+                        await requestJson('DELETE', '/admin/lesson-packages/' + deleteTargetId);
+                        window.location.reload();
+                    } catch (err) {
+                        const msg = (err.payload && err.payload.message)
+                            ? err.payload.message
+                            : (err.message || 'Не удалось удалить абонемент.');
+                        alert(msg);
+                    }
+                });
+
+                deleteModalEl?.addEventListener('hidden.bs.modal', function () {
+                    deleteTargetId = null;
                 });
 
                 document.querySelectorAll('.lesson-package-edit-btn').forEach(function (btn) {

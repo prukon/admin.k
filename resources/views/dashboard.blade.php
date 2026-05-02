@@ -220,6 +220,7 @@
                                                     @csrf
                                                     <input type="hidden" name="payment_kind" value="custom_payment">
                                                     <input type="hidden" name="custom_payment_id" value="{{ (int) $a->id }}">
+                                                    <input type="hidden" name="user_lesson_package_id" value="">
                                                     <input type="hidden" name="custom_payment_date_start" value="{{ $startIso }}">
                                                     <input type="hidden" name="custom_payment_date_end" value="{{ $endIso }}">
                                                     <input type="hidden" name="custom_payment_note" value="{{ $note }}">
@@ -248,6 +249,69 @@
             </div>
         @endif
         @endcan
+
+        {{-- Назначенные абонементы (оплата из user_lesson_packages.fee_amount) --}}
+        @if(isset($userLessonPackages) && $userLessonPackages->count() > 0)
+            <div class="row custom-payments custom-payments-block mt-3 mb-3">
+                <div class="col-12">
+                    <div class="custom-payments-season">
+                        <div class="custom-payments-header">Назначенные абонементы</div>
+                        <div class="row justify-content-center align-items-center custom-payments-items">
+                            @foreach($userLessonPackages as $ulp)
+                                @php
+                                    $pkgName = $ulp->lessonPackage->name ?? 'Абонемент';
+                                    $amountNormalized = number_format((float) $ulp->fee_amount, 2, '.', '');
+                                    $amountDisplay = number_format((float) $ulp->fee_amount, 0, ',', ' ');
+                                    $paid = (bool) ($ulp->effective_is_paid ?? false);
+                                    $periodRu = trim(
+                                        ($ulp->starts_at ? $ulp->starts_at->locale('ru')->isoFormat('D.MM.YYYY') : '')
+                                        . ' — '
+                                        . ($ulp->ends_at ? $ulp->ends_at->locale('ru')->isoFormat('D.MM.YYYY') : '')
+                                    );
+                                    $paymentDateLabel = 'Абонемент: '.$pkgName.' №'.(int) $ulp->id;
+                                @endphp
+                                <div class="custom-payment-price col-3">
+                                    <div class="row align-items-center justify-content-center">
+                                        <span class="price-value">{{ $amountDisplay }}</span>
+                                        <span class="hide-currency">₽</span>
+                                    </div>
+                                    <div class="row justify-content-center align-items-center">
+                                        <div class="new-price-description">
+                                            <div>{{ $pkgName }}</div>
+                                            <div class="small text-muted">{{ $periodRu }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="row new-main-button-wrap">
+                                        <div class="justify-content-center align-items-center">
+                                            @can('paying.classes')
+                                                <form action="{{ route('payment') }}" method="POST">
+                                                    @csrf
+                                                    <input type="hidden" name="payment_kind" value="lesson_package">
+                                                    <input type="hidden" name="user_lesson_package_id" value="{{ (int) $ulp->id }}">
+                                                    <input type="hidden" name="custom_payment_id" value="">
+                                                    <input type="hidden" name="paymentDate" value="{{ $paymentDateLabel }}">
+                                                    <input class="outSum" type="hidden" name="outSum" value="{{ $amountNormalized }}">
+
+                                                    <button type="submit"
+                                                            {{ $paid ? 'disabled' : '' }}
+                                                            class="btn btn-lg btn-bd-primary new-main-button {{ $paid ? 'buttonPaided' : '' }}">
+                                                        {{ $paid ? 'Оплачено' : 'Оплатить' }}
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <button type="button" disabled class="btn btn-lg btn-bd-primary new-main-button {{ $paid ? 'buttonPaided' : '' }}">
+                                                    {{ $paid ? 'Оплачено' : 'Оплатить' }}
+                                                </button>
+                                            @endcan
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         {{--Сезоны--}}
         <div class="row seasons">

@@ -200,9 +200,20 @@
                         <div class="invalid-feedback d-block" data-error-for="is_enabled"></div>
                     </div>
                 </form>
+                @can('scheduleSlots.manage')
+                    <div id="slotEditOccurrenceMutations" class="d-none border-top pt-2 mt-2">
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm text-start" id="slotEditSkipOccurrenceBtn">
+                                Отменить это занятие
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm text-start" id="slotEditTruncateOccurrenceBtn">
+                                Отменить это занятие и его повторения
+                            </button>
+                        </div>
+                    </div>
+                @endcan
             </div>
             <div class="modal-footer py-2 px-3">
-                <button type="button" class="btn btn-outline-danger btn-sm me-auto" id="slotDeleteBtn">Удалить</button>
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Закрыть</button>
                 <button type="button" class="btn btn-primary btn-sm" id="slotEditSubmit">Сохранить</button>
             </div>
@@ -420,6 +431,19 @@
                         clearErrors(editForm);
                         const o = opts || {};
                         const preferredApply = typeof o.applyChangesFrom === 'string' ? o.applyChangesFrom.trim() : '';
+                        const occurrenceMutationDate = typeof o.occurrenceMutationDate === 'string' ? o.occurrenceMutationDate.trim() : '';
+                        const mutWrap = document.getElementById('slotEditOccurrenceMutations');
+                        if (mutWrap) {
+                            if (occurrenceMutationDate) {
+                                mutWrap.classList.remove('d-none');
+                                mutWrap.dataset.occurrenceDate = occurrenceMutationDate;
+                                mutWrap.dataset.slotId = String(slotId);
+                            } else {
+                                mutWrap.classList.add('d-none');
+                                delete mutWrap.dataset.occurrenceDate;
+                                delete mutWrap.dataset.slotId;
+                            }
+                        }
                         const res = await fetch(`/admin/team-schedule-slots/${slotId}`, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
                         const data = await res.json().catch(() => ({}));
                         editForm.querySelector('[name="id"]').value = data.id;
@@ -461,6 +485,72 @@
                         const modal = new bootstrap.Modal(document.getElementById('slotEditModal'));
                         modal.show();
                     }
+
+                    document.getElementById('slotEditModal')?.addEventListener('hidden.bs.modal', function () {
+                        const wrap = document.getElementById('slotEditOccurrenceMutations');
+                        if (!wrap) return;
+                        wrap.classList.add('d-none');
+                        delete wrap.dataset.occurrenceDate;
+                        delete wrap.dataset.slotId;
+                    });
+
+                    function slotEditFormatConflictLines(conflicts) {
+                        if (!conflicts || !conflicts.length) return '';
+                        return conflicts.map(function (c) {
+                            return (c.user_label || '') + ' — ' + (c.occurrence_date || '');
+                        }).join('\n');
+                    }
+
+                    async function slotEditPostOccurrenceMutation(kind) {
+                        const wrap = document.getElementById('slotEditOccurrenceMutations');
+                        if (!wrap || wrap.classList.contains('d-none')) return;
+                        const slotId = wrap.dataset.slotId;
+                        const date = wrap.dataset.occurrenceDate;
+                        if (!slotId || !date || !token) return;
+                        const confirmMsg = kind === 'skip'
+                            ? 'Исключить только это занятие из расписания? Повторения на следующих неделях останутся.'
+                            : 'Убрать слот с выбранной даты и все последующие повторения в этот день недели и время?';
+                        if (!window.confirm(confirmMsg)) return;
+
+                        const idEnc = encodeURIComponent(slotId);
+                        const url = kind === 'skip'
+                            ? `/admin/team-schedule-slots/${idEnc}/skip-occurrence`
+                            : `/admin/team-schedule-slots/${idEnc}/truncate-from-date`;
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': token || '',
+                            },
+                            body: JSON.stringify({ occurrence_date: date }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            let msg = data.message || ('Ошибка (HTTP ' + res.status + ')');
+                            const lines = slotEditFormatConflictLines(data.conflicts);
+                            if (lines) msg += '\n\n' + lines;
+                            window.alert(msg);
+                            return;
+                        }
+                        bootstrap.Modal.getInstance(document.getElementById('slotEditModal'))?.hide();
+                        if (typeof window.schoolCalReloadWeek === 'function') {
+                            window.schoolCalReloadWeek();
+                            if (typeof window.schoolCalNotifySlotMutationSuccess === 'function') {
+                                window.schoolCalNotifySlotMutationSuccess(data.message || 'Готово');
+                            }
+                        } else {
+                            window.location.reload();
+                        }
+                    }
+
+                    document.getElementById('slotEditSkipOccurrenceBtn')?.addEventListener('click', () => {
+                        slotEditPostOccurrenceMutation('skip');
+                    });
+                    document.getElementById('slotEditTruncateOccurrenceBtn')?.addEventListener('click', () => {
+                        slotEditPostOccurrenceMutation('truncate');
+                    });
 
                     window.openTeamScheduleSlotEdit = openTeamScheduleSlotEdit;
 
@@ -536,33 +626,6 @@
                         }
                     });
 
-                    document.getElementById('slotDeleteBtn')?.addEventListener('click', async () => {
-                        const editForm = getEditForm();
-                        if (!editForm) return;
-                        const id = editForm.querySelector('[name="id"]').value;
-                        if (!id) return;
-                        const res = await fetch(`/admin/team-schedule-slots/${id}`, {
-                            method: 'POST',
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': token || '',
-                            },
-                            body: new URLSearchParams({ _method: 'DELETE' })
-                        });
-                        if (res.ok) {
-                            window.location.reload();
-                        } else {
-                            const data = await res.json().catch(() => ({}));
-                            let msg = data.message || ('Не удалось удалить (HTTP ' + res.status + ').');
-                            if (data.conflicts && data.conflicts.length) {
-                                msg += '\n\n' + data.conflicts.map(function (c) {
-                                    return (c.user_label || '') + ' — ' + (c.occurrence_date || '');
-                                }).join('\n');
-                            }
-                            window.alert(msg);
-                        }
-                    });
                 }
 
                 if (document.readyState === 'loading') {

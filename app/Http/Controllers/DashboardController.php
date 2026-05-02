@@ -13,6 +13,7 @@ use App\Models\TeamWeekday;
 use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserCustomPayment;
+use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Models\Weekday;
 use Illuminate\Http\Request;
@@ -61,6 +62,15 @@ class DashboardController extends Controller
             ->orderByDesc('id')
             ->get();
 
+        $userLessonPackages = UserLessonPackage::query()
+            ->with(['lessonPackage:id,name'])
+            ->where('user_id', (int) $curUser->id)
+            ->whereHas('user', fn ($q) => $q->where('partner_id', $partnerId))
+            ->where('fee_amount', '>', 0)
+            ->orderByDesc('starts_at')
+            ->orderByDesc('id')
+            ->get();
+
         $textForUsers = Setting::where('name', 'textForUsers')
             ->where('partner_id', $partnerId)
             ->first();
@@ -80,6 +90,7 @@ class DashboardController extends Controller
             "scheduleUserArray",
             "userPriceArray",
             "userAbonements",
+            "userLessonPackages",
             "textForUsers",
             "userFields",
             "userFieldValues",

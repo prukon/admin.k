@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Models\UserPrice;
 use App\Models\UserCustomPayment;
+use App\Models\UserLessonPackage;
 use App\Models\MyLog;
 use App\Models\TinkoffPayment;
 use Illuminate\Support\Facades\DB;
@@ -403,6 +404,20 @@ class TinkoffPaymentsService
                             'intent_id' => (int) $locked->id,
                         ]);
                     }
+                } elseif ((string) $payable->type === 'lesson_package_fee') {
+                    $ulpId = $payable->meta['user_lesson_package_id'] ?? null;
+                    $ulpInt = is_numeric($ulpId) ? (int) $ulpId : 0;
+                    if ($ulpInt > 0) {
+                        UserLessonPackage::query()
+                            ->whereKey($ulpInt)
+                            ->update(['is_paid' => true]);
+                    } else {
+                        Log::channel('tinkoff')->warning('[lesson_package_fee missing user_lesson_package_id]', [
+                            'payable_id' => (int) $payable->id,
+                            'meta' => $payable->meta,
+                            'intent_id' => (int) $locked->id,
+                        ]);
+                    }
                 }
 
                 $user = User::find((int) $locked->user_id);
@@ -419,14 +434,12 @@ class TinkoffPaymentsService
                         'user_name'       => ($user?->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
                         'team_title'      => $teamName,
                         'operation_date'  => $currentDateTime,
-                        'payment_month'   => (string) (
-                            $payable->type === 'monthly_fee'
-                                ? ($payable->month?->format('Y-m-d') ?? '')
-                                : ((string) $payable->type === 'custom_payment_fee'
-                                    ? 'Дополнительный платеж'
-                                    : 'Клубный взнос'
-                                )
-                        ),
+                        'payment_month'   => (string) match (true) {
+                            (string) $payable->type === 'monthly_fee' => $payable->month?->format('Y-m-d') ?? '',
+                            (string) $payable->type === 'custom_payment_fee' => 'Дополнительный платеж',
+                            (string) $payable->type === 'lesson_package_fee' => 'Абонемент',
+                            default => 'Клубный взнос',
+                        },
                         'summ'            => (string) $locked->out_sum,
                         'deal_id'         => $payment->deal_id ?: null,
                         'payment_id'      => (string) ($webhook['PaymentId'] ?? null),

@@ -76,17 +76,8 @@
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0 align-items-start">
                     <div class="flex-grow-1 me-2">
-                        <div class="d-flex align-items-start gap-2">
-                            <div class="flex-grow-1">
-                                <h5 class="modal-title mb-0">Слот расписания</h5>
-                                <div class="small text-muted" id="schoolCalSlotModalMeta"></div>
-                            </div>
-                            @can('scheduleSlots.manage')
-                                <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" id="schoolCalSlotEditBtn" title="Редактировать слот" aria-label="Редактировать слот">
-                                    <i class="fas fa-pencil-alt"></i>
-                                </button>
-                            @endcan
-                        </div>
+                        <h5 class="modal-title mb-0">Слот расписания</h5>
+                        <div class="small text-muted" id="schoolCalSlotModalMeta"></div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -99,28 +90,23 @@
                         <dt class="col-4 text-muted">Время</dt>
                         <dd class="col-8" id="schoolCalSlotTime">—</dd>
                     </dl>
-                    <div class="mb-3" id="schoolCalSlotRegistrationsWrap">
+                    <div class="mb-3 d-none" id="schoolCalSlotRegistrationsWrap">
                         <div class="text-muted text-uppercase small mb-1" style="font-size:0.68rem;letter-spacing:0.06em">Записаны</div>
                         <ul class="list-unstyled mb-0 small" id="schoolCalSlotRegistrationsList"></ul>
                     </div>
-                    @can('scheduleSlots.manage')
-                        <div class="d-grid gap-2 mb-3">
-                            <button type="button" class="btn btn-outline-secondary btn-sm text-start" id="schoolCalSlotSkipOnceBtn">
-                                Отменить только это занятие…
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm text-start" id="schoolCalSlotTruncateFutureBtn">
-                                Убрать с этой даты и все следующие повторения…
-                            </button>
-                        </div>
-                    @endcan
                     <hr>
                     <div class="d-grid gap-2">
                         <button type="button" class="btn btn-primary" id="schoolCalOpenFlexible">
-                            Привязать гибкий абонемент…
+                            Привязать гибкий абонемент
                         </button>
-                        <button type="button" class="btn btn-outline-primary" id="schoolCalOpenFixed">
-                            Назначить фиксированный абонемент…
+                        <button type="button" class="btn btn-primary" id="schoolCalOpenFixed">
+                            Привязать фиксированный абонемент
                         </button>
+                        @can('scheduleSlots.manage')
+                            <button type="button" class="btn btn-outline-danger" id="schoolCalSlotChangeLessonBtn">
+                                Изменить занятие
+                            </button>
+                        @endcan
                     </div>
                 </div>
             </div>
@@ -183,15 +169,15 @@
                                 <div class="invalid-feedback d-block" data-err="user_id"></div>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Абонемент</label>
-                                <select class="form-select" name="lesson_package_id" id="schoolCalFixedPackage" required>
-                                    <option value="">Загрузка…</option>
+                                <label class="form-label">Назначение абонемента</label>
+                                <select class="form-select" name="user_lesson_package_id" id="schoolCalFixedUlp" required>
+                                    <option value="">Сначала выберите ученика</option>
                                 </select>
-                                <div class="invalid-feedback d-block" data-err="lesson_package_id"></div>
+                                <div class="invalid-feedback d-block" data-err="user_lesson_package_id"></div>
                             </div>
                         </div>
                         <p class="small text-muted mt-3 mb-0">
-                            Будет создано назначение от выбранной даты; цепочка занятий подбирается по расписанию школы и шаблону абонемента.
+                            Период действия и цепочка занятий задаются от якорной даты; список содержит только назначения без периода (созданные на странице «Назначение абонементов»).
                         </p>
                     </form>
                 </div>
@@ -361,8 +347,8 @@
                 flexAssign: @json(route('admin.lesson-packages.school-schedule.assign-flexible')),
                 fixedAssign: @json(route('admin.lesson-packages.school-schedule.assign-fixed')),
                 flexUlps: @json(route('admin.lesson-packages.school-schedule.flexible-assignments')),
+                fixedUlps: @json(route('admin.lesson-packages.school-schedule.fixed-assignments')),
                 flexUsersSearch: @json(route('admin.lesson-packages.school-schedule.flexible-users-search')),
-                fixedPkgs: @json(route('admin.lesson-packages.school-schedule.fixed-packages')),
             };
             const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const weekLabels = @json($weekLabels);
@@ -482,6 +468,11 @@
                 document.getElementById('schoolCalGrid').setAttribute('aria-busy', 'false');
             }
 
+            window.schoolCalReloadWeek = loadWeek;
+            window.schoolCalNotifySlotMutationSuccess = function (msg) {
+                showAlert('success', msg || 'Готово');
+            };
+
             function updateWeekLabel() {
                 const end = addDays(weekMonday, 6);
                 const el = document.getElementById('schoolCalWeekLabel');
@@ -571,17 +562,16 @@
             }
 
             function fillRegistrationsList(ev) {
+                const wrap = document.getElementById('schoolCalSlotRegistrationsWrap');
                 const ul = document.getElementById('schoolCalSlotRegistrationsList');
-                if (!ul) return;
+                if (!ul || !wrap) return;
                 ul.innerHTML = '';
                 const regs = ev.registrations || [];
                 if (!regs.length) {
-                    const li = document.createElement('li');
-                    li.className = 'text-muted';
-                    li.textContent = 'На эту дату никто не записан.';
-                    ul.appendChild(li);
+                    wrap.classList.add('d-none');
                     return;
                 }
+                wrap.classList.remove('d-none');
                 regs.forEach(function (r) {
                     const li = document.createElement('li');
                     li.textContent = r.line || r.user_label || '';
@@ -594,71 +584,18 @@
                 document.getElementById('schoolCalSlotTeam').textContent = ev.team_title || '—';
                 document.getElementById('schoolCalSlotLocation').textContent = ev.location_name || '—';
                 document.getElementById('schoolCalSlotTime').textContent = ev.time_start + '–' + ev.time_end;
-                document.getElementById('schoolCalSlotModalMeta').textContent = ev.date + ' · слот #' + ev.id;
+                document.getElementById('schoolCalSlotModalMeta').textContent = formatRuLongDate(parseYmd(ev.date));
                 fillRegistrationsList(ev);
                 new bootstrap.Modal(document.getElementById('schoolCalSlotModal')).show();
             }
 
-            document.getElementById('schoolCalSlotEditBtn')?.addEventListener('click', async function () {
+            document.getElementById('schoolCalSlotChangeLessonBtn')?.addEventListener('click', async function () {
                 if (!selectedOccurrence || typeof window.openTeamScheduleSlotEdit !== 'function') return;
                 bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
                 await window.openTeamScheduleSlotEdit(selectedOccurrence.id, {
                     applyChangesFrom: selectedOccurrence.date,
+                    occurrenceMutationDate: selectedOccurrence.date,
                 });
-            });
-
-            function schoolCalSlotMutationUrl(slotId, kind) {
-                const id = encodeURIComponent(slotId);
-                return kind === 'skip'
-                    ? '/admin/team-schedule-slots/' + id + '/skip-occurrence'
-                    : '/admin/team-schedule-slots/' + id + '/truncate-from-date';
-            }
-
-            function schoolCalFormatConflictLines(conflicts) {
-                if (!conflicts || !conflicts.length) return '';
-                return conflicts.map(function (c) {
-                    return (c.user_label || '') + ' — ' + (c.occurrence_date || '');
-                }).join('\n');
-            }
-
-            async function schoolCalPostSlotMutation(kind) {
-                if (!selectedOccurrence || !token) return;
-                const slotId = selectedOccurrence.id;
-                const date = selectedOccurrence.date;
-                const confirmMsg = kind === 'skip'
-                    ? 'Исключить только это занятие из расписания? Повторения на следующих неделях останутся.'
-                    : 'Убрать слот с выбранной даты и все последующие повторения в этот день недели и время?';
-                if (!window.confirm(confirmMsg)) return;
-
-                const url = schoolCalSlotMutationUrl(slotId, kind);
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': token,
-                    },
-                    body: JSON.stringify({ occurrence_date: date }),
-                });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) {
-                    let msg = data.message || ('Ошибка (HTTP ' + res.status + ')');
-                    const lines = schoolCalFormatConflictLines(data.conflicts);
-                    if (lines) msg += '\n\n' + lines;
-                    window.alert(msg);
-                    return;
-                }
-                showAlert('success', data.message || 'Готово');
-                bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
-                loadWeek();
-            }
-
-            document.getElementById('schoolCalSlotSkipOnceBtn')?.addEventListener('click', () => {
-                schoolCalPostSlotMutation('skip');
-            });
-            document.getElementById('schoolCalSlotTruncateFutureBtn')?.addEventListener('click', () => {
-                schoolCalPostSlotMutation('truncate');
             });
 
             document.getElementById('schoolCalOpenFlexible')?.addEventListener('click', () => {
@@ -677,23 +614,12 @@
                 document.getElementById('schoolCalFixedAnchor').value = selectedOccurrence.date;
                 const locPick = document.getElementById('schoolCalLocation');
                 document.getElementById('schoolCalFixedLocation').value = locPick ? (locPick.value || '') : '';
-                loadFixedPackages();
+                const ulpSel = document.getElementById('schoolCalFixedUlp');
+                if (ulpSel) {
+                    ulpSel.innerHTML = '<option value="">Сначала выберите ученика</option>';
+                }
                 new bootstrap.Modal(document.getElementById('schoolCalFixedModal')).show();
             });
-
-            async function loadFixedPackages() {
-                const sel = document.getElementById('schoolCalFixedPackage');
-                sel.innerHTML = '<option value="">Загрузка…</option>';
-                const res = await fetch(routes.fixedPkgs, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-                const data = await res.json().catch(() => ({}));
-                sel.innerHTML = '<option value="">Выберите абонемент</option>';
-                (data.packages || []).forEach(p => {
-                    const o = document.createElement('option');
-                    o.value = p.id;
-                    o.textContent = p.name + ' (' + p.lessons_count + ' з.)';
-                    sel.appendChild(o);
-                });
-            }
 
             document.getElementById('schoolCalPrevWeek')?.addEventListener('click', () => {
                 weekMonday = addDays(weekMonday, -7);
@@ -884,7 +810,27 @@
                     });
                 });
 
-                bindUserSelect($('#schoolCalFixedUser'), routes.usersSearch, function () {});
+                bindUserSelect($('#schoolCalFixedUser'), routes.usersSearch, async function () {
+                    const uid = $('#schoolCalFixedUser').val();
+                    const ulp = document.getElementById('schoolCalFixedUlp');
+                    if (!ulp) return;
+                    ulp.innerHTML = '<option value="">Загрузка…</option>';
+                    if (!uid) {
+                        ulp.innerHTML = '<option value="">Сначала выберите ученика</option>';
+                        return;
+                    }
+                    const res = await fetch(routes.fixedUlps + '?user_id=' + encodeURIComponent(uid), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    ulp.innerHTML = '<option value="">Выберите назначение</option>';
+                    (data.assignments || []).forEach(function (a) {
+                        const o = document.createElement('option');
+                        o.value = a.id;
+                        o.textContent = a.label;
+                        ulp.appendChild(o);
+                    });
+                });
             });
         })();
     </script>

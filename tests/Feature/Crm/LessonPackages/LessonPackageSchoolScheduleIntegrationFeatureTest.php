@@ -88,7 +88,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
 
         $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), [
             'user_id' => $student->id,
-            'lesson_package_id' => 999999,
+            'user_lesson_package_id' => 999999,
             'team_schedule_slot_id' => 999999,
             'anchor_date' => self::WEEK_ANCHOR_MONDAY,
         ])->assertForbidden();
@@ -122,6 +122,10 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $this->getJson(route('admin.lesson-packages.school-schedule.flexible-assignments', ['user_id' => $student->id]))
             ->assertOk()
             ->assertJsonStructure(['assignments']);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.fixed-assignments', ['user_id' => $student->id]))
+            ->assertOk()
+            ->assertExactJson(['assignments' => []]);
 
         $this->getJson(route('admin.lesson-packages.school-schedule.flexible-users-search'))
             ->assertOk()
@@ -163,6 +167,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $student = $this->studentUser();
 
         $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Гибкий интеграция',
             'schedule_type' => 'flexible',
             'duration_days' => 120,
@@ -241,6 +246,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
 
         $student = $this->studentUser();
         $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Гибкий',
             'schedule_type' => 'flexible',
             'duration_days' => 60,
@@ -291,6 +297,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
 
         $student = $this->studentUser();
         $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Гибкий skip',
             'schedule_type' => 'flexible',
             'duration_days' => 90,
@@ -343,6 +350,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $student = $this->studentUser();
 
         $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Фикс интеграция',
             'schedule_type' => 'fixed',
             'duration_days' => 30,
@@ -360,6 +368,18 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'time_end' => '16:00:00',
         ]);
 
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount' => '80.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
         $team = Team::factory()->create(['partner_id' => $this->partner->id]);
         $slot = TeamScheduleSlot::query()->create([
             'partner_id' => $this->partner->id,
@@ -375,17 +395,16 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
 
         $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), [
             'user_id' => $student->id,
-            'lesson_package_id' => $package->id,
+            'user_lesson_package_id' => $ulp->id,
             'team_schedule_slot_id' => $slot->id,
             'anchor_date' => self::WEEK_ANCHOR_MONDAY,
         ])->assertOk()
             ->assertJsonPath('message', 'Абонемент назначен, занятия привязаны к расписанию школы.');
 
-        $ulpId = (int) UserLessonPackage::query()
-            ->where('user_id', $student->id)
-            ->where('lesson_package_id', $package->id)
-            ->value('id');
-        $this->assertGreaterThan(0, $ulpId);
+        $ulpId = (int) $ulp->id;
+        $ulp->refresh();
+        $this->assertSame(self::WEEK_ANCHOR_MONDAY, $ulp->starts_at->format('Y-m-d'));
+        $this->assertSame('2026-06-03', $ulp->ends_at->format('Y-m-d'));
 
         $this->assertSame(1, UserTeamScheduleSlot::query()
             ->where('user_id', $student->id)
@@ -411,6 +430,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $this->grantPermission('lessonPackages.view');
 
         $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Фикс',
             'schedule_type' => 'fixed',
             'duration_days' => 14,
@@ -441,9 +461,21 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'is_enabled' => 1,
         ]);
 
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $this->user->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount' => '10.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
         $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), [
             'user_id' => $this->foreignUser->id,
-            'lesson_package_id' => $package->id,
+            'user_lesson_package_id' => $ulp->id,
             'team_schedule_slot_id' => $slot->id,
             'anchor_date' => self::WEEK_ANCHOR_MONDAY,
         ])->assertStatus(422)
@@ -471,7 +503,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $this->post(route('admin.lesson-packages.assignments.store'), [
             'user_id' => $student->id,
             'lesson_package_id' => $packageId,
-            'starts_at' => '2026-04-01',
+            'fee_amount' => '2000.00',
         ])->assertRedirect(route('admin.lesson-packages.assignments'));
 
         $ulpId = (int) UserLessonPackage::query()
@@ -479,6 +511,10 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             ->where('lesson_package_id', $packageId)
             ->value('id');
         $this->assertGreaterThan(0, $ulpId);
+
+        $beforeAssign = UserLessonPackage::query()->whereKey($ulpId)->first();
+        $this->assertNull($beforeAssign->starts_at);
+        $this->assertNull($beforeAssign->ends_at);
 
         $this->getJson(route('admin.lesson-packages.school-schedule.flexible-assignments', ['user_id' => $student->id]))
             ->assertOk()
@@ -506,5 +542,11 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         ])->assertOk();
 
         $this->assertSame($beforeRemaining - 1, (int) UserLessonPackage::query()->whereKey($ulpId)->value('lessons_remaining'));
+
+        $ulpAfter = UserLessonPackage::query()->whereKey($ulpId)->first();
+        $this->assertNotNull($ulpAfter->starts_at);
+        $this->assertNotNull($ulpAfter->ends_at);
+        $this->assertSame(self::WEEK_ANCHOR_MONDAY, $ulpAfter->starts_at->format('Y-m-d'));
+        $this->assertSame('2026-08-02', $ulpAfter->ends_at->format('Y-m-d'));
     }
 }

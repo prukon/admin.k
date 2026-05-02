@@ -14,16 +14,19 @@ use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\PartnerContext;
 use App\Services\TeamScheduleCalendarService;
+use App\Services\UserLessonPackageCalendarPeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseController
 {
     public function __construct(
         PartnerContext $partnerContext,
         private readonly TeamScheduleCalendarService $calendarService,
+        private readonly UserLessonPackageCalendarPeriodService $calendarPeriodService,
     ) {
         parent::__construct($partnerContext);
     }
@@ -94,15 +97,6 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ], 422);
         }
 
-        $ulpStart = Carbon::parse($ulp->starts_at)->startOfDay();
-        $ulpEnd = Carbon::parse($ulp->ends_at)->endOfDay();
-        if ($occurrence->lt($ulpStart) || $occurrence->gt($ulpEnd)) {
-            return response()->json([
-                'message' => 'Дата выходит за пределы периода абонемента.',
-                'errors' => ['occurrence_date' => ['Дата выходит за пределы периода абонемента.']],
-            ], 422);
-        }
-
         $exists = UserTeamScheduleSlot::query()
             ->where('user_id', $ulp->user_id)
             ->where('team_schedule_slot_id', $slot->id)
@@ -118,6 +112,15 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
 
         try {
             DB::transaction(function () use ($ulp, $partnerId, $slot, $occurrence) {
+                $this->calendarPeriodService->applyFirstCalendarAnchor($ulp, $occurrence);
+                $ulp->refresh();
+
+                $ulpStart = Carbon::parse((string) $ulp->starts_at)->startOfDay();
+                $ulpEnd = Carbon::parse((string) $ulp->ends_at)->endOfDay();
+                if ($occurrence->lt($ulpStart) || $occurrence->gt($ulpEnd)) {
+                    throw new InvalidArgumentException('Дата выходит за пределы периода абонемента.');
+                }
+
                 UserTeamScheduleSlot::query()->create([
                     'partner_id' => $partnerId,
                     'user_id' => (int) $ulp->user_id,
@@ -131,6 +134,11 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 $ulp->lessons_remaining = max(0, (int) $ulp->lessons_remaining - 1);
                 $ulp->save();
             });
+        } catch (InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['occurrence_date' => [$e->getMessage()]],
+            ], 422);
         } catch (\Throwable $e) {
             report($e);
 
@@ -160,15 +168,47 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ], 422);
         }
 
-        /** @var LessonPackage|null $package */
-        $package = LessonPackage::query()
-            ->with(['timeSlots' => fn ($q) => $q->orderBy('weekday')->orderBy('time_start')])
-            ->whereKey((int) $data['lesson_package_id'])
+        /** @var UserLessonPackage|null $ulp */
+        $ulp = UserLessonPackage::query()
+            ->with([
+                'lessonPackage' => function ($q) {
+                    $q->with(['timeSlots' => fn ($q2) => $q2->orderBy('weekday')->orderBy('time_start')]);
+                },
+            ])
+            ->whereKey((int) $data['user_lesson_package_id'])
             ->first();
 
-        if (! $package || (string) $package->schedule_type !== 'fixed') {
+        if (! $ulp || (int) $ulp->user_id !== (int) $user->id) {
             return response()->json([
-                'errors' => ['lesson_package_id' => ['Выберите абонемент с фиксированным расписанием.']],
+                'errors' => ['user_lesson_package_id' => ['Назначение не найдено или не принадлежит выбранному ученику.']],
+            ], 422);
+        }
+
+        /** @var LessonPackage|null $package */
+        $package = $ulp->lessonPackage;
+        if (! $package || (int) $package->partner_id !== $partnerId || (string) $package->schedule_type !== 'fixed') {
+            return response()->json([
+                'errors' => ['user_lesson_package_id' => ['Выберите назначение с фиксированным расписанием текущего партнёра.']],
+            ], 422);
+        }
+
+        if ($ulp->starts_at !== null || $ulp->ends_at !== null) {
+            return response()->json([
+                'message' => 'У этого назначения уже задан период действия.',
+                'errors' => ['user_lesson_package_id' => ['Назначение уже имеет даты периода — повторная привязка недоступна.']],
+            ], 422);
+        }
+
+        if (UserTeamScheduleSlot::query()->where('user_lesson_package_id', (int) $ulp->id)->exists()) {
+            return response()->json([
+                'errors' => ['user_lesson_package_id' => ['У назначения уже есть записи в расписании школы.']],
+            ], 422);
+        }
+
+        if ((int) $ulp->lessons_remaining < 1) {
+            return response()->json([
+                'message' => 'На абонементе не осталось занятий.',
+                'errors' => ['user_lesson_package_id' => ['На абонементе не осталось занятий.']],
             ], 422);
         }
 
@@ -200,50 +240,31 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         }
 
         $anchorDate = CarbonImmutable::createFromFormat('Y-m-d', (string) $data['anchor_date'])->startOfDay();
-        $startsAt = $anchorDate->startOfDay();
-        $endsAt = $startsAt->addDays((int) $package->duration_days)->startOfDay();
-
-        try {
-            $chain = $this->calendarService->buildFixedOccurrenceChain(
-                $partnerId,
-                $anchorDate,
-                $anchorSlot,
-                $package->timeSlots,
-                (int) $package->lessons_count,
-                $endsAt,
-                $effectiveLocationFilter
-            );
-        } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-                'errors' => ['anchor_date' => [$e->getMessage()]],
-            ], 422);
-        } catch (\RuntimeException $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-                'errors' => ['anchor_date' => [$e->getMessage()]],
-            ], 422);
-        }
 
         try {
             DB::transaction(function () use (
                 $partnerId,
                 $user,
+                $ulp,
                 $package,
-                $chain,
-                $startsAt,
-                $endsAt,
+                $anchorDate,
+                $anchorSlot,
+                $effectiveLocationFilter,
             ) {
-                /** @var UserLessonPackage $ulp */
-                $ulp = UserLessonPackage::query()->create([
-                    'user_id' => (int) $user->id,
-                    'lesson_package_id' => (int) $package->id,
-                    'starts_at' => $startsAt->toDateString(),
-                    'ends_at' => $endsAt->toDateString(),
-                    'lessons_total' => (int) $package->lessons_count,
-                    'lessons_remaining' => (int) $package->lessons_count,
-                    'created_by' => auth()->id(),
-                ]);
+                $this->calendarPeriodService->applyFirstCalendarAnchor($ulp, $anchorDate);
+                $ulp->refresh();
+
+                $periodEnd = CarbonImmutable::parse($ulp->ends_at->format('Y-m-d'))->startOfDay();
+
+                $chain = $this->calendarService->buildFixedOccurrenceChain(
+                    $partnerId,
+                    $anchorDate,
+                    $anchorSlot,
+                    $package->timeSlots,
+                    (int) $package->lessons_count,
+                    $periodEnd,
+                    $effectiveLocationFilter
+                );
 
                 foreach ($chain as $item) {
                     /** @var CarbonImmutable $date */
@@ -257,17 +278,27 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                         'user_lesson_package_id' => (int) $ulp->id,
                         'team_schedule_slot_id' => (int) $slot->id,
                         'starts_at' => $date->toDateString(),
-                        'ends_at' => $endsAt->toDateString(),
+                        'ends_at' => $periodEnd->toDateString(),
                         'created_by' => auth()->id(),
                     ]);
                 }
             });
+        } catch (InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['anchor_date' => [$e->getMessage()]],
+            ], 422);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['anchor_date' => [$e->getMessage()]],
+            ], 422);
         } catch (\Throwable $e) {
             report($e);
 
             return response()->json([
-                'message' => 'Не удалось создать назначение. Попробуйте ещё раз.',
-                'errors' => ['lesson_package_id' => ['Не удалось создать назначение.']],
+                'message' => 'Не удалось создать привязку. Попробуйте ещё раз.',
+                'errors' => ['user_lesson_package_id' => ['Не удалось создать привязку.']],
             ], 422);
         }
 

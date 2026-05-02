@@ -218,6 +218,10 @@ class CloudKassirReceiptBuilder
             return 'Дополнительный платеж';
         }
 
+        if ((string) $payable->type === 'lesson_package_fee') {
+            return 'Абонемент';
+        }
+
         if ($payable->type === 'club_fee') {
             return 'Клубный взнос';
         }

@@ -331,6 +331,19 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.assignments.users-search');
         Route::post('/admin/lesson-packages/assignments', [LessonPackageController::class, 'storeAssignment'])
             ->name('admin.lesson-packages.assignments.store');
+        Route::get('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'showAssignment'])
+            ->whereNumber('assignment')
+            ->name('admin.lesson-packages.assignments.show');
+        Route::put('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'updateAssignment'])
+            ->whereNumber('assignment')
+            ->name('admin.lesson-packages.assignments.update');
+        Route::delete('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'destroyAssignment'])
+            ->whereNumber('assignment')
+            ->name('admin.lesson-packages.assignments.destroy');
+        Route::post('/admin/lesson-packages/assignments/{assignment}/manual-paid', [LessonPackageController::class, 'setAssignmentManualPaid'])
+            ->middleware('can:lessonPackages.manualPaid.manage')
+            ->whereNumber('assignment')
+            ->name('admin.lesson-packages.assignments.manual-paid');
         Route::post('/admin/lesson-packages', [LessonPackageController::class, 'store'])
             ->name('admin.lesson-packages.store');
         Route::get('/admin/lesson-packages/{lessonPackage}', [LessonPackageController::class, 'show'])
@@ -339,6 +352,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::put('/admin/lesson-packages/{lessonPackage}', [LessonPackageController::class, 'update'])
             ->whereNumber('lessonPackage')
             ->name('admin.lesson-packages.update');
+        Route::delete('/admin/lesson-packages/{lessonPackage}', [LessonPackageController::class, 'destroy'])
+            ->whereNumber('lessonPackage')
+            ->name('admin.lesson-packages.destroy');
 
         Route::get('/admin/lesson-packages/occurrence-statuses', [LessonOccurrenceStatusController::class, 'index'])
             ->name('admin.lesson-packages.occurrence-statuses.index');
@@ -361,6 +377,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.school-schedule.fixed-packages');
         Route::get('/admin/lesson-packages/school-schedule/flexible-assignments', [LessonPackageController::class, 'schoolScheduleFlexibleAssignments'])
             ->name('admin.lesson-packages.school-schedule.flexible-assignments');
+        Route::get('/admin/lesson-packages/school-schedule/fixed-assignments', [LessonPackageController::class, 'schoolScheduleFixedAssignments'])
+            ->name('admin.lesson-packages.school-schedule.fixed-assignments');
         Route::get('/admin/lesson-packages/school-schedule/flexible-users-search', [LessonPackageController::class, 'schoolScheduleFlexibleUsersSearch'])
             ->name('admin.lesson-packages.school-schedule.flexible-users-search');
         Route::post('/admin/lesson-packages/school-schedule/assign-flexible', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'assignFlexible'])

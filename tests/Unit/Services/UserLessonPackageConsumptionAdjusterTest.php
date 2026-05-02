@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Models\LessonPackage;
+use App\Models\Partner;
 use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Services\UserLessonPackageConsumptionAdjuster;
@@ -25,9 +26,11 @@ final class UserLessonPackageConsumptionAdjusterTest extends TestCase
 
     public function test_apply_remaining_lessons_delta_updates_balance(): void
     {
-        $user = User::factory()->create();
+        $partner = Partner::withoutEvents(static fn () => Partner::factory()->create());
+        $user = User::factory()->create(['partner_id' => $partner->id]);
 
         $package = LessonPackage::query()->create([
+            'partner_id' => $partner->id,
             'name' => 'Unit pack',
             'schedule_type' => 'no_schedule',
             'duration_days' => 30,
@@ -59,9 +62,11 @@ final class UserLessonPackageConsumptionAdjusterTest extends TestCase
 
     public function test_apply_remaining_lessons_delta_throws_when_negative_balance(): void
     {
-        $user = User::factory()->create();
+        $partner = Partner::withoutEvents(static fn () => Partner::factory()->create());
+        $user = User::factory()->create(['partner_id' => $partner->id]);
 
         $package = LessonPackage::query()->create([
+            'partner_id' => $partner->id,
             'name' => 'Small pack',
             'schedule_type' => 'no_schedule',
             'duration_days' => 30,
@@ -88,9 +93,11 @@ final class UserLessonPackageConsumptionAdjusterTest extends TestCase
 
     public function test_apply_remaining_lessons_delta_throws_when_exceeds_total(): void
     {
-        $user = User::factory()->create();
+        $partner = Partner::withoutEvents(static fn () => Partner::factory()->create());
+        $user = User::factory()->create(['partner_id' => $partner->id]);
 
         $package = LessonPackage::query()->create([
+            'partner_id' => $partner->id,
             'name' => 'Pack',
             'schedule_type' => 'no_schedule',
             'duration_days' => 30,

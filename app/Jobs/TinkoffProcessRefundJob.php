@@ -8,6 +8,7 @@ use App\Models\PaymentSystem;
 use App\Models\FiscalReceipt;
 use App\Models\Refund;
 use App\Models\UserCustomPayment;
+use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Services\Tinkoff\TinkoffSignature;
@@ -171,6 +172,21 @@ class TinkoffProcessRefundJob implements ShouldQueue
                     ->update(['is_paid' => 0]);
             } else {
                 Log::warning('T-Bank refund succeeded but user_period_price_id missing in payable.meta', [
+                    'refund_id' => $refund->id,
+                    'payable_id' => $payable->id,
+                    'meta' => $payable->meta,
+                ]);
+            }
+        } elseif ((string) $payable->type === 'lesson_package_fee') {
+            $ulpId = $payable->meta['user_lesson_package_id'] ?? null;
+            $ulpInt = is_numeric($ulpId) ? (int) $ulpId : 0;
+
+            if ($ulpInt > 0) {
+                UserLessonPackage::query()
+                    ->whereKey($ulpInt)
+                    ->update(['is_paid' => false]);
+            } else {
+                Log::warning('T-Bank refund succeeded but user_lesson_package_id missing in payable.meta', [
                     'refund_id' => $refund->id,
                     'payable_id' => $payable->id,
                     'meta' => $payable->meta,

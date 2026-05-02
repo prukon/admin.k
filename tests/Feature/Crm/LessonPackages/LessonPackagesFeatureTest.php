@@ -60,6 +60,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->grantPermission('lessonPackages.view');
 
         LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Пакет',
             'schedule_type' => 'no_schedule',
             'duration_days' => 30,
@@ -73,7 +74,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->get(route('admin.lesson-packages.index'))
             ->assertOk()
             ->assertSee('Добавить абонемент')
-            ->assertSee('Редактировать')
+            ->assertSee('Изменить')
             ->assertSee('lessonPackageCreateModal')
             ->assertSee('lessonPackageEditModal');
     }
@@ -116,6 +117,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             ->assertJson(['success' => true]);
 
         $this->assertDatabaseHas('lesson_packages', [
+            'partner_id' => $this->partner->id,
             'name' => 'Фикс',
             'schedule_type' => 'fixed',
             'duration_days' => 30,
@@ -160,6 +162,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('lesson_packages', [
             'id' => $packageId,
+            'partner_id' => $this->partner->id,
             'schedule_type' => 'flexible',
         ]);
         $this->assertDatabaseMissing('lesson_package_time_slots', [
@@ -201,6 +204,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->grantPermission('lessonPackages.view');
 
         $lp = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Пакет',
             'schedule_type' => 'fixed',
             'duration_days' => 30,
@@ -234,6 +238,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
         $lp = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Пакет',
             'schedule_type' => 'no_schedule',
             'duration_days' => 30,
@@ -258,6 +263,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
         $lp = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Пакет',
             'schedule_type' => 'fixed',
             'duration_days' => 30,
@@ -297,6 +303,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('lesson_packages', [
             'id' => $lp->id,
+            'partner_id' => $this->partner->id,
             'name' => 'Пакет (обновлён)',
             'duration_days' => 60,
             'lessons_count' => 12,
@@ -412,6 +419,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->grantPermission('lessonPackages.view');
 
         LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Пакет',
             'schedule_type' => 'no_schedule',
             'duration_days' => 30,
@@ -434,6 +442,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
         $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Пакет 8',
             'schedule_type' => 'no_schedule',
             'duration_days' => 30,
@@ -447,23 +456,26 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->post(route('admin.lesson-packages.assignments.store'), [
             'user_id' => $this->user->id,
             'lesson_package_id' => $package->id,
-            'starts_at' => '2026-04-01',
+            'fee_amount' => '100.00',
         ])->assertRedirect(route('admin.lesson-packages.assignments'));
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'user_id' => $this->user->id,
             'lesson_package_id' => $package->id,
-            'starts_at' => '2026-04-01',
-            'ends_at' => '2026-05-01',
+            'starts_at' => null,
+            'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
+            'fee_amount' => '100.00',
+            'is_paid' => 0,
         ]);
     }
 
-    public function test_store_assignment_flexible_saves_slots_when_provided(): void
+    public function test_store_assignment_flexible_creates_without_assignment_time_slots(): void
     {
         $this->grantPermission('lessonPackages.view');
         $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Гибкий',
             'schedule_type' => 'flexible',
             'duration_days' => 60,
@@ -477,27 +489,14 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->post(route('admin.lesson-packages.assignments.store'), [
             'user_id' => $this->user->id,
             'lesson_package_id' => $package->id,
-            'starts_at' => '2026-04-01',
-            'time_slots' => [
-                ['weekday' => 1, 'time_start' => '18:00', 'time_end' => '19:00'],
-                ['weekday' => 3, 'time_start' => '17:00', 'time_end' => '18:00'],
-            ],
+            'fee_amount' => '100.00',
         ])->assertRedirect(route('admin.lesson-packages.assignments'));
 
         $ulpId = (int) UserLessonPackage::query()->where('lesson_package_id', $package->id)->value('id');
         $this->assertGreaterThan(0, $ulpId);
 
-        $this->assertDatabaseHas('user_lesson_package_time_slots', [
+        $this->assertDatabaseMissing('user_lesson_package_time_slots', [
             'user_lesson_package_id' => $ulpId,
-            'weekday' => 1,
-            'time_start' => '18:00:00',
-            'time_end' => '19:00:00',
-        ]);
-        $this->assertDatabaseHas('user_lesson_package_time_slots', [
-            'user_lesson_package_id' => $ulpId,
-            'weekday' => 3,
-            'time_start' => '17:00:00',
-            'time_end' => '18:00:00',
         ]);
     }
 
@@ -505,6 +504,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
         $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Фикс',
             'schedule_type' => 'fixed',
             'duration_days' => 30,
@@ -518,7 +518,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->post(route('admin.lesson-packages.assignments.store'), [
             'user_id' => $this->user->id,
             'lesson_package_id' => $package->id,
-            'starts_at' => '2026-04-01',
+            'fee_amount' => '100.00',
             'time_slots' => [
                 ['weekday' => 1, 'time_start' => '18:00', 'time_end' => '19:00'],
             ],
@@ -554,6 +554,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
         $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Пакет 8',
             'schedule_type' => 'no_schedule',
             'duration_days' => 30,
@@ -567,7 +568,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->post(route('admin.lesson-packages.assignments.store'), [
             'user_id' => $this->user->id,
             'lesson_package_id' => $package->id,
-            'starts_at' => '2026-04-01',
+            'fee_amount' => '100.00',
         ])->assertStatus(403);
     }
 
@@ -587,6 +588,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
 
         // store: web-форма делает redirect → проверяем финальный 200 через followRedirects
         $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Админ пакет 8',
             'schedule_type' => 'no_schedule',
             'duration_days' => 30,
@@ -600,7 +602,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->post(route('admin.lesson-packages.assignments.store'), [
             'user_id' => $this->user->id,
             'lesson_package_id' => $package->id,
-            'starts_at' => '2026-04-01',
+            'fee_amount' => '100.00',
         ])->assertRedirect(route('admin.lesson-packages.assignments'));
 
         // финальная страница после redirect должна открываться (200)
@@ -612,6 +614,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_can_create_freeze_for_fixed_slot_and_prevent_duplicate(): void
     {
         $lp = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Фикс',
             'schedule_type' => 'fixed',
             'duration_days' => 30,
@@ -665,6 +668,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_can_create_freeze_for_flexible_slot_and_prevent_duplicate(): void
     {
         $lp = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Гибкий',
             'schedule_type' => 'flexible',
             'duration_days' => 30,
@@ -712,6 +716,83 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'user_lesson_package_time_slot_id' => $slot->id,
             'created_by' => $this->user->id,
         ]);
+    }
+
+    public function test_destroy_removes_package_when_no_assignments(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $lp = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'На удаление',
+            'schedule_type' => 'no_schedule',
+            'duration_days' => 30,
+            'lessons_count' => 1,
+            'price_cents' => 100,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $this->deleteJson(route('admin.lesson-packages.destroy', ['lessonPackage' => $lp->id]))
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->assertDatabaseMissing('lesson_packages', ['id' => $lp->id]);
+    }
+
+    public function test_destroy_denied_when_partner_assignment_exists(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $lp = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'С назначением',
+            'schedule_type' => 'no_schedule',
+            'duration_days' => 30,
+            'lessons_count' => 8,
+            'price_cents' => 10000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        UserLessonPackage::query()->create([
+            'user_id' => $this->user->id,
+            'lesson_package_id' => $lp->id,
+            'starts_at' => '2026-04-01',
+            'ends_at' => '2026-05-01',
+            'lessons_total' => 8,
+            'lessons_remaining' => 8,
+            'fee_amount' => '100.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->deleteJson(route('admin.lesson-packages.destroy', ['lessonPackage' => $lp->id]))
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('lesson_packages', ['id' => $lp->id]);
+    }
+
+    public function test_show_returns_404_for_foreign_partner_package(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $lp = LessonPackage::query()->create([
+            'partner_id' => $this->foreignPartner->id,
+            'name' => 'Чужой пакет',
+            'schedule_type' => 'no_schedule',
+            'duration_days' => 30,
+            'lessons_count' => 1,
+            'price_cents' => 100,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $this->getJson(route('admin.lesson-packages.show', ['lessonPackage' => $lp->id]))
+            ->assertNotFound();
     }
 }
 

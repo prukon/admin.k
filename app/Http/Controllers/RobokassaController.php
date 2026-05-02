@@ -11,6 +11,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
 use App\Models\UserCustomPayment;
+use App\Models\UserLessonPackage;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
@@ -216,6 +217,20 @@ class RobokassaController extends Controller
                         ->update(['is_paid' => 1]);
                 } else {
                     Log::warning('Robokassa result: custom_payment_fee without user_period_price_id in payable.meta', [
+                        'InvId' => $invId,
+                        'payable_id' => $payable->id,
+                        'meta' => $payable->meta,
+                    ]);
+                }
+            } elseif ((string) $payable->type === 'lesson_package_fee') {
+                $ulpId = $payable->meta['user_lesson_package_id'] ?? null;
+                $ulpInt = is_numeric($ulpId) ? (int) $ulpId : 0;
+                if ($ulpInt > 0) {
+                    UserLessonPackage::query()
+                        ->whereKey($ulpInt)
+                        ->update(['is_paid' => true]);
+                } else {
+                    Log::warning('Robokassa result: lesson_package_fee without user_lesson_package_id in payable.meta', [
                         'InvId' => $invId,
                         'payable_id' => $payable->id,
                         'meta' => $payable->meta,

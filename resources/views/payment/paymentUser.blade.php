@@ -263,6 +263,7 @@
                         <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
                         <input type="hidden" name="payment_kind" value="{{ $paymentKind ?? '' }}">
                         <input type="hidden" name="custom_payment_id" value="{{ $userPeriodPriceId ?? '' }}">
+                        <input type="hidden" name="user_lesson_package_id" value="{{ $userLessonPackageId ?? '' }}">
                         <button type="submit" class="btn payment-btn-primary">Оплатить через СБП</button>
                     </form>
                     <div class="sbp-commission">Без комиссии</div>
@@ -285,6 +286,7 @@
                                 <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
                                 <input type="hidden" name="payment_kind" value="{{ $paymentKind ?? '' }}">
                                 <input type="hidden" name="custom_payment_id" value="{{ $userPeriodPriceId ?? '' }}">
+                                <input type="hidden" name="user_lesson_package_id" value="{{ $userLessonPackageId ?? '' }}">
                                 <button type="submit" class="btn payment-btn-secondary">Оплатить картой</button>
                             </form>
                             <div class="pay-fee">Без комиссии</div>
@@ -304,6 +306,7 @@
                                 <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
                                 <input type="hidden" name="payment_kind" value="{{ $paymentKind ?? '' }}">
                                 <input type="hidden" name="custom_payment_id" value="{{ $userPeriodPriceId ?? '' }}">
+                                <input type="hidden" name="user_lesson_package_id" value="{{ $userLessonPackageId ?? '' }}">
                                 <button type="submit" class="btn payment-btn-secondary">Оплатить</button>
                             </form>
                             <div class="pay-fee">Комиссия: показывается банком</div>

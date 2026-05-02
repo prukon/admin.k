@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Абонементы: назначение и период с календаря школы</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="./index.html">← К списку разделов</a></p>
+  <h1>Абонементы (lesson packages): назначение ученику и даты периода</h1>
+
+  <div class="note">
+    Запись <code>user_lesson_packages</code> — полноценная бизнес-сущность сразу после создания на странице «Назначение абонементов». Поля <code>starts_at</code> и <code>ends_at</code> могут быть <strong>NULL</strong> до первой привязки к календарю расписания школы.
+  </div>
+
+  <h2>Правило периода</h2>
+  <p>При <strong>первой привязке</strong> назначения к календарю (одна и та же точка для гибкого и фиксированного типа расписания шаблона):</p>
+  <ul>
+    <li><code>starts_at</code> — дата якоря привязки (дата выбранного занятия в календаре).</li>
+    <li><code>ends_at</code> — <code>starts_at</code> плюс <code>duration_days</code> из шаблона абонемента (<code>lesson_packages.duration_days</code>), по той же логике, что использовалась раньше при ручном вводе даты начала на форме назначения.</li>
+  </ul>
+  <p>Если период уже задан (обе даты не NULL), повторно через этот механизм он не перезаписывается. Для фиксированного абонемента повторная привязка того же назначения к календарю блокируется, если у записи уже есть даты периода или уже есть строки в <code>user_team_schedule_slots</code>.</p>
+
+  <h2>Гибкое расписание</h2>
+  <p>Эндпоинт привязки одного занятия выставляет период при первом успешном сохранении привязки, если даты ещё были NULL.</p>
+
+  <h2>Фиксированное расписание</h2>
+  <p>В модалке календаря выбирается уже существующее назначение (<code>user_lesson_package_id</code>) без периода; затем по якорной дате и шаблону строится цепочка занятий и создаются строки <code>user_team_schedule_slots</code>. Период назначения задаётся в той же транзакции перед построением цепочки.</p>
+
+  <h2>Сервис</h2>
+  <p>Логика выставления дат инкапсулирована в <code>App\Services\UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>.</p>
+</div>
+</body>
+</html>

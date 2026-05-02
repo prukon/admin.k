@@ -43,6 +43,7 @@
                                             data-schedule-type="{{ $p->schedule_type }}"
                                             data-duration-days="{{ $p->duration_days }}"
                                             data-lessons-count="{{ $p->lessons_count }}"
+                                            data-price-cents="{{ (int) ($p->price_cents ?? 0) }}"
                                         {{ (int)old('lesson_package_id') === (int)$p->id ? 'selected' : '' }}>
                                         {{ $p->name }}
                                     </option>
@@ -54,13 +55,17 @@
                         </div>
 
                         <div class="col-12 col-md-2">
-                            <label class="form-label">Дата начала *</label>
-                            <input type="date"
-                                   name="starts_at"
-                                   value="{{ old('starts_at', now()->format('Y-m-d')) }}"
-                                   class="form-control @error('starts_at') is-invalid @enderror"
+                            <label class="form-label">Стоимость *</label>
+                            <input type="number"
+                                   name="fee_amount"
+                                   id="ulp_fee_amount"
+                                   step="0.01"
+                                   min="0"
+                                   max="999999.99"
+                                   value="{{ old('fee_amount') }}"
+                                   class="form-control @error('fee_amount') is-invalid @enderror"
                                    required>
-                            @error('starts_at')
+                            @error('fee_amount')
                             <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
@@ -69,80 +74,6 @@
                             <button type="submit" class="btn btn-primary w-100">
                                 Назначить
                             </button>
-                        </div>
-                    </div>
-
-                    <div class="mt-3" id="ulp-flexible-slots">
-                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                            <div class="text-muted">
-                                Слоты назначения (только для гибких абонементов). Можно оставить пустым.
-                            </div>
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="ulp-add-slot">
-                                Добавить слот
-                            </button>
-                        </div>
-
-                        @error('time_slots')
-                        <div class="text-danger mt-2">{{ $message }}</div>
-                        @enderror
-
-                        @php
-                            $oldSlots = old('time_slots');
-                            $slots = is_array($oldSlots) ? $oldSlots : [];
-                        @endphp
-
-                        <div class="table-responsive mt-2">
-                            <table class="table table-bordered align-middle" id="ulp-slots-table">
-                                <thead>
-                                <tr>
-                                    <th style="width: 140px;">День</th>
-                                    <th style="width: 160px;">Начало</th>
-                                    <th style="width: 160px;">Окончание</th>
-                                    <th style="width: 80px;"></th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                @foreach ($slots as $i => $slot)
-                                    <tr>
-                                        <td>
-                                            <select name="time_slots[{{ $i }}][weekday]"
-                                                    class="form-select @error("time_slots.$i.weekday") is-invalid @enderror">
-                                                <option value="">—</option>
-                                                @foreach ($weekdays as $k => $label)
-                                                    <option value="{{ $k }}" {{ (int)($slot['weekday'] ?? 0) === (int)$k ? 'selected' : '' }}>
-                                                        {{ $label }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                            @error("time_slots.$i.weekday")
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
-                                        </td>
-                                        <td>
-                                            <input type="time"
-                                                   name="time_slots[{{ $i }}][time_start]"
-                                                   value="{{ $slot['time_start'] ?? '' }}"
-                                                   class="form-control @error("time_slots.$i.time_start") is-invalid @enderror">
-                                            @error("time_slots.$i.time_start")
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
-                                        </td>
-                                        <td>
-                                            <input type="time"
-                                                   name="time_slots[{{ $i }}][time_end]"
-                                                   value="{{ $slot['time_end'] ?? '' }}"
-                                                   class="form-control @error("time_slots.$i.time_end") is-invalid @enderror">
-                                            @error("time_slots.$i.time_end")
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
-                                        </td>
-                                        <td class="text-center">
-                                            <button type="button" class="btn btn-outline-danger btn-sm ulp-remove-slot">×</button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </form>
@@ -154,37 +85,140 @@
         <table class="table table-striped table-bordered align-middle w-100">
             <thead>
             <tr>
-                <th>#</th>
                 <th>Ученик</th>
                 <th>Абонемент</th>
                 <th>Период</th>
+                <th>Сумма</th>
+                <th>Оплачен</th>
                 <th>Остаток</th>
                 <th>Тип</th>
+                @can('lessonPackages.view')
+                    <th class="text-start" style="min-width: 200px;">Действия</th>
+                @endcan
             </tr>
             </thead>
             <tbody>
             @forelse ($assignments as $a)
                 <tr>
-                    <td class="text-center">{{ $a->id }}</td>
                     <td>{{ trim(($a->user->lastname ?? '').' '.($a->user->name ?? '')) }}</td>
                     <td>{{ $a->lessonPackage->name ?? '—' }}</td>
                     <td class="text-center">
-                        {{ $a->starts_at?->locale('ru')->isoFormat('D MMMM YYYY') }} - {{ $a->ends_at?->locale('ru')->isoFormat('D MMMM YYYY') }}
+                        @if ($a->starts_at && $a->ends_at)
+                            {{ $a->starts_at->locale('ru')->isoFormat('D MMMM YYYY') }}
+                            —
+                            {{ $a->ends_at->locale('ru')->isoFormat('D MMMM YYYY') }}
+                        @else
+                            —
+                        @endif
+                    </td>
+                    <td class="text-center">{{ (int) round((float) ($a->fee_amount ?? 0)) }}</td>
+                    <td class="text-center">
+                        {{ $a->effective_is_paid ? 'да' : 'нет' }}
+                        @if ($a->is_manual_paid !== null)
+                            <div class="small text-muted">руч.</div>
+                        @endif
                     </td>
                     <td class="text-center">{{ $a->lessons_remaining }} / {{ $a->lessons_total }}</td>
                     <td class="text-center">
-                        @php $t = (string)($a->lessonPackage->schedule_type ?? ''); @endphp
-                        @if ($t === 'fixed') фикс @elseif($t === 'flexible') гибк @else без @endif
+                        @php
+                            $t = (string) ($a->lessonPackage->schedule_type ?? '');
+                            echo match ($t) {
+                                'fixed' => 'Фиксированное расписание',
+                                'flexible' => 'Гибкий абонемент',
+                                default => 'Без расписания',
+                            };
+                        @endphp
                     </td>
+                    @can('lessonPackages.view')
+                        <td class="text-start text-nowrap">
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-primary js-ulp-assignment-edit"
+                                    data-assignment-id="{{ (int) $a->id }}">
+                                Изменить
+                            </button>
+                            @if ((int) $a->lessons_remaining === (int) $a->lessons_total)
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger ms-1 js-ulp-assignment-delete"
+                                        data-assignment-id="{{ (int) $a->id }}">
+                                    Удалить
+                                </button>
+                            @endif
+                        </td>
+                    @endcan
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="text-center text-muted">Назначений пока нет.</td>
+                    <td colspan="{{ auth()->user()?->can('lessonPackages.view') ? 8 : 7 }}" class="text-center text-muted">Назначений пока нет.</td>
                 </tr>
             @endforelse
             </tbody>
         </table>
     </div>
+
+    @can('lessonPackages.view')
+        <div class="modal fade" id="ulpAssignmentEditModal" tabindex="-1" aria-labelledby="ulpAssignmentEditModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 440px;">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h5 class="modal-title fs-6" id="ulpAssignmentEditModalLabel">Изменение абонемента</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body py-2 px-3">
+                        <div id="ulp-modal-alert" class="alert alert-danger py-2 px-2 small d-none" role="alert"></div>
+
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label small text-muted mb-0">Ученик</label>
+                                <input type="text" class="form-control form-control-sm" id="ulp-modal-user" disabled readonly>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small text-muted mb-0">Абонемент</label>
+                                <input type="text" class="form-control form-control-sm" id="ulp-modal-package" disabled readonly>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small text-muted mb-0">Период</label>
+                                <input type="text" class="form-control form-control-sm" id="ulp-modal-period" disabled readonly>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-0">Остаток занятий</label>
+                                <input type="text" class="form-control form-control-sm" id="ulp-modal-balance" disabled readonly>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-0">Тип расписания</label>
+                                <input type="text" class="form-control form-control-sm" id="ulp-modal-sched-type" disabled readonly>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small mb-0" for="ulp-modal-fee">Стоимость для ученика</label>
+                                <input type="number" class="form-control form-control-sm" id="ulp-modal-fee" step="0.01" min="0" max="999999.99">
+                                <div class="invalid-feedback d-block" id="ulp-modal-fee-err"></div>
+                            </div>
+                        </div>
+
+                        @can('lessonPackages.manualPaid.manage')
+                            <div class="mt-2 pt-2 border-top">
+                                <label class="form-label small mb-0" for="ulp-modal-payment-status">Статус оплаты</label>
+                                <select class="form-select form-select-sm" id="ulp-modal-payment-status">
+                                    <option value="paid">Оплачено</option>
+                                    <option value="unpaid">Не оплачено</option>
+                                </select>
+                                <div id="ulp-modal-payment-comment-wrap" class="mt-2 d-none">
+                                    <label class="form-label small mb-0" for="ulp-modal-payment-comment">Комментарий <span class="text-danger">*</span></label>
+                                    <textarea class="form-control form-control-sm" id="ulp-modal-payment-comment" rows="2" maxlength="5000"
+                                              placeholder="Обязательно при смене статуса оплаты"></textarea>
+                                    <div class="invalid-feedback d-block" id="ulp-modal-payment-comment-err"></div>
+                                </div>
+                                <div id="ulp-modal-manual-meta" class="small text-muted mt-2"></div>
+                            </div>
+                        @endcan
+                    </div>
+                    <div class="modal-footer py-2 px-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="button" class="btn btn-sm btn-primary" id="ulp-modal-save">Сохранить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endcan
 
     <div class="d-flex justify-content-center">
         {{ $assignments->links() }}
@@ -196,56 +230,22 @@
     <script>
         (function () {
             const scheduleSelect = document.getElementById('ulp_lesson_package_id');
-            const flexibleBlock = document.getElementById('ulp-flexible-slots');
-            const addSlotBtn = document.getElementById('ulp-add-slot');
-            const tbody = document.querySelector('#ulp-slots-table tbody');
+            const feeInput = document.getElementById('ulp_fee_amount');
+            const hadOldFee = @json(old('fee_amount') !== null && old('fee_amount') !== '');
 
-            function toggleFlexible() {
+            function syncFeeFromSelectedPackage() {
+                if (!feeInput || !scheduleSelect) return;
                 const opt = scheduleSelect.options[scheduleSelect.selectedIndex];
-                const type = opt ? (opt.getAttribute('data-schedule-type') || '') : '';
-                flexibleBlock.style.display = (type === 'flexible') ? '' : 'none';
+                const cents = opt ? parseInt(opt.getAttribute('data-price-cents') || '0', 10) : 0;
+                if (!isNaN(cents) && cents >= 0) {
+                    feeInput.value = (cents / 100).toFixed(2);
+                }
             }
 
-            function nextIndex() {
-                return tbody.querySelectorAll('tr').length;
+            scheduleSelect?.addEventListener('change', syncFeeFromSelectedPackage);
+            if (!hadOldFee && feeInput && String(feeInput.value).trim() === '') {
+                syncFeeFromSelectedPackage();
             }
-
-            function buildSlotRow(i) {
-                const weekdays = @json($weekdays);
-                const weekdayOptions = ['<option value="">—</option>'].concat(Object.keys(weekdays).map(function (k) {
-                    return '<option value="' + k + '">' + weekdays[k] + '</option>';
-                })).join('');
-
-                const tr = document.createElement('tr');
-                tr.innerHTML =
-                    '<td>' +
-                    '  <select name="time_slots[' + i + '][weekday]" class="form-select">' + weekdayOptions + '</select>' +
-                    '</td>' +
-                    '<td>' +
-                    '  <input type="time" name="time_slots[' + i + '][time_start]" class="form-control">' +
-                    '</td>' +
-                    '<td>' +
-                    '  <input type="time" name="time_slots[' + i + '][time_end]" class="form-control">' +
-                    '</td>' +
-                    '<td class="text-center">' +
-                    '  <button type="button" class="btn btn-outline-danger btn-sm ulp-remove-slot">×</button>' +
-                    '</td>';
-                return tr;
-            }
-
-            addSlotBtn?.addEventListener('click', function () {
-                const i = nextIndex();
-                tbody.appendChild(buildSlotRow(i));
-            });
-
-            tbody?.addEventListener('click', function (e) {
-                const btn = e.target.closest('.ulp-remove-slot');
-                if (!btn) return;
-                btn.closest('tr')?.remove();
-            });
-
-            scheduleSelect?.addEventListener('change', toggleFlexible);
-            toggleFlexible();
         })();
     </script>
 
@@ -279,5 +279,198 @@
             }
         });
     </script>
+
+    @can('lessonPackages.view')
+        <script>
+            (function () {
+                const assignmentsBase = @json(rtrim(route('admin.lesson-packages.assignments'), '/'));
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const modalEl = document.getElementById('ulpAssignmentEditModal');
+                if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+                    return;
+                }
+                const modal = new bootstrap.Modal(modalEl);
+                let currentId = null;
+
+                const alertBox = document.getElementById('ulp-modal-alert');
+                const feeErr = document.getElementById('ulp-modal-fee-err');
+                const paymentCommentErr = document.getElementById('ulp-modal-payment-comment-err');
+                const paymentStatusSel = document.getElementById('ulp-modal-payment-status');
+                const paymentCommentEl = document.getElementById('ulp-modal-payment-comment');
+                const paymentCommentWrap = document.getElementById('ulp-modal-payment-comment-wrap');
+
+                function showErr(msg) {
+                    if (!alertBox) return;
+                    alertBox.textContent = msg || '';
+                    alertBox.classList.toggle('d-none', !msg);
+                }
+
+                function clearErrors() {
+                    showErr('');
+                    if (feeErr) feeErr.textContent = '';
+                    if (paymentCommentErr) paymentCommentErr.textContent = '';
+                }
+
+                function syncPaymentCommentVisibility() {
+                    if (!paymentStatusSel || !paymentCommentWrap) return;
+                    const initial = paymentStatusSel.dataset.initial || '';
+                    const changed = paymentStatusSel.value !== initial;
+                    paymentCommentWrap.classList.toggle('d-none', !changed);
+                    if (!changed && paymentCommentEl) {
+                        paymentCommentEl.value = '';
+                    }
+                }
+
+                function fillModal(data) {
+                    const a = data.assignment;
+                    currentId = String(a.id);
+                    document.getElementById('ulp-modal-user').value = a.user_display || '';
+                    document.getElementById('ulp-modal-package').value = a.lesson_package_name || '';
+                    document.getElementById('ulp-modal-period').value = a.period_display || '';
+                    document.getElementById('ulp-modal-balance').value =
+                        String(a.lessons_remaining) + ' / ' + String(a.lessons_total);
+                    document.getElementById('ulp-modal-sched-type').value = a.schedule_type_label || '';
+
+                    const feeInput = document.getElementById('ulp-modal-fee');
+                    const saveBtn = document.getElementById('ulp-modal-save');
+                    feeInput.value = a.fee_amount || '';
+                    feeInput.disabled = !a.fee_editable;
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                    }
+
+                    const metaEl = document.getElementById('ulp-modal-manual-meta');
+                    if (metaEl) {
+                        const parts = [];
+                        if (a.manual_paid_note) {
+                            parts.push('Последний комментарий: ' + a.manual_paid_note);
+                        }
+                        if (a.manual_paid_at) {
+                            parts.push('Когда: ' + a.manual_paid_at);
+                        }
+                        if (a.manual_paid_by_display) {
+                            parts.push('Кем: ' + a.manual_paid_by_display);
+                        }
+                        metaEl.textContent = parts.length ? parts.join(' · ') : '';
+                    }
+
+                    if (paymentStatusSel) {
+                        const init = a.effective_is_paid ? 'paid' : 'unpaid';
+                        paymentStatusSel.value = init;
+                        paymentStatusSel.dataset.initial = init;
+                        paymentStatusSel.disabled = false;
+                    }
+                    if (paymentCommentEl) {
+                        paymentCommentEl.value = '';
+                    }
+                    syncPaymentCommentVisibility();
+                }
+
+                paymentStatusSel?.addEventListener('change', syncPaymentCommentVisibility);
+
+                async function fetchJson(url, options) {
+                    const headers = Object.assign({
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf,
+                    }, options.headers || {});
+                    if (options.body && !(options.body instanceof FormData) && !headers['Content-Type']) {
+                        headers['Content-Type'] = 'application/json';
+                    }
+                    const r = await fetch(url, Object.assign({ credentials: 'same-origin' }, options, { headers: headers }));
+                    const ct = r.headers.get('content-type') || '';
+                    const payload = ct.includes('application/json') ? await r.json() : {};
+                    return { ok: r.ok, status: r.status, payload: payload };
+                }
+
+                document.querySelectorAll('.js-ulp-assignment-edit').forEach(function (btn) {
+                    btn.addEventListener('click', async function () {
+                        const id = btn.getAttribute('data-assignment-id');
+                        if (!id) return;
+                        clearErrors();
+                        try {
+                            const { ok, status, payload } = await fetchJson(assignmentsBase + '/' + id, { method: 'GET' });
+                            if (!ok) {
+                                showErr((payload && payload.message) || ('Ошибка загрузки (' + status + ')'));
+                                modal.show();
+                                return;
+                            }
+                            fillModal(payload);
+                            modal.show();
+                        } catch (e) {
+                            showErr('Не удалось загрузить назначение.');
+                            modal.show();
+                        }
+                    });
+                });
+
+                document.getElementById('ulp-modal-save')?.addEventListener('click', async function () {
+                    if (!currentId) return;
+                    clearErrors();
+                    const feeInput = document.getElementById('ulp-modal-fee');
+                    const body = { fee_amount: feeInput.value };
+
+                    if (paymentStatusSel) {
+                        body.payment_status = paymentStatusSel.value;
+                        const initial = paymentStatusSel.dataset.initial || '';
+                        if (paymentStatusSel.value !== initial) {
+                            body.payment_comment = paymentCommentEl ? paymentCommentEl.value.trim() : '';
+                        }
+                    }
+
+                    const { ok, status, payload } = await fetchJson(assignmentsBase + '/' + currentId, {
+                        method: 'PUT',
+                        body: JSON.stringify(body),
+                    });
+                    if (!ok) {
+                        if (payload.errors && payload.errors.fee_amount) {
+                            feeErr.textContent = Array.isArray(payload.errors.fee_amount)
+                                ? payload.errors.fee_amount[0]
+                                : String(payload.errors.fee_amount);
+                        }
+                        if (payload.errors && payload.errors.payment_comment && paymentCommentErr) {
+                            paymentCommentErr.textContent = Array.isArray(payload.errors.payment_comment)
+                                ? payload.errors.payment_comment[0]
+                                : String(payload.errors.payment_comment);
+                        }
+                        if (payload.errors && payload.errors.payment_status) {
+                            const ps = Array.isArray(payload.errors.payment_status)
+                                ? payload.errors.payment_status[0]
+                                : String(payload.errors.payment_status);
+                            if (paymentCommentErr) {
+                                paymentCommentErr.textContent = ps;
+                            } else {
+                                showErr(ps);
+                            }
+                        }
+                        if (!payload.errors || (!payload.errors.fee_amount && !payload.errors.payment_comment && !payload.errors.payment_status)) {
+                            showErr((payload && payload.message) || ('Не удалось сохранить (' + status + ')'));
+                        }
+                        return;
+                    }
+                    window.location.reload();
+                });
+
+                document.querySelectorAll('.js-ulp-assignment-delete').forEach(function (btn) {
+                    btn.addEventListener('click', async function () {
+                        const id = btn.getAttribute('data-assignment-id');
+                        if (!id || !confirm('Удалить это назначение абонемента? Связанные слоты и заморозки будут удалены.')) {
+                            return;
+                        }
+                        const { ok, payload } = await fetchJson(assignmentsBase + '/' + id, { method: 'DELETE' });
+                        if (!ok) {
+                            alert((payload && payload.message) || 'Не удалось удалить.');
+                            return;
+                        }
+                        window.location.reload();
+                    });
+                });
+
+                modalEl.addEventListener('hidden.bs.modal', function () {
+                    clearErrors();
+                });
+            })();
+        </script>
+    @endcan
 @endsection
 

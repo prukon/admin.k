@@ -102,6 +102,7 @@ final class LessonPackageSchoolScheduleFeatureTest extends CrmTestCase
         ]);
 
         $flexA = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Гибкий А',
             'schedule_type' => 'flexible',
             'duration_days' => 60,
@@ -113,6 +114,7 @@ final class LessonPackageSchoolScheduleFeatureTest extends CrmTestCase
         ]);
 
         $flexB = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Гибкий Б',
             'schedule_type' => 'flexible',
             'duration_days' => 30,
@@ -124,6 +126,7 @@ final class LessonPackageSchoolScheduleFeatureTest extends CrmTestCase
         ]);
 
         $fixedPkg = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
             'name' => 'Фикс только',
             'schedule_type' => 'fixed',
             'duration_days' => 30,

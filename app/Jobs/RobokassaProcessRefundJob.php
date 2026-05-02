@@ -7,6 +7,7 @@ use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\Refund;
 use App\Models\UserCustomPayment;
+use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Services\Robokassa\RobokassaRefundService;
 use Illuminate\Bus\Queueable;
@@ -177,6 +178,21 @@ class RobokassaProcessRefundJob implements ShouldQueue
                     ->update(['is_paid' => 0]);
             } else {
                 Log::warning('Refund succeeded but user_period_price_id missing in payable.meta', [
+                    'refund_id' => $refund->id,
+                    'payable_id' => $payable->id,
+                    'meta' => $payable->meta,
+                ]);
+            }
+        } elseif ((string) $payable->type === 'lesson_package_fee') {
+            $ulpId = $payable->meta['user_lesson_package_id'] ?? null;
+            $ulpInt = is_numeric($ulpId) ? (int) $ulpId : 0;
+
+            if ($ulpInt > 0) {
+                UserLessonPackage::query()
+                    ->whereKey($ulpInt)
+                    ->update(['is_paid' => false]);
+            } else {
+                Log::warning('Refund succeeded but user_lesson_package_id missing in payable.meta', [
                     'refund_id' => $refund->id,
                     'payable_id' => $payable->id,
                     'meta' => $payable->meta,

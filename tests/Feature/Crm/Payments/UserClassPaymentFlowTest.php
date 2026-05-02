@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Crm\Payments;
 
+use App\Models\LessonPackage;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\Payable;
+use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Models\UserCustomPayment;
 use Illuminate\Support\Facades\DB;
@@ -330,7 +332,6 @@ class UserClassPaymentFlowTest extends CrmTestCase
             'payment_kind' => 'custom_payment',
             'custom_payment_id' => $upp->id,
             'paymentDate' => 'Дополнительный платеж',
-            'outSum' => '1.00',
         ]);
 
         $response->assertRedirect();
@@ -342,6 +343,132 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->assertNotNull($payable);
         $this->assertSame('custom_payment_fee', (string) $payable->type);
         $this->assertSame((int) $upp->id, (int) ($payable->meta['user_period_price_id'] ?? 0));
+    }
+
+    private function seedLessonPackageAssignment(float $feeAmount): UserLessonPackage
+    {
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'ULP payment flow',
+            'schedule_type' => 'no_schedule',
+            'duration_days' => 30,
+            'lessons_count' => 8,
+            'price_cents' => 10000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        return UserLessonPackage::query()->create([
+            'user_id' => $this->user->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => '2026-04-01',
+            'ends_at' => '2026-05-01',
+            'lessons_total' => 8,
+            'lessons_remaining' => 8,
+            'fee_amount' => number_format($feeAmount, 2, '.', ''),
+            'is_paid' => false,
+        ]);
+    }
+
+    public function test_payment_index_ignores_request_out_sum_for_lesson_package(): void
+    {
+        $ulp = $this->seedLessonPackageAssignment(444.0);
+
+        $response = $this->post(route('payment'), [
+            'payment_kind' => 'lesson_package',
+            'user_lesson_package_id' => $ulp->id,
+            'paymentDate' => 'ignored label',
+            'outSum' => '1.00',
+        ]);
+
+        $response->assertOk();
+        $response->assertViewHas('outSum', '444.00');
+        $response->assertViewHas('paymentKind', 'lesson_package');
+        $response->assertViewHas('userLessonPackageId', (int) $ulp->id);
+    }
+
+    /**
+     * T‑Bank (карта): для lesson_package Init без outSum в запросе — Amount из fee_amount.
+     */
+    public function test_tinkoff_card_init_lesson_package_without_out_sum_uses_fee_amount(): void
+    {
+        $this->grantTbankCardPermission();
+
+        $this->partner->tinkoff_partner_id = 'SHOP-TEST';
+        $this->partner->save();
+
+        PaymentSystem::create([
+            'partner_id' => $this->partner->id,
+            'name' => 'tbank',
+            'test_mode' => 1,
+            'is_enabled' => true,
+            'settings' => [
+                'terminal_key' => 'TERM_TEST',
+                'token_password' => 'PWD_TEST',
+                'e2c_terminal_key' => 'E2C_TERM',
+                'e2c_token_password' => 'E2C_PWD',
+            ],
+        ]);
+
+        $ulp = $this->seedLessonPackageAssignment(612.5);
+
+        $capturedAmount = null;
+        Http::fake(function ($request) use (&$capturedAmount) {
+            if (str_contains($request->url(), '/v2/Init')) {
+                $capturedAmount = $request->data()['Amount'] ?? null;
+
+                return Http::response([
+                    'Success' => true,
+                    'PaymentId' => 888003,
+                    'PaymentURL' => 'https://example.test/pay-ulp',
+                ], 200);
+            }
+
+            return Http::response(['Success' => false], 500);
+        });
+
+        $response = $this->post(route('payment.tinkoff.pay'), [
+            'payment_kind' => 'lesson_package',
+            'user_lesson_package_id' => $ulp->id,
+            'paymentDate' => 'ignored',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertSame(61250, (int) $capturedAmount);
+
+        $payable = Payable::query()->latest('id')->first();
+        $this->assertNotNull($payable);
+        $this->assertSame('lesson_package_fee', (string) $payable->type);
+        $this->assertSame((int) $ulp->id, (int) ($payable->meta['user_lesson_package_id'] ?? 0));
+        $this->assertSame('612.50', (string) $payable->amount);
+    }
+
+    /**
+     * Robokassa: для lesson_package сумма в редиректе из fee_amount, не из POST.
+     */
+    public function test_robokassa_pay_lesson_package_redirect_uses_fee_amount_from_db(): void
+    {
+        $this->grantRobokassaPaymentPermission();
+
+        PaymentSystem::factory()
+            ->robokassa()
+            ->create(['partner_id' => $this->partner->id]);
+
+        $ulp = $this->seedLessonPackageAssignment(888.0);
+
+        $response = $this->post(route('payment.pay'), [
+            'payment_kind' => 'lesson_package',
+            'user_lesson_package_id' => $ulp->id,
+            'paymentDate' => 'ignored',
+            'outSum' => '1.00',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertStringContainsString('OutSum=888.00', $response->headers->get('Location') ?? '');
+        $intent = PaymentIntent::query()->latest('id')->first();
+        $this->assertNotNull($intent);
+        $this->assertSame('888.00', (string) $intent->out_sum);
     }
 
     /**

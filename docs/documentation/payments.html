@@ -42,11 +42,11 @@
 
   <h3><code>payables</code> (доменная покупка)</h3>
   <ul>
-    <li><b>type</b>: <code>monthly_fee</code>, <code>club_fee</code>, <code>custom_payment_fee</code>, <code>uniform</code>, <code>camp</code></li>
+    <li><b>type</b>: <code>monthly_fee</code>, <code>club_fee</code>, <code>custom_payment_fee</code>, <code>lesson_package_fee</code>, <code>uniform</code>, <code>camp</code></li>
     <li><b>amount/currency</b>: сумма и валюта</li>
     <li><b>status</b>: <code>pending</code> → <code>paid</code> (дальше возможны refund-статусы)</li>
     <li><b>month</b> (только для <code>monthly_fee</code>): дата <code>YYYY-MM-01</code></li>
-    <li><b>meta</b>: доп. параметры (например <code>{month: "2025-09-01"}</code>, размер формы, смена лагеря…)</li>
+    <li><b>meta</b>: доп. параметры (например <code>{month: "2025-09-01"}</code>, <code>{user_period_price_id: …}</code> для доп. платежа, <code>{user_lesson_package_id: …}</code> для назначенного абонемента, размер формы, смена лагеря…)</li>
   </ul>
 
   <h3><code>payment_intents</code> (попытка оплаты у провайдера)</h3>
@@ -179,6 +179,22 @@
         <li>создаём запись в <code>payments</code> для отчётов</li>
       </ul>
     </li>
+  </ol>
+
+  <h3>3.4 Назначенный абонемент (<code>type=lesson_package_fee</code>)</h3>
+  <div class="note">
+    <b>Источник истины для суммы:</b> поле <code>user_lesson_packages.fee_amount</code> (рубли). Сумма из POST (<code>outSum</code>) не используется как источник истины.
+    <br><b>Связка:</b> в <code>payables.meta</code> хранится <code>user_lesson_package_id</code> (= <code>user_lesson_packages.id</code>).
+    <br><b>Состояние оплаты:</b> при успешном webhook выставляем <code>user_lesson_packages.is_paid = true</code>. В <code>users_prices</code> ничего не пишем.
+    <br><b>Чеки CloudKassir:</b> позиция с наименованием «Абонемент». В журнале <code>payments</code> для T‑Bank в поле <code>payment_month</code> для этого типа записывается строка «Абонемент».
+  </div>
+  <ol>
+    <li>Админ при назначении абонемента ученику задаёт <code>fee_amount</code> (и при необходимости корректирует относительно цены пакета).</li>
+    <li>С кабинета в <code>POST /payment</code> передаются <code>payment_kind=lesson_package</code> и <code>user_lesson_package_id</code>. На шаблоне оплаты те же поля уходят в формы Робокассы и T‑Bank (включая СБП).</li>
+    <li>На витрине (<code>TransactionController@index</code>) запись проверяется через <code>App\Services\Payments\UserLessonPackageFeePaymentResolver</code>: пользователь и партнёр, не оплачено, сумма &gt; 0. Если уже оплачено или сумма некорректна — <b>422</b> / <b>404</b>.</li>
+    <li>При старте оплаты создаются <code>payables.type=lesson_package_fee</code>, <code>payment_intents</code> с <code>payable_id</code>.</li>
+    <li>При успешном webhook (Robokassa ResultURL, T‑Bank уведомление) в транзакции: <code>payables</code> и intent переводятся в оплаченные, создаётся <code>payments</code>, для строки <code>user_lesson_packages</code> выставляется <code>is_paid=true</code>.</li>
+    <li>При успешном возврате (джобы <code>RobokassaProcessRefundJob</code>, <code>TinkoffProcessRefundJob</code> для соответствующего payable) для этой же строки <code>user_lesson_packages</code> сбрасывается <code>is_paid=false</code>.</li>
   </ol>
 
   <h3>3.2.1 Страница оплаты клубного взноса (<code>/payment/club-fee</code>)</h3>
