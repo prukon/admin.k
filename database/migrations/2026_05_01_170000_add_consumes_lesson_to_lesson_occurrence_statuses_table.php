@@ -9,6 +9,14 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasTable('lesson_occurrence_statuses')) {
+            return;
+        }
+
+        if (Schema::hasColumn('lesson_occurrence_statuses', 'consumes_lesson')) {
+            return;
+        }
+
         Schema::table('lesson_occurrence_statuses', function (Blueprint $table) {
             $table->boolean('consumes_lesson')->default(false)->after('is_active');
         });
@@ -20,6 +28,14 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (! Schema::hasTable('lesson_occurrence_statuses')) {
+            return;
+        }
+
+        if (! Schema::hasColumn('lesson_occurrence_statuses', 'consumes_lesson')) {
+            return;
+        }
+
         Schema::table('lesson_occurrence_statuses', function (Blueprint $table) {
             $table->dropColumn('consumes_lesson');
         });

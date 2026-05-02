@@ -10,21 +10,23 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('lesson_occurrence_statuses', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('partner_id')->constrained('partners')->cascadeOnDelete();
-            $table->string('code', 64);
-            $table->string('title');
-            $table->string('color', 7)->default('#6c757d');
-            $table->string('icon', 191)->nullable();
-            $table->unsignedSmallInteger('sort_order')->default(0);
-            $table->boolean('is_system')->default(false);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
+        if (! Schema::hasTable('lesson_occurrence_statuses')) {
+            Schema::create('lesson_occurrence_statuses', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('partner_id')->constrained('partners')->cascadeOnDelete();
+                $table->string('code', 64);
+                $table->string('title');
+                $table->string('color', 7)->default('#6c757d');
+                $table->string('icon', 191)->nullable();
+                $table->unsignedSmallInteger('sort_order')->default(0);
+                $table->boolean('is_system')->default(false);
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
 
-            $table->unique(['partner_id', 'code'], 'los_partner_code_unique');
-            $table->index(['partner_id', 'sort_order', 'id'], 'los_partner_sort_idx');
-        });
+                $table->unique(['partner_id', 'code'], 'los_partner_code_unique');
+                $table->index(['partner_id', 'sort_order', 'id'], 'los_partner_sort_idx');
+            });
+        }
 
         $partnerIds = DB::table('partners')->pluck('id');
         foreach ($partnerIds as $pid) {
