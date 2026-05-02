@@ -40,7 +40,7 @@
                             <i class="fas fa-chevron-right"></i>
                         </button>
                     </div>
-                    <button type="button" class="btn btn-link btn-sm py-0 px-1 text-nowrap" id="schoolCalToday">Сегодня</button>
+                    <button type="button" class="btn btn-link btn-sm py-0 px-1 text-nowrap d-none d-md-inline-block" id="schoolCalToday">Сегодня</button>
                 </div>
                 @can('locations.view')
                     <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
