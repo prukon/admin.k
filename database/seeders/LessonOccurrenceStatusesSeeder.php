@@ -6,6 +6,7 @@ use App\Models\LessonOccurrenceStatus;
 use App\Models\Partner;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Дефолтные системные статусы занятий + идемпотентное создание/синхронизация по партнёрам.
@@ -44,7 +45,7 @@ class LessonOccurrenceStatusesSeeder extends Seeder
                 'consumes_lesson' => true,
             ],
             [
-                'code' => 'cancelled',
+                'code' => 'cancelled',                                                                                                                                                                                              
                 'title' => 'Отмена',
                 'sort_order' => 40,
                 'color' => '#6c757d',
@@ -65,8 +66,10 @@ class LessonOccurrenceStatusesSeeder extends Seeder
     public static function ensureForPartner(int $partnerId): void
     {
         $now = now();
+        $hasConsumesLesson = Schema::hasTable('lesson_occurrence_statuses')
+            && Schema::hasColumn('lesson_occurrence_statuses', 'consumes_lesson');
 
-        DB::transaction(function () use ($partnerId, $now) {
+        DB::transaction(function () use ($partnerId, $now, $hasConsumesLesson) {
             foreach (self::systemDefinitions() as $row) {
                 $exists = LessonOccurrenceStatus::query()
                     ->where('partner_id', $partnerId)
@@ -77,19 +80,23 @@ class LessonOccurrenceStatusesSeeder extends Seeder
                     continue;
                 }
 
-                LessonOccurrenceStatus::query()->create([
+                $payload = [
                     'partner_id' => $partnerId,
                     'code' => $row['code'],
                     'title' => $row['title'],
                     'color' => $row['color'],
                     'icon' => $row['icon'],
                     'sort_order' => $row['sort_order'],
-                    'consumes_lesson' => $row['consumes_lesson'],
                     'is_system' => true,
                     'is_active' => true,
                     'created_at' => $now,
                     'updated_at' => $now,
-                ]);
+                ];
+                if ($hasConsumesLesson) {
+                    $payload['consumes_lesson'] = $row['consumes_lesson'];
+                }
+
+                LessonOccurrenceStatus::query()->create($payload);
             }
         });
     }
@@ -99,6 +106,11 @@ class LessonOccurrenceStatusesSeeder extends Seeder
      */
     public static function syncConsumesLessonFlagsFromDefinitionsForPartner(int $partnerId): void
     {
+        if (! Schema::hasTable('lesson_occurrence_statuses')
+            || ! Schema::hasColumn('lesson_occurrence_statuses', 'consumes_lesson')) {
+            return;
+        }
+
         DB::transaction(function () use ($partnerId) {
             foreach (self::systemDefinitions() as $row) {
                 LessonOccurrenceStatus::query()
