@@ -22,6 +22,7 @@ return [
         'admin' => [
             'dashboard.view',
             'reports.view',
+            'reports.payments.commission_total.view',
             'setPrices.view',
             'setPrices.customPayments.view',
             // 'schedule.view',

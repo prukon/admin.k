@@ -697,6 +697,7 @@ class PaymentReportTest extends CrmTestCase
     public function test_getPayments_commissions_and_net_to_partner_are_calculated_for_tbank_payments(): void
     {
         $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
+        $this->grantPermissionToCurrentUserRole('reports.payments.commission_total.view');
 
         // Создаём правило комиссий для текущего партнёра
         $rule = new TinkoffCommissionRule();
@@ -939,6 +940,7 @@ class PaymentReportTest extends CrmTestCase
     public function test_getPayments_latest_refund_failed_restores_commission_columns_after_older_succeeded(): void
     {
         $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
+        $this->grantPermissionToCurrentUserRole('reports.payments.commission_total.view');
 
         $rule = new TinkoffCommissionRule();
         $rule->partner_id = $this->partner->id;
@@ -1532,6 +1534,45 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
+     * (P1) Без reports.payments.commission_total.view колонка «Комиссия» и переключатель не выводятся; в JSON поле commission_total пустое.
+     */
+    public function test_payments_report_commission_total_requires_reports_payments_commission_total_permission(): void
+    {
+        $ps = new PaymentSystem();
+        $ps->partner_id = $this->partner->id;
+        $ps->name = 'tbank';
+        $ps->save();
+
+        DB::table('permission_role')->where([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->user->role_id,
+            'permission_id' => $this->permissionId('reports.payments.commission_total.view'),
+        ])->delete();
+
+        $html = $this->get(route('payments'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="payColCommissionTotal"', $html);
+        $this->assertStringNotContainsString('<th>Комиссия</th>', $html);
+
+        $payment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'summ' => 1000.00,
+            'deal_id' => 'deal-no-commission-col-perm',
+            'payment_id' => '111',
+            'payment_status' => 'CONFIRMED',
+        ]);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'));
+
+        $response->assertOk();
+        $row = collect($response->json('data') ?? [])->firstWhere('id', $payment->id);
+        $this->assertNotNull($row);
+        $this->assertNull($row['commission_total']);
+    }
+
+    /**
      * (P1) С правом reports.additional.value.view чекбоксы комиссий и статуса возврата не disabled.
      */
     public function test_payments_page_sensitive_column_toggles_enabled_with_reports_additional_value_permission(): void
@@ -1569,6 +1610,7 @@ class PaymentReportTest extends CrmTestCase
     {
         $this->grantPermissionToCurrentUserRole('viewing.all.logs');
         $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
+        $this->grantPermissionToCurrentUserRole('reports.payments.commission_total.view');
 
         $ps = new PaymentSystem();
         $ps->partner_id = $this->partner->id;
@@ -1667,6 +1709,7 @@ class PaymentReportTest extends CrmTestCase
             [
                 'viewing.all.logs',
                 'reports.additional.value.view',
+                'reports.payments.commission_total.view',
                 'reports.payments.totals.net_to_partner.view',
                 'reports.payments.totals.payout_amount.view',
                 'reports.payments.totals.platform_commission.view',

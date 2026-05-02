@@ -1,5 +1,6 @@
 @php
     $canAdditional = auth()->user() && auth()->user()->can('reports.additional.value.view');
+    $canCommissionTotal = auth()->user() && auth()->user()->can('reports.payments.commission_total.view');
     $pt = $paymentsToolbar ?? [];
     $ptSum = $pt['sum_payments_formatted'] ?? ($totalPaidPrice ?? '0');
     $canPaymentsToolbarNetToPartner = $canPaymentsToolbarNetToPartner ?? false;
@@ -170,7 +171,7 @@
                 <label class="form-check-label" for="payColReceipt">Чек</label>
             </div>
 
-            @if(!$canAdditional)
+            @if(!$canAdditional && $canCommissionTotal)
                 <div class="form-check">
                     <input class="form-check-input payments-column-toggle"
                            type="checkbox"
@@ -378,7 +379,9 @@
             <th>К выплате</th>
             <th>Выплата</th>
         @else
-            <th>Комиссия</th>
+            @if($canCommissionTotal)
+                <th>Комиссия</th>
+            @endif
             <th>Выплата</th>
         @endif
 
@@ -483,6 +486,7 @@
     <script type="text/javascript">
         $(function () {
             const canAdditional = @json($canAdditional);
+            const canCommissionTotal = @json($canCommissionTotal);
             const paymentsToolbarFlags = {
                 net: @json($canPaymentsToolbarNetToPartner),
                 payout: @json($canPaymentsToolbarPayoutAmount),
@@ -676,7 +680,7 @@
     payment_provider: true,
     payment_method_label: true,
     receipt: true,
-    commission_total: !canAdditional,
+    commission_total: !canAdditional && canCommissionTotal,
     payout_amount: true,
     net_to_partner: canAdditional,
     bank_commission_acquiring: canAdditional,
@@ -714,7 +718,7 @@
     payout_amount: 13,
     refund_action: 14,
     refund_status: 15
-} : {
+} : (canCommissionTotal ? {
     user_name: 1,
     team_title: 2,
     summ: 3,
@@ -727,7 +731,19 @@
     payout_amount: 10,
     refund_action: 11,
     refund_status: 12
-};
+} : {
+    user_name: 1,
+    team_title: 2,
+    summ: 3,
+    payment_month: 4,
+    operation_date: 5,
+    payment_provider: 6,
+    payment_method_label: 7,
+    receipt: 8,
+    payout_amount: 9,
+    refund_action: 10,
+    refund_status: 11
+});
 
             function toBool(val, fallback = true) {
                 if (val === undefined || val === null) return fallback;
@@ -1018,7 +1034,7 @@ if (canAdditional) {
     );
 }
 
-if (!canAdditional) {
+if (!canAdditional && canCommissionTotal) {
     columns.push(
         {
             data: 'commission_total',

@@ -103,6 +103,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('reports.payments.totals.platform_commission.view');
         });
 
+        // Отчёт «Платежи» — колонка «Комиссия» (сводно), режим без доп. значений
+        Gate::define('reports.payments.commission_total.view', function (User $user) {
+            return $user->hasPermission('reports.payments.commission_total.view');
+        });
+
         // Мои платежи
         Gate::define('myPayments.view', function (User $user) {
             return $user->hasPermission('myPayments.view');
