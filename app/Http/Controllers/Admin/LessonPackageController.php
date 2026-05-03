@@ -661,7 +661,14 @@ final class LessonPackageController extends AdminBaseController
             ->where('is_enabled', 1)
             ->when($q !== '', function ($query) use ($q) {
                 $like = '%'.$q.'%';
-                $query->whereRaw("CONCAT_WS(' ', lastname, name) LIKE ?", [$like]);
+                $digits = preg_replace('/\D+/', '', $q);
+                $query->where(function ($w) use ($like, $digits) {
+                    $w->whereRaw("CONCAT_WS(' ', lastname, name) LIKE ?", [$like])
+                        ->orWhereRaw("CONCAT_WS(' ', name, lastname) LIKE ?", [$like]);
+                    if ($digits !== '') {
+                        $w->orWhere('phone', 'like', '%'.$digits.'%');
+                    }
+                });
             })
             ->orderBy('lastname')
             ->orderBy('name')

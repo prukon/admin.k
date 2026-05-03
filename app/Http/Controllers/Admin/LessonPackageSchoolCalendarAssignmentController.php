@@ -14,6 +14,8 @@ use App\Models\TeamScheduleSlot;
 use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\LessonPackages\SchoolCalendarSlotUserBindActionsService;
+use App\Services\LessonPackages\SchoolCalendarTrialEligibilityService;
 use App\Services\PartnerContext;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageCalendarPeriodService;
@@ -30,8 +32,36 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         PartnerContext $partnerContext,
         private readonly TeamScheduleCalendarService $calendarService,
         private readonly UserLessonPackageCalendarPeriodService $calendarPeriodService,
+        private readonly SchoolCalendarTrialEligibilityService $trialEligibilityService,
+        private readonly SchoolCalendarSlotUserBindActionsService $slotUserBindActionsService,
     ) {
         parent::__construct($partnerContext);
+    }
+
+    /**
+     * Доступность кнопок привязки в модалке слота для выбранного ученика и даты.
+     */
+    public function slotUserBindActions(Request $request): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $userId = (int) $request->query('user_id', 0);
+        $slotId = (int) $request->query('team_schedule_slot_id', 0);
+        $occurrenceDate = trim((string) $request->query('occurrence_date', ''));
+
+        if ($userId < 1 || $slotId < 1 || $occurrenceDate === '') {
+            $r = 'Укажите ученика, слот и дату.';
+
+            return response()->json([
+                'flexible' => ['allowed' => false, 'reason' => $r],
+                'fixed' => ['allowed' => false, 'reason' => $r],
+                'single_lesson' => ['allowed' => false, 'reason' => $r],
+                'trial' => ['allowed' => false, 'reason' => $r],
+            ]);
+        }
+
+        $payload = $this->slotUserBindActionsService->evaluate($partnerId, $userId, $slotId, $occurrenceDate);
+
+        return response()->json($payload);
     }
 
     public function assignFlexible(AssignSchoolCalendarFlexibleRequest $request): JsonResponse
@@ -493,7 +523,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ], 422);
         }
 
-        $eligibility = $this->trialEligibilityPayload($partnerId, (int) $user->id, (int) $slot->id, $occurrence);
+        $eligibility = $this->trialEligibilityService->evaluate($partnerId, (int) $user->id, (int) $slot->id, $occurrence);
         if (! $eligibility['allowed']) {
             return response()->json([
                 'message' => $eligibility['reason'] ?? 'Нельзя добавить пробное занятие.',
@@ -550,89 +580,9 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ]);
         }
 
-        $payload = $this->trialEligibilityPayload($partnerId, $userId, $slotId, $occurrence);
+        $payload = $this->trialEligibilityService->evaluate($partnerId, $userId, $slotId, $occurrence);
 
         return response()->json($payload);
-    }
-
-    /**
-     * @return array{allowed: bool, reason: string|null}
-     */
-    private function trialEligibilityPayload(int $partnerId, int $userId, int $slotId, CarbonImmutable $occurrence): array
-    {
-        $userOk = User::query()
-            ->where('partner_id', $partnerId)
-            ->whereKey($userId)
-            ->where('is_enabled', 1)
-            ->exists();
-
-        if (! $userOk) {
-            return [
-                'allowed' => false,
-                'reason' => 'Ученик не найден или недоступен.',
-            ];
-        }
-
-        /** @var TeamScheduleSlot|null $slot */
-        $slot = TeamScheduleSlot::query()->whereKey($slotId)->first();
-
-        if (! $slot || (int) $slot->partner_id !== $partnerId) {
-            return [
-                'allowed' => false,
-                'reason' => 'Слот расписания не найден.',
-            ];
-        }
-
-        if ((int) $slot->weekday !== (int) $occurrence->format('N')) {
-            return [
-                'allowed' => false,
-                'reason' => 'Дата не соответствует дню недели слота.',
-            ];
-        }
-
-        if (! $this->calendarService->slotActiveOnDate($slot, $occurrence)) {
-            return [
-                'allowed' => false,
-                'reason' => 'Слот недействителен на эту дату.',
-            ];
-        }
-
-        if ($this->calendarService->isOccurrenceSkipped((int) $slot->id, $occurrence)) {
-            return [
-                'allowed' => false,
-                'reason' => 'На эту дату занятие исключено из расписания школы.',
-            ];
-        }
-
-        /** @var UserTeamScheduleSlot|null $existing */
-        $existing = UserTeamScheduleSlot::query()
-            ->where('user_id', $userId)
-            ->where('team_schedule_slot_id', $slotId)
-            ->whereDate('starts_at', $occurrence->toDateString())
-            ->first();
-
-        if ($existing === null) {
-            return ['allowed' => true, 'reason' => null];
-        }
-
-        if ($existing->user_lesson_package_id !== null) {
-            return [
-                'allowed' => false,
-                'reason' => 'На это занятие у ученика уже есть запись по абонементу. Пробное занятие недоступно.',
-            ];
-        }
-
-        if ($existing->is_trial_lesson) {
-            return [
-                'allowed' => false,
-                'reason' => 'Пробная запись на это занятие уже добавлена.',
-            ];
-        }
-
-        return [
-            'allowed' => false,
-            'reason' => 'На это занятие уже есть запись в календаре.',
-        ];
     }
 
     public function destroyTrialRegistration(UserTeamScheduleSlot $userTeamScheduleSlot): JsonResponse

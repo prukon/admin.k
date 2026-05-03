@@ -23,7 +23,7 @@
 
                     <div class="row g-3 align-items-end">
                         <div class="col-12 col-md-4">
-                            <label class="form-label">Ученик *</label>
+                            <label class="form-label">Ученик</label>
                             <select name="user_id"
                                     id="ulp_user_id"
                                     class="form-select @error('user_id') is-invalid @enderror"
@@ -36,7 +36,7 @@
                         </div>
 
                         <div class="col-12 col-md-4">
-                            <label class="form-label">Абонемент *</label>
+                            <label class="form-label">Абонемент</label>
                             <select name="lesson_package_id"
                                     id="ulp_lesson_package_id"
                                     class="form-select @error('lesson_package_id') is-invalid @enderror"
@@ -59,7 +59,7 @@
                         </div>
 
                         <div class="col-12 col-md-2">
-                            <label class="form-label">Стоимость *</label>
+                            <label class="form-label">Стоимость</label>
                             <input type="number"
                                    name="fee_amount"
                                    id="ulp_fee_amount"
@@ -118,9 +118,13 @@
                     </td>
                     <td class="text-center">{{ (int) round((float) ($a->fee_amount ?? 0)) }}</td>
                     <td class="text-center">
-                        {{ $a->effective_is_paid ? 'да' : 'нет' }}
+                        @if ($a->effective_is_paid)
+                            <span class="badge bg-success">да</span>
+                        @else
+                            <span class="badge bg-secondary">нет</span>
+                        @endif
                         @if ($a->is_manual_paid !== null)
-                            <div class="small text-muted">руч.</div>
+                            <div class="small text-muted mt-1">руч.</div>
                         @endif
                     </td>
                     <td class="text-center">{{ $a->lessons_remaining }} / {{ $a->lessons_total }}</td>

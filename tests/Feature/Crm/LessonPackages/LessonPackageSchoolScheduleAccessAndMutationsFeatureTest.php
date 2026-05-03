@@ -60,9 +60,9 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
             ->assertSee('Расписание школы', false)
             ->assertSee('schoolCalGrid', false)
             ->assertSee('schoolCalSlotModal', false)
-            ->assertSee('schoolCalTrialModal', false)
+            ->assertSee('schoolCalSlotUserSelect', false)
             ->assertSee('schoolCalOpenTrial', false)
-            ->assertSee('Пробное занятие', false)
+            ->assertSee('Добавить пробное занятие', false)
             ->assertSee('Привязать гибкий абонемент', false)
             ->assertSee('Привязать фиксированный абонемент', false)
             ->assertDontSee('Изменить занятие', false);
@@ -159,6 +159,18 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
         ]))->assertOk()
             ->assertJsonStructure(['allowed', 'reason'])
             ->assertJsonPath('allowed', true);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $trialStudent->id,
+            'team_schedule_slot_id' => $trialSlot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ]))->assertOk()
+            ->assertJsonStructure([
+                'flexible' => ['allowed', 'reason'],
+                'fixed' => ['allowed', 'reason'],
+                'single_lesson' => ['allowed', 'reason'],
+                'trial' => ['allowed', 'reason'],
+            ]);
     }
 
     /**

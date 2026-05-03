@@ -386,6 +386,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.school-schedule.trial-registration.store');
         Route::get('/admin/lesson-packages/school-schedule/trial-registration-eligibility', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'trialRegistrationEligibility'])
             ->name('admin.lesson-packages.school-schedule.trial-registration-eligibility');
+        Route::get('/admin/lesson-packages/school-schedule/slot-user-bind-actions', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'slotUserBindActions'])
+            ->name('admin.lesson-packages.school-schedule.slot-user-bind-actions');
         Route::delete('/admin/lesson-packages/school-schedule/trial-registration/{userTeamScheduleSlot}', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'destroyTrialRegistration'])
             ->whereNumber('userTeamScheduleSlot')
             ->name('admin.lesson-packages.school-schedule.trial-registration.destroy');

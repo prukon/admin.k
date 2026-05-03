@@ -56,8 +56,7 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.lesson-packages.school-schedule'))
             ->assertOk()
             ->assertSee('schoolCalGrid', false)
-            ->assertSee('schoolCalTrialModal', false)
-            ->assertSee('Пробное занятие', false)
+            ->assertSee('Добавить пробное занятие', false)
             ->assertSee('Загрузка расписания', false);
     }
 
@@ -212,6 +211,18 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
         ]))->assertOk()
             ->assertJsonStructure(['allowed', 'reason']);
 
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => 0,
+            'team_schedule_slot_id' => 0,
+            'occurrence_date' => '',
+        ]))->assertOk()
+            ->assertJsonStructure([
+                'flexible' => ['allowed', 'reason'],
+                'fixed' => ['allowed', 'reason'],
+                'single_lesson' => ['allowed', 'reason'],
+                'trial' => ['allowed', 'reason'],
+            ]);
+
         $roleUserId = Role::query()->where('name', 'user')->value('id');
         $this->assertNotNull($roleUserId);
         $trialStudent = User::factory()->create([
@@ -257,6 +268,19 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
         ]))->assertOk();
 
         $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $trialRowId]);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $trialStudent->id,
+            'team_schedule_slot_id' => $trialSlot->id,
+            'occurrence_date' => '2026-05-04',
+        ]))
+            ->assertOk()
+            ->assertJsonStructure([
+                'flexible' => ['allowed', 'reason'],
+                'fixed' => ['allowed', 'reason'],
+                'single_lesson' => ['allowed', 'reason'],
+                'trial' => ['allowed', 'reason'],
+            ]);
     }
 
     /**
@@ -309,6 +333,12 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             'user_id' => 0,
             'team_schedule_slot_id' => 0,
             'occurrence_date' => '',
+        ]))->assertForbidden();
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => 1,
+            'team_schedule_slot_id' => 1,
+            'occurrence_date' => '2026-05-04',
         ]))->assertForbidden();
 
         $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [

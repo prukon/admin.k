@@ -34,11 +34,13 @@ final class TeamScheduleCalendarService
      *     registrations: list<array{
      *         user_label: string,
      *         line: string,
+     *         lesson_package_name: string|null,
      *         registration_kind: 'trial'|'package',
      *         is_trial_lesson: bool,
      *         user_team_schedule_slot_id: int,
      *         user_id: int,
      *         user_lesson_package_id: int|null,
+     *         occurrence_status_history_count: int,
      *         current_status: array{id:int,code:string,title:string,color:string,icon:?string}|null
      *     }>,
      * }>
@@ -263,6 +265,36 @@ final class TeamScheduleCalendarService
             $grouped[$key] = array_values($list);
         }
 
+        $eventCountByKey = [];
+        $allEvents = UserLessonOccurrenceStatusEvent::query()
+            ->where('partner_id', $partnerId)
+            ->whereIn('team_schedule_slot_id', $slotIds)
+            ->whereDate('occurrence_date', '>=', $rangeStart)
+            ->whereDate('occurrence_date', '<=', $rangeEnd)
+            ->get(['team_schedule_slot_id', 'occurrence_date', 'user_id', 'user_lesson_package_id']);
+        foreach ($allEvents as $e) {
+            $ds = $e->occurrence_date instanceof \Carbon\CarbonInterface
+                ? $e->occurrence_date->format('Y-m-d')
+                : (string) $e->occurrence_date;
+            $lk = (int) $e->team_schedule_slot_id.'|'.$ds.'|'.(int) $e->user_id.'|'.(int) $e->user_lesson_package_id;
+            $eventCountByKey[$lk] = ($eventCountByKey[$lk] ?? 0) + 1;
+        }
+
+        foreach ($grouped as &$list) {
+            foreach ($list as &$item) {
+                $ulpId = $item['user_lesson_package_id'] ?? null;
+                if ($ulpId === null) {
+                    $item['occurrence_status_history_count'] = 0;
+
+                    continue;
+                }
+                $lk = (int) $item['team_schedule_slot_id'].'|'.(string) ($item['occurrence_date'] ?? '').'|'.(int) $item['user_id'].'|'.(int) $ulpId;
+                $item['occurrence_status_history_count'] = (int) ($eventCountByKey[$lk] ?? 0);
+            }
+            unset($item);
+        }
+        unset($list);
+
         return $grouped;
     }
 
@@ -270,6 +302,9 @@ final class TeamScheduleCalendarService
      * @return array{
      *     user_label: string,
      *     line: string,
+     *     lesson_package_name: string|null,
+     *     registration_kind: string,
+     *     is_trial_lesson: bool,
      *     user_team_schedule_slot_id: int,
      *     user_id: int,
      *     team_schedule_slot_id: int,
@@ -292,15 +327,12 @@ final class TeamScheduleCalendarService
         $ulp = $row->userLessonPackage;
         $lp = $ulp?->lessonPackage;
 
+        $lessonPackageName = null;
         if ($isTrial) {
             $kind = 'пробное занятие';
         } elseif ($lp !== null) {
-            $kind = match ((string) $lp->schedule_type) {
-                'flexible' => 'гибкий абонемент',
-                'fixed' => 'фиксированный абонемент',
-                'no_schedule' => 'разовое занятие',
-                default => (string) ($lp->name !== '' ? $lp->name : 'абонемент'),
-            };
+            $lessonPackageName = trim((string) ($lp->name ?? ''));
+            $kind = $lessonPackageName !== '' ? $lessonPackageName : 'Абонемент';
         } elseif ($ulp !== null) {
             $kind = 'абонемент №'.(int) $ulp->id;
         } else {
@@ -312,6 +344,7 @@ final class TeamScheduleCalendarService
         return [
             'user_label' => $userLabel,
             'line' => $userLabel.', '.$kind,
+            'lesson_package_name' => $lessonPackageName,
             'registration_kind' => $registrationKind,
             'is_trial_lesson' => $isTrial,
             'user_team_schedule_slot_id' => (int) $row->id,

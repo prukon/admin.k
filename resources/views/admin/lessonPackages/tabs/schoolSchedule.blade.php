@@ -121,36 +121,42 @@
                             </div>
                         </div>
                     </div>
+                    <div class="mb-3 border rounded-3 px-3 py-3 bg-light bg-opacity-50" id="schoolCalSlotAddBlock">
+                        <div class="text-muted text-uppercase small mb-2 fw-semibold" style="font-size:0.68rem;letter-spacing:0.06em">Добавить запись</div>
+                        {{-- <label class="form-label small mb-1" for="schoolCalSlotUserSelect">Ученик</label> --}}
+                        <select class="form-select" id="schoolCalSlotUserSelect" style="width:100%" aria-describedby="schoolCalSlotTrialErr"></select>
+                        <div class="small text-danger mt-1 d-none" id="schoolCalSlotTrialErr" role="alert"></div>
+                        <div class="d-none small text-muted mt-2" id="schoolCalSlotBindActionsLoading">Проверяем назначения…</div>
+                        <div class="d-none small text-danger mt-2" id="schoolCalSlotBindActionsError"></div>
+                        <div class="d-none mt-3" id="schoolCalSlotBindButtonsWrap">
+                            <hr class="my-3">
+                            <div class="d-grid gap-2" id="schoolCalSlotBindButtons">
+                                <span class="d-inline-block school-cal-slot-action-host" title="">
+                                    <button type="button" class="btn btn-primary w-100" id="schoolCalOpenTrial" disabled>Добавить пробное занятие</button>
+                                </span>
+                                <span class="d-inline-block school-cal-slot-action-host" title="">
+                                    <button type="button" class="btn btn-primary w-100" id="schoolCalOpenSingle" disabled>Добавить разовое занятие</button>
+                                </span>
+                                <span class="d-inline-block school-cal-slot-action-host" title="">
+                                    <button type="button" class="btn btn-primary w-100" id="schoolCalOpenFlexible" disabled>Привязать гибкий абонемент</button>
+                                </span>
+                                <span class="d-inline-block school-cal-slot-action-host" title="">
+                                    <button type="button" class="btn btn-primary w-100" id="schoolCalOpenFixed" disabled>Привязать фиксированный абонемент</button>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {{-- <hr class="my-3"> --}}
                     <div class="mb-3 d-none" id="schoolCalSlotRegistrationsWrap">
                         <div class="text-muted text-uppercase small mb-2 fw-semibold" style="font-size:0.68rem;letter-spacing:0.06em">Записаны на занятие</div>
                         <ul class="list-unstyled mb-0" id="schoolCalSlotRegistrationsList"></ul>
                     </div>
-                    <hr class="my-3">
-                    <div class="d-grid gap-2 mb-3" id="schoolCalTrialBlock">
-                        <button type="button" class="btn btn-outline-primary" id="schoolCalOpenTrial">
-                            Пробное занятие
+                    @can('scheduleSlots.manage')
+                        <hr class="my-3">
+                        <button type="button" class="btn btn-outline-danger w-100" id="schoolCalSlotChangeLessonBtn">
+                            Изменить занятие
                         </button>
-                    </div>
-                    <hr class="my-3">
-                    <div class="d-grid gap-2" id="schoolCalBindBlock">
-                        <button type="button" class="btn btn-primary" id="schoolCalOpenFlexible">
-                            Привязать гибкий абонемент
-                        </button>
-                        <button type="button" class="btn btn-primary" id="schoolCalOpenFixed">
-                            Привязать фиксированный абонемент
-                        </button>
-                        <button type="button" class="btn btn-primary" id="schoolCalOpenSingle">
-                            Разовое занятие
-                        </button>
-                        <div class="d-none small text-muted lh-base" id="schoolCalNoAssignmentsHint" role="status">
-                            Нет доступных абонементов для установки в расписание. Назначьте абонементы.
-                        </div>
-                        @can('scheduleSlots.manage')
-                            <button type="button" class="btn btn-outline-danger" id="schoolCalSlotChangeLessonBtn">
-                                Изменить занятие
-                            </button>
-                        @endcan
-                    </div>
+                    @endcan
                 </div>
             </div>
         </div>
@@ -186,37 +192,6 @@
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                     <button type="button" class="btn btn-primary" id="schoolCalFlexSubmit">Привязать</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Пробное занятие (без абонемента) --}}
-    <div class="modal fade" id="schoolCalTrialModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title">Пробное занятие</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="small text-muted mb-3">Отметка в календаре без абонемента, без списания занятий.</p>
-                    <form id="schoolCalTrialForm">
-                        @csrf
-                        <input type="hidden" name="team_schedule_slot_id" id="schoolCalTrialSlotId">
-                        <input type="hidden" name="occurrence_date" id="schoolCalTrialDate">
-                        <div class="mb-3">
-                            <label class="form-label">Ученик</label>
-                            <select class="form-select" name="user_id" id="schoolCalTrialUser" style="width:100%" required></select>
-                            <div class="invalid-feedback d-block" data-err="user_id"></div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <span id="schoolCalTrialSubmitHost" class="d-inline-block" title="">
-                        <button type="button" class="btn btn-primary" id="schoolCalTrialSubmit">Добавить</button>
-                    </span>
                 </div>
             </div>
         </div>
@@ -259,7 +234,7 @@
 
     {{-- Фиксированное назначение --}}
     <div class="modal fade" id="schoolCalFixedModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0">
                     <h5 class="modal-title">Фиксированный абонемент</h5>
@@ -271,21 +246,19 @@
                         <input type="hidden" name="team_schedule_slot_id" id="schoolCalFixedSlotId">
                         <input type="hidden" name="anchor_date" id="schoolCalFixedAnchor">
                         <input type="hidden" name="location_id" id="schoolCalFixedLocation">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Ученик</label>
-                                <select class="form-select" id="schoolCalFixedUser" style="width:100%" required></select>
-                                <div class="invalid-feedback d-block" data-err="user_id"></div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Назначение абонемента</label>
-                                <select class="form-select" name="user_lesson_package_id" id="schoolCalFixedUlp" required>
-                                    <option value="">Сначала выберите ученика</option>
-                                </select>
-                                <div class="invalid-feedback d-block" data-err="user_lesson_package_id"></div>
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ученик</label>
+                            <select class="form-select" id="schoolCalFixedUser" style="width:100%" required></select>
+                            <div class="invalid-feedback d-block" data-err="user_id"></div>
                         </div>
-                        <p class="small text-muted mt-3 mb-0">
+                        <div class="mb-3">
+                            <label class="form-label">Назначение абонемента</label>
+                            <select class="form-select" name="user_lesson_package_id" id="schoolCalFixedUlp" required>
+                                <option value="">Сначала выберите ученика</option>
+                            </select>
+                            <div class="invalid-feedback d-block" data-err="user_lesson_package_id"></div>
+                        </div>
+                        <p class="small text-muted mb-0">
                             Период действия и цепочка занятий задаются от якорной даты; список содержит только назначения без периода (созданные на странице «Назначение абонементов»).
                         </p>
                     </form>
@@ -553,13 +526,56 @@
     .school-cal__reg-hist-row:last-child {
         border-bottom: 0;
     }
+    /* Модалка слота: отключённые кнопки привязки — явные цвета (без белого на белом из глобальных стилей) */
+    #schoolCalSlotBindButtons .btn:disabled,
+    #schoolCalSlotBindButtons .btn.disabled {
+        opacity: 1;
+        pointer-events: none;
+    }
+    #schoolCalSlotBindButtons .btn-primary:disabled,
+    #schoolCalSlotBindButtons .btn-primary.disabled {
+        color: #fff !important;
+        background-color: #b8bec5 !important;
+        border-color: #a8b0b8 !important;
+    }
+    .school-cal__reg-card--compact {
+        padding: 0.5rem 0.65rem !important;
+        margin-bottom: 0.45rem !important;
+    }
+    .school-cal__reg-card__oneline {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-width: 0;
+        width: 100%;
+        line-height: 1.25;
+    }
+    .school-cal__reg-card__fio {
+        font-weight: 600;
+        color: #0f172a;
+        flex: 0 1 auto;
+        max-width: 48%;
+        min-width: 0;
+    }
+    .school-cal__reg-card__pkg {
+        font-weight: 500;
+        color: #475569;
+        font-size: 0.8125rem;
+        flex: 1 1 0;
+        min-width: 0;
+    }
+    .school-cal__reg-card--compact .school-cal__reg-controls-row {
+        margin-top: 0.4rem;
+        padding-top: 0.4rem;
+        border-top: 1px solid rgba(226, 232, 240, 0.95);
+    }
 </style>
 
 @push('scripts')
     <script>
         (function () {
             const routes = {
-                assignmentAvailability: @json(route('admin.lesson-packages.school-schedule.assignment-availability')),
+                slotUserBindActions: @json(route('admin.lesson-packages.school-schedule.slot-user-bind-actions')),
                 week: @json(route('admin.lesson-packages.school-schedule.week')),
                 usersSearch: @json(route('admin.lesson-packages.assignments.users-search')),
                 flexAssign: @json(route('admin.lesson-packages.school-schedule.assign-flexible')),
@@ -573,7 +589,6 @@
                 occurrenceStatusStore: @json(route('admin.lesson-packages.school-schedule.occurrence-status.store')),
                 occurrenceStatusHistory: @json(route('admin.lesson-packages.school-schedule.occurrence-status.history')),
                 trialRegistrationStore: @json(route('admin.lesson-packages.school-schedule.trial-registration.store')),
-                trialRegistrationEligibility: @json(route('admin.lesson-packages.school-schedule.trial-registration-eligibility')),
                 trialRegistrationRoot: @json(url('/admin/lesson-packages/school-schedule/trial-registration')),
                 viewSettingsSave: @json(route('admin.lesson-packages.school-schedule.view-settings.save')),
             };
@@ -597,6 +612,9 @@
 
             let weekMonday = startOfWeekMonday(new Date());
             let selectedOccurrence = null;
+            let schoolCalSlotRegisteredUserIds = [];
+            let schoolCalSlotBindFetchTimer = null;
+            const SchoolCalSlotBindDebounceMs = 350;
 
             function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
@@ -626,7 +644,7 @@
                 return formatRuLongDate(parseYmd(ev.date)) + ' ' + (ev.time_start || '') + '–' + (ev.time_end || '');
             }
 
-            /** Тип абонемента из поля line (после ФИО). */
+            /** Подпись после ФИО из поля line (fallback, если нет lesson_package_name). */
             function registrationPackageKind(r) {
                 const ul = (r.user_label || '').trim();
                 const ln = (r.line || '').trim();
@@ -634,6 +652,14 @@
                     return ln.slice(ul.length).replace(/^\s*,\s*/, '').trim() || '—';
                 }
                 return ln || '—';
+            }
+
+            function registrationPackageDisplayName(r) {
+                const n = (r.lesson_package_name || '').trim();
+                if (n) {
+                    return n;
+                }
+                return registrationPackageKind(r);
             }
 
             function parseYmd(s) {
@@ -839,22 +865,28 @@
                     const isTrial = r.registration_kind === 'trial' || r.is_trial_lesson;
 
                     if (isTrial) {
-                        li.className = 'school-cal__reg-card border rounded-3 p-3 mb-3';
-                        const head = document.createElement('div');
-                        head.className = 'mb-3';
-                        const nameEl = document.createElement('div');
-                        nameEl.className = 'fw-semibold fs-6 text-dark lh-sm';
-                        nameEl.textContent = (r.user_label || '').trim() || '—';
-                        const kindEl = document.createElement('div');
-                        kindEl.className = 'small text-muted mt-1';
-                        kindEl.textContent = 'Пробное занятие';
-                        head.appendChild(nameEl);
-                        head.appendChild(kindEl);
+                        li.className = 'school-cal__reg-card school-cal__reg-card--compact border rounded-2';
+                        const row = document.createElement('div');
+                        row.className = 'd-flex align-items-center justify-content-between gap-2 min-w-0';
+                        const oneline = document.createElement('div');
+                        oneline.className = 'school-cal__reg-card__oneline flex-grow-1 min-w-0';
+                        const fio = document.createElement('span');
+                        fio.className = 'school-cal__reg-card__fio text-truncate';
+                        fio.textContent = (r.user_label || '').trim() || '—';
+                        const sep = document.createElement('span');
+                        sep.className = 'text-muted flex-shrink-0 small';
+                        sep.textContent = '—';
+                        const kind = document.createElement('span');
+                        kind.className = 'school-cal__reg-card__pkg text-truncate';
+                        kind.textContent = 'Пробное занятие';
+                        oneline.appendChild(fio);
+                        oneline.appendChild(sep);
+                        oneline.appendChild(kind);
 
                         const delBtn = document.createElement('button');
                         delBtn.type = 'button';
-                        delBtn.className = 'btn btn-sm btn-outline-danger';
-                        delBtn.textContent = 'Удалить из расписания';
+                        delBtn.className = 'btn btn-sm btn-outline-danger flex-shrink-0';
+                        delBtn.textContent = 'Удалить';
                         delBtn.addEventListener('click', async function () {
                             if (!window.confirm('Убрать пробное занятие из расписания на эту дату?')) {
                                 return;
@@ -878,30 +910,35 @@
                             loadWeek();
                         });
 
-                        li.appendChild(head);
-                        li.appendChild(delBtn);
+                        row.appendChild(oneline);
+                        row.appendChild(delBtn);
+                        li.appendChild(row);
                         ul.appendChild(li);
                         return;
                     }
 
                     if (!r.user_lesson_package_id) {
-                        li.className = 'school-cal__reg-card border rounded-3 p-3 mb-3 small text-muted';
+                        li.className = 'school-cal__reg-card school-cal__reg-card--compact border rounded-2 small text-muted';
                         li.textContent = r.line || r.user_label || '';
                         ul.appendChild(li);
                         return;
                     }
 
-                    li.className = 'school-cal__reg-card border rounded-3 p-3 mb-3';
+                    li.className = 'school-cal__reg-card school-cal__reg-card--compact border rounded-2';
 
                     const head = document.createElement('div');
-                    head.className = 'mb-3';
-                    const nameEl = document.createElement('div');
-                    nameEl.className = 'fw-semibold fs-6 text-dark lh-sm';
-                    nameEl.textContent = (r.user_label || r.line || '').trim() || '—';
-                    const kindEl = document.createElement('div');
-                    kindEl.className = 'small text-muted mt-1';
-                    kindEl.textContent = registrationPackageKind(r);
+                    head.className = 'school-cal__reg-card__oneline mb-0';
+                    const nameEl = document.createElement('span');
+                    nameEl.className = 'school-cal__reg-card__fio text-truncate';
+                    nameEl.textContent = (r.user_label || '').trim() || '—';
+                    const sepEl = document.createElement('span');
+                    sepEl.className = 'text-muted flex-shrink-0 small';
+                    sepEl.textContent = '—';
+                    const kindEl = document.createElement('span');
+                    kindEl.className = 'school-cal__reg-card__pkg text-truncate';
+                    kindEl.textContent = registrationPackageDisplayName(r);
                     head.appendChild(nameEl);
+                    head.appendChild(sepEl);
                     head.appendChild(kindEl);
 
                     const sel = document.createElement('select');
@@ -990,7 +1027,7 @@
                     });
 
                     const controlsRow = document.createElement('div');
-                    controlsRow.className = 'row g-2 align-items-center';
+                    controlsRow.className = 'row g-2 align-items-center school-cal__reg-controls-row';
                     const colSel = document.createElement('div');
                     colSel.className = 'col-12 col-md';
                     colSel.appendChild(sel);
@@ -1010,6 +1047,7 @@
                     histToggle.textContent = 'История изменений';
                     const histBox = document.createElement('div');
                     histBox.className = 'school-cal__reg-hist mt-2 pt-2 border-top border-light d-none';
+                    const histCount = Number(r.occurrence_status_history_count || 0);
 
                     histToggle.addEventListener('click', async function () {
                         if (histBox.dataset.loaded === '1') {
@@ -1058,47 +1096,181 @@
                         histBox.dataset.loaded = '1';
                     });
 
-                    const histFoot = document.createElement('div');
-                    histFoot.className = 'd-flex justify-content-end mt-2';
-                    histFoot.appendChild(histToggle);
-
                     li.appendChild(head);
                     li.appendChild(controlsRow);
                     li.appendChild(errDiv);
-                    li.appendChild(histFoot);
-                    li.appendChild(histBox);
+                    if (histCount > 0) {
+                        const histFoot = document.createElement('div');
+                        histFoot.className = 'd-flex justify-content-end mt-2';
+                        histFoot.appendChild(histToggle);
+                        li.appendChild(histFoot);
+                        li.appendChild(histBox);
+                    }
                     ul.appendChild(li);
                 });
             }
 
-            function setSchoolCalBindAvailability(avail) {
-                const flexBtn = document.getElementById('schoolCalOpenFlexible');
-                const fixedBtn = document.getElementById('schoolCalOpenFixed');
-                const singleBtn = document.getElementById('schoolCalOpenSingle');
-                const hintEl = document.getElementById('schoolCalNoAssignmentsHint');
-
-                const flex = !!(avail && avail.flexible);
-                const fixed = !!(avail && avail.fixed);
-                const singleLesson = !!(avail && avail.single_lesson);
-
-                if (flexBtn) {
-                    flexBtn.classList.toggle('d-none', !flex);
+            function setSlotBindActionButtonState(btnId, allowed, reasonText) {
+                const btn = document.getElementById(btnId);
+                const host = btn ? btn.closest('.school-cal-slot-action-host') : null;
+                if (!btn || !host) {
+                    return;
                 }
-                if (fixedBtn) {
-                    fixedBtn.classList.toggle('d-none', !fixed);
-                }
-                if (singleBtn) {
-                    singleBtn.classList.toggle('d-none', !singleLesson);
-                }
+                btn.disabled = !allowed;
+                btn.style.pointerEvents = allowed ? '' : 'none';
+                host.title = allowed ? '' : (reasonText || '');
+            }
 
-                const anyBind = flex || fixed || singleLesson;
-                if (hintEl) {
-                    hintEl.classList.toggle('d-none', anyBind);
+            function clearSchoolCalSlotTrialFieldErr() {
+                const el = document.getElementById('schoolCalSlotTrialErr');
+                if (el) {
+                    el.textContent = '';
+                    el.classList.add('d-none');
+                }
+                const $s = window.jQuery('#schoolCalSlotUserSelect');
+                if ($s.length) {
+                    $s.removeClass('is-invalid');
+                    const c = $s.next('.select2-container');
+                    if (c.length) {
+                        c.find('.select2-selection').removeClass('is-invalid');
+                    }
                 }
             }
 
-            function resetSchoolCalBindAvailabilityToVisible() {
-                setSchoolCalBindAvailability({ flexible: true, fixed: true, single_lesson: true });
+            function showSchoolCalSlotTrialFieldErr(msg) {
+                const el = document.getElementById('schoolCalSlotTrialErr');
+                if (el) {
+                    el.textContent = msg || '';
+                    el.classList.remove('d-none');
+                }
+                const $s = window.jQuery('#schoolCalSlotUserSelect');
+                if ($s.length) {
+                    $s.addClass('is-invalid');
+                    const c = $s.next('.select2-container');
+                    if (c.length) {
+                        c.find('.select2-selection').addClass('is-invalid');
+                    }
+                }
+            }
+
+            function resetSlotModalUserPicker() {
+                clearSchoolCalSlotTrialFieldErr();
+                const loading = document.getElementById('schoolCalSlotBindActionsLoading');
+                const err = document.getElementById('schoolCalSlotBindActionsError');
+                const wrap = document.getElementById('schoolCalSlotBindButtonsWrap');
+                if (loading) {
+                    loading.classList.add('d-none');
+                }
+                if (err) {
+                    err.classList.add('d-none');
+                    err.textContent = '';
+                }
+                if (wrap) {
+                    wrap.classList.add('d-none');
+                }
+                ['schoolCalOpenTrial', 'schoolCalOpenSingle', 'schoolCalOpenFlexible', 'schoolCalOpenFixed'].forEach(function (bid) {
+                    setSlotBindActionButtonState(bid, false, '');
+                });
+                const $s = window.jQuery('#schoolCalSlotUserSelect');
+                if ($s.length) {
+                    $s.val(null).trigger('change');
+                }
+            }
+
+            function applySlotUserBindActionsPayload(data) {
+                const flex = data.flexible || {};
+                const fixed = data.fixed || {};
+                const single = data.single_lesson || {};
+                const trial = data.trial || {};
+                setSlotBindActionButtonState('schoolCalOpenFlexible', !!flex.allowed, flex.reason || '');
+                setSlotBindActionButtonState('schoolCalOpenFixed', !!fixed.allowed, fixed.reason || '');
+                setSlotBindActionButtonState('schoolCalOpenSingle', !!single.allowed, single.reason || '');
+                setSlotBindActionButtonState('schoolCalOpenTrial', !!trial.allowed, trial.reason || '');
+            }
+
+            function scheduleFetchSlotUserBindActions() {
+                if (schoolCalSlotBindFetchTimer) {
+                    clearTimeout(schoolCalSlotBindFetchTimer);
+                }
+                schoolCalSlotBindFetchTimer = setTimeout(function () {
+                    fetchSlotUserBindActions();
+                }, SchoolCalSlotBindDebounceMs);
+            }
+
+            async function fetchSlotUserBindActions() {
+                schoolCalSlotBindFetchTimer = null;
+                const $ = window.jQuery;
+                if (!$) {
+                    return;
+                }
+                const uid = $('#schoolCalSlotUserSelect').val();
+                const wrap = document.getElementById('schoolCalSlotBindButtonsWrap');
+                const loading = document.getElementById('schoolCalSlotBindActionsLoading');
+                const errEl = document.getElementById('schoolCalSlotBindActionsError');
+                if (!uid || !selectedOccurrence) {
+                    if (wrap) {
+                        wrap.classList.add('d-none');
+                    }
+                    if (loading) {
+                        loading.classList.add('d-none');
+                    }
+                    return;
+                }
+                if (wrap) {
+                    wrap.classList.remove('d-none');
+                }
+                if (loading) {
+                    loading.classList.remove('d-none');
+                }
+                if (errEl) {
+                    errEl.classList.add('d-none');
+                    errEl.textContent = '';
+                }
+                const url = routes.slotUserBindActions
+                    + '?user_id=' + encodeURIComponent(uid)
+                    + '&team_schedule_slot_id=' + encodeURIComponent(selectedOccurrence.id)
+                    + '&occurrence_date=' + encodeURIComponent(selectedOccurrence.date);
+                const res = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                });
+                const data = await res.json().catch(function () { return {}; });
+                if (loading) {
+                    loading.classList.add('d-none');
+                }
+                if (!res.ok) {
+                    const msg = data.message || 'Не удалось проверить доступные действия.';
+                    if (errEl) {
+                        errEl.textContent = msg;
+                        errEl.classList.remove('d-none');
+                    }
+                    ['schoolCalOpenTrial', 'schoolCalOpenSingle', 'schoolCalOpenFlexible', 'schoolCalOpenFixed'].forEach(function (bid) {
+                        setSlotBindActionButtonState(bid, false, msg);
+                    });
+                    return;
+                }
+                applySlotUserBindActionsPayload(data);
+            }
+
+            function syncUserSelectFromSlotTo($target) {
+                const $ = window.jQuery;
+                const $slot = $('#schoolCalSlotUserSelect');
+                if (!$slot.length || !$target.length) {
+                    return;
+                }
+                const dataArr = $slot.select2('data');
+                if (!dataArr || !dataArr.length || !dataArr[0].id) {
+                    return;
+                }
+                const id = String(dataArr[0].id);
+                const text = dataArr[0].text || '';
+                const hasOpt = $target.find('option').filter(function () { return String(this.value) === id; }).length > 0;
+                if (!hasOpt) {
+                    $target.append(new Option(text, id, true, true));
+                }
+                $target.val(id).trigger('change');
             }
 
             async function openSlotModal(ev) {
@@ -1116,28 +1288,10 @@
                     locEl.textContent = ev.location_name || '—';
                 }
                 fillRegistrationsList(ev);
-
-                resetSchoolCalBindAvailabilityToVisible();
-                try {
-                    const res = await fetch(routes.assignmentAvailability, {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json',
-                        },
-                    });
-                    const avail = await res.json().catch(() => (null));
-                    if (
-                        res.ok
-                        && avail
-                        && typeof avail.flexible === 'boolean'
-                        && typeof avail.fixed === 'boolean'
-                        && typeof avail.single_lesson === 'boolean'
-                    ) {
-                        setSchoolCalBindAvailability(avail);
-                    }
-                } catch (e) {
-                    resetSchoolCalBindAvailabilityToVisible();
-                }
+                schoolCalSlotRegisteredUserIds = (ev.registrations || []).map(function (r) {
+                    return parseInt(r.user_id, 10);
+                }).filter(function (n) { return n > 0; });
+                resetSlotModalUserPicker();
 
                 new bootstrap.Modal(document.getElementById('schoolCalSlotModal')).show();
             }
@@ -1152,15 +1306,24 @@
             });
 
             document.getElementById('schoolCalOpenFlexible')?.addEventListener('click', () => {
+                const btn = document.getElementById('schoolCalOpenFlexible');
+                if (btn && btn.disabled) {
+                    return;
+                }
                 bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
                 if (!selectedOccurrence) return;
                 document.getElementById('schoolCalFlexSlotId').value = selectedOccurrence.id;
                 document.getElementById('schoolCalFlexDate').value = selectedOccurrence.date;
                 document.getElementById('schoolCalFlexUlp').innerHTML = '<option value="">Сначала выберите ученика</option>';
+                syncUserSelectFromSlotTo(window.jQuery('#schoolCalFlexUser'));
                 new bootstrap.Modal(document.getElementById('schoolCalFlexModal')).show();
             });
 
             document.getElementById('schoolCalOpenFixed')?.addEventListener('click', () => {
+                const btn = document.getElementById('schoolCalOpenFixed');
+                if (btn && btn.disabled) {
+                    return;
+                }
                 bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
                 if (!selectedOccurrence) return;
                 document.getElementById('schoolCalFixedSlotId').value = selectedOccurrence.id;
@@ -1171,10 +1334,15 @@
                 if (ulpSel) {
                     ulpSel.innerHTML = '<option value="">Сначала выберите ученика</option>';
                 }
+                syncUserSelectFromSlotTo(window.jQuery('#schoolCalFixedUser'));
                 new bootstrap.Modal(document.getElementById('schoolCalFixedModal')).show();
             });
 
             document.getElementById('schoolCalOpenSingle')?.addEventListener('click', () => {
+                const btn = document.getElementById('schoolCalOpenSingle');
+                if (btn && btn.disabled) {
+                    return;
+                }
                 bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
                 if (!selectedOccurrence) {
                     return;
@@ -1182,26 +1350,73 @@
                 document.getElementById('schoolCalSingleSlotId').value = selectedOccurrence.id;
                 document.getElementById('schoolCalSingleDate').value = selectedOccurrence.date;
                 document.getElementById('schoolCalSingleUlp').innerHTML = '<option value="">Сначала выберите ученика</option>';
+                syncUserSelectFromSlotTo(window.jQuery('#schoolCalSingleUser'));
                 new bootstrap.Modal(document.getElementById('schoolCalSingleModal')).show();
             });
 
-            document.getElementById('schoolCalOpenTrial')?.addEventListener('click', () => {
-                bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
+            document.getElementById('schoolCalOpenTrial')?.addEventListener('click', async () => {
+                const btn = document.getElementById('schoolCalOpenTrial');
+                if (btn && btn.disabled) {
+                    return;
+                }
                 if (!selectedOccurrence) {
                     return;
                 }
-                const trialForm = document.getElementById('schoolCalTrialForm');
-                if (trialForm) {
-                    clearFieldErrors(trialForm);
+                const $ = window.jQuery;
+                if (!$) {
+                    return;
                 }
-                document.getElementById('schoolCalTrialSlotId').value = selectedOccurrence.id;
-                document.getElementById('schoolCalTrialDate').value = selectedOccurrence.date;
-                const $tu = window.jQuery('#schoolCalTrialUser');
-                if ($tu.length) {
-                    $tu.val(null).trigger('change');
+                clearSchoolCalSlotTrialFieldErr();
+                const uid = $('#schoolCalSlotUserSelect').val();
+                if (!uid) {
+                    showSchoolCalSlotTrialFieldErr('Выберите ученика.');
+                    return;
                 }
-                setTrialSubmitState(false, 'Выберите ученика.');
-                new bootstrap.Modal(document.getElementById('schoolCalTrialModal')).show();
+                const fd = new FormData();
+                fd.append('_token', token);
+                fd.append('user_id', String(uid));
+                fd.append('team_schedule_slot_id', String(selectedOccurrence.id));
+                fd.append('occurrence_date', String(selectedOccurrence.date));
+                btn.disabled = true;
+                try {
+                    const res = await fetch(routes.trialRegistrationStore, {
+                        method: 'POST',
+                        body: fd,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        const err = data.errors || {};
+                        if (err.user_id && err.user_id[0]) {
+                            showSchoolCalSlotTrialFieldErr(err.user_id[0]);
+                        }
+                        let alerted = false;
+                        if (data.message) {
+                            showAlert('danger', data.message);
+                            alerted = true;
+                        }
+                        if (!alerted) {
+                            for (const k of Object.keys(err)) {
+                                if (k === 'user_id') {
+                                    continue;
+                                }
+                                if (err[k] && err[k][0]) {
+                                    showAlert('danger', err[k][0]);
+                                    break;
+                                }
+                            }
+                        }
+                        return;
+                    }
+                    showAlert('success', data.message || 'Готово');
+                    bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
+                    loadWeek();
+                } finally {
+                    btn.disabled = false;
+                }
             });
 
             document.getElementById('schoolCalPrevWeek')?.addEventListener('click', () => {
@@ -1381,46 +1596,6 @@
                 form.querySelectorAll('[data-err]').forEach(e => e.textContent = '');
             }
 
-            function setTrialSubmitState(allowed, reasonText) {
-                const btn = document.getElementById('schoolCalTrialSubmit');
-                const host = document.getElementById('schoolCalTrialSubmitHost');
-                if (!btn) {
-                    return;
-                }
-                btn.disabled = !allowed;
-                btn.style.pointerEvents = allowed ? '' : 'none';
-                if (host) {
-                    host.title = allowed ? '' : (reasonText || '');
-                }
-            }
-
-            async function refreshTrialEligibility() {
-                const $ = window.jQuery;
-                if (!$ || !$('#schoolCalTrialUser').length) {
-                    return;
-                }
-                const uid = $('#schoolCalTrialUser').val();
-                const slotId = document.getElementById('schoolCalTrialSlotId')?.value;
-                const date = document.getElementById('schoolCalTrialDate')?.value;
-                if (!uid || !slotId || !date) {
-                    setTrialSubmitState(false, 'Выберите ученика.');
-                    return;
-                }
-                const url = routes.trialRegistrationEligibility
-                    + '?user_id=' + encodeURIComponent(uid)
-                    + '&team_schedule_slot_id=' + encodeURIComponent(slotId)
-                    + '&occurrence_date=' + encodeURIComponent(date);
-                const res = await fetch(url, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json',
-                    },
-                });
-                const data = await res.json().catch(() => ({}));
-                const allowed = !!data.allowed;
-                setTrialSubmitState(allowed, allowed ? '' : (data.reason || 'Нельзя добавить пробное занятие.'));
-            }
-
             document.getElementById('schoolCalFlexSubmit')?.addEventListener('click', async () => {
                 const form = document.getElementById('schoolCalFlexForm');
                 clearFieldErrors(form);
@@ -1511,45 +1686,6 @@
                 loadWeek();
             });
 
-            document.getElementById('schoolCalTrialSubmit')?.addEventListener('click', async () => {
-                const form = document.getElementById('schoolCalTrialForm');
-                if (!form) {
-                    return;
-                }
-                clearFieldErrors(form);
-                const trialBtn = document.getElementById('schoolCalTrialSubmit');
-                if (trialBtn && trialBtn.disabled) {
-                    return;
-                }
-                const fd = new FormData(form);
-                const res = await fetch(routes.trialRegistrationStore, {
-                    method: 'POST',
-                    body: fd,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': token,
-                        'Accept': 'application/json',
-                    },
-                });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) {
-                    const err = data.errors || {};
-                    Object.keys(err).forEach(function (k) {
-                        const n = form.querySelector('[data-err="' + k + '"]');
-                        if (n) {
-                            n.textContent = (err[k] && err[k][0]) ? err[k][0] : '';
-                        }
-                    });
-                    if (data.message) {
-                        showAlert('danger', data.message);
-                    }
-                    return;
-                }
-                showAlert('success', data.message || 'Готово');
-                bootstrap.Modal.getInstance(document.getElementById('schoolCalTrialModal'))?.hide();
-                loadWeek();
-            });
-
             loadWeek();
 
             window.jQuery(document).ready(function ($) {
@@ -1575,6 +1711,51 @@
                         minimumInputLength: 0
                     });
                     $el.on('select2:select change', onSelect);
+                }
+
+                const $slotUser = $('#schoolCalSlotUserSelect');
+                if ($slotUser.length && !$slotUser.data('select2')) {
+                    $slotUser.select2({
+                        theme: 'bootstrap-5',
+                        width: '100%',
+                        placeholder: 'Имя, фамилия или телефон',
+                        allowClear: false,
+                        minimumInputLength: 0,
+                        dropdownParent: $('#schoolCalSlotModal'),
+                        ajax: {
+                            url: routes.usersSearch,
+                            dataType: 'json',
+                            delay: 250,
+                            data: function (params) {
+                                return { q: params.term || '' };
+                            },
+                            processResults: function (data) {
+                                const regs = schoolCalSlotRegisteredUserIds || [];
+                                const results = (data.results || []).map(function (item) {
+                                    const idNum = parseInt(item.id, 10);
+                                    return {
+                                        id: item.id,
+                                        text: item.text,
+                                        disabled: regs.indexOf(idNum) !== -1,
+                                    };
+                                });
+                                return { results: results };
+                            },
+                        },
+                    });
+                    $slotUser.on('select2:select change', function () {
+                        clearSchoolCalSlotTrialFieldErr();
+                        const v = $slotUser.val();
+                        const wrap = document.getElementById('schoolCalSlotBindButtonsWrap');
+                        if (!v) {
+                            if (wrap) {
+                                wrap.classList.add('d-none');
+                            }
+                            document.getElementById('schoolCalSlotBindActionsError')?.classList.add('d-none');
+                            return;
+                        }
+                        scheduleFetchSlotUserBindActions();
+                    });
                 }
 
                 bindUserSelect($('#schoolCalFlexUser'), routes.flexUsersSearch, async function () {
@@ -1644,9 +1825,6 @@
                     });
                 });
 
-                bindUserSelect($('#schoolCalTrialUser'), routes.usersSearch, async function () {
-                    await refreshTrialEligibility();
-                });
             });
         })();
     </script>

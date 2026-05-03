@@ -111,6 +111,12 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
         ]))->assertForbidden();
 
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => 1,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ]))->assertForbidden();
+
         $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
             'user_id' => $student->id,
             'team_schedule_slot_id' => 1,
@@ -192,6 +198,19 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         ]))
             ->assertOk()
             ->assertJsonPath('allowed', true);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $trialSlot->id,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure([
+                'flexible' => ['allowed', 'reason'],
+                'fixed' => ['allowed', 'reason'],
+                'single_lesson' => ['allowed', 'reason'],
+                'trial' => ['allowed', 'reason'],
+            ]);
     }
 
     public function test_store_team_slot_without_location_id_saves_null_location(): void
@@ -297,8 +316,8 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $this->assertNotEmpty($hit['registrations'] ?? []);
         $lines = array_column($hit['registrations'], 'line');
         $this->assertTrue(
-            collect($lines)->contains(fn (string $line): bool => str_contains($line, 'гибкий абонемент')),
-            'Подпись регистрации должна относиться к гибкому абонементу.'
+            collect($lines)->contains(fn (string $line): bool => str_contains($line, 'Гибкий интеграция')),
+            'Подпись регистрации должна содержать название абонемента, заданное администратором.'
         );
     }
 
@@ -384,8 +403,8 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $this->assertNotEmpty($hit['registrations'] ?? []);
         $lines = array_column($hit['registrations'], 'line');
         $this->assertTrue(
-            collect($lines)->contains(fn (string $line): bool => str_contains($line, 'разовое занятие')),
-            'Подпись регистрации должна относиться к разовому занятию.'
+            collect($lines)->contains(fn (string $line): bool => str_contains($line, 'Разовое интеграция')),
+            'Подпись регистрации должна содержать название абонемента (разовое занятие).'
         );
     }
 
