@@ -375,6 +375,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
         Route::get('/admin/lesson-packages/school-schedule', [LessonPackageController::class, 'schoolSchedule'])
             ->name('admin.lesson-packages.school-schedule');
+        Route::get('/admin/lesson-packages/school-schedule/assignment-availability', [LessonPackageController::class, 'schoolScheduleAssignmentAvailability'])
+            ->name('admin.lesson-packages.school-schedule.assignment-availability');
         Route::get('/admin/lesson-packages/school-schedule/week', [LessonPackageController::class, 'schoolScheduleWeek'])
             ->name('admin.lesson-packages.school-schedule.week');
         Route::get('/admin/lesson-packages/school-schedule/fixed-packages', [LessonPackageController::class, 'schoolScheduleFixedPackages'])
@@ -385,10 +387,27 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.school-schedule.fixed-assignments');
         Route::get('/admin/lesson-packages/school-schedule/flexible-users-search', [LessonPackageController::class, 'schoolScheduleFlexibleUsersSearch'])
             ->name('admin.lesson-packages.school-schedule.flexible-users-search');
+        Route::get('/admin/lesson-packages/school-schedule/single-lesson-assignments', [LessonPackageController::class, 'schoolScheduleSingleLessonAssignments'])
+            ->name('admin.lesson-packages.school-schedule.single-lesson-assignments');
+        Route::get('/admin/lesson-packages/school-schedule/single-lesson-users-search', [LessonPackageController::class, 'schoolScheduleSingleLessonUsersSearch'])
+            ->name('admin.lesson-packages.school-schedule.single-lesson-users-search');
         Route::post('/admin/lesson-packages/school-schedule/assign-flexible', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'assignFlexible'])
             ->name('admin.lesson-packages.school-schedule.assign-flexible');
         Route::post('/admin/lesson-packages/school-schedule/assign-fixed', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'assignFixed'])
             ->name('admin.lesson-packages.school-schedule.assign-fixed');
+        Route::post('/admin/lesson-packages/school-schedule/assign-single-lesson', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'assignSingleLesson'])
+            ->name('admin.lesson-packages.school-schedule.assign-single-lesson');
+        Route::post('/admin/lesson-packages/school-schedule/trial-registration', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'storeTrialRegistration'])
+            ->name('admin.lesson-packages.school-schedule.trial-registration.store');
+        Route::get('/admin/lesson-packages/school-schedule/trial-registration-eligibility', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'trialRegistrationEligibility'])
+            ->name('admin.lesson-packages.school-schedule.trial-registration-eligibility');
+        Route::delete('/admin/lesson-packages/school-schedule/trial-registration/{userTeamScheduleSlot}', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'destroyTrialRegistration'])
+            ->whereNumber('userTeamScheduleSlot')
+            ->name('admin.lesson-packages.school-schedule.trial-registration.destroy');
+        Route::post('/admin/lesson-packages/school-schedule/occurrence-status', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarOccurrenceStatusController::class, 'store'])
+            ->name('admin.lesson-packages.school-schedule.occurrence-status.store');
+        Route::get('/admin/lesson-packages/school-schedule/occurrence-status/history', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarOccurrenceStatusController::class, 'history'])
+            ->name('admin.lesson-packages.school-schedule.occurrence-status.history');
 
         Route::get('/admin/lesson-packages/team-schedule-slots', [\App\Http\Controllers\Admin\TeamScheduleSlotController::class, 'indexForLessonPackagesTab'])
             ->middleware('can:scheduleSlots.table')

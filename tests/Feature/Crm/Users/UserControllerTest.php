@@ -606,7 +606,7 @@ class UserControllerTest extends CrmTestCase
             'birthday' => '2015-01-01',
             'start_date' => '2024-09-01',
             'is_enabled' => 1,                 // boolean для валидации
-            'password' => 'TestPass123!',    // обязателен в StoreRequest
+            'password' => 'TestPass123!',
             'password_confirmation' => 'TestPass123!',
         ];
 
@@ -644,6 +644,45 @@ class UserControllerTest extends CrmTestCase
         $this->assertEquals(1, $created->is_enabled);
 
         $this->assertEquals('Пользователь создан успешно', $json['message']);
+    }
+
+    /**
+     * Создание без пароля (внутренний учёт): password в БД NULL.
+     */
+    public function test_store_creates_user_without_password(): void
+    {
+        $role = Role::firstOrCreate(
+            ['name' => 'user'],
+            [
+                'label' => 'user',
+                'is_sistem' => 1,
+                'is_visible' => 1,
+                'order_by' => 0,
+            ]
+        );
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        $payload = [
+            'name' => 'Без',
+            'lastname' => 'Пароля',
+            'email' => 'nopassuser@example.com',
+            'role_id' => $role->id,
+            'team_id' => $team->id,
+            'birthday' => '2016-06-06',
+            'is_enabled' => 1,
+        ];
+
+        $response = $this->postJson('/admin/users', $payload, [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $response->assertStatus(200);
+
+        $created = User::where('email', 'nopassuser@example.com')->firstOrFail();
+        $this->assertNull($created->getRawOriginal('password'));
     }
 
     /**

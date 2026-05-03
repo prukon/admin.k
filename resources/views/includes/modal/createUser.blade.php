@@ -40,7 +40,7 @@
                         <input type="email" name="email" class="form-control" id="email">
                     </div>
                     <div class="mb-3 wrap-cur-password">
-                        <label for="password" class="form-label">Пароль*</label>
+                        <label for="password" class="form-label">Пароль</label>
                         <div class="position-relative">
                             <input type="password" id="password" name="password" class="form-control"
                                    placeholder="Пароль">

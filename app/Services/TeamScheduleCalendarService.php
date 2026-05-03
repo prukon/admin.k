@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\LessonPackageTimeSlot;
 use App\Models\TeamScheduleSlot;
 use App\Models\TeamScheduleSlotException;
+use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserTeamScheduleSlot;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
@@ -30,7 +31,16 @@ final class TeamScheduleCalendarService
      *     location_name: string|null,
      *     date_start: string,
      *     date_end: string,
-     *     registrations: list<array{user_label: string, line: string}>,
+     *     registrations: list<array{
+     *         user_label: string,
+     *         line: string,
+     *         registration_kind: 'trial'|'package',
+     *         is_trial_lesson: bool,
+     *         user_team_schedule_slot_id: int,
+     *         user_id: int,
+     *         user_lesson_package_id: int|null,
+     *         current_status: array{id:int,code:string,title:string,color:string,icon:?string}|null
+     *     }>,
      * }>
      */
     public function occurrencesForWeek(int $partnerId, CarbonImmutable $weekMonday, ?int $locationId): array
@@ -119,6 +129,7 @@ final class TeamScheduleCalendarService
         });
 
         $registrationGroups = $this->registrationGroupsForOccurrences($partnerId, $out);
+        $this->attachLatestOccurrenceStatuses($partnerId, $registrationGroups);
         foreach ($out as $i => $item) {
             $key = $item['id'].'|'.$item['date'];
             $out[$i]['registrations'] = $registrationGroups[$key] ?? [];
@@ -128,8 +139,92 @@ final class TeamScheduleCalendarService
     }
 
     /**
+     * @param array<string, list<array<string, mixed>>> $grouped
+     */
+    private function attachLatestOccurrenceStatuses(int $partnerId, array &$grouped): void
+    {
+        if ($grouped === []) {
+            return;
+        }
+
+        $slotIds = [];
+        $dateMin = null;
+        $dateMax = null;
+
+        foreach (array_keys($grouped) as $key) {
+            $parts = explode('|', (string) $key, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+            $slotIds[] = (int) $parts[0];
+            $d = $parts[1];
+            if ($dateMin === null || $d < $dateMin) {
+                $dateMin = $d;
+            }
+            if ($dateMax === null || $d > $dateMax) {
+                $dateMax = $d;
+            }
+        }
+
+        $slotIds = array_values(array_unique(array_filter($slotIds)));
+        if ($slotIds === [] || $dateMin === null || $dateMax === null) {
+            return;
+        }
+
+        $events = UserLessonOccurrenceStatusEvent::query()
+            ->where('partner_id', $partnerId)
+            ->whereIn('team_schedule_slot_id', $slotIds)
+            ->whereDate('occurrence_date', '>=', $dateMin)
+            ->whereDate('occurrence_date', '<=', $dateMax)
+            ->with(['lessonOccurrenceStatus:id,code,title,color,icon'])
+            ->orderBy('id')
+            ->get(['id', 'user_id', 'team_schedule_slot_id', 'occurrence_date', 'user_lesson_package_id', 'lesson_occurrence_status_id']);
+
+        $latest = [];
+        foreach ($events as $ev) {
+            $dateStr = $ev->occurrence_date instanceof \Carbon\CarbonInterface
+                ? $ev->occurrence_date->format('Y-m-d')
+                : (string) $ev->occurrence_date;
+            $ulpId = (int) $ev->user_lesson_package_id;
+            $k = (int) $ev->user_id.'|'.(int) $ev->team_schedule_slot_id.'|'.$dateStr.'|'.$ulpId;
+            $latest[$k] = $ev;
+        }
+
+        foreach ($grouped as &$list) {
+            foreach ($list as &$row) {
+                $ulpId = $row['user_lesson_package_id'] ?? null;
+                if ($ulpId === null) {
+                    $row['current_status'] = null;
+
+                    continue;
+                }
+                $uid = (int) ($row['user_id'] ?? 0);
+                $sid = (int) ($row['team_schedule_slot_id'] ?? 0);
+                $d = (string) ($row['occurrence_date'] ?? '');
+                $lookup = $uid.'|'.$sid.'|'.$d.'|'.(int) $ulpId;
+                /** @var UserLessonOccurrenceStatusEvent|null $hit */
+                $hit = $latest[$lookup] ?? null;
+                if ($hit === null || ! $hit->lessonOccurrenceStatus) {
+                    $row['current_status'] = null;
+                } else {
+                    $st = $hit->lessonOccurrenceStatus;
+                    $row['current_status'] = [
+                        'id' => (int) $st->id,
+                        'code' => (string) $st->code,
+                        'title' => (string) $st->title,
+                        'color' => (string) $st->color,
+                        'icon' => $st->icon,
+                    ];
+                }
+            }
+            unset($row);
+        }
+        unset($list);
+    }
+
+    /**
      * @param list<array{id: int, date: string}> $occurrences
-     * @return array<string, list<array{user_label: string, line: string}>>
+     * @return array<string, list<array<string, mixed>>>
      */
     private function registrationGroupsForOccurrences(int $partnerId, array $occurrences): array
     {
@@ -160,7 +255,7 @@ final class TeamScheduleCalendarService
                 : (string) $row->starts_at;
             $key = (int) $row->team_schedule_slot_id.'|'.$dateStr;
             $grouped[$key] ??= [];
-            $grouped[$key][] = $this->formatSlotRegistrationLine($row);
+            $grouped[$key][] = $this->formatSlotRegistrationLine($row, $dateStr);
         }
 
         foreach ($grouped as $key => $list) {
@@ -172,9 +267,17 @@ final class TeamScheduleCalendarService
     }
 
     /**
-     * @return array{user_label: string, line: string}
+     * @return array{
+     *     user_label: string,
+     *     line: string,
+     *     user_team_schedule_slot_id: int,
+     *     user_id: int,
+     *     team_schedule_slot_id: int,
+     *     occurrence_date: string,
+     *     user_lesson_package_id: int|null
+     * }
      */
-    private function formatSlotRegistrationLine(UserTeamScheduleSlot $row): array
+    private function formatSlotRegistrationLine(UserTeamScheduleSlot $row, string $occurrenceDate): array
     {
         $user = $row->user;
         $userLabel = $user
@@ -184,14 +287,18 @@ final class TeamScheduleCalendarService
             $userLabel = 'Ученик #'.(int) $row->user_id;
         }
 
+        $isTrial = (bool) $row->is_trial_lesson;
+
         $ulp = $row->userLessonPackage;
         $lp = $ulp?->lessonPackage;
 
-        if ($lp !== null) {
+        if ($isTrial) {
+            $kind = 'пробное занятие';
+        } elseif ($lp !== null) {
             $kind = match ((string) $lp->schedule_type) {
                 'flexible' => 'гибкий абонемент',
                 'fixed' => 'фиксированный абонемент',
-                'no_schedule' => 'абонемент без расписания',
+                'no_schedule' => 'разовое занятие',
                 default => (string) ($lp->name !== '' ? $lp->name : 'абонемент'),
             };
         } elseif ($ulp !== null) {
@@ -200,9 +307,18 @@ final class TeamScheduleCalendarService
             $kind = 'запись без привязки к абонементу';
         }
 
+        $registrationKind = $isTrial ? 'trial' : 'package';
+
         return [
             'user_label' => $userLabel,
             'line' => $userLabel.', '.$kind,
+            'registration_kind' => $registrationKind,
+            'is_trial_lesson' => $isTrial,
+            'user_team_schedule_slot_id' => (int) $row->id,
+            'user_id' => (int) $row->user_id,
+            'team_schedule_slot_id' => (int) $row->team_schedule_slot_id,
+            'occurrence_date' => $occurrenceDate,
+            'user_lesson_package_id' => $row->user_lesson_package_id !== null ? (int) $row->user_lesson_package_id : null,
         ];
     }
 

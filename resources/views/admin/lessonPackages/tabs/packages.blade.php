@@ -43,7 +43,7 @@
                         @elseif($package->schedule_type === 'flexible')
                             Гибкое
                         @else
-                            Без расписания
+                            Разовое занятие
                         @endif
                     </td>
                     <td class="text-center">{{ $package->duration_days }}</td>
@@ -142,20 +142,20 @@
                                 <select name="create[schedule_type]" id="create_schedule_type" class="form-select" required>
                                     <option value="fixed">Фиксированное расписание</option>
                                     <option value="flexible">Гибкое расписание</option>
-                                    <option value="no_schedule">Без расписания</option>
+                                    <option value="no_schedule">Разовое занятие</option>
                                 </select>
                                 <div class="invalid-feedback d-none" data-error-for="create[schedule_type]"></div>
                             </div>
 
                             <div class="col-12 col-md-4">
                                 <label class="form-label">Длительность (дни) *</label>
-                                <input type="number" name="create[duration_days]" class="form-control" min="1" max="3650" value="30" required>
+                                <input type="number" name="create[duration_days]" id="create_duration_days" class="form-control" min="1" max="3650" value="30" required>
                                 <div class="invalid-feedback d-none" data-error-for="create[duration_days]"></div>
                             </div>
 
                             <div class="col-12 col-md-4">
                                 <label class="form-label">Занятий *</label>
-                                <input type="number" name="create[lessons_count]" class="form-control" min="1" max="1000" value="8" required>
+                                <input type="number" name="create[lessons_count]" id="create_lessons_count" class="form-control" min="1" max="1000" value="8" required>
                                 <div class="invalid-feedback d-none" data-error-for="create[lessons_count]"></div>
                             </div>
 
@@ -165,7 +165,7 @@
                                 <div class="invalid-feedback d-none" data-error-for="create[price]"></div>
                             </div>
 
-                            <div class="col-12">
+                            <div class="col-12" id="create_freeze_section">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="1" id="create_freeze_enabled" name="create[freeze_enabled]">
                                     <label class="form-check-label" for="create_freeze_enabled">Разрешена заморозка</label>
@@ -180,7 +180,7 @@
                             </div>
                         </div>
 
-                        <hr class="my-4">
+                        <hr class="my-4" id="create_template_hr">
 
                         <div id="create-time-slots-section">
                             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -238,20 +238,20 @@
                                 <select name="edit[schedule_type]" id="edit_schedule_type" class="form-select" required>
                                     <option value="fixed">Фиксированное расписание</option>
                                     <option value="flexible">Гибкое расписание</option>
-                                    <option value="no_schedule">Без расписания</option>
+                                    <option value="no_schedule">Разовое занятие</option>
                                 </select>
                                 <div class="invalid-feedback d-none" data-error-for="edit[schedule_type]"></div>
                             </div>
 
                             <div class="col-12 col-md-4">
                                 <label class="form-label">Длительность (дни) *</label>
-                                <input type="number" name="edit[duration_days]" class="form-control" min="1" max="3650" required>
+                                <input type="number" name="edit[duration_days]" id="edit_duration_days" class="form-control" min="1" max="3650" required>
                                 <div class="invalid-feedback d-none" data-error-for="edit[duration_days]"></div>
                             </div>
 
                             <div class="col-12 col-md-4">
                                 <label class="form-label">Занятий *</label>
-                                <input type="number" name="edit[lessons_count]" class="form-control" min="1" max="1000" required>
+                                <input type="number" name="edit[lessons_count]" id="edit_lessons_count" class="form-control" min="1" max="1000" required>
                                 <div class="invalid-feedback d-none" data-error-for="edit[lessons_count]"></div>
                             </div>
 
@@ -261,7 +261,7 @@
                                 <div class="invalid-feedback d-none" data-error-for="edit[price]"></div>
                             </div>
 
-                            <div class="col-12">
+                            <div class="col-12" id="edit_freeze_section">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="1" id="edit_freeze_enabled" name="edit[freeze_enabled]">
                                     <label class="form-check-label" for="edit_freeze_enabled">Разрешена заморозка</label>
@@ -276,7 +276,7 @@
                             </div>
                         </div>
 
-                        <hr class="my-4">
+                        <hr class="my-4" id="edit_template_hr">
 
                         <div id="edit-time-slots-section">
                             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -386,9 +386,10 @@
                 }
 
                 function normalizePayload(formData, prefix) {
+                    const scheduleType = (formData.get(prefix + '[schedule_type]') || '').toString();
                     const payload = {
                         name: (formData.get(prefix + '[name]') || '').toString(),
-                        schedule_type: (formData.get(prefix + '[schedule_type]') || '').toString(),
+                        schedule_type: scheduleType,
                         duration_days: (formData.get(prefix + '[duration_days]') || '').toString(),
                         lessons_count: (formData.get(prefix + '[lessons_count]') || '').toString(),
                         price: (formData.get(prefix + '[price]') || '').toString(),
@@ -396,7 +397,11 @@
                         freeze_days: (formData.get(prefix + '[freeze_days]') || '').toString(),
                     };
 
-                    // Слоты собираем напрямую из DOM (надёжно для динамических строк)
+                    if (scheduleType !== 'fixed') {
+                        payload.time_slots = [];
+                        return payload;
+                    }
+
                     const tableId = prefix === 'edit' ? 'edit-slots-table' : 'create-slots-table';
                     const tbody = document.querySelector('#' + tableId + ' tbody');
                     const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
@@ -464,19 +469,86 @@
                 const createFreezeDaysWrap = document.getElementById('create_freeze_days_wrap');
                 const createScheduleType = document.getElementById('create_schedule_type');
                 const createSlotsSection = document.getElementById('create-time-slots-section');
+                const createFreezeSection = document.getElementById('create_freeze_section');
+                const createTemplateHr = document.getElementById('create_template_hr');
+                const createDuration = document.getElementById('create_duration_days');
+                const createLessons = document.getElementById('create_lessons_count');
+                let createSnapshotBeforeSingle = null;
 
                 function createToggleFreezeDays() {
+                    if (!createFreezeDaysWrap || !createFreezeEnabled) {
+                        return;
+                    }
                     createFreezeDaysWrap.style.display = createFreezeEnabled.checked ? '' : 'none';
                 }
-                function createToggleSlotsSection() {
-                    createSlotsSection.style.display = (createScheduleType.value === 'fixed') ? '' : 'none';
-                }
+
                 function createNextIndex() {
                     return createSlotsBody.querySelectorAll('tr').length;
                 }
-                function createEnsureAtLeastOneRow() {
-                    if (createSlotsBody.querySelectorAll('tr').length === 0) {
-                        createSlotsBody.appendChild(buildSlotRow('create', 0, {weekday: 1, time_start: '18:00', time_end: '19:00'}));
+
+                function applyCreateScheduleTypeUi() {
+                    if (!createScheduleType) {
+                        return;
+                    }
+                    const t = createScheduleType.value;
+                    if (t === 'no_schedule') {
+                        createSnapshotBeforeSingle = {
+                            duration: (createDuration && createDuration.value) ? createDuration.value : '30',
+                            lessons: (createLessons && createLessons.value) ? createLessons.value : '8',
+                        };
+                        if (createDuration) {
+                            createDuration.value = '1';
+                            createDuration.readOnly = true;
+                        }
+                        if (createLessons) {
+                            createLessons.value = '1';
+                            createLessons.readOnly = true;
+                        }
+                        if (createFreezeSection) {
+                            createFreezeSection.style.display = 'none';
+                        }
+                        if (createFreezeEnabled) {
+                            createFreezeEnabled.checked = false;
+                        }
+                        createToggleFreezeDays();
+                        if (createTemplateHr) {
+                            createTemplateHr.style.display = 'none';
+                        }
+                        if (createSlotsSection) {
+                            createSlotsSection.style.display = 'none';
+                        }
+                        if (createSlotsBody) {
+                            createSlotsBody.innerHTML = '';
+                        }
+                    } else {
+                        if (createSnapshotBeforeSingle) {
+                            if (createDuration) {
+                                createDuration.value = createSnapshotBeforeSingle.duration;
+                            }
+                            if (createLessons) {
+                                createLessons.value = createSnapshotBeforeSingle.lessons;
+                            }
+                            createSnapshotBeforeSingle = null;
+                        }
+                        if (createDuration) {
+                            createDuration.readOnly = false;
+                        }
+                        if (createLessons) {
+                            createLessons.readOnly = false;
+                        }
+                        if (createFreezeSection) {
+                            createFreezeSection.style.display = '';
+                        }
+                        if (createTemplateHr) {
+                            createTemplateHr.style.display = (t === 'fixed') ? '' : 'none';
+                        }
+                        if (createSlotsSection) {
+                            createSlotsSection.style.display = (t === 'fixed') ? '' : 'none';
+                        }
+                        createToggleFreezeDays();
+                        if (t === 'fixed' && createSlotsBody && createSlotsBody.querySelectorAll('tr').length === 0) {
+                            createSlotsBody.appendChild(buildSlotRow('create', 0, {weekday: 1, time_start: '18:00', time_end: '19:00'}));
+                        }
                     }
                 }
 
@@ -485,11 +557,13 @@
                 });
                 createSlotsBody?.addEventListener('click', function (e) {
                     const btn = e.target.closest('.remove-slot');
-                    if (!btn) return;
+                    if (!btn) {
+                        return;
+                    }
                     btn.closest('tr')?.remove();
                 });
                 createFreezeEnabled?.addEventListener('change', createToggleFreezeDays);
-                createScheduleType?.addEventListener('change', createToggleSlotsSection);
+                createScheduleType?.addEventListener('change', applyCreateScheduleTypeUi);
 
                 createFormEl?.addEventListener('submit', async function (e) {
                     e.preventDefault();
@@ -510,9 +584,25 @@
                 });
 
                 createModalEl?.addEventListener('shown.bs.modal', function () {
-                    createToggleFreezeDays();
-                    createToggleSlotsSection();
-                    createEnsureAtLeastOneRow();
+                    createSnapshotBeforeSingle = null;
+                    if (createFormEl) {
+                        createFormEl.reset();
+                    }
+                    if (createScheduleType) {
+                        createScheduleType.value = 'fixed';
+                    }
+                    if (createDuration) {
+                        createDuration.value = '30';
+                        createDuration.readOnly = false;
+                    }
+                    if (createLessons) {
+                        createLessons.value = '8';
+                        createLessons.readOnly = false;
+                    }
+                    if (createSlotsBody) {
+                        createSlotsBody.innerHTML = '';
+                    }
+                    applyCreateScheduleTypeUi();
                 });
 
                 // ---------- EDIT MODAL ----------
@@ -524,13 +614,91 @@
                 const editFreezeDaysWrap = document.getElementById('edit_freeze_days_wrap');
                 const editScheduleType = document.getElementById('edit_schedule_type');
                 const editSlotsSection = document.getElementById('edit-time-slots-section');
+                const editFreezeSection = document.getElementById('edit_freeze_section');
+                const editTemplateHr = document.getElementById('edit_template_hr');
+                const editDuration = document.getElementById('edit_duration_days');
+                const editLessons = document.getElementById('edit_lessons_count');
                 const editIdEl = document.getElementById('edit_id');
+                let editSnapshotBeforeSingle = null;
 
                 function editToggleFreezeDays() {
+                    if (!editFreezeDaysWrap || !editFreezeEnabled) {
+                        return;
+                    }
                     editFreezeDaysWrap.style.display = editFreezeEnabled.checked ? '' : 'none';
                 }
-                function editToggleSlotsSection() {
-                    editSlotsSection.style.display = (editScheduleType.value === 'fixed') ? '' : 'none';
+
+                function applyEditScheduleTypeUi() {
+                    if (!editScheduleType) {
+                        return;
+                    }
+                    const t = editScheduleType.value;
+                    if (t === 'no_schedule') {
+                        editSnapshotBeforeSingle = {
+                            duration: (editDuration && editDuration.value) ? editDuration.value : '30',
+                            lessons: (editLessons && editLessons.value) ? editLessons.value : '8',
+                        };
+                        if (editDuration) {
+                            editDuration.value = '1';
+                            editDuration.readOnly = true;
+                        }
+                        if (editLessons) {
+                            editLessons.value = '1';
+                            editLessons.readOnly = true;
+                        }
+                        if (editFreezeSection) {
+                            editFreezeSection.style.display = 'none';
+                        }
+                        if (editFreezeEnabled) {
+                            editFreezeEnabled.checked = false;
+                        }
+                        editToggleFreezeDays();
+                        if (editTemplateHr) {
+                            editTemplateHr.style.display = 'none';
+                        }
+                        if (editSlotsSection) {
+                            editSlotsSection.style.display = 'none';
+                        }
+                        if (editSlotsBody) {
+                            editSlotsBody.innerHTML = '';
+                        }
+                    } else {
+                        if (editSnapshotBeforeSingle) {
+                            if (editDuration) {
+                                editDuration.value = editSnapshotBeforeSingle.duration;
+                            }
+                            if (editLessons) {
+                                editLessons.value = editSnapshotBeforeSingle.lessons;
+                            }
+                            editSnapshotBeforeSingle = null;
+                        } else {
+                            if (editDuration) {
+                                editDuration.value = '30';
+                            }
+                            if (editLessons) {
+                                editLessons.value = '8';
+                            }
+                        }
+                        if (editDuration) {
+                            editDuration.readOnly = false;
+                        }
+                        if (editLessons) {
+                            editLessons.readOnly = false;
+                        }
+                        if (editFreezeSection) {
+                            editFreezeSection.style.display = '';
+                        }
+                        if (editTemplateHr) {
+                            editTemplateHr.style.display = (t === 'fixed') ? '' : 'none';
+                        }
+                        if (editSlotsSection) {
+                            editSlotsSection.style.display = (t === 'fixed') ? '' : 'none';
+                        }
+                        editToggleFreezeDays();
+                        if (t === 'fixed' && editSlotsBody && editSlotsBody.querySelectorAll('tr').length === 0) {
+                            editSlotsBody.appendChild(buildSlotRow('edit', 0, {weekday: 1, time_start: '18:00', time_end: '19:00'}));
+                        }
+                    }
                 }
                 function editNextIndex() {
                     return editSlotsBody.querySelectorAll('tr').length;
@@ -554,7 +722,7 @@
                     btn.closest('tr')?.remove();
                 });
                 editFreezeEnabled?.addEventListener('change', editToggleFreezeDays);
-                editScheduleType?.addEventListener('change', editToggleSlotsSection);
+                editScheduleType?.addEventListener('change', applyEditScheduleTypeUi);
 
                 editFormEl?.addEventListener('submit', async function (e) {
                     e.preventDefault();
@@ -629,9 +797,50 @@
                             editFreezeEnabled.checked = !!lp.freeze_enabled;
                             editModalEl.querySelector('[name="edit[freeze_days]"]').value = lp.freeze_days || 7;
 
-                            editSetSlots(lp.time_slots || []);
-                            editToggleFreezeDays();
-                            editToggleSlotsSection();
+                            editSnapshotBeforeSingle = null;
+                            const st = (lp.schedule_type || 'fixed').toString();
+                            if (st === 'no_schedule') {
+                                if (editDuration) {
+                                    editDuration.readOnly = true;
+                                }
+                                if (editLessons) {
+                                    editLessons.readOnly = true;
+                                }
+                                if (editFreezeSection) {
+                                    editFreezeSection.style.display = 'none';
+                                }
+                                if (editFreezeEnabled) {
+                                    editFreezeEnabled.checked = false;
+                                }
+                                editToggleFreezeDays();
+                                if (editTemplateHr) {
+                                    editTemplateHr.style.display = 'none';
+                                }
+                                if (editSlotsSection) {
+                                    editSlotsSection.style.display = 'none';
+                                }
+                                if (editSlotsBody) {
+                                    editSlotsBody.innerHTML = '';
+                                }
+                            } else {
+                                if (editDuration) {
+                                    editDuration.readOnly = false;
+                                }
+                                if (editLessons) {
+                                    editLessons.readOnly = false;
+                                }
+                                if (editFreezeSection) {
+                                    editFreezeSection.style.display = '';
+                                }
+                                if (editTemplateHr) {
+                                    editTemplateHr.style.display = (st === 'fixed') ? '' : 'none';
+                                }
+                                if (editSlotsSection) {
+                                    editSlotsSection.style.display = (st === 'fixed') ? '' : 'none';
+                                }
+                                editToggleFreezeDays();
+                                editSetSlots(lp.time_slots || []);
+                            }
                         } catch (err) {
                             // silent
                         }
@@ -640,7 +849,6 @@
 
                 editModalEl?.addEventListener('shown.bs.modal', function () {
                     editToggleFreezeDays();
-                    editToggleSlotsSection();
                 });
             })();
         </script>

@@ -1,16 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class UserTeamScheduleSlot extends Model
+class UserLessonOccurrenceStatusEvent extends Model
 {
-    use HasFactory;
-
-    protected $table = 'user_team_schedule_slots';
+    protected $table = 'user_lesson_occurrence_status_events';
 
     protected $guarded = [];
 
@@ -18,9 +17,9 @@ class UserTeamScheduleSlot extends Model
         'partner_id' => 'int',
         'user_id' => 'int',
         'team_schedule_slot_id' => 'int',
-        'is_trial_lesson' => 'bool',
-        'starts_at' => 'date:Y-m-d',
-        'ends_at' => 'date:Y-m-d',
+        'occurrence_date' => 'date:Y-m-d',
+        'user_lesson_package_id' => 'int',
+        'lesson_occurrence_status_id' => 'int',
         'created_by' => 'int',
     ];
 
@@ -34,7 +33,7 @@ class UserTeamScheduleSlot extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function slot(): BelongsTo
+    public function teamScheduleSlot(): BelongsTo
     {
         return $this->belongsTo(TeamScheduleSlot::class, 'team_schedule_slot_id');
     }
@@ -44,9 +43,13 @@ class UserTeamScheduleSlot extends Model
         return $this->belongsTo(UserLessonPackage::class, 'user_lesson_package_id');
     }
 
+    public function lessonOccurrenceStatus(): BelongsTo
+    {
+        return $this->belongsTo(LessonOccurrenceStatus::class, 'lesson_occurrence_status_id');
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 }
-

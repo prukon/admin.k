@@ -39,7 +39,7 @@
                         @endphp
                         <option value="fixed" {{ $type === 'fixed' ? 'selected' : '' }}>Фиксированное расписание</option>
                         <option value="flexible" {{ $type === 'flexible' ? 'selected' : '' }}>Гибкое расписание</option>
-                        <option value="no_schedule" {{ $type === 'no_schedule' ? 'selected' : '' }}>Без расписания</option>
+                        <option value="no_schedule" {{ $type === 'no_schedule' ? 'selected' : '' }}>Разовое занятие</option>
                     </select>
                     @error('schedule_type')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -49,6 +49,7 @@
                 <div class="col-12 col-md-4">
                     <label class="form-label">Длительность (дни) *</label>
                     <input type="number"
+                           id="duration_days"
                            name="duration_days"
                            value="{{ old('duration_days', 30) }}"
                            class="form-control @error('duration_days') is-invalid @enderror"
@@ -63,6 +64,7 @@
                 <div class="col-12 col-md-4">
                     <label class="form-label">Кол-во занятий *</label>
                     <input type="number"
+                           id="lessons_count"
                            name="lessons_count"
                            value="{{ old('lessons_count', 8) }}"
                            class="form-control @error('lessons_count') is-invalid @enderror"
@@ -89,7 +91,7 @@
                     @enderror
                 </div>
 
-                <div class="col-12">
+                <div class="col-12" id="freeze_section">
                     <div class="form-check">
                         <input class="form-check-input @error('freeze_enabled') is-invalid @enderror"
                                type="checkbox"
@@ -120,7 +122,7 @@
                 </div>
             </div>
 
-            <hr class="my-4">
+            <hr class="my-4" id="template_hr">
 
             <div id="time-slots-section">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -217,14 +219,77 @@
 
             const freezeEnabledEl = document.getElementById('freeze_enabled');
             const freezeDaysWrap = document.getElementById('freeze_days_wrap');
+            const freezeSection = document.getElementById('freeze_section');
+            const templateHr = document.getElementById('template_hr');
+            const durationDaysEl = document.getElementById('duration_days');
+            const lessonsCountEl = document.getElementById('lessons_count');
+            let snapshotBeforeSingle = null;
 
             function toggleSlotsSection() {
                 const type = scheduleTypeEl.value;
-                timeSlotsSection.style.display = (type === 'fixed') ? '' : 'none';
+                const isFixed = type === 'fixed';
+                timeSlotsSection.style.display = isFixed ? '' : 'none';
+                if (templateHr) {
+                    templateHr.style.display = isFixed ? '' : 'none';
+                }
             }
 
             function toggleFreezeDays() {
                 freezeDaysWrap.style.display = freezeEnabledEl.checked ? '' : 'none';
+            }
+
+            function applyScheduleTypeUi() {
+                const type = scheduleTypeEl.value;
+                if (type === 'no_schedule') {
+                    snapshotBeforeSingle = {
+                        duration: durationDaysEl ? durationDaysEl.value : '30',
+                        lessons: lessonsCountEl ? lessonsCountEl.value : '8',
+                    };
+                    if (durationDaysEl) {
+                        durationDaysEl.value = '1';
+                        durationDaysEl.readOnly = true;
+                    }
+                    if (lessonsCountEl) {
+                        lessonsCountEl.value = '1';
+                        lessonsCountEl.readOnly = true;
+                    }
+                    if (freezeSection) {
+                        freezeSection.style.display = 'none';
+                    }
+                    freezeEnabledEl.checked = false;
+                    toggleFreezeDays();
+                    if (templateHr) {
+                        templateHr.style.display = 'none';
+                    }
+                    timeSlotsSection.style.display = 'none';
+                    if (slotsTableBody) {
+                        slotsTableBody.innerHTML = '';
+                    }
+                } else {
+                    if (snapshotBeforeSingle) {
+                        if (durationDaysEl) {
+                            durationDaysEl.value = snapshotBeforeSingle.duration;
+                        }
+                        if (lessonsCountEl) {
+                            lessonsCountEl.value = snapshotBeforeSingle.lessons;
+                        }
+                        snapshotBeforeSingle = null;
+                    }
+                    if (durationDaysEl) {
+                        durationDaysEl.readOnly = false;
+                    }
+                    if (lessonsCountEl) {
+                        lessonsCountEl.readOnly = false;
+                    }
+                    if (freezeSection) {
+                        freezeSection.style.display = '';
+                    }
+                    toggleSlotsSection();
+                    toggleFreezeDays();
+                    if (type === 'fixed' && slotsTableBody && slotsTableBody.querySelectorAll('tr').length === 0) {
+                        slotsTableBody.appendChild(buildSlotRow(0));
+                    }
+                }
             }
 
             function nextIndex() {
@@ -263,7 +328,7 @@
                 if (tr) tr.remove();
             }
 
-            scheduleTypeEl.addEventListener('change', toggleSlotsSection);
+            scheduleTypeEl.addEventListener('change', applyScheduleTypeUi);
             freezeEnabledEl.addEventListener('change', toggleFreezeDays);
             slotsTableBody.addEventListener('click', onRemoveClick);
 
@@ -272,9 +337,30 @@
                 slotsTableBody.appendChild(buildSlotRow(i));
             });
 
-            // initial
-            toggleSlotsSection();
-            toggleFreezeDays();
+            if (scheduleTypeEl.value === 'no_schedule') {
+                snapshotBeforeSingle = null;
+                if (durationDaysEl) {
+                    durationDaysEl.readOnly = true;
+                }
+                if (lessonsCountEl) {
+                    lessonsCountEl.readOnly = true;
+                }
+                if (freezeSection) {
+                    freezeSection.style.display = 'none';
+                }
+                freezeEnabledEl.checked = false;
+                toggleFreezeDays();
+                if (templateHr) {
+                    templateHr.style.display = 'none';
+                }
+                timeSlotsSection.style.display = 'none';
+                if (slotsTableBody) {
+                    slotsTableBody.innerHTML = '';
+                }
+            } else {
+                toggleSlotsSection();
+                toggleFreezeDays();
+            }
         })();
     </script>
 @endsection

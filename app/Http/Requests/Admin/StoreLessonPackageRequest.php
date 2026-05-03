@@ -87,14 +87,15 @@ final class StoreLessonPackageRequest extends FormRequest
                 'max:3650',
             ],
 
-            // Слоты нужны только для fixed, для остальных — не используем
-            'time_slots' => [
-                Rule::requiredIf(fn () => $scheduleType === 'fixed'),
-                'nullable',
-                'array',
-                'min:1',
-                'max:21',
-            ],
+            // Слоты нужны только для fixed; для flexible/no_schedule допускается пустой массив (не min:1)
+            'time_slots' => array_merge(
+                [
+                    Rule::requiredIf(fn () => $scheduleType === 'fixed'),
+                    'nullable',
+                    'array',
+                ],
+                $scheduleType === 'fixed' ? ['min:1', 'max:21'] : []
+            ),
             'time_slots.*.weekday' => [
                 'exclude_unless:schedule_type,fixed',
                 'required',
@@ -119,6 +120,19 @@ final class StoreLessonPackageRequest extends FormRequest
     {
         $validator->after(function (Validator $v) {
             $scheduleType = (string) $this->input('schedule_type', '');
+
+            if ($scheduleType === 'no_schedule') {
+                if ((int) $this->input('duration_days') !== 1) {
+                    $v->errors()->add('duration_days', 'Для разового занятия длительность должна быть 1 день.');
+                }
+                if ((int) $this->input('lessons_count') !== 1) {
+                    $v->errors()->add('lessons_count', 'Для разового занятия количество занятий должно быть 1.');
+                }
+                if ($this->boolean('freeze_enabled')) {
+                    $v->errors()->add('freeze_enabled', 'Для разового занятия заморозка недоступна.');
+                }
+            }
+
             if ($scheduleType !== 'fixed') {
                 return;
             }

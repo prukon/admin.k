@@ -11,6 +11,17 @@ class StoreRequest extends FormRequest
         return true;
     }
 
+    /**
+     * Пустая строка из формы → null: в БД храним NULL, каст password «hashed» не должен хешировать пустоту.
+     */
+    protected function prepareForValidation(): void
+    {
+        $password = $this->input('password');
+        if ($password === null || trim((string) $password) === '') {
+            $this->merge(['password' => null]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -21,7 +32,7 @@ class StoreRequest extends FormRequest
             'start_date'  => 'nullable|date',
 
             'email'       => 'nullable|email|max:255|unique:users,email',
-            'password'    => 'required|string|min:8|max:255',
+            'password'    => 'nullable|string|min:8|max:255',
 
             'is_enabled'  => 'sometimes|boolean', // чекбокс может не прийти
             'role_id'     => 'required|integer|exists:roles,id',
@@ -57,7 +68,6 @@ class StoreRequest extends FormRequest
             'email.email'       => 'Введите корректный адрес электронной почты.',
             'email.unique'      => 'Этот адрес электронной почты уже зарегистрирован.',
 
-            'password.required' => 'Пожалуйста, введите пароль.',
             'password.string'   => 'Пароль должен быть строкой.',
             'password.min'      => 'Пароль должен содержать не менее :min символов.',
             'password.max'      => 'Пароль не должен превышать :max символов.',

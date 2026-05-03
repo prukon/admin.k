@@ -79,6 +79,12 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             ->assertForbidden();
         $this->getJson(route('admin.lesson-packages.school-schedule.flexible-users-search'))
             ->assertForbidden();
+        $this->getJson(route('admin.lesson-packages.school-schedule.single-lesson-assignments', ['user_id' => $student->id]))
+            ->assertForbidden();
+        $this->getJson(route('admin.lesson-packages.school-schedule.single-lesson-users-search'))
+            ->assertForbidden();
+        $this->getJson(route('admin.lesson-packages.school-schedule.assignment-availability'))
+            ->assertForbidden();
 
         $this->postJson(route('admin.lesson-packages.school-schedule.assign-flexible'), [
             'user_lesson_package_id' => 999999,
@@ -91,6 +97,24 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'user_lesson_package_id' => 999999,
             'team_schedule_slot_id' => 999999,
             'anchor_date' => self::WEEK_ANCHOR_MONDAY,
+        ])->assertForbidden();
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-single-lesson'), [
+            'user_lesson_package_id' => 999999,
+            'team_schedule_slot_id' => 999999,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ])->assertForbidden();
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.trial-registration-eligibility', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => 1,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ]))->assertForbidden();
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => 1,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
         ])->assertForbidden();
     }
 
@@ -130,6 +154,19 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $this->getJson(route('admin.lesson-packages.school-schedule.flexible-users-search'))
             ->assertOk()
             ->assertJsonStructure(['results']);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.single-lesson-assignments', ['user_id' => 0]))
+            ->assertOk()
+            ->assertExactJson(['assignments' => []]);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.single-lesson-users-search'))
+            ->assertOk()
+            ->assertJsonStructure(['results']);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.assignment-availability'))
+            ->assertOk()
+            ->assertJsonStructure(['flexible', 'fixed', 'single_lesson'])
+            ->assertJson(['flexible' => false, 'fixed' => false, 'single_lesson' => false]);
     }
 
     public function test_store_team_slot_without_location_id_saves_null_location(): void
@@ -237,6 +274,93 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $this->assertTrue(
             collect($lines)->contains(fn (string $line): bool => str_contains($line, 'гибкий абонемент')),
             'Подпись регистрации должна относиться к гибкому абонементу.'
+        );
+    }
+
+    public function test_assign_single_lesson_no_schedule_creates_binding_and_registration_label(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Разовое интеграция',
+            'schedule_type' => 'no_schedule',
+            'duration_days' => 1,
+            'lessons_count' => 1,
+            'price_cents' => 150000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'created_by' => $this->user->id,
+        ]);
+
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '11:00',
+            'time_end' => '12:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.single-lesson-assignments', ['user_id' => $student->id]))
+            ->assertOk()
+            ->assertJsonPath('assignments.0.id', $ulp->id);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-single-lesson'), [
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ])->assertOk()
+            ->assertJsonPath('message', 'Разовое занятие записано в расписание.');
+
+        $this->assertDatabaseHas('user_team_schedule_slots', [
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'user_lesson_package_id' => $ulp->id,
+            'starts_at' => self::WEEK_ANCHOR_MONDAY,
+        ]);
+
+        $ulp->refresh();
+        $this->assertSame(0, $ulp->lessons_remaining);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-single-lesson'), [
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ])->assertStatus(422)
+            ->assertJsonPath('errors.user_lesson_package_id.0', 'Для этого назначения слот в календаре уже выбран. Оформите новое разовое занятие отдельным абонементом.');
+
+        $week = $this->getJson(route('admin.lesson-packages.school-schedule.week', ['week' => self::WEEK_ANCHOR_MONDAY]))
+            ->assertOk()
+            ->json();
+
+        $hit = collect($week['occurrences'] ?? [])->first(function (array $o) use ($slot): bool {
+            return ($o['date'] ?? '') === self::WEEK_ANCHOR_MONDAY
+                && (int) ($o['id'] ?? 0) === $slot->id;
+        });
+        $this->assertNotNull($hit);
+        $this->assertNotEmpty($hit['registrations'] ?? []);
+        $lines = array_column($hit['registrations'], 'line');
+        $this->assertTrue(
+            collect($lines)->contains(fn (string $line): bool => str_contains($line, 'разовое занятие')),
+            'Подпись регистрации должна относиться к разовому занятию.'
         );
     }
 
@@ -548,5 +672,114 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $this->assertNotNull($ulpAfter->ends_at);
         $this->assertSame(self::WEEK_ANCHOR_MONDAY, $ulpAfter->starts_at->format('Y-m-d'));
         $this->assertSame('2026-08-02', $ulpAfter->ends_at->format('Y-m-d'));
+    }
+
+    public function test_trial_registration_two_students_same_slot_eligibility_block_with_abonement_and_delete(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $studentA = $this->studentUser();
+        $studentB = $this->studentUser();
+
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '12:00',
+            'time_end' => '13:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
+            'user_id' => $studentA->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ])->assertOk();
+
+        $rowA = UserTeamScheduleSlot::query()
+            ->where('user_id', $studentA->id)
+            ->where('team_schedule_slot_id', $slot->id)
+            ->whereDate('starts_at', self::WEEK_ANCHOR_MONDAY)
+            ->first();
+        $this->assertNotNull($rowA);
+        $this->assertTrue((bool) $rowA->is_trial_lesson);
+        $this->assertNull($rowA->user_lesson_package_id);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
+            'user_id' => $studentB->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ])->assertOk();
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.trial-registration-eligibility', [
+            'user_id' => $studentA->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ]))->assertOk()
+            ->assertJsonPath('allowed', false);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
+            'user_id' => $studentA->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ])->assertStatus(422);
+
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Гибкий для пробного теста',
+            'schedule_type' => 'flexible',
+            'duration_days' => 120,
+            'lessons_count' => 10,
+            'price_cents' => 5000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        $studentC = $this->studentUser();
+        $ulpC = UserLessonPackage::query()->create([
+            'user_id' => $studentC->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => '2026-04-01',
+            'ends_at' => '2026-12-31',
+            'lessons_total' => 10,
+            'lessons_remaining' => 3,
+            'created_by' => $this->user->id,
+        ]);
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-flexible'), [
+            'user_lesson_package_id' => $ulpC->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ])->assertOk();
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.trial-registration-eligibility', [
+            'user_id' => $studentC->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ]))->assertOk()
+            ->assertJsonPath('allowed', false);
+
+        $this->deleteJson(route('admin.lesson-packages.school-schedule.trial-registration.destroy', ['userTeamScheduleSlot' => $rowA->id]))
+            ->assertOk();
+
+        $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $rowA->id]);
+
+        $week = $this->getJson(route('admin.lesson-packages.school-schedule.week', ['week' => self::WEEK_ANCHOR_MONDAY]))
+            ->assertOk()
+            ->json();
+        $hit = collect($week['occurrences'] ?? [])->first(function (array $o) use ($slot): bool {
+            return ($o['date'] ?? '') === self::WEEK_ANCHOR_MONDAY
+                && (int) ($o['id'] ?? 0) === $slot->id;
+        });
+        $this->assertNotNull($hit);
+        $regs = $hit['registrations'] ?? [];
+        $this->assertGreaterThanOrEqual(2, count($regs));
+        $this->assertTrue(
+            collect($regs)->contains(fn (array $r): bool => ($r['registration_kind'] ?? '') === 'trial'),
+            'Ожидалась регистрация с видом trial в JSON недели.'
+        );
     }
 }

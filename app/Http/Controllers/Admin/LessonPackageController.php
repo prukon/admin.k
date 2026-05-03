@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\SetManualUserLessonPackagePaidRequest;
 use App\Http\Requests\Admin\StoreLessonPackageRequest;
 use App\Http\Requests\Admin\StoreUserLessonPackageRequest;
 use App\Http\Requests\Admin\UpdateUserLessonPackageAssignmentRequest;
+use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
 use App\Models\LessonPackageTimeSlot;
 use App\Models\Location;
@@ -16,7 +17,9 @@ use App\Models\Team;
 use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\LessonPackages\SchoolCalendarAssignmentEligibilityService;
 use App\Services\PartnerContext;
+use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageAssignmentDeletionService;
 use App\Services\Payments\UserLessonPackagePublicPayService;
@@ -31,8 +34,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class LessonPackageController extends AdminBaseController
 {
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly SchoolCalendarAssignmentEligibilityService $schoolCalendarAssignmentEligibility,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -80,11 +85,20 @@ final class LessonPackageController extends AdminBaseController
             ->orderBy('title')
             ->get(['id', 'title']);
 
+        LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId);
+        $schoolCalendarOccurrenceStatuses = LessonOccurrenceStatus::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'code', 'title', 'color', 'icon']);
+
         return view('admin.lessonPackages.index', [
             'activeTab' => 'school-schedule',
             'locations' => $locations,
             'teams' => $teams,
             'weekdays' => self::weekdaysMap(),
+            'schoolCalendarOccurrenceStatuses' => $schoolCalendarOccurrenceStatuses,
         ]);
     }
 
@@ -143,25 +157,45 @@ final class LessonPackageController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
         $userId = (int) $request->query('user_id', 0);
 
-        if ($userId < 1) {
+        if (! $this->schoolCalendarAssignmentEligibility->userBelongsToPartnerAndEnabled($partnerId, $userId)) {
             return response()->json(['assignments' => []]);
         }
 
-        $userExists = User::query()
-            ->where('partner_id', $partnerId)
-            ->whereKey($userId)
-            ->exists();
-
-        if (! $userExists) {
-            return response()->json(['assignments' => []]);
-        }
-
-        $rows = UserLessonPackage::query()
-            ->with(['lessonPackage:id,name,schedule_type'])
+        $rows = $this->schoolCalendarAssignmentEligibility
+            ->flexibleAssignmentsQuery($partnerId)
             ->where('user_id', $userId)
-            ->whereHas('lessonPackage', fn ($q) => $q->where('partner_id', $partnerId)->where('schedule_type', 'flexible'))
-            ->where('lessons_remaining', '>', 0)
-            ->orderByDesc('id')
+            ->get();
+
+        $assignments = $rows->map(function (UserLessonPackage $ulp) {
+            $name = $ulp->lessonPackage?->name ?? 'Абонемент';
+
+            return [
+                'id' => (int) $ulp->id,
+                'label' => $name.' №'.(int) $ulp->id.' — осталось '.(int) $ulp->lessons_remaining,
+                'lessons_remaining' => (int) $ulp->lessons_remaining,
+                'starts_at' => $ulp->starts_at?->format('Y-m-d'),
+                'ends_at' => $ulp->ends_at?->format('Y-m-d'),
+            ];
+        });
+
+        return response()->json(['assignments' => $assignments]);
+    }
+
+    /**
+     * Назначения с типом «разовое занятие» (no_schedule) с положительным остатком — модалка календаря школы.
+     */
+    public function schoolScheduleSingleLessonAssignments(Request $request): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $userId = (int) $request->query('user_id', 0);
+
+        if (! $this->schoolCalendarAssignmentEligibility->userBelongsToPartnerAndEnabled($partnerId, $userId)) {
+            return response()->json(['assignments' => []]);
+        }
+
+        $rows = $this->schoolCalendarAssignmentEligibility
+            ->singleLessonAssignmentsQuery($partnerId)
+            ->where('user_id', $userId)
             ->get();
 
         $assignments = $rows->map(function (UserLessonPackage $ulp) {
@@ -187,27 +221,13 @@ final class LessonPackageController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
         $userId = (int) $request->query('user_id', 0);
 
-        if ($userId < 1) {
+        if (! $this->schoolCalendarAssignmentEligibility->userBelongsToPartnerAndEnabled($partnerId, $userId)) {
             return response()->json(['assignments' => []]);
         }
 
-        $userExists = User::query()
-            ->where('partner_id', $partnerId)
-            ->whereKey($userId)
-            ->exists();
-
-        if (! $userExists) {
-            return response()->json(['assignments' => []]);
-        }
-
-        $rows = UserLessonPackage::query()
-            ->with(['lessonPackage:id,name,schedule_type'])
+        $rows = $this->schoolCalendarAssignmentEligibility
+            ->fixedAssignmentsQuery($partnerId)
             ->where('user_id', $userId)
-            ->whereNull('starts_at')
-            ->whereNull('ends_at')
-            ->whereHas('lessonPackage', fn ($q) => $q->where('partner_id', $partnerId)->where('schedule_type', 'fixed'))
-            ->where('lessons_remaining', '>', 0)
-            ->orderByDesc('id')
             ->get();
 
         $assignments = $rows->map(function (UserLessonPackage $ulp) {
@@ -224,6 +244,20 @@ final class LessonPackageController extends AdminBaseController
     }
 
     /**
+     * Доступность действий «привязать» в модалке слота календаря школы (по данным партнёра).
+     */
+    public function schoolScheduleAssignmentAvailability(): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+
+        return response()->json([
+            'flexible' => $this->schoolCalendarAssignmentEligibility->hasAnyFlexible($partnerId),
+            'fixed' => $this->schoolCalendarAssignmentEligibility->hasAnyFixed($partnerId),
+            'single_lesson' => $this->schoolCalendarAssignmentEligibility->hasAnySingleLesson($partnerId),
+        ]);
+    }
+
+    /**
      * Select2: ученики с гибким абонементом и положительным остатком занятий (модалка привязки из календаря).
      */
     public function schoolScheduleFlexibleUsersSearch(Request $request): JsonResponse
@@ -235,8 +269,7 @@ final class LessonPackageController extends AdminBaseController
             ->where('partner_id', $partnerId)
             ->where('is_enabled', 1)
             ->whereHas('lessonPackageAssignments', function ($query) use ($partnerId) {
-                $query->where('lessons_remaining', '>', 0)
-                    ->whereHas('lessonPackage', fn ($lq) => $lq->where('partner_id', $partnerId)->where('schedule_type', 'flexible'));
+                $this->schoolCalendarAssignmentEligibility->constrainFlexibleAssignable($query, $partnerId);
             })
             ->when($q !== '', function ($query) use ($q) {
                 $like = '%'.$q.'%';
@@ -247,9 +280,61 @@ final class LessonPackageController extends AdminBaseController
             ->limit(30)
             ->with([
                 'lessonPackageAssignments' => function ($query) use ($partnerId) {
-                    $query->where('lessons_remaining', '>', 0)
-                        ->whereHas('lessonPackage', fn ($lq) => $lq->where('partner_id', $partnerId)->where('schedule_type', 'flexible'))
-                        ->with(['lessonPackage:id,name'])
+                    $this->schoolCalendarAssignmentEligibility->constrainFlexibleAssignable($query, $partnerId);
+                    $query->with(['lessonPackage:id,name'])
+                        ->orderByDesc('id');
+                },
+            ])
+            ->get(['id', 'name', 'lastname']);
+
+        $results = $users->map(function (User $u) {
+            $base = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+            if ($base === '') {
+                $base = '#'.$u->id;
+            }
+
+            $parts = [];
+            foreach ($u->lessonPackageAssignments as $ulp) {
+                $pkgName = $ulp->lessonPackage?->name ?? 'Абонемент';
+                $parts[] = $pkgName.' — '.(int) $ulp->lessons_remaining.' з.';
+            }
+
+            $text = $parts === [] ? $base : $base.' ('.implode(', ', $parts).')';
+
+            return [
+                'id' => (int) $u->id,
+                'text' => $text,
+            ];
+        })->values();
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
+     * Select2: ученики с разовым занятием (no_schedule) и положительным остатком — модалка календаря школы.
+     */
+    public function schoolScheduleSingleLessonUsersSearch(Request $request): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $q = trim((string) $request->query('q', ''));
+
+        $users = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->whereHas('lessonPackageAssignments', function ($query) use ($partnerId) {
+                $this->schoolCalendarAssignmentEligibility->constrainSingleLessonAssignable($query, $partnerId);
+            })
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%'.$q.'%';
+                $query->whereRaw("CONCAT_WS(' ', lastname, name) LIKE ?", [$like]);
+            })
+            ->orderBy('lastname')
+            ->orderBy('name')
+            ->limit(30)
+            ->with([
+                'lessonPackageAssignments' => function ($query) use ($partnerId) {
+                    $this->schoolCalendarAssignmentEligibility->constrainSingleLessonAssignable($query, $partnerId);
+                    $query->with(['lessonPackage:id,name'])
                         ->orderByDesc('id');
                 },
             ])
@@ -520,7 +605,8 @@ final class LessonPackageController extends AdminBaseController
         $schedLabel = match ($sched) {
             'fixed' => 'Фиксированное расписание',
             'flexible' => 'Гибкий абонемент',
-            default => 'Без расписания',
+            'no_schedule' => 'Разовое занятие',
+            default => 'Абонемент',
         };
 
         $manualByDisplay = '';
@@ -649,6 +735,13 @@ final class LessonPackageController extends AdminBaseController
 
         try {
             DB::transaction(function () use ($data, $priceCents, $freezeDays, $partnerId) {
+                $freezeEnabled = (bool) ($data['freeze_enabled'] ?? false);
+                $freezeDaysStored = $freezeDays;
+                if ((string) $data['schedule_type'] === 'no_schedule') {
+                    $freezeEnabled = false;
+                    $freezeDaysStored = 0;
+                }
+
                 /** @var LessonPackage $package */
                 $package = LessonPackage::create([
                     'partner_id' => $partnerId,
@@ -657,8 +750,8 @@ final class LessonPackageController extends AdminBaseController
                     'duration_days' => (int) $data['duration_days'],
                     'lessons_count' => (int) $data['lessons_count'],
                     'price_cents' => $priceCents,
-                    'freeze_enabled' => (bool) ($data['freeze_enabled'] ?? false),
-                    'freeze_days' => $freezeDays,
+                    'freeze_enabled' => $freezeEnabled,
+                    'freeze_days' => $freezeDaysStored,
                     'is_active' => true,
                 ]);
 
@@ -747,14 +840,21 @@ final class LessonPackageController extends AdminBaseController
 
         try {
             DB::transaction(function () use ($lessonPackage, $data, $priceCents, $freezeDays) {
+                $freezeEnabled = (bool) ($data['freeze_enabled'] ?? false);
+                $freezeDaysStored = $freezeDays;
+                if ((string) $data['schedule_type'] === 'no_schedule') {
+                    $freezeEnabled = false;
+                    $freezeDaysStored = 0;
+                }
+
                 $lessonPackage->forceFill([
                     'name' => (string) $data['name'],
                     'schedule_type' => (string) $data['schedule_type'],
                     'duration_days' => (int) $data['duration_days'],
                     'lessons_count' => (int) $data['lessons_count'],
                     'price_cents' => $priceCents,
-                    'freeze_enabled' => (bool) ($data['freeze_enabled'] ?? false),
-                    'freeze_days' => $freezeDays,
+                    'freeze_enabled' => $freezeEnabled,
+                    'freeze_days' => $freezeDaysStored,
                 ]);
                 $lessonPackage->save();
 
