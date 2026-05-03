@@ -7,13 +7,16 @@ namespace Tests\Feature\Crm\LessonPackages;
 use App\Models\Location;
 use App\Models\Team;
 use App\Models\TeamScheduleSlot;
+use App\Models\User;
+use App\Models\UserTeamScheduleSlot;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
  * Доступ к странице «Расписание школы», все читающие JSON-эндпоинты календаря (200 при lessonPackages.view),
- * контроль доступа к мутациям слотов (scheduleSlots.manage) и сквозной сценарий API календаря.
+ * пробные занятия (поиск учеников, eligibility, POST/DELETE trial), контроль доступа к мутациям слотов
+ * (scheduleSlots.manage) и сквозной сценарий API календаря.
  */
 final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends CrmTestCase
 {
@@ -57,6 +60,9 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
             ->assertSee('Расписание школы', false)
             ->assertSee('schoolCalGrid', false)
             ->assertSee('schoolCalSlotModal', false)
+            ->assertSee('schoolCalTrialModal', false)
+            ->assertSee('schoolCalOpenTrial', false)
+            ->assertSee('Пробное занятие', false)
             ->assertSee('Привязать гибкий абонемент', false)
             ->assertSee('Привязать фиксированный абонемент', false)
             ->assertDontSee('Изменить занятие', false);
@@ -122,6 +128,83 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
             'q' => '',
         ]))->assertOk()
             ->assertJsonStructure(['results']);
+
+        $this->getJson(route('admin.lesson-packages.assignments.users-search', [
+            'q' => '',
+        ]))->assertOk()
+            ->assertJsonStructure(['results']);
+
+        $trialStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => 1,
+        ]);
+        $trialTeam = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $trialSlot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $trialTeam->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '15:00',
+            'time_end' => '16:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.trial-registration-eligibility', [
+            'user_id' => $trialStudent->id,
+            'team_schedule_slot_id' => $trialSlot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ]))->assertOk()
+            ->assertJsonStructure(['allowed', 'reason'])
+            ->assertJsonPath('allowed', true);
+    }
+
+    /**
+     * Создание и удаление пробной записи доступны при lessonPackages.view и возвращают 200.
+     */
+    public function test_trial_registration_store_and_destroy_return_200_with_lesson_packages_view(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => 1,
+        ]);
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '17:00',
+            'time_end' => '18:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ])->assertOk();
+
+        $trialId = (int) UserTeamScheduleSlot::query()
+            ->where('user_id', $student->id)
+            ->where('team_schedule_slot_id', $slot->id)
+            ->whereDate('starts_at', self::WEEK_MONDAY)
+            ->where('is_trial_lesson', true)
+            ->value('id');
+        $this->assertGreaterThan(0, $trialId);
+
+        $this->deleteJson(route('admin.lesson-packages.school-schedule.trial-registration.destroy', [
+            'userTeamScheduleSlot' => $trialId,
+        ]))->assertOk();
+
+        $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $trialId]);
     }
 
     public function test_team_slot_mutations_return_403_without_schedule_slots_manage(): void

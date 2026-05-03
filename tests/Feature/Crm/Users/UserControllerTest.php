@@ -686,6 +686,166 @@ class UserControllerTest extends CrmTestCase
     }
 
     /**
+     * Пустое поле пароля из формы → NULL в БД (prepareForValidation).
+     */
+    public function test_store_empty_password_string_normalized_to_null_in_database(): void
+    {
+        $role = Role::firstOrCreate(
+            ['name' => 'user'],
+            [
+                'label' => 'user',
+                'is_sistem' => 1,
+                'is_visible' => 1,
+                'order_by' => 0,
+            ]
+        );
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        $email = 'empty-pass-' . uniqid('', true) . '@example.com';
+
+        $response = $this->postJson('/admin/users', [
+            'name'       => 'Пустой',
+            'lastname'   => 'Строка',
+            'email'      => $email,
+            'role_id'    => $role->id,
+            'team_id'    => $team->id,
+            'birthday'   => '2017-07-07',
+            'is_enabled' => 1,
+            'password'   => '',
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $response->assertOk();
+
+        $created = User::where('email', $email)->firstOrFail();
+        $this->assertNull($created->getRawOriginal('password'));
+    }
+
+    /**
+     * Пароль из одних пробелов → NULL в БД.
+     */
+    public function test_store_whitespace_only_password_normalized_to_null_in_database(): void
+    {
+        $role = Role::firstOrCreate(
+            ['name' => 'user'],
+            [
+                'label' => 'user',
+                'is_sistem' => 1,
+                'is_visible' => 1,
+                'order_by' => 0,
+            ]
+        );
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        $email = 'ws-pass-' . uniqid('', true) . '@example.com';
+
+        $response = $this->postJson('/admin/users', [
+            'name'       => 'Пробелы',
+            'lastname'   => 'Пароль',
+            'email'      => $email,
+            'role_id'    => $role->id,
+            'team_id'    => $team->id,
+            'birthday'   => '2018-08-08',
+            'is_enabled' => 1,
+            'password'   => " \t  ",
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $response->assertOk();
+
+        $created = User::where('email', $email)->firstOrFail();
+        $this->assertNull($created->getRawOriginal('password'));
+    }
+
+    /**
+     * Если пароль передан непустым, действует min:8.
+     */
+    public function test_store_validation_rejects_short_password_when_password_provided(): void
+    {
+        $role = Role::firstOrCreate(
+            ['name' => 'user'],
+            [
+                'label' => 'user',
+                'is_sistem' => 1,
+                'is_visible' => 1,
+                'order_by' => 0,
+            ]
+        );
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        $response = $this->postJson('/admin/users', [
+            'name'       => 'Короткий',
+            'lastname'   => 'Пароль',
+            'email'      => 'short-pass@example.com',
+            'role_id'    => $role->id,
+            'team_id'    => $team->id,
+            'is_enabled' => 1,
+            'password'   => 'short',
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['password']);
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'short-pass@example.com',
+        ]);
+    }
+
+    /**
+     * Непустой пароль сохраняется хешем в БД (bcrypt через каст модели).
+     */
+    public function test_store_persists_bcrypt_hash_when_password_provided(): void
+    {
+        $role = Role::firstOrCreate(
+            ['name' => 'user'],
+            [
+                'label' => 'user',
+                'is_sistem' => 1,
+                'is_visible' => 1,
+                'order_by' => 0,
+            ]
+        );
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        $plain = 'ValidPass198!';
+        $email = 'with-hash-' . uniqid('', true) . '@example.com';
+
+        $this->postJson('/admin/users', [
+            'name'       => 'С',
+            'lastname'   => 'Паролем',
+            'email'      => $email,
+            'role_id'    => $role->id,
+            'team_id'    => $team->id,
+            'birthday'   => '2019-09-09',
+            'is_enabled' => 1,
+            'password'   => $plain,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])->assertOk();
+
+        $created = User::where('email', $email)->firstOrFail();
+        $storedHash = $created->getRawOriginal('password');
+
+        $this->assertNotNull($storedHash);
+        $this->assertTrue(Hash::check($plain, $storedHash));
+    }
+
+    /**
      * [P1] Транзакционность и логирование при создании (MyLog)
      */
     public function test_store_is_transactional_and_writes_creation_log(): void

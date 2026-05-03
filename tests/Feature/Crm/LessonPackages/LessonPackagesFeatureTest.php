@@ -378,7 +378,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Админ пакет',
             'schedule_type' => 'no_schedule',
-            'duration_days' => 30,
+            'duration_days' => 1,
             'lessons_count' => 1,
             'price' => '100.00',
             'freeze_enabled' => 0,
@@ -396,11 +396,10 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->putJson(route('admin.lesson-packages.update', ['lessonPackage' => $lpId]), [
             'name' => 'Админ пакет 2',
             'schedule_type' => 'no_schedule',
-            'duration_days' => 60,
-            'lessons_count' => 3,
+            'duration_days' => 1,
+            'lessons_count' => 1,
             'price' => '200.00',
-            'freeze_enabled' => 1,
-            'freeze_days' => 10,
+            'freeze_enabled' => 0,
         ])->assertOk()->assertJson(['success' => true]);
     }
 

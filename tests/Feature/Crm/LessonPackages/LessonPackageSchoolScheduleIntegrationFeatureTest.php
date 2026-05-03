@@ -167,6 +167,31 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             ->assertOk()
             ->assertJsonStructure(['flexible', 'fixed', 'single_lesson'])
             ->assertJson(['flexible' => false, 'fixed' => false, 'single_lesson' => false]);
+
+        $this->getJson(route('admin.lesson-packages.assignments.users-search', ['q' => '']))
+            ->assertOk()
+            ->assertJsonStructure(['results']);
+
+        $trialTeam = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $trialSlot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $trialTeam->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '20:00',
+            'time_end' => '21:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.trial-registration-eligibility', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $trialSlot->id,
+            'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('allowed', true);
     }
 
     public function test_store_team_slot_without_location_id_saves_null_location(): void

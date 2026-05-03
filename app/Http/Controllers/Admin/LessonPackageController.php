@@ -19,15 +19,17 @@ use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\LessonPackages\SchoolCalendarAssignmentEligibilityService;
 use App\Services\PartnerContext;
-use Database\Seeders\LessonOccurrenceStatusesSeeder;
+use App\Services\Payments\UserLessonPackagePublicPayService;
+use App\Services\SchoolScheduleViewSettingsService;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageAssignmentDeletionService;
-use App\Services\Payments\UserLessonPackagePublicPayService;
 use Carbon\CarbonImmutable;
+use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -93,12 +95,16 @@ final class LessonPackageController extends AdminBaseController
             ->orderBy('id')
             ->get(['id', 'code', 'title', 'color', 'icon']);
 
+        $schoolScheduleViewSettings = app(SchoolScheduleViewSettingsService::class)
+            ->getForUserId((int) Auth::id());
+
         return view('admin.lessonPackages.index', [
             'activeTab' => 'school-schedule',
             'locations' => $locations,
             'teams' => $teams,
             'weekdays' => self::weekdaysMap(),
             'schoolCalendarOccurrenceStatuses' => $schoolCalendarOccurrenceStatuses,
+            'schoolScheduleViewSettings' => $schoolScheduleViewSettings,
         ]);
     }
 
@@ -664,6 +670,7 @@ final class LessonPackageController extends AdminBaseController
 
         $results = $users->map(function (User $u) {
             $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
             return [
                 'id' => (int) $u->id,
                 'text' => $text !== '' ? $text : ('#'.$u->id),
@@ -975,4 +982,3 @@ final class LessonPackageController extends AdminBaseController
         ];
     }
 }
-

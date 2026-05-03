@@ -1,5 +1,5 @@
 {{--
-  Расписание школы: недельная сетка 09:00–21:00, фильтр локации, назначение абонементов.
+  Расписание школы: недельная сетка времени (по умолчанию 09:00–21:00, настраивается в модалке), фильтр локации, назначение абонементов.
 --}}
 @php
     $weekLabels = $weekdays ?? [1 => 'Пн', 2 => 'Вт', 3 => 'Ср', 4 => 'Чт', 5 => 'Пт', 6 => 'Сб', 7 => 'Вс'];
@@ -36,13 +36,60 @@
                         </select>
                     </div>
                 @endcan
+                <div class="d-flex align-items-center justify-content-md-end ms-md-auto">
+                    <div class="wrap-icon btn"
+                         data-bs-toggle="modal"
+                         data-bs-target="#schoolCalViewSettingsModal"
+                         title="Отображение календаря">
+                        <i class="fa-solid fa-gear settings-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="schoolCalViewSettingsModal" tabindex="-1" aria-labelledby="schoolCalViewSettingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title" id="schoolCalViewSettingsModalLabel">График отображения календаря</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">Настраивается только сетка на экране. Слоты и записи в системе этим окном не ограничиваются.</p>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label" for="schoolCalViewStart">С</label>
+                            <select class="form-select" id="schoolCalViewStart">
+                                @for ($m = 0; $m <= 1380; $m += 30)
+                                    <option value="{{ $m }}">{{ sprintf('%02d:%02d', intdiv($m, 60), $m % 60) }}</option>
+                                @endfor
+                            </select>
+                            <div class="invalid-feedback d-block" data-err="view_start_min"></div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="schoolCalViewEnd">До</label>
+                            <select class="form-select" id="schoolCalViewEnd">
+                                @for ($m = 60; $m <= 1440; $m += 30)
+                                    <option value="{{ $m }}">{{ $m >= 1440 ? '24:00' : sprintf('%02d:%02d', intdiv($m, 60), $m % 60) }}</option>
+                                @endfor
+                            </select>
+                            <div class="invalid-feedback d-block" data-err="view_end_min"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-auto" id="schoolCalViewSettingsReset">По умолчанию</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="schoolCalViewSettingsSave">Сохранить</button>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="schoolCalAlert" class="alert d-none" role="alert"></div>
 
-    <div class="school-cal__grid-wrap card border-0 shadow-sm overflow-hidden">
+    <div class="school-cal__grid-wrap card border-0 shadow-sm school-cal__grid-wrap--events-visible">
         <div class="school-cal__grid-scroll">
             <div class="school-cal__grid @can('scheduleSlots.manage') school-cal__grid--manage-slots @endcan" id="schoolCalGrid" aria-busy="true">
                 <div class="school-cal__loading p-5 text-center text-muted w-100">
@@ -306,6 +353,10 @@
         border-radius: 14px !important;
         background: #f8fafc;
     }
+    /* Не обрезаем карточки занятий по вертикали; горизонтальный скролл — внутри .school-cal__grid-scroll */
+    .school-cal__grid-wrap--events-visible {
+        overflow: visible;
+    }
     .school-cal__grid-scroll {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -524,16 +575,25 @@
                 trialRegistrationStore: @json(route('admin.lesson-packages.school-schedule.trial-registration.store')),
                 trialRegistrationEligibility: @json(route('admin.lesson-packages.school-schedule.trial-registration-eligibility')),
                 trialRegistrationRoot: @json(url('/admin/lesson-packages/school-schedule/trial-registration')),
+                viewSettingsSave: @json(route('admin.lesson-packages.school-schedule.view-settings.save')),
             };
+            const viewSettingsInitial = @json($schoolScheduleViewSettings ?? ['view_start_min' => 540, 'view_end_min' => 1260]);
             const occurrenceStatuses = @json($schoolCalendarOccurrenceStatuses ?? []);
             const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const weekLabels = @json($weekLabels);
 
-            const START_MIN = 9 * 60;
-            const END_MIN = 21 * 60;
-            const TOTAL_MIN = END_MIN - START_MIN;
             const SLOT_PX = 40;
-            const GRID_HEIGHT_PX = (TOTAL_MIN / 30) * SLOT_PX;
+            let viewStartMin = viewSettingsInitial.view_start_min;
+            let viewEndMin = viewSettingsInitial.view_end_min;
+            let lastOccurrences = [];
+
+            function viewTotalMin() {
+                return viewEndMin - viewStartMin;
+            }
+
+            function gridHeightPx() {
+                return (viewTotalMin() / 30) * SLOT_PX;
+            }
 
             let weekMonday = startOfWeekMonday(new Date());
             let selectedOccurrence = null;
@@ -613,10 +673,10 @@
                 if (y < 0) y = 0;
                 if (y > rect.height) y = rect.height;
                 const ratio = rect.height > 0 ? y / rect.height : 0;
-                let slotStart = START_MIN + ratio * TOTAL_MIN;
+                let slotStart = viewStartMin + ratio * viewTotalMin();
                 let snapped = Math.floor(slotStart / 30) * 30;
-                if (snapped < START_MIN) snapped = START_MIN;
-                if (snapped > END_MIN - 30) snapped = END_MIN - 30;
+                if (snapped < viewStartMin) snapped = viewStartMin;
+                if (snapped > viewEndMin - 30) snapped = viewEndMin - 30;
                 const snappedEnd = snapped + 30;
                 return {
                     time_start: pad(Math.floor(snapped / 60)) + ':' + pad(snapped % 60),
@@ -654,7 +714,9 @@
                     return;
                 }
 
-                renderGrid(data.occurrences || []);
+                const occ = data.occurrences || [];
+                lastOccurrences = occ;
+                renderGrid(occ);
                 updateWeekLabel();
                 document.getElementById('schoolCalGrid').setAttribute('aria-busy', 'false');
             }
@@ -697,8 +759,8 @@
 
                 html += '</div><div class="school-cal__body-row">';
 
-                html += '<div class="school-cal__time-col d-flex flex-column border-end" style="height:' + GRID_HEIGHT_PX + 'px">';
-                for (let m = START_MIN; m < END_MIN; m += 30) {
+                html += '<div class="school-cal__time-col d-flex flex-column border-end" style="height:' + gridHeightPx() + 'px">';
+                for (let m = viewStartMin; m < viewEndMin; m += 30) {
                     const hh = Math.floor(m / 60);
                     const mm = m % 60;
                     html += '<div class="school-cal__time-label" style="min-height:' + SLOT_PX + 'px;height:' + SLOT_PX + 'px">' + pad(hh) + ':' + pad(mm) + '</div>';
@@ -709,13 +771,13 @@
                     const ymd = formatYmd(d);
                     const isToday = ymd === today;
                     html += '<div class="school-cal__day-col school-cal__day-col--body' + (isToday ? ' school-cal__day-col--today' : '') + '" ';
-                    html += 'style="min-height:' + GRID_HEIGHT_PX + 'px;height:' + GRID_HEIGHT_PX + 'px" data-date="' + ymd + '">';
+                    html += 'style="min-height:' + gridHeightPx() + 'px;height:' + gridHeightPx() + 'px" data-date="' + ymd + '">';
                     const list = byDate[ymd] || [];
                     list.forEach(ev => {
                         const start = minutesFromMidnight(ev.time_start);
                         const end = minutesFromMidnight(ev.time_end);
-                        const top = ((start - START_MIN) / TOTAL_MIN) * 100;
-                        const h = Math.max(8, ((end - start) / TOTAL_MIN) * 100);
+                        const top = ((start - viewStartMin) / viewTotalMin()) * 100;
+                        const h = Math.max(8, ((end - start) / viewTotalMin()) * 100);
                         const bg = eventColor(ev.team_id);
                         html += '<div class="school-cal__event" style="top:' + top + '%;height:' + h + '%;background:' + bg + '" ';
                         html += 'data-ev="' + encodeURIComponent(JSON.stringify(ev)) + '">';
@@ -1155,6 +1217,100 @@
                 loadWeek();
             });
             document.getElementById('schoolCalLocation')?.addEventListener('change', loadWeek);
+
+            function clearSchoolCalViewSettingsErrors() {
+                const modalEl = document.getElementById('schoolCalViewSettingsModal');
+                if (!modalEl) return;
+                modalEl.querySelectorAll('[data-err]').forEach(function (el) {
+                    el.textContent = '';
+                    el.style.display = 'none';
+                });
+                document.getElementById('schoolCalViewStart')?.classList.remove('is-invalid');
+                document.getElementById('schoolCalViewEnd')?.classList.remove('is-invalid');
+            }
+
+            function showSchoolCalViewSettingsErrors(errors) {
+                clearSchoolCalViewSettingsErrors();
+                if (!errors || typeof errors !== 'object') return;
+                if (errors.view_start_min && errors.view_start_min[0]) {
+                    const el = document.querySelector('[data-err="view_start_min"]');
+                    if (el) {
+                        el.textContent = errors.view_start_min[0];
+                        el.style.display = 'block';
+                    }
+                    document.getElementById('schoolCalViewStart')?.classList.add('is-invalid');
+                }
+                if (errors.view_end_min && errors.view_end_min[0]) {
+                    const el = document.querySelector('[data-err="view_end_min"]');
+                    if (el) {
+                        el.textContent = errors.view_end_min[0];
+                        el.style.display = 'block';
+                    }
+                    document.getElementById('schoolCalViewEnd')?.classList.add('is-invalid');
+                }
+            }
+
+            function syncSchoolCalViewSettingsModal() {
+                const startSel = document.getElementById('schoolCalViewStart');
+                const endSel = document.getElementById('schoolCalViewEnd');
+                if (startSel) startSel.value = String(viewStartMin);
+                if (endSel) endSel.value = String(viewEndMin);
+            }
+
+            function applySchoolCalViewRange(pair) {
+                if (!pair || pair.view_start_min == null || pair.view_end_min == null) return;
+                viewStartMin = pair.view_start_min;
+                viewEndMin = pair.view_end_min;
+                renderGrid(lastOccurrences);
+            }
+
+            document.getElementById('schoolCalViewSettingsModal')?.addEventListener('show.bs.modal', function () {
+                clearSchoolCalViewSettingsErrors();
+                syncSchoolCalViewSettingsModal();
+            });
+
+            document.getElementById('schoolCalViewSettingsReset')?.addEventListener('click', function () {
+                const startSel = document.getElementById('schoolCalViewStart');
+                const endSel = document.getElementById('schoolCalViewEnd');
+                if (startSel) startSel.value = '540';
+                if (endSel) endSel.value = '1260';
+                clearSchoolCalViewSettingsErrors();
+            });
+
+            document.getElementById('schoolCalViewSettingsSave')?.addEventListener('click', async function () {
+                clearSchoolCalViewSettingsErrors();
+                const startSel = document.getElementById('schoolCalViewStart');
+                const endSel = document.getElementById('schoolCalViewEnd');
+                if (!startSel || !endSel) return;
+                const res = await fetch(routes.viewSettingsSave, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': token,
+                    },
+                    body: JSON.stringify({
+                        view_start_min: parseInt(startSel.value, 10),
+                        view_end_min: parseInt(endSel.value, 10),
+                    }),
+                });
+                const data = await res.json().catch(function () { return {}; });
+                if (!res.ok) {
+                    if (data.errors) {
+                        showSchoolCalViewSettingsErrors(data.errors);
+                    } else {
+                        showAlert('danger', data.message || 'Не удалось сохранить настройки.');
+                    }
+                    return;
+                }
+                applySchoolCalViewRange(data);
+                const modalEl = document.getElementById('schoolCalViewSettingsModal');
+                if (modalEl && window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getInstance(modalEl)?.hide();
+                }
+                showAlert('success', 'Настройки отображения сохранены.');
+            });
 
             @can('scheduleSlots.manage')
             /** Открытие модалки создания слота с предзаполнением (локально, без глобала из partial слотов). */

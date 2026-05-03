@@ -1,12 +1,21 @@
 <?php
 
+use App\Http\Controllers\AccountDocumentsController;
 use App\Http\Controllers\Admin\AccountController;
+use App\Http\Controllers\Admin\LessonOccurrenceStatusController;
+use App\Http\Controllers\Admin\LessonPackageController;
+use App\Http\Controllers\Admin\PartnerController;
 use App\Http\Controllers\Admin\PartnerSettingController;
 use App\Http\Controllers\Admin\Report\DeptReportController;
+use App\Http\Controllers\Admin\Report\FiscalReceiptReportController;
 use App\Http\Controllers\Admin\Report\LtvReportController;
-use App\Http\Controllers\Admin\Report\PaymentReportController;
+use App\Http\Controllers\Admin\Report\OutgoingEmailReportController;
+use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
+use App\Http\Controllers\Admin\Report\PaymentMonthlyReportController;
 use App\Http\Controllers\Admin\Report\PaymentRefundController;
+use App\Http\Controllers\Admin\Report\PaymentReportController;
 use App\Http\Controllers\Admin\ScheduleController;
+use App\Http\Controllers\Admin\SchoolScheduleViewSettingsController;
 use App\Http\Controllers\Admin\Setting\PaymentSystemController;
 use App\Http\Controllers\Admin\Setting\RuleController;
 use App\Http\Controllers\Admin\Setting\SettingController;
@@ -15,69 +24,51 @@ use App\Http\Controllers\Admin\SettingPricesController;
 use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\TeamColumnsSettingsController;
 use App\Http\Controllers\Admin\TeamController;
-use App\Http\Controllers\Admin\LessonOccurrenceStatusController;
-use App\Http\Controllers\Admin\LessonPackageController;
+use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
+use App\Http\Controllers\Admin\UserAvatarController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserFieldController;
 use App\Http\Controllers\Admin\UserTableSettingsController;
+use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Chat\ChatApiController;
 use App\Http\Controllers\Chat\ChatPageController;
+use App\Http\Controllers\CloudKassirWebhookController;
+use App\Http\Controllers\Contracts\ContractLookupsController;
+use App\Http\Controllers\Contracts\ContractsController;
+use App\Http\Controllers\Contracts\ContractSigningController;
+use App\Http\Controllers\Contracts\ContractTableController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Debug\RequestDebugController;
+use App\Http\Controllers\DocumentationController;
+use App\Http\Controllers\GuestPartnerRegistrationController;
+use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\MyGroupController;
-use App\Http\Controllers\PaymentsController;
-use App\Http\Controllers\PayoutsController;
-use App\Http\Controllers\SmRegisterController;
+use App\Http\Controllers\PartnerPaymentController;
+use App\Http\Controllers\PublicLessonPackagePayController;
+use App\Http\Controllers\Security\PhoneChangeController;
 use App\Http\Controllers\TinkoffAdminPartnerController;
 use App\Http\Controllers\TinkoffAdminPaymentController;
+use App\Http\Controllers\TinkoffAdminPayoutController;
 use App\Http\Controllers\TinkoffDealController;
 use App\Http\Controllers\TinkoffDebugController;
-use App\Http\Controllers\TinkoffPartnerAdminController;
 use App\Http\Controllers\TinkoffPaymentController;
 use App\Http\Controllers\TinkoffPayoutController;
-use App\Http\Controllers\TinkoffAdminPayoutController;
 use App\Http\Controllers\TinkoffQrController;
-use App\Http\Controllers\PublicLessonPackagePayController;
 use App\Http\Controllers\TinkoffWebhookController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\User\Report\ReportController;
-use App\Http\Controllers\DocumentationController;
-use App\Http\Controllers\LandingPageController;
-use App\Http\Controllers\GuestPartnerRegistrationController;
-
-
+use App\Http\Controllers\Webhooks\PodpislonWebhookController;
+use App\Http\Controllers\YooKassaWebhookController;
+use App\Http\Middleware\DebugRequestAccess;
 use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\WebhookController;
-use App\Http\Controllers\PartnerPaymentController;
-use Illuminate\Support\Facades\Mail;
-use App\Http\Controllers\Admin\PartnerController;
-use App\Http\Controllers\Auth\TwoFactorController;
-use App\Http\Controllers\Security\PhoneChangeController;
-use App\Http\Controllers\Contracts\ContractsController;
-use App\Http\Controllers\Contracts\ContractLookupsController;
-use App\Http\Controllers\Contracts\ContractSigningController;
-use App\Http\Controllers\Contracts\ContractTableController;
-use App\Http\Controllers\AccountDocumentsController;
-use App\Http\Controllers\Webhooks\PodpislonWebhookController;
-use App\Http\Controllers\YooKassaWebhookController;
-use App\Http\Controllers\AdminUserController;
-use App\Http\Controllers\Debug\RequestDebugController;
-use App\Http\Middleware\DebugRequestAccess;
-use App\Http\Controllers\Admin\Report\PaymentIntentReportController;
-use App\Http\Controllers\Admin\Report\FiscalReceiptReportController;
-use App\Http\Controllers\Admin\Report\OutgoingEmailReportController;
-use App\Http\Controllers\Admin\UserAvatarController;
-use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
-use App\Http\Controllers\Admin\Report\PaymentMonthlyReportController;
-
-use App\Http\Controllers\CloudKassirWebhookController;
 
 Auth::routes();
 
-Route::fallback(function () { return response()->view('errors.404', [], 404);});
-
+Route::fallback(function () {
+    return response()->view('errors.404', [], 404);
+});
 
 Route::get('/sitemap.xml', [\App\Http\Controllers\SitemapController::class, 'index'])->name('sitemap');
 
@@ -133,8 +124,7 @@ Route::get('/_debug/request', [RequestDebugController::class, 'show'])
         \App\Http\Middleware\ShareGlobalStats::class,
     ]);
 
-
-//landing Page 
+//landing Page
 Route::view('/', 'landing.index')->name('landing.home');
 
 Route::middleware('guest')->group(function () {
@@ -156,9 +146,8 @@ Route::post('/contact/send', [LandingPageController::class, 'contactSend'])->nam
 
 //Страница Публичная оферта
 Route::view('/public-offerta', 'landing.agreements.public-offerta')->name('public-offerta');
- //Страница Политика конфиденциальности
- Route::view('  ', 'landing.agreements.policy')->name('policy');
- 
+//Страница Политика конфиденциальности
+Route::view('  ', 'landing.agreements.policy')->name('policy');
 
 // Blog (публичный)
 Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
@@ -181,7 +170,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/security/phone/resend-old', [PhoneChangeController::class, 'resendOld'])->name('security.phone.resend_old');
     Route::post('/security/phone/resend-new', [PhoneChangeController::class, 'resendNew'])->name('security.phone.resend_new');
 });
- 
 
 // -----------auth', '2fa-----------
 Route::middleware(['auth', '2fa'])->group(function () {
@@ -214,8 +202,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/debts/total', [DeptReportController::class, 'debtsTotal'])->name('reports.debts.total');
         Route::get('/admin/reports/getDebts', [DeptReportController::class, 'getDebts'])->name('debts.getDebts');
 
-
-
         // Страница отчёта LTV (вкладка)
         Route::get('/admin/reports/ltv', [LtvReportController::class, 'ltv'])->name('reports.ltv');
         Route::get('/admin/reports/ltv/total', [LtvReportController::class, 'total'])->name('reports.ltv.total');
@@ -223,9 +209,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/ltv/data', [LtvReportController::class, 'getLtv'])->name('reports.ltv.data');
         // Детализация — платежи конкретного пользователя (раскрытие строки)
         Route::get('/admin/reports/ltv/{user}/payments', [LtvReportController::class, 'getUserPayments'])->whereNumber('user')->name('reports.ltv.user_payments');
-
-
-
 
         // Новая вкладка "Платежи по месяцам"
         Route::get('/admin/reports/payments/monthly', [PaymentMonthlyReportController::class, 'index'])->name('reports.payments.monthly');
@@ -289,8 +272,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/setting-prices/set-price-all-users', [SettingPricesController::class, 'setPriceAllUsers'])->name('setPriceAllUsers');
         Route::get('admin/setting-prices/logs-data', [SettingPricesController::class, 'getLogsData'])->name('logs.data.settingPrice');
         Route::post('admin/setting-prices/update-date', [SettingPricesController::class, 'updateDate'])->name('updateDate');
-    
-    
+
         Route::get('admin/setting-prices/monthly', [SettingPricesController::class, 'monthly'])->name('admin.settingPrices.indexMenu');
         Route::get('admin/setting-prices/users', [SettingPricesController::class, 'users'])->name('admin.settingPrices.users');
         Route::middleware('can:setPrices.customPayments.view')->group(function () {
@@ -299,7 +281,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
             Route::get('admin/setting-prices/custom-payments/users-search', [SettingPricesController::class, 'customPaymentsUsersSearch'])->name('admin.settingPrices.customPayments.users-search');
             Route::post('admin/setting-prices/custom-payments', [SettingPricesController::class, 'storeCustomPayment'])->name('admin.settingPrices.customPayments.store');
         });
-   
 
         Route::post('admin/setting-prices/user-year-prices', [SettingPricesController::class, 'userYearPrices'])->name('setting-prices.user-year-prices');
         Route::post('admin/setting-prices/user-year-prices/save', [SettingPricesController::class, 'saveUserYearPrices'])->name('setting-prices.user-year-prices.save');
@@ -375,6 +356,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
         Route::get('/admin/lesson-packages/school-schedule', [LessonPackageController::class, 'schoolSchedule'])
             ->name('admin.lesson-packages.school-schedule');
+        Route::get('/admin/lesson-packages/school-schedule/view-settings', [SchoolScheduleViewSettingsController::class, 'show'])
+            ->name('admin.lesson-packages.school-schedule.view-settings');
+        Route::post('/admin/lesson-packages/school-schedule/view-settings', [SchoolScheduleViewSettingsController::class, 'store'])
+            ->name('admin.lesson-packages.school-schedule.view-settings.save');
         Route::get('/admin/lesson-packages/school-schedule/assignment-availability', [LessonPackageController::class, 'schoolScheduleAssignmentAvailability'])
             ->name('admin.lesson-packages.school-schedule.assignment-availability');
         Route::get('/admin/lesson-packages/school-schedule/week', [LessonPackageController::class, 'schoolScheduleWeek'])
@@ -635,7 +620,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/admin/leads/{submission}', [LandingPageController::class, 'destroyLead'])->name('admin.leads.destroy');
     });
 
-
     //Страница оплаты сервиса
     Route::middleware('can:servicePayments.view')->group(function () {
         Route::get('partner-payment/recharge', [PartnerPaymentController::class, 'showRecharge'])->name('partner.payment.recharge');
@@ -837,7 +821,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('blog/settings', [\App\Http\Controllers\Admin\BlogSettingsController::class, 'update'])->name('admin.blog.settings.update');
     });
 
-
     //Страница Партнёрская оферта
     Route::view('/admin/partner-offerta', 'admin.agreements.partnerOferta')->name('admin.partnerOferta');
     //Страница Публичная (пользовательская) оферта
@@ -851,7 +834,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
 Route::post('password/reset', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');
 
-
 //                              --- ВЕБХУКИ ---
 // Robokassa
 Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class, 'result'])->name('payment.result');
@@ -862,7 +844,6 @@ Route::get('/payment/result', [\App\Http\Controllers\RobokassaController::class,
 Route::post('/partner-wallet/webhook', [PartnerPaymentController::class, 'ykWalletWebhook'])->name('partner.wallet.webhook');
 // YooKassa webhook единый (без CSRF)
 Route::post('/webhook/yookassa', [YooKassaWebhookController::class, 'handle']);
-
 
 // Podpislon
 Route::post('/webhooks/podpislon', [PodpislonWebhookController::class, 'handle'])->withoutMiddleware([VerifyCsrfToken::class])->name('webhooks.podpislon');
