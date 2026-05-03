@@ -22,7 +22,7 @@ final class StoreUserLessonOccurrenceStatusEventRequest extends FormRequest
             'team_schedule_slot_id' => ['required', 'integer', 'min:1'],
             'occurrence_date' => ['required', 'date_format:Y-m-d'],
             'user_id' => ['required', 'integer', 'min:1'],
-            'user_lesson_package_id' => ['required', 'integer', 'min:1'],
+            'user_lesson_package_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'lesson_occurrence_status_id' => ['required', 'integer', 'min:1'],
         ];
     }
@@ -34,7 +34,6 @@ final class StoreUserLessonOccurrenceStatusEventRequest extends FormRequest
             'occurrence_date.required' => 'Укажите дату занятия.',
             'occurrence_date.date_format' => 'Дата занятия должна быть в формате ГГГГ-ММ-ДД.',
             'user_id.required' => 'Укажите ученика.',
-            'user_lesson_package_id.required' => 'Укажите абонемент.',
             'lesson_occurrence_status_id.required' => 'Выберите статус.',
         ];
     }

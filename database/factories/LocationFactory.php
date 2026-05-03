@@ -14,7 +14,8 @@ class LocationFactory extends Factory
     {
         return [
             'partner_id' => Partner::factory(),
-            'name' => 'Кабинет ' . $this->faker->numberBetween(1, 50),
+            // Уникальность (partner_id, name) в БД: узкий диапазон 1–50 давал частые коллизии при двух create() подряд.
+            'name' => 'Кабинет ' . $this->faker->numberBetween(100000, 999999999),
             'address' => $this->faker->streetAddress(),
             'description' => null,
             'is_enabled' => true,

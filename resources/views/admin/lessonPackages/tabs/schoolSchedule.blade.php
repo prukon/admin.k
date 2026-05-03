@@ -496,19 +496,6 @@
         white-space: normal;
         line-height: 1.25;
     }
-    .school-cal__reg-trial-pill {
-        flex: 0 0 auto;
-        font-size: 9px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        padding: 2px 6px;
-        border-radius: 6px;
-        background: rgba(99, 102, 241, 0.18);
-        color: #4338ca;
-        border: 1px solid rgba(99, 102, 241, 0.35);
-        white-space: nowrap;
-    }
     .school-cal__reg-controls select.form-select {
         min-width: 0;
     }
@@ -589,7 +576,6 @@
                 occurrenceStatusStore: @json(route('admin.lesson-packages.school-schedule.occurrence-status.store')),
                 occurrenceStatusHistory: @json(route('admin.lesson-packages.school-schedule.occurrence-status.history')),
                 trialRegistrationStore: @json(route('admin.lesson-packages.school-schedule.trial-registration.store')),
-                trialRegistrationRoot: @json(url('/admin/lesson-packages/school-schedule/trial-registration')),
                 viewSettingsSave: @json(route('admin.lesson-packages.school-schedule.view-settings.save')),
             };
             const viewSettingsInitial = @json($schoolScheduleViewSettings ?? ['view_start_min' => 540, 'view_end_min' => 1260]);
@@ -818,9 +804,7 @@
                             regs.slice(0, 3).forEach(function (r) {
                                 html += '<div class="school-cal__reg-chip">';
                                 html += '<span class="school-cal__reg-name">' + escapeHtml(r.user_label || '') + '</span>';
-                                if (r.registration_kind === 'trial' || r.is_trial_lesson) {
-                                    html += '<span class="school-cal__reg-trial-pill">пробное</span>';
-                                } else if (r.current_status && r.current_status.title) {
+                                if (r.current_status && r.current_status.title) {
                                     var pc = escapeHtml(r.current_status.color || '#64748b');
                                     var pt = escapeHtml(r.current_status.title);
                                     html += '<span class="school-cal__reg-status-pill" style="--pill-bg:' + pc + '" title="' + pt + '">' + pt + '</span>';
@@ -867,9 +851,9 @@
                     if (isTrial) {
                         li.className = 'school-cal__reg-card school-cal__reg-card--compact border rounded-2';
                         const row = document.createElement('div');
-                        row.className = 'd-flex align-items-center justify-content-between gap-2 min-w-0';
+                        row.className = 'min-w-0';
                         const oneline = document.createElement('div');
-                        oneline.className = 'school-cal__reg-card__oneline flex-grow-1 min-w-0';
+                        oneline.className = 'school-cal__reg-card__oneline w-100 min-w-0';
                         const fio = document.createElement('span');
                         fio.className = 'school-cal__reg-card__fio text-truncate';
                         fio.textContent = (r.user_label || '').trim() || '—';
@@ -883,36 +867,171 @@
                         oneline.appendChild(sep);
                         oneline.appendChild(kind);
 
-                        const delBtn = document.createElement('button');
-                        delBtn.type = 'button';
-                        delBtn.className = 'btn btn-sm btn-outline-danger flex-shrink-0';
-                        delBtn.textContent = 'Удалить';
-                        delBtn.addEventListener('click', async function () {
-                            if (!window.confirm('Убрать пробное занятие из расписания на эту дату?')) {
+                        row.appendChild(oneline);
+                        li.appendChild(row);
+
+                        const sel = document.createElement('select');
+                        sel.className = 'form-select form-select-sm w-100';
+                        sel.setAttribute('aria-label', 'Статус занятия');
+                        const emptyOpt = document.createElement('option');
+                        emptyOpt.value = '';
+                        emptyOpt.textContent = 'Выберите статус';
+                        sel.appendChild(emptyOpt);
+                        (occurrenceStatuses || []).forEach(function (st) {
+                            const o = document.createElement('option');
+                            o.value = String(st.id);
+                            o.textContent = st.title;
+                            if (r.current_status && String(st.id) === String(r.current_status.id)) {
+                                o.selected = true;
+                            }
+                            sel.appendChild(o);
+                        });
+
+                        const badge = document.createElement('span');
+                        badge.className = 'badge rounded-pill school-cal__reg-modal-status';
+                        badge.style.display = r.current_status ? 'inline-block' : 'none';
+                        if (r.current_status) {
+                            badge.style.background = r.current_status.color || '#6c757d';
+                            badge.style.color = '#fff';
+                            badge.textContent = r.current_status.title || '';
+                        }
+
+                        const errDiv = document.createElement('div');
+                        errDiv.className = 'invalid-feedback d-block small w-100 mt-1';
+                        errDiv.style.display = 'none';
+
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'btn btn-sm btn-primary text-nowrap';
+                        btn.textContent = 'Сохранить';
+                        btn.addEventListener('click', async function () {
+                            errDiv.textContent = '';
+                            errDiv.style.display = 'none';
+                            sel.classList.remove('is-invalid');
+                            if (!sel.value) {
+                                errDiv.textContent = 'Выберите статус.';
+                                errDiv.style.display = 'block';
+                                sel.classList.add('is-invalid');
                                 return;
                             }
-                            const url = routes.trialRegistrationRoot + '/' + encodeURIComponent(r.user_team_schedule_slot_id);
-                            const res = await fetch(url, {
-                                method: 'DELETE',
+                            const fd = new FormData();
+                            fd.append('_token', token);
+                            fd.set('team_schedule_slot_id', String(ev.id));
+                            fd.set('occurrence_date', String(ev.date));
+                            fd.set('user_id', String(r.user_id));
+                            fd.set('lesson_occurrence_status_id', sel.value);
+                            const res = await fetch(routes.occurrenceStatusStore, {
+                                method: 'POST',
+                                body: fd,
                                 headers: {
                                     'X-Requested-With': 'XMLHttpRequest',
-                                    'X-CSRF-TOKEN': token,
                                     'Accept': 'application/json',
-                                },
+                                }
                             });
                             const data = await res.json().catch(function () { return {}; });
                             if (!res.ok) {
-                                showAlert('danger', data.message || 'Не удалось удалить запись.');
+                                let msg = data.message || 'Не удалось сохранить.';
+                                if (data.errors) {
+                                    for (const k of Object.keys(data.errors)) {
+                                        if (data.errors[k] && data.errors[k][0]) {
+                                            msg = data.errors[k][0];
+                                            break;
+                                        }
+                                    }
+                                }
+                                errDiv.textContent = msg;
+                                errDiv.style.display = 'block';
+                                sel.classList.add('is-invalid');
                                 return;
                             }
-                            showAlert('success', data.message || 'Готово');
-                            bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
+                            if (data.event && data.event.lesson_occurrence_status) {
+                                r.current_status = data.event.lesson_occurrence_status;
+                                badge.style.display = 'inline-block';
+                                badge.style.background = r.current_status.color || '#6c757d';
+                                badge.textContent = r.current_status.title || '';
+                            }
+                            showAlert('success', data.message || 'Статус сохранён.');
                             loadWeek();
                         });
 
-                        row.appendChild(oneline);
-                        row.appendChild(delBtn);
-                        li.appendChild(row);
+                        const controlsRow = document.createElement('div');
+                        controlsRow.className = 'row g-2 align-items-center school-cal__reg-controls-row';
+                        const colSel = document.createElement('div');
+                        colSel.className = 'col-12 col-md';
+                        colSel.appendChild(sel);
+                        const colBadge = document.createElement('div');
+                        colBadge.className = 'col-12 col-md-auto';
+                        colBadge.appendChild(badge);
+                        const colBtn = document.createElement('div');
+                        colBtn.className = 'col-12 col-md-auto';
+                        colBtn.appendChild(btn);
+                        controlsRow.appendChild(colSel);
+                        controlsRow.appendChild(colBadge);
+                        controlsRow.appendChild(colBtn);
+
+                        const histToggle = document.createElement('button');
+                        histToggle.type = 'button';
+                        histToggle.className = 'btn btn-link btn-sm text-muted text-decoration-none p-0';
+                        histToggle.textContent = 'История изменений';
+                        const histBox = document.createElement('div');
+                        histBox.className = 'school-cal__reg-hist mt-2 pt-2 border-top border-light d-none';
+                        const histCount = Number(r.occurrence_status_history_count || 0);
+
+                        histToggle.addEventListener('click', async function () {
+                            if (histBox.dataset.loaded === '1') {
+                                histBox.classList.toggle('d-none');
+                                return;
+                            }
+                            histBox.textContent = 'Загрузка…';
+                            histBox.classList.remove('d-none');
+                            const url = new URL(routes.occurrenceStatusHistory, window.location.origin);
+                            url.searchParams.set('team_schedule_slot_id', String(ev.id));
+                            url.searchParams.set('occurrence_date', String(ev.date));
+                            url.searchParams.set('user_id', String(r.user_id));
+                            const hres = await fetch(url.toString(), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+                            const hdata = await hres.json().catch(function () { return {}; });
+                            if (!hres.ok) {
+                                histBox.textContent = (hdata.message || 'Не удалось загрузить историю.');
+                                histBox.dataset.loaded = '1';
+                                return;
+                            }
+                            histBox.innerHTML = '';
+                            const evs = hdata.events || [];
+                            if (!evs.length) {
+                                histBox.textContent = 'Пока нет записей.';
+                            } else {
+                                evs.forEach(function (histEv) {
+                                    const rowEl = document.createElement('div');
+                                    rowEl.className = 'school-cal__reg-hist-row';
+                                    const st = histEv.lesson_occurrence_status || {};
+                                    const dot = document.createElement('span');
+                                    dot.className = 'd-inline-block rounded-circle align-middle me-1';
+                                    dot.style.width = '8px';
+                                    dot.style.height = '8px';
+                                    dot.style.background = st.color || '#94a3b8';
+                                    rowEl.appendChild(dot);
+                                    const meta = document.createElement('span');
+                                    const when = histEv.created_at ? new Date(histEv.created_at).toLocaleString('ru-RU') : '';
+                                    meta.textContent = (st.title || '—') + (when ? ' · ' + when : '');
+                                    if (histEv.created_by_label) {
+                                        meta.textContent += ' · ' + histEv.created_by_label;
+                                    }
+                                    rowEl.appendChild(meta);
+                                    histBox.appendChild(rowEl);
+                                });
+                            }
+                            histBox.dataset.loaded = '1';
+                        });
+
+                        li.appendChild(controlsRow);
+                        li.appendChild(errDiv);
+                        if (histCount > 0) {
+                            const histFoot = document.createElement('div');
+                            histFoot.className = 'd-flex justify-content-end mt-2';
+                            histFoot.appendChild(histToggle);
+                            li.appendChild(histFoot);
+                            li.appendChild(histBox);
+                        }
                         ul.appendChild(li);
                         return;
                     }

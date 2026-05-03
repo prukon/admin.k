@@ -429,6 +429,13 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     $effectiveLocationFilter
                 );
 
+                $scheduledCount = count($chain);
+                if ((int) $ulp->lessons_remaining < $scheduledCount) {
+                    throw new InvalidArgumentException(
+                        'Недостаточно оставшихся занятий на абонементе: требуется '.$scheduledCount.', доступно '.(int) $ulp->lessons_remaining.'.'
+                    );
+                }
+
                 foreach ($chain as $item) {
                     /** @var CarbonImmutable $date */
                     $date = $item['date'];
@@ -445,6 +452,9 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                         'created_by' => auth()->id(),
                     ]);
                 }
+
+                $ulp->lessons_remaining = max(0, (int) $ulp->lessons_remaining - $scheduledCount);
+                $ulp->save();
             });
         } catch (InvalidArgumentException $e) {
             return response()->json([

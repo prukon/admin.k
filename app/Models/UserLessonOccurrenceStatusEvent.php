@@ -18,7 +18,7 @@ class UserLessonOccurrenceStatusEvent extends Model
         'user_id' => 'int',
         'team_schedule_slot_id' => 'int',
         'occurrence_date' => 'date:Y-m-d',
-        'user_lesson_package_id' => 'int',
+        'user_lesson_package_id' => 'integer',
         'lesson_occurrence_status_id' => 'int',
         'created_by' => 'int',
     ];

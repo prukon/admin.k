@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\LessonPackages;
 
+use App\Models\LessonOccurrenceStatus;
 use App\Models\Location;
 use App\Models\Team;
 use App\Models\TeamScheduleSlot;
 use App\Models\User;
 use App\Models\UserTeamScheduleSlot;
 use Carbon\CarbonImmutable;
+use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -105,6 +107,20 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
             'location_id' => $loc->id,
         ]))->assertOk();
 
+        $this->getJson(route('admin.lesson-packages.school-schedule.view-settings'))
+            ->assertOk()
+            ->assertJsonStructure(['view_start_min', 'view_end_min']);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.view-settings.save'), [
+            'view_start_min' => 480,
+            'view_end_min' => 1200,
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.assignment-availability'))
+            ->assertOk()
+            ->assertJsonStructure(['flexible', 'fixed', 'single_lesson']);
+
         $this->getJson(route('admin.lesson-packages.school-schedule.fixed-packages'))
             ->assertOk()
             ->assertJsonStructure(['packages']);
@@ -125,6 +141,21 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
             ->assertJsonStructure(['assignments']);
 
         $this->getJson(route('admin.lesson-packages.school-schedule.flexible-users-search', [
+            'q' => '',
+        ]))->assertOk()
+            ->assertJsonStructure(['results']);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.single-lesson-assignments', [
+            'user_id' => 0,
+        ]))->assertOk()
+            ->assertExactJson(['assignments' => []]);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.single-lesson-assignments', [
+            'user_id' => $studentId,
+        ]))->assertOk()
+            ->assertJsonStructure(['assignments']);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.single-lesson-users-search', [
             'q' => '',
         ]))->assertOk()
             ->assertJsonStructure(['results']);
@@ -176,6 +207,68 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
     /**
      * Создание и удаление пробной записи доступны при lessonPackages.view и возвращают 200.
      */
+    public function test_occurrence_status_trial_store_and_history_return_200_with_lesson_packages_view(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+        LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => 1,
+        ]);
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '08:00',
+            'time_end' => '09:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => null,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => self::WEEK_MONDAY,
+            'ends_at' => self::WEEK_MONDAY,
+            'is_trial_lesson' => true,
+            'created_by' => $this->user->id,
+        ]);
+
+        $status = LessonOccurrenceStatus::query()
+            ->where('partner_id', $this->partner->id)
+            ->where('code', 'attended')
+            ->firstOrFail();
+
+        $this->actingAs($this->user);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.occurrence-status.store'), [
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'user_id' => $student->id,
+            'lesson_occurrence_status_id' => $status->id,
+        ])->assertOk();
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.occurrence-status.history', [
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'user_id' => $student->id,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure(['events'])
+            ->assertJsonCount(1, 'events');
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.week', [
+            'week' => self::WEEK_MONDAY,
+        ]))->assertOk();
+    }
+
     public function test_trial_registration_store_and_destroy_return_200_with_lesson_packages_view(): void
     {
         $this->grantPermission('lessonPackages.view');
@@ -217,6 +310,29 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
         ]))->assertOk();
 
         $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $trialId]);
+    }
+
+    public function test_occurrence_status_endpoints_forbidden_without_lesson_packages_view(): void
+    {
+        $user = $this->createUserWithoutPermission('lessonPackages.view', $this->partner);
+        $this->actingAs($user);
+        $this->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed' => true,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.occurrence-status.store'), [
+            'team_schedule_slot_id' => 1,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'user_id' => 1,
+            'lesson_occurrence_status_id' => 1,
+        ])->assertForbidden();
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.occurrence-status.history', [
+            'team_schedule_slot_id' => 1,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'user_id' => 1,
+        ]))->assertForbidden();
     }
 
     public function test_team_slot_mutations_return_403_without_schedule_slots_manage(): void

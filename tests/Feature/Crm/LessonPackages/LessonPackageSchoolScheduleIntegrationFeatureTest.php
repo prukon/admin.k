@@ -573,6 +573,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $ulp->refresh();
         $this->assertSame(self::WEEK_ANCHOR_MONDAY, $ulp->starts_at->format('Y-m-d'));
         $this->assertSame('2026-06-03', $ulp->ends_at->format('Y-m-d'));
+        $this->assertSame(0, (int) $ulp->lessons_remaining);
 
         $this->assertSame(1, UserTeamScheduleSlot::query()
             ->where('user_id', $student->id)

@@ -187,23 +187,18 @@ final class TeamScheduleCalendarService
             $dateStr = $ev->occurrence_date instanceof \Carbon\CarbonInterface
                 ? $ev->occurrence_date->format('Y-m-d')
                 : (string) $ev->occurrence_date;
-            $ulpId = (int) $ev->user_lesson_package_id;
-            $k = (int) $ev->user_id.'|'.(int) $ev->team_schedule_slot_id.'|'.$dateStr.'|'.$ulpId;
+            $ulpKey = (int) ($ev->user_lesson_package_id ?? 0);
+            $k = (int) $ev->user_id.'|'.(int) $ev->team_schedule_slot_id.'|'.$dateStr.'|'.$ulpKey;
             $latest[$k] = $ev;
         }
 
         foreach ($grouped as &$list) {
             foreach ($list as &$row) {
-                $ulpId = $row['user_lesson_package_id'] ?? null;
-                if ($ulpId === null) {
-                    $row['current_status'] = null;
-
-                    continue;
-                }
+                $ulpKey = (int) ($row['user_lesson_package_id'] ?? 0);
                 $uid = (int) ($row['user_id'] ?? 0);
                 $sid = (int) ($row['team_schedule_slot_id'] ?? 0);
                 $d = (string) ($row['occurrence_date'] ?? '');
-                $lookup = $uid.'|'.$sid.'|'.$d.'|'.(int) $ulpId;
+                $lookup = $uid.'|'.$sid.'|'.$d.'|'.$ulpKey;
                 /** @var UserLessonOccurrenceStatusEvent|null $hit */
                 $hit = $latest[$lookup] ?? null;
                 if ($hit === null || ! $hit->lessonOccurrenceStatus) {
@@ -276,19 +271,14 @@ final class TeamScheduleCalendarService
             $ds = $e->occurrence_date instanceof \Carbon\CarbonInterface
                 ? $e->occurrence_date->format('Y-m-d')
                 : (string) $e->occurrence_date;
-            $lk = (int) $e->team_schedule_slot_id.'|'.$ds.'|'.(int) $e->user_id.'|'.(int) $e->user_lesson_package_id;
+            $lk = (int) $e->team_schedule_slot_id.'|'.$ds.'|'.(int) $e->user_id.'|'.(int) ($e->user_lesson_package_id ?? 0);
             $eventCountByKey[$lk] = ($eventCountByKey[$lk] ?? 0) + 1;
         }
 
         foreach ($grouped as &$list) {
             foreach ($list as &$item) {
-                $ulpId = $item['user_lesson_package_id'] ?? null;
-                if ($ulpId === null) {
-                    $item['occurrence_status_history_count'] = 0;
-
-                    continue;
-                }
-                $lk = (int) $item['team_schedule_slot_id'].'|'.(string) ($item['occurrence_date'] ?? '').'|'.(int) $item['user_id'].'|'.(int) $ulpId;
+                $ulpKey = (int) ($item['user_lesson_package_id'] ?? 0);
+                $lk = (int) $item['team_schedule_slot_id'].'|'.(string) ($item['occurrence_date'] ?? '').'|'.(int) $item['user_id'].'|'.$ulpKey;
                 $item['occurrence_status_history_count'] = (int) ($eventCountByKey[$lk] ?? 0);
             }
             unset($item);

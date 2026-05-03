@@ -31,7 +31,10 @@ final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminB
 
         $slotId = (int) $data['team_schedule_slot_id'];
         $userId = (int) $data['user_id'];
-        $ulpId = (int) $data['user_lesson_package_id'];
+        $ulpId = isset($data['user_lesson_package_id']) ? (int) $data['user_lesson_package_id'] : null;
+        if ($ulpId !== null && $ulpId < 1) {
+            $ulpId = null;
+        }
         $statusId = (int) $data['lesson_occurrence_status_id'];
         $occurrenceDate = (string) $data['occurrence_date'];
 
@@ -66,41 +69,58 @@ final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminB
             ], 422);
         }
 
-        /** @var UserLessonPackage|null $ulp */
-        $ulp = UserLessonPackage::query()
-            ->whereKey($ulpId)
-            ->where('user_id', $userId)
-            ->whereHas('lessonPackage', fn ($q) => $q->where('partner_id', $partnerId))
-            ->first();
+        $assignmentExists = false;
+        $savedUlpId = $ulpId;
 
-        if (! $ulp) {
-            return response()->json([
-                'message' => 'Назначение абонемента не найдено.',
-                'errors' => ['user_lesson_package_id' => ['Назначение не найдено или не принадлежит ученику.']],
-            ], 422);
+        if ($ulpId !== null) {
+            /** @var UserLessonPackage|null $ulp */
+            $ulp = UserLessonPackage::query()
+                ->whereKey($ulpId)
+                ->where('user_id', $userId)
+                ->whereHas('lessonPackage', fn ($q) => $q->where('partner_id', $partnerId))
+                ->first();
+
+            if (! $ulp) {
+                return response()->json([
+                    'message' => 'Назначение абонемента не найдено.',
+                    'errors' => ['user_lesson_package_id' => ['Назначение не найдено или не принадлежит ученику.']],
+                ], 422);
+            }
+
+            $assignmentExists = UserTeamScheduleSlot::query()
+                ->where('partner_id', $partnerId)
+                ->where('user_id', $userId)
+                ->where('team_schedule_slot_id', $slotId)
+                ->where('user_lesson_package_id', $ulpId)
+                ->whereDate('starts_at', $occurrenceDate)
+                ->exists();
+        } else {
+            $assignmentExists = UserTeamScheduleSlot::query()
+                ->where('partner_id', $partnerId)
+                ->where('user_id', $userId)
+                ->where('team_schedule_slot_id', $slotId)
+                ->whereDate('starts_at', $occurrenceDate)
+                ->where('is_trial_lesson', true)
+                ->whereNull('user_lesson_package_id')
+                ->exists();
+            $savedUlpId = null;
         }
-
-        $assignmentExists = UserTeamScheduleSlot::query()
-            ->where('partner_id', $partnerId)
-            ->where('user_id', $userId)
-            ->where('team_schedule_slot_id', $slotId)
-            ->where('user_lesson_package_id', $ulpId)
-            ->whereDate('starts_at', $occurrenceDate)
-            ->exists();
 
         if (! $assignmentExists) {
             return response()->json([
-                'message' => 'На эту дату нет записи ученика на выбранный слот с этим абонементом.',
+                'message' => 'На эту дату нет записи ученика на выбранный слот.',
                 'errors' => ['occurrence_date' => ['Нет соответствующей записи в расписании школы.']],
             ], 422);
         }
+
+        // Пробное занятие: статус может иметь consumes_lesson в справочнике — остаток абонемента не трогаем (нет ULP).
 
         $event = DB::transaction(function () use (
             $partnerId,
             $userId,
             $slotId,
             $occurrenceDate,
-            $ulpId,
+            $savedUlpId,
             $statusId,
         ): UserLessonOccurrenceStatusEvent {
             return UserLessonOccurrenceStatusEvent::query()->create([
@@ -108,7 +128,7 @@ final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminB
                 'user_id' => $userId,
                 'team_schedule_slot_id' => $slotId,
                 'occurrence_date' => $occurrenceDate,
-                'user_lesson_package_id' => $ulpId,
+                'user_lesson_package_id' => $savedUlpId,
                 'lesson_occurrence_status_id' => $statusId,
                 'created_by' => auth()->id(),
             ]);
@@ -141,7 +161,10 @@ final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminB
 
         $slotId = (int) $data['team_schedule_slot_id'];
         $userId = (int) $data['user_id'];
-        $ulpId = (int) $data['user_lesson_package_id'];
+        $ulpId = isset($data['user_lesson_package_id']) ? (int) $data['user_lesson_package_id'] : null;
+        if ($ulpId !== null && $ulpId < 1) {
+            $ulpId = null;
+        }
         $occurrenceDate = (string) $data['occurrence_date'];
 
         $slotOk = TeamScheduleSlot::query()
@@ -163,16 +186,18 @@ final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminB
             ], 422);
         }
 
-        $ulpOk = UserLessonPackage::query()
-            ->whereKey($ulpId)
-            ->where('user_id', $userId)
-            ->whereHas('lessonPackage', fn ($q) => $q->where('partner_id', $partnerId))
-            ->exists();
-        if (! $ulpOk) {
-            return response()->json([
-                'message' => 'Назначение абонемента не найдено.',
-                'errors' => ['user_lesson_package_id' => ['Назначение не найдено.']],
-            ], 422);
+        if ($ulpId !== null) {
+            $ulpOk = UserLessonPackage::query()
+                ->whereKey($ulpId)
+                ->where('user_id', $userId)
+                ->whereHas('lessonPackage', fn ($q) => $q->where('partner_id', $partnerId))
+                ->exists();
+            if (! $ulpOk) {
+                return response()->json([
+                    'message' => 'Назначение абонемента не найдено.',
+                    'errors' => ['user_lesson_package_id' => ['Назначение не найдено.']],
+                ], 422);
+            }
         }
 
         $rows = UserLessonOccurrenceStatusEvent::query()
@@ -180,7 +205,7 @@ final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminB
             ->where('team_schedule_slot_id', $slotId)
             ->whereDate('occurrence_date', $occurrenceDate)
             ->where('user_id', $userId)
-            ->where('user_lesson_package_id', $ulpId)
+            ->when($ulpId !== null, fn ($q) => $q->where('user_lesson_package_id', $ulpId), fn ($q) => $q->whereNull('user_lesson_package_id'))
             ->with([
                 'lessonOccurrenceStatus:id,code,title,color,icon',
                 'createdBy:id,name,lastname',
