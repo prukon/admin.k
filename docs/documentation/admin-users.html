@@ -14,19 +14,101 @@
     .small { color: #555; font-size: 13px; }
     a { color: #2563eb; text-decoration: none; }
     a:hover { text-decoration: underline; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
   </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Пользователи в админке</h1>
-  <div class="small">Файл: <code>/docs/documentation/admin-users.html</code></div>
+  <div class="small">Файл: <code>/docs/documentation/admin-users.html</code> · URL в CRM: <code>/docs/documentation/admin-users</code> (список разделов: <code>/doc</code>)</div>
 
-  <h2>Создание (<code>POST /admin/users</code>)</h2>
+  <h2>Назначение и доступ</h2>
   <div class="note">
-    Валидация: <code>App\Http\Requests\User\StoreRequest</code>. Поле <code>password</code> <b>необязательно</b>.
-    Если пароль не указан или передана пустая строка, в таблице <code>users</code> сохраняется <code>password = NULL</code> (для учётных записей без входа в систему, например только для внутреннего учёта).
-    Если пароль указан, действуют ограничения <code>min:8</code> / <code>max:255</code>; хеширование выполняется кастом модели <code>User</code> (<code>password</code> → <code>hashed</code>), при <code>NULL</code> хеш не считается.
+    Страница списка: <code>GET /admin/users</code> (<code>UserController@index</code>), view <code>resources/views/admin/user.blade.php</code>.
+    Маршруты раздела обёрнуты в <code>middleware('can:users.view')</code> (см. <code>routes/web.php</code>).
+    Просмотр внутренней документации по адресу <code>/doc</code> / <code>/docs/documentation</code> требует отдельного права <code>documentations.view</code> — это не то же самое, что доступ к <code>/admin/users</code>.
   </div>
+
+  <h2>Создание пользователя (<code>POST /admin/users</code>)</h2>
+  <div class="note">
+    Имя маршрута: <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
+    Создание учётной записи выполняется через <code>UserService::store()</code> внутри <code>DB::transaction</code> вместе с записью лога (тип действия создания учётки) и, при наличии данных, значений дополнительных полей в <code>user_field_values</code>.
+  </div>
+
+  <h3>Пароль (без изменений)</h3>
+  <div class="note">
+    Поле <code>password</code> <b>необязательно</b>.
+    Если пароль не указан или передана пустая строка, в таблице <code>users</code> сохраняется <code>password = NULL</code> (учётные записи без входа в систему).
+    Если пароль указан, действуют ограничения <code>min:8</code> / <code>max:255</code>; хеширование — каст <code>password</code> → <code>hashed</code> у модели <code>User</code>.
+  </div>
+
+  <h3>Дополнительные поля пользователя при создании (новый функционал)</h3>
+  <p>В модальном окне «Создание пользователя» выводятся те же дополнительные поля текущего партнёра, что и в модалке редактирования (текстовые поля), если для партнёра настроены записи в <code>user_fields</code> и они попадают в выборку по роли текущего администратора (аналогично <code>GET /admin/users/{id}/edit</code> в JSON-ключе <code>fields</code>).</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Тема</th>
+        <th>Поведение в коде</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Тело запроса</td>
+        <td>Вложенный массив <code>custom</code>: ключи — <code>slug</code> поля из <code>user_fields</code>, значения — строки (в форме: <code>name="custom[{slug}]"</code>).</td>
+      </tr>
+      <tr>
+        <td>Партнёр</td>
+        <td>Все определения полей и сохранение значений привязаны к <code>partner_id</code> текущего контекста (<code>PartnerContext</code> / <code>SetPartner</code>). Поля другого партнёра передать нельзя: валидация отклонит неизвестный для текущего партнёра <code>slug</code> (ошибка вида <code>custom.{slug}</code>).</td>
+      </tr>
+      <tr>
+        <td>Валидация (<code>StoreRequest</code>)</td>
+        <td><code>custom</code> — необязательный массив; каждый элемент — <code>nullable|string|max:255</code>. Дополнительно проверяется, что каждый переданный ключ существует как <code>slug</code> у <code>UserField</code> с <code>partner_id</code> текущего партнёра.</td>
+      </tr>
+      <tr>
+        <td>Права на запись значения</td>
+        <td>В транзакции сохраняются только поля, помеченные как доступные для редактирования текущим актором (<code>editable</code> в payload полей — та же логика, что для формы редактирования: супер-админ или роль из связи <code>user_field_role</code>). Значения для неразрешённых полей в запросе не создают записей в <code>user_field_values</code> (в т.ч. при подборе slug вручную).</td>
+      </tr>
+      <tr>
+        <td>Пустые значения</td>
+        <td>Пустая строка для доп. поля допустима; при сохранении может быть записана как пустое значение в <code>user_field_values</code> для разрешённых полей.</td>
+      </tr>
+      <tr>
+        <td>Транзакция</td>
+        <td>Создание строки в <code>users</code> и вставка/обновление строк в <code>user_field_values</code> выполняются в одной транзакции с логом создания пользователя.</td>
+      </tr>
+      <tr>
+        <td>Ответ AJAX</td>
+        <td>При успешном запросе с заголовком, ожидающим JSON (как в модалке), возвращается JSON с сообщением и краткими данными пользователя (как раньше); структура не расширялась специально для доп. полей.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="small">Ключ <code>custom</code> не передаётся в <code>User::create</code>: он извлекается из проверенных данных до вызова <code>UserService::store()</code>, чтобы не попасть в массовое заполнение модели пользователя.</p>
+
+  <h2>Редактирование (<code>PATCH /admin/users/{user}</code>)</h2>
+  <div class="note">
+    Дополнительные поля при обновлении по-прежнему передаются в <code>custom[{slug}]</code>, валидация в <code>UpdateRequest</code> (<code>custom.*</code>).
+    Разрешение полей по <code>slug</code> при сохранении учитывает <code>partner_id</code> текущего партнёра.
+    Подробности логирования изменений по доп. полям — в коде <code>UserController@update</code>.
+  </div>
+
+  <h2>Связанные файлы</h2>
+  <ul class="small">
+    <li><code>app/Http/Controllers/Admin/UserController.php</code> — <code>buildUserFieldsPayloadForCurrentPartner()</code>, <code>store</code>, <code>update</code>, <code>edit</code>, <code>index</code></li>
+    <li><code>app/Http/Requests/User/StoreRequest.php</code>, <code>UpdateRequest.php</code></li>
+    <li><code>resources/views/includes/modal/createUser.blade.php</code>, <code>editUser.blade.php</code></li>
+  </ul>
+
+  <h2>Тесты</h2>
+  <div class="note">
+    Feature-тесты: <code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> (сценарии доп. полей при создании и PATCH),
+    <code>tests/Feature/Crm/Users/AdminUsersAccessFeatureTest.php</code> (доступ <code>users.view</code>, смоук основных endpoint’ов включая создание с <code>custom</code>).
+  </div>
+
+  <p class="small"><a href="./index.html">← К оглавлению (статический файл)</a></p>
 </div>
 </body>
 </html>

@@ -8,6 +8,7 @@ use App\Models\Partner;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\Weekday;
+use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 class TeamControllerTest extends CrmTestCase
@@ -333,6 +334,14 @@ class TeamControllerTest extends CrmTestCase
 
     public function test_update_successfully_updates_team_of_current_partner_and_logs_changes()
     {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => $this->partner->id,
+            'role_id'       => $this->user->role_id,
+            'permission_id' => $this->permissionId('schedule.view'),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
             'title'      => 'Старая группа',

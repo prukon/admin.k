@@ -1,24 +1,31 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * Раньше использовался $table->enum(...)->change(), из‑за чего Laravel подключал
+     * Doctrine DBAL к introspection схемы; тип MySQL ENUM в DBAL по умолчанию не зарегистрирован
+     * → «Unknown column type enum». Сырой ALTER обходит DBAL.
      */
     public function up(): void
     {
-        Schema::table('partners', function (Blueprint $table) {
-            $table->enum('business_type', [
-                'company',
-                'individual_entrepreneur',
-                'physical_person',
-                'non_commercial_organization'
-            ])->change();
-        });
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
+        DB::statement(
+            "ALTER TABLE partners MODIFY business_type ENUM("
+            . "'company',"
+            . "'individual_entrepreneur',"
+            . "'physical_person',"
+            . "'non_commercial_organization'"
+            . ") NOT NULL"
+        );
     }
 
     /**
@@ -26,12 +33,15 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('partners', function (Blueprint $table) {
-            // Возвращаем старые варианты:
-            $table->enum('business_type', [
-                'company',
-                'individual_entrepreneur'
-            ])->change();
-        });
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
+        DB::statement(
+            "ALTER TABLE partners MODIFY business_type ENUM("
+            . "'company',"
+            . "'individual_entrepreneur'"
+            . ") NOT NULL"
+        );
     }
 };

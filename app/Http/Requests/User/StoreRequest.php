@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\User;
 
+use App\Models\UserField;
+use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreRequest extends FormRequest
@@ -36,6 +38,9 @@ class StoreRequest extends FormRequest
 
             'is_enabled'  => 'sometimes|boolean', // чекбокс может не прийти
             'role_id'     => 'required|integer|exists:roles,id',
+
+            'custom'               => 'nullable|array',
+            'custom.*'             => 'nullable|string|max:255',
         ];
     }
 
@@ -52,6 +57,35 @@ class StoreRequest extends FormRequest
             'is_enabled' => 'Активность',
             'role_id'    => 'Роль',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $custom = $this->input('custom');
+            if (!is_array($custom) || $custom === []) {
+                return;
+            }
+
+            $partnerId = app(PartnerContext::class)->partnerId();
+            if (!$partnerId) {
+                return;
+            }
+
+            $allowedSlugs = UserField::query()
+                ->where('partner_id', $partnerId)
+                ->pluck('slug')
+                ->all();
+
+            foreach (array_keys($custom) as $slug) {
+                if (!in_array($slug, $allowedSlugs, true)) {
+                    $validator->errors()->add(
+                        'custom.' . $slug,
+                        'Указано недопустимое дополнительное поле.'
+                    );
+                }
+            }
+        });
     }
 
     public function messages()

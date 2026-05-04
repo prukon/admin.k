@@ -64,6 +64,24 @@
                         </select>
                     </div>
 
+                    @if(!empty($userFieldsPayload))
+                        <div id="create-custom-fields-container" class="border-top pt-3 mt-2">
+                            <div class="small text-muted mb-2">Дополнительные поля</div>
+                            @foreach($userFieldsPayload as $field)
+                                <div class="mb-3 custom-field" data-slug="{{ $field['slug'] }}">
+                                    <label for="create-custom-{{ $field['slug'] }}" class="form-label">{{ $field['name'] }}</label>
+                                    <input
+                                        type="text"
+                                        name="custom[{{ $field['slug'] }}]"
+                                        class="form-control"
+                                        id="create-custom-{{ $field['slug'] }}"
+                                        value=""
+                                        @unless(!empty($field['editable'])) disabled @endunless
+                                    />
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
 
                     <div class="modal-footer-modal-user">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
@@ -140,11 +158,20 @@
 
                         Object.keys(errors).forEach(function (field) {
                             const messages = errors[field];
-                            const safe = field.replace(/\./g, '\\.').replace(/\*/g, '\\*');
 
-                            // Ищем по name="field", если нет — попробуем по id
-                            let $input = $form.find('[name="' + safe + '"]');
-                            if (!$input.length) $input = $form.find('#' + field);
+                            let $input = $();
+                            const customMatch = /^custom\.(.+)$/.exec(field);
+                            if (customMatch) {
+                                const slug = customMatch[1];
+                                $input = $form.find('[name="custom[' + slug + ']"]');
+                            }
+                            if (!$input.length) {
+                                const safe = field.replace(/\./g, '\\.').replace(/\*/g, '\\*');
+                                $input = $form.find('[name="' + safe + '"]');
+                            }
+                            if (!$input.length) {
+                                $input = $form.find('#' + field.replace(/\./g, '\\.'));
+                            }
 
                             if ($input.length) {
                                 $input.addClass('is-invalid');

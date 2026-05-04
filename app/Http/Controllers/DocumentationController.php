@@ -24,6 +24,10 @@ class DocumentationController extends Controller
             ['slug' => 'tbank-refunds-payout-cancel', 'title' => 'T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты (tinkoff_payments → tinkoff_payouts)'],
             ['slug' => 'queues-monitoring', 'title' => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker'],
             ['slug' => 'tests-standards', 'title' => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)'],
+            ['slug' => 'lesson-packages', 'title' => 'Абонементы: период назначения (starts_at/ends_at) и привязка к календарю школы'],
+            ['slug' => 'school-schedule-calendar', 'title' => 'Расписание школы: календарь, модалка слота, locations.view, JSON недели'],
+            ['slug' => 'admin-teams', 'title' => 'Группы (админка): /admin/teams, groups.view и schedule.view (колонка «Расписание», дни в модалках)'],
+            ['slug' => 'admin-users', 'title' => 'Пользователи (админка): /admin/users, создание с доп. полями, POST /admin/users'],
         ];
 
         $html = '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -57,6 +61,10 @@ class DocumentationController extends Controller
             'tbank-refunds-payout-cancel' => base_path('docs/documentation/tbank-refunds-payout-cancel.html'),
             'queues-monitoring' => base_path('docs/documentation/queues-monitoring.html'),
             'tests-standards' => base_path('docs/documentation/tests-standards.html'),
+            'lesson-packages' => base_path('docs/documentation/lesson-packages.html'),
+            'school-schedule-calendar' => base_path('docs/documentation/school-schedule-calendar.html'),
+            'admin-teams' => base_path('docs/documentation/admin-teams.html'),
+            'admin-users' => base_path('docs/documentation/admin-users.html'),
         ];
 
         if (!isset($map[$page])) {

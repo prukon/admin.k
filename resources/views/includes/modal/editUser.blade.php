@@ -286,7 +286,7 @@
 
                         {{--Пользовательские поля--}}
                         <div class="col-12 col-md-6">
-                            @if($fields->isNotEmpty())
+                            @if(!empty($userFieldsPayload))
                                 <!-- Проверяем, есть ли пользовательские поля -->
                                 <div class="mb-3">
                                     <div id="custom-fields-container"> <!-- Контейнер для пользовательских полей -->
@@ -762,11 +762,23 @@
 
                                 Object.keys(errors).forEach(function (field) {
                                     const messages = errors[field];
-                                    const safe = field.replace(/\./g, '\\.').replace(/\*/g, '\\*');
 
-                                    // Ищем по name="field", если нет — по id
-                                    let $input = $form.find('[name="' + safe + '"]');
-                                    if (!$input.length) $input = $form.find('#' + field);
+                                    let $input = $();
+                                    const customMatch = /^custom\.(.+)$/.exec(field);
+                                    if (customMatch) {
+                                        const slug = customMatch[1];
+                                        $input = $form.find('[name="custom[' + slug + ']"]');
+                                    }
+                                    if (!$input.length) {
+                                        const safe = field.replace(/\./g, '\\.').replace(/\*/g, '\\*');
+                                        $input = $form.find('[name="' + safe + '"]');
+                                    }
+                                    if (!$input.length && customMatch) {
+                                        $input = $form.find('#custom-' + customMatch[1]);
+                                    }
+                                    if (!$input.length) {
+                                        $input = $form.find('#' + field.replace(/\./g, '\\.'));
+                                    }
 
                                     if ($input.length) {
                                         $input.addClass('is-invalid');

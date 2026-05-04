@@ -71,6 +71,20 @@ platform_fee       = max(round(gross * platform_percent/100),  platform_min_fixe
 
 net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pre>
 
+  <h3 id="commissions-ui">4.3 Админка: страница «Комиссии Т‑Банк» (<code>/admin/settings/tbank-commissions</code>)</h3>
+  <div class="note">
+    Доступ только при праве <code>settings.commission</code> (middleware <code>can:settings.commission</code>). Без права — <b>403</b>; гость — редирект на вход.
+  </div>
+  <ul>
+    <li><b>Шапка страницы</b>: кнопки <b>«Настройки выплат»</b> (открывает модальное окно с глобальными параметрами выплат) и <b>«Добавить комиссию»</b> (модалка создания нового правила). Стили кнопок согласованы с остальной админкой.</li>
+    <li><b>Глобальные настройки выплат</b> (задержка автовыплаты в часах, интервал джобы в минутах) — не отдельная карточка на странице, а форма внутри модалки «Настройки выплат»; отправка <code>POST /admin/settings/tbank-commissions/payout-settings</code>, см. п. <a href="#payout-settings">5.4</a>.</li>
+    <li><b>Создание правила</b>: модальное окно с тем же набором полей, что и при отдельном создании; синоним маршрута <code>GET …/create</code> делает редирект на список с <code>?open_create=1</code>, чтобы открыть модалку (закладки/старые ссылки).</li>
+    <li><b>Таблица правил</b>: jQuery DataTables с <b>серверной</b> пагинацией и поиском; данные <code>GET /admin/settings/tbank-commissions/data</code> (формат DataTables: <code>draw</code>, <code>recordsTotal</code>, <code>recordsFiltered</code>, <code>data[]</code>). Локализация интерфейса таблицы — русский язык (общий фрагмент Blade <code>resources/views/partials/datatables/ru.blade.php</code>).</li>
+    <li><b>Колонки таблицы</b>: №; Партнёр (название; при необходимости бейдж «ключи?» если T‑Bank не считается подключённым); Метод; три блока комиссий (эквайринг / выплата банка / платформа); <b>Автовыплата</b> (шильдики да/нет из настройки <code>auto_payout_enabled</code> у платёжной системы tbank партнёра; для глобального правила без <code>partner_id</code> — «—»); <b>Выплат за 30 дн.</b> (число автовыплат за 30 дней по партнёру, счётчик — ссылка на <code>/admin/tinkoff/payouts?partner_id=…&amp;source=auto</code>; для глобального правила — «—»); <b>Активность</b> (включено правило или нет); действия «Изменить» / «Удалить».</li>
+    <li><b>Фильтры</b> над таблицей (партнёр, метод) в сворачиваемом блоке в том же визуальном стиле, что отчёт по задолженностям; подключается <code>resources/css/payments-report.css</code>. Фильтры передаются в запрос data как <code>filter_partner_id</code>, <code>filter_method</code>.</li>
+    <li><b>Редактирование</b> по-прежнему отдельная страница <code>/admin/settings/tbank-commissions/{id}/edit</code> (чекбокс автовыплаты партнёра, форма полей комиссий).</li>
+  </ul>
+
   <h2>5) Автовыплата партнёру (e2c) — управление</h2>
   <div class="note">
     Настройка автовыплаты хранится <b>в разрезе партнёра</b> в <code>payment_systems.settings</code> (зашифрованный JSON):
@@ -118,14 +132,14 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <ul>
     <li><b>Задержка автовыплаты (часы)</b>: через сколько часов после <code>CONFIRMED</code> создаётся/запускается выплата. 0 = сразу. По умолчанию 48 (окно возврата).</li>
     <li><b>Интервал джобы (минуты)</b>: как часто планировщик запускает <code>TinkoffRunScheduledPayoutsJob</code> и <code>TinkoffPollPayoutStatesJob</code>. По умолчанию 10.</li>
-    <li><b>Где управлять</b>: страница комиссий <code>/admin/settings/tbank-commissions</code> — блок <b>«Глобальные настройки выплат Т‑Банк»</b> над таблицей правил. Поля «Задержка автовыплаты после оплаты (часы)» и «Интервал запуска джобы (мин)», кнопка «Сохранить». Изменение интервала джобы применяется после перезапуска планировщика (cron/queue).</li>
+    <li><b>Где управлять</b>: страница комиссий <code>/admin/settings/tbank-commissions</code> — кнопка <b>«Настройки выплат»</b> открывает модальное окно <b>«Глобальные настройки выплат Т‑Банк»</b>. Поля «Задержка автовыплаты после оплаты (часы)» и «Интервал запуска джобы (мин)», кнопка «Сохранить». Изменение интервала джобы применяется после перезапуска планировщика (cron/queue).</li>
   </ul>
 
   <h3>5.5 Где отображается информация об автовыплатах</h3>
   <ul>
     <li><b>Страница выплат</b> <code>/admin/tinkoff/payouts</code>: блок «Автовыплаты: включены у партнёров …» и «Обработка отложенных выплат: каждые N мин.»; таблица выплат (DataTables); блок просроченных отложенных выплат (см. отдельно <a href="./tbank-admin-payouts.html">админка выплат</a>).</li>
     <li><b>Страница партнёра</b> <code>/admin/tinkoff/partners/{id}</code>: в карточке слева — «Автовыплата: вкл/выкл», интервал, «За 30 дн.: N автовыплат», ссылка «к выплатам». Счётчик <b>«Ожидают выплат»</b> — это количество выплат в статусах <code>INITIATED</code>/<code>CREDIT_CHECKING</code> (уже созданы и в процессе), а не «платежи, ожидающие создания выплаты».</li>
-    <li><b>Страница комиссий</b>: в таблице правил — по каждому партнёру «Автовыплата: on/off» и «За 30 дн.: N автовыплат, последняя …» со ссылкой на список выплат; на форме редактирования правила — тот же блок «За 30 дн.» под чекбоксом автовыплаты.</li>
+    <li><b>Страница комиссий</b>: в таблице правил отдельные колонки <b>«Автовыплата»</b> (да/нет) и <b>«Выплат за 30 дн.»</b> (число со ссылкой на автовыплаты партнёра); на форме редактирования правила — блок со счётчиком «За 30 дн.: N автовыплат» и ссылкой на выплаты под чекбоксом автовыплаты.</li>
   </ul>
 
   <h3>5.6 Защита от повторной выплаты по одному платежу</h3>
@@ -304,12 +318,14 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>8.7 Комиссии (CRUD + приоритеты правил + настройки выплат)</h3>
   <ul>
-    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAccessTest.php</code> — доступы/SetPartner к настройке комиссий.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAccessTest.php</code> — доступы/SetPartner к настройке комиссий; гость не проходит на все HTTP‑методы группы маршрутов.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsAuthorizedEndpointsTest.php</code> — для пользователя с правом доступа успешные ответы по странице, <code>GET …/data</code>, редирект <code>create</code>, CRUD и настройки выплат; для роли admin с выданным <code>settings.commission</code> — 200 на index и data.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsFeatureCoverageTest.php</code> — разметка страницы (модалки, таблица, кнопки), структура JSON data (включая колонки автовыплаты и выплат за 30 дн.), фильтры и поиск, глобальное правило.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerCrudTest.php</code> — CRUD правил комиссий + валидация.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAutoPayoutTest.php</code> — флаг <code>auto_payout_enabled</code> в <code>payment_systems.settings</code> и его корректное сохранение.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionRulePriorityTest.php</code> — дефолт 2% и приоритет выбора правила (global → partner → partner+method).</li>
-    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsPayoutSettingsTest.php</code> — сохранение глобальных настроек выплат (задержка, интервал джобы) через форму на странице комиссий.</li>
-    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsAutoPayoutStatsTest.php</code> — отображение «За 30 дн.: N автовыплат» в списке правил и на форме редактирования правила.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsPayoutSettingsTest.php</code> — сохранение глобальных настроек выплат (задержка, интервал джобы); форма присутствует в разметке страницы (в т.ч. в модалке).</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsAutoPayoutStatsTest.php</code> — счётчик автовыплат за 30 дней в JSON колонке таблицы и на форме редактирования правила.</li>
   </ul>
 
   <h3>8.8 Возвраты и отмена отложенной выплаты при возврате</h3>

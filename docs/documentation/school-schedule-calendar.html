@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Расписание школы: календарь и модалка слота</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul { margin: 8px 0 8px 20px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="./index.html">← К списку разделов</a></p>
+  <h1>Расписание школы (календарь абонементов)</h1>
+
+  <div class="note">
+    Страница входит в раздел <strong>«Абонементы»</strong> как вкладка <strong>«Расписание школы»</strong>.
+    Доступ к экрану и JSON календаря задаётся правом <code>lessonPackages.view</code> (группа маршрутов в <code>routes/web.php</code> с middleware <code>can:lessonPackages.view</code>).
+    Отдельно: управление слотами расписания групп (<code>scheduleSlots.manage</code> / просмотр) описано в коде прав и тестах календаря; здесь — клиентская часть календаря и модалки слота.
+  </div>
+
+  <h2>Данные недели для сетки</h2>
+  <p>Фронт подгружает слоты через <code>GET /admin/lesson-packages/school-schedule/week</code> (параметры <code>week</code>, опционально <code>location_id</code>).
+    Каждый элемент массива <code>occurrences</code> содержит, среди прочего, поле <code>team_title</code> — название группы (команды) для отображения в ячейке и в UI.</p>
+
+  <h2>Фильтр «Локация» в тулбаре</h2>
+  <p>Блок с выбором локации (<code>id="schoolCalLocation"</code>) рендерится только при наличии права <code>locations.view</code> (директива Blade <code>@can('locations.view')</code>).
+    У базовой роли admin в конфиге <code>config/role_base_permissions.php</code> это право включено; у кастомных ролей его можно отозвать — тогда фильтр не показывается, но календарь по-прежнему доступен при <code>lessonPackages.view</code> (все слоты партнёра без фильтра по локации).</p>
+
+  <h2>Модалка сведений о слоте</h2>
+  <p>Контейнер: <code>#schoolCalSlotModal</code>. При открытии слота данные подставляются из выбранного occurrence на клиенте.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Элемент</th>
+        <th>Поведение</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>#schoolCalSlotModalTitle</code></td>
+        <td>Заголовок модалки — <strong>название группы</strong> (<code>team_title</code> из occurrence). Статического текста «Слот расписания» в заголовке нет.</td>
+      </tr>
+      <tr>
+        <td><code>#schoolCalSlotSummaryWhen</code></td>
+        <td>Строка даты и времени слота; оформление через класс <code>school-cal-slot-summary__when</code> (компактный размер шрифта в стилях вкладки).</td>
+      </tr>
+      <tr>
+        <td>Строка «Группа» в теле модалки</td>
+        <td><strong>Не выводится</strong> — название группы дублируется только в заголовке модалки.</td>
+      </tr>
+      <tr>
+        <td><code>#schoolCalSlotSummaryLoc</code></td>
+        <td>Строка «Локация» / значение локации показываются только при <code>locations.view</code>. Без права разметка строки не попадает в HTML.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Связь с логикой абонементов</h2>
+  <p>Привязка абонементов к слотам, период <code>starts_at</code>/<code>ends_at</code> и списание остатков описаны в отдельном разделе
+    <a href="./lesson-packages.html">«Абонементы: назначение и период с календаря школы»</a> — настоящая страница не меняет серверные правила, только отображение и права на показ локации.</p>
+
+  <h2>Тесты</h2>
+  <p>Разметка модалки и фильтра локации, наличие <code>team_title</code> в JSON недели, а также ответы <code>200</code>/<code>403</code> для страницы и read-API при разных правах покрываются feature-тестами в
+    <code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>.
+    Сквозные сценарии календаря (назначения, пробные, статусы) — в соседних тестах того же каталога; общие требования к тестам см. <a href="./tests-standards.html">tests-standards</a>.</p>
+</div>
+</body>
+</html>

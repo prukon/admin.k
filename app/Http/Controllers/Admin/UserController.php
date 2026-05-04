@@ -69,8 +69,9 @@ class UserController extends AdminBaseController
             ->orderBy('order_by')
             ->get();
 
-        // 4) Произвольные поля партнёра
-        $fields = UserField::where('partner_id', $partnerId)->get();
+        // 4) Доп. поля: модель для модалки настройки полей + тот же состав с фильтром роли для форм create/edit
+        $fields = UserField::with('roles')->where('partner_id', $partnerId)->get();
+        $userFieldsPayload = $this->buildUserFieldsPayloadForCurrentPartner();
 
         // 5) Все команды партнёра
         $allTeams = Team::where('partner_id', $partnerId)
@@ -81,6 +82,7 @@ class UserController extends AdminBaseController
         return view('admin.user', compact(
             'allTeams',
             'fields',
+            'userFieldsPayload',
             'currentUser',
             'roles',
             'user'
@@ -252,6 +254,42 @@ class UserController extends AdminBaseController
         ]);
     }
 
+    /**
+     * Доп. поля пользователя для текущего партнёра (как в edit): фильтр по роли админа и флаг editable.
+     *
+     * @return array<int, array{id:int,name:string,slug:string,field_type:string,roles:array<int,int>,editable:bool}>
+     */
+    protected function buildUserFieldsPayloadForCurrentPartner(): array
+    {
+        $partnerId = $this->partnerId();
+        $currentUser = $this->currentUser();
+        $isSuperadmin = $this->isSuperAdmin();
+
+        $fieldsQuery = UserField::with('roles')
+            ->where('partner_id', $partnerId);
+
+        if (!$isSuperadmin && $currentUser?->role_id) {
+            $fieldsQuery->whereHas('roles', fn ($q) =>
+                $q->where('role_id', $currentUser->role_id)
+            );
+        }
+
+        $fields = $fieldsQuery->get();
+
+        return $fields->map(function (UserField $f) use ($currentUser, $isSuperadmin) {
+            $allowedRoles = $f->roles->pluck('id')->map(fn ($i) => (int) $i);
+
+            return [
+                'id' => $f->id,
+                'name' => $f->name,
+                'slug' => $f->slug,
+                'field_type' => $f->field_type,
+                'roles' => $allowedRoles->all(),
+                'editable' => $isSuperadmin || $allowedRoles->contains($currentUser?->role_id),
+            ];
+        })->all();
+    }
+
     public function store(StoreRequest $request)
     {
         // 1) Валидируем и нормализуем входные данные
@@ -261,6 +299,9 @@ class UserController extends AdminBaseController
         if (!$partnerId) {
             abort(400, 'Текущий партнёр не определён.');
         }
+
+        $customInput = $validatedData['custom'] ?? [];
+        unset($validatedData['custom']);
 
         $isEnabled = $request->boolean('is_enabled');          // чекбокс может не прийти — приводим к bool
         $teamId    = $validatedData['team_id'] ?? null;        // поле опционально — может отсутствовать
@@ -272,13 +313,53 @@ class UserController extends AdminBaseController
             'team_id'    => $teamId, // может быть null
         ]);
 
+        $fieldsPayload = $this->buildUserFieldsPayloadForCurrentPartner();
+        $editableSlugSet = collect($fieldsPayload)
+            ->filter(fn (array $row) => !empty($row['editable']))
+            ->pluck('slug')
+            ->flip()
+            ->all();
+
         // 2) Создание пользователя + логирование в транзакции
         $user            = null;
         $teamTitleForLog = '-';
 
-        DB::transaction(function () use (&$user, &$teamTitleForLog, $data, $teamId) {
+        DB::transaction(function () use (
+            &$user,
+            &$teamTitleForLog,
+            $data,
+            $teamId,
+            $partnerId,
+            $customInput,
+            $editableSlugSet
+        ) {
             // Создаём пользователя через доменный сервис
             $user = $this->service->store($data);
+
+            if (is_array($customInput) && $customInput !== []) {
+                foreach ($customInput as $slug => $newValue) {
+                    if (!isset($editableSlugSet[$slug])) {
+                        continue;
+                    }
+
+                    /** @var UserField|null $field */
+                    $field = UserField::query()
+                        ->where('partner_id', $partnerId)
+                        ->where('slug', $slug)
+                        ->first();
+
+                    if (!$field) {
+                        continue;
+                    }
+
+                    $valueStr = $newValue === null ? '' : (string) $newValue;
+
+                    UserFieldValue::updateOrCreate(
+                        ['user_id' => $user->id, 'field_id' => $field->id],
+                        ['value' => $valueStr]
+                    );
+                }
+            }
 
             // Группа (может отсутствовать)
             if ($teamId) {
@@ -350,35 +431,10 @@ class UserController extends AdminBaseController
         $currentUser = $this->currentUser();
         $isSuperadmin = $this->isSuperAdmin();
 
-        // 2) Загружаем UserField вместе с ролями, в разрезе партнёра
-        $fieldsQuery = UserField::with('roles')
-            ->where('partner_id', $partnerId);
+        // 2) Доп. поля (тот же состав, что на странице списка / в модалке создания)
+        $fieldsPayload = $this->buildUserFieldsPayloadForCurrentPartner();
 
-        // если не супер-админ — только поля, доступные роли текущего пользователя
-        if (!$isSuperadmin && $currentUser?->role_id) {
-            $fieldsQuery->whereHas('roles', fn ($q) =>
-            $q->where('role_id', $currentUser->role_id)
-            );
-        }
-
-        $fields = $fieldsQuery->get();
-
-        // 3) Собираем payload для полей
-        $fieldsPayload = $fields->map(function (UserField $f) use ($currentUser, $isSuperadmin) {
-            $allowedRoles = $f->roles->pluck('id')->map(fn ($i) => (int) $i);
-
-            return [
-                'id'         => $f->id,
-                'name'       => $f->name,
-                'slug'       => $f->slug,
-                'field_type' => $f->field_type,
-                'roles'      => $allowedRoles->all(),
-                // фронт решает, можно ли редактировать поле
-                'editable'   => $isSuperadmin || $allowedRoles->contains($currentUser?->role_id),
-            ];
-        })->all();
-
-        // 4) Системные + партнёрские роли
+        // 3) Системные + партнёрские роли
         $systemRoles = Role::where('is_sistem', 1)
             ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
             ->get();
@@ -402,7 +458,7 @@ class UserController extends AdminBaseController
             'system' => (bool) $r->is_sistem,
         ])->all();
 
-        // 5) Загружаем связи user->fields (pivot value)
+        // 4) Загружаем связи user->fields (pivot value)
         $user->load('fields');
 
         if (request()->ajax()) {
@@ -432,6 +488,7 @@ class UserController extends AdminBaseController
     {
         // Актор (кто редактирует) через базовый контроллер
         $actor = $this->currentUser();
+        $partnerId = $this->partnerId();
 
         // Снимок старых значений (только то, что потенциально логируем)
         $old = [
@@ -455,7 +512,7 @@ class UserController extends AdminBaseController
             ->map(fn (UserFieldValue $v) => $v->value)
             ->all();
 
-        DB::transaction(function () use ($user, $validatedData, $existingCustomValues, $old, $actor) {
+        DB::transaction(function () use ($user, $validatedData, $existingCustomValues, $old, $actor, $partnerId) {
             // 1) Телефон: менять и логировать только при наличии права
             if (array_key_exists('phone', $validatedData)) {
                 $newPhoneIncoming = (string) $validatedData['phone'];
@@ -479,6 +536,7 @@ class UserController extends AdminBaseController
             if (!empty($validatedData['custom']) && is_array($validatedData['custom'])) {
                 $incomingSlugs = array_keys($validatedData['custom']);
                 $fieldsBySlug  = UserField::whereIn('slug', $incomingSlugs)
+                    ->when($partnerId, fn ($q) => $q->where('partner_id', $partnerId))
                     ->get()
                     ->keyBy('slug');
 

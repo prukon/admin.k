@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: группы (админка) — права groups.view и schedule.view</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="./index.html">← К списку разделов</a></p>
+  <h1>Группы (админка): <code>/admin/teams</code></h1>
+  <div class="small">Файл: <code>/docs/documentation/admin-teams.html</code></div>
+
+  <div class="note">
+    Раздел <strong>«Группы»</strong> в боковом меню ведёт на <code>GET /admin/teams</code>.
+    Доступ к странице и ко всем CRUD/JSON эндпоинтам групп задаётся одним правом: <code>groups.view</code> (группа маршрутов в <code>routes/web.php</code> с middleware <code>can:groups.view</code>).
+  </div>
+
+  <h2>1) Право <code>schedule.view</code> на странице групп</h2>
+  <p>Одно и то же permission <code>schedule.view</code> (в справочнике permissions исторически описано как страница «Журнал расписания») дополнительно используется для <strong>элементов «Расписание»</strong> на <code>/admin/teams</code>: оно <strong>не открывает</strong> саму страницу групп и <strong>не заменяет</strong> <code>groups.view</code>.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Элемент UI</th>
+        <th>При отсутствии <code>schedule.view</code></th>
+        <th>При наличии <code>schedule.view</code></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Таблица групп (DataTables)</td>
+        <td>Колонка «Расписание» и пункт «Расписание» в выпадающем списке «Поля списка» не выводятся (Blade <code>@can('schedule.view')</code>, колонка на клиенте отключена через флаг JS).</td>
+        <td>Колонка с подписью дней недели (<code>weekdays_label</code>) и настройка видимости колонки доступны.</td>
+      </tr>
+      <tr>
+        <td>Модалка «Создание группы»</td>
+        <td>Блок выбора дней недели («Расписание») скрыт.</td>
+        <td>Блок с чекбоксами дней недели показывается.</td>
+      </tr>
+      <tr>
+        <td>Модалка «Редактирование группы»</td>
+        <td>Блок «Расписание» скрыт; скрипт не заполняет чекбоксы дней.</td>
+        <td>Чекбоксы дней недели показываются и заполняются из <code>GET /admin/team/{id}/edit</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    Не путать с вкладкой <strong>«Расписание школы»</strong> в разделе абонементов: её экран и календарь завязаны на <code>lessonPackages.view</code> и связанные права — см. <a href="./school-schedule-calendar.html">Расписание школы: календарь</a>. Там другой контур доступа.
+  </div>
+
+  <h2>2) Где ещё используется <code>schedule.view</code> в проекте</h2>
+  <ul>
+    <li>Gate <code>schedule.view</code> в <code>app/Providers/AuthServiceProvider.php</code> (проверка <code>hasPermission('schedule.view')</code> для текущего партнёра).</li>
+    <li>Пункт меню «Журнал расписания» (<code>/schedule</code>) в <code>resources/views/includes/sidebar.blade.php</code> — директива <code>@can('schedule.view')</code>.</li>
+    <li>Группы маршрутов журнала и статусов расписания в <code>routes/web.php</code> с <code>middleware('can:schedule.view')</code> (например <code>/schedule</code>, <code>/schedule/statuses</code> и др.).</li>
+  </ul>
+
+  <h2>3) Серверное поведение (группы)</h2>
+  <ul>
+    <li><strong>Список для таблицы</strong> <code>GET /admin/teams/data</code>: в JSON по-прежнему приходит поле <code>weekdays_label</code> для каждой строки — скрытие колонки только клиентское; это сознательно не фильтруется на сервере для пользователей без <code>schedule.view</code>.</li>
+    <li><strong>Обновление группы</strong> <code>PATCH /admin/team/{id}</code>: если у пользователя <strong>нет</strong> <code>schedule.view</code>, поле <code>weekdays</code> из запроса отбрасывается до вызова сервиса — назначение дней недели изменить нельзя (в т.ч. при попытке передать дни вручную). Запись в логах изменения «Дни недели» для такого сохранения не формируется.</li>
+    <li><strong>Сервис</strong> <code>App\Services\TeamService::update</code>: синхронизация связи <code>team_weekday</code> выполняется только если ключ <code>weekdays</code> был передан в данных обновления (после валидации). Если ключа нет — связь дней недели не трогают.</li>
+    <li><strong>Сортировка DataTables</strong> на <code>GET /admin/teams/data</code>: порядок сортировки определяется по <strong>имени колонки</strong> из массива запроса <code>columns[*].name</code>, а не только по индексу колонки — чтобы корректно работать при скрытой колонке «Расписание».</li>
+  </ul>
+
+  <h2>4) Базовые роли и конфиг</h2>
+  <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code> строка <code>schedule.view</code> по умолчанию <strong>закомментирована</strong>: у нового партнёра у администратора это право может отсутствовать, пока его явно не включат в матрице прав партнёра. Общая модель прав — в
+    <a href="./partners-permissions.html">Партнёры: базовые роли и права</a>.</p>
+
+  <h2>5) Представления и контроллер</h2>
+  <ul>
+    <li><code>resources/views/admin/team.blade.php</code> — таблица, настройки колонок, инициализация DataTables.</li>
+    <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки создания/редактирования.</li>
+    <li><code>app/Http/Controllers/Admin/TeamController.php</code> — методы <code>index</code>, <code>data</code>, <code>store</code>, <code>edit</code>, <code>update</code>, логи.</li>
+  </ul>
+
+  <h2>6) Автотесты</h2>
+  <div class="note">
+    Фичтесты: <code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — видимость колонки/блоков, недоступность изменения дней без права, доступность эндпоинтов при <code>groups.view</code>, сортировка по имени колонки.
+    Общие сценарии групп: <code>tests/Feature/Crm/Teams/TeamControllerTest.php</code>.
+  </div>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code></pre>
+</div>
+</body>
+</html>

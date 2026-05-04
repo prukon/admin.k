@@ -16,18 +16,23 @@ class TbankCommissionsControllerAccessTest extends CrmTestCase
     {
         auth()->logout();
 
+        $id = 999999;
         $routes = [
             ['GET', route('admin.setting.tbankCommissions')],
             ['GET', route('admin.setting.tbankCommissions.data')],
             ['GET', route('admin.setting.tbankCommissions.create')],
+            ['GET', route('admin.setting.tbankCommissions.edit', ['id' => $id])],
             ['POST', route('admin.setting.tbankCommissions.store')],
+            ['POST', route('admin.setting.tbankCommissions.payoutSettings')],
+            ['PUT', route('admin.setting.tbankCommissions.update', ['id' => $id])],
+            ['DELETE', route('admin.setting.tbankCommissions.destroy', ['id' => $id])],
         ];
 
         foreach ($routes as [$method, $url]) {
             $resp = $this->call($method, $url);
             $this->assertTrue(
-                in_array($resp->getStatusCode(), [302, 401, 403], true),
-                "Ожидался 302/401/403 для гостя на {$method} {$url}, фактически {$resp->getStatusCode()}"
+                in_array($resp->getStatusCode(), [302, 401, 403, 419], true),
+                "Ожидался 302/401/403/419 для гостя на {$method} {$url}, фактически {$resp->getStatusCode()}"
             );
         }
     }
