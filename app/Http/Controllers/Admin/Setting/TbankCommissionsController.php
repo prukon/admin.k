@@ -92,7 +92,8 @@ class TbankCommissionsController extends Controller
                 5 => $filtered->orderBy('tinkoff_commission_rules.platform_percent', $orderDir)
                     ->orderBy('tinkoff_commission_rules.platform_min_fixed', $orderDir)
                     ->orderBy('tinkoff_commission_rules.id', 'asc'),
-                6 => $filtered->orderBy('tinkoff_commission_rules.is_enabled', $orderDir)
+                // 6–7: автовыплата и выплат за 30 дн. — из смежных таблиц/агрегатов, сортировка отключена на клиенте
+                8 => $filtered->orderBy('tinkoff_commission_rules.is_enabled', $orderDir)
                     ->orderBy('tinkoff_commission_rules.id', 'asc'),
                 default => $filtered->orderByRaw('tinkoff_commission_rules.partner_id IS NULL DESC')
                     ->orderByRaw('tinkoff_commission_rules.method IS NULL DESC')
@@ -125,9 +126,7 @@ class TbankCommissionsController extends Controller
         $data = $rules->map(function (TinkoffCommissionRule $rule) use ($maps, $csrf) {
             $partnerCell = view('admin.setting.tbank_commissions._partner_cell', [
                 'r' => $rule,
-                'autoPayoutByPartnerId' => $maps['autoPayoutByPartnerId'],
                 'tbankConnectedByPartnerId' => $maps['tbankConnectedByPartnerId'],
-                'autoPayoutStatsByPartnerId' => $maps['autoPayoutStatsByPartnerId'],
             ])->render();
 
             $acquiringPercent = (float) ($rule->acquiring_percent ?? 2.49);
@@ -141,6 +140,22 @@ class TbankCommissionsController extends Controller
             $payoutHtml = $this->formatCommissionPercentCell($payoutPercent, $payoutMin);
             $platformHtml = $this->formatCommissionPercentCell($platformPercent, $platformMin);
 
+            $partnerId = (int) ($rule->partner_id ?? 0);
+            if ($partnerId > 0) {
+                $autoOn = (bool) ($maps['autoPayoutByPartnerId'][$partnerId] ?? false);
+                $autoPayoutHtml = $autoOn
+                    ? '<span class="badge text-bg-success">да</span>'
+                    : '<span class="badge text-bg-secondary">нет</span>';
+
+                $statsRow = $maps['autoPayoutStatsByPartnerId']->get($partnerId);
+                $cnt = (int) (($statsRow['count'] ?? 0));
+                $payoutListUrl = e(url('/admin/tinkoff/payouts?partner_id=' . $partnerId . '&source=auto'));
+                $payouts30dHtml = '<a href="' . $payoutListUrl . '" class="link-primary fw-semibold" target="_blank" title="Выплаты (авто) за 30 дней">' . $cnt . '</a>';
+            } else {
+                $autoPayoutHtml = '—';
+                $payouts30dHtml = '—';
+            }
+
             $enabledOn = (bool) $rule->is_enabled;
             $enabledHtml = $enabledOn
                 ? '<span class="badge text-bg-success">on</span>'
@@ -150,9 +165,9 @@ class TbankCommissionsController extends Controller
             $destroyUrl = e(route('admin.setting.tbankCommissions.destroy', ['id' => $rule->id]));
 
             $actionsHtml = <<<HTML
-<div class="text-end">
-    <a class="btn btn-outline-primary btn-sm" href="{$editUrl}">Править</a>
-    <form action="{$destroyUrl}" method="post" class="d-inline" onsubmit="return confirm('Удалить правило?');">
+<div class="text-start text-nowrap">
+    <a class="btn btn-outline-primary btn-sm" href="{$editUrl}">Изменить</a>
+    <form action="{$destroyUrl}" method="post" class="d-inline-block ms-1" onsubmit="return confirm('Удалить правило?');">
         <input type="hidden" name="_token" value="{$csrf}">
         <input type="hidden" name="_method" value="DELETE">
         <button type="submit" class="btn btn-outline-danger btn-sm">Удалить</button>
@@ -166,6 +181,8 @@ HTML;
                 'acquiring_html' => $acquiringHtml,
                 'payout_html' => $payoutHtml,
                 'platform_html' => $platformHtml,
+                'auto_payout_html' => $autoPayoutHtml,
+                'payouts_30d_html' => $payouts30dHtml,
                 'enabled_html' => $enabledHtml,
                 'actions_html' => $actionsHtml,
             ];

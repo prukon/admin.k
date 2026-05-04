@@ -104,22 +104,20 @@
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0 align-items-start">
-                    <h5 class="modal-title mb-0">Слот расписания</h5>
+                    <h5 class="modal-title mb-0 text-break" id="schoolCalSlotModalTitle">—</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body pt-2">
                     <div class="school-cal-slot-summary rounded-3 border px-3 py-3 mb-3">
                         <div class="school-cal-slot-summary__when fw-semibold text-dark lh-sm" id="schoolCalSlotSummaryWhen">—</div>
+                        @can('locations.view')
                         <div class="school-cal-slot-summary__meta small mt-3 pt-2 border-top border-light">
                             <div class="d-flex gap-2 justify-content-between">
-                                <span class="text-muted flex-shrink-0">Группа</span>
-                                <span class="text-end text-break" id="schoolCalSlotSummaryTeam">—</span>
-                            </div>
-                            <div class="d-flex gap-2 justify-content-between mt-2">
                                 <span class="text-muted flex-shrink-0">Локация</span>
                                 <span class="text-end text-break" id="schoolCalSlotSummaryLoc">—</span>
                             </div>
                         </div>
+                        @endcan
                     </div>
                     <div class="mb-3 border rounded-3 px-3 py-3 bg-light bg-opacity-50" id="schoolCalSlotAddBlock">
                         <div class="text-muted text-uppercase small mb-2 fw-semibold" style="font-size:0.68rem;letter-spacing:0.06em">Добавить запись</div>
@@ -480,7 +478,7 @@
         border-color: rgba(148,163,184,.35) !important;
     }
     .school-cal-slot-summary__when {
-        font-size: 1.05rem;
+        font-size: 0.9rem;
         letter-spacing: -0.01em;
     }
     .school-cal__reg-card {
@@ -1394,14 +1392,14 @@
 
             async function openSlotModal(ev) {
                 selectedOccurrence = ev;
+                const titleEl = document.getElementById('schoolCalSlotModalTitle');
                 const whenEl = document.getElementById('schoolCalSlotSummaryWhen');
-                const teamEl = document.getElementById('schoolCalSlotSummaryTeam');
                 const locEl = document.getElementById('schoolCalSlotSummaryLoc');
+                if (titleEl) {
+                    titleEl.textContent = ev.team_title || '—';
+                }
                 if (whenEl) {
                     whenEl.textContent = formatSlotModalWhen(ev);
-                }
-                if (teamEl) {
-                    teamEl.textContent = ev.team_title || '—';
                 }
                 if (locEl) {
                     locEl.textContent = ev.location_name || '—';

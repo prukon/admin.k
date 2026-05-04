@@ -5,15 +5,23 @@
 
 <div class="container py-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h5 mb-0">Комиссии Т‑Банк</h1>
+        <h1 class="h5 mb-0"> </h1>
 
         @if(($mode ?? 'list') === 'list')
-            <button type="button"
-                    class="btn btn-primary btn-sm"
-                    data-bs-toggle="modal"
-                    data-bs-target="#tbankCommissionCreateModal">
-                Добавить правило
-            </button>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <button type="button"
+                        class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#tbankPayoutSettingsModal">
+                    Настройки выплат
+                </button>
+                <button type="button"
+                        class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#tbankCommissionCreateModal">
+                    Добавить комиссию
+                </button>
+            </div>
         @endif
     </div>
 
@@ -91,31 +99,6 @@
                 || ($tbankFilterMethod !== null && $tbankFilterMethod !== '');
         @endphp
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-header">Глобальные настройки выплат Т‑Банк</div>
-            <div class="card-body">
-                <form method="post" action="{{ route('admin.setting.tbankCommissions.payoutSettings') }}" class="row g-3 align-items-end">
-                    @csrf
-                    <div class="col-auto">
-                        <label for="payout_auto_delay_hours" class="form-label mb-0">Задержка автовыплаты после оплаты (часы)</label>
-                        <input type="number" class="form-control form-control-sm" id="payout_auto_delay_hours" name="payout_auto_delay_hours"
-                               value="{{ old('payout_auto_delay_hours', $payoutAutoDelayHours ?? 48) }}" min="0" max="720" style="width: 6rem;">
-                        <div class="form-text small">0 = сразу, 48 = через 48 ч (окно возврата)</div>
-                    </div>
-                    <div class="col-auto">
-                        <label for="payout_scheduled_interval_minutes" class="form-label mb-0">Интервал запуска джобы (мин)</label>
-                        <input type="number" class="form-control form-control-sm" id="payout_scheduled_interval_minutes" name="payout_scheduled_interval_minutes"
-                               value="{{ old('payout_scheduled_interval_minutes', $payoutScheduledIntervalMinutes ?? 10) }}" min="1" max="1440" style="width: 6rem;">
-                        <div class="form-text small">Как часто обрабатываются отложенные выплаты</div>
-                    </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
-                    </div>
-                </form>
-                <div class="small text-muted mt-2">Изменение интервала джобы применится после перезапуска планировщика (cron/queue).</div>
-            </div>
-        </div>
-
         <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
             <div class="card-body px-3 py-3">
                 <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
@@ -180,12 +163,48 @@
                     <th>Эквайринг банка</th>
                     <th>Выплата банка</th>
                     <th>Комиссия платформы</th>
-                    <th>Вкл</th>
-                    <th data-orderable="false" class="text-end">Действия</th>
+                    <th>Автовыплата</th>
+                    <th>Выплат за 30 дн.</th>
+                    <th>Активность</th>
+                    <th data-orderable="false">Действия</th>
                 </tr>
                 </thead>
                 <tbody></tbody>
             </table>
+        </div>
+
+        <div class="modal fade" id="tbankPayoutSettingsModal" tabindex="-1" aria-labelledby="tbankPayoutSettingsModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="tbankPayoutSettingsModalLabel">Глобальные настройки выплат Т‑Банк</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="post" action="{{ route('admin.setting.tbankCommissions.payoutSettings') }}" id="tbank-payout-settings-form" class="text-start">
+                            @csrf
+                            <input type="hidden" name="tbank_payout_settings_form" value="1">
+                            <div class="mb-3">
+                                <label for="payout_auto_delay_hours" class="form-label">Задержка автовыплаты после оплаты (часы)</label>
+                                <input type="number" class="form-control" id="payout_auto_delay_hours" name="payout_auto_delay_hours"
+                                       value="{{ old('payout_auto_delay_hours', $payoutAutoDelayHours ?? 48) }}" min="0" max="720" style="max-width: 8rem;">
+                                <div class="form-text">0 = сразу, 48 = через 48 ч (окно возврата)</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="payout_scheduled_interval_minutes" class="form-label">Интервал запуска джобы (мин)</label>
+                                <input type="number" class="form-control" id="payout_scheduled_interval_minutes" name="payout_scheduled_interval_minutes"
+                                       value="{{ old('payout_scheduled_interval_minutes', $payoutScheduledIntervalMinutes ?? 10) }}" min="1" max="1440" style="max-width: 8rem;">
+                                <div class="form-text">Как часто обрабатываются отложенные выплаты</div>
+                            </div>
+                            <div class="form-text text-muted mb-3">Изменение интервала джобы применится после перезапуска планировщика (cron/queue).</div>
+                            <div class="modal-footer-modal-user">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                <button type="submit" class="btn btn-primary">Сохранить</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {{-- Как модалка «Создание пользователя» (includes/modal/createUser): modal-dialog без lg, поля внутри modal-body --}}
@@ -250,8 +269,10 @@
                         {data: 'acquiring_html', name: 'acquiring_percent', orderable: true, searchable: true},
                         {data: 'payout_html', name: 'payout_percent', orderable: true, searchable: true},
                         {data: 'platform_html', name: 'platform_percent', orderable: true, searchable: true},
-                        {data: 'enabled_html', name: 'is_enabled', orderable: true, searchable: false},
-                        {data: 'actions_html', name: 'actions', orderable: false, searchable: false, className: 'text-end'}
+                        {data: 'auto_payout_html', name: 'auto_payout', orderable: false, searchable: false, className: 'text-center'},
+                        {data: 'payouts_30d_html', name: 'payouts_30d', orderable: false, searchable: false, className: 'text-center'},
+                        {data: 'enabled_html', name: 'is_enabled', orderable: true, searchable: false, className: 'text-center'},
+                        {data: 'actions_html', name: 'actions', orderable: false, searchable: false, className: 'text-start'}
                     ],
                     language: @include('partials.datatables.ru')
                 });
@@ -269,21 +290,30 @@
             });
 
             (function () {
-                function openCreateModalIfNeeded() {
-                    var el = document.getElementById('tbankCommissionCreateModal');
-                    if (!el || typeof bootstrap === 'undefined') {
+                function openModalsIfNeeded() {
+                    if (typeof bootstrap === 'undefined') {
                         return;
                     }
-                    var fromValidation = @json((bool) old('tbank_create_form'));
+                    var fromPayoutForm = @json((bool) old('tbank_payout_settings_form'));
+                    if (fromPayoutForm) {
+                        var payoutEl = document.getElementById('tbankPayoutSettingsModal');
+                        if (payoutEl) {
+                            bootstrap.Modal.getOrCreateInstance(payoutEl).show();
+                        }
+                    }
+                    var fromCreate = @json((bool) old('tbank_create_form'));
                     var fromCreateRoute = @json((bool) request('open_create'));
-                    if (fromValidation || fromCreateRoute) {
-                        bootstrap.Modal.getOrCreateInstance(el).show();
+                    if (fromCreate || fromCreateRoute) {
+                        var createEl = document.getElementById('tbankCommissionCreateModal');
+                        if (createEl) {
+                            bootstrap.Modal.getOrCreateInstance(createEl).show();
+                        }
                     }
                 }
                 if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', openCreateModalIfNeeded);
+                    document.addEventListener('DOMContentLoaded', openModalsIfNeeded);
                 } else {
-                    openCreateModalIfNeeded();
+                    openModalsIfNeeded();
                 }
             })();
         </script>

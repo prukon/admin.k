@@ -22,6 +22,7 @@ class TbankCommissionsPayoutSettingsTest extends CrmTestCase
         $resp = $this->get(route('admin.setting.tbankCommissions'));
 
         $resp->assertOk();
+        $resp->assertSee('Настройки выплат', false);
         $resp->assertSee('Глобальные настройки выплат Т‑Банк');
         $resp->assertSee('name="payout_auto_delay_hours"', false);
         $resp->assertSee('name="payout_scheduled_interval_minutes"', false);

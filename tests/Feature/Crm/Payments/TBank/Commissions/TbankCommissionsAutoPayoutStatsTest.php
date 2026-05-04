@@ -53,9 +53,10 @@ class TbankCommissionsAutoPayoutStatsTest extends CrmTestCase
         ]));
 
         $resp->assertOk();
-        $cell = $resp->json('data.0.partner_cell');
-        $this->assertIsString($cell);
-        $this->assertStringContainsString('За 30 дн.: 1 автовыплат', $cell);
+        $html = $resp->json('data.0.payouts_30d_html');
+        $this->assertIsString($html);
+        $this->assertStringContainsString('>1</a>', $html);
+        $this->assertStringContainsString('source=auto', $html);
     }
 
     public function test_index_displays_zero_auto_payouts_when_none_for_partner(): void
@@ -86,9 +87,9 @@ class TbankCommissionsAutoPayoutStatsTest extends CrmTestCase
         ]));
 
         $resp->assertOk();
-        $cell = $resp->json('data.0.partner_cell');
-        $this->assertIsString($cell);
-        $this->assertStringContainsString('За 30 дн.: 0 автовыплат', $cell);
+        $html = $resp->json('data.0.payouts_30d_html');
+        $this->assertIsString($html);
+        $this->assertStringContainsString('>0</a>', $html);
     }
 
     public function test_edit_displays_auto_payout_30d_stats_for_rule_partner(): void
