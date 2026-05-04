@@ -61,6 +61,34 @@
                             @endif
                         </div>
 
+                        @if(!empty($canEditScheduledRun))
+                            <div class="border rounded p-3 mt-3 bg-light">
+                                <h6 class="mb-2">Перенести запуск</h6>
+                                <p class="small text-muted mb-2">
+                                    Часовой пояс: <code>{{ $scheduleTimezoneLabel ?? config('app.timezone') }}</code>.
+                                    Деньги уйдут в банк после наступления времени и очередного прохода планировщика выплат.
+                                </p>
+                                <form method="post" action="/admin/tinkoff/payouts/{{ $payout->id }}/schedule" class="row g-2 align-items-end">
+                                    @csrf
+                                    <div class="col-12 col-sm-auto">
+                                        <label class="form-label small mb-0" for="when_to_run">Новое время</label>
+                                        <input type="datetime-local"
+                                               id="when_to_run"
+                                               name="when_to_run"
+                                               class="form-control form-control-sm @error('when_to_run') is-invalid @enderror"
+                                               value="{{ old('when_to_run', $payout->when_to_run?->format('Y-m-d\TH:i')) }}"
+                                               required>
+                                        @error('when_to_run')
+                                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div class="col-12 col-sm-auto">
+                                        <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                                    </div>
+                                </form>
+                            </div>
+                        @endif
+
                         <hr>
 
                         <h6 class="mb-2">Snapshot расчёта @if(empty($breakdown['is_snapshot']))<span class="badge text-bg-warning">расчёт по текущим правилам</span>@endif</h6>

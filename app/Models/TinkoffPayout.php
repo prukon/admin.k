@@ -41,4 +41,24 @@ class TinkoffPayout extends Model
             ->where('status', 'INITIATED')
             ->whereNull('completed_at');
     }
+
+    /**
+     * Можно ли перенести плановое время (карточка выплаты, POST /admin/.../schedule).
+     */
+    public function allowsScheduleReschedule(?\DateTimeInterface $at = null): bool
+    {
+        $at = $at ? \Illuminate\Support\Carbon::instance($at) : now();
+
+        if ((string) $this->status !== 'INITIATED') {
+            return false;
+        }
+        if (filled($this->tinkoff_payout_payment_id)) {
+            return false;
+        }
+        if ($this->when_to_run === null) {
+            return false;
+        }
+
+        return $this->when_to_run->gt($at);
+    }
 }

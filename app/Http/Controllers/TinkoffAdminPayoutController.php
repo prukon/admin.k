@@ -6,16 +6,25 @@ use App\Models\Partner;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffPayout;
 use App\Services\Tinkoff\TinkoffPayoutsService;
+use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutUpdateScheduleRequest;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsDataTableRequest;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsSelect2PartnersSearchRequest;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsSelect2UsersSearchRequest;
+use App\Models\MyLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use App\Models\User;
 
 class TinkoffAdminPayoutController extends Controller
 {
+    /** @see MyLog: операции по выплатам T‑Bank в админке */
+    private const MY_LOG_TYPE_TBANK_PAYOUT = 6;
+
+    /** Перенос запланированного времени выплаты (when_to_run) */
+    private const MY_LOG_ACTION_PAYOUT_SCHEDULE_CHANGE = 61;
+
     public function index(Request $r)
     {
         $actor = auth()->user();
@@ -175,7 +184,88 @@ class TinkoffAdminPayoutController extends Controller
             ];
         }
 
-        return view('tinkoff.payouts.show', compact('payout', 'breakdown'));
+        $canEditScheduledRun = $payout->allowsScheduleReschedule();
+        $scheduleTimezoneLabel = (string) config('app.timezone');
+
+        return view('tinkoff.payouts.show', compact(
+            'payout',
+            'breakdown',
+            'canEditScheduledRun',
+            'scheduleTimezoneLabel'
+        ));
+    }
+
+    /**
+     * Перенос поля «Запланирована» (when_to_run) для отложенной выплаты INITIATED.
+     */
+    public function updateSchedule(TinkoffPayoutUpdateScheduleRequest $request, int $id)
+    {
+        $actor = auth()->user();
+        $isSuperadmin = $actor instanceof User && $actor->hasRole('superadmin');
+        $currentPartnerId = (int) app('current_partner')->id;
+
+        $newWhen = $request->scheduledAt();
+
+        DB::transaction(function () use ($id, $isSuperadmin, $currentPartnerId, $newWhen) {
+            $payout = TinkoffPayout::query()->whereKey($id)->lockForUpdate()->firstOrFail();
+
+            if (!$isSuperadmin && (int) $payout->partner_id !== $currentPartnerId) {
+                abort(404);
+            }
+
+            if (!$payout->allowsScheduleReschedule()) {
+                throw ValidationException::withMessages([
+                    'when_to_run' => ['Нельзя изменить время: выплата уже не в подходящем состоянии. Обновите страницу.'],
+                ]);
+            }
+
+            $oldWhen = $payout->when_to_run->copy();
+
+            $state = $payout->payload_state ?? [];
+            $history = $state['when_to_run_changes'] ?? [];
+            $history[] = [
+                'at' => now()->toIso8601String(),
+                'user_id' => auth()->id(),
+                'from' => $oldWhen->toIso8601String(),
+                'to' => $newWhen->toIso8601String(),
+            ];
+            $state['when_to_run_changes'] = $history;
+
+            $payout->when_to_run = $newWhen;
+            $payout->payload_state = $state;
+            $payout->save();
+
+            $tz = (string) config('app.timezone', 'UTC');
+            $fmt = static function (\Illuminate\Support\Carbon $c) use ($tz): string {
+                return $c->clone()->timezone($tz)->format('d.m.Y H:i');
+            };
+
+            $dealPart = ($payout->deal_id !== null && $payout->deal_id !== '')
+                ? ' DealId: '.$payout->deal_id.'.'
+                : '';
+
+            MyLog::create([
+                'type' => self::MY_LOG_TYPE_TBANK_PAYOUT,
+                'action' => self::MY_LOG_ACTION_PAYOUT_SCHEDULE_CHANGE,
+                'author_id' => auth()->id(),
+                'partner_id' => (int) $payout->partner_id,
+                'target_type' => TinkoffPayout::class,
+                'target_id' => (int) $payout->id,
+                'target_label' => 'Выплата #'.$payout->id,
+                'description' => sprintf(
+                    'Перенос запланированного времени выплаты #%d. Было: %s, стало: %s.%s',
+                    $payout->id,
+                    $fmt($oldWhen),
+                    $fmt($newWhen),
+                    $dealPart
+                ),
+                'created_at' => now(),
+            ]);
+        });
+
+        return redirect()
+            ->to('/admin/tinkoff/payouts/'.$id)
+            ->with('status', 'Запланированное время выплаты обновлено.');
     }
 
     /**

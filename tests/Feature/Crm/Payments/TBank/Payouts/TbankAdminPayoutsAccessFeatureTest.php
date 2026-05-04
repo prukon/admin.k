@@ -59,6 +59,7 @@ class TbankAdminPayoutsAccessFeatureTest extends CrmTestCase
         $this->get('/admin/tinkoff/payouts/payers-search?q=')->assertForbidden();
         $this->get('/admin/tinkoff/payouts/partners-search?q=a')->assertForbidden();
         $this->get('/admin/tinkoff/payouts/1')->assertForbidden();
+        $this->post('/admin/tinkoff/payouts/1/schedule', ['when_to_run' => now()->addHour()->format('Y-m-d\TH:i')])->assertForbidden();
     }
 
     public function test_tbank_payouts_endpoints_return_200_when_allowed(): void

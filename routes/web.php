@@ -751,6 +751,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
         // Карточка выплаты
         Route::get('/admin/tinkoff/payouts/{id}', [TinkoffAdminPayoutController::class, 'show'])->whereNumber('id');
+        Route::post('/admin/tinkoff/payouts/{id}/schedule', [TinkoffAdminPayoutController::class, 'updateSchedule'])->whereNumber('id');
     });
 
     // Админские операции по T-Bank (sm-register, debug, карточки, close deal) — только владелец (superadmin)  (feature test +)
