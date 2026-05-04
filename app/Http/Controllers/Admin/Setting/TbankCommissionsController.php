@@ -16,10 +16,180 @@ class TbankCommissionsController extends Controller
 {
     public function index()
     {
-        $rules = TinkoffCommissionRule::orderByRaw('partner_id IS NULL DESC, method IS NULL DESC')->paginate(30);
-        $partners = Partner::orderBy('title')->get(['id', 'title']);
+        $maps = $this->tinkoffCommissionRulesAuxiliaryMaps();
 
-        // is_connected — НЕ колонка, а аксессор модели => не выбираем в select
+        return view('admin.setting.index', array_merge([
+            'activeTab' => 'tbankCommissions',
+            'mode' => 'list',
+            'partners' => Partner::orderBy('title')->get(['id', 'title']),
+            'payoutAutoDelayHours' => Setting::getTinkoffPayoutAutoDelayHours(),
+            'payoutScheduledIntervalMinutes' => Setting::getTinkoffPayoutScheduledIntervalMinutes(),
+        ], $maps));
+    }
+
+    /**
+     * Данные для DataTables: серверная пагинация, поиск, сортировка, фильтры.
+     */
+    public function data(Request $request)
+    {
+        $request->validate([
+            'draw' => 'nullable|integer',
+            'start' => 'nullable|integer',
+            'length' => 'nullable|integer',
+            'filter_partner_id' => ['nullable', 'integer', Rule::exists('partners', 'id')],
+            'filter_method' => ['nullable', Rule::in(['card', 'sbp', 'tpay'])],
+        ]);
+
+        $maps = $this->tinkoffCommissionRulesAuxiliaryMaps();
+
+        $base = TinkoffCommissionRule::query()
+            ->leftJoin('partners', 'partners.id', '=', 'tinkoff_commission_rules.partner_id')
+            ->select('tinkoff_commission_rules.*');
+
+        $filtered = clone $base;
+
+        if ($request->filled('filter_partner_id')) {
+            $filtered->where('tinkoff_commission_rules.partner_id', (int) $request->input('filter_partner_id'));
+        }
+
+        if ($request->filled('filter_method')) {
+            $filtered->where('tinkoff_commission_rules.method', $request->input('filter_method'));
+        }
+
+        $searchTerm = trim((string) $request->input('search.value', ''));
+        if ($searchTerm !== '') {
+            $like = '%' . addcslashes($searchTerm, '%_\\') . '%';
+            $filtered->where(function ($q) use ($like) {
+                $q->where('partners.title', 'like', $like)
+                    ->orWhere('tinkoff_commission_rules.method', 'like', $like)
+                    ->orWhereRaw('CAST(tinkoff_commission_rules.acquiring_percent AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(tinkoff_commission_rules.acquiring_min_fixed AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(tinkoff_commission_rules.payout_percent AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(tinkoff_commission_rules.payout_min_fixed AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(tinkoff_commission_rules.platform_percent AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(tinkoff_commission_rules.platform_min_fixed AS CHAR) LIKE ?', [$like]);
+            });
+        }
+
+        $totalRecords = TinkoffCommissionRule::query()->count();
+        $recordsFiltered = (clone $filtered)->count();
+
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir = strtolower((string) $request->input('order.0.dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+        if ($orderColumnIndex !== null) {
+            match ((int) $orderColumnIndex) {
+                1 => $filtered->orderBy('partners.title', $orderDir)
+                    ->orderBy('tinkoff_commission_rules.id', 'asc'),
+                2 => $filtered->orderBy('tinkoff_commission_rules.method', $orderDir)
+                    ->orderBy('tinkoff_commission_rules.id', 'asc'),
+                3 => $filtered->orderBy('tinkoff_commission_rules.acquiring_percent', $orderDir)
+                    ->orderBy('tinkoff_commission_rules.acquiring_min_fixed', $orderDir)
+                    ->orderBy('tinkoff_commission_rules.id', 'asc'),
+                4 => $filtered->orderBy('tinkoff_commission_rules.payout_percent', $orderDir)
+                    ->orderBy('tinkoff_commission_rules.payout_min_fixed', $orderDir)
+                    ->orderBy('tinkoff_commission_rules.id', 'asc'),
+                5 => $filtered->orderBy('tinkoff_commission_rules.platform_percent', $orderDir)
+                    ->orderBy('tinkoff_commission_rules.platform_min_fixed', $orderDir)
+                    ->orderBy('tinkoff_commission_rules.id', 'asc'),
+                6 => $filtered->orderBy('tinkoff_commission_rules.is_enabled', $orderDir)
+                    ->orderBy('tinkoff_commission_rules.id', 'asc'),
+                default => $filtered->orderByRaw('tinkoff_commission_rules.partner_id IS NULL DESC')
+                    ->orderByRaw('tinkoff_commission_rules.method IS NULL DESC')
+                    ->orderBy('tinkoff_commission_rules.id', 'asc'),
+            };
+        } else {
+            $filtered->orderByRaw('tinkoff_commission_rules.partner_id IS NULL DESC')
+                ->orderByRaw('tinkoff_commission_rules.method IS NULL DESC')
+                ->orderBy('tinkoff_commission_rules.id', 'asc');
+        }
+
+        $start = max(0, (int) $request->input('start', 0));
+        $length = (int) $request->input('length', 20);
+        if ($length <= 0) {
+            $length = 20;
+        }
+        if ($length > 100) {
+            $length = 100;
+        }
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, TinkoffCommissionRule> $rules */
+        $rules = $filtered
+            ->clone()
+            ->with('partner')
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $csrf = csrf_token();
+        $data = $rules->map(function (TinkoffCommissionRule $rule) use ($maps, $csrf) {
+            $partnerCell = view('admin.setting.tbank_commissions._partner_cell', [
+                'r' => $rule,
+                'autoPayoutByPartnerId' => $maps['autoPayoutByPartnerId'],
+                'tbankConnectedByPartnerId' => $maps['tbankConnectedByPartnerId'],
+                'autoPayoutStatsByPartnerId' => $maps['autoPayoutStatsByPartnerId'],
+            ])->render();
+
+            $acquiringPercent = (float) ($rule->acquiring_percent ?? 2.49);
+            $acquiringMin = (float) ($rule->acquiring_min_fixed ?? 3.49);
+            $payoutPercent = (float) ($rule->payout_percent ?? 0.10);
+            $payoutMin = (float) ($rule->payout_min_fixed ?? 0.00);
+            $platformPercent = (float) ($rule->platform_percent ?? $rule->percent ?? 0);
+            $platformMin = (float) ($rule->platform_min_fixed ?? $rule->min_fixed ?? 0.00);
+
+            $acquiringHtml = $this->formatCommissionPercentCell($acquiringPercent, $acquiringMin);
+            $payoutHtml = $this->formatCommissionPercentCell($payoutPercent, $payoutMin);
+            $platformHtml = $this->formatCommissionPercentCell($platformPercent, $platformMin);
+
+            $enabledOn = (bool) $rule->is_enabled;
+            $enabledHtml = $enabledOn
+                ? '<span class="badge text-bg-success">on</span>'
+                : '<span class="badge text-bg-secondary">off</span>';
+
+            $editUrl = e(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]));
+            $destroyUrl = e(route('admin.setting.tbankCommissions.destroy', ['id' => $rule->id]));
+
+            $actionsHtml = <<<HTML
+<div class="text-end">
+    <a class="btn btn-outline-primary btn-sm" href="{$editUrl}">Править</a>
+    <form action="{$destroyUrl}" method="post" class="d-inline" onsubmit="return confirm('Удалить правило?');">
+        <input type="hidden" name="_token" value="{$csrf}">
+        <input type="hidden" name="_method" value="DELETE">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Удалить</button>
+    </form>
+</div>
+HTML;
+
+            return [
+                'partner_cell' => $partnerCell,
+                'method' => $rule->method ?? '—',
+                'acquiring_html' => $acquiringHtml,
+                'payout_html' => $payoutHtml,
+                'platform_html' => $platformHtml,
+                'enabled_html' => $enabledHtml,
+                'actions_html' => $actionsHtml,
+            ];
+        })->values()->all();
+
+        return response()->json([
+            'draw' => (int) $request->input('draw', 0),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data,
+        ]);
+    }
+
+    /**
+     * Карты для отображения автовыплат и связи Т‑Банк по партнёрам (список и AJAX).
+     *
+     * @return array{
+     *     autoPayoutByPartnerId: \Illuminate\Support\Collection,
+     *     tbankConnectedByPartnerId: \Illuminate\Support\Collection,
+     *     autoPayoutStatsByPartnerId: \Illuminate\Support\Collection
+     * }
+     */
+    private function tinkoffCommissionRulesAuxiliaryMaps(): array
+    {
         $paymentSystems = PaymentSystem::query()
             ->where('name', 'tbank')
             ->get(['id', 'partner_id', 'name', 'settings', 'test_mode']);
@@ -28,6 +198,7 @@ class TbankCommissionsController extends Controller
             ->keyBy(fn ($ps) => (int) $ps->partner_id)
             ->map(function ($ps) {
                 $settings = $ps->settings ?: [];
+
                 return (bool) ($settings['auto_payout_enabled'] ?? false);
             });
 
@@ -56,17 +227,19 @@ class TbankCommissionsController extends Controller
             }
         }
 
-        return view('admin.setting.index', [
-            'activeTab' => 'tbankCommissions',
-            'mode' => 'list',
-            'rules' => $rules,
-            'partners' => $partners,
+        return [
             'autoPayoutByPartnerId' => $autoPayoutByPartnerId,
             'tbankConnectedByPartnerId' => $tbankConnectedByPartnerId,
             'autoPayoutStatsByPartnerId' => $autoPayoutStatsByPartnerId,
-            'payoutAutoDelayHours' => Setting::getTinkoffPayoutAutoDelayHours(),
-            'payoutScheduledIntervalMinutes' => Setting::getTinkoffPayoutScheduledIntervalMinutes(),
-        ]);
+        ];
+    }
+
+    private function formatCommissionPercentCell(float $percent, float $minFixed): string
+    {
+        $p = number_format($percent, 2, ',', ' ');
+        $m = number_format($minFixed, 2, ',', ' ');
+
+        return '<div>' . e($p) . '%</div><div class="text-muted small">мин ' . e($m) . ' ₽</div>';
     }
 
     /**
@@ -89,14 +262,7 @@ class TbankCommissionsController extends Controller
 
     public function create()
     {
-        $partners = Partner::orderBy('title')->get(['id', 'title']);
-
-        return view('admin.setting.index', [
-            'activeTab' => 'tbankCommissions',
-            'mode' => 'create',
-            'partners' => $partners,
-            'rule' => null,
-        ]);
+        return redirect()->route('admin.setting.tbankCommissions', ['open_create' => 1]);
     }
 
     public function store(Request $r)

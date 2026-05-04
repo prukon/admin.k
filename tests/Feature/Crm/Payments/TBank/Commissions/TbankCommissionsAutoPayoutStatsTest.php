@@ -45,10 +45,17 @@ class TbankCommissionsAutoPayoutStatsTest extends CrmTestCase
             'created_at' => now()->subDays(5),
         ]);
 
-        $resp = $this->get(route('admin.setting.tbankCommissions'));
+        $resp = $this->getJson(route('admin.setting.tbankCommissions.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 20,
+            'filter_partner_id' => $this->partner->id,
+        ]));
 
         $resp->assertOk();
-        $resp->assertSee('За 30 дн.: 1 автовыплат');
+        $cell = $resp->json('data.0.partner_cell');
+        $this->assertIsString($cell);
+        $this->assertStringContainsString('За 30 дн.: 1 автовыплат', $cell);
     }
 
     public function test_index_displays_zero_auto_payouts_when_none_for_partner(): void
@@ -71,10 +78,17 @@ class TbankCommissionsAutoPayoutStatsTest extends CrmTestCase
             'settings' => [],
         ]);
 
-        $resp = $this->get(route('admin.setting.tbankCommissions'));
+        $resp = $this->getJson(route('admin.setting.tbankCommissions.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 20,
+            'filter_partner_id' => $this->partner->id,
+        ]));
 
         $resp->assertOk();
-        $resp->assertSee('За 30 дн.: 0 автовыплат');
+        $cell = $resp->json('data.0.partner_cell');
+        $this->assertIsString($cell);
+        $this->assertStringContainsString('За 30 дн.: 0 автовыплат', $cell);
     }
 
     public function test_edit_displays_auto_payout_30d_stats_for_rule_partner(): void

@@ -41,22 +41,16 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
         $resp->assertViewHas('activeTab', 'tbankCommissions');
         $resp->assertViewHas('mode', 'list');
 
-        $resp->assertViewHas('rules');
         $resp->assertViewHas('partners');
         $resp->assertViewHas('autoPayoutByPartnerId');
         $resp->assertViewHas('tbankConnectedByPartnerId');
     }
 
-    public function test_create_opens(): void
+    public function test_create_redirects_to_list_with_open_create_query(): void
     {
         $resp = $this->get(route('admin.setting.tbankCommissions.create'));
-        $resp->assertStatus(200);
-
-        $resp->assertViewIs('admin.setting.index');
-        $resp->assertViewHas('activeTab', 'tbankCommissions');
-        $resp->assertViewHas('mode', 'create');
-        $resp->assertViewHas('partners');
-        $resp->assertViewHas('rule', null);
+        $resp->assertStatus(302);
+        $resp->assertRedirect(route('admin.setting.tbankCommissions', ['open_create' => 1]));
     }
 
     public function test_store_creates_rule_and_redirects_with_status(): void

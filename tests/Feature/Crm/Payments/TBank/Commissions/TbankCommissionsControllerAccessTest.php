@@ -18,6 +18,7 @@ class TbankCommissionsControllerAccessTest extends CrmTestCase
 
         $routes = [
             ['GET', route('admin.setting.tbankCommissions')],
+            ['GET', route('admin.setting.tbankCommissions.data')],
             ['GET', route('admin.setting.tbankCommissions.create')],
             ['POST', route('admin.setting.tbankCommissions.store')],
         ];

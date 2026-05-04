@@ -8,7 +8,12 @@
         <h1 class="h5 mb-0">Комиссии Т‑Банк</h1>
 
         @if(($mode ?? 'list') === 'list')
-            <a href="{{ route('admin.setting.tbankCommissions.create') }}" class="btn btn-primary btn-sm">Добавить правило</a>
+            <button type="button"
+                    class="btn btn-primary btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#tbankCommissionCreateModal">
+                Добавить правило
+            </button>
         @endif
     </div>
 
@@ -16,18 +21,7 @@
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
 
-    @if(($mode ?? 'list') === 'create')
-        <h2 class="h6 mb-3">Новое правило комиссии</h2>
-        <form method="post" action="{{ route('admin.setting.tbankCommissions.store') }}">
-            @csrf
-            @include('tinkoff.commissions._form', ['rule' => null, 'partners' => $partners])
-            <div class="mt-3">
-                <button class="btn btn-primary">Сохранить</button>
-                <a href="{{ route('admin.setting.tbankCommissions') }}" class="btn btn-link">Отмена</a>
-            </div>
-        </form>
-
-    @elseif(($mode ?? 'list') === 'edit')
+    @if(($mode ?? 'list') === 'edit')
         @php /** @var \App\Models\TinkoffCommissionRule $rule */ @endphp
         <h2 class="h6 mb-3">Правка правила #{{ $rule->id }}</h2>
 
@@ -89,7 +83,13 @@
         </form>
 
     @else
-        @php /** @var \Illuminate\Pagination\LengthAwarePaginator $rules */ @endphp
+        @vite(['resources/css/payments-report.css'])
+        @php
+            $tbankFilterPartnerId = old('filter_partner_id', request('filter_partner_id'));
+            $tbankFilterMethod = old('filter_method', request('filter_method'));
+            $tbankFiltersActive = ($tbankFilterPartnerId !== null && $tbankFilterPartnerId !== '')
+                || ($tbankFilterMethod !== null && $tbankFilterMethod !== '');
+        @endphp
 
         <div class="card shadow-sm mb-4">
             <div class="card-header">Глобальные настройки выплат Т‑Банк</div>
@@ -116,94 +116,177 @@
             </div>
         </div>
 
+        <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+            <div class="card-body px-3 py-3">
+                <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+                    <h2 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Правила комиссий и выплат</h2>
+                    <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
+                        <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                            <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#tbankCommissionsFiltersCollapse"
+                                    aria-expanded="{{ $tbankFiltersActive ? 'true' : 'false' }}"
+                                    aria-controls="tbankCommissionsFiltersCollapse"
+                                    id="tbankCommissionsFiltersToggle">
+                                <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                    <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                                </span>
+                                <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                                <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="collapse {{ $tbankFiltersActive ? 'show' : '' }} mb-2 mb-md-3" id="tbankCommissionsFiltersCollapse">
+            <form id="tbank-commissions-filters-form" method="get" action="{{ route('admin.setting.tbankCommissions') }}" class="border rounded p-2 p-md-3 bg-light">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="tbank-filter-partner">Партнёр</label>
+                        <select class="form-select" id="tbank-filter-partner" name="filter_partner_id">
+                            <option value="">Все</option>
+                            @foreach(($partners ?? collect()) as $p)
+                                <option value="{{ $p->id }}" @selected((string) $tbankFilterPartnerId === (string) $p->id)>{{ $p->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="tbank-filter-method">Метод</label>
+                        <select class="form-select" id="tbank-filter-method" name="filter_method">
+                            <option value="">Все</option>
+                            <option value="card" @selected($tbankFilterMethod === 'card')>card</option>
+                            <option value="sbp" @selected($tbankFilterMethod === 'sbp')>sbp</option>
+                            <option value="tpay" @selected($tbankFilterMethod === 'tpay')>tpay</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                        <button class="btn btn-primary payments-report-filters-submit" type="submit" id="tbank-commissions-filters-apply">Применить</button>
+                        <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="tbank-commissions-filters-reset">Сброс</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
         <div class="table-responsive">
-            <table class="table table-sm align-middle">
+            <table class="table table-sm table-bordered align-middle w-100" id="tbank-commissions-table" style="width:100%">
                 <thead class="table-light">
                 <tr>
-                    <th>#</th>
+                    <th data-priority="1">№</th>
                     <th>Партнёр</th>
                     <th>Метод</th>
                     <th>Эквайринг банка</th>
                     <th>Выплата банка</th>
                     <th>Комиссия платформы</th>
                     <th>Вкл</th>
-                    <th></th>
+                    <th data-orderable="false" class="text-end">Действия</th>
                 </tr>
                 </thead>
-                <tbody>
-                @foreach($rules as $r)
-                    <tr>
-                        <td>{{ $r->id }}</td>
-                        <td>
-                            @if($r->partner_id)
-                                @php
-                                    $pid = (int) $r->partner_id;
-                                    $auto = !empty($autoPayoutByPartnerId) ? (bool) ($autoPayoutByPartnerId[$pid] ?? false) : false;
-                                    $conn = !empty($tbankConnectedByPartnerId) ? (bool) ($tbankConnectedByPartnerId[$pid] ?? false) : false;
-                                    $stats = ($autoPayoutStatsByPartnerId ?? collect())->get($pid);
-                                @endphp
-                                <div>{{ optional($r->partner)->title ?? ('#'.$pid) }}</div>
-                                <div class="small">
-                                    <span class="text-muted">Автовыплата:</span>
-                                    @if($auto)
-                                        <span class="badge text-bg-success">on</span>
-                                    @else
-                                        <span class="badge text-bg-secondary">off</span>
-                                    @endif
-                                    @if(!$conn)
-                                        <span class="badge text-bg-warning">ключи?</span>
-                                    @endif
-                                </div>
-                                <div class="small text-muted mt-1">
-                                    За 30 дн.: {{ $stats['count'] ?? 0 }} автовыплат
-                                    @if(!empty($stats['last_at']))
-                                        , последняя {{ $stats['last_at']->format('d.m.Y H:i') }}
-                                    @endif
-                                    <a href="{{ url('/admin/tinkoff/payouts?partner_id=' . $pid . '&source=auto') }}" class="ms-1" target="_blank" title="К выплатам (авто)">→</a>
-                                </div>
-                            @else
-                                — (глобально)
-                            @endif
-                        </td>
-                        <td>{{ $r->method ?? '—' }}</td>
-                        <td>
-                            {{ number_format($r->acquiring_percent ?? 2.49, 2, ',', ' ') }}%
-                            <div class="text-muted small">мин {{ number_format($r->acquiring_min_fixed ?? 3.49, 2, ',', ' ') }} ₽</div>
-                        </td>
-                        <td>
-                            {{ number_format($r->payout_percent ?? 0.10, 2, ',', ' ') }}%
-                            <div class="text-muted small">мин {{ number_format($r->payout_min_fixed ?? 0.00, 2, ',', ' ') }} ₽</div>
-                        </td>
-                        <td>
-                            {{ number_format($r->platform_percent ?? $r->percent ?? 0, 2, ',', ' ') }}%
-                            <div class="text-muted small">мин {{ number_format($r->platform_min_fixed ?? $r->min_fixed ?? 0.00, 2, ',', ' ') }} ₽</div>
-                        </td>
-                        <td>
-                            @if($r->is_enabled)
-                                <span class="badge text-bg-success">on</span>
-                            @else
-                                <span class="badge text-bg-secondary">off</span>
-                            @endif
-                        </td>
-                        <td class="text-end">
-                            <a class="btn btn-outline-primary btn-sm"
-                               href="{{ route('admin.setting.tbankCommissions.edit', ['id' => $r->id]) }}">Править</a>
-                            <form action="{{ route('admin.setting.tbankCommissions.destroy', ['id' => $r->id]) }}"
-                                  method="post"
-                                  class="d-inline"
-                                  onsubmit="return confirm('Удалить правило?')">
-                                @csrf
-                                @method('delete')
-                                <button class="btn btn-outline-danger btn-sm">Удалить</button>
-                            </form>
-                        </td>
-                    </tr>
-                @endforeach
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
 
-        {{ $rules->links() }}
+        {{-- Как модалка «Создание пользователя» (includes/modal/createUser): modal-dialog без lg, поля внутри modal-body --}}
+        <div class="modal fade" id="tbankCommissionCreateModal" tabindex="-1" aria-labelledby="tbankCommissionCreateModalLabel" aria-hidden="true">
+            {{-- Без modal-dialog-scrollable: иначе .modal-content получает max-height ~100vh и снизу пустота --}}
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="tbankCommissionCreateModalLabel">Новое правило комиссии</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="post" action="{{ route('admin.setting.tbankCommissions.store') }}" id="tbank-commission-create-form" class="text-start">
+                            @csrf
+                            <input type="hidden" name="tbank_create_form" value="1">
+                            @include('tinkoff.commissions._form', ['rule' => null, 'partners' => $partners, 'compact' => true])
+                            <div class="modal-footer-modal-user">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                <button type="submit" class="btn btn-primary">Сохранить</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 </div>
+
+@if(($mode ?? 'list') === 'list')
+    @push('scripts')
+        <script type="text/javascript">
+            $(function () {
+                var $form = $('#tbank-commissions-filters-form');
+                var table = $('#tbank-commissions-table').DataTable({
+                    processing: true,
+                    serverSide: true,
+                    pageLength: 20,
+                    lengthMenu: [10, 20, 50, 100],
+                    order: [[1, 'asc']],
+                    searching: true,
+                    ajax: {
+                        url: @json(route('admin.setting.tbankCommissions.data')),
+                        type: 'GET',
+                        data: function (d) {
+                            d.filter_partner_id = $form.find('[name="filter_partner_id"]').val() || '';
+                            d.filter_method = $form.find('[name="filter_method"]').val() || '';
+                        }
+                    },
+                    columns: [
+                        {
+                            data: null,
+                            name: 'rownum',
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-center',
+                            render: function (data, type, row, meta) {
+                                return meta.row + meta.settings._iDisplayStart + 1;
+                            }
+                        },
+                        {data: 'partner_cell', name: 'partner_title', orderable: true, searchable: true},
+                        {data: 'method', name: 'method', orderable: true, searchable: true},
+                        {data: 'acquiring_html', name: 'acquiring_percent', orderable: true, searchable: true},
+                        {data: 'payout_html', name: 'payout_percent', orderable: true, searchable: true},
+                        {data: 'platform_html', name: 'platform_percent', orderable: true, searchable: true},
+                        {data: 'enabled_html', name: 'is_enabled', orderable: true, searchable: false},
+                        {data: 'actions_html', name: 'actions', orderable: false, searchable: false, className: 'text-end'}
+                    ],
+                    language: @include('partials.datatables.ru')
+                });
+
+                $form.on('submit', function (e) {
+                    e.preventDefault();
+                    table.ajax.reload();
+                });
+
+                $('#tbank-commissions-filters-reset').on('click', function () {
+                    $form.find('[name="filter_partner_id"]').val('');
+                    $form.find('[name="filter_method"]').val('');
+                    table.ajax.reload();
+                });
+            });
+
+            (function () {
+                function openCreateModalIfNeeded() {
+                    var el = document.getElementById('tbankCommissionCreateModal');
+                    if (!el || typeof bootstrap === 'undefined') {
+                        return;
+                    }
+                    var fromValidation = @json((bool) old('tbank_create_form'));
+                    var fromCreateRoute = @json((bool) request('open_create'));
+                    if (fromValidation || fromCreateRoute) {
+                        bootstrap.Modal.getOrCreateInstance(el).show();
+                    }
+                }
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', openCreateModalIfNeeded);
+                } else {
+                    openCreateModalIfNeeded();
+                }
+            })();
+        </script>
+    @endpush
+@endif
 
