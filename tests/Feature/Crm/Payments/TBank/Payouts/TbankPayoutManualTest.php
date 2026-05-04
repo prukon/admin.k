@@ -116,6 +116,92 @@ class TbankPayoutManualTest extends CrmTestCase
         $this->assertNotNull($payout->completed_at);
     }
 
+    /**
+     * Финальный Status в ответе e2c/v2/Payment (без отдельного GetState): completed_at должен проставляться.
+     */
+    public function test_pay_now_sets_completed_at_when_payment_api_returns_completed_immediately(): void
+    {
+        $this->grantPayoutsManagePermissionForCurrentUser();
+
+        $this->partner->tinkoff_partner_id = 'SHOP-PAY-COMP';
+        $this->partner->save();
+        $this->seedE2cKeysForPartner($this->partner);
+
+        $tp = TinkoffPayment::create([
+            'order_id' => 'order-payout-immediate-ok',
+            'partner_id' => $this->partner->id,
+            'amount' => 10000,
+            'method' => 'card',
+            'status' => 'CONFIRMED',
+            'deal_id' => 'deal-pay-immediate-ok',
+        ]);
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, '/e2c/v2/Init')) {
+                return Http::response(['Success' => true, 'PaymentId' => 91001], 200);
+            }
+            if (str_contains($url, '/e2c/v2/Payment')) {
+                return Http::response(['Success' => true, 'Status' => 'COMPLETED'], 200);
+            }
+
+            return Http::response(['Success' => true], 200);
+        });
+
+        $this->post('/tinkoff/payouts/deal-pay-immediate-ok/pay-now')
+            ->assertStatus(302);
+
+        Http::assertNotSent(function (\Illuminate\Http\Client\Request $request) {
+            return str_contains($request->url(), '/e2c/v2/GetState');
+        });
+
+        $payout = TinkoffPayout::where('payment_id', $tp->id)->first();
+        $this->assertNotNull($payout);
+        $this->assertSame('COMPLETED', (string) $payout->status);
+        $this->assertNotNull($payout->completed_at);
+    }
+
+    /**
+     * Финальный REJECTED сразу в ответе Payment — completed_at тоже должен быть заполнен.
+     */
+    public function test_pay_now_sets_completed_at_when_payment_api_returns_rejected_immediately(): void
+    {
+        $this->grantPayoutsManagePermissionForCurrentUser();
+
+        $this->partner->tinkoff_partner_id = 'SHOP-PAY-REJ';
+        $this->partner->save();
+        $this->seedE2cKeysForPartner($this->partner);
+
+        $tp = TinkoffPayment::create([
+            'order_id' => 'order-payout-immediate-rej',
+            'partner_id' => $this->partner->id,
+            'amount' => 10000,
+            'method' => 'card',
+            'status' => 'CONFIRMED',
+            'deal_id' => 'deal-pay-immediate-rej',
+        ]);
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, '/e2c/v2/Init')) {
+                return Http::response(['Success' => true, 'PaymentId' => 91002], 200);
+            }
+            if (str_contains($url, '/e2c/v2/Payment')) {
+                return Http::response(['Success' => true, 'Status' => 'REJECTED'], 200);
+            }
+
+            return Http::response(['Success' => true], 200);
+        });
+
+        $this->post('/tinkoff/payouts/deal-pay-immediate-rej/pay-now')
+            ->assertStatus(302);
+
+        $payout = TinkoffPayout::where('payment_id', $tp->id)->first();
+        $this->assertNotNull($payout);
+        $this->assertSame('REJECTED', (string) $payout->status);
+        $this->assertNotNull($payout->completed_at);
+    }
+
     public function test_delay_creates_scheduled_payout_and_does_not_call_bank(): void
     {
         $this->grantPayoutsManagePermissionForCurrentUser();

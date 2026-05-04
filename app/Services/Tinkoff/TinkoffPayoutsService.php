@@ -227,6 +227,11 @@ class TinkoffPayoutsService
             $resPay = TinkoffApiClient::post($cfg['base_url'], '/e2c/v2/Payment', $paymentReq);
             $payout->payload_payment = $resPay;
             $payout->status = $resPay['Status'] ?? 'CREDIT_CHECKING';
+            // Финальный статус может прийти уже в ответе Payment — тогда pollState ниже не вызывается,
+            // и completed_at остаётся пустым без этого шага (см. pollState для того же правила).
+            if (in_array((string) $payout->status, ['COMPLETED', 'REJECTED'], true) && $payout->completed_at === null) {
+                $payout->completed_at = now();
+            }
             $payout->save();
 
             // После Payment часто возвращается промежуточный статус.

@@ -1849,7 +1849,8 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
-     * (P0) Контроль доступа: при полном наборе прав все основные HTTP-эндпоинты отчёта «Платежи» отвечают 200.
+     * (P0) Контроль доступа: при полном наборе прав основные HTTP-эндпоинты отчёта «Платежи» отвечают 200,
+     * включая второй запрос getPayments с сортировкой по колонке payout_date и сохранение columns-settings с ключом payout_date.
      *
      * Дополняет test_payments_report_page_and_all_endpoints_return_200_for_fully_authorized_user:
      * total, поиск учеников/групп, JSON-шапка без фильтров.
@@ -1882,6 +1883,20 @@ class PaymentReportTest extends CrmTestCase
             ->get(route('payments.getPayments'))
             ->assertOk();
 
+        $payoutDateSortParams = [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'columns' => $this->dataTablesColumnsForPaymentsReportAdditionalAndPayoutGrid(),
+            'order' => [
+                ['column' => 14, 'dir' => 'desc'],
+            ],
+        ];
+        $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments', $payoutDateSortParams))
+            ->assertOk();
+
         $this->getJson(route('reports.payments.total'))->assertOk();
 
         $this->getJson(route('reports.payments.users.search', ['q' => '']))->assertOk();
@@ -1890,7 +1905,10 @@ class PaymentReportTest extends CrmTestCase
         $this->get('/admin/reports/payments/columns-settings')->assertOk();
 
         $this->postJson('/admin/reports/payments/columns-settings', [
-            'columns' => ['user_name' => true],
+            'columns' => [
+                'user_name' => true,
+                'payout_date' => true,
+            ],
         ])->assertOk();
 
         $paymentHistory = Payment::factory()->create([
@@ -1965,6 +1983,153 @@ class PaymentReportTest extends CrmTestCase
         $data = $response->json('data');
         $this->assertCount(1, $data);
         $this->assertSame($pMine->id, $data[0]['id'] ?? null);
+    }
+
+    /**
+     * Индексы колонок как в resources/views/admin/report/payment.blade.php при
+     * canAdditional && canPayoutColumn (есть комиссии, net_to_partner, payout_amount, затем payout_date).
+     */
+    private function dataTablesColumnsForPaymentsReportAdditionalAndPayoutGrid(): array
+    {
+        $col = static function (string $data, string $name, bool $orderable = true, bool $searchable = true): array {
+            return [
+                'data' => $data,
+                'name' => $name,
+                'searchable' => $searchable ? 'true' : 'false',
+                'orderable' => $orderable ? 'true' : 'false',
+            ];
+        };
+
+        return [
+            $col('DT_RowIndex', 'DT_RowIndex', false, false),
+            $col('user_name', 'user_name'),
+            $col('team_title', 'team_title'),
+            $col('summ', 'summ'),
+            $col('payment_month', 'payment_month'),
+            $col('operation_date', 'operation_date'),
+            $col('payment_provider', 'payment_provider', false, false),
+            $col('payment_method_label', 'payment_method_label', false, false),
+            $col('receipt', 'receipt', false, false),
+            $col('bank_commission_acquiring', 'bank_commission_acquiring'),
+            $col('bank_commission_payout', 'bank_commission_payout'),
+            $col('platform_commission', 'platform_commission'),
+            $col('net_to_partner', 'net_to_partner'),
+            $col('payout_amount', 'payout_amount'),
+            $col('payout_date', 'payout_date'),
+            $col('refund_action', 'refund_action', false, false),
+            $col('refund_status', 'refund_status'),
+        ];
+    }
+
+    /**
+     * Сортировка по колонке payout_date (индекс 14 в сетке с комиссиями и «Выплата»).
+     */
+    public function test_getPayments_sorting_by_payout_date_orders_by_tinkoff_payout_datetime(): void
+    {
+        $this->grantPermissionToCurrentUserRole('reports.additional.value.view');
+        $this->grantPermissionToCurrentUserRole('reports.payments.payout_amount.column.view');
+
+        $early = \Illuminate\Support\Carbon::parse('2026-02-01 12:00:00');
+        $late = \Illuminate\Support\Carbon::parse('2026-08-15 18:30:00');
+
+        $pEarly = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'summ' => 100,
+            'operation_date' => '2026-01-01 10:00:00',
+            'deal_id' => 'deal-sort-early',
+        ]);
+
+        $pLate = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'summ' => 200,
+            'operation_date' => '2026-01-01 11:00:00',
+            'deal_id' => 'deal-sort-late',
+        ]);
+
+        TinkoffPayout::query()->create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'deal-sort-early',
+            'amount' => 10_000,
+            'is_final' => true,
+            'status' => 'COMPLETED',
+            'completed_at' => $early,
+        ]);
+
+        TinkoffPayout::query()->create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'deal-sort-late',
+            'amount' => 20_000,
+            'is_final' => true,
+            'status' => 'COMPLETED',
+            'completed_at' => $late,
+        ]);
+
+        $params = [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'columns' => $this->dataTablesColumnsForPaymentsReportAdditionalAndPayoutGrid(),
+            'order' => [
+                ['column' => 14, 'dir' => 'asc'],
+            ],
+        ];
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments', $params));
+
+        $response->assertOk();
+        $data = collect($response->json('data') ?? []);
+        $rowEarly = $data->firstWhere('id', $pEarly->id);
+        $rowLate = $data->firstWhere('id', $pLate->id);
+        $this->assertNotNull($rowEarly);
+        $this->assertNotNull($rowLate);
+        $this->assertSame($early->format('d.m.Y H:i'), (string) ($rowEarly['payout_date'] ?? ''));
+        $this->assertSame($late->format('d.m.Y H:i'), (string) ($rowLate['payout_date'] ?? ''));
+
+        $ids = $data->pluck('id')->map(fn ($v) => (int) $v)->values()->all();
+        $posEarly = array_search($pEarly->id, $ids, true);
+        $posLate = array_search($pLate->id, $ids, true);
+        $this->assertNotFalse($posEarly);
+        $this->assertNotFalse($posLate);
+        $this->assertLessThan($posLate, $posEarly, 'При сортировке по payout_date ASC более ранняя дата должна быть выше.');
+    }
+
+    /**
+     * (P0) Доступ при базовом праве reports.view: страница отчёта и AJAX getPayments отвечают 200.
+     */
+    public function test_reports_view_allows_payments_page_and_ajax_datatables(): void
+    {
+        $this->get(route('payments'))->assertOk();
+
+        $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments', $this->dataTablesBaseParams()))
+            ->assertOk();
+    }
+
+    /**
+     * Настройки колонок: ключ payout_date сохраняется и отдаётся обратно.
+     */
+    public function test_columns_settings_roundtrip_includes_payout_date(): void
+    {
+        $this->postJson('/admin/reports/payments/columns-settings', [
+            'columns' => [
+                'user_name' => true,
+                'payout_date' => false,
+            ],
+        ])->assertOk();
+
+        $response = $this->get('/admin/reports/payments/columns-settings');
+        $response->assertOk();
+        $json = $response->json();
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('payout_date', $json);
+        $this->assertFalse((bool) $json['payout_date']);
     }
 
     private function grantPermissionToCurrentUserRole(string $permissionName): void

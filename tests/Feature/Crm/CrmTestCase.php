@@ -54,6 +54,8 @@ abstract class CrmTestCase extends TestCase
         // В некоторых окружениях storage/logs может быть недоступен для записи.
         // Переключаем логирование на errorlog, чтобы тесты не падали из-за прав на файл laravel.log.
         config(['logging.default' => 'errorlog']);
+        // TinkoffApiClient пишет в канал tinkoff (файл под storage/logs/tbank/) — в CI без прав на каталог тесты падают.
+        config(['logging.channels.tinkoff.driver' => 'errorlog']);
 
         // В некоторых окружениях storage/ может быть недоступен для записи тестовым процессом.
         // Переносим compiled Blade views в системный tmp (writable).
