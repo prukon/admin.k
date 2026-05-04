@@ -376,6 +376,109 @@ class PaymentReportTest extends CrmTestCase
     }
 
     /**
+     * Колонка payout_date: план (when_to_run) или факт (completed_at); Robokassa — пусто; COMPLETED без completed_at — пусто.
+     */
+    public function test_getPayments_payout_date_planned_completed_and_empty_states(): void
+    {
+        $whenRun = \Illuminate\Support\Carbon::parse('2026-03-10 08:15:00');
+        $completedAt = \Illuminate\Support\Carbon::parse('2026-02-01 16:45:30');
+
+        $paymentPlanned = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'summ' => 100,
+            'operation_date' => now()->toDateTimeString(),
+            'deal_id' => 'deal-payout-planned-1',
+        ]);
+
+        TinkoffPayout::query()->create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'deal-payout-planned-1',
+            'amount' => 100_000,
+            'is_final' => false,
+            'status' => 'INITIATED',
+            'when_to_run' => $whenRun,
+        ]);
+
+        $paymentCompleted = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'summ' => 200,
+            'operation_date' => now()->toDateTimeString(),
+            'deal_id' => 'deal-payout-completed-1',
+        ]);
+
+        TinkoffPayout::query()->create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'deal-payout-completed-1',
+            'amount' => 200_000,
+            'is_final' => true,
+            'status' => 'COMPLETED',
+            'completed_at' => $completedAt,
+        ]);
+
+        $paymentCompletedNoStamp = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'summ' => 300,
+            'operation_date' => now()->toDateTimeString(),
+            'deal_id' => 'deal-payout-no-stamp-1',
+        ]);
+
+        TinkoffPayout::query()->create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'deal_id' => 'deal-payout-no-stamp-1',
+            'amount' => 300_000,
+            'is_final' => true,
+            'status' => 'COMPLETED',
+            'completed_at' => null,
+        ]);
+
+        $paymentRobokassa = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'summ' => 400,
+            'operation_date' => now()->toDateTimeString(),
+            'deal_id' => null,
+            'payment_id' => null,
+            'payment_status' => null,
+        ]);
+
+        $response = $this
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payments.getPayments'));
+
+        $response->assertOk();
+        $data = collect($response->json('data') ?? []);
+
+        $rowPlanned = $data->firstWhere('id', $paymentPlanned->id);
+        $rowCompleted = $data->firstWhere('id', $paymentCompleted->id);
+        $rowNoStamp = $data->firstWhere('id', $paymentCompletedNoStamp->id);
+        $rowRobo = $data->firstWhere('id', $paymentRobokassa->id);
+
+        $this->assertNotNull($rowPlanned);
+        $this->assertSame($whenRun->format('d.m.Y H:i'), (string) ($rowPlanned['payout_date'] ?? ''));
+
+        $this->assertNotNull($rowCompleted);
+        $this->assertSame($completedAt->format('d.m.Y H:i'), (string) ($rowCompleted['payout_date'] ?? ''));
+
+        $this->assertNotNull($rowNoStamp);
+        $this->assertTrue(
+            ($rowNoStamp['payout_date'] ?? null) === null || (string) ($rowNoStamp['payout_date'] ?? '') === '',
+            'Ожидалась пустая дата при COMPLETED без completed_at.'
+        );
+
+        $this->assertNotNull($rowRobo);
+        $this->assertTrue(
+            ($rowRobo['payout_date'] ?? null) === null || (string) ($rowRobo['payout_date'] ?? '') === '',
+            'Robokassa: колонка payout_date должна быть пустой.'
+        );
+    }
+
+    /**
      * (P1) Колонка payment_method_label — из payment_intents.payment_method по payment_number / provider_inv_id.
      */
     public function test_getPayments_payment_method_label_joins_tbank_intent(): void

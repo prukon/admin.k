@@ -235,6 +235,15 @@
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
                        type="checkbox"
+                       data-column-key="payout_date"
+                       id="payColPayoutDate"
+                       checked>
+                <label class="form-check-label" for="payColPayoutDate">Дата выплаты</label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
                        data-column-key="refund_action"
                        id="payColActions"
                        checked>
@@ -392,6 +401,7 @@
             @endif
         @endif
 
+        <th>Дата выплаты</th>
         <th>Действия</th>
         <th>Статус возврата</th>
     </tr>
@@ -695,7 +705,8 @@
     bank_commission_payout: canAdditional,
     platform_commission: canAdditional,
     refund_status: canAdditional,
-    refund_action: true
+    refund_action: true,
+    payout_date: true
             };
 
             const additionalColumnsKeys = [
@@ -727,8 +738,9 @@
                         platform_commission: 11,
                         net_to_partner: 12,
                         payout_amount: 13,
-                        refund_action: 14,
-                        refund_status: 15
+                        payout_date: 14,
+                        refund_action: 15,
+                        refund_status: 16
                     };
                 } else {
                     columnsMap = {
@@ -744,8 +756,9 @@
                         bank_commission_payout: 10,
                         platform_commission: 11,
                         net_to_partner: 12,
-                        refund_action: 13,
-                        refund_status: 14
+                        payout_date: 13,
+                        refund_action: 14,
+                        refund_status: 15
                     };
                 }
             } else if (canCommissionTotal && canPayoutColumn) {
@@ -760,8 +773,9 @@
                     receipt: 8,
                     commission_total: 9,
                     payout_amount: 10,
-                    refund_action: 11,
-                    refund_status: 12
+                    payout_date: 11,
+                    refund_action: 12,
+                    refund_status: 13
                 };
             } else if (canCommissionTotal && !canPayoutColumn) {
                 columnsMap = {
@@ -774,8 +788,9 @@
                     payment_method_label: 7,
                     receipt: 8,
                     commission_total: 9,
-                    refund_action: 10,
-                    refund_status: 11
+                    payout_date: 10,
+                    refund_action: 11,
+                    refund_status: 12
                 };
             } else if (!canCommissionTotal && canPayoutColumn) {
                 columnsMap = {
@@ -788,8 +803,9 @@
                     payment_method_label: 7,
                     receipt: 8,
                     payout_amount: 9,
-                    refund_action: 10,
-                    refund_status: 11
+                    payout_date: 10,
+                    refund_action: 11,
+                    refund_status: 12
                 };
             } else {
                 columnsMap = {
@@ -801,8 +817,9 @@
                     payment_provider: 6,
                     payment_method_label: 7,
                     receipt: 8,
-                    refund_action: 9,
-                    refund_status: 10
+                    payout_date: 9,
+                    refund_action: 10,
+                    refund_status: 11
                 };
             }
 
@@ -1149,6 +1166,20 @@ if (canPayoutColumn) {
 }
 
 columns.push(
+    {
+        data: 'payout_date',
+        name: 'payout_date',
+        searchable: false,
+        render: function (data, type, row) {
+            if (data === null || data === undefined || data === '') {
+                return '';
+            }
+            if (type !== 'display') {
+                return data;
+            }
+            return $('<div/>').text(String(data)).html();
+        }
+    },
     {data: 'refund_action', name: 'refund_action', orderable: false, searchable: false},
     {
         data: 'refund_status',

@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
@@ -34,10 +35,10 @@ class PaymentReportController extends AdminBaseController
     public function payments(Request $request)
     {
         $partnerId = $this->requirePartnerId();
-        Log::debug('[payments] Partner ID', ['partnerId' => $partnerId]);
+        // Log::debug('[payments] Partner ID', ['partnerId' => $partnerId]);
 
         $aggregates = $this->computePaymentsReportToolbarAggregates($partnerId, $request);
-        Log::debug('[payments] Toolbar aggregates (same filters as table)', ['aggregates' => $aggregates]);
+        // Log::debug('[payments] Toolbar aggregates (same filters as table)', ['aggregates' => $aggregates]);
 
         /** @var \App\Models\User|null $authUser */
         $authUser = Auth::user();
@@ -297,7 +298,49 @@ class PaymentReportController extends AdminBaseController
                     ->whereColumn('refunds.payment_id', 'payments.id')
                     ->orderByDesc('refunds.id')
                     ->limit(1),
-            ]);
+            ])
+            ->addSelect(DB::raw('('.$this->sqlPaymentsReportPayoutDisplayDatetimeNullable($partnerId).') as payout_report_at'));
+    }
+
+    /**
+     * SQL: дата/время выплаты для отчёта «Платежи» (как в колонке payout_date).
+     * Не T‑Bank или нет deal_id — NULL. Если есть завершённая выплата — completed_at последней COMPLETED;
+     * иначе when_to_run последней записи с непустым when_to_run. Если COMPLETED, но completed_at NULL — NULL (не подставляем план).
+     */
+    private function sqlPaymentsReportPayoutDisplayDatetimeNullable(int $partnerId): string
+    {
+        $pid = (int) $partnerId;
+        $isTbank = $this->sqlPaymentsReportIsTbankRow();
+
+        return <<<SQL
+CASE
+    WHEN NOT ({$isTbank}) THEN NULL
+    WHEN payments.deal_id IS NULL OR TRIM(CAST(payments.deal_id AS CHAR)) = '' THEN NULL
+    WHEN EXISTS (
+        SELECT 1 FROM tinkoff_payouts tp_e
+        WHERE tp_e.partner_id = {$pid}
+          AND tp_e.deal_id = payments.deal_id
+          AND tp_e.status = 'COMPLETED'
+    ) THEN (
+        SELECT tp_c.completed_at
+        FROM tinkoff_payouts tp_c
+        WHERE tp_c.partner_id = {$pid}
+          AND tp_c.deal_id = payments.deal_id
+          AND tp_c.status = 'COMPLETED'
+        ORDER BY tp_c.id DESC
+        LIMIT 1
+    )
+    ELSE (
+        SELECT tp_w.when_to_run
+        FROM tinkoff_payouts tp_w
+        WHERE tp_w.partner_id = {$pid}
+          AND tp_w.deal_id = payments.deal_id
+          AND tp_w.when_to_run IS NOT NULL
+        ORDER BY tp_w.id DESC
+        LIMIT 1
+    )
+END
+SQL;
     }
 
     /**
@@ -617,6 +660,12 @@ class PaymentReportController extends AdminBaseController
             ->orderColumn('bank_commission_payout', function ($query, $order) use ($partnerId) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $expr = $this->sqlPaymentsReportBankPayoutFeeCentsNullable($partnerId);
+                $query->orderByRaw("({$expr}) IS NULL ASC");
+                $query->orderByRaw("({$expr}) {$dir}");
+            })
+            ->orderColumn('payout_date', function ($query, $order) use ($partnerId) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $expr = $this->sqlPaymentsReportPayoutDisplayDatetimeNullable($partnerId);
                 $query->orderByRaw("({$expr}) IS NULL ASC");
                 $query->orderByRaw("({$expr}) {$dir}");
             })
@@ -1024,6 +1073,18 @@ class PaymentReportController extends AdminBaseController
                 }
 
                 return $buttonHtml . $historyButtonHtml;
+            })
+            ->addColumn('payout_date', function (Payment $row) {
+                $attrs = $row->getAttributes();
+                if (! array_key_exists('payout_report_at', $attrs)) {
+                    return null;
+                }
+                $v = $attrs['payout_report_at'];
+                if ($v === null || $v === '') {
+                    return null;
+                }
+
+                return Carbon::parse($v)->format('d.m.Y H:i');
             })
             ->rawColumns(['refund_action'])
             ->make(true);

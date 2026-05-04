@@ -189,12 +189,12 @@ class PartnerController extends AdminBaseController
             'ceo' => $ceo,
         ];
 
-        Log::info('[Partner.edit] payload', [
-            'partner_id' => $partner->id,
-            'raw_ceo' => $raw,
-            'cast_ceo' => $cast,
-            'payload' => $payload
-        ]);
+        // Log::info('[Partner.edit] payload', [
+        //     'partner_id' => $partner->id,
+        //     'raw_ceo' => $raw,
+        //     'cast_ceo' => $cast,
+        //     'payload' => $payload
+        // ]);
 
         return response()->json($payload);
     }
