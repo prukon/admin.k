@@ -297,7 +297,7 @@ class TinkoffAdminPayoutController extends Controller
         }
 
         $start = (int) ($validated['start'] ?? 0);
-        $length = (int) ($validated['length'] ?? 20);
+        $length = (int) ($validated['length'] ?? 10);
 
         $rows = $baseQuery->skip($start)->take($length)->get();
 

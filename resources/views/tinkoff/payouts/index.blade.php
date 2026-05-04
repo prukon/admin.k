@@ -308,6 +308,15 @@
             </form>
         </div>
 
+        <style>
+            #payouts-table .pay-cell-datetime--payouts {
+                flex-direction: row;
+                align-items: baseline;
+                flex-wrap: wrap;
+                gap: 0.35rem;
+            }
+        </style>
+
         <div class="table-responsive">
             <table id="payouts-table" class="table table-striped table-bordered align-middle w-100">
                 <thead>
@@ -500,6 +509,30 @@
                 );
             }
 
+            /** Дата ДД.ММ.ГГГГ; время — как в ответе API (без добавления секунд). */
+            function renderPayoutListDatetime(data, type) {
+                if (!data) {
+                    return data;
+                }
+                if (type !== 'display') {
+                    return data;
+                }
+                var s = String(data).trim();
+                var pm = s.match(/^(\d{2}\.\d{2}\.\d{4})\s+(.+)$/);
+                if (pm) {
+                    var dateLine = pm[1];
+                    var timeLine = pm[2];
+                    return (
+                        '<div class="pay-cell-datetime pay-cell-datetime--payouts" role="text" aria-label="' +
+                        dateLine + ', ' + timeLine + '">' +
+                        '<span class="pay-cell-datetime__date">' + dateLine + '</span>' +
+                        '<span class="pay-cell-datetime__time">' + timeLine + '</span>' +
+                        '</div>'
+                    );
+                }
+                return renderPayCellDatetime(data, type);
+            }
+
             function filterParams() {
                 var p = {};
                 @if(!empty($isSuperadmin))
@@ -615,7 +648,7 @@
             const table = $('#payouts-table').DataTable({
                 processing: true,
                 serverSide: true,
-                pageLength: 20,
+                pageLength: 10,
                 lengthMenu: [10, 20, 50, 100],
                 order: [[1, 'desc']],
                 ajax: {
@@ -709,21 +742,21 @@
                         name: 'when_to_run',
                         className: 'text-nowrap',
                         defaultContent: '',
-                        render: renderPayCellDatetime
+                        render: renderPayoutListDatetime
                     },
                     {
                         data: 'created_at',
                         name: 'created_at',
                         className: 'text-nowrap',
                         defaultContent: '',
-                        render: renderPayCellDatetime
+                        render: renderPayoutListDatetime
                     },
                     {
                         data: 'completed_at',
                         name: 'completed_at',
                         className: 'text-nowrap',
                         defaultContent: '',
-                        render: renderPayCellDatetime
+                        render: renderPayoutListDatetime
                     },
                     {data: 'tinkoff_payout_payment_id', name: 'tinkoff_payout_payment_id', defaultContent: ''},
                     {
