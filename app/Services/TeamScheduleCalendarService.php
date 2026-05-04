@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Models\LessonPackageTimeSlot;
 use App\Models\TeamScheduleSlot;
 use App\Models\TeamScheduleSlotException;
 use App\Models\UserLessonOccurrenceStatusEvent;
@@ -367,8 +366,9 @@ final class TeamScheduleCalendarService
 
     /**
      * Цепочка из K занятий для фиксированного абонемента: от якоря по времени вперёд.
+     * Шаблон (день недели + время) задаётся при привязке из календаря; все слоты цепочки — та же группа (team_id), что у якоря.
      *
-     * @param Collection<int, LessonPackageTimeSlot> $patterns
+     * @param Collection<int, object{weekday: int, time_start: mixed, time_end: mixed}> $patterns
      * @return list<array{date: CarbonImmutable, slot: TeamScheduleSlot}>
      */
     public function buildFixedOccurrenceChain(
@@ -387,7 +387,12 @@ final class TeamScheduleCalendarService
         }
 
         if ($patterns->isEmpty()) {
-            throw new \InvalidArgumentException('У абонемента не заданы слоты расписания.');
+            throw new \InvalidArgumentException('Не задан шаблон привязки (день недели и время).');
+        }
+
+        $teamId = (int) $anchorSlot->team_id;
+        if ($teamId < 1) {
+            throw new \InvalidArgumentException('У слота расписания не указана группа.');
         }
 
         $anchorDow = (int) $anchorDate->format('N');
@@ -400,7 +405,7 @@ final class TeamScheduleCalendarService
         }
 
         if (!$this->patternMatchesSlot($patterns, $anchorSlot, $anchorDow)) {
-            throw new \InvalidArgumentException('Выбранный слот не совпадает с расписанием абонемента (день и время).');
+            throw new \InvalidArgumentException('Якорный слот не совпадает с выбранным днём и временем привязки.');
         }
 
         if ($locationIdFilter !== null && $locationIdFilter > 0) {
@@ -418,10 +423,13 @@ final class TeamScheduleCalendarService
                     continue;
                 }
 
-                $slot = $this->findMatchingSlot(
+                $slot = $this->resolveFixedPatternSlotOnDay(
+                    $anchorSlot,
+                    $anchorDate,
                     $partnerId,
                     $d,
                     $pattern,
+                    $teamId,
                     $locationIdFilter
                 );
 
@@ -481,16 +489,12 @@ final class TeamScheduleCalendarService
     }
 
     /**
-     * @param Collection<int, LessonPackageTimeSlot> $patterns
+     * @param Collection<int, object{weekday: int, time_start: mixed, time_end: mixed}> $patterns
      */
-    private function patternMatchesSlot(Collection $patterns, TeamScheduleSlot $slot, int $dow): bool
+    public function patternMatchesSlot(Collection $patterns, TeamScheduleSlot $slot, int $dow): bool
     {
         foreach ($patterns as $pattern) {
-            if ((int) $pattern->weekday !== $dow) {
-                continue;
-            }
-            if ($this->timesEqual($pattern->time_start, $slot->time_start)
-                && $this->timesEqual($pattern->time_end, $slot->time_end)) {
+            if ($this->patternEqualsSlot($pattern, $slot, $dow)) {
                 return true;
             }
         }
@@ -498,10 +502,119 @@ final class TeamScheduleCalendarService
         return false;
     }
 
+    public function patternEqualsSlot(object $pattern, TeamScheduleSlot $slot, int $dow): bool
+    {
+        if ((int) $pattern->weekday !== $dow) {
+            return false;
+        }
+
+        return $this->timesEqual($pattern->time_start, $slot->time_start)
+            && $this->timesEqual($pattern->time_end, $slot->time_end);
+    }
+
+    /**
+     * Слот цепочки на конкретную дату по шаблону: якорный день использует переданный слот клика, остальные — поиск в расписании группы.
+     */
+    public function resolveFixedPatternSlotOnDay(
+        TeamScheduleSlot $anchorSlot,
+        CarbonImmutable $anchorDate,
+        int $partnerId,
+        CarbonImmutable $day,
+        object $pattern,
+        int $teamId,
+        ?int $locationIdFilter
+    ): ?TeamScheduleSlot {
+        if ($day->toDateString() === $anchorDate->toDateString()
+            && $this->patternEqualsSlot($pattern, $anchorSlot, (int) $day->format('N'))) {
+            return $anchorSlot;
+        }
+
+        return $this->findMatchingTeamSlotForPatternOnDay($partnerId, $day, $pattern, $teamId, $locationIdFilter);
+    }
+
+    /**
+     * На каждую дату в периоде [anchor, periodEnd], попадающую под один из шаблонов (день недели), должно быть активное неисключённое занятие группы.
+     *
+     * @param Collection<int, object{weekday: int, time_start: mixed, time_end: mixed}> $patterns
+     *
+     * @throws \InvalidArgumentException
+     */
+    public function assertEveryFixedPatternOccurrenceResolvableInPeriod(
+        TeamScheduleSlot $anchorSlot,
+        CarbonImmutable $anchorDate,
+        CarbonImmutable $periodEnd,
+        Collection $patterns,
+        int $partnerId,
+        int $teamId,
+        ?int $locationIdFilter
+    ): void {
+        $anchorDate = $anchorDate->startOfDay();
+        $end = $periodEnd->startOfDay();
+
+        foreach ($patterns as $pattern) {
+            for ($d = $anchorDate; $d->lte($end); $d = $d->addDay()) {
+                if ((int) $pattern->weekday !== (int) $d->format('N')) {
+                    continue;
+                }
+
+                $slot = $this->resolveFixedPatternSlotOnDay(
+                    $anchorSlot,
+                    $anchorDate,
+                    $partnerId,
+                    $d,
+                    $pattern,
+                    $teamId,
+                    $locationIdFilter
+                );
+
+                if ($slot === null) {
+                    throw new \InvalidArgumentException(
+                        'В периоде абонемента нет занятия группы по шаблону '
+                        .$this->fixedPatternHumanLabel($pattern).' на дату '.$d->toDateString().'.'
+                    );
+                }
+
+                if (! $this->slotActiveOnDate($slot, $d)) {
+                    throw new \InvalidArgumentException(
+                        'Слот недействителен на '.$d->toDateString().' ('.$this->fixedPatternHumanLabel($pattern).').'
+                    );
+                }
+
+                if ($this->isOccurrenceSkipped((int) $slot->id, $d)) {
+                    throw new \InvalidArgumentException(
+                        'На '.$d->toDateString().' занятие исключено из расписания школы ('.$this->fixedPatternHumanLabel($pattern).').'
+                    );
+                }
+            }
+        }
+    }
+
+    private function fixedPatternHumanLabel(object $pattern): string
+    {
+        $ts = substr((string) $pattern->time_start, 0, 5);
+        $te = substr((string) $pattern->time_end, 0, 5);
+
+        return 'день '.$pattern->weekday.', '.$ts.'–'.$te;
+    }
+
+    /**
+     * Слот расписания группы на конкретную дату по шаблону (день недели + время).
+     */
+    public function findMatchingTeamSlotForPatternOnDay(
+        int $partnerId,
+        CarbonImmutable $day,
+        object $pattern,
+        int $teamId,
+        ?int $locationIdFilter
+    ): ?TeamScheduleSlot {
+        return $this->findMatchingSlot($partnerId, $day, $pattern, $teamId, $locationIdFilter);
+    }
+
     private function findMatchingSlot(
         int $partnerId,
         CarbonImmutable $day,
-        LessonPackageTimeSlot $pattern,
+        object $pattern,
+        int $teamId,
         ?int $locationIdFilter
     ): ?TeamScheduleSlot {
         $dow = (int) $day->format('N');
@@ -511,6 +624,7 @@ final class TeamScheduleCalendarService
 
         $q = TeamScheduleSlot::query()
             ->where('partner_id', $partnerId)
+            ->where('team_id', $teamId)
             ->where('is_enabled', true)
             ->where('weekday', $dow)
             ->whereDate('date_start', '<=', $day->toDateString())
@@ -523,6 +637,99 @@ final class TeamScheduleCalendarService
         }
 
         return $q->orderBy('id')->first();
+    }
+
+    /**
+     * Две занятости пересекаются по времени на одну календарную дату (полуоткрытый интервал в минутах).
+     */
+    public function clockIntervalsOverlap(string $aStartHm, string $aEndHm, string $bStartHm, string $bEndHm): bool
+    {
+        $a1 = $this->minutesFromClock($aStartHm);
+        $a2 = $this->minutesFromClock($aEndHm);
+        $b1 = $this->minutesFromClock($bStartHm);
+        $b2 = $this->minutesFromClock($bEndHm);
+
+        return max($a1, $b1) < min($a2, $b2);
+    }
+
+    private function minutesFromClock(string $hm): int
+    {
+        $parts = explode(':', substr($hm, 0, 5));
+
+        return ((int) ($parts[0] ?? 0)) * 60 + ((int) ($parts[1] ?? 0));
+    }
+
+    /**
+     * Нельзя ставить новую серию занятий, если у ученика уже есть любое занятие в календаре с пересечением по времени в ту же дату.
+     *
+     * @param list<array{date: CarbonImmutable, slot: TeamScheduleSlot}> $chain
+     */
+    public function assertFixedChainHasNoTimeOverlapWithExistingUserLessons(
+        int $userId,
+        int $partnerId,
+        array $chain
+    ): void {
+        foreach ($chain as $item) {
+            /** @var CarbonImmutable $date */
+            $date = $item['date'];
+            /** @var TeamScheduleSlot $candidateSlot */
+            $candidateSlot = $item['slot'];
+
+            $this->assertOccurrenceDoesNotOverlapExistingUserLessons(
+                $userId,
+                $partnerId,
+                $date,
+                $candidateSlot
+            );
+        }
+    }
+
+    private function assertOccurrenceDoesNotOverlapExistingUserLessons(
+        int $userId,
+        int $partnerId,
+        CarbonImmutable $date,
+        TeamScheduleSlot $candidateSlot
+    ): void {
+        $dateStr = $date->toDateString();
+
+        $rows = UserTeamScheduleSlot::query()
+            ->where('partner_id', $partnerId)
+            ->where('user_id', $userId)
+            ->whereDate('starts_at', '<=', $dateStr)
+            ->whereDate('ends_at', '>=', $dateStr)
+            ->get(['team_schedule_slot_id']);
+
+        $cStart = substr((string) $candidateSlot->time_start, 0, 5);
+        $cEnd = substr((string) $candidateSlot->time_end, 0, 5);
+
+        foreach ($rows as $row) {
+            $other = TeamScheduleSlot::query()->whereKey((int) $row->team_schedule_slot_id)->first();
+            if (! $other) {
+                continue;
+            }
+
+            if ((int) $other->weekday !== (int) $date->format('N')) {
+                continue;
+            }
+
+            if (! $this->slotActiveOnDate($other, $date)) {
+                continue;
+            }
+
+            if ($this->isOccurrenceSkipped((int) $other->id, $date)) {
+                continue;
+            }
+
+            $oStart = substr((string) $other->time_start, 0, 5);
+            $oEnd = substr((string) $other->time_end, 0, 5);
+
+            if ($this->clockIntervalsOverlap($cStart, $cEnd, $oStart, $oEnd)) {
+                throw new \InvalidArgumentException(
+                    'Конфликт расписания на '.$dateStr.': время '.$cStart.'–'.$cEnd
+                    .' пересекается с уже существующей записью ученика ('.$oStart.'–'.$oEnd.').'
+                );
+            }
+        }
     }
 
     private function chainKey(CarbonImmutable $date, TeamScheduleSlot $slot): string

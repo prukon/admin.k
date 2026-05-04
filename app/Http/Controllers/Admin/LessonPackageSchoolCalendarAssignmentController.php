@@ -23,6 +23,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -333,11 +334,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
 
         /** @var UserLessonPackage|null $ulp */
         $ulp = UserLessonPackage::query()
-            ->with([
-                'lessonPackage' => function ($q) {
-                    $q->with(['timeSlots' => fn ($q2) => $q2->orderBy('weekday')->orderBy('time_start')]);
-                },
-            ])
+            ->with(['lessonPackage'])
             ->whereKey((int) $data['user_lesson_package_id'])
             ->first();
 
@@ -404,37 +401,121 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
 
         $anchorDate = CarbonImmutable::createFromFormat('Y-m-d', (string) $data['anchor_date'])->startOfDay();
 
+        $patterns = $this->dedupeFixedPatternsFromValidated($data['patterns'] ?? []);
+        if ($patterns->isEmpty()) {
+            return response()->json([
+                'message' => 'Укажите хотя бы один слот шаблона привязки.',
+                'errors' => ['patterns' => ['Укажите хотя бы один слот шаблона привязки.']],
+            ], 422);
+        }
+
+        if ((int) $anchorSlot->weekday !== (int) $anchorDate->format('N')) {
+            return response()->json([
+                'message' => 'Дата якоря не соответствует дню недели выбранного слота.',
+                'errors' => ['anchor_date' => ['Дата якоря не соответствует дню недели выбранного слота.']],
+            ], 422);
+        }
+
+        if (! $this->calendarService->patternMatchesSlot($patterns, $anchorSlot, (int) $anchorDate->format('N'))) {
+            return response()->json([
+                'message' => 'Шаблон привязки должен включать слот занятия, на которое вы кликнули (день недели и время).',
+                'errors' => [
+                    'patterns' => ['Добавьте в шаблон строку с днём недели и временем слота, с которого открыто окно.'],
+                ],
+            ], 422);
+        }
+
+        /** @var object{weekday: int, time_start: string, time_end: string}|null $matchingPattern */
+        $matchingPattern = $patterns->first(function (object $p) use ($anchorSlot, $anchorDate): bool {
+            return $this->calendarService->patternEqualsSlot($p, $anchorSlot, (int) $anchorDate->format('N'));
+        });
+
+        if ($matchingPattern === null) {
+            return response()->json([
+                'errors' => ['patterns' => ['Не удалось сопоставить шаблон с выбранным слотом.']],
+            ], 422);
+        }
+
+        $resolvedAnchorSlot = $this->calendarService->findMatchingTeamSlotForPatternOnDay(
+            $partnerId,
+            $anchorDate,
+            $matchingPattern,
+            (int) $anchorSlot->team_id,
+            $effectiveLocationFilter
+        );
+
+        if (! $resolvedAnchorSlot || (int) $resolvedAnchorSlot->id !== (int) $anchorSlot->id) {
+            return response()->json([
+                'message' => 'Для группы на выбранную дату не найдено занятие с указанным днём и временем.',
+                'errors' => [
+                    'patterns' => [
+                        'Для группы на выбранную дату не найдено занятие с указанным временем в расписании школы.',
+                    ],
+                ],
+            ], 422);
+        }
+
+        if (! $this->calendarService->slotActiveOnDate($anchorSlot, $anchorDate)) {
+            return response()->json([
+                'message' => 'Слот недействителен на выбранную дату.',
+                'errors' => ['anchor_date' => ['Слот недействителен на выбранную дату.']],
+            ], 422);
+        }
+
+        if ($this->calendarService->isOccurrenceSkipped((int) $anchorSlot->id, $anchorDate)) {
+            return response()->json([
+                'message' => 'На эту дату занятие исключено из расписания школы.',
+                'errors' => ['anchor_date' => ['На эту дату занятие исключено из расписания школы.']],
+            ], 422);
+        }
+
         try {
             DB::transaction(function () use (
                 $partnerId,
                 $user,
                 $ulp,
-                $package,
                 $anchorDate,
                 $anchorSlot,
                 $effectiveLocationFilter,
+                $patterns,
             ) {
                 $this->calendarPeriodService->applyFirstCalendarAnchor($ulp, $anchorDate);
                 $ulp->refresh();
 
                 $periodEnd = CarbonImmutable::parse($ulp->ends_at->format('Y-m-d'))->startOfDay();
 
+                $lessonsNeeded = (int) $ulp->lessons_remaining;
+                if ($lessonsNeeded < 1) {
+                    throw new InvalidArgumentException('На абонементе не осталось занятий.');
+                }
+
+                $this->calendarService->assertEveryFixedPatternOccurrenceResolvableInPeriod(
+                    $anchorSlot,
+                    $anchorDate,
+                    $periodEnd,
+                    $patterns,
+                    $partnerId,
+                    (int) $anchorSlot->team_id,
+                    $effectiveLocationFilter
+                );
+
                 $chain = $this->calendarService->buildFixedOccurrenceChain(
                     $partnerId,
                     $anchorDate,
                     $anchorSlot,
-                    $package->timeSlots,
-                    (int) $package->lessons_count,
+                    $patterns,
+                    $lessonsNeeded,
                     $periodEnd,
                     $effectiveLocationFilter
                 );
 
+                $this->calendarService->assertFixedChainHasNoTimeOverlapWithExistingUserLessons(
+                    (int) $user->id,
+                    $partnerId,
+                    $chain
+                );
+
                 $scheduledCount = count($chain);
-                if ((int) $ulp->lessons_remaining < $scheduledCount) {
-                    throw new InvalidArgumentException(
-                        'Недостаточно оставшихся занятий на абонементе: требуется '.$scheduledCount.', доступно '.(int) $ulp->lessons_remaining.'.'
-                    );
-                }
 
                 foreach ($chain as $item) {
                     /** @var CarbonImmutable $date */
@@ -457,9 +538,18 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 $ulp->save();
             });
         } catch (InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            $field = 'anchor_date';
+            if (str_contains($msg, 'Конфликт расписания')
+                || str_contains($msg, 'В периоде абонемента нет занятия')
+                || str_contains($msg, 'исключено из расписания школы')
+                || str_contains($msg, 'Слот недействителен на')) {
+                $field = 'patterns';
+            }
+
             return response()->json([
-                'message' => $e->getMessage(),
-                'errors' => ['anchor_date' => [$e->getMessage()]],
+                'message' => $msg,
+                'errors' => [$field => [$msg]],
             ], 422);
         } catch (\RuntimeException $e) {
             return response()->json([
@@ -616,5 +706,38 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         }
 
         return response()->json(['message' => 'Пробное занятие удалено из расписания.']);
+    }
+
+    /**
+     * @param list<array{weekday?: mixed, time_start?: mixed, time_end?: mixed}> $rows
+     * @return Collection<int, object{weekday: int, time_start: string, time_end: string}>
+     */
+    private function dedupeFixedPatternsFromValidated(array $rows): Collection
+    {
+        $seen = [];
+        $out = collect();
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $w = (int) ($row['weekday'] ?? 0);
+            $ts = substr((string) ($row['time_start'] ?? ''), 0, 5);
+            $te = substr((string) ($row['time_end'] ?? ''), 0, 5);
+            if ($w < 1 || $w > 7 || $ts === '' || $te === '') {
+                continue;
+            }
+            $key = $w.'|'.$ts.'|'.$te;
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out->push((object) [
+                'weekday' => $w,
+                'time_start' => $ts,
+                'time_end' => $te,
+            ]);
+        }
+
+        return $out;
     }
 }

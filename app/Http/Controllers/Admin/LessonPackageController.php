@@ -9,7 +9,6 @@ use App\Http\Requests\Admin\StoreUserLessonPackageRequest;
 use App\Http\Requests\Admin\UpdateUserLessonPackageAssignmentRequest;
 use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
-use App\Models\LessonPackageTimeSlot;
 use App\Models\Location;
 use App\Models\Partner;
 use App\Models\PaymentSystem;
@@ -49,9 +48,6 @@ final class LessonPackageController extends AdminBaseController
 
         $packages = LessonPackage::query()
             ->where('partner_id', $partnerId)
-            ->with(['timeSlots' => function ($q) {
-                $q->orderBy('weekday')->orderBy('time_start');
-            }])
             ->withCount([
                 'userAssignments as partner_assignments_count' => function ($q) use ($partnerId) {
                     $q->whereHas('user', function ($uq) use ($partnerId) {
@@ -768,19 +764,6 @@ final class LessonPackageController extends AdminBaseController
                     'freeze_days' => $freezeDaysStored,
                     'is_active' => true,
                 ]);
-
-                if ((string) $data['schedule_type'] === 'fixed') {
-                    $slots = is_array($data['time_slots'] ?? null) ? $data['time_slots'] : [];
-
-                    foreach ($slots as $slot) {
-                        LessonPackageTimeSlot::create([
-                            'lesson_package_id' => $package->id,
-                            'weekday' => (int) ($slot['weekday'] ?? 0),
-                            'time_start' => (string) ($slot['time_start'] ?? ''),
-                            'time_end' => (string) ($slot['time_end'] ?? ''),
-                        ]);
-                    }
-                }
             });
         } catch (QueryException $e) {
             Log::warning('LessonPackage store failed', [
@@ -788,10 +771,10 @@ final class LessonPackageController extends AdminBaseController
             ]);
 
             $payload = [
-                'message' => 'Не удалось сохранить абонемент. Проверьте, что слоты расписания не дублируются и заполнены корректно.',
+                'message' => 'Не удалось сохранить абонемент.',
                 'errors' => [
-                    'time_slots' => [
-                        'Не удалось сохранить абонемент. Проверьте, что слоты расписания не дублируются и заполнены корректно.',
+                    'name' => [
+                        'Не удалось сохранить абонемент.',
                     ],
                 ],
             ];
@@ -816,10 +799,6 @@ final class LessonPackageController extends AdminBaseController
     {
         $this->assertLessonPackageBelongsToPartner($lessonPackage, $this->requirePartnerId());
 
-        $lessonPackage->load(['timeSlots' => function ($q) {
-            $q->orderBy('weekday')->orderBy('time_start');
-        }]);
-
         return response()->json([
             'success' => true,
             'lesson_package' => [
@@ -833,13 +812,7 @@ final class LessonPackageController extends AdminBaseController
                 'freeze_enabled' => (bool) $lessonPackage->freeze_enabled,
                 'freeze_days' => (int) $lessonPackage->freeze_days,
                 'is_active' => (bool) $lessonPackage->is_active,
-                'time_slots' => $lessonPackage->timeSlots->map(function (LessonPackageTimeSlot $slot) {
-                    return [
-                        'weekday' => (int) $slot->weekday,
-                        'time_start' => substr((string) $slot->time_start, 0, 5),
-                        'time_end' => substr((string) $slot->time_end, 0, 5),
-                    ];
-                })->values(),
+                'time_slots' => [],
             ],
         ]);
     }
@@ -871,24 +844,6 @@ final class LessonPackageController extends AdminBaseController
                     'freeze_days' => $freezeDaysStored,
                 ]);
                 $lessonPackage->save();
-
-                // пересобираем слоты (простая и надёжная стратегия)
-                LessonPackageTimeSlot::query()
-                    ->where('lesson_package_id', $lessonPackage->id)
-                    ->delete();
-
-                if ((string) $data['schedule_type'] === 'fixed') {
-                    $slots = is_array($data['time_slots'] ?? null) ? $data['time_slots'] : [];
-
-                    foreach ($slots as $slot) {
-                        LessonPackageTimeSlot::create([
-                            'lesson_package_id' => $lessonPackage->id,
-                            'weekday' => (int) ($slot['weekday'] ?? 0),
-                            'time_start' => (string) ($slot['time_start'] ?? ''),
-                            'time_end' => (string) ($slot['time_end'] ?? ''),
-                        ]);
-                    }
-                }
             });
         } catch (QueryException $e) {
             Log::warning('LessonPackage update failed', [
@@ -897,10 +852,10 @@ final class LessonPackageController extends AdminBaseController
             ]);
 
             $payload = [
-                'message' => 'Не удалось сохранить изменения. Проверьте корректность данных и отсутствие дублей в слотах.',
+                'message' => 'Не удалось сохранить изменения.',
                 'errors' => [
-                    'time_slots' => [
-                        'Не удалось сохранить изменения. Проверьте корректность данных и отсутствие дублей в слотах.',
+                    'name' => [
+                        'Не удалось сохранить изменения.',
                     ],
                 ],
             ];

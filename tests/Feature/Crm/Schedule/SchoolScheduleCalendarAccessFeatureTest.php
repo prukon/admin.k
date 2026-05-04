@@ -6,7 +6,6 @@ namespace Tests\Feature\Crm\Schedule;
 
 use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
-use App\Models\LessonPackageTimeSlot;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\TeamScheduleSlot;
@@ -442,6 +441,9 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             'user_lesson_package_id' => 1,
             'team_schedule_slot_id' => 1,
             'anchor_date' => self::WEEK_MONDAY,
+            'patterns' => [
+                ['weekday' => 1, 'time_start' => '15:00', 'time_end' => '16:00'],
+            ],
         ])->assertForbidden();
 
         $this->postJson(route('admin.lesson-packages.school-schedule.assign-single-lesson'), [
@@ -523,12 +525,6 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             'freeze_days' => 0,
             'is_active' => 1,
         ]);
-        LessonPackageTimeSlot::query()->create([
-            'lesson_package_id' => $fixedPackage->id,
-            'weekday' => 1,
-            'time_start' => '15:00:00',
-            'time_end' => '16:00:00',
-        ]);
         $fixedUlp = UserLessonPackage::query()->create([
             'user_id' => $student->id,
             'lesson_package_id' => $fixedPackage->id,
@@ -557,6 +553,9 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             'user_lesson_package_id' => $fixedUlp->id,
             'team_schedule_slot_id' => $slotFixed->id,
             'anchor_date' => self::WEEK_MONDAY,
+            'patterns' => [
+                ['weekday' => 1, 'time_start' => '15:00', 'time_end' => '16:00'],
+            ],
         ])->assertOk()
             ->assertJsonPath('message', 'Абонемент назначен, занятия привязаны к расписанию школы.');
 

@@ -14,7 +14,7 @@ class UserLessonPackageFreeze extends Model
     protected $casts = [
         'date' => 'date:Y-m-d',
         'user_lesson_package_id' => 'int',
-        'lesson_package_time_slot_id' => 'int',
+        'team_schedule_slot_id' => 'int',
         'user_lesson_package_time_slot_id' => 'int',
         'created_by' => 'int',
     ];
@@ -24,9 +24,9 @@ class UserLessonPackageFreeze extends Model
         return $this->belongsTo(UserLessonPackage::class, 'user_lesson_package_id');
     }
 
-    public function lessonPackageTimeSlot(): BelongsTo
+    public function teamScheduleSlot(): BelongsTo
     {
-        return $this->belongsTo(LessonPackageTimeSlot::class, 'lesson_package_time_slot_id');
+        return $this->belongsTo(TeamScheduleSlot::class, 'team_schedule_slot_id');
     }
 
     public function userLessonPackageTimeSlot(): BelongsTo

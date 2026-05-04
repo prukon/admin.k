@@ -122,81 +122,6 @@
                 </div>
             </div>
 
-            <hr class="my-4" id="template_hr">
-
-            <div id="time-slots-section">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <h5 class="mb-0">Шаблон расписания (для фиксированного)</h5>
-                    <button type="button" id="add-slot" class="btn btn-outline-primary btn-sm">
-                        Добавить слот
-                    </button>
-                </div>
-
-                @error('time_slots')
-                <div class="text-danger mt-2">{{ $message }}</div>
-                @enderror
-
-                @php
-                    $oldSlots = old('time_slots');
-                    $slots = is_array($oldSlots) && count($oldSlots) ? $oldSlots : [ ['weekday' => 1, 'time_start' => '18:00', 'time_end' => '19:00'] ];
-                @endphp
-
-                <div class="table-responsive mt-3">
-                    <table class="table table-bordered align-middle" id="slots-table">
-                        <thead>
-                        <tr>
-                            <th style="width: 140px;">День</th>
-                            <th style="width: 160px;">Начало</th>
-                            <th style="width: 160px;">Окончание</th>
-                            <th style="width: 80px;"></th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach ($slots as $i => $slot)
-                            <tr>
-                                <td>
-                                    <select name="time_slots[{{ $i }}][weekday]"
-                                            class="form-select @error("time_slots.$i.weekday") is-invalid @enderror">
-                                        @foreach ($weekdays as $k => $label)
-                                            <option value="{{ $k }}" {{ (int)($slot['weekday'] ?? 1) === (int)$k ? 'selected' : '' }}>
-                                                {{ $label }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error("time_slots.$i.weekday")
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </td>
-                                <td>
-                                    <input type="time"
-                                           name="time_slots[{{ $i }}][time_start]"
-                                           value="{{ $slot['time_start'] ?? '' }}"
-                                           class="form-control @error("time_slots.$i.time_start") is-invalid @enderror">
-                                    @error("time_slots.$i.time_start")
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </td>
-                                <td>
-                                    <input type="time"
-                                           name="time_slots[{{ $i }}][time_end]"
-                                           value="{{ $slot['time_end'] ?? '' }}"
-                                           class="form-control @error("time_slots.$i.time_end") is-invalid @enderror">
-                                    @error("time_slots.$i.time_end")
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-outline-danger btn-sm remove-slot">
-                                        ×
-                                    </button>
-                                </td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
             <div class="mt-4 d-flex gap-2">
                 <button type="submit" class="btn btn-primary">
                     Сохранить
@@ -213,26 +138,12 @@
     <script>
         (function () {
             const scheduleTypeEl = document.getElementById('schedule_type');
-            const timeSlotsSection = document.getElementById('time-slots-section');
-            const slotsTableBody = document.querySelector('#slots-table tbody');
-            const addSlotBtn = document.getElementById('add-slot');
-
             const freezeEnabledEl = document.getElementById('freeze_enabled');
             const freezeDaysWrap = document.getElementById('freeze_days_wrap');
             const freezeSection = document.getElementById('freeze_section');
-            const templateHr = document.getElementById('template_hr');
             const durationDaysEl = document.getElementById('duration_days');
             const lessonsCountEl = document.getElementById('lessons_count');
             let snapshotBeforeSingle = null;
-
-            function toggleSlotsSection() {
-                const type = scheduleTypeEl.value;
-                const isFixed = type === 'fixed';
-                timeSlotsSection.style.display = isFixed ? '' : 'none';
-                if (templateHr) {
-                    templateHr.style.display = isFixed ? '' : 'none';
-                }
-            }
 
             function toggleFreezeDays() {
                 freezeDaysWrap.style.display = freezeEnabledEl.checked ? '' : 'none';
@@ -258,13 +169,6 @@
                     }
                     freezeEnabledEl.checked = false;
                     toggleFreezeDays();
-                    if (templateHr) {
-                        templateHr.style.display = 'none';
-                    }
-                    timeSlotsSection.style.display = 'none';
-                    if (slotsTableBody) {
-                        slotsTableBody.innerHTML = '';
-                    }
                 } else {
                     if (snapshotBeforeSingle) {
                         if (durationDaysEl) {
@@ -284,58 +188,12 @@
                     if (freezeSection) {
                         freezeSection.style.display = '';
                     }
-                    toggleSlotsSection();
                     toggleFreezeDays();
-                    if (type === 'fixed' && slotsTableBody && slotsTableBody.querySelectorAll('tr').length === 0) {
-                        slotsTableBody.appendChild(buildSlotRow(0));
-                    }
                 }
-            }
-
-            function nextIndex() {
-                const rows = slotsTableBody.querySelectorAll('tr');
-                return rows.length;
-            }
-
-            function buildSlotRow(i) {
-                const weekdays = @json($weekdays);
-
-                const weekdayOptions = Object.keys(weekdays).map(function (k) {
-                    return '<option value="' + k + '">' + weekdays[k] + '</option>';
-                }).join('');
-
-                const tr = document.createElement('tr');
-                tr.innerHTML =
-                    '<td>' +
-                    '  <select name="time_slots[' + i + '][weekday]" class="form-select">' + weekdayOptions + '</select>' +
-                    '</td>' +
-                    '<td>' +
-                    '  <input type="time" name="time_slots[' + i + '][time_start]" class="form-control" value="18:00">' +
-                    '</td>' +
-                    '<td>' +
-                    '  <input type="time" name="time_slots[' + i + '][time_end]" class="form-control" value="19:00">' +
-                    '</td>' +
-                    '<td class="text-center">' +
-                    '  <button type="button" class="btn btn-outline-danger btn-sm remove-slot">×</button>' +
-                    '</td>';
-                return tr;
-            }
-
-            function onRemoveClick(e) {
-                const btn = e.target.closest('.remove-slot');
-                if (!btn) return;
-                const tr = btn.closest('tr');
-                if (tr) tr.remove();
             }
 
             scheduleTypeEl.addEventListener('change', applyScheduleTypeUi);
             freezeEnabledEl.addEventListener('change', toggleFreezeDays);
-            slotsTableBody.addEventListener('click', onRemoveClick);
-
-            addSlotBtn.addEventListener('click', function () {
-                const i = nextIndex();
-                slotsTableBody.appendChild(buildSlotRow(i));
-            });
 
             if (scheduleTypeEl.value === 'no_schedule') {
                 snapshotBeforeSingle = null;
@@ -350,18 +208,9 @@
                 }
                 freezeEnabledEl.checked = false;
                 toggleFreezeDays();
-                if (templateHr) {
-                    templateHr.style.display = 'none';
-                }
-                timeSlotsSection.style.display = 'none';
-                if (slotsTableBody) {
-                    slotsTableBody.innerHTML = '';
-                }
             } else {
-                toggleSlotsSection();
                 toggleFreezeDays();
             }
         })();
     </script>
 @endsection
-

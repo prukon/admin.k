@@ -27,7 +27,6 @@
                 <th>Занятий</th>
                 <th>Стоимость</th>
                 <th>Заморозка</th>
-                <th>Расписание</th>
                 @can('lessonPackages.view')
                     <th class="text-start" style="min-width: 220px;">Действия</th>
                 @endcan
@@ -58,27 +57,6 @@
                             нет
                         @endif
                     </td>
-                    <td>
-                        @if ($package->schedule_type !== 'fixed')
-                            <span class="text-muted">—</span>
-                        @else
-                            @php
-                                $weekdayMap = [1=>'Пн',2=>'Вт',3=>'Ср',4=>'Чт',5=>'Пт',6=>'Сб',7=>'Вс'];
-                            @endphp
-                            @if ($package->timeSlots->count() === 0)
-                                <span class="text-muted">—</span>
-                            @else
-                                <div class="d-flex flex-column gap-1">
-                                    @foreach ($package->timeSlots as $slot)
-                                        <div>
-                                            <span class="badge bg-secondary">{{ $weekdayMap[$slot->weekday] ?? $slot->weekday }}</span>
-                                            {{ substr((string)$slot->time_start, 0, 5) }}–{{ substr((string)$slot->time_end, 0, 5) }}
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @endif
-                        @endif
-                    </td>
                     @can('lessonPackages.view')
                         <td class="text-start">
                             <div class="d-flex flex-wrap gap-1 justify-content-start">
@@ -105,7 +83,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="@can('lessonPackages.view') 8 @else 7 @endcan" class="text-center text-muted">
+                    <td colspan="@can('lessonPackages.view') 7 @else 6 @endcan" class="text-center text-muted">
                         Абонементов пока нет.
                     </td>
                 </tr>
@@ -177,30 +155,6 @@
                                 <label class="form-label">Дней заморозки</label>
                                 <input type="number" name="create[freeze_days]" class="form-control" min="1" max="3650" value="7">
                                 <div class="invalid-feedback d-none" data-error-for="create[freeze_days]"></div>
-                            </div>
-                        </div>
-
-                        <hr class="my-4" id="create_template_hr">
-
-                        <div id="create-time-slots-section">
-                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                <h6 class="mb-0">Шаблон расписания (для фиксированного)</h6>
-                                <button type="button" id="create-add-slot" class="btn btn-outline-primary btn-sm">Добавить слот</button>
-                            </div>
-                            <div class="text-danger mt-2 d-none" data-error-for="create[time_slots]"></div>
-
-                            <div class="table-responsive mt-3">
-                                <table class="table table-bordered align-middle" id="create-slots-table">
-                                    <thead>
-                                    <tr>
-                                        <th style="width: 140px;">День</th>
-                                        <th style="width: 160px;">Начало</th>
-                                        <th style="width: 160px;">Окончание</th>
-                                        <th style="width: 80px;"></th>
-                                    </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
                             </div>
                         </div>
 
@@ -276,30 +230,6 @@
                             </div>
                         </div>
 
-                        <hr class="my-4" id="edit_template_hr">
-
-                        <div id="edit-time-slots-section">
-                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                <h6 class="mb-0">Шаблон расписания (для фиксированного)</h6>
-                                <button type="button" id="edit-add-slot" class="btn btn-outline-primary btn-sm">Добавить слот</button>
-                            </div>
-                            <div class="text-danger mt-2 d-none" data-error-for="edit[time_slots]"></div>
-
-                            <div class="table-responsive mt-3">
-                                <table class="table table-bordered align-middle" id="edit-slots-table">
-                                    <thead>
-                                    <tr>
-                                        <th style="width: 140px;">День</th>
-                                        <th style="width: 160px;">Начало</th>
-                                        <th style="width: 160px;">Окончание</th>
-                                        <th style="width: 80px;"></th>
-                                    </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                        </div>
-
                         <div class="mt-3 d-flex gap-2">
                             <button type="submit" class="btn btn-primary">Сохранить</button>
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -337,7 +267,6 @@
         @parent
         <script>
             (function () {
-                const weekdays = @json($weekdays);
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
                 function clearErrors(modalEl) {
@@ -358,36 +287,9 @@
                     }
                 }
 
-                function buildSlotRow(prefix, i, slot) {
-                    const weekdayOptions = Object.keys(weekdays).map(function (k) {
-                        const selected = (parseInt(slot.weekday || 1, 10) === parseInt(k, 10)) ? 'selected' : '';
-                        return '<option value="' + k + '" ' + selected + '>' + weekdays[k] + '</option>';
-                    }).join('');
-
-                    const tr = document.createElement('tr');
-                    tr.innerHTML =
-                        '<td>' +
-                        '  <select name="' + prefix + '[time_slots][' + i + '][weekday]" class="form-select">' + weekdayOptions + '</select>' +
-                        '  <div class="invalid-feedback d-none" data-error-for="' + prefix + '[time_slots][' + i + '][weekday]"></div>' +
-                        '</td>' +
-                        '<td>' +
-                        '  <input type="time" name="' + prefix + '[time_slots][' + i + '][time_start]" class="form-control" value="' + (slot.time_start || '18:00') + '">' +
-                        '  <div class="invalid-feedback d-none" data-error-for="' + prefix + '[time_slots][' + i + '][time_start]"></div>' +
-                        '</td>' +
-                        '<td>' +
-                        '  <input type="time" name="' + prefix + '[time_slots][' + i + '][time_end]" class="form-control" value="' + (slot.time_end || '19:00') + '">' +
-                        '  <div class="invalid-feedback d-none" data-error-for="' + prefix + '[time_slots][' + i + '][time_end]"></div>' +
-                        '</td>' +
-                        '<td class="text-center">' +
-                        '  <button type="button" class="btn btn-outline-danger btn-sm remove-slot">×</button>' +
-                        '</td>';
-
-                    return tr;
-                }
-
                 function normalizePayload(formData, prefix) {
                     const scheduleType = (formData.get(prefix + '[schedule_type]') || '').toString();
-                    const payload = {
+                    return {
                         name: (formData.get(prefix + '[name]') || '').toString(),
                         schedule_type: scheduleType,
                         duration_days: (formData.get(prefix + '[duration_days]') || '').toString(),
@@ -395,31 +297,8 @@
                         price: (formData.get(prefix + '[price]') || '').toString(),
                         freeze_enabled: formData.get(prefix + '[freeze_enabled]') ? 1 : 0,
                         freeze_days: (formData.get(prefix + '[freeze_days]') || '').toString(),
+                        time_slots: [],
                     };
-
-                    if (scheduleType !== 'fixed') {
-                        payload.time_slots = [];
-                        return payload;
-                    }
-
-                    const tableId = prefix === 'edit' ? 'edit-slots-table' : 'create-slots-table';
-                    const tbody = document.querySelector('#' + tableId + ' tbody');
-                    const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
-
-                    payload.time_slots = rows.map(function (tr) {
-                        const weekday = tr.querySelector('select[name^="' + prefix + '[time_slots]"]')?.value || '';
-                        const times = tr.querySelectorAll('input[type="time"][name^="' + prefix + '[time_slots]"]');
-                        const timeStart = times[0] ? times[0].value : '';
-                        const timeEnd = times[1] ? times[1].value : '';
-
-                        return {
-                            weekday: weekday,
-                            time_start: timeStart,
-                            time_end: timeEnd,
-                        };
-                    });
-
-                    return payload;
                 }
 
                 async function requestJson(method, url, data) {
@@ -446,16 +325,6 @@
                 function applyValidationErrors(modalEl, errors, prefix) {
                     Object.keys(errors || {}).forEach(function (k) {
                         const msg = (errors[k] && errors[k][0]) ? errors[k][0] : 'Ошибка';
-
-                        if (k.startsWith('time_slots.')) {
-                            const parts = k.split('.');
-                            const i = parts[1];
-                            const field = parts[2];
-                            const inputName = prefix + '[time_slots][' + i + '][' + field + ']';
-                            setFieldError(modalEl, inputName, msg);
-                            return;
-                        }
-
                         const inputName = prefix + '[' + k + ']';
                         setFieldError(modalEl, inputName, msg);
                     });
@@ -463,14 +332,10 @@
 
                 const createModalEl = document.getElementById('lessonPackageCreateModal');
                 const createFormEl = document.getElementById('lessonPackageCreateForm');
-                const createSlotsBody = document.querySelector('#create-slots-table tbody');
-                const createAddSlotBtn = document.getElementById('create-add-slot');
                 const createFreezeEnabled = document.getElementById('create_freeze_enabled');
                 const createFreezeDaysWrap = document.getElementById('create_freeze_days_wrap');
                 const createScheduleType = document.getElementById('create_schedule_type');
-                const createSlotsSection = document.getElementById('create-time-slots-section');
                 const createFreezeSection = document.getElementById('create_freeze_section');
-                const createTemplateHr = document.getElementById('create_template_hr');
                 const createDuration = document.getElementById('create_duration_days');
                 const createLessons = document.getElementById('create_lessons_count');
                 let createSnapshotBeforeSingle = null;
@@ -480,10 +345,6 @@
                         return;
                     }
                     createFreezeDaysWrap.style.display = createFreezeEnabled.checked ? '' : 'none';
-                }
-
-                function createNextIndex() {
-                    return createSlotsBody.querySelectorAll('tr').length;
                 }
 
                 function applyCreateScheduleTypeUi() {
@@ -511,15 +372,6 @@
                             createFreezeEnabled.checked = false;
                         }
                         createToggleFreezeDays();
-                        if (createTemplateHr) {
-                            createTemplateHr.style.display = 'none';
-                        }
-                        if (createSlotsSection) {
-                            createSlotsSection.style.display = 'none';
-                        }
-                        if (createSlotsBody) {
-                            createSlotsBody.innerHTML = '';
-                        }
                     } else {
                         if (createSnapshotBeforeSingle) {
                             if (createDuration) {
@@ -539,29 +391,10 @@
                         if (createFreezeSection) {
                             createFreezeSection.style.display = '';
                         }
-                        if (createTemplateHr) {
-                            createTemplateHr.style.display = (t === 'fixed') ? '' : 'none';
-                        }
-                        if (createSlotsSection) {
-                            createSlotsSection.style.display = (t === 'fixed') ? '' : 'none';
-                        }
                         createToggleFreezeDays();
-                        if (t === 'fixed' && createSlotsBody && createSlotsBody.querySelectorAll('tr').length === 0) {
-                            createSlotsBody.appendChild(buildSlotRow('create', 0, {weekday: 1, time_start: '18:00', time_end: '19:00'}));
-                        }
                     }
                 }
 
-                createAddSlotBtn?.addEventListener('click', function () {
-                    createSlotsBody.appendChild(buildSlotRow('create', createNextIndex(), {weekday: 1, time_start: '18:00', time_end: '19:00'}));
-                });
-                createSlotsBody?.addEventListener('click', function (e) {
-                    const btn = e.target.closest('.remove-slot');
-                    if (!btn) {
-                        return;
-                    }
-                    btn.closest('tr')?.remove();
-                });
                 createFreezeEnabled?.addEventListener('change', createToggleFreezeDays);
                 createScheduleType?.addEventListener('change', applyCreateScheduleTypeUi);
 
@@ -599,23 +432,16 @@
                         createLessons.value = '8';
                         createLessons.readOnly = false;
                     }
-                    if (createSlotsBody) {
-                        createSlotsBody.innerHTML = '';
-                    }
                     applyCreateScheduleTypeUi();
                 });
 
                 // ---------- EDIT MODAL ----------
                 const editModalEl = document.getElementById('lessonPackageEditModal');
                 const editFormEl = document.getElementById('lessonPackageEditForm');
-                const editSlotsBody = document.querySelector('#edit-slots-table tbody');
-                const editAddSlotBtn = document.getElementById('edit-add-slot');
                 const editFreezeEnabled = document.getElementById('edit_freeze_enabled');
                 const editFreezeDaysWrap = document.getElementById('edit_freeze_days_wrap');
                 const editScheduleType = document.getElementById('edit_schedule_type');
-                const editSlotsSection = document.getElementById('edit-time-slots-section');
                 const editFreezeSection = document.getElementById('edit_freeze_section');
-                const editTemplateHr = document.getElementById('edit_template_hr');
                 const editDuration = document.getElementById('edit_duration_days');
                 const editLessons = document.getElementById('edit_lessons_count');
                 const editIdEl = document.getElementById('edit_id');
@@ -653,15 +479,6 @@
                             editFreezeEnabled.checked = false;
                         }
                         editToggleFreezeDays();
-                        if (editTemplateHr) {
-                            editTemplateHr.style.display = 'none';
-                        }
-                        if (editSlotsSection) {
-                            editSlotsSection.style.display = 'none';
-                        }
-                        if (editSlotsBody) {
-                            editSlotsBody.innerHTML = '';
-                        }
                     } else {
                         if (editSnapshotBeforeSingle) {
                             if (editDuration) {
@@ -688,39 +505,10 @@
                         if (editFreezeSection) {
                             editFreezeSection.style.display = '';
                         }
-                        if (editTemplateHr) {
-                            editTemplateHr.style.display = (t === 'fixed') ? '' : 'none';
-                        }
-                        if (editSlotsSection) {
-                            editSlotsSection.style.display = (t === 'fixed') ? '' : 'none';
-                        }
                         editToggleFreezeDays();
-                        if (t === 'fixed' && editSlotsBody && editSlotsBody.querySelectorAll('tr').length === 0) {
-                            editSlotsBody.appendChild(buildSlotRow('edit', 0, {weekday: 1, time_start: '18:00', time_end: '19:00'}));
-                        }
-                    }
-                }
-                function editNextIndex() {
-                    return editSlotsBody.querySelectorAll('tr').length;
-                }
-                function editSetSlots(slots) {
-                    editSlotsBody.innerHTML = '';
-                    (slots || []).forEach(function (s, i) {
-                        editSlotsBody.appendChild(buildSlotRow('edit', i, s));
-                    });
-                    if (editSlotsBody.querySelectorAll('tr').length === 0) {
-                        editSlotsBody.appendChild(buildSlotRow('edit', 0, {weekday: 1, time_start: '18:00', time_end: '19:00'}));
                     }
                 }
 
-                editAddSlotBtn?.addEventListener('click', function () {
-                    editSlotsBody.appendChild(buildSlotRow('edit', editNextIndex(), {weekday: 1, time_start: '18:00', time_end: '19:00'}));
-                });
-                editSlotsBody?.addEventListener('click', function (e) {
-                    const btn = e.target.closest('.remove-slot');
-                    if (!btn) return;
-                    btn.closest('tr')?.remove();
-                });
                 editFreezeEnabled?.addEventListener('change', editToggleFreezeDays);
                 editScheduleType?.addEventListener('change', applyEditScheduleTypeUi);
 
@@ -813,15 +601,6 @@
                                     editFreezeEnabled.checked = false;
                                 }
                                 editToggleFreezeDays();
-                                if (editTemplateHr) {
-                                    editTemplateHr.style.display = 'none';
-                                }
-                                if (editSlotsSection) {
-                                    editSlotsSection.style.display = 'none';
-                                }
-                                if (editSlotsBody) {
-                                    editSlotsBody.innerHTML = '';
-                                }
                             } else {
                                 if (editDuration) {
                                     editDuration.readOnly = false;
@@ -832,14 +611,7 @@
                                 if (editFreezeSection) {
                                     editFreezeSection.style.display = '';
                                 }
-                                if (editTemplateHr) {
-                                    editTemplateHr.style.display = (st === 'fixed') ? '' : 'none';
-                                }
-                                if (editSlotsSection) {
-                                    editSlotsSection.style.display = (st === 'fixed') ? '' : 'none';
-                                }
                                 editToggleFreezeDays();
-                                editSetSlots(lp.time_slots || []);
                             }
                         } catch (err) {
                             // silent

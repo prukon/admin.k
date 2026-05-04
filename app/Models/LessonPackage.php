@@ -28,11 +28,6 @@ class LessonPackage extends Model
         return $this->belongsTo(Partner::class, 'partner_id');
     }
 
-    public function timeSlots(): HasMany
-    {
-        return $this->hasMany(LessonPackageTimeSlot::class, 'lesson_package_id');
-    }
-
     public function userAssignments(): HasMany
     {
         return $this->hasMany(UserLessonPackage::class, 'lesson_package_id');

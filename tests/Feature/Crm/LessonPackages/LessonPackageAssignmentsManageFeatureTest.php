@@ -215,7 +215,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
         UserLessonPackageFreeze::query()->create([
             'user_lesson_package_id' => $ulp->id,
             'date' => '2026-04-07',
-            'lesson_package_time_slot_id' => null,
+            'team_schedule_slot_id' => null,
             'user_lesson_package_time_slot_id' => null,
             'created_by' => $this->user->id,
             'reason' => 'test',

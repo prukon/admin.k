@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Crm\LessonPackages;
 
 use App\Models\LessonPackage;
-use App\Models\LessonPackageTimeSlot;
 use App\Models\Team;
 use App\Models\TeamScheduleSlot;
 use App\Models\User;
@@ -63,6 +62,22 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         ]);
     }
 
+    /**
+     * @return array{patterns: list<array{weekday: int, time_start: string, time_end: string}>}
+     */
+    private function fixedCalendarBindPattern(int $weekday, string $timeStart, string $timeEnd): array
+    {
+        return [
+            'patterns' => [
+                [
+                    'weekday' => $weekday,
+                    'time_start' => $timeStart,
+                    'time_end' => $timeEnd,
+                ],
+            ],
+        ];
+    }
+
     public function test_school_schedule_week_fixed_flexible_and_assign_posts_forbidden_without_lesson_packages_view(): void
     {
         $actor = $this->createUserWithoutPermission('lessonPackages.view', $this->partner);
@@ -92,12 +107,12 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
         ])->assertForbidden();
 
-        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), [
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), array_merge([
             'user_id' => $student->id,
             'user_lesson_package_id' => 999999,
             'team_schedule_slot_id' => 999999,
             'anchor_date' => self::WEEK_ANCHOR_MONDAY,
-        ])->assertForbidden();
+        ], $this->fixedCalendarBindPattern(1, '10:00', '11:00')))->assertForbidden();
 
         $this->postJson(route('admin.lesson-packages.school-schedule.assign-single-lesson'), [
             'user_lesson_package_id' => 999999,
@@ -529,13 +544,6 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'is_active' => 1,
         ]);
 
-        LessonPackageTimeSlot::query()->create([
-            'lesson_package_id' => $package->id,
-            'weekday' => 1,
-            'time_start' => '15:00:00',
-            'time_end' => '16:00:00',
-        ]);
-
         $ulp = UserLessonPackage::query()->create([
             'user_id' => $student->id,
             'lesson_package_id' => $package->id,
@@ -561,12 +569,12 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'is_enabled' => 1,
         ]);
 
-        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), [
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), array_merge([
             'user_id' => $student->id,
             'user_lesson_package_id' => $ulp->id,
             'team_schedule_slot_id' => $slot->id,
             'anchor_date' => self::WEEK_ANCHOR_MONDAY,
-        ])->assertOk()
+        ], $this->fixedCalendarBindPattern(1, '15:00', '16:00')))->assertOk()
             ->assertJsonPath('message', 'Абонемент назначен, занятия привязаны к расписанию школы.');
 
         $ulpId = (int) $ulp->id;
@@ -610,13 +618,6 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'is_active' => 1,
         ]);
 
-        LessonPackageTimeSlot::query()->create([
-            'lesson_package_id' => $package->id,
-            'weekday' => 1,
-            'time_start' => '16:00:00',
-            'time_end' => '17:00:00',
-        ]);
-
         $team = Team::factory()->create(['partner_id' => $this->partner->id]);
         $slot = TeamScheduleSlot::query()->create([
             'partner_id' => $this->partner->id,
@@ -642,12 +643,12 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'created_by' => $this->user->id,
         ]);
 
-        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), [
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), array_merge([
             'user_id' => $this->foreignUser->id,
             'user_lesson_package_id' => $ulp->id,
             'team_schedule_slot_id' => $slot->id,
             'anchor_date' => self::WEEK_ANCHOR_MONDAY,
-        ])->assertStatus(422)
+        ], $this->fixedCalendarBindPattern(1, '16:00', '17:00')))->assertStatus(422)
             ->assertJsonValidationErrors(['user_id']);
     }
 

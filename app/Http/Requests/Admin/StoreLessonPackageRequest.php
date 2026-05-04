@@ -86,33 +86,6 @@ final class StoreLessonPackageRequest extends FormRequest
                 'min:1',
                 'max:3650',
             ],
-
-            // Слоты нужны только для fixed; для flexible/no_schedule допускается пустой массив (не min:1)
-            'time_slots' => array_merge(
-                [
-                    Rule::requiredIf(fn () => $scheduleType === 'fixed'),
-                    'nullable',
-                    'array',
-                ],
-                $scheduleType === 'fixed' ? ['min:1', 'max:21'] : []
-            ),
-            'time_slots.*.weekday' => [
-                'exclude_unless:schedule_type,fixed',
-                'required',
-                'integer',
-                'min:1',
-                'max:7',
-            ],
-            'time_slots.*.time_start' => [
-                'exclude_unless:schedule_type,fixed',
-                'required',
-                'date_format:H:i',
-            ],
-            'time_slots.*.time_end' => [
-                'exclude_unless:schedule_type,fixed',
-                'required',
-                'date_format:H:i',
-            ],
         ];
     }
 
@@ -132,29 +105,6 @@ final class StoreLessonPackageRequest extends FormRequest
                     $v->errors()->add('freeze_enabled', 'Для разового занятия заморозка недоступна.');
                 }
             }
-
-            if ($scheduleType !== 'fixed') {
-                return;
-            }
-
-            $slots = $this->input('time_slots', []);
-            if (!is_array($slots)) {
-                return;
-            }
-
-            foreach ($slots as $i => $slot) {
-                $start = (string) ($slot['time_start'] ?? '');
-                $end = (string) ($slot['time_end'] ?? '');
-
-                if ($start === '' || $end === '') {
-                    continue;
-                }
-
-                // Сравниваем строками HH:MM (лексикографически совпадает с временем)
-                if ($end <= $start) {
-                    $v->errors()->add("time_slots.$i.time_end", 'Время окончания должно быть позже времени начала.');
-                }
-            }
         });
     }
 
@@ -168,10 +118,6 @@ final class StoreLessonPackageRequest extends FormRequest
             'price' => 'стоимость',
             'freeze_enabled' => 'заморозка',
             'freeze_days' => 'кол-во дней заморозки',
-            'time_slots' => 'расписание',
-            'time_slots.*.weekday' => 'день недели',
-            'time_slots.*.time_start' => 'время начала',
-            'time_slots.*.time_end' => 'время окончания',
         ];
     }
 
@@ -203,22 +149,6 @@ final class StoreLessonPackageRequest extends FormRequest
             'freeze_days.integer' => 'Количество дней заморозки должно быть целым числом.',
             'freeze_days.min' => 'Количество дней заморозки должно быть больше нуля.',
             'freeze_days.max' => 'Количество дней заморозки слишком большое.',
-
-            'time_slots.required' => 'Для фиксированного расписания добавьте хотя бы один слот (день и время).',
-            'time_slots.array' => 'Некорректный формат расписания.',
-            'time_slots.min' => 'Добавьте хотя бы один слот расписания.',
-            'time_slots.max' => 'Слишком много слотов расписания.',
-
-            'time_slots.*.weekday.required' => 'Укажите день недели для каждого слота.',
-            'time_slots.*.weekday.integer' => 'День недели должен быть числом.',
-            'time_slots.*.weekday.min' => 'Некорректный день недели.',
-            'time_slots.*.weekday.max' => 'Некорректный день недели.',
-
-            'time_slots.*.time_start.required' => 'Укажите время начала для каждого слота.',
-            'time_slots.*.time_start.date_format' => 'Время начала должно быть в формате ЧЧ:ММ.',
-
-            'time_slots.*.time_end.required' => 'Укажите время окончания для каждого слота.',
-            'time_slots.*.time_end.date_format' => 'Время окончания должно быть в формате ЧЧ:ММ.',
         ];
     }
 }

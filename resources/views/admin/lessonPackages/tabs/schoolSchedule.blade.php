@@ -256,14 +256,47 @@
                             </select>
                             <div class="invalid-feedback d-block" data-err="user_lesson_package_id"></div>
                         </div>
-                        <p class="small text-muted mb-0">
-                            Период действия и цепочка занятий задаются от якорной даты; список содержит только назначения без периода (созданные на странице «Назначение абонементов»).
-                        </p>
+                        <div class="mb-3 border rounded-3 p-3 bg-light">
+                            <div class="fw-semibold mb-2">Шаблон привязки</div>
+                            <div id="schoolCalFixedPatternsHost">
+                                <div class="school-cal-fixed-pattern-row border rounded p-2 mb-2 bg-white" data-pattern-row>
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-12 col-md-4">
+                                            <label class="form-label small mb-1">День недели</label>
+                                            <select name="patterns[0][weekday]" class="form-select form-select-sm js-school-cal-fixed-weekday" required>
+                                                @foreach ($weekdays as $k => $label)
+                                                    <option value="{{ $k }}">{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                            <div class="invalid-feedback d-block small" data-err="patterns.0.weekday"></div>
+                                        </div>
+                                        <div class="col-5 col-md-3">
+                                            <label class="form-label small mb-1">Начало</label>
+                                            <input type="time" name="patterns[0][time_start]" class="form-control form-control-sm js-school-cal-fixed-time-start" required>
+                                            <div class="invalid-feedback d-block small" data-err="patterns.0.time_start"></div>
+                                        </div>
+                                        <div class="col-5 col-md-3">
+                                            <label class="form-label small mb-1">Окончание</label>
+                                            <input type="time" name="patterns[0][time_end]" class="form-control form-control-sm js-school-cal-fixed-time-end" required>
+                                            <div class="invalid-feedback d-block small" data-err="patterns.0.time_end"></div>
+                                        </div>
+                                        <div class="col-2 col-md-2 text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary d-none mt-4" data-pattern-remove title="Удалить слот" aria-label="Удалить слот">×</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2" id="schoolCalFixedAddPattern">+ Добавить слот</button>
+                            <div class="invalid-feedback d-block small" data-err="patterns"></div>
+                            <p class="small text-muted mb-0 mt-2">
+                                Первая строка по умолчанию совпадает со слотом, по которому вы открыли занятие; добавьте строки для остальных дней группы. Период абонемента и цепочка занятий строятся от якорной даты; для каждого выбранного дня и времени в периоде должно быть действующее занятие группы в расписании школы.
+                            </p>
+                        </div>
                     </form>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" class="btn btn-primary" id="schoolCalFixedSubmit">Назначить</button>
+                    <button type="button" class="btn btn-primary" id="schoolCalFixedSubmit">Привязать абонемент</button>
                 </div>
             </div>
         </div>
@@ -1436,6 +1469,60 @@
                 new bootstrap.Modal(document.getElementById('schoolCalFlexModal')).show();
             });
 
+            function schoolCalFixedRenumberPatternRows() {
+                const host = document.getElementById('schoolCalFixedPatternsHost');
+                if (!host) return;
+                const rows = host.querySelectorAll('[data-pattern-row]');
+                rows.forEach(function (row, i) {
+                    row.querySelectorAll('input[name^="patterns["], select[name^="patterns["]').forEach(function (el) {
+                        const nm = el.getAttribute('name');
+                        if (nm) {
+                            el.setAttribute('name', nm.replace(/patterns\[\d+]/, 'patterns[' + i + ']'));
+                        }
+                    });
+                    row.querySelectorAll('[data-err]').forEach(function (el) {
+                        const d = el.getAttribute('data-err');
+                        if (d && d.indexOf('patterns.') === 0 && /^patterns\.\d+\./.test(d)) {
+                            el.setAttribute('data-err', d.replace(/^patterns\.\d+\./, 'patterns.' + i + '.'));
+                        }
+                    });
+                    const rm = row.querySelector('[data-pattern-remove]');
+                    if (rm) {
+                        rm.classList.toggle('d-none', rows.length <= 1);
+                    }
+                });
+            }
+
+            function schoolCalFixedResetPatternRows() {
+                const host = document.getElementById('schoolCalFixedPatternsHost');
+                if (!host) return;
+                while (host.querySelectorAll('[data-pattern-row]').length > 1) {
+                    const rows = host.querySelectorAll('[data-pattern-row]');
+                    rows[rows.length - 1].remove();
+                }
+                schoolCalFixedRenumberPatternRows();
+            }
+
+            document.getElementById('schoolCalFixedAddPattern')?.addEventListener('click', function () {
+                const host = document.getElementById('schoolCalFixedPatternsHost');
+                const first = host?.querySelector('[data-pattern-row]');
+                if (!host || !first) return;
+                const clone = first.cloneNode(true);
+                clone.querySelectorAll('input[type="time"]').forEach(function (inp) { inp.value = ''; });
+                host.appendChild(clone);
+                schoolCalFixedRenumberPatternRows();
+            });
+
+            document.getElementById('schoolCalFixedPatternsHost')?.addEventListener('click', function (e) {
+                const btn = e.target.closest('[data-pattern-remove]');
+                if (!btn || btn.classList.contains('d-none')) return;
+                const row = btn.closest('[data-pattern-row]');
+                const host = document.getElementById('schoolCalFixedPatternsHost');
+                if (!row || !host || host.querySelectorAll('[data-pattern-row]').length <= 1) return;
+                row.remove();
+                schoolCalFixedRenumberPatternRows();
+            });
+
             document.getElementById('schoolCalOpenFixed')?.addEventListener('click', () => {
                 const btn = document.getElementById('schoolCalOpenFixed');
                 if (btn && btn.disabled) {
@@ -1445,6 +1532,22 @@
                 if (!selectedOccurrence) return;
                 document.getElementById('schoolCalFixedSlotId').value = selectedOccurrence.id;
                 document.getElementById('schoolCalFixedAnchor').value = selectedOccurrence.date;
+                schoolCalFixedResetPatternRows();
+                const firstRow = document.querySelector('#schoolCalFixedPatternsHost [data-pattern-row]');
+                if (firstRow) {
+                    const wEl = firstRow.querySelector('.js-school-cal-fixed-weekday');
+                    const tsEl = firstRow.querySelector('.js-school-cal-fixed-time-start');
+                    const teEl = firstRow.querySelector('.js-school-cal-fixed-time-end');
+                    if (wEl && selectedOccurrence.weekday) {
+                        wEl.value = String(selectedOccurrence.weekday);
+                    }
+                    if (tsEl && selectedOccurrence.time_start) {
+                        tsEl.value = String(selectedOccurrence.time_start).slice(0, 5);
+                    }
+                    if (teEl && selectedOccurrence.time_end) {
+                        teEl.value = String(selectedOccurrence.time_end).slice(0, 5);
+                    }
+                }
                 const locPick = document.getElementById('schoolCalLocation');
                 document.getElementById('schoolCalFixedLocation').value = locPick ? (locPick.value || '') : '';
                 const ulpSel = document.getElementById('schoolCalFixedUlp');
@@ -1760,7 +1863,8 @@
                 if (!res.ok) {
                     const err = data.errors || {};
                     Object.keys(err).forEach(k => {
-                        const n = form.querySelector('[data-err="' + k + '"]');
+                        const esc = k.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                        const n = form.querySelector('[data-err="' + esc + '"]');
                         if (n) n.textContent = (err[k] && err[k][0]) ? err[k][0] : '';
                     });
                     if (data.message) showAlert('danger', data.message);

@@ -3,7 +3,8 @@
 namespace Tests\Feature\Crm\LessonPackages;
 
 use App\Models\LessonPackage;
-use App\Models\LessonPackageTimeSlot;
+use App\Models\Team;
+use App\Models\TeamScheduleSlot;
 use App\Models\UserLessonPackage;
 use App\Models\UserLessonPackageFreeze;
 use App\Models\UserLessonPackageTimeSlot;
@@ -92,13 +93,10 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'lessons_count' => 8,
             'price' => '1000.00',
             'freeze_enabled' => 0,
-            'time_slots' => [
-                ['weekday' => 1, 'time_start' => '18:00', 'time_end' => '19:00'],
-            ],
         ])->assertStatus(403);
     }
 
-    public function test_store_fixed_creates_package_and_slots(): void
+    public function test_store_fixed_creates_package_without_template_slots(): void
     {
         $this->grantPermission('lessonPackages.view');
         $this->postJson(route('admin.lesson-packages.store'), [
@@ -109,10 +107,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'price' => '1500.50',
             'freeze_enabled' => 1,
             'freeze_days' => 7,
-            'time_slots' => [
-                ['weekday' => 1, 'time_start' => '18:00', 'time_end' => '19:00'],
-                ['weekday' => 3, 'time_start' => '17:00', 'time_end' => '18:00'],
-            ],
         ])->assertOk()
             ->assertJson(['success' => true]);
 
@@ -125,22 +119,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'price_cents' => 150050,
             'freeze_enabled' => 1,
             'freeze_days' => 7,
-        ]);
-
-        $packageId = (int) LessonPackage::query()->where('name', 'Фикс')->value('id');
-        $this->assertGreaterThan(0, $packageId);
-
-        $this->assertDatabaseHas('lesson_package_time_slots', [
-            'lesson_package_id' => $packageId,
-            'weekday' => 1,
-            'time_start' => '18:00:00',
-            'time_end' => '19:00:00',
-        ]);
-        $this->assertDatabaseHas('lesson_package_time_slots', [
-            'lesson_package_id' => $packageId,
-            'weekday' => 3,
-            'time_start' => '17:00:00',
-            'time_end' => '18:00:00',
         ]);
     }
 
@@ -165,24 +143,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'schedule_type' => 'flexible',
         ]);
-        $this->assertDatabaseMissing('lesson_package_time_slots', [
-            'lesson_package_id' => $packageId,
-        ]);
-    }
-
-    public function test_store_fixed_validation_requires_slots(): void
-    {
-        $this->grantPermission('lessonPackages.view');
-        $this->postJson(route('admin.lesson-packages.store'), [
-            'name' => 'Без слотов',
-            'schedule_type' => 'fixed',
-            'duration_days' => 30,
-            'lessons_count' => 8,
-            'price' => '1000.00',
-            'freeze_enabled' => 0,
-            'time_slots' => [],
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['time_slots']);
     }
 
     public function test_store_freeze_enabled_requires_freeze_days(): void
@@ -199,7 +159,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             ->assertJsonValidationErrors(['freeze_days']);
     }
 
-    public function test_show_returns_json_with_slots(): void
+    public function test_show_returns_json_with_empty_time_slots_for_fixed(): void
     {
         $this->grantPermission('lessonPackages.view');
 
@@ -214,21 +174,13 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'freeze_days' => 0,
             'is_active' => 1,
         ]);
-        LessonPackageTimeSlot::query()->create([
-            'lesson_package_id' => $lp->id,
-            'weekday' => 1,
-            'time_start' => '18:00',
-            'time_end' => '19:00',
-        ]);
 
         $this->getJson(route('admin.lesson-packages.show', ['lessonPackage' => $lp->id]))
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('lesson_package.id', (int) $lp->id)
             ->assertJsonPath('lesson_package.schedule_type', 'fixed')
-            ->assertJsonPath('lesson_package.time_slots.0.weekday', 1)
-            ->assertJsonPath('lesson_package.time_slots.0.time_start', '18:00')
-            ->assertJsonPath('lesson_package.time_slots.0.time_end', '19:00');
+            ->assertJsonPath('lesson_package.time_slots', []);
     }
 
     public function test_update_denied_without_view_permission(): void
@@ -259,7 +211,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         ])->assertStatus(403);
     }
 
-    public function test_update_rebuilds_slots_for_fixed_package(): void
+    public function test_update_fixed_package_without_template_slots(): void
     {
         $this->grantPermission('lessonPackages.view');
         $lp = LessonPackage::query()->create([
@@ -274,19 +226,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'is_active' => 1,
         ]);
 
-        LessonPackageTimeSlot::query()->create([
-            'lesson_package_id' => $lp->id,
-            'weekday' => 1,
-            'time_start' => '18:00',
-            'time_end' => '19:00',
-        ]);
-        LessonPackageTimeSlot::query()->create([
-            'lesson_package_id' => $lp->id,
-            'weekday' => 3,
-            'time_start' => '17:00',
-            'time_end' => '18:00',
-        ]);
-
         $this->putJson(route('admin.lesson-packages.update', ['lessonPackage' => $lp->id]), [
             'name' => 'Пакет (обновлён)',
             'schedule_type' => 'fixed',
@@ -295,9 +234,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'price' => '2500.00',
             'freeze_enabled' => 1,
             'freeze_days' => 14,
-            'time_slots' => [
-                ['weekday' => 5, 'time_start' => '16:30', 'time_end' => '17:30'],
-            ],
         ])->assertOk()
             ->assertJson(['success' => true]);
 
@@ -311,60 +247,6 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'freeze_enabled' => 1,
             'freeze_days' => 14,
         ]);
-
-        $this->assertDatabaseMissing('lesson_package_time_slots', [
-            'lesson_package_id' => $lp->id,
-            'weekday' => 1,
-            'time_start' => '18:00:00',
-            'time_end' => '19:00:00',
-        ]);
-        $this->assertDatabaseMissing('lesson_package_time_slots', [
-            'lesson_package_id' => $lp->id,
-            'weekday' => 3,
-            'time_start' => '17:00:00',
-            'time_end' => '18:00:00',
-        ]);
-        $this->assertDatabaseHas('lesson_package_time_slots', [
-            'lesson_package_id' => $lp->id,
-            'weekday' => 5,
-            'time_start' => '16:30:00',
-            'time_end' => '17:30:00',
-        ]);
-    }
-
-    public function test_store_duplicate_slot_returns_422_with_time_slots_error(): void
-    {
-        $this->grantPermission('lessonPackages.view');
-        $this->postJson(route('admin.lesson-packages.store'), [
-            'name' => 'Дубли',
-            'schedule_type' => 'fixed',
-            'duration_days' => 30,
-            'lessons_count' => 8,
-            'price' => '1000.00',
-            'freeze_enabled' => 0,
-            'time_slots' => [
-                ['weekday' => 1, 'time_start' => '18:00', 'time_end' => '19:00'],
-                ['weekday' => 1, 'time_start' => '18:00', 'time_end' => '19:00'],
-            ],
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['time_slots']);
-    }
-
-    public function test_store_time_end_must_be_after_time_start(): void
-    {
-        $this->grantPermission('lessonPackages.view');
-        $this->postJson(route('admin.lesson-packages.store'), [
-            'name' => 'Время',
-            'schedule_type' => 'fixed',
-            'duration_days' => 30,
-            'lessons_count' => 8,
-            'price' => '1000.00',
-            'freeze_enabled' => 0,
-            'time_slots' => [
-                ['weekday' => 1, 'time_start' => '19:00', 'time_end' => '18:00'],
-            ],
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['time_slots.0.time_end']);
     }
 
     public function test_admin_role_has_access_to_lesson_packages_endpoints_by_default(): void
@@ -624,11 +506,17 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'is_active' => 1,
         ]);
 
-        $slot = LessonPackageTimeSlot::query()->create([
-            'lesson_package_id' => $lp->id,
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $tss = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
             'weekday' => 1,
             'time_start' => '18:00',
             'time_end' => '19:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
         ]);
 
         $ulp = UserLessonPackage::query()->create([
@@ -644,7 +532,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         UserLessonPackageFreeze::query()->create([
             'user_lesson_package_id' => $ulp->id,
             'date' => '2026-04-07',
-            'lesson_package_time_slot_id' => $slot->id,
+            'team_schedule_slot_id' => $tss->id,
             'created_by' => $this->user->id,
             'reason' => 'test',
         ]);
@@ -652,14 +540,14 @@ final class LessonPackagesFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('user_lesson_package_freezes', [
             'user_lesson_package_id' => $ulp->id,
             'date' => '2026-04-07',
-            'lesson_package_time_slot_id' => $slot->id,
+            'team_schedule_slot_id' => $tss->id,
         ]);
 
         $this->expectException(QueryException::class);
         UserLessonPackageFreeze::query()->create([
             'user_lesson_package_id' => $ulp->id,
             'date' => '2026-04-07',
-            'lesson_package_time_slot_id' => $slot->id,
+            'team_schedule_slot_id' => $tss->id,
             'created_by' => $this->user->id,
         ]);
     }
