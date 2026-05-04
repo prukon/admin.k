@@ -34,12 +34,14 @@
                         <div class="invalid-feedback" id="edit-default_duration_minutes-error"></div>
                     </div>
 
+                    @can('schedule.view')
                     <!-- Расписание -->
                     <div class="mb-3">
                         <label for="edit-weekdays" class="form-label">Расписание</label>
                         <div id="edit-weekdays"></div>
                         <p class="text-danger" id="edit-weekdays-error"></p>
                     </div>
+                    @endcan
 
                     <!-- Сортировка -->
                     <div class="mb-3">
@@ -86,6 +88,7 @@
     $(document).ready(function() {
         console.log('Debug: edit-team script (jQuery) initialized');
 
+        const canViewTeamSchedule = @json(auth()->user()->can('schedule.view'));
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
 
         /**
@@ -109,30 +112,32 @@
                     $('#edit-activity').val(response.is_enabled);
 
                     // Расписание: чекбоксы дней недели
-                    let weekdaysHtml = '';
+                    if (canViewTeamSchedule && $('#edit-weekdays').length) {
+                        let weekdaysHtml = '';
 
-                    if (response.weekdays && response.team_weekdays) {
-                        response.weekdays.forEach(function(weekday) {
-                            const isChecked = response.team_weekdays.some(function(teamWeekday) {
-                                return teamWeekday.id === weekday.id;
-                            }) ? 'checked' : '';
+                        if (response.weekdays && response.team_weekdays) {
+                            response.weekdays.forEach(function(weekday) {
+                                const isChecked = response.team_weekdays.some(function(teamWeekday) {
+                                    return teamWeekday.id === weekday.id;
+                                }) ? 'checked' : '';
 
-                            weekdaysHtml += `
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input"
-                                           type="checkbox"
-                                           id="edit-weekday-${weekday.id}"
-                                           name="weekdays[]"
-                                           value="${weekday.id}" ${isChecked}>
-                                    <label class="form-check-label" for="edit-weekday-${weekday.id}">
-                                        ${weekday.title}
-                                    </label>
-                                </div>
-                            `;
-                        });
+                                weekdaysHtml += `
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               id="edit-weekday-${weekday.id}"
+                                               name="weekdays[]"
+                                               value="${weekday.id}" ${isChecked}>
+                                        <label class="form-check-label" for="edit-weekday-${weekday.id}">
+                                            ${weekday.title}
+                                        </label>
+                                    </div>
+                                `;
+                            });
+                        }
+
+                        $('#edit-weekdays').html(weekdaysHtml);
                     }
-
-                    $('#edit-weekdays').html(weekdaysHtml);
 
                     // Открываем модалку
                     $('#editTeamModal').modal('show');

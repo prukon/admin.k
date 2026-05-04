@@ -45,6 +45,7 @@
                         <div id="default_duration_minutes-error" class="invalid-feedback"></div>
                     </div>
 
+                    @can('schedule.view')
                     <div class="mb-3">
                         <div class="form-group">
                             <label for="weekdays">Расписание*</label>
@@ -63,6 +64,7 @@
                             @enderror
                         </div>
                     </div>
+                    @endcan
 
                     <div class="mb-3">
                         <label for="order_by" class="form-label">Сортировка</label>

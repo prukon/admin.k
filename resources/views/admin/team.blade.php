@@ -85,6 +85,7 @@
                                     </label>
                                 </div>
 
+                                @can('schedule.view')
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
                                            type="checkbox"
@@ -95,6 +96,7 @@
                                         Расписание
                                     </label>
                                 </div>
+                                @endcan
 
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
@@ -142,7 +144,9 @@
                     <th>#</th>
                     <th>Сортировка</th>
                     <th>Название</th>
+                    @can('schedule.view')
                     <th>Расписание</th>
+                    @endcan
                     <th>Статус</th>
                     <th>Действия</th>
                 </tr>
@@ -203,24 +207,33 @@
     <script>
         $(document).ready(function () {
 
+            const canViewSchedule = @json(auth()->user()->can('schedule.view'));
+
             const defaultColumnsVisibility = {
                 order_by: true,
                 title: true,
-                weekdays_label: true,
+                ...(canViewSchedule ? { weekdays_label: true } : {}),
                 status_label: true,
                 actions: true
             };
 
             let currentColumnsConfig = {...defaultColumnsVisibility};
 
-            // 0 – нумерация, не настраивается
-            const columnsMap = {
-                order_by: 1,
-                title: 2,
-                weekdays_label: 3,
-                status_label: 4,
-                actions: 5
-            };
+            // Индексы колонок DataTables (нумерация # не настраивается)
+            const columnsMap = canViewSchedule
+                ? {
+                    order_by: 1,
+                    title: 2,
+                    weekdays_label: 3,
+                    status_label: 4,
+                    actions: 5
+                }
+                : {
+                    order_by: 1,
+                    title: 2,
+                    status_label: 3,
+                    actions: 4
+                };
 
             const csrfToken = $('meta[name="csrf-token"]').attr('content');
 
@@ -279,6 +292,84 @@
                 });
             }
 
+            const scheduleColumn = {
+                data: 'weekdays_label',
+                name: 'weekdays_label',
+                orderable: false,
+                searchable: false,
+                render: function (data, type, row) {
+                    if (!data) {
+                        return '<span class="text-muted">—</span>';
+                    }
+                    return '<span title="' + data + '">' + data + '</span>';
+                }
+            };
+
+            const dataTableColumns = [
+                // 0) Нумерация строк
+                {
+                    data: null,
+                    name: 'rownum',
+                    orderable: false,
+                    searchable: false,
+                    className: 'text-center',
+                    render: function (data, type, row, meta) {
+                        return meta.row + meta.settings._iDisplayStart + 1;
+                    }
+                },
+                // 1) Сортировка (order_by)
+                {
+                    data: 'order_by',
+                    name: 'order_by',
+                    className: 'text-center',
+                    defaultContent: '',
+                    render: function (data, type, row) {
+                        return data !== null && data !== undefined && data !== '' ? data : '';
+                    }
+                },
+                // 2) Название группы
+                {
+                    data: 'title',
+                    name: 'title',
+                    render: function (data, type, row) {
+                        return '<a href="javascript:void(0);" ' +
+                            'class="edit-team-link" ' +
+                            'data-id="' + row.id + '" ' +
+                            'data-bs-toggle="modal" ' +
+                            'data-bs-target="#editTeamModal">' +
+                            data +
+                            '</a>';
+                    }
+                },
+                ...(canViewSchedule ? [scheduleColumn] : []),
+                // Статус
+                {
+                    data: 'status_label',
+                    name: 'status_label',
+                    render: function (data, type, row) {
+                        const badgeClass = row.is_enabled ? 'bg-success' : 'bg-secondary';
+                        return '<span class="badge ' + badgeClass + '">' + data + '</span>';
+                    }
+                },
+                // Действия
+                {
+                    data: null,
+                    name: 'actions',
+                    orderable: false,
+                    searchable: false,
+                    className: 'text-end',
+                    render: function (data, type, row) {
+                        return '<button type="button" ' +
+                            'class="btn btn-sm btn-outline-primary edit-team-link" ' +
+                            'data-id="' + row.id + '" ' +
+                            'data-bs-toggle="modal" ' +
+                            'data-bs-target="#editTeamModal">' +
+                            'Редактировать' +
+                            '</button>';
+                    }
+                }
+            ];
+
             // --- Инициализация DataTables ---
             const table = $('#teams-table').DataTable({
                 processing: true,
@@ -294,83 +385,7 @@
                     }
                 },
 
-                columns: [
-                    // 0) Нумерация строк
-                    {
-                        data: null,
-                        name: 'rownum',
-                        orderable: false,
-                        searchable: false,
-                        className: 'text-center',
-                        render: function (data, type, row, meta) {
-                            return meta.row + meta.settings._iDisplayStart + 1;
-                        }
-                    },
-                    // 1) Сортировка (order_by)
-                    {
-                        data: 'order_by',
-                        name: 'order_by',
-                        className: 'text-center',
-                        defaultContent: '',
-                        render: function (data, type, row) {
-                            return data !== null && data !== undefined && data !== '' ? data : '';
-                        }
-                    },
-                    // 2) Название группы
-                    {
-                        data: 'title',
-                        name: 'title',
-                        render: function (data, type, row) {
-                            return '<a href="javascript:void(0);" ' +
-                                'class="edit-team-link" ' +
-                                'data-id="' + row.id + '" ' +
-                                'data-bs-toggle="modal" ' +
-                                'data-bs-target="#editTeamModal">' +
-                                data +
-                                '</a>';
-                        }
-                    },
-                    // 3) Расписание (список дней недели)
-                    {
-                        data: 'weekdays_label',
-                        name: 'weekdays_label',
-                        orderable: false,
-                        searchable: false,
-                        render: function (data, type, row) {
-                            if (!data) {
-                                return '<span class="text-muted">—</span>';
-                            }
-                            // Можно добавить title для ховера, если вдруг будут сокращения
-                            return '<span title="' + data + '">' + data + '</span>';
-                        }
-                    },
-                    // 4) Статус
-                    {
-                        data: 'status_label',
-                        name: 'status_label',
-                        render: function (data, type, row) {
-                            const badgeClass = row.is_enabled ? 'bg-success' : 'bg-secondary';
-                            return '<span class="badge ' + badgeClass + '">' + data + '</span>';
-                        }
-                    },
-                    // 5) Действия
-                    {
-                        data: null,
-                        name: 'actions',
-                        orderable: false,
-                        searchable: false,
-                        className: 'text-end',
-                        render: function (data, type, row) {
-                            return '<button type="button" ' +
-                                'class="btn btn-sm btn-outline-primary edit-team-link" ' +
-                                'data-id="' + row.id + '" ' +
-                                'data-bs-toggle="modal" ' +
-                                'data-bs-target="#editTeamModal">' +
-                                'Редактировать' +
-                                '</button>';
-                        }
-                    }
-                ],
+                columns: dataTableColumns,
 
                 // по умолчанию сортируем по полю order_by
                 order: [[1, 'asc']],

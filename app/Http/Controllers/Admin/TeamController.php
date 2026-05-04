@@ -92,39 +92,38 @@ class TeamController extends AdminBaseController
         // количество c фильтрами
         $recordsFiltered = (clone $baseQuery)->count();
 
-        // сортировка по индексам колонок DataTables
-        // 0 – #
-        // 1 – order_by
-        // 2 – title
-        // 3 – weekdays_label (НЕ сортируем, orderable: false)
-        // 4 – status_label
-        // 5 – actions
+        // Сортировка по имени колонки DataTables (устойчиво при скрытых колонках)
         $orderColumnIndex = $request->input('order.0.column');
         $orderDir         = $request->input('order.0.dir', 'asc');
+        $columnsDef       = $request->input('columns', []);
+        $orderColumnName    = null;
+        if ($orderColumnIndex !== null && isset($columnsDef[(int) $orderColumnIndex]['name'])) {
+            $orderColumnName = $columnsDef[(int) $orderColumnIndex]['name'];
+        }
 
-        if ($orderColumnIndex !== null) {
-            switch ((int) $orderColumnIndex) {
-                case 0: // #
+        if ($orderColumnName !== null && $orderColumnName !== '') {
+            switch ($orderColumnName) {
+                case 'rownum':
                     $baseQuery->orderBy('teams.order_by', 'asc')
                         ->orderBy('teams.title', 'asc');
                     break;
 
-                case 1: // order_by
+                case 'order_by':
                     $baseQuery->orderBy('teams.order_by', $orderDir)
                         ->orderBy('teams.title', 'asc');
                     break;
 
-                case 2: // title
+                case 'title':
                     $baseQuery->orderBy('teams.title', $orderDir);
                     break;
 
-                case 4: // status_label (is_enabled)
+                case 'status_label':
                     $baseQuery->orderBy('teams.is_enabled', $orderDir)
                         ->orderBy('teams.title', 'asc');
                     break;
 
-                case 3: // weekdays_label — игнорируем, оставляем дефолт
-                case 5: // actions
+                case 'weekdays_label':
+                case 'actions':
                 default:
                     $baseQuery->orderBy('teams.order_by', 'asc')
                         ->orderBy('teams.title', 'asc');
@@ -228,6 +227,11 @@ class TeamController extends AdminBaseController
 
         $authorId = auth()->id();
         $data     = $request->validated();
+        $canEditSchedule = $request->user()->can('schedule.view');
+
+        if (! $canEditSchedule) {
+            unset($data['weekdays']);
+        }
 
         // Попытка загрузить команду по ID и партнёру
         $team = Team::with('weekdays')
@@ -240,7 +244,7 @@ class TeamController extends AdminBaseController
             return response()->json(['error' => 'Команда не найдена или принадлежит другому партнёру'], 404);
         }
 
-        DB::transaction(function () use ($data, $authorId, $team) {
+        DB::transaction(function () use ($data, $authorId, $team, $canEditSchedule) {
             // Создаём копию данных с подгруженными днями недели
             $oldData = $team->replicate();
             $oldData->setRelation('weekdays', $team->weekdays); // Подгружаем связанные данные в копию
@@ -258,10 +262,6 @@ class TeamController extends AdminBaseController
 
             // ✅ Преобразование старых и новых дней недели в сокращения (оставил как было)
             $oldWeekdaysFormatted = $oldData->weekdays->pluck('id')->map(function ($day) use ($weekdaysMap) {
-                return $weekdaysMap[$day] ?? $day;
-            })->toArray();
-
-            $newWeekdaysFormatted = collect($data['weekdays'] ?? [])->map(function ($day) use ($weekdaysMap) {
                 return $weekdaysMap[$day] ?? $day;
             })->toArray();
 
@@ -289,11 +289,17 @@ class TeamController extends AdminBaseController
                 }
             }
 
-            // Дни недели
-            $oldSet = collect($oldWeekdaysFormatted)->values()->sort()->implode(', ');
-            $newSet = collect($newWeekdaysFormatted)->values()->sort()->implode(', ');
-            if ($oldSet !== $newSet) {
-                $changes[] = "Дни недели: " . ($oldSet !== '' ? $oldSet : 'не указаны') . " → " . ($newSet !== '' ? $newSet : 'не указаны');
+            // Дни недели (только если пользователь может менять расписание)
+            if ($canEditSchedule) {
+                $newWeekdaysFormatted = collect($data['weekdays'] ?? [])->map(function ($day) use ($weekdaysMap) {
+                    return $weekdaysMap[$day] ?? $day;
+                })->toArray();
+
+                $oldSet = collect($oldWeekdaysFormatted)->values()->sort()->implode(', ');
+                $newSet = collect($newWeekdaysFormatted)->values()->sort()->implode(', ');
+                if ($oldSet !== $newSet) {
+                    $changes[] = "Дни недели: " . ($oldSet !== '' ? $oldSet : 'не указаны') . " → " . ($newSet !== '' ? $newSet : 'не указаны');
+                }
             }
 
             // ✅ Сортировка

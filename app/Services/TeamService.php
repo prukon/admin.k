@@ -48,12 +48,15 @@ class TeamService
 
     public function update($team, $data)
     {
+        $weekdaysProvided = array_key_exists('weekdays', $data);
         $weekdays = $data['weekdays'] ?? [];
         unset($data['weekdays']);
 
         // Обновляем данные команды, проверяем, что команда действительно сохранена
         if ($team->update($data) && $team->exists && $team->id) {
-            $team->weekdays()->sync($weekdays);
+            if ($weekdaysProvided) {
+                $team->weekdays()->sync($weekdays);
+            }
         } else {
             throw new \Exception("Ошибка: команда не обновлена или team_id не существует.");
         }
