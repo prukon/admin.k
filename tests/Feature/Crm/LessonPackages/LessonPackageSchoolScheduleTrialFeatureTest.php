@@ -458,11 +458,17 @@ final class LessonPackageSchoolScheduleTrialFeatureTest extends CrmTestCase
         $this->assertStringContainsString('Отменено пробное занятие', (string) $log->description);
         $this->assertStringContainsString(self::WEEK_MONDAY, (string) $log->target_label);
 
+        $student->refresh();
+        $this->assertFalse($student->has_used_school_schedule_trial);
+
         $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
             'user_id' => $student->id,
             'team_schedule_slot_id' => $slot->id,
             'occurrence_date' => self::WEEK_MONDAY,
-        ])->assertStatus(422);
+        ])->assertOk();
+
+        $student->refresh();
+        $this->assertTrue($student->has_used_school_schedule_trial);
     }
 
     public function test_trial_store_second_registration_other_slot_same_user_returns_422(): void

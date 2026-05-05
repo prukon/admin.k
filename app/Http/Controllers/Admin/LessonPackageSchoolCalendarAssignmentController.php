@@ -566,7 +566,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
     }
 
     /**
-     * Пробное занятие: одна запись на ученика (флаг has_used_school_schedule_trial), баланс 1/1, списание по статусу с consumes_lesson.
+     * Пробное занятие: одна активная запись на ученика; флаг has_used_school_schedule_trial при создании и сброс при отмене, если других пробных строк нет.
      */
     public function storeTrialRegistration(AssignSchoolCalendarTrialRequest $request): JsonResponse
     {
@@ -766,6 +766,18 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     ->delete();
 
                 $userTeamScheduleSlot->delete();
+
+                $lockedUser = User::query()->whereKey($userId)->lockForUpdate()->first();
+                if ($lockedUser !== null) {
+                    $stillHasTrialSlot = UserTeamScheduleSlot::query()
+                        ->where('user_id', $userId)
+                        ->where('is_trial_lesson', true)
+                        ->whereNull('user_lesson_package_id')
+                        ->exists();
+                    if (! $stillHasTrialSlot) {
+                        $lockedUser->forceFill(['has_used_school_schedule_trial' => false])->save();
+                    }
+                }
 
                 $slotPart = $teamTitle !== '' ? ('; группа: '.$teamTitle) : '';
                 $whenPart = $occurrenceDate !== '' ? ('; дата: '.$occurrenceDate) : '';

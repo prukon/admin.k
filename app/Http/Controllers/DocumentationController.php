@@ -24,8 +24,8 @@ class DocumentationController extends Controller
             ['slug' => 'tbank-refunds-payout-cancel', 'title' => 'T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты (tinkoff_payments → tinkoff_payouts)'],
             ['slug' => 'queues-monitoring', 'title' => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker'],
             ['slug' => 'tests-standards', 'title' => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)'],
-            ['slug' => 'lesson-packages', 'title' => 'Абонементы: период назначения (starts_at/ends_at) и привязка к календарю школы'],
-            ['slug' => 'school-schedule-calendar', 'title' => 'Расписание школы: календарь, модалка слота, locations.view, JSON недели'],
+            ['slug' => 'lesson-packages', 'title' => 'Абонементы: период, привязка к календарю, лимит строк, lessons_remaining и статусы'],
+            ['slug' => 'school-schedule-calendar', 'title' => 'Расписание школы: календарь, статусы (consumes_lesson), пробное, JSON/API'],
             ['slug' => 'admin-teams', 'title' => 'Группы (админка): /admin/teams, groups.view и schedule.view (колонка «Расписание», дни в модалках)'],
             ['slug' => 'admin-users', 'title' => 'Пользователи (админка): /admin/users, создание с доп. полями, POST /admin/users'],
         ];

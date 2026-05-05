@@ -217,6 +217,11 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
         ]))->assertOk()
             ->assertJsonStructure(['results']);
 
+        $this->getJson(route('admin.lesson-packages.assignments.users-search', [
+            'q' => '',
+        ]))->assertOk()
+            ->assertJsonStructure(['results']);
+
         $this->getJson(route('admin.lesson-packages.school-schedule.trial-registration-eligibility', [
             'user_id' => 0,
             'team_schedule_slot_id' => 0,
@@ -396,6 +401,10 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
         ]))->assertForbidden();
 
         $this->getJson(route('admin.lesson-packages.school-schedule.single-lesson-users-search', [
+            'q' => '',
+        ]))->assertForbidden();
+
+        $this->getJson(route('admin.lesson-packages.assignments.users-search', [
             'q' => '',
         ]))->assertForbidden();
 

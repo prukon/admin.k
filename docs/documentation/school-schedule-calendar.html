@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Расписание школы: календарь и модалка слота</title>
+  <title>Расписание школы: календарь, статусы, пробное, API</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
     .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
@@ -67,9 +67,50 @@
     </tbody>
   </table>
 
-  <h2>Пробные занятия: добавление и отмена</h2>
-  <p>Пробное занятие — это запись ученика на конкретный слот и дату <strong>без абонемента</strong> и без списаний. На уровне БД это строка в
-    <code>user_team_schedule_slots</code> с признаками <code>is_trial_lesson = true</code> и <code>user_lesson_package_id = NULL</code>.</p>
+  <h2>Привязка абонементов и лимит строк календаря</h2>
+  <p>При успешной привязке гибкого, фиксированного или разового абонемента к слотам создаются строки <code>user_team_schedule_slots</code> с заполненным <code>user_lesson_package_id</code>. Поле <code>user_lesson_packages.lessons_remaining</code> при этом <strong>не изменяется</strong> — оно корректируется только при смене статуса занятия (см. ниже). Ограничение по объёму абонемента выражено в том, что число таких строк по назначению не может превысить <code>lessons_total</code>. Детали периода <code>starts_at</code>/<code>ends_at</code> и логики фиксированной цепочки — в <a href="./lesson-packages.html">разделе «Абонементы»</a>.</p>
+
+  <h2>Статусы занятия и списание остатков</h2>
+  <p>Для каждой записи ученика на слот и дату (абонемент или пробное) в календаре школы можно сохранять статус из справочника партнёра <code>lesson_occurrence_statuses</code>. У статуса есть флаг <code>consumes_lesson</code> (например, «Посетил» и «Не посетил» — списывают, «Запись», «Отмена», «Заморозка» — нет; точный набор создаётся сидером и может быть расширен в админке с учётом этого флага).</p>
+  <ul>
+    <li><strong>Абонемент:</strong> дельта к <code>user_lesson_packages.lessons_remaining</code> считается по переходу «предыдущий статус списывал / новый списывает» (<code>UserLessonPackageConsumptionAdjuster</code>). Повторное сохранение того же типа списания не меняет остаток дважды.</li>
+    <li><strong>Пробное:</strong> для строки с <code>is_trial_lesson</code> корректируются <code>trial_lessons_remaining</code> / <code>trial_lessons_total</code> (<code>SchoolScheduleTrialLessonConsumptionAdjuster</code>).</li>
+  </ul>
+  <p><strong>POST</strong> сохранения: <code>/admin/lesson-packages/school-schedule/occurrence-status</code> (имя маршрута <code>admin.lesson-packages.school-schedule.occurrence-status.store</code>). В ответе при успехе могут быть объекты <code>user_lesson_package</code> { id, lessons_remaining, lessons_total } или <code>trial_registration</code> { user_team_schedule_slot_id, lessons_remaining, lessons_total } — их использует фронт для обновления счётчиков в модалке.</p>
+  <p><strong>GET</strong> истории по паре слот + дата + ученик (+ опционально <code>user_lesson_package_id</code> для различения записей): <code>/admin/lesson-packages/school-schedule/occurrence-status/history</code>.</p>
+
+  <h2>JSON недели: регистрации в ячейке</h2>
+  <p>Каждый элемент <code>occurrences[]</code> содержит массив <code>registrations[]</code>. Для строк из БД формируются поля (среди прочего):</p>
+  <ul>
+    <li><code>registration_kind</code> — <code>trial</code> или <code>package</code>;</li>
+    <li><code>lessons_remaining</code>, <code>lessons_total</code> — для абонемента берутся из связанного <code>user_lesson_packages</code>, для пробного — из <code>trial_lessons_*</code> строки календаря;</li>
+    <li><code>line</code>, <code>user_label</code>, <code>current_status</code>, <code>occurrence_status_history_count</code> — для отображения в модалке «Записаны на занятие».</li>
+  </ul>
+  <p>Сервис форматирования: <code>TeamScheduleCalendarService::formatSlotRegistrationLine</code>.</p>
+
+  <h2>Основные JSON/API календаря (при <code>lessonPackages.view</code>)</h2>
+  <table>
+    <thead>
+      <tr><th>Назначение</th><th>Метод и путь</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Неделя сетки</td><td><code>GET …/school-schedule/week</code></td></tr>
+      <tr><td>Настройки отображения времени</td><td><code>GET/POST …/school-schedule/view-settings</code></td></tr>
+      <tr><td>Флаги доступности типов привязки</td><td><code>GET …/school-schedule/assignment-availability</code></td></tr>
+      <tr><td>Списки назначений для модалок</td><td><code>GET …/school-schedule/fixed-packages</code>, <code>flexible-assignments</code>, <code>fixed-assignments</code>, <code>single-lesson-assignments</code></td></tr>
+      <tr><td>Поиск учеников</td><td><code>GET …/school-schedule/flexible-users-search</code>, <code>single-lesson-users-search</code>, <code>…/lesson-packages/assignments/users-search</code></td></tr>
+      <tr><td>Привязка</td><td><code>POST …/assign-flexible</code>, <code>assign-fixed</code>, <code>assign-single-lesson</code></td></tr>
+      <tr><td>Пробное: доступность / создание / отмена</td><td><code>GET …/trial-registration-eligibility</code>, <code>POST …/trial-registration</code>, <code>DELETE …/trial-registration/{id}</code></td></tr>
+      <tr><td>Разрешённые действия по ячейке</td><td><code>GET …/slot-user-bind-actions</code> (<code>SchoolCalendarSlotUserBindActionsService</code>)</td></tr>
+      <tr><td>Статус занятия</td><td><code>POST …/occurrence-status</code>, <code>GET …/occurrence-status/history</code></td></tr>
+    </tbody>
+  </table>
+  <p>Все перечисленные маршруты защищены правом <code>lessonPackages.view</code>. Управление самими слотами расписания групп (создание/пропуск даты и т.д.) — отдельные права <code>scheduleSlots.*</code>, см. код и тесты календаря.</p>
+
+  <h2>Пробные занятия: добавление, баланс и ограничения</h2>
+  <p>Пробное — запись без абонемента: <code>user_team_schedule_slots</code> с <code>is_trial_lesson = true</code>, <code>user_lesson_package_id = NULL</code>. При создании через API задаются <code>trial_lessons_remaining = 1</code>, <code>trial_lessons_total = 1</code>. Списание единицы пробного «урока» происходит при выборе статуса с <code>consumes_lesson = true</code> (аналогично абонементу, но поля другие).</p>
+  <p>У пользователя в таблице <code>users</code> хранится флаг <code>has_used_school_schedule_trial</code>: после успешного создания пробной записи он выставляется в <code>true</code>. При <strong>отмене</strong> пробной строки (<code>DELETE …/trial-registration/{id}</code>), если у ученика не осталось других строк <code>user_team_schedule_slots</code> с <code>is_trial_lesson</code> и <code>user_lesson_package_id IS NULL</code>, флаг сбрасывается в <code>false</code>, и пробное можно оформить снова. Пока существует активная пробная строка у ученика, вторую создать нельзя; те же условия проверяются в <code>SchoolCalendarTrialEligibilityService</code> и при создании (блокировка строки в транзакции). Ячейка слота/даты не должна быть занята абонементом или посторонней записью.</p>
+  <p><strong>GET</strong> <code>…/trial-registration-eligibility</code> — заранее проверяет возможность добавления (ответ <code>allowed</code>, <code>reason</code>).</p>
 
   <h2>UI: «(Отменить)» в списке записей</h2>
   <p>В модалке слота в блоке <strong>«Записаны на занятие»</strong> для пробной записи рядом с подписью «Пробное занятие» выводится ссылка <code>(Отменить)</code>.
@@ -91,13 +132,15 @@
   </ul>
 
   <h2>Связь с логикой абонементов</h2>
-  <p>Привязка абонементов к слотам, период <code>starts_at</code>/<code>ends_at</code> и списание остатков описаны в отдельном разделе
-    <a href="./lesson-packages.html">«Абонементы: назначение и период с календаря школы»</a> — настоящая страница не меняет серверные правила, только отображение и права на показ локации.</p>
+  <p>Период назначения <code>starts_at</code>/<code>ends_at</code>, лимит строк календаря по <code>lessons_total</code> и отсутствие списания <code>lessons_remaining</code> при самой привязке описаны в
+    <a href="./lesson-packages.html">«Абонементы: назначение и период с календаря школы»</a>. Текущая страница дополняет это правилами статусов, пробного баланса и полей JSON недели; разметка модалки и право <code>locations.view</code> — только отображение.</p>
 
   <h2>Тесты</h2>
-  <p>Разметка модалки и фильтра локации, наличие <code>team_title</code> в JSON недели, а также ответы <code>200</code>/<code>403</code> для страницы и read-API при разных правах покрываются feature-тестами в
-    <code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>.
-    Сквозные сценарии календаря (назначения, пробные, статусы) — в соседних тестах того же каталога; общие требования к тестам см. <a href="./tests-standards.html">tests-standards</a>.</p>
+  <p>Разметка модалки и фильтра локации, <code>team_title</code> в JSON недели, ответы <code>200</code>/<code>403</code> — <code>LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleAccessAndMutationsFeatureTest.php</code>.
+    Доступ к поверхности календаря и основным эндпоинтам — <code>tests/Feature/Crm/Schedule/SchoolScheduleCalendarAccessFeatureTest.php</code>.
+    Интеграция привязок и пробных — <code>LessonPackageSchoolScheduleIntegrationFeatureTest.php</code>; фиксированные шаблоны — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
+    статусы и баланс в JSON — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>; пробные сценарии — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>.
+    Общие требования к тестам — <a href="./tests-standards.html">tests-standards</a>.</p>
 </div>
 </body>
 </html>
