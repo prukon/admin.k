@@ -74,6 +74,8 @@ class AdminUsersAccessFeatureTest extends CrmTestCase
             'name'       => 'Доступ',
             'lastname'   => 'Проверка',
             'email'      => $email,
+            // телефон: новый функционал (в UI вводится с маской)
+            'phone'      => '+7 (999) 111-22-33',
             'role_id'    => $role->id,
             'team_id'    => $team->id,
             'birthday'   => '2015-01-01',
@@ -85,6 +87,9 @@ class AdminUsersAccessFeatureTest extends CrmTestCase
         $storeResp->assertOk();
         $newId = $storeResp->json('user.id');
         $this->assertNotNull($newId);
+
+        $created = User::findOrFail($newId);
+        $this->assertSame('+79991112233', $created->phone);
 
         $editResponse = $this->getJson('/admin/users/' . $newId . '/edit', [
             'X-Requested-With' => 'XMLHttpRequest',

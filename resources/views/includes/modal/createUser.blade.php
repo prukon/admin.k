@@ -10,58 +10,108 @@
                 <form id="create-user-form" class="text-start" method="post" action="{{ route('admin.user.store') }}">
                 @csrf
                 <!-- Поля для ввода данных пользователя -->
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Имя ученика*</label>
-                        <input type="text" name="name" class="form-control" id="name">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="lastname" class="form-label">Фамилия ученика*</label>
-                        <input type="text" name="lastname" class="form-control" id="lastname"
-                               value="{{ old('lastname') }}">
-                    </div>
-
-
-                    <div class="mb-3">
-                        <label for="birthday" class="form-label">Дата рождения</label>
-                        <input type="date" name="birthday" class="form-control" id="birthday">
-                    </div>
-                    <div class="mb-3">
-                        <label for="team" class="form-label">Группа</label>
-                        <select name="team_id" id="team" class="form-select">
-                            <option value="" selected>Без группы</option>
-                            @foreach($allTeams as $team)
-                                <option value="{{ $team->id }}">{{ $team->title }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" name="email" class="form-control" id="email">
-                    </div>
-                    <div class="mb-3 wrap-cur-password">
-                        <label for="password" class="form-label">Пароль</label>
-                        <div class="position-relative">
-                            <input type="password" id="password" name="password" class="form-control"
-                                   placeholder="Пароль">
-                            <span toggle="#password" class="fa fa-fw fa-eye field-icon toggle-password"></span>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="create-name" class="form-label">Имя ученика*</label>
+                                <input type="text" name="name" class="form-control" id="create-name">
+                            </div>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="is_enabled" class="form-label">Активность</label>
-                        <select name="is_enabled" class="form-select" id="is_enabled">
-                            <option value="1">Да</option>
-                            <option value="0">Нет</option>
-                        </select>
-                    </div>
-                    <!-- Поле "Роль" -->
-                    <div class="mb-3">
-                        <label for="role_id" class="form-label">Роль</label>
-                        <select name="role_id" class="form-select" id="create_role_id">
-                            @foreach($roles as $role)
-                                <option value="{{ $role->id }}">{{ $role->label }}</option>
-                            @endforeach
-                        </select>
+
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="create-lastname" class="form-label">Фамилия ученика*</label>
+                                <input type="text"
+                                       name="lastname"
+                                       class="form-control"
+                                       id="create-lastname"
+                                       value="{{ old('lastname') }}">
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="create-birthday" class="form-label">Дата рождения</label>
+                                <input type="date" name="birthday" class="form-control" id="create-birthday">
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="create-team" class="form-label">Группа</label>
+                                <select name="team_id" id="create-team" class="form-select">
+                                    <option value="" selected>Без группы</option>
+                                    @foreach($allTeams as $team)
+                                        <option value="{{ $team->id }}">{{ $team->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="create-email" class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control" id="create-email">
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            @php $canPhone = auth()->user()->can('users.phone.update'); @endphp
+                            <div class="mb-3">
+                                <label for="create-phone" class="form-label">Телефон</label>
+
+                                <input
+                                    type="tel"
+                                    class="form-control"
+                                    id="create-phone"
+                                    name="phone"
+                                    placeholder="+7 (XXX) XXX-XX-XX"
+                                    data-can-phone="{{ $canPhone ? 1 : 0 }}"
+                                    @unless($canPhone) disabled aria-disabled="true" @endunless
+                                >
+
+                                @unless($canPhone)
+                                    <div class="form-text text-muted mt-1">
+                                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение телефона
+                                    </div>
+                                @endunless
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3 wrap-cur-password">
+                                <label for="create-password" class="form-label">Пароль</label>
+                                <div class="position-relative">
+                                    <input type="password"
+                                           id="create-password"
+                                           name="password"
+                                           class="form-control"
+                                           placeholder="Пароль">
+                                    <span toggle="#create-password" class="fa fa-fw fa-eye field-icon toggle-password"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="create-is_enabled" class="form-label">Активность</label>
+                                <select name="is_enabled" class="form-select" id="create-is_enabled">
+                                    <option value="1">Да</option>
+                                    <option value="0">Нет</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="create_role_id" class="form-label">Роль</label>
+                                <select name="role_id" class="form-select" id="create_role_id">
+                                    @foreach($roles as $role)
+                                        <option value="{{ $role->id }}">{{ $role->label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     @if(!empty($userFieldsPayload))
@@ -98,7 +148,7 @@
         // Функция показа/скрытия пароля
         function showCurPassword() {
             const togglePassword = document.querySelector('.wrap-cur-password .toggle-password');
-            const passwordInput = document.querySelector('.wrap-cur-password #password');
+            const passwordInput = document.querySelector('.wrap-cur-password #create-password');
 
             togglePassword.addEventListener('click', function () {
                 const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
@@ -110,28 +160,11 @@
 
         showCurPassword();
 
-        // Обработчик отправки формы создания пользователя
-        $('#create-user-form2').on('submit', function (e) {
-            e.preventDefault();
-
-            // Очищаем предыдущие ошибки
-            $('.is-invalid').removeClass('is-invalid');
-            $('.invalid-feedback').remove();
-
-            $.ajax({
-                url: $(this).attr('action'),
-                method: $(this).attr('method'),
-                data: $(this).serialize(),
-
-                success: function (response) {
-                    showSuccessModal("Создание пользователя", "Пользователь успешно создан.", 1);
-                },
-                error: function (response) {
-                    eroorRespone(response);
-
-                }
-            });
-        });
+        // Телефон: та же маска, что и в редактировании
+        const $phone = $('#create-phone');
+        if ($phone.length && $phone.inputmask) {
+            $phone.inputmask("+7 (999) 999-99-99");
+        }
 
         $('#create-user-form').on('submit', function (e) {
             e.preventDefault();
@@ -149,7 +182,7 @@
                 headers: { 'Accept': 'application/json' }, // чтобы 422 пришёл JSON'ом
                 success: function (response) {
                     showSuccessModal("Создание пользователя", "Пользователь успешно создан.", 1);
-                    // по желанию: $form[0].reset();
+                    window.location.reload();
                 },
                 error: function (xhr) {
                     // Валидация Laravel

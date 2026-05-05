@@ -22,11 +22,23 @@ class StoreRequest extends FormRequest
         if ($password === null || trim((string) $password) === '') {
             $this->merge(['password' => null]);
         }
+
+        // Телефон: приводим к канону +7XXXXXXXXXX (только если у текущего есть право)
+        if ($this->has('phone')) {
+            if ($this->user() ?->can('users.phone.update')) {
+                $this->merge([
+                    'phone' => $this->normalizeRuPhone($this->input('phone')),
+                ]);
+            } else {
+                // Если права нет — вообще не учитываем входящий телефон
+                $this->offsetUnset('phone');
+            }
+        }
     }
 
     public function rules(): array
     {
-        return [
+        $rules = [
             'name'        => 'required|string|max:25',
             'lastname'    => 'required|string|max:25',
             'birthday'    => 'nullable|date',
@@ -42,6 +54,12 @@ class StoreRequest extends FormRequest
             'custom'               => 'nullable|array',
             'custom.*'             => 'nullable|string|max:255',
         ];
+
+        if ($this->user() ?->can('users.phone.update')) {
+            $rules['phone'] = ['sometimes', 'nullable', 'regex:/^\+7\d{10}$/'];
+        }
+
+        return $rules;
     }
 
     public function attributes()
@@ -56,6 +74,7 @@ class StoreRequest extends FormRequest
             'team_id'    => 'Группа',
             'is_enabled' => 'Активность',
             'role_id'    => 'Роль',
+            'phone'      => 'Телефон',
         ];
     }
 
@@ -114,6 +133,37 @@ class StoreRequest extends FormRequest
 
             'team_id.integer'   => 'Некорректный формат группы.',
             'team_id.exists'    => 'Выбранная группа не существует в базе.',
+
+            'phone.regex'       => 'Поле "Телефон" должно быть российским номером в формате +7XXXXXXXXXX (11 цифр).',
         ];
+    }
+
+    /**
+     * Приводит российский номер к канону: +7XXXXXXXXXX (или null, если не удаётся привести).
+     */
+    private function normalizeRuPhone(?string $input): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $input);
+        if ($digits === '' || $digits === null) {
+            return null;
+        }
+
+        // 8XXXXXXXXXX -> 7XXXXXXXXXX
+        if (str_starts_with($digits, '8')) {
+            $digits = '7' . substr($digits, 1);
+        }
+
+        // если не начинается с 7 — подставим 7 (на случай, если прислали только 10 цифр без кода страны)
+        if (!str_starts_with($digits, '7')) {
+            $digits = '7' . $digits;
+        }
+
+        // Ровно 11 цифр
+        $digits = substr($digits, 0, 11);
+        if (strlen($digits) !== 11 || !str_starts_with($digits, '7')) {
+            return null; // невалидно
+        }
+
+        return '+7' . substr($digits, 1); // канон: +7XXXXXXXXXX
     }
 }

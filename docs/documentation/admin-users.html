@@ -44,6 +44,52 @@
     Если пароль указан, действуют ограничения <code>min:8</code> / <code>max:255</code>; хеширование — каст <code>password</code> → <code>hashed</code> у модели <code>User</code>.
   </div>
 
+  <h3>Телефон при создании (новый функционал)</h3>
+  <div class="note">
+    В форме создания есть поле <code>phone</code> (тип <code>tel</code>) с маской <code>+7 (999) 999-99-99</code> (Inputmask).
+    На бэкенде телефон хранится и валидируется в каноническом виде: <code>+7XXXXXXXXXX</code> (11 цифр, включая 7), поле <code>users.phone</code>.
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Тема</th>
+        <th>Поведение в коде</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Формат хранения</td>
+        <td>
+          <code>users.phone</code> — строка (до 20 символов), канон: <code>+7</code> + 10 цифр.
+          Модель <code>User</code> дополнительно нормализует входящие значения через mutator <code>setPhoneAttribute()</code>.
+        </td>
+      </tr>
+      <tr>
+        <td>Нормализация masked-ввода</td>
+        <td>
+          <code>StoreRequest</code> приводит ввод (например, <code>+7 (999) 111-22-33</code>) к <code>+79991112233</code>.
+          Если номер не удаётся привести к валидному канону — в запрос подставляется <code>null</code>.
+        </td>
+      </tr>
+      <tr>
+        <td>Валидация</td>
+        <td>
+          Если у актора есть право <code>users.phone.update</code>, применяется правило:
+          <code>regex:/^\+7\d{10}$/</code> (валидируем уже нормализованное значение).
+        </td>
+      </tr>
+      <tr>
+        <td>Права доступа</td>
+        <td>
+          Поле телефона управляется правом <code>users.phone.update</code>.
+          Если права нет, бэкенд игнорирует входящий <code>phone</code> (значение не сохранится и не может «случайно» попасть в БД).
+          На фронте поле в модалке создания disabled и показывается подсказка об отсутствии прав.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
   <h3>Дополнительные поля пользователя при создании (новый функционал)</h3>
   <p>В модальном окне «Создание пользователя» выводятся те же дополнительные поля текущего партнёра, что и в модалке редактирования (текстовые поля), если для партнёра настроены записи в <code>user_fields</code> и они попадают в выборку по роли текущего администратора (аналогично <code>GET /admin/users/{id}/edit</code> в JSON-ключе <code>fields</code>).</p>
 
@@ -105,7 +151,8 @@
   <h2>Тесты</h2>
   <div class="note">
     Feature-тесты: <code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> (сценарии доп. полей при создании и PATCH),
-    <code>tests/Feature/Crm/Users/AdminUsersAccessFeatureTest.php</code> (доступ <code>users.view</code>, смоук основных endpoint’ов включая создание с <code>custom</code>).
+    <code>tests/Feature/Crm/Users/AdminUsersAccessFeatureTest.php</code> (доступ <code>users.view</code>, смоук основных endpoint’ов включая создание с <code>custom</code> и телефоном),
+    <code>tests/Feature/Crm/Users/AdminUsersPhoneOnCreateFeatureTest.php</code> (телефон при создании: нормализация masked-ввода, права <code>users.phone.update</code>).
   </div>
 
   <p class="small"><a href="./index.html">← К оглавлению (статический файл)</a></p>
