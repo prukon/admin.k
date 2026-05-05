@@ -1,6 +1,14 @@
 <div class="tab-content">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
         <h4 class="mb-0">Назначение абонементов</h4>
+        @can('lessonPackages.view')
+            <button type="button"
+                    class="btn btn-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#ulpAssignmentCreateModal">
+                Назначить абонемент
+            </button>
+        @endcan
     </div>
 
     <div id="ulp-copy-pay-toast" class="alert alert-success py-2 px-3 small d-none mt-2 mb-0" role="status">
@@ -16,237 +24,168 @@
     @endif
 
     @can('lessonPackages.view')
-        <div class="card mb-3">
-            <div class="card-body">
-                <form method="POST" action="{{ route('admin.lesson-packages.assignments.store') }}" novalidate>
-                    @csrf
-
-                    <div class="row g-3 align-items-end">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Ученик</label>
-                            <select name="user_id"
-                                    id="ulp_user_id"
-                                    class="form-select @error('user_id') is-invalid @enderror"
-                                    required>
-                                <option value="">Выберите ученика</option>
-                            </select>
-                            @error('user_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+        <div class="modal fade" id="ulpAssignmentCreateModal" tabindex="-1" aria-labelledby="ulpAssignmentCreateModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form method="POST" action="{{ route('admin.lesson-packages.assignments.store') }}" id="ulp-assign-create-form" novalidate>
+                        @csrf
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="ulpAssignmentCreateModalLabel">Назначение абонемента</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                         </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label">Ученик</label>
+                                    <select name="user_id"
+                                            id="ulp_user_id"
+                                            class="form-select @error('user_id') is-invalid @enderror"
+                                            required>
+                                        <option value="">Выберите ученика</option>
+                                    </select>
+                                    @error('user_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
 
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Абонемент</label>
-                            <select name="lesson_package_id"
-                                    id="ulp_lesson_package_id"
-                                    class="form-select @error('lesson_package_id') is-invalid @enderror"
-                                    required>
-                                <option value="">Выберите абонемент</option>
-                                @foreach ($packagesList as $p)
-                                    <option value="{{ $p->id }}"
-                                            data-schedule-type="{{ $p->schedule_type }}"
-                                            data-duration-days="{{ $p->duration_days }}"
-                                            data-lessons-count="{{ $p->lessons_count }}"
-                                            data-price-cents="{{ (int) ($p->price_cents ?? 0) }}"
-                                        {{ (int)old('lesson_package_id') === (int)$p->id ? 'selected' : '' }}>
-                                        {{ $p->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('lesson_package_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
+                                <div class="col-12">
+                                    <label class="form-label">Абонемент</label>
+                                    <select name="lesson_package_id"
+                                            id="ulp_lesson_package_id"
+                                            class="form-select @error('lesson_package_id') is-invalid @enderror"
+                                            required>
+                                        <option value="">Выберите абонемент</option>
+                                        @foreach ($packagesList as $p)
+                                            <option value="{{ $p->id }}"
+                                                    data-schedule-type="{{ $p->schedule_type }}"
+                                                    data-duration-days="{{ $p->duration_days }}"
+                                                    data-lessons-count="{{ $p->lessons_count }}"
+                                                    data-price-cents="{{ (int) ($p->price_cents ?? 0) }}"
+                                                {{ (int)old('lesson_package_id') === (int)$p->id ? 'selected' : '' }}>
+                                                {{ $p->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('lesson_package_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
 
-                        <div class="col-12 col-md-2">
-                            <label class="form-label">Стоимость</label>
-                            <input type="number"
-                                   name="fee_amount"
-                                   id="ulp_fee_amount"
-                                   step="0.01"
-                                   min="0"
-                                   max="999999.99"
-                                   value="{{ old('fee_amount') }}"
-                                   class="form-control @error('fee_amount') is-invalid @enderror"
-                                   required>
-                            @error('fee_amount')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                                <div class="col-12">
+                                    <label class="form-label">Стоимость</label>
+                                    <input type="number"
+                                           name="fee_amount"
+                                           id="ulp_fee_amount"
+                                           step="0.01"
+                                           min="0"
+                                           max="999999.99"
+                                           value="{{ old('fee_amount') }}"
+                                           class="form-control @error('fee_amount') is-invalid @enderror"
+                                           required>
+                                    @error('fee_amount')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
                         </div>
-
-                        <div class="col-12 col-md-2">
-                            <button type="submit" class="btn btn-primary w-100">
-                                Назначить
-                            </button>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                            <button type="submit" class="btn btn-primary">Назначить</button>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     @endcan
 
     <div class="table-responsive">
-        <table class="table table-striped table-bordered align-middle w-100">
+        <table id="ulp-assignments-table" class="table table-sm table-striped table-bordered align-middle w-100" style="width:100%">
             <thead>
             <tr>
+                <th class="d-none">ID</th>
                 <th>Ученик</th>
                 <th>Абонемент</th>
-                <th>Период</th>
-                <th>Сумма</th>
-                <th>Оплачен</th>
-                <th>Остаток</th>
-                <th>Тип</th>
-                @can('lessonPackages.view')
-                    <th class="text-start text-nowrap">Ссылка на оплату</th>
-                    <th class="text-start" style="min-width: 200px;">Действия</th>
-                @endcan
+                <th class="text-center text-nowrap" style="width: 1%">Тип</th>
+                <th class="text-center text-nowrap" style="width: 1%">Период</th>
+                <th class="text-center text-nowrap" style="width: 1%">Сумма</th>
+                <th class="text-center" style="width: 1%">Оплачен</th>
+                <th class="text-center text-nowrap" style="width: 1%">Остаток</th>
+                <th class="text-start text-nowrap" style="width: 1%">Ссылка на оплату</th>
+                <th class="text-start text-nowrap" style="width: 1%">Действия</th>
             </tr>
             </thead>
-            <tbody>
-            @forelse ($assignments as $a)
-                <tr>
-                    <td>{{ trim(($a->user->lastname ?? '').' '.($a->user->name ?? '')) }}</td>
-                    <td>{{ $a->lessonPackage->name ?? '—' }}</td>
-                    <td class="text-center">
-                        @if ($a->starts_at && $a->ends_at)
-                            {{ $a->starts_at->locale('ru')->isoFormat('D MMMM YYYY') }}
-                            —
-                            {{ $a->ends_at->locale('ru')->isoFormat('D MMMM YYYY') }}
-                        @else
-                            —
-                        @endif
-                    </td>
-                    <td class="text-center">{{ (int) round((float) ($a->fee_amount ?? 0)) }}</td>
-                    <td class="text-center">
-                        @if ($a->effective_is_paid)
-                            <span class="badge bg-success">да</span>
-                        @else
-                            <span class="badge bg-secondary">нет</span>
-                        @endif
-                        @if ($a->is_manual_paid !== null)
-                            <div class="small text-muted mt-1">руч.</div>
-                        @endif
-                    </td>
-                    <td class="text-center">{{ $a->lessons_remaining }} / {{ $a->lessons_total }}</td>
-                    <td class="text-center">
-                        @php
-                            $t = (string) ($a->lessonPackage->schedule_type ?? '');
-                            echo match ($t) {
-                                'fixed' => 'Фиксированное расписание',
-                                'flexible' => 'Гибкий абонемент',
-                                'no_schedule' => 'Разовое занятие',
-                                default => 'Абонемент',
-                            };
-                        @endphp
-                    </td>
-                    @can('lessonPackages.view')
-                        <td class="text-start text-nowrap">
-                            @if (!empty($ulpPublicPayTbankReady ?? false) && ! $a->effective_is_paid && (float) ($a->fee_amount ?? 0) >= 10)
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-secondary js-ulp-copy-pay-link"
-                                        data-assignment-id="{{ (int) $a->id }}"
-                                        aria-label="Скопировать ссылку на оплату через СБП"
-                                        title="Скопировать ссылку на оплату через СБП">
-                                    <i class="fas fa-copy me-1" aria-hidden="true"></i>
-                                    Копировать ссылку
-                                </button>
-                            @else
-                                <span class="text-muted small">—</span>
-                            @endif
-                        </td>
-                        <td class="text-start text-nowrap">
-                            <button type="button"
-                                    class="btn btn-sm btn-outline-primary js-ulp-assignment-edit"
-                                    data-assignment-id="{{ (int) $a->id }}">
-                                Изменить
-                            </button>
-                            @if ((int) $a->lessons_remaining === (int) $a->lessons_total)
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-danger ms-1 js-ulp-assignment-delete"
-                                        data-assignment-id="{{ (int) $a->id }}">
-                                    Удалить
-                                </button>
-                            @endif
-                        </td>
-                    @endcan
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="{{ auth()->user()?->can('lessonPackages.view') ? 9 : 7 }}" class="text-center text-muted">Назначений пока нет.</td>
-                </tr>
-            @endforelse
-            </tbody>
+            <tbody></tbody>
         </table>
     </div>
 
     @can('lessonPackages.view')
         <div class="modal fade" id="ulpAssignmentEditModal" tabindex="-1" aria-labelledby="ulpAssignmentEditModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 440px;">
+            <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
-                    <div class="modal-header py-2">
-                        <h5 class="modal-title fs-6" id="ulpAssignmentEditModalLabel">Изменение абонемента</h5>
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="ulpAssignmentEditModalLabel">Изменение абонемента</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                     </div>
-                    <div class="modal-body py-2 px-3">
-                        <div id="ulp-modal-alert" class="alert alert-danger py-2 px-2 small d-none" role="alert"></div>
+                    <div class="modal-body">
+                        <div id="ulp-modal-alert" class="alert alert-danger d-none" role="alert"></div>
 
-                        <div class="row g-2">
+                        <div class="row g-3">
                             <div class="col-12">
-                                <label class="form-label small text-muted mb-0">Ученик</label>
-                                <input type="text" class="form-control form-control-sm" id="ulp-modal-user" disabled readonly>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label small text-muted mb-0">Абонемент</label>
-                                <input type="text" class="form-control form-control-sm" id="ulp-modal-package" disabled readonly>
+                                <label class="form-label">Ученик</label>
+                                <input type="text" class="form-control" id="ulp-modal-user" disabled readonly>
                             </div>
                             <div class="col-12">
-                                <label class="form-label small text-muted mb-0">Период</label>
-                                <input type="text" class="form-control form-control-sm" id="ulp-modal-period" disabled readonly>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small text-muted mb-0">Остаток занятий</label>
-                                <input type="text" class="form-control form-control-sm" id="ulp-modal-balance" disabled readonly>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small text-muted mb-0">Тип расписания</label>
-                                <input type="text" class="form-control form-control-sm" id="ulp-modal-sched-type" disabled readonly>
+                                <label class="form-label">Абонемент</label>
+                                <input type="text" class="form-control" id="ulp-modal-package" disabled readonly>
                             </div>
                             <div class="col-12">
-                                <label class="form-label small mb-0" for="ulp-modal-fee">Стоимость для ученика</label>
-                                <input type="number" class="form-control form-control-sm" id="ulp-modal-fee" step="0.01" min="0" max="999999.99">
+                                <label class="form-label">Период</label>
+                                <input type="text" class="form-control" id="ulp-modal-period" disabled readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Остаток занятий</label>
+                                <input type="text" class="form-control" id="ulp-modal-balance" disabled readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Тип расписания</label>
+                                <input type="text" class="form-control" id="ulp-modal-sched-type" disabled readonly>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="ulp-modal-fee">Стоимость для ученика</label>
+                                <input type="number" class="form-control" id="ulp-modal-fee" step="0.01" min="0" max="999999.99">
                                 <div class="invalid-feedback d-block" id="ulp-modal-fee-err"></div>
                             </div>
                         </div>
 
                         @can('lessonPackages.manualPaid.manage')
-                            <div class="mt-2 pt-2 border-top">
-                                <label class="form-label small mb-0" for="ulp-modal-payment-status">Статус оплаты</label>
-                                <select class="form-select form-select-sm" id="ulp-modal-payment-status">
+                            <div class="mt-3 pt-3 border-top">
+                                <label class="form-label" for="ulp-modal-payment-status">Статус оплаты</label>
+                                <select class="form-select" id="ulp-modal-payment-status">
                                     <option value="paid">Оплачено</option>
                                     <option value="unpaid">Не оплачено</option>
                                 </select>
-                                <div id="ulp-modal-payment-comment-wrap" class="mt-2 d-none">
-                                    <label class="form-label small mb-0" for="ulp-modal-payment-comment">Комментарий <span class="text-danger">*</span></label>
-                                    <textarea class="form-control form-control-sm" id="ulp-modal-payment-comment" rows="2" maxlength="5000"
+                                <div id="ulp-modal-payment-comment-wrap" class="mt-3 d-none">
+                                    <label class="form-label" for="ulp-modal-payment-comment">Комментарий <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="ulp-modal-payment-comment" rows="2" maxlength="5000"
                                               placeholder="Обязательно при смене статуса оплаты"></textarea>
                                     <div class="invalid-feedback d-block" id="ulp-modal-payment-comment-err"></div>
                                 </div>
-                                <div id="ulp-modal-manual-meta" class="small text-muted mt-2"></div>
+                                <div id="ulp-modal-manual-meta" class="form-text text-muted mt-2"></div>
                             </div>
                         @endcan
                     </div>
-                    <div class="modal-footer py-2 px-3">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
-                        <button type="button" class="btn btn-sm btn-primary" id="ulp-modal-save">Сохранить</button>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-danger d-none" id="ulp-modal-delete">Удалить</button>
+                        <div class="ms-auto d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+                            <button type="button" class="btn btn-primary" id="ulp-modal-save">Сохранить</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     @endcan
 
-    <div class="d-flex justify-content-center">
-        {{ $assignments->links() }}
-    </div>
 </div>
 
 @section('scripts')
@@ -278,7 +217,10 @@
         $(document).ready(function () {
             if (!$.fn.select2) return;
 
-            $('#ulp_user_id').select2({
+            var $ulpUser = $('#ulp_user_id');
+            if (!$ulpUser.length) return;
+
+            var ulpUserSelect2 = {
                 theme: 'bootstrap-5',
                 width: '100%',
                 placeholder: 'Выберите ученика',
@@ -294,26 +236,124 @@
                         return data;
                     }
                 }
-            });
+            };
+            var $ulpCreateModal = $('#ulpAssignmentCreateModal');
+            if ($ulpCreateModal.length) {
+                ulpUserSelect2.dropdownParent = $ulpCreateModal;
+            }
+            $ulpUser.select2(ulpUserSelect2);
 
             const oldUserId = @json(old('user_id'));
             if (oldUserId) {
                 const option = new Option('Выбранный ученик', oldUserId, true, true);
-                $('#ulp_user_id').append(option).trigger('change');
+                $ulpUser.append(option).trigger('change');
             }
+
+            @if ($errors->has('user_id') || $errors->has('lesson_package_id') || $errors->has('fee_amount'))
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                const createModalEl = document.getElementById('ulpAssignmentCreateModal');
+                if (createModalEl) {
+                    bootstrap.Modal.getOrCreateInstance(createModalEl).show();
+                }
+            }
+            @endif
         });
     </script>
 
     @can('lessonPackages.view')
         <script>
-            (function () {
+            $(function () {
+                function ulpEscapeHtml(s) {
+                    if (s == null || s === '') {
+                        return '';
+                    }
+                    return String(s)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                }
+
+                function ulpTextRender(data, type) {
+                    if (type !== 'display' && type !== 'filter') {
+                        return data != null ? data : '';
+                    }
+                    return ulpEscapeHtml(data != null ? data : '');
+                }
+
+                var assignmentsDataTable = $('#ulp-assignments-table').DataTable({
+                    processing: true,
+                    serverSide: true,
+                    pageLength: 20,
+                    lengthMenu: [[10, 20, 50, 100], [10, 20, 50, 100]],
+                    searching: true,
+                    order: [[0, 'desc']],
+                    ajax: {
+                        url: @json(route('admin.lesson-packages.assignments.data')),
+                        type: 'GET'
+                    },
+                    drawCallback: function () {
+                        var tbl = document.getElementById('ulp-assignments-table');
+                        if (typeof window.initManualPaidBadgeTooltips === 'function') {
+                            window.initManualPaidBadgeTooltips(tbl || null);
+                        } else if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                            (tbl || document).querySelectorAll('.ulp-paid-manual-hint[data-bs-toggle="tooltip"]').forEach(function (el) {
+                                var existing = bootstrap.Tooltip.getInstance(el);
+                                if (existing) {
+                                    existing.dispose();
+                                }
+                                new bootstrap.Tooltip(el);
+                            });
+                        }
+                    },
+                    columns: [
+                        { data: 'id', name: 'id', visible: false, searchable: false },
+                        { data: 'student', name: 'student', className: 'text-start', render: ulpTextRender },
+                        { data: 'package_name', name: 'package', className: 'text-start', render: ulpTextRender },
+                        { data: 'type_label', name: 'type', className: 'text-center text-nowrap', render: ulpTextRender },
+                        { data: 'period', name: 'period', className: 'text-center text-nowrap', render: ulpTextRender },
+                        { data: 'fee', name: 'fee', className: 'text-center text-nowrap', render: ulpTextRender },
+                        {
+                            data: 'paid_html',
+                            name: 'paid',
+                            className: 'text-center',
+                            render: function (d) {
+                                return d != null ? d : '';
+                            }
+                        },
+                        { data: 'balance', name: 'balance', className: 'text-center text-nowrap', render: ulpTextRender },
+                        {
+                            data: 'pay_link_html',
+                            name: 'pay_link',
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-start text-nowrap',
+                            render: function (d) {
+                                return d != null ? d : '';
+                            }
+                        },
+                        {
+                            data: 'actions_html',
+                            name: 'actions',
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-start text-nowrap',
+                            render: function (d) {
+                                return d != null ? d : '';
+                            }
+                        }
+                    ],
+                    language: @include('partials.datatables.ru')
+                });
+
                 const assignmentsBase = @json(rtrim(route('admin.lesson-packages.assignments'), '/'));
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 const modalEl = document.getElementById('ulpAssignmentEditModal');
                 if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
                     return;
                 }
-                const modal = new bootstrap.Modal(modalEl);
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
                 let currentId = null;
 
                 const alertBox = document.getElementById('ulp-modal-alert');
@@ -322,6 +362,7 @@
                 const paymentStatusSel = document.getElementById('ulp-modal-payment-status');
                 const paymentCommentEl = document.getElementById('ulp-modal-payment-comment');
                 const paymentCommentWrap = document.getElementById('ulp-modal-payment-comment-wrap');
+                const deleteBtn = document.getElementById('ulp-modal-delete');
 
                 function showErr(msg) {
                     if (!alertBox) return;
@@ -388,6 +429,11 @@
                         paymentCommentEl.value = '';
                     }
                     syncPaymentCommentVisibility();
+
+                    if (deleteBtn) {
+                        deleteBtn.classList.toggle('d-none', !a.can_delete);
+                        deleteBtn.disabled = !a.can_delete;
+                    }
                 }
 
                 paymentStatusSel?.addEventListener('change', syncPaymentCommentVisibility);
@@ -407,25 +453,32 @@
                     return { ok: r.ok, status: r.status, payload: payload };
                 }
 
-                document.querySelectorAll('.js-ulp-assignment-edit').forEach(function (btn) {
-                    btn.addEventListener('click', async function () {
-                        const id = btn.getAttribute('data-assignment-id');
-                        if (!id) return;
-                        clearErrors();
-                        try {
-                            const { ok, status, payload } = await fetchJson(assignmentsBase + '/' + id, { method: 'GET' });
-                            if (!ok) {
-                                showErr((payload && payload.message) || ('Ошибка загрузки (' + status + ')'));
-                                modal.show();
-                                return;
+                $(document).on('click', '.js-ulp-assignment-edit', async function (e) {
+                    e.preventDefault();
+                    const id = $(this).attr('data-assignment-id');
+                    if (!id) return;
+                    clearErrors();
+                    try {
+                        const { ok, status, payload } = await fetchJson(assignmentsBase + '/' + id, { method: 'GET' });
+                        if (!ok) {
+                            currentId = null;
+                            if (deleteBtn) {
+                                deleteBtn.classList.add('d-none');
                             }
-                            fillModal(payload);
+                            showErr((payload && payload.message) || ('Ошибка загрузки (' + status + ')'));
                             modal.show();
-                        } catch (e) {
-                            showErr('Не удалось загрузить назначение.');
-                            modal.show();
+                            return;
                         }
-                    });
+                        fillModal(payload);
+                        modal.show();
+                    } catch (err) {
+                        currentId = null;
+                        if (deleteBtn) {
+                            deleteBtn.classList.add('d-none');
+                        }
+                        showErr('Не удалось загрузить назначение.');
+                        modal.show();
+                    }
                 });
 
                 document.getElementById('ulp-modal-save')?.addEventListener('click', async function () {
@@ -472,26 +525,32 @@
                         }
                         return;
                     }
-                    window.location.reload();
+                    assignmentsDataTable.ajax.reload(null, false);
+                    modal.hide();
                 });
 
-                document.querySelectorAll('.js-ulp-assignment-delete').forEach(function (btn) {
-                    btn.addEventListener('click', async function () {
-                        const id = btn.getAttribute('data-assignment-id');
-                        if (!id || !confirm('Удалить это назначение абонемента? Связанные слоты и заморозки будут удалены.')) {
-                            return;
-                        }
-                        const { ok, payload } = await fetchJson(assignmentsBase + '/' + id, { method: 'DELETE' });
-                        if (!ok) {
-                            alert((payload && payload.message) || 'Не удалось удалить.');
-                            return;
-                        }
-                        window.location.reload();
-                    });
+                deleteBtn?.addEventListener('click', async function () {
+                    if (!currentId) {
+                        return;
+                    }
+                    if (!confirm('Удалить это назначение абонемента? Связанные слоты и заморозки будут удалены.')) {
+                        return;
+                    }
+                    const { ok, payload } = await fetchJson(assignmentsBase + '/' + currentId, { method: 'DELETE' });
+                    if (!ok) {
+                        window.alert((payload && payload.message) || 'Не удалось удалить.');
+                        return;
+                    }
+                    assignmentsDataTable.ajax.reload(null, false);
+                    modal.hide();
                 });
 
                 modalEl.addEventListener('hidden.bs.modal', function () {
                     clearErrors();
+                    currentId = null;
+                    if (deleteBtn) {
+                        deleteBtn.classList.add('d-none');
+                    }
                 });
 
                 const copyToast = document.getElementById('ulp-copy-pay-toast');
@@ -504,32 +563,32 @@
                     }, 3200);
                 }
 
-                document.querySelectorAll('.js-ulp-copy-pay-link').forEach(function (btn) {
-                    btn.addEventListener('click', async function () {
-                        const id = btn.getAttribute('data-assignment-id');
-                        if (!id) return;
-                        const prevHtml = btn.innerHTML;
-                        btn.disabled = true;
-                        try {
-                            const { ok, status, payload } = await fetchJson(assignmentsBase + '/' + id + '/public-pay-link', {
-                                method: 'POST',
-                                body: '{}',
-                            });
-                            if (!ok || !payload.url) {
-                                window.alert((payload && payload.message) || ('Не удалось получить ссылку (' + status + ')'));
-                                return;
-                            }
-                            await navigator.clipboard.writeText(payload.url);
-                            showCopyToast();
-                        } catch (e) {
-                            window.alert('Не удалось скопировать ссылку.');
-                        } finally {
-                            btn.disabled = false;
-                            btn.innerHTML = prevHtml;
+                $(document).on('click', '.js-ulp-copy-pay-link', async function (e) {
+                    e.preventDefault();
+                    const btn = $(this);
+                    const id = btn.attr('data-assignment-id');
+                    if (!id) return;
+                    const prevHtml = btn.html();
+                    btn.prop('disabled', true);
+                    try {
+                        const { ok, status, payload } = await fetchJson(assignmentsBase + '/' + id + '/public-pay-link', {
+                            method: 'POST',
+                            body: '{}',
+                        });
+                        if (!ok || !payload.url) {
+                            window.alert((payload && payload.message) || ('Не удалось получить ссылку (' + status + ')'));
+                            return;
                         }
-                    });
+                        await navigator.clipboard.writeText(payload.url);
+                        showCopyToast();
+                    } catch (err) {
+                        window.alert('Не удалось скопировать ссылку.');
+                    } finally {
+                        btn.prop('disabled', false);
+                        btn.html(prevHtml);
+                    }
                 });
-            })();
+            });
         </script>
     @endcan
 @endsection

@@ -213,13 +213,15 @@
                     const hasRow = !!item.has_price_row;
                     const manualNote = item.manual_paid_note || '';
                     const hasManual = item.is_manual_paid !== null && item.is_manual_paid !== undefined;
+                    const noteRaw = String(manualNote).trim();
                     const noteForTitle = hasManual
-                        ? (manualNote.trim() !== '' ? manualNote : 'Комментарий к ручному изменению не заполнен.')
+                        ? (noteRaw !== '' ? manualNote : 'Комментарий к ручному изменению не заполнен.')
                         : '';
 
                     let infoIcon = '';
                     if (hasManual) {
-                        infoIcon = '<i class="fa fa-info-circle user-manual-info-icon" ' +
+                        infoIcon = '<i class="fa fa-info-circle user-manual-info-icon" tabindex="0" ' +
+                            'data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="ulp-assignment-paid-tooltip" ' +
                             'title="' + escapeAttr(noteForTitle) + '" ' +
                             'aria-label="Комментарий к ручной отметке оплаты"></i>';
                     }
@@ -263,6 +265,10 @@
 
                 wrapper.html(html);
                 btnSave.prop('disabled', false);
+
+                if (typeof window.initManualPaidBadgeTooltips === 'function') {
+                    window.initManualPaidBadgeTooltips(wrapper.get(0));
+                }
             }
 
             function enterEditModeFor(newMonth) {

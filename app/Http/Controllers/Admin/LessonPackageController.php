@@ -369,38 +369,222 @@ final class LessonPackageController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerId();
 
-        $assignments = UserLessonPackage::query()
-            ->with(['user:id,name,lastname,partner_id', 'lessonPackage:id,name,schedule_type,duration_days,lessons_count'])
-            ->whereHas('user', function ($q) use ($partnerId) {
-                $q->where('partner_id', $partnerId);
-            })
-            ->orderByDesc('id')
-            ->paginate(20);
-
         $packagesList = LessonPackage::query()
             ->where('partner_id', $partnerId)
             ->where('is_active', 1)
             ->orderBy('name')
             ->get(['id', 'name', 'schedule_type', 'duration_days', 'lessons_count', 'price_cents']);
 
+        return view('admin.lessonPackages.index', [
+            'activeTab' => 'assignments',
+            'packagesList' => $packagesList,
+            'weekdays' => self::weekdaysMap(),
+        ]);
+    }
+
+    public function assignmentsData(Request $request): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $request->validate([
+            'draw' => ['nullable', 'integer'],
+            'start' => ['nullable', 'integer', 'min:0'],
+            'length' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $draw = (int) $request->input('draw', 0);
+        $start = max(0, (int) $request->input('start', 0));
+        $length = (int) $request->input('length', 20);
+        if ($length <= 0) {
+            $length = 20;
+        }
+        if ($length > 100) {
+            $length = 100;
+        }
+
+        $baseQuery = UserLessonPackage::query()
+            ->select('user_lesson_packages.*')
+            ->join('users', 'users.id', '=', 'user_lesson_packages.user_id')
+            ->join('lesson_packages', 'lesson_packages.id', '=', 'user_lesson_packages.lesson_package_id')
+            ->where('users.partner_id', $partnerId);
+
+        $recordsTotal = (clone $baseQuery)->count();
+
+        $filteredQuery = clone $baseQuery;
+
+        $searchTerm = trim((string) $request->input('search.value', ''));
+        if ($searchTerm !== '') {
+            $like = '%'.addcslashes($searchTerm, '%_\\').'%';
+            $filteredQuery->where(function ($q) use ($like) {
+                $q->where('users.lastname', 'like', $like)
+                    ->orWhere('users.name', 'like', $like)
+                    ->orWhere('lesson_packages.name', 'like', $like)
+                    ->orWhere('lesson_packages.schedule_type', 'like', $like)
+                    ->orWhereRaw('CAST(user_lesson_packages.fee_amount AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(user_lesson_packages.lessons_remaining AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(user_lesson_packages.lessons_total AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(user_lesson_packages.starts_at AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(user_lesson_packages.ends_at AS CHAR) LIKE ?', [$like]);
+            });
+        }
+
+        $recordsFiltered = (clone $filteredQuery)->count();
+
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir = strtolower((string) $request->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        /** @var array<int, array<string, mixed>> $columnsDef */
+        $columnsDef = $request->input('columns', []);
+        $orderColumnName = null;
+        if ($orderColumnIndex !== null && isset($columnsDef[(int) $orderColumnIndex]['name'])) {
+            $orderColumnName = (string) $columnsDef[(int) $orderColumnIndex]['name'];
+        }
+
+        $orderedQuery = clone $filteredQuery;
+
+        switch ($orderColumnName) {
+            case 'student':
+                $orderedQuery->orderBy('users.lastname', $orderDir)
+                    ->orderBy('users.name', $orderDir)
+                    ->orderBy('user_lesson_packages.id', 'desc');
+                break;
+            case 'package':
+                $orderedQuery->orderBy('lesson_packages.name', $orderDir)
+                    ->orderBy('user_lesson_packages.id', 'desc');
+                break;
+            case 'period':
+                $orderedQuery->orderBy('user_lesson_packages.starts_at', $orderDir)
+                    ->orderBy('user_lesson_packages.ends_at', $orderDir)
+                    ->orderBy('user_lesson_packages.id', 'desc');
+                break;
+            case 'fee':
+                $orderedQuery->orderBy('user_lesson_packages.fee_amount', $orderDir)
+                    ->orderBy('user_lesson_packages.id', 'desc');
+                break;
+            case 'paid':
+                $orderedQuery->orderByRaw(
+                    '(CASE WHEN user_lesson_packages.is_manual_paid IS NOT NULL THEN user_lesson_packages.is_manual_paid ELSE user_lesson_packages.is_paid END) '.$orderDir
+                )->orderBy('user_lesson_packages.id', 'desc');
+                break;
+            case 'balance':
+                $orderedQuery->orderBy('user_lesson_packages.lessons_remaining', $orderDir)
+                    ->orderBy('user_lesson_packages.id', 'desc');
+                break;
+            case 'type':
+                $orderedQuery->orderBy('lesson_packages.schedule_type', $orderDir)
+                    ->orderBy('user_lesson_packages.id', 'desc');
+                break;
+            case 'id':
+                $orderedQuery->orderBy('user_lesson_packages.id', $orderDir);
+                break;
+            default:
+                $orderedQuery->orderBy('user_lesson_packages.id', 'desc');
+                break;
+        }
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, UserLessonPackage> $rows */
+        $rows = $orderedQuery
+            ->clone()
+            ->skip($start)
+            ->take($length)
+            ->with(['user:id,name,lastname,partner_id', 'lessonPackage:id,name,schedule_type'])
+            ->get();
+
+        $ulpPublicPayTbankReady = $this->ulpAssignmentPublicPayTbankReady($partnerId);
+
+        $data = $rows->map(fn (UserLessonPackage $a) => $this->assignmentDataTableRow($a, $ulpPublicPayTbankReady))->values()->all();
+
+        return response()->json([
+            'draw' => $draw,
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data,
+        ]);
+    }
+
+    private function ulpAssignmentPublicPayTbankReady(int $partnerId): bool
+    {
         $partnerRow = Partner::query()->find($partnerId);
         $tbankPs = PaymentSystem::query()
             ->where('partner_id', $partnerId)
             ->where('name', 'tbank')
             ->first();
-        // is_connected — аксессор модели, не колонка БД
-        $ulpPublicPayTbankReady = $tbankPs
+
+        return $tbankPs
             && $tbankPs->is_connected
             && $partnerRow
             && trim((string) ($partnerRow->tinkoff_partner_id ?? '')) !== '';
+    }
 
-        return view('admin.lessonPackages.index', [
-            'activeTab' => 'assignments',
-            'assignments' => $assignments,
-            'packagesList' => $packagesList,
-            'weekdays' => self::weekdaysMap(),
-            'ulpPublicPayTbankReady' => $ulpPublicPayTbankReady,
-        ]);
+    /**
+     * @return array<string, mixed>
+     */
+    private function assignmentDataTableRow(UserLessonPackage $a, bool $ulpPublicPayTbankReady): array
+    {
+        $student = trim(($a->user->lastname ?? '').' '.($a->user->name ?? ''));
+        if ($student === '') {
+            $student = '—';
+        }
+
+        $period = '—';
+        if ($a->starts_at && $a->ends_at) {
+            $period = $a->starts_at->format('j.m.y').' - '.$a->ends_at->format('j.m.y');
+        }
+
+        $sched = (string) ($a->lessonPackage->schedule_type ?? '');
+        $typeLabel = match ($sched) {
+            'fixed' => 'Фиксированный',
+            'flexible' => 'Гибкий',
+            'no_schedule' => 'Разовое занятие',
+            default => 'Абонемент',
+        };
+
+        $paidInner = $a->effective_is_paid
+            ? '<span class="badge bg-success">да</span>'
+            : '<span class="badge bg-secondary">нет</span>';
+        if ($a->is_manual_paid !== null) {
+            $paidInner .= '<div class="small text-muted mt-1">руч.</div>';
+        }
+
+        $manualNote = trim((string) ($a->manual_paid_note ?? ''));
+        if ($a->is_manual_paid !== null && $manualNote !== '') {
+            $tooltipPlain = 'Комментарий: '.preg_replace('/\s+/u', ' ', $manualNote);
+            $titleAttr = htmlspecialchars($tooltipPlain, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $paidHtml = '<span class="ulp-paid-manual-hint d-inline-block text-center" tabindex="0" '
+                .'aria-label="'.$titleAttr.'" '
+                .'data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="ulp-assignment-paid-tooltip" '
+                .'title="'.$titleAttr.'">'.$paidInner.'</span>';
+        } else {
+            $paidHtml = '<span class="d-inline-block text-center">'.$paidInner.'</span>';
+        }
+
+        $id = (int) $a->id;
+        if ($ulpPublicPayTbankReady && ! $a->effective_is_paid && (float) ($a->fee_amount ?? 0) >= 10.0) {
+            $payLinkHtml = '<button type="button" class="btn btn-sm btn-outline-secondary js-ulp-copy-pay-link" '
+                .'data-assignment-id="'.$id.'" aria-label="Скопировать ссылку на оплату через СБП" '
+                .'title="Скопировать ссылку на оплату через СБП">'
+                .'<i class="fas fa-copy me-1" aria-hidden="true"></i>Скопировать</button>';
+        } else {
+            $payLinkHtml = '<span class="text-muted small">—</span>';
+        }
+
+        $actionsHtml = '<button type="button" class="btn btn-sm btn-outline-primary js-ulp-assignment-edit" '
+            .'data-assignment-id="'.$id.'">Изменить</button>';
+
+        $feeInt = (int) round((float) ($a->fee_amount ?? 0));
+        $feeDisplay = number_format($feeInt, 0, '.', ',').' руб';
+
+        return [
+            'id' => $id,
+            'student' => $student,
+            'package_name' => (string) ($a->lessonPackage->name ?? '—'),
+            'period' => $period,
+            'fee' => $feeDisplay,
+            'paid_html' => $paidHtml,
+            'balance' => $a->lessons_remaining.' / '.$a->lessons_total,
+            'type_label' => $typeLabel,
+            'pay_link_html' => $payLinkHtml,
+            'actions_html' => $actionsHtml,
+        ];
     }
 
     public function issueAssignmentPublicPayLink(UserLessonPackage $assignment, UserLessonPackagePublicPayService $service): JsonResponse
@@ -605,8 +789,8 @@ final class LessonPackageController extends AdminBaseController
 
         $sched = (string) ($ulp->lessonPackage->schedule_type ?? '');
         $schedLabel = match ($sched) {
-            'fixed' => 'Фиксированное расписание',
-            'flexible' => 'Гибкий абонемент',
+            'fixed' => 'Фиксированный',
+            'flexible' => 'Гибкий',
             'no_schedule' => 'Разовое занятие',
             default => 'Абонемент',
         };
@@ -618,8 +802,8 @@ final class LessonPackageController extends AdminBaseController
 
         $periodDisplay = '';
         if ($ulp->starts_at && $ulp->ends_at) {
-            $periodDisplay = $ulp->starts_at->locale('ru')->isoFormat('D MMMM YYYY')
-                .' — '.$ulp->ends_at->locale('ru')->isoFormat('D MMMM YYYY');
+            $periodDisplay = $ulp->starts_at->format('j.m.y')
+                .' - '.$ulp->ends_at->format('j.m.y');
         }
 
         return [

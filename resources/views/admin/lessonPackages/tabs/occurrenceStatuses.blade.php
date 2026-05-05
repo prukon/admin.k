@@ -10,7 +10,7 @@
     <h4 class="mb-0">Статусы занятий</h4>
     <div class="d-flex flex-wrap gap-2">
         @can('lessonPackages.view')
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#losCreateModal">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#losCreateModal">
                 Добавить статус
             </button>
         @endcan

@@ -295,6 +295,24 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             ->assertStatus(403);
     }
 
+    public function test_assignments_datatable_data_returns_server_side_json(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $this->getJson(route('admin.lesson-packages.assignments.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure([
+                'draw',
+                'recordsTotal',
+                'recordsFiltered',
+                'data',
+            ]);
+    }
+
     public function test_assignments_tab_ok_with_view_permission(): void
     {
         $this->grantPermission('lessonPackages.view');
@@ -316,7 +334,8 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             ->assertSee('Назначение абонементов')
             ->assertSee('Назначить')
             ->assertSee('ulp_user_id')
-            ->assertSee('ulp_lesson_package_id');
+            ->assertSee('ulp_lesson_package_id')
+            ->assertSee('ulp-assignments-table');
     }
 
     public function test_store_assignment_creates_user_lesson_package_and_sets_remaining(): void

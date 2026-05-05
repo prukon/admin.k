@@ -38,9 +38,9 @@
                     <td>{{ $package->name }}</td>
                     <td>
                         @if ($package->schedule_type === 'fixed')
-                            Фиксированное
+                            Фиксированный
                         @elseif($package->schedule_type === 'flexible')
-                            Гибкое
+                            Гибкий
                         @else
                             Разовое занятие
                         @endif
@@ -109,52 +109,60 @@
                 <div class="modal-body">
                     <form id="lessonPackageCreateForm" novalidate>
                         <div class="row g-3">
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">Название *</label>
+                            <div class="col-12">
+                                <label class="form-label">Название</label>
                                 <input type="text" name="create[name]" class="form-control" maxlength="255" required>
                                 <div class="invalid-feedback d-none" data-error-for="create[name]"></div>
                             </div>
 
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">Тип *</label>
+                            <div class="col-12">
+                                <label class="form-label">Тип</label>
                                 <select name="create[schedule_type]" id="create_schedule_type" class="form-select" required>
-                                    <option value="fixed">Фиксированное расписание</option>
-                                    <option value="flexible">Гибкое расписание</option>
+                                    <option value="fixed">Фиксированный</option>
+                                    <option value="flexible">Гибкий</option>
                                     <option value="no_schedule">Разовое занятие</option>
                                 </select>
                                 <div class="invalid-feedback d-none" data-error-for="create[schedule_type]"></div>
                             </div>
 
-                            <div class="col-12 col-md-4">
-                                <label class="form-label">Длительность (дни) *</label>
-                                <input type="number" name="create[duration_days]" id="create_duration_days" class="form-control" min="1" max="3650" value="30" required>
-                                <div class="invalid-feedback d-none" data-error-for="create[duration_days]"></div>
-                            </div>
-
-                            <div class="col-12 col-md-4">
-                                <label class="form-label">Занятий *</label>
-                                <input type="number" name="create[lessons_count]" id="create_lessons_count" class="form-control" min="1" max="1000" value="8" required>
-                                <div class="invalid-feedback d-none" data-error-for="create[lessons_count]"></div>
-                            </div>
-
-                            <div class="col-12 col-md-4">
-                                <label class="form-label">Стоимость (руб.) *</label>
-                                <input type="number" name="create[price]" class="form-control" min="0" max="99999999.99" step="0.01" value="0" required>
-                                <div class="invalid-feedback d-none" data-error-for="create[price]"></div>
+                            <div class="col-12">
+                                <div class="row g-3">
+                                    <div class="col-12 col-sm-4">
+                                        <label class="form-label">Длительность (дни)</label>
+                                        <input type="number" name="create[duration_days]" id="create_duration_days" class="form-control" min="1" max="3650" value="30" required>
+                                        <div class="invalid-feedback d-none" data-error-for="create[duration_days]"></div>
+                                    </div>
+                                    <div class="col-12 col-sm-4">
+                                        <label class="form-label">Занятий</label>
+                                        <input type="number" name="create[lessons_count]" id="create_lessons_count" class="form-control" min="1" max="1000" value="8" required>
+                                        <div class="invalid-feedback d-none" data-error-for="create[lessons_count]"></div>
+                                    </div>
+                                    <div class="col-12 col-sm-4">
+                                        <label class="form-label">Стоимость (руб.)</label>
+                                        <input type="number" name="create[price]" class="form-control" min="0" max="99999999.99" step="0.01" value="0" required>
+                                        <div class="invalid-feedback d-none" data-error-for="create[price]"></div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="col-12" id="create_freeze_section">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="1" id="create_freeze_enabled" name="create[freeze_enabled]">
-                                    <label class="form-check-label" for="create_freeze_enabled">Разрешена заморозка</label>
-                                </div>
-                                <div class="invalid-feedback d-none" data-error-for="create[freeze_enabled]"></div>
-                            </div>
+                                <div class="rounded border bg-light p-3">
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" value="1" id="create_freeze_enabled" name="create[freeze_enabled]">
+                                        <label class="form-check-label" for="create_freeze_enabled">Разрешена заморозка</label>
+                                    </div>
+                                    <div class="invalid-feedback d-none" data-error-for="create[freeze_enabled]"></div>
 
-                            <div class="col-12 col-md-4" id="create_freeze_days_wrap">
-                                <label class="form-label">Дней заморозки</label>
-                                <input type="number" name="create[freeze_days]" class="form-control" min="1" max="3650" value="7">
-                                <div class="invalid-feedback d-none" data-error-for="create[freeze_days]"></div>
+                                    <div id="create_freeze_days_wrap" class="d-none mt-3 pt-3 border-top">
+                                        <div class="row g-3">
+                                            <div class="col-12 col-sm-4">
+                                                <label class="form-label mb-1" for="create_freeze_days">Дней заморозки</label>
+                                                <input type="number" name="create[freeze_days]" id="create_freeze_days" class="form-control" min="1" max="3650" value="7">
+                                                <div class="invalid-feedback d-none" data-error-for="create[freeze_days]"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -190,8 +198,8 @@
                             <div class="col-12 col-md-6">
                                 <label class="form-label">Тип *</label>
                                 <select name="edit[schedule_type]" id="edit_schedule_type" class="form-select" required>
-                                    <option value="fixed">Фиксированное расписание</option>
-                                    <option value="flexible">Гибкое расписание</option>
+                                    <option value="fixed">Фиксированный</option>
+                                    <option value="flexible">Гибкий</option>
                                     <option value="no_schedule">Разовое занятие</option>
                                 </select>
                                 <div class="invalid-feedback d-none" data-error-for="edit[schedule_type]"></div>
@@ -344,7 +352,7 @@
                     if (!createFreezeDaysWrap || !createFreezeEnabled) {
                         return;
                     }
-                    createFreezeDaysWrap.style.display = createFreezeEnabled.checked ? '' : 'none';
+                    createFreezeDaysWrap.classList.toggle('d-none', !createFreezeEnabled.checked);
                 }
 
                 function applyCreateScheduleTypeUi() {

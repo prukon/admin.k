@@ -309,6 +309,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:lessonPackages.view')->group(function () {
         Route::get('/admin/lesson-packages', [LessonPackageController::class, 'index'])->name('admin.lesson-packages.index');
         Route::get('/admin/lesson-packages/assignments', [LessonPackageController::class, 'assignments'])->name('admin.lesson-packages.assignments');
+        Route::get('/admin/lesson-packages/assignments/data', [LessonPackageController::class, 'assignmentsData'])
+            ->name('admin.lesson-packages.assignments.data');
         Route::get('/admin/lesson-packages/assignments/users-search', [LessonPackageController::class, 'assignmentUsersSearch'])
             ->name('admin.lesson-packages.assignments.users-search');
         Route::post('/admin/lesson-packages/assignments', [LessonPackageController::class, 'storeAssignment'])

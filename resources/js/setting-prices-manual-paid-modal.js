@@ -63,4 +63,24 @@
     }
 
     window.showManualPaidCommentModal = showManualPaidCommentModal;
+
+    /**
+     * Bootstrap Tooltip для шильдика оплаты с комментарием к ручной отметке (ценники, абонементы).
+     * @param {ParentNode|null} [root] область поиска; если нет — document
+     */
+    function initManualPaidBadgeTooltips(root) {
+        if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+            return;
+        }
+        const base = root || document;
+        base.querySelectorAll('.ulp-paid-manual-hint[data-bs-toggle="tooltip"], .user-manual-info-icon[data-bs-toggle="tooltip"]').forEach(function (el) {
+            const existing = bootstrap.Tooltip.getInstance(el);
+            if (existing) {
+                existing.dispose();
+            }
+            new bootstrap.Tooltip(el);
+        });
+    }
+
+    window.initManualPaidBadgeTooltips = initManualPaidBadgeTooltips;
 })(window);

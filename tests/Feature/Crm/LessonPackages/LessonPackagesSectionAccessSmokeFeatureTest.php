@@ -53,6 +53,12 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
         $this->get(route('admin.lesson-packages.assignments'))
             ->assertOk();
 
+        $this->getJson(route('admin.lesson-packages.assignments.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]))->assertOk()->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+
         $this->get(route('admin.lesson-packages.school-schedule'))
             ->assertOk()
             ->assertSee('Расписание школы', false);
@@ -183,6 +189,11 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
 
         $this->get(route('admin.lesson-packages.index'))->assertForbidden();
         $this->get(route('admin.lesson-packages.assignments'))->assertForbidden();
+        $this->getJson(route('admin.lesson-packages.assignments.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]))->assertForbidden();
         $this->get(route('admin.lesson-packages.school-schedule'))->assertForbidden();
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertForbidden();
 

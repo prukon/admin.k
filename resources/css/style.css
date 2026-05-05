@@ -1804,3 +1804,17 @@ a.disabled {
     }
 }
 
+/* Ручная отметка оплаты: подсказка с комментарием (абонементы, установка цен) */
+.ulp-paid-manual-hint {
+    cursor: help;
+    border-bottom: 1px dotted rgba(33, 37, 41, 0.45);
+}
+
+.tooltip.ulp-assignment-paid-tooltip .tooltip-inner {
+    max-width: min(22rem, 85vw);
+    text-align: left;
+    white-space: pre-wrap;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+}
+

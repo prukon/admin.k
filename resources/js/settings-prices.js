@@ -139,7 +139,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             let infoIcon = '';
             if (hasManual) {
-                infoIcon = '<i class="fa fa-info-circle user-manual-info-icon" title="' + escapeAttr(noteForTitle) + '" aria-label="Комментарий к ручной отметке оплаты"></i>';
+                infoIcon = '<i class="fa fa-info-circle user-manual-info-icon" tabindex="0" '
+                    + 'data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="ulp-assignment-paid-tooltip" '
+                    + 'title="' + escapeAttr(noteForTitle) + '" '
+                    + 'aria-label="Комментарий к ручной отметке оплаты"></i>';
             }
 
             const namePlain = (i + 1) + '. ' + ((last || first) ? `${last} ${first}`.trim() : 'Имя не найдено');
@@ -211,6 +214,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
+
+        if (typeof window.initManualPaidBadgeTooltips === 'function') {
+            window.initManualPaidBadgeTooltips(rightBar.get(0));
+        }
     }
 
     $(document).on('click', '#right_bar .wrap-users .user-price-manual-edit', function (e) {
