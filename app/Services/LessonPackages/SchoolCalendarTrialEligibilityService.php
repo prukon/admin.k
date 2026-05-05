@@ -71,6 +71,28 @@ final class SchoolCalendarTrialEligibilityService
             ];
         }
 
+        $trialAlreadyScheduled = UserTeamScheduleSlot::query()
+            ->where('partner_id', $partnerId)
+            ->where('user_id', $userId)
+            ->where('is_trial_lesson', true)
+            ->whereNull('user_lesson_package_id')
+            ->exists();
+
+        if ($trialAlreadyScheduled) {
+            return [
+                'allowed' => false,
+                'reason' => 'У ученика уже есть запись на пробное занятие.',
+            ];
+        }
+
+        $trialUsedFlag = (bool) User::query()->whereKey($userId)->value('has_used_school_schedule_trial');
+        if ($trialUsedFlag) {
+            return [
+                'allowed' => false,
+                'reason' => 'Пробное занятие для этого ученика уже было использовано.',
+            ];
+        }
+
         /** @var UserTeamScheduleSlot|null $existing */
         $existing = UserTeamScheduleSlot::query()
             ->where('user_id', $userId)

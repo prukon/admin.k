@@ -256,7 +256,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         ]);
     }
 
-    public function test_assign_flexible_creates_binding_decrements_remaining_and_week_json_lists_registration(): void
+    public function test_assign_flexible_creates_binding_without_consuming_remaining_until_status(): void
     {
         $this->grantPermission('lessonPackages.view');
 
@@ -317,7 +317,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         ]);
 
         $ulp->refresh();
-        $this->assertSame(2, $ulp->lessons_remaining);
+        $this->assertSame(3, $ulp->lessons_remaining);
 
         $week = $this->getJson(route('admin.lesson-packages.school-schedule.week', ['week' => self::WEEK_ANCHOR_MONDAY]))
             ->assertOk()
@@ -397,7 +397,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         ]);
 
         $ulp->refresh();
-        $this->assertSame(0, $ulp->lessons_remaining);
+        $this->assertSame(1, $ulp->lessons_remaining);
 
         $this->postJson(route('admin.lesson-packages.school-schedule.assign-single-lesson'), [
             'user_lesson_package_id' => $ulp->id,
@@ -581,7 +581,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
         $ulp->refresh();
         $this->assertSame(self::WEEK_ANCHOR_MONDAY, $ulp->starts_at->format('Y-m-d'));
         $this->assertSame('2026-06-03', $ulp->ends_at->format('Y-m-d'));
-        $this->assertSame(0, (int) $ulp->lessons_remaining);
+        $this->assertSame(1, (int) $ulp->lessons_remaining);
 
         $this->assertSame(1, UserTeamScheduleSlot::query()
             ->where('user_id', $student->id)
@@ -711,7 +711,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             'occurrence_date' => self::WEEK_ANCHOR_MONDAY,
         ])->assertOk();
 
-        $this->assertSame($beforeRemaining - 1, (int) UserLessonPackage::query()->whereKey($ulpId)->value('lessons_remaining'));
+        $this->assertSame($beforeRemaining, (int) UserLessonPackage::query()->whereKey($ulpId)->value('lessons_remaining'));
 
         $ulpAfter = UserLessonPackage::query()->whereKey($ulpId)->first();
         $this->assertNotNull($ulpAfter->starts_at);

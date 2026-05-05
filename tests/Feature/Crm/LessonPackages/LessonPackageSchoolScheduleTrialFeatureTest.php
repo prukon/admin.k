@@ -303,6 +303,11 @@ final class LessonPackageSchoolScheduleTrialFeatureTest extends CrmTestCase
         $this->assertTrue(! empty($trialReg['is_trial_lesson']));
         $this->assertNotEmpty($trialReg['line'] ?? '');
         $this->assertStringContainsStringIgnoringCase('пробн', (string) ($trialReg['line'] ?? ''));
+        $this->assertSame(1, (int) ($trialReg['lessons_remaining'] ?? 0));
+        $this->assertSame(1, (int) ($trialReg['lessons_total'] ?? 0));
+
+        $student->refresh();
+        $this->assertTrue($student->has_used_school_schedule_trial);
     }
 
     public function test_trial_eligibility_blocked_when_legacy_calendar_row_without_package_and_not_trial_flag(): void
@@ -452,5 +457,44 @@ final class LessonPackageSchoolScheduleTrialFeatureTest extends CrmTestCase
         $this->assertNotNull($log);
         $this->assertStringContainsString('Отменено пробное занятие', (string) $log->description);
         $this->assertStringContainsString(self::WEEK_MONDAY, (string) $log->target_label);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ])->assertStatus(422);
+    }
+
+    public function test_trial_store_second_registration_other_slot_same_user_returns_422(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slotMon = $this->mondaySlot();
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slotMon->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ])->assertOk();
+
+        $teamTue = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slotTue = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $teamTue->id,
+            'location_id' => null,
+            'weekday' => 2,
+            'time_start' => '10:00',
+            'time_end' => '11:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slotTue->id,
+            'occurrence_date' => '2026-05-05',
+        ])->assertStatus(422);
     }
 }

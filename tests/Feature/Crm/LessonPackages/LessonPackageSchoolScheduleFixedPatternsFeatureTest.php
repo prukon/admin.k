@@ -145,7 +145,7 @@ final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestC
             ->assertJsonPath('message', 'Абонемент назначен, занятия привязаны к расписанию школы.');
 
         $ulp->refresh();
-        $this->assertSame(0, (int) $ulp->lessons_remaining);
+        $this->assertSame(2, (int) $ulp->lessons_remaining);
 
         $rows = UserTeamScheduleSlot::query()
             ->where('user_lesson_package_id', $ulp->id)

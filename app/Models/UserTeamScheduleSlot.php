@@ -19,6 +19,8 @@ class UserTeamScheduleSlot extends Model
         'user_id' => 'int',
         'team_schedule_slot_id' => 'int',
         'is_trial_lesson' => 'bool',
+        'trial_lessons_remaining' => 'int',
+        'trial_lessons_total' => 'int',
         'starts_at' => 'date:Y-m-d',
         'ends_at' => 'date:Y-m-d',
         'created_by' => 'int',

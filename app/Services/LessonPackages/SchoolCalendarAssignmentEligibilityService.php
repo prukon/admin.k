@@ -40,7 +40,10 @@ final class SchoolCalendarAssignmentEligibilityService
     {
         return $query
             ->whereHas('lessonPackage', fn ($lq) => $lq->where('partner_id', $partnerId)->where('schedule_type', 'flexible'))
-            ->where('lessons_remaining', '>', 0);
+            ->where('lessons_total', '>', 0)
+            ->whereRaw(
+                '(SELECT COUNT(*) FROM user_team_schedule_slots WHERE user_team_schedule_slots.user_lesson_package_id = user_lesson_packages.id) < user_lesson_packages.lessons_total'
+            );
     }
 
     /**
@@ -53,7 +56,7 @@ final class SchoolCalendarAssignmentEligibilityService
             ->whereHas('lessonPackage', fn ($lq) => $lq->where('partner_id', $partnerId)->where('schedule_type', 'fixed'))
             ->whereNull('starts_at')
             ->whereNull('ends_at')
-            ->where('lessons_remaining', '>', 0);
+            ->where('lessons_total', '>', 0);
     }
 
     /**
@@ -66,8 +69,10 @@ final class SchoolCalendarAssignmentEligibilityService
     {
         return $query
             ->whereHas('lessonPackage', fn ($lq) => $lq->where('partner_id', $partnerId)->where('schedule_type', 'no_schedule'))
-            ->where('lessons_remaining', '>', 0)
-            ->whereDoesntHave('userTeamScheduleSlots');
+            ->where('lessons_total', '>', 0)
+            ->whereRaw(
+                '(SELECT COUNT(*) FROM user_team_schedule_slots WHERE user_team_schedule_slots.user_lesson_package_id = user_lesson_packages.id) < user_lesson_packages.lessons_total'
+            );
     }
 
     /**

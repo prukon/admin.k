@@ -680,6 +680,19 @@
                 return registrationPackageKind(r);
             }
 
+            /** Остаток / объём для подписи в модалке: «(2/3)» (абонемент или пробное). */
+            function formatRegLessonBalance(reg) {
+                if (!reg) {
+                    return '';
+                }
+                const rem = reg.lessons_remaining;
+                const tot = reg.lessons_total;
+                if (rem == null || tot == null) {
+                    return '';
+                }
+                return '(' + rem + '/' + tot + ')';
+            }
+
             function parseYmd(s) {
                 const p = s.split('-');
                 return new Date(+p[0], +p[1] - 1, +p[2]);
@@ -894,14 +907,14 @@
                         const fio = document.createElement('span');
                         fio.className = 'school-cal__reg-card__fio text-truncate';
                         fio.textContent = (r.user_label || '').trim() || '—';
-                        const sep = document.createElement('span');
-                        sep.className = 'text-muted flex-shrink-0 small';
-                        sep.textContent = '—';
+                        const trialBalanceSpan = document.createElement('span');
+                        trialBalanceSpan.className = 'text-muted flex-shrink-0 small ms-1 school-cal__reg-balance';
+                        trialBalanceSpan.textContent = formatRegLessonBalance(r);
                         const kind = document.createElement('span');
-                        kind.className = 'school-cal__reg-card__pkg text-truncate';
+                        kind.className = 'school-cal__reg-card__pkg text-truncate ms-2';
                         kind.textContent = 'Пробное занятие';
                         oneline.appendChild(fio);
-                        oneline.appendChild(sep);
+                        oneline.appendChild(trialBalanceSpan);
                         oneline.appendChild(kind);
 
                         const cancel = document.createElement('a');
@@ -993,6 +1006,11 @@
                                 badge.style.display = 'inline-block';
                                 badge.style.background = r.current_status.color || '#6c757d';
                                 badge.textContent = r.current_status.title || '';
+                            }
+                            if (data.trial_registration) {
+                                r.lessons_remaining = data.trial_registration.lessons_remaining;
+                                r.lessons_total = data.trial_registration.lessons_total;
+                                trialBalanceSpan.textContent = formatRegLessonBalance(r);
                             }
                             showAlert('success', data.message || 'Статус сохранён.');
                             loadWeek();
@@ -1141,14 +1159,14 @@
                     const nameEl = document.createElement('span');
                     nameEl.className = 'school-cal__reg-card__fio text-truncate';
                     nameEl.textContent = (r.user_label || '').trim() || '—';
-                    const sepEl = document.createElement('span');
-                    sepEl.className = 'text-muted flex-shrink-0 small';
-                    sepEl.textContent = '—';
+                    const balanceSpan = document.createElement('span');
+                    balanceSpan.className = 'text-muted flex-shrink-0 small ms-1 school-cal__reg-balance';
+                    balanceSpan.textContent = formatRegLessonBalance(r);
                     const kindEl = document.createElement('span');
-                    kindEl.className = 'school-cal__reg-card__pkg text-truncate';
+                    kindEl.className = 'school-cal__reg-card__pkg text-truncate ms-2';
                     kindEl.textContent = registrationPackageDisplayName(r);
                     head.appendChild(nameEl);
-                    head.appendChild(sepEl);
+                    head.appendChild(balanceSpan);
                     head.appendChild(kindEl);
 
                     const sel = document.createElement('select');
@@ -1231,6 +1249,11 @@
                             badge.style.display = 'inline-block';
                             badge.style.background = r.current_status.color || '#6c757d';
                             badge.textContent = r.current_status.title || '';
+                        }
+                        if (data.user_lesson_package) {
+                            r.lessons_remaining = data.user_lesson_package.lessons_remaining;
+                            r.lessons_total = data.user_lesson_package.lessons_total;
+                            balanceSpan.textContent = formatRegLessonBalance(r);
                         }
                         showAlert('success', data.message || 'Статус сохранён.');
                         loadWeek();

@@ -40,7 +40,9 @@ final class TeamScheduleCalendarService
      *         user_id: int,
      *         user_lesson_package_id: int|null,
      *         occurrence_status_history_count: int,
-     *         current_status: array{id:int,code:string,title:string,color:string,icon:?string}|null
+     *         current_status: array{id:int,code:string,title:string,color:string,icon:?string}|null,
+     *         lessons_remaining: int|null,
+     *         lessons_total: int|null
      *     }>,
      * }>
      */
@@ -298,7 +300,9 @@ final class TeamScheduleCalendarService
      *     user_id: int,
      *     team_schedule_slot_id: int,
      *     occurrence_date: string,
-     *     user_lesson_package_id: int|null
+     *     user_lesson_package_id: int|null,
+     *     lessons_remaining: int|null,
+     *     lessons_total: int|null
      * }
      */
     private function formatSlotRegistrationLine(UserTeamScheduleSlot $row, string $occurrenceDate): array
@@ -330,6 +334,19 @@ final class TeamScheduleCalendarService
 
         $registrationKind = $isTrial ? 'trial' : 'package';
 
+        $hasPackageBalance = ! $isTrial && $row->user_lesson_package_id !== null && $ulp !== null;
+        $hasTrialBalance = $isTrial && $row->user_lesson_package_id === null;
+
+        $lessonsRemaining = null;
+        $lessonsTotal = null;
+        if ($hasTrialBalance) {
+            $lessonsRemaining = (int) ($row->trial_lessons_remaining ?? 1);
+            $lessonsTotal = (int) ($row->trial_lessons_total ?? 1);
+        } elseif ($hasPackageBalance) {
+            $lessonsRemaining = (int) $ulp->lessons_remaining;
+            $lessonsTotal = (int) $ulp->lessons_total;
+        }
+
         return [
             'user_label' => $userLabel,
             'line' => $userLabel.', '.$kind,
@@ -341,6 +358,8 @@ final class TeamScheduleCalendarService
             'team_schedule_slot_id' => (int) $row->team_schedule_slot_id,
             'occurrence_date' => $occurrenceDate,
             'user_lesson_package_id' => $row->user_lesson_package_id !== null ? (int) $row->user_lesson_package_id : null,
+            'lessons_remaining' => $lessonsRemaining,
+            'lessons_total' => $lessonsTotal,
         ];
     }
 

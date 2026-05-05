@@ -93,10 +93,13 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ], 422);
         }
 
-        if ((int) $ulp->lessons_remaining < 1) {
+        $scheduledForUlp = UserTeamScheduleSlot::query()
+            ->where('user_lesson_package_id', (int) $ulp->id)
+            ->count();
+        if ($scheduledForUlp >= (int) $ulp->lessons_total) {
             return response()->json([
-                'message' => 'На абонементе не осталось занятий.',
-                'errors' => ['user_lesson_package_id' => ['На абонементе не осталось занятий.']],
+                'message' => 'Достигнут лимит занятий в календаре для этого абонемента.',
+                'errors' => ['user_lesson_package_id' => ['Достигнут лимит занятий в календаре для этого абонемента.']],
             ], 422);
         }
 
@@ -166,9 +169,6 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     'ends_at' => Carbon::parse((string) $ulp->ends_at)->format('Y-m-d'),
                     'created_by' => auth()->id(),
                 ]);
-
-                $ulp->lessons_remaining = max(0, (int) $ulp->lessons_remaining - 1);
-                $ulp->save();
             });
         } catch (InvalidArgumentException $e) {
             return response()->json([
@@ -216,17 +216,17 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ], 422);
         }
 
-        if (UserTeamScheduleSlot::query()->where('user_lesson_package_id', (int) $ulp->id)->exists()) {
-            return response()->json([
-                'message' => 'Это разовое занятие уже записано в расписание школы.',
-                'errors' => ['user_lesson_package_id' => ['Для этого назначения слот в календаре уже выбран. Оформите новое разовое занятие отдельным абонементом.']],
-            ], 422);
-        }
+        $scheduledForUlp = UserTeamScheduleSlot::query()
+            ->where('user_lesson_package_id', (int) $ulp->id)
+            ->count();
+        if ($scheduledForUlp >= (int) $ulp->lessons_total) {
+            $msg = (int) $ulp->lessons_total === 1
+                ? 'Для этого назначения слот в календаре уже выбран. Оформите новое разовое занятие отдельным абонементом.'
+                : 'Достигнут лимит занятий в календаре для этого абонемента.';
 
-        if ((int) $ulp->lessons_remaining < 1) {
             return response()->json([
-                'message' => 'На абонементе не осталось занятий.',
-                'errors' => ['user_lesson_package_id' => ['На абонементе не осталось занятий.']],
+                'message' => $msg,
+                'errors' => ['user_lesson_package_id' => [$msg]],
             ], 422);
         }
 
@@ -296,9 +296,6 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     'ends_at' => Carbon::parse((string) $ulp->ends_at)->format('Y-m-d'),
                     'created_by' => auth()->id(),
                 ]);
-
-                $ulp->lessons_remaining = max(0, (int) $ulp->lessons_remaining - 1);
-                $ulp->save();
             });
         } catch (InvalidArgumentException $e) {
             return response()->json([
@@ -367,10 +364,10 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ], 422);
         }
 
-        if ((int) $ulp->lessons_remaining < 1) {
+        if ((int) $ulp->lessons_total < 1) {
             return response()->json([
-                'message' => 'На абонементе не осталось занятий.',
-                'errors' => ['user_lesson_package_id' => ['На абонементе не осталось занятий.']],
+                'message' => 'У абонемента не задан объём занятий.',
+                'errors' => ['user_lesson_package_id' => ['У абонемента не задан объём занятий.']],
             ], 422);
         }
 
@@ -486,9 +483,12 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
 
                 $periodEnd = CarbonImmutable::parse($ulp->ends_at->format('Y-m-d'))->startOfDay();
 
-                $lessonsNeeded = (int) $ulp->lessons_remaining;
+                $scheduledExisting = UserTeamScheduleSlot::query()
+                    ->where('user_lesson_package_id', (int) $ulp->id)
+                    ->count();
+                $lessonsNeeded = (int) $ulp->lessons_total - $scheduledExisting;
                 if ($lessonsNeeded < 1) {
-                    throw new InvalidArgumentException('На абонементе не осталось занятий.');
+                    throw new InvalidArgumentException('Нет свободных занятий для записи в календарь по этому абонементу.');
                 }
 
                 $this->calendarService->assertEveryFixedPatternOccurrenceResolvableInPeriod(
@@ -517,8 +517,6 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     $chain
                 );
 
-                $scheduledCount = count($chain);
-
                 foreach ($chain as $item) {
                     /** @var CarbonImmutable $date */
                     $date = $item['date'];
@@ -535,9 +533,6 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                         'created_by' => auth()->id(),
                     ]);
                 }
-
-                $ulp->lessons_remaining = max(0, (int) $ulp->lessons_remaining - $scheduledCount);
-                $ulp->save();
             });
         } catch (InvalidArgumentException $e) {
             $msg = $e->getMessage();
@@ -571,7 +566,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
     }
 
     /**
-     * Пробное занятие: отметка в календаре без абонемента и без списаний.
+     * Пробное занятие: одна запись на ученика (флаг has_used_school_schedule_trial), баланс 1/1, списание по статусу с consumes_lesson.
      */
     public function storeTrialRegistration(AssignSchoolCalendarTrialRequest $request): JsonResponse
     {
@@ -634,16 +629,56 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         }
 
         try {
-            UserTeamScheduleSlot::query()->create([
-                'partner_id' => $partnerId,
-                'user_id' => (int) $user->id,
-                'user_lesson_package_id' => null,
-                'is_trial_lesson' => true,
-                'team_schedule_slot_id' => (int) $slot->id,
-                'starts_at' => $occurrence->toDateString(),
-                'ends_at' => '9999-12-31',
-                'created_by' => auth()->id(),
-            ]);
+            DB::transaction(function () use ($partnerId, $user, $slot, $occurrence): void {
+                /** @var User $lockedUser */
+                $lockedUser = User::query()->whereKey((int) $user->id)->lockForUpdate()->firstOrFail();
+
+                if ($lockedUser->has_used_school_schedule_trial) {
+                    throw new \RuntimeException('trial_already_used');
+                }
+
+                $trialDup = UserTeamScheduleSlot::query()
+                    ->where('partner_id', $partnerId)
+                    ->where('user_id', (int) $lockedUser->id)
+                    ->where('is_trial_lesson', true)
+                    ->whereNull('user_lesson_package_id')
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($trialDup) {
+                    throw new \RuntimeException('trial_already_scheduled');
+                }
+
+                UserTeamScheduleSlot::query()->create([
+                    'partner_id' => $partnerId,
+                    'user_id' => (int) $lockedUser->id,
+                    'user_lesson_package_id' => null,
+                    'is_trial_lesson' => true,
+                    'trial_lessons_remaining' => 1,
+                    'trial_lessons_total' => 1,
+                    'team_schedule_slot_id' => (int) $slot->id,
+                    'starts_at' => $occurrence->toDateString(),
+                    'ends_at' => '9999-12-31',
+                    'created_by' => auth()->id(),
+                ]);
+
+                $lockedUser->forceFill(['has_used_school_schedule_trial' => true])->save();
+            });
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'trial_already_used') {
+                return response()->json([
+                    'message' => 'Пробное занятие для этого ученика уже было использовано.',
+                    'errors' => ['user_id' => ['Пробное занятие для этого ученика уже было использовано.']],
+                ], 422);
+            }
+            if ($e->getMessage() === 'trial_already_scheduled') {
+                return response()->json([
+                    'message' => 'У ученика уже есть запись на пробное занятие.',
+                    'errors' => ['user_id' => ['У ученика уже есть запись на пробное занятие.']],
+                ], 422);
+            }
+
+            throw $e;
         } catch (\Throwable $e) {
             report($e);
 

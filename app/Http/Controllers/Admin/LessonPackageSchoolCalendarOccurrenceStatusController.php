@@ -14,6 +14,8 @@ use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\PartnerContext;
+use App\Services\SchoolScheduleTrialLessonConsumptionAdjuster;
+use App\Services\UserLessonPackageConsumptionAdjuster;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -113,30 +115,95 @@ final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminB
             ], 422);
         }
 
-        // Пробное занятие: статус может иметь consumes_lesson в справочнике — остаток абонемента не трогаем (нет ULP).
+        /** @var UserTeamScheduleSlot|null $trialUtss */
+        $trialUtss = null;
+        if ($ulpId === null) {
+            $trialUtss = UserTeamScheduleSlot::query()
+                ->where('partner_id', $partnerId)
+                ->where('user_id', $userId)
+                ->where('team_schedule_slot_id', $slotId)
+                ->whereDate('starts_at', $occurrenceDate)
+                ->where('is_trial_lesson', true)
+                ->whereNull('user_lesson_package_id')
+                ->first();
+        }
 
-        $event = DB::transaction(function () use (
-            $partnerId,
-            $userId,
-            $slotId,
-            $occurrenceDate,
-            $savedUlpId,
-            $statusId,
-        ): UserLessonOccurrenceStatusEvent {
-            return UserLessonOccurrenceStatusEvent::query()->create([
-                'partner_id' => $partnerId,
-                'user_id' => $userId,
-                'team_schedule_slot_id' => $slotId,
-                'occurrence_date' => $occurrenceDate,
-                'user_lesson_package_id' => $savedUlpId,
-                'lesson_occurrence_status_id' => $statusId,
-                'created_by' => auth()->id(),
-            ]);
-        });
+        try {
+            $event = DB::transaction(function () use (
+                $partnerId,
+                $userId,
+                $slotId,
+                $occurrenceDate,
+                $savedUlpId,
+                $statusId,
+                $status,
+                $trialUtss,
+            ): UserLessonOccurrenceStatusEvent {
+                if ($savedUlpId !== null) {
+                    $prevEvent = UserLessonOccurrenceStatusEvent::query()
+                        ->where('partner_id', $partnerId)
+                        ->where('user_id', $userId)
+                        ->where('team_schedule_slot_id', $slotId)
+                        ->whereDate('occurrence_date', $occurrenceDate)
+                        ->where('user_lesson_package_id', $savedUlpId)
+                        ->with(['lessonOccurrenceStatus:id,consumes_lesson'])
+                        ->orderByDesc('id')
+                        ->first();
+
+                    $prevConsumed = $prevEvent?->lessonOccurrenceStatus?->consumes_lesson;
+
+                    $delta = UserLessonPackageConsumptionAdjuster::remainingLessonsDelta(
+                        $prevConsumed,
+                        (bool) $status->consumes_lesson
+                    );
+
+                    if ($delta !== 0) {
+                        $ulp = UserLessonPackage::query()->whereKey($savedUlpId)->firstOrFail();
+                        UserLessonPackageConsumptionAdjuster::applyRemainingLessonsDelta($ulp, $delta);
+                    }
+                } elseif ($trialUtss !== null) {
+                    $prevEvent = UserLessonOccurrenceStatusEvent::query()
+                        ->where('partner_id', $partnerId)
+                        ->where('user_id', $userId)
+                        ->where('team_schedule_slot_id', $slotId)
+                        ->whereDate('occurrence_date', $occurrenceDate)
+                        ->whereNull('user_lesson_package_id')
+                        ->with(['lessonOccurrenceStatus:id,consumes_lesson'])
+                        ->orderByDesc('id')
+                        ->first();
+
+                    $prevConsumed = $prevEvent?->lessonOccurrenceStatus?->consumes_lesson;
+
+                    $delta = UserLessonPackageConsumptionAdjuster::remainingLessonsDelta(
+                        $prevConsumed,
+                        (bool) $status->consumes_lesson
+                    );
+
+                    if ($delta !== 0) {
+                        SchoolScheduleTrialLessonConsumptionAdjuster::applyRemainingLessonsDelta($trialUtss, $delta);
+                    }
+                }
+
+                return UserLessonOccurrenceStatusEvent::query()->create([
+                    'partner_id' => $partnerId,
+                    'user_id' => $userId,
+                    'team_schedule_slot_id' => $slotId,
+                    'occurrence_date' => $occurrenceDate,
+                    'user_lesson_package_id' => $savedUlpId,
+                    'lesson_occurrence_status_id' => $statusId,
+                    'created_by' => auth()->id(),
+                ]);
+            });
+        } catch (\DomainException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['lesson_occurrence_status_id' => [$e->getMessage()]],
+            ], 422);
+        }
 
         $event->load(['lessonOccurrenceStatus:id,code,title,color,icon']);
 
-        return response()->json([
+        $payload = [
             'message' => 'Статус сохранён.',
             'event' => [
                 'id' => (int) $event->id,
@@ -151,7 +218,33 @@ final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminB
                     : null,
                 'created_at' => $event->created_at?->toIso8601String(),
             ],
-        ]);
+        ];
+
+        if ($savedUlpId !== null) {
+            $ulpFresh = UserLessonPackage::query()
+                ->whereKey($savedUlpId)
+                ->first(['id', 'lessons_remaining', 'lessons_total']);
+            if ($ulpFresh !== null) {
+                $payload['user_lesson_package'] = [
+                    'id' => (int) $ulpFresh->id,
+                    'lessons_remaining' => (int) $ulpFresh->lessons_remaining,
+                    'lessons_total' => (int) $ulpFresh->lessons_total,
+                ];
+            }
+        } elseif ($trialUtss !== null) {
+            $trialFresh = UserTeamScheduleSlot::query()
+                ->whereKey((int) $trialUtss->id)
+                ->first(['id', 'trial_lessons_remaining', 'trial_lessons_total']);
+            if ($trialFresh !== null) {
+                $payload['trial_registration'] = [
+                    'user_team_schedule_slot_id' => (int) $trialFresh->id,
+                    'lessons_remaining' => (int) ($trialFresh->trial_lessons_remaining ?? 1),
+                    'lessons_total' => (int) ($trialFresh->trial_lessons_total ?? 1),
+                ];
+            }
+        }
+
+        return response()->json($payload);
     }
 
     public function history(ListUserLessonOccurrenceStatusHistoryRequest $request): JsonResponse

@@ -512,7 +512,7 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             ->assertJsonPath('message', 'Занятие привязано к абонементу.');
 
         $flexUlp->refresh();
-        $this->assertSame(1, (int) $flexUlp->lessons_remaining);
+        $this->assertSame(2, (int) $flexUlp->lessons_remaining);
 
         $fixedPackage = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
@@ -560,7 +560,7 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             ->assertJsonPath('message', 'Абонемент назначен, занятия привязаны к расписанию школы.');
 
         $fixedUlp->refresh();
-        $this->assertSame(0, (int) $fixedUlp->lessons_remaining, 'После фикс-привязки остаток должен списаться по числу занятий цепочки.');
+        $this->assertSame(1, (int) $fixedUlp->lessons_remaining, 'Привязка к календарю не списывает занятия — только статусы с consumes_lesson.');
 
         $singlePackage = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
@@ -602,7 +602,7 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             ->assertJsonPath('message', 'Разовое занятие записано в расписание.');
 
         $singleUlp->refresh();
-        $this->assertSame(0, (int) $singleUlp->lessons_remaining);
+        $this->assertSame(1, (int) $singleUlp->lessons_remaining);
 
         $this->getJson(route('admin.lesson-packages.school-schedule.week', [
             'week' => self::WEEK_MONDAY,

@@ -114,9 +114,14 @@ final class SchoolCalendarOccurrenceStatusFeatureTest extends CrmTestCase
             'lesson_occurrence_status_id' => $statusAttended->id,
         ])
             ->assertOk()
-            ->assertJsonPath('event.lesson_occurrence_status.title', 'Посетил');
+            ->assertJsonPath('event.lesson_occurrence_status.title', 'Посетил')
+            ->assertJsonPath('user_lesson_package.lessons_remaining', 2)
+            ->assertJsonPath('user_lesson_package.lessons_total', 10);
 
         $this->assertSame(1, UserLessonOccurrenceStatusEvent::query()->count());
+
+        $ulp->refresh();
+        $this->assertSame(2, (int) $ulp->lessons_remaining, 'Списание по статусу «Посетил» (consumes_lesson).');
 
         $this->getJson(route('admin.lesson-packages.school-schedule.occurrence-status.history', [
             'team_schedule_slot_id' => $slot->id,
@@ -177,6 +182,8 @@ final class SchoolCalendarOccurrenceStatusFeatureTest extends CrmTestCase
             'starts_at' => self::WEEK_MONDAY,
             'ends_at' => self::WEEK_MONDAY,
             'is_trial_lesson' => true,
+            'trial_lessons_remaining' => 1,
+            'trial_lessons_total' => 1,
             'created_by' => $this->user->id,
         ]);
 
@@ -194,7 +201,9 @@ final class SchoolCalendarOccurrenceStatusFeatureTest extends CrmTestCase
             'lesson_occurrence_status_id' => $statusAttended->id,
         ])
             ->assertOk()
-            ->assertJsonPath('event.lesson_occurrence_status.title', 'Посетил');
+            ->assertJsonPath('event.lesson_occurrence_status.title', 'Посетил')
+            ->assertJsonPath('trial_registration.lessons_remaining', 0)
+            ->assertJsonPath('trial_registration.lessons_total', 1);
 
         $ev = UserLessonOccurrenceStatusEvent::query()->firstOrFail();
         $this->assertNull($ev->user_lesson_package_id);
@@ -240,6 +249,8 @@ final class SchoolCalendarOccurrenceStatusFeatureTest extends CrmTestCase
             'starts_at' => self::WEEK_MONDAY,
             'ends_at' => self::WEEK_MONDAY,
             'is_trial_lesson' => true,
+            'trial_lessons_remaining' => 1,
+            'trial_lessons_total' => 1,
             'created_by' => $this->user->id,
         ]);
 
@@ -277,6 +288,8 @@ final class SchoolCalendarOccurrenceStatusFeatureTest extends CrmTestCase
         $this->assertNull($r['lesson_package_name'] ?? null);
         $this->assertSame(1, (int) ($r['occurrence_status_history_count'] ?? 0));
         $this->assertSame('Посетил', $r['current_status']['title'] ?? null);
+        $this->assertSame(0, (int) ($r['lessons_remaining'] ?? -1));
+        $this->assertSame(1, (int) ($r['lessons_total'] ?? -1));
     }
 
     public function test_occurrence_status_history_without_ulp_does_not_return_package_events_for_same_slot(): void
@@ -370,6 +383,9 @@ final class SchoolCalendarOccurrenceStatusFeatureTest extends CrmTestCase
             'user_lesson_package_id' => $ulpB->id,
             'lesson_occurrence_status_id' => $statusAttended->id,
         ])->assertOk();
+
+        $ulpB->refresh();
+        $this->assertSame(4, (int) $ulpB->lessons_remaining);
 
         $this->getJson(route('admin.lesson-packages.school-schedule.occurrence-status.history', [
             'team_schedule_slot_id' => $slot->id,

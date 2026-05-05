@@ -128,7 +128,7 @@ final class SchoolCalendarSlotUserBindActionsService
         if (! $occurrenceAware->exists()) {
             return [
                 'allowed' => false,
-                'reason' => 'Нет гибкого абонемента с остатком занятий, подходящего для этой даты.',
+                'reason' => 'Нет гибкого абонемента со свободной записью в календаре (лимит занятий или период), подходящего для этой даты.',
             ];
         }
 
@@ -152,7 +152,7 @@ final class SchoolCalendarSlotUserBindActionsService
         if (! $has) {
             return [
                 'allowed' => false,
-                'reason' => 'Нет фиксированного абонемента без привязки к календарю с остатком занятий.',
+                'reason' => 'Нет фиксированного абонемента без привязки к календарю с доступным объёмом занятий.',
             ];
         }
 
@@ -176,7 +176,7 @@ final class SchoolCalendarSlotUserBindActionsService
         if (! $has) {
             return [
                 'allowed' => false,
-                'reason' => 'Нет разового занятия с остатком, которое ещё не записано в календарь школы.',
+                'reason' => 'Нет разового занятия со свободной записью в календарь школы.',
             ];
         }
 
