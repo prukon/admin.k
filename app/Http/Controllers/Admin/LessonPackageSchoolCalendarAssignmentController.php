@@ -10,8 +10,10 @@ use App\Http\Requests\Admin\AssignSchoolCalendarFlexibleRequest;
 use App\Http\Requests\Admin\AssignSchoolCalendarSingleLessonRequest;
 use App\Http\Requests\Admin\AssignSchoolCalendarTrialRequest;
 use App\Models\LessonPackage;
+use App\Models\MyLog;
 use App\Models\TeamScheduleSlot;
 use App\Models\User;
+use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\LessonPackages\SchoolCalendarSlotUserBindActionsService;
@@ -689,14 +691,63 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
     {
         $partnerId = $this->requirePartnerId();
 
-        if ((int) $userTeamScheduleSlot->partner_id !== $partnerId || ! $userTeamScheduleSlot->is_trial_lesson) {
+        if ((int) $userTeamScheduleSlot->partner_id !== $partnerId
+            || ! $userTeamScheduleSlot->is_trial_lesson
+            || $userTeamScheduleSlot->user_lesson_package_id !== null) {
             return response()->json([
                 'message' => 'Запись не найдена или не является пробным занятием.',
             ], 404);
         }
 
         try {
-            $userTeamScheduleSlot->delete();
+            $userTeamScheduleSlot->loadMissing([
+                'user:id,name,lastname',
+                'slot:id,team_id,weekday,time_start,time_end',
+                'slot.team:id,title',
+            ]);
+
+            $trialId = (int) $userTeamScheduleSlot->id;
+            $userId = (int) $userTeamScheduleSlot->user_id;
+            $slotId = (int) $userTeamScheduleSlot->team_schedule_slot_id;
+            $occurrenceDate = $userTeamScheduleSlot->starts_at?->format('Y-m-d') ?? (string) $userTeamScheduleSlot->starts_at;
+            $userLabel = $userTeamScheduleSlot->user
+                ? trim(($userTeamScheduleSlot->user->lastname ?? '').' '.($userTeamScheduleSlot->user->name ?? ''))
+                : ('Ученик #'.$userId);
+            if ($userLabel === '') {
+                $userLabel = 'Ученик #'.$userId;
+            }
+            $teamTitle = (string) ($userTeamScheduleSlot->slot?->team?->title ?? '');
+            $timeStart = substr((string) ($userTeamScheduleSlot->slot?->time_start ?? ''), 0, 5);
+            $timeEnd = substr((string) ($userTeamScheduleSlot->slot?->time_end ?? ''), 0, 5);
+            $timeLabel = trim($timeStart.($timeStart && $timeEnd ? '–' : '').$timeEnd);
+
+            DB::transaction(function () use ($partnerId, $userId, $slotId, $occurrenceDate, $trialId, $userLabel, $teamTitle, $timeLabel, $userTeamScheduleSlot) {
+                UserLessonOccurrenceStatusEvent::query()
+                    ->where('partner_id', $partnerId)
+                    ->where('user_id', $userId)
+                    ->where('team_schedule_slot_id', $slotId)
+                    ->whereDate('occurrence_date', $occurrenceDate)
+                    ->whereNull('user_lesson_package_id')
+                    ->delete();
+
+                $userTeamScheduleSlot->delete();
+
+                $slotPart = $teamTitle !== '' ? ('; группа: '.$teamTitle) : '';
+                $whenPart = $occurrenceDate !== '' ? ('; дата: '.$occurrenceDate) : '';
+                $timePart = $timeLabel !== '' ? (' '.$timeLabel) : '';
+
+                MyLog::query()->create([
+                    'type' => 60,
+                    'action' => 601,
+                    'author_id' => auth()->id(),
+                    'partner_id' => $partnerId,
+                    'user_id' => $userId,
+                    'description' => 'Отменено пробное занятие в расписании; ученик: '.$userLabel.$slotPart.$whenPart.$timePart,
+                    'target_type' => UserTeamScheduleSlot::class,
+                    'target_id' => $trialId,
+                    'target_label' => $userLabel.', пробное занятие, '.$occurrenceDate.($timeLabel !== '' ? (' '.$timeLabel) : ''),
+                ]);
+            });
         } catch (\Throwable $e) {
             report($e);
 
@@ -705,7 +756,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ], 422);
         }
 
-        return response()->json(['message' => 'Пробное занятие удалено из расписания.']);
+        return response()->json(['message' => 'Пробное занятие отменено.']);
     }
 
     /**

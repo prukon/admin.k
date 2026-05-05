@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\LessonPackages;
 
+use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
+use App\Models\MyLog;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\TeamScheduleSlot;
 use App\Models\User;
+use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
 use Carbon\CarbonImmutable;
+use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -363,5 +367,90 @@ final class LessonPackageSchoolScheduleTrialFeatureTest extends CrmTestCase
         ]))->assertForbidden();
 
         $this->assertDatabaseHas('user_team_schedule_slots', ['id' => $trialId]);
+    }
+
+    public function test_trial_destroy_cleans_occurrence_status_events_and_writes_my_logs_row(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+        LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+
+        // создаём пробное через штатный endpoint
+        $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ])->assertOk();
+
+        $trialId = (int) UserTeamScheduleSlot::query()
+            ->where('partner_id', $this->partner->id)
+            ->where('user_id', $student->id)
+            ->where('team_schedule_slot_id', $slot->id)
+            ->whereDate('starts_at', self::WEEK_MONDAY)
+            ->where('is_trial_lesson', true)
+            ->value('id');
+        $this->assertGreaterThan(0, $trialId);
+
+        $statusAttended = LessonOccurrenceStatus::query()
+            ->where('partner_id', $this->partner->id)
+            ->where('code', 'attended')
+            ->firstOrFail();
+
+        // пишем статус по пробному (user_lesson_package_id = null)
+        $this->actingAs($this->user);
+        $this->postJson(route('admin.lesson-packages.school-schedule.occurrence-status.store'), [
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'user_id' => $student->id,
+            'lesson_occurrence_status_id' => $statusAttended->id,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('user_lesson_occurrence_status_events', [
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'user_lesson_package_id' => null,
+            'lesson_occurrence_status_id' => $statusAttended->id,
+        ]);
+
+        // отменяем пробное
+        $this->deleteJson(route('admin.lesson-packages.school-schedule.trial-registration.destroy', [
+            'userTeamScheduleSlot' => $trialId,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('message', 'Пробное занятие отменено.');
+
+        $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $trialId]);
+
+        // статусы по этому пробному должны быть полностью вычищены
+        $this->assertDatabaseMissing('user_lesson_occurrence_status_events', [
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'user_lesson_package_id' => null,
+        ]);
+
+        // и пишем аудит в my_logs
+        $this->assertDatabaseHas('my_logs', [
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'type' => 60,
+            'action' => 601,
+            'target_type' => UserTeamScheduleSlot::class,
+            'target_id' => $trialId,
+        ]);
+
+        $log = MyLog::query()
+            ->where('partner_id', $this->partner->id)
+            ->where('action', 601)
+            ->orderByDesc('id')
+            ->first();
+        $this->assertNotNull($log);
+        $this->assertStringContainsString('Отменено пробное занятие', (string) $log->description);
+        $this->assertStringContainsString(self::WEEK_MONDAY, (string) $log->target_label);
     }
 }

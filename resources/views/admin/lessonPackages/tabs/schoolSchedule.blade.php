@@ -607,6 +607,7 @@
                 occurrenceStatusStore: @json(route('admin.lesson-packages.school-schedule.occurrence-status.store')),
                 occurrenceStatusHistory: @json(route('admin.lesson-packages.school-schedule.occurrence-status.history')),
                 trialRegistrationStore: @json(route('admin.lesson-packages.school-schedule.trial-registration.store')),
+                trialRegistrationDestroy: @json(route('admin.lesson-packages.school-schedule.trial-registration.destroy', ['userTeamScheduleSlot' => 0])),
                 viewSettingsSave: @json(route('admin.lesson-packages.school-schedule.view-settings.save')),
             };
             const viewSettingsInitial = @json($schoolScheduleViewSettings ?? ['view_start_min' => 540, 'view_end_min' => 1260]);
@@ -699,6 +700,11 @@
                 const d = document.createElement('div');
                 d.textContent = text == null ? '' : String(text);
                 return d.innerHTML;
+            }
+
+            function trialRegistrationDestroyUrl(id) {
+                const base = String(routes.trialRegistrationDestroy || '');
+                return base.replace(/\/0$/, '/' + String(id));
             }
 
             /** ISO weekday 1=Пн … 7=Вс для локальной даты Y-m-d */
@@ -898,6 +904,13 @@
                         oneline.appendChild(sep);
                         oneline.appendChild(kind);
 
+                        const cancel = document.createElement('a');
+                        cancel.href = '#';
+                        cancel.className = 'small text-decoration-none flex-shrink-0';
+                        cancel.textContent = '(Отменить)';
+                        cancel.style.marginLeft = '0.25rem';
+                        oneline.appendChild(cancel);
+
                         row.appendChild(oneline);
                         li.appendChild(row);
 
@@ -983,6 +996,53 @@
                             }
                             showAlert('success', data.message || 'Статус сохранён.');
                             loadWeek();
+                        });
+
+                        cancel.addEventListener('click', async function (e) {
+                            e.preventDefault();
+                            errDiv.textContent = '';
+                            errDiv.style.display = 'none';
+
+                            const bindId = r.user_team_schedule_slot_id || r.id;
+                            if (!bindId) {
+                                errDiv.textContent = 'Не удалось определить запись для отмены.';
+                                errDiv.style.display = 'block';
+                                return;
+                            }
+                            if (!confirm('Отменить пробное занятие?')) {
+                                return;
+                            }
+
+                            cancel.style.pointerEvents = 'none';
+                            cancel.style.opacity = '0.6';
+                            try {
+                                const fd = new FormData();
+                                fd.append('_token', token);
+                                fd.append('_method', 'DELETE');
+                                const url = trialRegistrationDestroyUrl(bindId);
+                                const res = await fetch(url, {
+                                    method: 'POST',
+                                    body: fd,
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Accept': 'application/json',
+                                    }
+                                });
+                                const data = await res.json().catch(function () { return {}; });
+                                if (!res.ok) {
+                                    const msg = (data && data.message) ? data.message : 'Не удалось отменить пробное занятие.';
+                                    errDiv.textContent = msg;
+                                    errDiv.style.display = 'block';
+                                    showAlert('danger', msg);
+                                    return;
+                                }
+                                showAlert('success', data.message || 'Готово');
+                                bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
+                                loadWeek();
+                            } finally {
+                                cancel.style.pointerEvents = '';
+                                cancel.style.opacity = '';
+                            }
                         });
 
                         const controlsRow = document.createElement('div');

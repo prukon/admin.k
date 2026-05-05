@@ -41,6 +41,11 @@
 
   <h2>Сервис</h2>
   <p>Логика выставления дат инкапсулирована в <code>App\Services\UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>.</p>
+
+  <h2>Пробные занятия (trial) в календаре школы</h2>
+  <p>Пробное занятие не является назначением абонемента. Это отдельная запись в календаре школы (таблица <code>user_team_schedule_slots</code>) с признаком
+    <code>is_trial_lesson = true</code> и <code>user_lesson_package_id = NULL</code>. Добавление/отмена пробного и связанные эффекты (очистка статусов, аудит)
+    описаны на странице <a href="./school-schedule-calendar.html">«Расписание школы (календарь абонементов)»</a>.</p>
 </div>
 </body>
 </html>

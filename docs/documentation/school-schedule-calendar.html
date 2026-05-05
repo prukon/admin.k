@@ -67,6 +67,29 @@
     </tbody>
   </table>
 
+  <h2>Пробные занятия: добавление и отмена</h2>
+  <p>Пробное занятие — это запись ученика на конкретный слот и дату <strong>без абонемента</strong> и без списаний. На уровне БД это строка в
+    <code>user_team_schedule_slots</code> с признаками <code>is_trial_lesson = true</code> и <code>user_lesson_package_id = NULL</code>.</p>
+
+  <h2>UI: «(Отменить)» в списке записей</h2>
+  <p>В модалке слота в блоке <strong>«Записаны на занятие»</strong> для пробной записи рядом с подписью «Пробное занятие» выводится ссылка <code>(Отменить)</code>.
+    Ссылка доступна пользователям с правом <code>lessonPackages.view</code> (так же, как и сам экран) и снимает пробную запись с занятия.</p>
+
+  <h2>API: удаление (отмена) пробного занятия</h2>
+  <p>Для отмены используется эндпоинт:</p>
+  <ul>
+    <li><code>DELETE /admin/lesson-packages/school-schedule/trial-registration/{userTeamScheduleSlot}</code></li>
+  </ul>
+  <p>Идентификатор берётся из JSON недели (каждая регистрация содержит поле <code>user_team_schedule_slot_id</code>).</p>
+
+  <h2>Побочные эффекты отмены</h2>
+  <ul>
+    <li><strong>Очистка статусов</strong>: удаляются все записи в <code>user_lesson_occurrence_status_events</code> для этой даты/слота/ученика,
+      относящиеся к пробному (условие <code>user_lesson_package_id IS NULL</code>).</li>
+    <li><strong>Аудит</strong>: создаётся запись в <code>my_logs</code> с <code>type = 60</code> («Расписание») и <code>action = 601</code> («Отмена пробного занятия в расписании»),
+      с заполненными <code>target_type/target_id/target_label</code>.</li>
+  </ul>
+
   <h2>Связь с логикой абонементов</h2>
   <p>Привязка абонементов к слотам, период <code>starts_at</code>/<code>ends_at</code> и списание остатков описаны в отдельном разделе
     <a href="./lesson-packages.html">«Абонементы: назначение и период с календаря школы»</a> — настоящая страница не меняет серверные правила, только отображение и права на показ локации.</p>
