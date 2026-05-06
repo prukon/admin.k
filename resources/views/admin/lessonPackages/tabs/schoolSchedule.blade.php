@@ -5,6 +5,10 @@
     $weekLabels = $weekdays ?? [1 => 'Пн', 2 => 'Вт', 3 => 'Ср', 4 => 'Чт', 5 => 'Пт', 6 => 'Сб', 7 => 'Вс'];
 @endphp
 
+@once
+    @vite(['resources/css/school-schedule-calendar.css'])
+@endonce
+
 <div class="school-cal">
     <div class="school-cal__toolbar card border-0 shadow-sm mb-3">
         <div class="card-body py-2 px-3">
@@ -42,6 +46,12 @@
                          data-bs-target="#schoolCalViewSettingsModal"
                          title="Отображение календаря">
                         <i class="fa-solid fa-gear settings-icon"></i>
+                    </div>
+                    <div class="wrap-icon btn ms-1"
+                         id="schoolCalFullscreenBtn"
+                         title="Во весь экран"
+                         aria-label="Во весь экран">
+                        <i class="fas fa-expand"></i>
                     </div>
                 </div>
             </div>
@@ -307,288 +317,6 @@
     @include('admin.teamScheduleSlots.partials.slotModals')
 @endcan
 
-<style>
-    .school-cal__title {
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        background: linear-gradient(120deg, #1e3a5f 0%, #2563eb 55%, #7c3aed 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-    }
-    .school-cal__subtitle { max-width: 52rem; line-height: 1.5; }
-    .school-cal__toolbar {
-        border-radius: 14px !important;
-        background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(248,250,252,.92));
-    }
-    .school-cal__toolbar-k {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        font-weight: 600;
-    }
-    /* Стрелки недели: оранжевый как у .btn-primary в resources/css/style.css (#f3a12b) */
-    .school-cal__week-nav > .btn-outline-primary {
-        color: #f3a12b;
-        border-color: #f3a12b;
-    }
-    .school-cal__week-nav > .btn-outline-primary:hover {
-        color: #fff;
-        background-color: #f3a12b;
-        border-color: #f3a12b;
-    }
-    .school-cal__week-nav > .btn-primary {
-        border-color: #f3a12b;
-    }
-    /* Не даём глобальному .btn-primary:hover убрать рамку (там border-color: white !important) */
-    .school-cal__week-nav > .btn-primary:hover,
-    .school-cal__week-nav > .btn-primary:focus,
-    .school-cal__week-nav > .btn-primary:active,
-    .school-cal__week-nav > .btn-primary:focus-visible {
-        border-color: #f3a12b !important;
-    }
-    /* Сегодня: тонкая рамка как у стрелок (1px), цвет как в админке */
-    .school-cal__day-head--today {
-        border-top: 1px solid #f3a12b;
-        border-left: 1px solid #f3a12b;
-        border-right: 1px solid #f3a12b;
-    }
-    .school-cal__grid-wrap {
-        border-radius: 14px !important;
-        background: #f8fafc;
-    }
-    /* Не обрезаем карточки занятий по вертикали; горизонтальный скролл — внутри .school-cal__grid-scroll */
-    .school-cal__grid-wrap--events-visible {
-        overflow: visible;
-    }
-    .school-cal__grid-scroll {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    .school-cal__grid {
-        min-width: 880px;
-    }
-    .school-cal__head-row {
-        display: grid;
-        grid-template-columns: 56px repeat(7, minmax(104px, 1fr));
-    }
-    .school-cal__body-row {
-        display: grid;
-        grid-template-columns: 56px repeat(7, minmax(104px, 1fr));
-        border-top: 1px solid rgba(148,163,184,.35);
-    }
-    .school-cal__time-col {
-        border-right: 1px solid rgba(148,163,184,.35);
-        background: linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%);
-    }
-    .school-cal__time-label {
-        height: 40px;
-        font-size: 11px;
-        color: #64748b;
-        padding: 2px 6px 0;
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-    }
-    .school-cal__day-head {
-        padding: 10px 8px;
-        text-align: center;
-        border-bottom: 1px solid rgba(148,163,184,.35);
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    }
-    .school-cal__day-name {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        color: #64748b;
-        font-weight: 600;
-    }
-    .school-cal__day-num {
-        font-size: 20px;
-        font-weight: 700;
-        color: #0f172a;
-        line-height: 1.2;
-    }
-    .school-cal__day-col {
-        position: relative;
-        border-right: 1px solid rgba(226,232,240,.8);
-        background-color: rgba(255,255,255,.5);
-        background-image: linear-gradient(to bottom, rgba(226,232,240,.5) 1px, transparent 1px);
-        background-size: 100% 40px;
-    }
-    .school-cal__day-col--today {
-        background: rgba(219,234,254,.35);
-    }
-    .school-cal__grid--manage-slots .school-cal__day-col--body {
-        cursor: pointer;
-    }
-    .school-cal__event {
-        position: absolute;
-        left: 4px;
-        right: 4px;
-        border-radius: 10px;
-        padding: 6px 8px;
-        font-size: 12px;
-        line-height: 1.35;
-        color: #0f172a;
-        cursor: pointer;
-        border: 1px solid rgba(255,255,255,.6);
-        box-shadow: 0 6px 14px rgba(15,23,42,.08);
-        transition: transform .12s ease, box-shadow .12s ease;
-        overflow: hidden;
-    }
-    .school-cal__event:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 22px rgba(15,23,42,.12);
-        z-index: 2;
-    }
-    .school-cal__event-time {
-        font-size: 10px;
-        opacity: .85;
-        font-weight: 600;
-        font-variant-numeric: tabular-nums;
-    }
-    .school-cal__event-team {
-        font-weight: 600;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-    .school-cal__reg-preview {
-        margin-top: 5px;
-        font-size: 10px;
-        line-height: 1.3;
-        color: #334155;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        max-height: 3.15rem;
-        overflow: hidden;
-    }
-    .school-cal__reg-chip {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        min-width: 0;
-        width: 100%;
-    }
-    .school-cal__reg-name {
-        flex: 1 1 auto;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-weight: 600;
-        color: #1e293b;
-    }
-    .school-cal__reg-status-pill {
-        flex: 0 1 auto;
-        font-size: 9px;
-        font-weight: 600;
-        line-height: 1.15;
-        padding: 2px 6px;
-        border-radius: 999px;
-        background: var(--pill-bg, #64748b);
-        color: #fff;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 5.2rem;
-        box-shadow: 0 1px 2px rgba(15,23,42,.12);
-    }
-    .school-cal__reg-ellipsis {
-        color: #64748b;
-        font-weight: 600;
-        font-size: 10px;
-        margin-top: 1px;
-    }
-    .school-cal__corner {
-        border-bottom: 1px solid rgba(148,163,184,.35);
-        background: #f8fafc;
-    }
-    .school-cal-slot-summary {
-        background: linear-gradient(145deg, rgba(248,250,252,.98), rgba(241,245,249,.92));
-        border-color: rgba(148,163,184,.35) !important;
-    }
-    .school-cal-slot-summary__when {
-        font-size: 0.9rem;
-        letter-spacing: -0.01em;
-    }
-    .school-cal__reg-card {
-        background: #fff;
-        border-color: rgba(226,232,240,.95) !important;
-        box-shadow: 0 1px 2px rgba(15,23,42,.04);
-    }
-    .school-cal__reg-modal-status {
-        font-size: 0.78rem;
-        font-weight: 600;
-        padding: 0.35rem 0.65rem;
-        max-width: 100%;
-        white-space: normal;
-        line-height: 1.25;
-    }
-    .school-cal__reg-controls select.form-select {
-        min-width: 0;
-    }
-    .school-cal__reg-item {
-        background: rgba(248,250,252,.95);
-    }
-    .school-cal__reg-hist {
-        font-size: 0.78rem;
-        line-height: 1.35;
-    }
-    .school-cal__reg-hist-row {
-        padding: 0.2rem 0;
-        border-bottom: 1px solid rgba(226,232,240,.9);
-    }
-    .school-cal__reg-hist-row:last-child {
-        border-bottom: 0;
-    }
-    /* Модалка слота: отключённые кнопки привязки — явные цвета (без белого на белом из глобальных стилей) */
-    #schoolCalSlotBindButtons .btn:disabled,
-    #schoolCalSlotBindButtons .btn.disabled {
-        opacity: 1;
-        pointer-events: none;
-    }
-    #schoolCalSlotBindButtons .btn-primary:disabled,
-    #schoolCalSlotBindButtons .btn-primary.disabled {
-        color: #fff !important;
-        background-color: #b8bec5 !important;
-        border-color: #a8b0b8 !important;
-    }
-    .school-cal__reg-card--compact {
-        padding: 0.5rem 0.65rem !important;
-        margin-bottom: 0.45rem !important;
-    }
-    .school-cal__reg-card__oneline {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        min-width: 0;
-        width: 100%;
-        line-height: 1.25;
-    }
-    .school-cal__reg-card__fio {
-        font-weight: 600;
-        color: #0f172a;
-        flex: 0 1 auto;
-        max-width: 48%;
-        min-width: 0;
-    }
-    .school-cal__reg-card__pkg {
-        font-weight: 500;
-        color: #475569;
-        font-size: 0.8125rem;
-        flex: 1 1 0;
-        min-width: 0;
-    }
-    .school-cal__reg-card--compact .school-cal__reg-controls-row {
-        margin-top: 0.4rem;
-        padding-top: 0.4rem;
-        border-top: 1px solid rgba(226, 232, 240, 0.95);
-    }
-</style>
-
 @push('scripts')
     <script>
         (function () {
@@ -614,6 +342,9 @@
             const occurrenceStatuses = @json($schoolCalendarOccurrenceStatuses ?? []);
             const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const weekLabels = @json($weekLabels);
+            const rootEl = document.querySelector('.school-cal');
+            const fullscreenBtn = document.getElementById('schoolCalFullscreenBtn');
+            const fullscreenBtnIcon = fullscreenBtn?.querySelector('i');
 
             const SLOT_PX = 40;
             let viewStartMin = viewSettingsInitial.view_start_min;
@@ -857,7 +588,7 @@
                                 if (r.current_status && r.current_status.title) {
                                     var pc = escapeHtml(r.current_status.color || '#64748b');
                                     var pt = escapeHtml(r.current_status.title);
-                                    html += '<span class="school-cal__reg-status-pill" style="--pill-bg:' + pc + '" title="' + pt + '">' + pt + '</span>';
+                                    html += '<span class="school-cal__reg-status-pill" style="--pill-bg:' + pc + '" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="' + pt + '" aria-label="' + pt + '"></span>';
                                 }
                                 html += '</div>';
                             });
@@ -881,7 +612,72 @@
                         openSlotModal(ev);
                     });
                 });
+
+                // Красивые подсказки статуса (Bootstrap tooltip)
+                if (window.bootstrap && window.bootstrap.Tooltip) {
+                    document.querySelectorAll('#schoolCalGrid [data-bs-toggle="tooltip"]').forEach(function (el) {
+                        const existing = window.bootstrap.Tooltip.getInstance(el);
+                        if (existing) existing.dispose();
+                        new window.bootstrap.Tooltip(el);
+                    });
+                }
             }
+
+            function calcFullscreenTopPx() {
+                // Должны остаться видимыми вкладки (nav-tabs) и шапка контента, поэтому берём нижнюю границу ближайших вкладок.
+                const tabs = document.querySelector('.nav-tabs');
+                if (!tabs) return 0;
+                const r = tabs.getBoundingClientRect();
+                return Math.max(0, Math.round(r.bottom));
+            }
+
+            function setFullscreenTopVar() {
+                if (!rootEl) return;
+                rootEl.style.setProperty('--school-cal-fullscreen-top', calcFullscreenTopPx() + 'px');
+            }
+
+            // В некоторых layout'ах админки контейнеры имеют transform, из-за чего position:fixed
+            // "прилипает" не к viewport. Поэтому в fullscreen переносим блок календаря в body.
+            let fullscreenPlaceholder = null;
+
+            function setFullscreenMode(enabled) {
+                if (!rootEl) return;
+
+                if (enabled) {
+                    if (!fullscreenPlaceholder) {
+                        fullscreenPlaceholder = document.createComment('school-cal-fullscreen-placeholder');
+                    }
+                    if (rootEl.parentNode) {
+                        rootEl.parentNode.insertBefore(fullscreenPlaceholder, rootEl);
+                    }
+                    document.body.appendChild(rootEl);
+                    rootEl.style.setProperty('--school-cal-fullscreen-top', '0px');
+                } else {
+                    if (fullscreenPlaceholder && fullscreenPlaceholder.parentNode) {
+                        fullscreenPlaceholder.parentNode.insertBefore(rootEl, fullscreenPlaceholder);
+                        fullscreenPlaceholder.parentNode.removeChild(fullscreenPlaceholder);
+                    }
+                }
+
+                // fullscreen overlay starts at top of viewport
+                rootEl.classList.toggle('school-cal--fullscreen', !!enabled);
+                document.body.classList.toggle('no-scroll', !!enabled);
+                if (fullscreenBtnIcon) {
+                    fullscreenBtnIcon.className = enabled ? 'fas fa-compress' : 'fas fa-expand';
+                }
+            }
+
+            // Toggle fullscreen
+            fullscreenBtn?.addEventListener('click', function (e) {
+                e.preventDefault();
+                const enabled = rootEl?.classList.contains('school-cal--fullscreen');
+                setFullscreenMode(!enabled);
+            });
+
+            window.addEventListener('resize', function () {
+                if (!rootEl?.classList.contains('school-cal--fullscreen')) return;
+                setFullscreenTopVar();
+            });
 
             function fillRegistrationsList(ev) {
                 const wrap = document.getElementById('schoolCalSlotRegistrationsWrap');

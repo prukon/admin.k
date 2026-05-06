@@ -13,6 +13,7 @@ export default defineConfig({
                 'resources/js/app.js', //выпил
                 'resources/css/style.css',
                 'resources/css/schedule.css',
+                'resources/css/school-schedule-calendar.css',
                 'resources/css/landing.css',
                 'resources/css/blog.css',
                 'resources/css/user.css',
