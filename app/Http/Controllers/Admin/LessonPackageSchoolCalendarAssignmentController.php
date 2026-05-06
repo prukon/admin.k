@@ -658,7 +658,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     'trial_lessons_total' => 1,
                     'team_schedule_slot_id' => (int) $slot->id,
                     'starts_at' => $occurrence->toDateString(),
-                    'ends_at' => '9999-12-31',
+                    'ends_at' => $occurrence->toDateString(),
                     'created_by' => auth()->id(),
                 ]);
 

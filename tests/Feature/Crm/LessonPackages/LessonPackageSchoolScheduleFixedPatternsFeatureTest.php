@@ -22,6 +22,8 @@ use Tests\Feature\Crm\CrmTestCase;
 final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestCase
 {
     private const ANCHOR_MONDAY = '2026-05-04';
+    private const TUE_1 = '2026-05-05';
+    private const TUE_2 = '2026-05-12';
 
     protected function setUp(): void
     {
@@ -36,6 +38,17 @@ final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestC
             1,
             (int) CarbonImmutable::parse(self::ANCHOR_MONDAY)->format('N'),
             'Тестовая дата якоря должна быть понедельником (ISO weekday 1).'
+        );
+
+        $this->assertSame(
+            2,
+            (int) CarbonImmutable::parse(self::TUE_1)->format('N'),
+            'Тестовая дата должна быть вторником (ISO weekday 2).'
+        );
+        $this->assertSame(
+            2,
+            (int) CarbonImmutable::parse(self::TUE_2)->format('N'),
+            'Тестовая дата должна быть вторником (ISO weekday 2).'
         );
     }
 
@@ -100,6 +113,87 @@ final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestC
         ]);
 
         return [$team, $slotMon, $slotThu];
+    }
+
+    public function test_assign_fixed_does_not_conflict_with_previous_trial_on_same_time_when_trial_is_single_day(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+
+        $slotTue = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 2,
+            'time_start' => '12:00',
+            'time_end' => '12:50',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        // Создаём пробное на 2026-05-05 в то же время.
+        $this->postJson(route('admin.lesson-packages.school-schedule.trial-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slotTue->id,
+            'occurrence_date' => self::TUE_1,
+        ])->assertOk();
+
+        $trialRow = UserTeamScheduleSlot::query()
+            ->where('partner_id', $this->partner->id)
+            ->where('user_id', $student->id)
+            ->where('team_schedule_slot_id', $slotTue->id)
+            ->whereDate('starts_at', self::TUE_1)
+            ->where('is_trial_lesson', true)
+            ->firstOrFail();
+
+        // Регрессия: пробное должно быть однодневным (иначе блокирует будущие вторники по конфликту времени).
+        $this->assertSame(self::TUE_1, Carbon::parse((string) $trialRow->ends_at)->format('Y-m-d'));
+
+        // Ставим фикс-абонемент, якорь: 2026-05-12, тот же вторник и время.
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Фикс регрессия trial overlap',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 1,
+            'price_cents' => 1000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount' => '10.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), array_merge([
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slotTue->id,
+            'anchor_date' => self::TUE_2,
+        ], $this->fixedPatternsPayload([
+            ['weekday' => 2, 'time_start' => '12:00', 'time_end' => '12:50'],
+        ])))
+            ->assertOk()
+            ->assertJsonPath('message', 'Абонемент назначен, занятия привязаны к расписанию школы.');
+
+        // Должно появиться занятие по абонементу на 2026-05-12.
+        $this->assertDatabaseHas('user_team_schedule_slots', [
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slotTue->id,
+            'starts_at' => self::TUE_2,
+        ]);
     }
 
     public function test_assign_fixed_with_two_patterns_schedules_monday_then_thursday(): void
