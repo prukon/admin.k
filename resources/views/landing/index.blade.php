@@ -105,7 +105,7 @@
                     <!-- Правый столбец -->
                     <div class="col-md-6 d-flex justify-content-center align-items-center mt-3 mt-md-0">
                         <div class="ratio ratio-16x9 w-100 rounded overflow-hidden shadow-sm" style="max-width: 560px;">
-                            <iframe src="https://www.youtube.com/embed/fn46DDbS6-c?si=3Nuf3r5n8c8Dx9t8"
+                            <iframe src="https://www.youtube.com/embed/7MkNdtC5yH0?si=BM6NNlwy70F0S6M8"
                                 class="border-0"
                                 title="Видео о kidscrm.online — автоматизация оплат для детских секций и школ"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
