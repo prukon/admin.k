@@ -614,15 +614,12 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('account-settings/documents/contracts/{contract}/download-signed', [AccountDocumentsController::class, 'downloadSigned'])->name('account.documents.downloadSigned');
     });
 
-    //Лиды (feature test +)
-    Route::middleware('can:leads.view')->group(function () {
-        Route::get('/leads', [\App\Http\Controllers\LandingPageController::class, 'submission'])->name('landing.submissions');
-        // DataTables endpoint
-        Route::get('/admin/leads/data', [LandingPageController::class, 'leadsDataTable'])->name('admin.leads.data');
-        // Обновление статуса/комментария (AJAX)
-        Route::put('/admin/leads/{submission}', [LandingPageController::class, 'updateLead'])->name('admin.leads.update');
-        // Soft delete (AJAX)
-        Route::delete('/admin/leads/{submission}', [LandingPageController::class, 'destroyLead'])->name('admin.leads.destroy');
+    // Лиды партнёров (заявки с лендинга, feature test +)
+    Route::middleware('can:partnerLeads.view')->group(function () {
+        Route::get('/admin/partner-leads', [LandingPageController::class, 'partnerLeadsIndex'])->name('admin.partner-leads');
+        Route::get('/admin/partner-leads/data', [LandingPageController::class, 'partnerLeadsDataTable'])->name('admin.partner-leads.data');
+        Route::put('/admin/partner-leads/{partnerLead}', [LandingPageController::class, 'updatePartnerLead'])->name('admin.partner-leads.update');
+        Route::delete('/admin/partner-leads/{partnerLead}', [LandingPageController::class, 'destroyPartnerLead'])->name('admin.partner-leads.destroy');
     });
 
     //Страница оплаты сервиса

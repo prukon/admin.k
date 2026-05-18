@@ -24,9 +24,9 @@ class MyLog extends Model
 
     const CREATED_AT = 'created_at';
 
-    public static function info($string, array $array)
-    {
-    } // Используем кастомное поле для времени создания
+    // public static function info($string, array $array)
+    // {
+    // } // Используем кастомное поле для времени создания
 
     public function author()
     {
@@ -34,10 +34,10 @@ class MyLog extends Model
     }
 
     // Аксессор для получения названия типа лога
-    public function getTypeLabelAttribute()
-    {
-        return self::$typeLabels[$this->type] ?? 'Неизвестный тип';
-    }
+    // public function getTypeLabelAttribute()
+    // {
+    //     return self::$typeLabels[$this->type] ?? 'Неизвестный тип';
+    // }
 
     // Полиморфная связь для навигации (по желанию)
     public function target(): MorphTo

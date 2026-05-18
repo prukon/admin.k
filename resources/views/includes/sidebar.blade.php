@@ -196,14 +196,14 @@
                 </a>
             </li>
 
-            {{--заявки с сайта--}}
-            @can('leads.view')
+            {{-- лиды партнёров (заявки с лендинга) --}}
+            @can('partnerLeads.view')
                 <hr class="sidebar-separator">
                 <li class="nav-item">
-                    <a href="/leads" class="nav-link">
+                    <a href="/admin/partner-leads" class="nav-link">
                         <i class="nav-icon fa-solid fa-credit-card"></i>
 
-                        <p>Лиды<span class="badge badge-info right"></span></p>
+                        <p>Лиды партнёров<span class="badge badge-info right"></span></p>
                     </a>
                 </li>
             @endcan

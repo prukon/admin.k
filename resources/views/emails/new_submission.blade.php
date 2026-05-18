@@ -1,13 +1,13 @@
 <h2>Новая заявка с лендинга</h2>
 
-<p><strong>Имя:</strong> {{ $submission->name }}</p>
-<p><strong>Телефон:</strong> {{ $submission->phone }}</p>
+<p><strong>Имя:</strong> {{ $partnerLead->name }}</p>
+<p><strong>Телефон:</strong> {{ $partnerLead->phone }}</p>
 
-@if($submission->email)
-    <p><strong>Email:</strong> {{ $submission->email }}</p>
+@if($partnerLead->email)
+    <p><strong>Email:</strong> {{ $partnerLead->email }}</p>
 @endif
 
-@if($submission->message)
+@if($partnerLead->message)
     <p><strong>Сообщение:</strong></p>
-    <p>{{ $submission->message }}</p>
+    <p>{{ $partnerLead->message }}</p>
 @endif

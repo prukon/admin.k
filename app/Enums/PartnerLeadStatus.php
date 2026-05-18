@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum ContactSubmissionStatus: string
+enum PartnerLeadStatus: string
 {
     case New        = 'new';
     case Processing = 'processing';

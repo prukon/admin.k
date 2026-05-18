@@ -2,28 +2,22 @@
 
 namespace App\Mail;
 
-use App\Models\ContactSubmission;
+use App\Models\PartnerLead;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class NewContactSubmission extends Mailable
+class NewPartnerLeadSubmission extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public ContactSubmission $submission;
+    public PartnerLead $partnerLead;
 
-    /**
-     * Create a new message instance.
-     */
-    public function __construct(ContactSubmission $submission)
+    public function __construct(PartnerLead $partnerLead)
     {
-        $this->submission = $submission;
+        $this->partnerLead = $partnerLead;
     }
 
-    /**
-     * Build the message.
-     */
     public function build()
     {
         return $this

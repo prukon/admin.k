@@ -4,8 +4,8 @@
 namespace Tests\Feature\Public;
 
 use App\Http\Middleware\VerifyCsrfToken;
-use App\Mail\NewContactSubmission;
-use App\Models\ContactSubmission;
+use App\Mail\NewPartnerLeadSubmission;
+use App\Models\PartnerLead;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
@@ -53,12 +53,12 @@ class ContactSendTest extends TestCase
             ])
             ->assertJsonStructure(['id']);
 
-        $this->assertDatabaseHas('contact_submissions', [
+        $this->assertDatabaseHas('partner_leads', [
             'name'  => 'Иван',
             'phone' => '+7 999 123-45-67',
         ]);
 
-        Mail::assertSent(NewContactSubmission::class, 1);
+        Mail::assertSent(NewPartnerLeadSubmission::class, 1);
     } 
 
     /**
@@ -86,7 +86,7 @@ class ContactSendTest extends TestCase
         $response->assertStatus(422);
         $response->assertJsonStructure(['message', 'errors']);
 
-        $this->assertDatabaseCount('contact_submissions', 0);
+        $this->assertDatabaseCount('partner_leads', 0);
     }
 
     /**
@@ -117,7 +117,7 @@ class ContactSendTest extends TestCase
                 'message' => 'Проверка на спам не пройдена.',
             ]);
 
-        $this->assertDatabaseCount('contact_submissions', 0);
+        $this->assertDatabaseCount('partner_leads', 0);
     }
 
     /**
@@ -142,6 +142,6 @@ class ContactSendTest extends TestCase
                 'message' => 'Не пройдена защита от спама. Обновите страницу и попробуйте ещё раз.',
             ]);
 
-        $this->assertDatabaseCount('contact_submissions', 0);
+        $this->assertDatabaseCount('partner_leads', 0);
     }
 }

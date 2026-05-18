@@ -47,7 +47,7 @@
 
     <div class="main-content text-start">
 
-        <h4 class="pt-3">Заявки с лендинга</h4>
+        <h4 class="pt-3">Лиды партнёров</h4>
         <hr>
 
         <div class="container">
@@ -287,7 +287,7 @@
                 processing: true,
                 serverSide: true,
                 ajax: {
-                    url: '{{ route('admin.leads.data') }}',
+                    url: '{{ route('admin.partner-leads.data') }}',
                     type: 'GET',
                     data: function(d) {
                         // Собираем чекбоксы статусов
@@ -440,7 +440,7 @@
                 $('#editLeadSuccess').addClass('d-none').text('');
 
                 $.ajax({
-                    url: '/admin/leads/' + id,
+                    url: '/admin/partner-leads/' + id,
                     type: 'PUT',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken
@@ -486,7 +486,7 @@
                 var newStatus = $select.val();
 
                 $.ajax({
-                    url: '/admin/leads/' + id,
+                    url: '/admin/partner-leads/' + id,
                     type: 'PUT',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken
@@ -556,7 +556,7 @@
                 }
 
                 $.ajax({
-                    url: '/admin/leads/' + leadIdToDelete,
+                    url: '/admin/partner-leads/' + leadIdToDelete,
                     type: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken

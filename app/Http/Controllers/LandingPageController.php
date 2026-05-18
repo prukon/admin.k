@@ -12,11 +12,10 @@ use App\Models\ContactMessage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;   // <---- вот это добавь
-use App\Mail\NewContactSubmission;
-use App\Models\ContactSubmission;
-// Для DataTables и enum статусов
-use Yajra\DataTables\Facades\DataTables; // Для laravel-datatables, если Yajra DT подключён (иначе вручную)
-use App\Enums\ContactSubmissionStatus;
+use App\Mail\NewPartnerLeadSubmission;
+use App\Models\PartnerLead;
+use Yajra\DataTables\Facades\DataTables;
+use App\Enums\PartnerLeadStatus;
 // use Throwable;                               // <---- ДОБАВЛЕНО
 
 use Illuminate\Support\Facades\Http;
@@ -29,16 +28,16 @@ class LandingPageController extends Controller
         return view('landing.index');
     }
 
-    public function submission()
+    public function partnerLeadsIndex()
     {
-        $submissions = ContactSubmission::latest()->paginate(20);
-        return view('admin.leads', compact('submissions'));
+        $partnerLeads = PartnerLead::latest()->paginate(20);
+
+        return view('admin.partner-leads', compact('partnerLeads'));
     }
 
-    public function leadsDataTable(Request $request)
+    public function partnerLeadsDataTable(Request $request)
     {
-        // Базовый запрос: только не удалённые
-        $baseQuery = ContactSubmission::query()->whereNull('deleted_at');
+        $baseQuery = PartnerLead::query()->whereNull('deleted_at');
 
         // Общее количество записей БЕЗ учёта фильтров/поиска
         $recordsTotal = $baseQuery->count();
@@ -126,7 +125,7 @@ class LandingPageController extends Controller
                     'message'      => $item->message,
                     'status'       => $item->status?->value ?? null, // 'new', 'processing', ...
                     'status_label' => $item->status
-                        ? ContactSubmissionStatus::label($item->status->value)
+                        ? PartnerLeadStatus::label($item->status->value)
                         : null,
                     'comment'      => $item->comment,
                     'created_at'   => $item->created_at?->format('d.m.Y H:i') ?? null,
@@ -227,17 +226,15 @@ class LandingPageController extends Controller
 
         try {
             $data = $request->only(['name', 'email', 'phone', 'website', 'message']);
-            $submission = ContactSubmission::create($data);
+            $partnerLead = PartnerLead::create($data);
 
-            // Телега
-            $this->notifyTelegram($submission);
+            $this->notifyTelegram($partnerLead);
 
+            Mail::to('prukon@gmail.com')->send(new NewPartnerLeadSubmission($partnerLead));
 
-            // Можно заменить на ->queue() при наличии очереди
-            Mail::to('prukon@gmail.com')->send(new NewContactSubmission($submission));
             return response()->json([
                 'message' => 'Заявка отправлена!',
-                'id'      => $submission->id,
+                'id'      => $partnerLead->id,
             ], 200);
         } catch (\Throwable $e) {
             report($e);
@@ -247,14 +244,13 @@ class LandingPageController extends Controller
         }
     }
 
-    // ОБНОВЛЕНИЕ статуса и комментария лида (AJAX).
-    public function updateLead(Request $request, ContactSubmission $submission)
+    public function updatePartnerLead(Request $request, PartnerLead $partnerLead)
     {
         $validator = Validator::make($request->all(), [
             'status' => [
                 'nullable',
                 'string',
-                'in:' . implode(',', ContactSubmissionStatus::values()),
+                'in:' . implode(',', PartnerLeadStatus::values()),
             ],
             'comment' => [
                 'nullable',
@@ -276,38 +272,37 @@ class LandingPageController extends Controller
         $data = $validator->validated();
 
         if (array_key_exists('status', $data)) {
-            $submission->status = $data['status']
-                ? ContactSubmissionStatus::from($data['status'])
+            $partnerLead->status = $data['status']
+                ? PartnerLeadStatus::from($data['status'])
                 : null;
         }
 
         if (array_key_exists('comment', $data)) {
-            $submission->comment = $data['comment'];
+            $partnerLead->comment = $data['comment'];
         }
 
-        $submission->save();
+        $partnerLead->save();
 
         return response()->json([
             'message'      => 'Изменения сохранены.',
-            'status'       => $submission->status?->value,
-            'status_label' => $submission->status
-                ? ContactSubmissionStatus::label($submission->status->value)
+            'status'       => $partnerLead->status?->value,
+            'status_label' => $partnerLead->status
+                ? PartnerLeadStatus::label($partnerLead->status->value)
                 : null,
-            'comment'      => $submission->comment,
+            'comment'      => $partnerLead->comment,
         ]);
     }
 
-    // БЕЗОПАСНОЕ УДАЛЕНИЕ (soft delete) лида (AJAX).
-    public function destroyLead(ContactSubmission $submission)
+    public function destroyPartnerLead(PartnerLead $partnerLead)
     {
-        $submission->delete();
+        $partnerLead->delete();
 
         return response()->json([
             'message' => 'Заявка удалена.',
         ]);
     }
 
-    protected function notifyTelegram(ContactSubmission $submission): void
+    protected function notifyTelegram(PartnerLead $partnerLead): void
     {
         $token = config('services.telegram.bot_token');
         $chatId = config('services.telegram.chat_id');
@@ -319,20 +314,20 @@ class LandingPageController extends Controller
         $lines = [
             "📩 Новая заявка с сайта",
             "",
-            "👤 Имя: {$submission->name}",
-            "📞 Телефон: {$submission->phone}",
+            "👤 Имя: {$partnerLead->name}",
+            "📞 Телефон: {$partnerLead->phone}",
         ];
 
-        if ($submission->email) {
-            $lines[] = "✉ Email: {$submission->email}";
+        if ($partnerLead->email) {
+            $lines[] = "✉ Email: {$partnerLead->email}";
         }
-        if ($submission->website) {
-            $lines[] = "🌐 Сайт: {$submission->website}";
+        if ($partnerLead->website) {
+            $lines[] = "🌐 Сайт: {$partnerLead->website}";
         }
-        if ($submission->message) {
+        if ($partnerLead->message) {
             $lines[] = "";
             $lines[] = "💬 Сообщение:";
-            $lines[] = mb_substr($submission->message, 0, 1000);
+            $lines[] = mb_substr($partnerLead->message, 0, 1000);
         }
 
         $text = implode("\n", $lines);

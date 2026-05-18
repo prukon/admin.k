@@ -184,7 +184,7 @@ class OutgoingEmailReportTest extends CrmTestCase
         OutgoingEmailLog::create([
             'partner_id' => $this->partner->id,
             'status' => OutgoingEmailLog::STATUS_SENT,
-            'mailable_class' => 'App\\Mail\\NewContactSubmission',
+            'mailable_class' => 'App\\Mail\\NewPartnerLeadSubmission',
             'subject' => 's',
         ]);
         OutgoingEmailLog::create([
@@ -194,13 +194,13 @@ class OutgoingEmailReportTest extends CrmTestCase
             'subject' => 's',
         ]);
 
-        $json = $this->get(route('reports.emails.mailable.classes.search', ['q' => 'NewContact']))
+        $json = $this->get(route('reports.emails.mailable.classes.search', ['q' => 'NewPartner']))
             ->assertOk()
             ->json();
 
         $this->assertArrayHasKey('results', $json);
         $ids = collect($json['results'])->pluck('id')->all();
-        $this->assertContains('App\\Mail\\NewContactSubmission', $ids);
+        $this->assertContains('App\\Mail\\NewPartnerLeadSubmission', $ids);
         $this->assertNotContains('App\\Notifications\\ForeignNotification', $ids);
     }
 
