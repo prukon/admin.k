@@ -8,6 +8,7 @@ use Illuminate\Notifications\Notifiable;
 use App\Models\Traits\Filterable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
+use App\Services\PartnerWidgetService;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use RuntimeException;
 
@@ -62,6 +63,7 @@ class Partner extends Model
         static::created(function (Partner $partner) {
             self::assignBasePermissionsForPartner((int) $partner->id);
             LessonOccurrenceStatusesSeeder::ensureForPartner((int) $partner->id);
+            app(PartnerWidgetService::class)->ensureForPartner((int) $partner->id);
         });
     }
 
@@ -195,6 +197,16 @@ class Partner extends Model
 
     public function walletTransactions() {
         return $this->hasMany(PartnerWalletTransaction::class);
+    }
+
+    public function widget()
+    {
+        return $this->hasOne(PartnerWidget::class);
+    }
+
+    public function schoolLeads()
+    {
+        return $this->hasMany(SchoolLead::class);
     }
 
     // На случай, если где-то ещё хочется использовать геттер без поля в БД

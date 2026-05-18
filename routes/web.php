@@ -144,10 +144,24 @@ Route::view('/crm-dlya-detskih-yazykovyh-shkol', 'landing.seo.language-schools')
 // Отправка заявки с ленда (feature test +)
 Route::post('/contact/send', [LandingPageController::class, 'contactSend'])->name('contact.send');
 
+// Telegram: привязка Chat ID партнёра через /start (webhook)
+Route::post('/webhooks/telegram/school-leads', [\App\Http\Controllers\TelegramSchoolLeadWebhookController::class, 'handle'])
+    ->name('webhooks.telegram.school-leads');
+
+// Виджет заявок школы (iframe, публичный)
+Route::middleware(['widget.embed', 'throttle:60,1'])->group(function () {
+    Route::get('/widget/{widgetKey}', [\App\Http\Controllers\SchoolLeadWidgetController::class, 'show'])
+        ->name('widget.school-lead.show')
+        ->where('widgetKey', '[A-Za-z0-9]{48}');
+    Route::post('/widget/{widgetKey}/submit', [\App\Http\Controllers\SchoolLeadWidgetController::class, 'submit'])
+        ->name('widget.school-lead.submit')
+        ->where('widgetKey', '[A-Za-z0-9]{48}');
+});
+
 //Страница Публичная оферта
 Route::view('/public-offerta', 'landing.agreements.public-offerta')->name('public-offerta');
 //Страница Политика конфиденциальности
-Route::view('  ', 'landing.agreements.policy')->name('policy');
+Route::view('/policy', 'landing.agreements.policy')->name('policy');
 
 // Blog (публичный)
 Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
@@ -620,6 +634,20 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/partner-leads/data', [LandingPageController::class, 'partnerLeadsDataTable'])->name('admin.partner-leads.data');
         Route::put('/admin/partner-leads/{partnerLead}', [LandingPageController::class, 'updatePartnerLead'])->name('admin.partner-leads.update');
         Route::delete('/admin/partner-leads/{partnerLead}', [LandingPageController::class, 'destroyPartnerLead'])->name('admin.partner-leads.destroy');
+    });
+
+    // Заявки с сайта школы (виджет iframe)
+    Route::middleware('can:schoolLeads.view')->group(function () {
+        Route::get('/admin/school-leads', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'index'])->name('admin.school-leads');
+        Route::get('/admin/school-leads/data', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'dataTable'])->name('admin.school-leads.data');
+        Route::put('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'update'])->name('admin.school-leads.update');
+        Route::delete('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'destroy'])->name('admin.school-leads.destroy');
+    });
+
+    Route::middleware('can:schoolWidget.view')->group(function () {
+        Route::get('/admin/school-widget', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'index'])->name('admin.school-widget');
+        Route::post('/admin/school-widget/telegram-link', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'createTelegramLink'])->name('admin.school-widget.telegram-link');
+        Route::delete('/admin/school-widget/telegram', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'disconnectTelegram'])->name('admin.school-widget.telegram-disconnect');
     });
 
     //Страница оплаты сервиса

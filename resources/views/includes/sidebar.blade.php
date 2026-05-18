@@ -208,6 +208,24 @@
                 </li>
             @endcan
 
+            @can('schoolLeads.view')
+                <li class="nav-item">
+                    <a href="{{ route('admin.school-leads') }}" class="nav-link">
+                        <i class="nav-icon fa-solid fa-inbox"></i>
+                        <p>Заявки с сайта</p>
+                    </a>
+                </li>
+            @endcan
+
+            @can('schoolWidget.view')
+                <li class="nav-item">
+                    <a href="{{ route('admin.school-widget') }}" class="nav-link">
+                        <i class="nav-icon fa-solid fa-code"></i>
+                        <p>Виджет заявок</p>
+                    </a>
+                </li>
+            @endcan
+
             {{--Партнеры--}}
             @can('partner.view')
                 <li class="nav-item">

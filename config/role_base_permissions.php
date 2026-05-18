@@ -47,6 +47,8 @@ return [
             'account.documents.view',
             // 'servicePayments.view',
             'partnerWallet.view',
+            'schoolLeads.view',
+            'schoolWidget.view',
             // 'blog.view',
             'account.user.name.update',
             'account.user.birthdate.update',

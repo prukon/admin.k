@@ -15,6 +15,7 @@ class VerifyCsrfToken extends Middleware
         '/webhook/yookassa',
         '/partner-wallet/webhook',
         '/webhooks/tinkoff/*',
+        '/webhooks/telegram/*',
 
     ];
 }

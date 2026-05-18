@@ -47,8 +47,11 @@ return [
     ],
 
     'telegram' => [
-        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
-        'chat_id'   => env('TELEGRAM_CHAT_ID'),
+        'bot_token'       => env('TELEGRAM_BOT_TOKEN'),
+        'bot_username'    => env('TELEGRAM_BOT_USERNAME', 'kidscrmLeadFormBot'),
+        'bot_name'        => env('TELEGRAM_BOT_NAME', 'kidscrmLeadForm'),
+        'chat_id'         => env('TELEGRAM_CHAT_ID'),
+        'webhook_secret'  => env('TELEGRAM_WEBHOOK_SECRET'),
     ],
 
     'recaptcha' => [
