@@ -24,14 +24,19 @@ class DatabaseSeeder extends Seeder
         if (env('SEED_DEV_DATA', false)) {
             $this->call([
                 DevPartnersSeeder::class, // добавляем случайных партнеров
-                UserRoleBasePermissionsSeeder::class, // добавляем разрешения для пользователей
-                AdminRoleBasePermissionsSeeder::class, // добавляем разрешения для администраторов
+                DevUserRoleBasePermissionsSeeder::class, // базовые права роли user для всех партнёров (dev)
+                DevAdminRoleBasePermissionsSeeder::class, // базовые права роли admin для всех партнёров (dev)
                 DevTeamsSeeder::class, // добавляем команды
+                DevLocationsSeeder::class, // локации (dev)
                 DevAdminsSeeder::class, // добавляем администраторов
                 DevUsersSeeder::class, // добавляем рандомных пользователей
+                DevSchoolLeadsSeeder::class, // заявки с сайта (dev)
+                DevLessonPackagesSeeder::class, // шаблоны абонементов (dev)
+                DevSchoolScheduleSeeder::class, // расписание школы и слоты (dev)
+                DevLessonPackageAssignmentsSeeder::class, // назначения абонементов (dev)
                 DevPricesSeeder::class, // добавляем цены
                 DevPaymentSystemsSeeder::class,
-                IstokMenuSeeder::class, // добавляем меню для Истока
+                DevIstokMenuSeeder::class, // демо-партнёр «Исток», команды, меню (dev)
             ]);
         }
     } 

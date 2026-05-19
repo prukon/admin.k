@@ -2,17 +2,23 @@
 
 namespace Database\Seeders;
 
+use Carbon\Carbon;
+use Database\Seeders\Concerns\GuardsDevSeedData;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
-class IstokMenuSeeder extends Seeder
+class DevIstokMenuSeeder extends Seeder
 {
+    use GuardsDevSeedData;
+
     public function run(): void
     {
+        if (! $this->abortUnlessDevSeedEnabled()) {
+            return;
+        }
+
         $now = Carbon::now();
 
-        // 1. Тестовый партнёр (Исток)
         DB::table('partners')->updateOrInsert(
             ['id' => 1],
             [
@@ -48,7 +54,6 @@ class IstokMenuSeeder extends Seeder
             ]
         );
 
-        // 2. Демонстрационные команды истока
         DB::table('teams')->upsert(
             [
                 [
@@ -102,12 +107,10 @@ class IstokMenuSeeder extends Seeder
                     'updated_at' => $now,
                 ],
             ],
-            ['id'], // уникальный ключ
+            ['id'],
             ['title', 'image', 'is_enabled', 'order_by', 'updated_at']
         );
 
-
-        //2. Меню в шапке
         $items = [
             [
                 'name' => 'Главная',
@@ -125,10 +128,9 @@ class IstokMenuSeeder extends Seeder
                 'target_blank' => 1,
             ],
         ];
+
         foreach ($items as $item) {
             DB::table('menu_items')->updateOrInsert(
-            // критерий уникальности — выбери, как логичнее:
-            // по link или по name
                 ['link' => $item['link']],
                 [
                     'name' => $item['name'],
@@ -139,11 +141,6 @@ class IstokMenuSeeder extends Seeder
             );
         }
 
-
-        //3. Сссылки соц сетей
-
-        // Ссылки соцсетей для партнёра #1 (по умолчанию пустые).
-        // Используем новую схему: social_networks + partner_social_links.
         $networks = DB::table('social_networks')
             ->where('is_enabled', 1)
             ->orderBy('sort')
@@ -155,12 +152,10 @@ class IstokMenuSeeder extends Seeder
                 'social_network_id' => $sn->id,
                 'url' => null,
                 'is_enabled' => 1,
-                'sort' => (int)($sn->sort ?? 0),
+                'sort' => (int) ($sn->sort ?? 0),
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
         }
-
-
     }
 }

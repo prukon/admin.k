@@ -55,14 +55,14 @@
 
   <h2>3) Как назначаются права при создании роли</h2>
   <ul>
-    <li>Источник имён: <code>config('role_base_permissions.roles.admin')</code> — тот же массив, что используется для базовой роли <code>admin</code> при сидировании (<code>AdminRoleBasePermissionsSeeder</code>).</li>
+    <li>Источник имён: <code>config('role_base_permissions.roles.admin')</code> — тот же массив, что используется для базовой роли <code>admin</code> при сидировании (<code>DevAdminRoleBasePermissionsSeeder</code>).</li>
     <li>Записи создаются в <code>permission_role</code> с полями <code>role_id</code> (новая роль), <code>permission_id</code>, <code>partner_id</code> (текущий партнёр из контекста). Так же, как при ручном включении чекбокса на той же странице.</li>
     <li>Вставка идемпотентна: используется <code>insertOrIgnore</code>, уникальность по тройке <code>(partner_id, role_id, permission_id)</code> (см. раздел про UNIQUE в документе по партнёрам).</li>
   </ul>
 
   <h3>3.1 Отличия от сидеров и от создания партнёра</h3>
   <ul>
-    <li><b>Сидеры</b> (<code>AdminRoleBasePermissionsSeeder</code>): при отсутствии в БД хотя бы одного имени из конфига сидер падает с ошибкой (fail-fast).</li>
+    <li><b>Сидеры</b> (<code>DevAdminRoleBasePermissionsSeeder</code>): при отсутствии в БД хотя бы одного имени из конфига сидер падает с ошибкой (fail-fast).</li>
     <li><b>Создание партнёра</b>: при создании записи партнёра также fail-fast, если в справочнике нет нужных permissions.</li>
     <li><b>Создание кастомной роли в UI</b>: если имя из конфига не найдено в таблице <code>permissions</code>, оно <b>пропускается</b>, создание роли не отменяется; в Laravel-лог пишется предупреждение (<code>Log::warning</code>) с перечислением пропущенных имён. Отдельные записи в <code>my_logs</code> на массовое назначение прав не создаются.</li>
   </ul>

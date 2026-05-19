@@ -5,11 +5,9 @@ namespace Tests\Feature\Crm;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Partner;
-use Database\Seeders\AdminRoleBasePermissionsSeeder;
 use Database\Seeders\PermissionGroupsSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolesSeeder;
-use Database\Seeders\UserRoleBasePermissionsSeeder;
 use Database\Seeders\WeekdaysSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -98,9 +96,7 @@ abstract class CrmTestCase extends TestCase
             'role_id' => $userRoleId,
         ]);
 
-        // 4) Сидим права
-        $this->seed(UserRoleBasePermissionsSeeder::class);
-        $this->seed(AdminRoleBasePermissionsSeeder::class);
+        // 4) Базовые права admin/user — через Partner::created (assignBasePermissionsForPartner)
 
         // 5) Авторизация
         $this->actingAs($this->user);
