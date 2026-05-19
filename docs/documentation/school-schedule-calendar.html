@@ -21,7 +21,7 @@
 </head>
 <body>
 <div class="wrap">
-  <p><a href="./index.html">← К списку разделов</a></p>
+  <p><a href="/doc">← К списку разделов</a></p>
   <h1>Расписание школы (календарь абонементов)</h1>
 
   <div class="note">
@@ -68,7 +68,7 @@
   </table>
 
   <h2>Привязка абонементов и лимит строк календаря</h2>
-  <p>При успешной привязке гибкого, фиксированного или разового абонемента к слотам создаются строки <code>user_team_schedule_slots</code> с заполненным <code>user_lesson_package_id</code>. Поле <code>user_lesson_packages.lessons_remaining</code> при этом <strong>не изменяется</strong> — оно корректируется только при смене статуса занятия (см. ниже). Ограничение по объёму абонемента выражено в том, что число таких строк по назначению не может превысить <code>lessons_total</code>. Детали периода <code>starts_at</code>/<code>ends_at</code> и логики фиксированной цепочки — в <a href="./lesson-packages.html">разделе «Абонементы»</a>.</p>
+  <p>При успешной привязке гибкого, фиксированного или разового абонемента к слотам создаются строки <code>user_team_schedule_slots</code> с заполненным <code>user_lesson_package_id</code>. Поле <code>user_lesson_packages.lessons_remaining</code> при этом <strong>не изменяется</strong> — оно корректируется только при смене статуса занятия (см. ниже). Ограничение по объёму абонемента выражено в том, что число таких строк по назначению не может превысить <code>lessons_total</code>. Детали периода <code>starts_at</code>/<code>ends_at</code> и логики фиксированной цепочки — в <a href="/docs/documentation/lesson-packages">разделе «Абонементы»</a>.</p>
 
   <h2>Статусы занятия и списание остатков</h2>
   <p>Для каждой записи ученика на слот и дату (абонемент или пробное) в календаре школы можно сохранять статус из справочника партнёра <code>lesson_occurrence_statuses</code>. У статуса есть флаг <code>consumes_lesson</code> (например, «Посетил» и «Не посетил» — списывают, «Запись», «Отмена», «Заморозка» — нет; точный набор создаётся сидером и может быть расширен в админке с учётом этого флага).</p>
@@ -133,14 +133,14 @@
 
   <h2>Связь с логикой абонементов</h2>
   <p>Период назначения <code>starts_at</code>/<code>ends_at</code>, лимит строк календаря по <code>lessons_total</code> и отсутствие списания <code>lessons_remaining</code> при самой привязке описаны в
-    <a href="./lesson-packages.html">«Абонементы: назначение и период с календаря школы»</a>. Текущая страница дополняет это правилами статусов, пробного баланса и полей JSON недели; разметка модалки и право <code>locations.view</code> — только отображение.</p>
+    <a href="/docs/documentation/lesson-packages">«Абонементы: назначение и период с календаря школы»</a>. Текущая страница дополняет это правилами статусов, пробного баланса и полей JSON недели; разметка модалки и право <code>locations.view</code> — только отображение.</p>
 
   <h2>Тесты</h2>
   <p>Разметка модалки и фильтра локации, <code>team_title</code> в JSON недели, ответы <code>200</code>/<code>403</code> — <code>LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleAccessAndMutationsFeatureTest.php</code>.
     Доступ к поверхности календаря и основным эндпоинтам — <code>tests/Feature/Crm/Schedule/SchoolScheduleCalendarAccessFeatureTest.php</code>.
     Интеграция привязок и пробных — <code>LessonPackageSchoolScheduleIntegrationFeatureTest.php</code>; фиксированные шаблоны — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
     статусы и баланс в JSON — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>; пробные сценарии — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>.
-    Общие требования к тестам — <a href="./tests-standards.html">tests-standards</a>.</p>
+    Общие требования к тестам — <a href="/docs/documentation/tests-standards">tests-standards</a>.</p>
 </div>
 </body>
 </html>

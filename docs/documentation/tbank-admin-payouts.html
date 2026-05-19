@@ -22,7 +22,7 @@
 <body>
 <div class="wrap">
   <h1>Админка выплат T‑Bank: список, карточка, API таблицы</h1>
-  <div class="small">Файл: <code>/docs/documentation/tbank-admin-payouts.html</code> · см. также <a href="./tbank.html">T‑Bank (общий раздел)</a>, <a href="./queues-monitoring.html">Очереди и планировщик</a></div>
+  <div class="small">Файл: <code>/docs/documentation/tbank-admin-payouts.html</code> · см. также <a href="/docs/documentation/tbank">T‑Bank (общий раздел)</a>, <a href="/docs/documentation/queues-monitoring">Очереди и планировщик</a></div>
 
   <div class="note">
     Раздел описывает страницу <b>списка выплат</b> и связанные маршруты в CRM. Они отделены от «тяжёлого» админа T‑Bank
@@ -59,23 +59,23 @@
   <h2>4) Блоки на странице списка</h2>
   <ul>
     <li><b>Автовыплаты</b>: по данным <code>payment_systems</code> (name=<code>tbank</code>) — у каких партнёров в <code>settings.auto_payout_enabled</code> включено; для superadmin — сводка по выбранным в фильтре партнёрам, для обычного пользователя — по своему партнёру.</li>
-    <li><b>Интервал обработки отложенных</b>: из <code>Setting::getTinkoffPayoutScheduledIntervalMinutes()</code> (см. <a href="./tbank.html#payout-settings">глобальные настройки выплат</a>).</li>
+    <li><b>Интервал обработки отложенных</b>: из <code>Setting::getTinkoffPayoutScheduledIntervalMinutes()</code> (см. <a href="/docs/documentation/tbank#payout-settings">глобальные настройки выплат</a>).</li>
     <li><b>Просроченные отложенные выплаты</b>: записи, которые должны подхватываться <code>TinkoffRunScheduledPayoutsJob</code>:
       <code>when_to_run &lt;= now()</code>, <code>status = INITIATED</code>, <code>tinkoff_payout_payment_id IS NULL</code>, <code>completed_at IS NULL</code>.
       На странице показываются счётчик и до 25 строк со ссылками в карточку. Для не‑superadmin выборка ограничена текущим партнёром.
-      Если по тому же <code>tinkoff_payments.id</code> выполнен <b>возврат</b> из отчёта «Платежи», отложенная выплата переводится в <code>REJECTED</code> и джобой в банк не отправляется — см. <a href="./tbank-refunds-payout-cancel.html">возвраты и отмена выплаты</a>.</li>
+      Если по тому же <code>tinkoff_payments.id</code> выполнен <b>возврат</b> из отчёта «Платежи», отложенная выплата переводится в <code>REJECTED</code> и джобой в банк не отправляется — см. <a href="/docs/documentation/tbank-refunds-payout-cancel">возвраты и отмена выплаты</a>.</li>
   </ul>
 
   <div class="warn">
     Отложенные выплаты попадают в очередь только после срабатывания <b>Laravel Scheduler</b> (<code>php artisan schedule:run</code> по cron, обычно каждую минуту).
     Если worker работает, а выплаты «висят» в <code>INITIATED</code> с прошедшим <code>when_to_run</code>, проверьте cron и индикатор планировщика на вкладке
-    <a href="./queues-monitoring.html">Настройки → Очереди</a>.
+    <a href="/docs/documentation/queues-monitoring">Настройки → Очереди</a>.
   </div>
 
   <h2>5) Связь с остальной документацией</h2>
   <ul>
-    <li>Общий flow e2c, статусы, автовыплата, защита от дублей — <a href="./tbank.html">tbank.html</a> (разделы про выплаты и тесты).</li>
-    <li>Мониторинг очередей, heartbeat worker, тик планировщика, счётчик просроченных выплат в JSON — <a href="./queues-monitoring.html">queues-monitoring.html</a>.</li>
+    <li>Общий flow e2c, статусы, автовыплата, защита от дублей — <a href="/docs/documentation/tbank">tbank.html</a> (разделы про выплаты и тесты).</li>
+    <li>Мониторинг очередей, heartbeat worker, тик планировщика, счётчик просроченных выплат в JSON — <a href="/docs/documentation/queues-monitoring">queues-monitoring.html</a>.</li>
   </ul>
 
   <h2>6) Тесты (feature)</h2>
@@ -83,7 +83,7 @@
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsIndexAutoInfoTest.php</code> — блоки автовыплат, интервал, просроченные на index.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankAdminPayoutsAccessFeatureTest.php</code> — 403 без <code>tbank.payouts.manage</code>; 200 для index, data, columns-settings, show; 404 чужой выплаты; изоляция строк в DataTables; superadmin + <code>partner_id</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankAdminPayoutsAjaxFeatureTest.php</code> — новый функционал: endpoint <code>/total</code>, фильтр <code>payer_id</code>, Select2 endpoints <code>partners-search</code>/<code>payers-search</code>.</li>
-    <li>Ручные действия <code>pay-now</code> / <code>delay</code> — <code>TbankPayoutManualTest.php</code> и см. <a href="./tbank.html#tests">tbank.html → тесты</a>.</li>
+    <li>Ручные действия <code>pay-now</code> / <code>delay</code> — <code>TbankPayoutManualTest.php</code> и см. <a href="/docs/documentation/tbank#tests">tbank.html → тесты</a>.</li>
   </ul>
 
 </div>

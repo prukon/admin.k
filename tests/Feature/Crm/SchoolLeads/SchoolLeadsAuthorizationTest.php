@@ -10,10 +10,12 @@ class SchoolLeadsAuthorizationTest extends CrmTestCase
     public function test_school_leads_routes_use_school_leads_view_middleware(): void
     {
         $expected = [
-            'admin.school-leads'         => 'can:schoolLeads.view',
-            'admin.school-leads.data'    => 'can:schoolLeads.view',
-            'admin.school-leads.update'    => 'can:schoolLeads.view',
-            'admin.school-leads.destroy'   => 'can:schoolLeads.view',
+            'admin.school-leads'                      => 'can:schoolLeads.view',
+            'admin.school-leads.data'                   => 'can:schoolLeads.view',
+            'admin.school-leads.update'                 => 'can:schoolLeads.view',
+            'admin.school-leads.destroy'                => 'can:schoolLeads.view',
+            'admin.school-leads.columns-settings.get'   => 'can:schoolLeads.view',
+            'admin.school-leads.columns-settings.save'  => 'can:schoolLeads.view',
         ];
 
         foreach ($expected as $routeName => $middleware) {

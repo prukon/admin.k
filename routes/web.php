@@ -582,7 +582,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         })->name('docs.documentation.short');
         Route::get('/docs/documentation', [DocumentationController::class, 'index'])->name('docs.documentation.index');
         Route::get('/docs/documentation/{page}', [DocumentationController::class, 'show'])
-            ->whereIn('page', ['payments', 'partner-context', 'partners-permissions', 'reports-payments', 'tbank', 'queues-monitoring', 'tests-standards'])
+            ->where('page', '[a-z0-9][a-z0-9\-\.]*')
             ->name('docs.documentation.show');
     });
 
@@ -642,6 +642,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/school-leads/data', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'dataTable'])->name('admin.school-leads.data');
         Route::put('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'update'])->name('admin.school-leads.update');
         Route::delete('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'destroy'])->name('admin.school-leads.destroy');
+        Route::get('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.school-leads.columns-settings.get');
+        Route::post('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.school-leads.columns-settings.save');
     });
 
     Route::middleware('can:schoolWidget.view')->group(function () {

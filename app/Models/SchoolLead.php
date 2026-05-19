@@ -31,4 +31,9 @@ class SchoolLead extends Model
     {
         return $this->belongsTo(PartnerWidget::class);
     }
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
+    }
 }

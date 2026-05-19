@@ -17,7 +17,7 @@
 </head>
 <body>
 <div class="wrap">
-  <p><a href="./index.html">← К списку разделов</a></p>
+  <p><a href="/doc">← К списку разделов</a></p>
   <h1>Абонементы (lesson packages): назначение ученику и даты периода</h1>
 
   <div class="note">
@@ -44,7 +44,7 @@
   <p>Баланс абонемента хранится в <code>user_lesson_packages.lessons_remaining</code> и <code>lessons_total</code>.</p>
   <ul>
     <li><strong>Привязка к календарю школы</strong> (POST привязки гибкого, фиксированного или разового занятия) только создаёт записи в <code>user_team_schedule_slots</code> и при необходимости задаёт период назначения; <code>lessons_remaining</code> при этом <strong>не меняется</strong>.</li>
-    <li><strong>Списание и возврат остатка</strong> выполняются при сохранении <strong>статуса занятия</strong> в календаре школы для записи с абонементом: учитывается флаг <code>consumes_lesson</code> у статуса и предыдущий статус по тому же слоту/дате/ученику (дельта −1 / +1 / 0). Подробности и таблицы статусов — в <a href="./school-schedule-calendar.html">разделе про календарь школы</a>.</li>
+    <li><strong>Списание и возврат остатка</strong> выполняются при сохранении <strong>статуса занятия</strong> в календаре школы для записи с абонементом: учитывается флаг <code>consumes_lesson</code> у статуса и предыдущий статус по тому же слоту/дате/ученику (дельта −1 / +1 / 0). Подробности и таблицы статусов — в <a href="/docs/documentation/school-schedule-calendar">разделе про календарь школы</a>.</li>
     <li><strong>Лимит строк календаря</strong> на одно назначение: количество строк <code>user_team_schedule_slots</code> с данным <code>user_lesson_package_id</code> не может превысить <code>lessons_total</code>. Для гибкого и разового это проверяется перед каждой новой привязкой; для фикса длина создаваемой цепочки считается от оставшегося «бюджета» занятий.</li>
   </ul>
 
@@ -52,7 +52,7 @@
   <p>Логика выставления дат инкапсулирована в <code>App\Services\UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>.</p>
 
   <h2>Пробные занятия (trial) в календаре школы</h2>
-  <p>Пробное занятие не является назначением абонемента. Это отдельная запись в <code>user_team_schedule_slots</code> с <code>is_trial_lesson = true</code> и <code>user_lesson_package_id = NULL</code>; у записи задаётся пробный баланс <code>trial_lessons_remaining</code> / <code>trial_lessons_total</code> (обычно 1/1). Списание пробного баланса и флаг «пробное уже использовано» у ученика описаны в <a href="./school-schedule-calendar.html">разделе про календарь школы</a>.</p>
+  <p>Пробное занятие не является назначением абонемента. Это отдельная запись в <code>user_team_schedule_slots</code> с <code>is_trial_lesson = true</code> и <code>user_lesson_package_id = NULL</code>; у записи задаётся пробный баланс <code>trial_lessons_remaining</code> / <code>trial_lessons_total</code> (обычно 1/1). Списание пробного баланса и флаг «пробное уже использовано» у ученика описаны в <a href="/docs/documentation/school-schedule-calendar">разделе про календарь школы</a>.</p>
 </div>
 </body>
 </html>

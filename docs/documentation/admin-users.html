@@ -25,7 +25,7 @@
 <body>
 <div class="wrap">
   <h1>Пользователи в админке</h1>
-  <div class="small">Файл: <code>/docs/documentation/admin-users.html</code> · URL в CRM: <code>/docs/documentation/admin-users</code> · оглавление: <a href="./index.html">/doc</a></div>
+  <div class="small">Файл: <code>/docs/documentation/admin-users.html</code> · URL в CRM: <code>/docs/documentation/admin-users</code> · оглавление: <a href="/doc">/doc</a></div>
 
   <h2>1) Назначение и доступ</h2>
   <div class="note">
@@ -170,10 +170,10 @@
   <h3>3.5) Использование в отчётах</h3>
   <div class="note">
     Поле <code>users.location_id</code> задаётся в этом разделе и используется, в частности, в отчёте
-    <a href="./reports-admin.html#location-filter">«Задолженности»</a> (фильтр по текущей привязке ученика).
+    <a href="/docs/documentation/reports-admin#location-filter">«Задолженности»</a> (фильтр по текущей привязке ученика).
     В отчётах по оплатам используется снимок <code>payments.location_id</code> на момент платежа — см.
-    <a href="./reports-payments.html">reports-payments.html</a> и
-    <a href="./payments.html">payments.html</a>.
+    <a href="/docs/documentation/reports-payments">reports-payments.html</a> и
+    <a href="/docs/documentation/payments">payments.html</a>.
     Смена <code>users.location_id</code> <b>не пересчитывает</b> старые строки <code>payments</code>.
   </div>
 
@@ -242,8 +242,8 @@
     Запуск: <code>php artisan test --filter=AdminUsersLocationFeatureTest</code> или <code>AdminUsersAccessFeatureTest</code>.
   </div>
 
-  <p class="small"><a href="./index.html">← К оглавлению</a> ·
-    <a href="./reports-admin.html#location-filter">Отчёты: фильтр по локации</a></p>
+  <p class="small"><a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/reports-admin#location-filter">Отчёты: фильтр по локации</a></p>
 </div>
 </body>
 </html>

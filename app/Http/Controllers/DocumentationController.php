@@ -3,9 +3,61 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class DocumentationController extends Controller
 {
+    /**
+     * Заголовки страниц в оглавлении (slug без .html).
+     *
+     * @var array<string, string>
+     */
+    private const PAGE_TITLES = [
+        'payments'                    => 'Оплаты (payables/payment_intents/payments/users_prices)',
+        'partner-context'             => 'Партнёр‑контекст и SetPartner (current_partner/anti‑leak/блокировки)',
+        'partners-permissions'        => 'Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)',
+        'settings-roles-custom'       => 'Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)',
+        'reports-payments'            => 'Отчёт «Платежи» (админка): таблица, «Поля списка», права (доп. колонки, история T‑Bank)',
+        'reports-admin'               => 'Отчёты (админка): фильтр по локации, AJAX/суммы (debt/ltv/monthly/payment-intents/fiscal-receipts)',
+        'tbank'                       => 'T‑Bank (мультирасчёты): настройки/комиссии/flow, СБП (QR) в CRM',
+        'tbank-admin-payouts'          => 'T‑Bank: админка выплат (список, DataTables, карточка, права tbank.payouts.manage)',
+        'tbank-refunds-payout-cancel'   => 'T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты (tinkoff_payments → tinkoff_payouts)',
+        'queues-monitoring'             => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker',
+        'tests-standards'             => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)',
+        'lesson-packages'             => 'Абонементы: период, привязка к календарю, лимит строк, lessons_remaining и статусы',
+        'school-schedule-calendar'    => 'Расписание школы: календарь, статусы (consumes_lesson), пробное, JSON/API',
+        'admin-teams'                 => 'Группы (админка): /admin/teams, groups.view и schedule.view (колонка «Расписание», дни в модалках)',
+        'admin-users'                 => 'Пользователи (админка): /admin/users, локация ученика (locations.view), доп. поля',
+        'contracts'                   => 'Договоры (клиентские): скачивание в интерфейсе (CRM и «Мои документы»)',
+        'school-leads-widget'         => 'Заявки с сайта: виджет iframe, school_leads, toolbar/фильтры/локации, Telegram',
+    ];
+
+    /**
+     * @return array<string, string> slug => absolute path
+     */
+    private function pageFiles(): array
+    {
+        $dir = base_path('docs/documentation');
+        $pages = [];
+
+        foreach (glob($dir . '/*.html') ?: [] as $path) {
+            $slug = basename($path, '.html');
+            if ($slug === 'index') {
+                continue;
+            }
+            $pages[$slug] = $path;
+        }
+
+        ksort($pages);
+
+        return $pages;
+    }
+
+    private function normalizeSlug(string $page): string
+    {
+        return preg_replace('/\.html$/i', '', $page) ?? $page;
+    }
+
     /**
      * Внутренняя документация проекта (не публичная).
      *
@@ -13,24 +65,6 @@ class DocumentationController extends Controller
      */
     public function index(): Response
     {
-        $items = [
-            ['slug' => 'payments', 'title' => 'Оплаты (payables/payment_intents/payments/users_prices)'],
-            ['slug' => 'partner-context', 'title' => 'Партнёр‑контекст и SetPartner (current_partner/anti‑leak/блокировки)'],
-            ['slug' => 'partners-permissions', 'title' => 'Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)'],
-            ['slug' => 'settings-roles-custom', 'title' => 'Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)'],
-            ['slug' => 'reports-payments', 'title' => 'Отчёт “Платежи” (админка): таблица, “Поля списка”, права (доп. колонки, история T‑Bank)'],
-            ['slug' => 'tbank', 'title' => 'T‑Bank (мультирасчёты): настройки/комиссии/flow, СБП (QR) в CRM'],
-            ['slug' => 'tbank-admin-payouts', 'title' => 'T‑Bank: админка выплат (список, DataTables, карточка, права tbank.payouts.manage)'],
-            ['slug' => 'tbank-refunds-payout-cancel', 'title' => 'T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты (tinkoff_payments → tinkoff_payouts)'],
-            ['slug' => 'queues-monitoring', 'title' => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker'],
-            ['slug' => 'tests-standards', 'title' => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)'],
-            ['slug' => 'lesson-packages', 'title' => 'Абонементы: период, привязка к календарю, лимит строк, lessons_remaining и статусы'],
-            ['slug' => 'school-schedule-calendar', 'title' => 'Расписание школы: календарь, статусы (consumes_lesson), пробное, JSON/API'],
-            ['slug' => 'admin-teams', 'title' => 'Группы (админка): /admin/teams, groups.view и schedule.view (колонка «Расписание», дни в модалках)'],
-            ['slug' => 'admin-users', 'title' => 'Пользователи (админка): /admin/users, локация ученика (locations.view), доп. поля'],
-            ['slug' => 'school-leads-widget', 'title' => 'Заявки с сайта: виджет iframe, school_leads, Telegram, уведомления'],
-        ];
-
         $html = '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             . '<title>Документация проекта</title>'
             . '<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.5;color:#111;margin:0}'
@@ -40,8 +74,9 @@ class DocumentationController extends Controller
             . '<div class="small">Раздел: <code>/docs/documentation</code> · короткая ссылка: <code>/doc</code></div>'
             . '<ul>';
 
-        foreach ($items as $it) {
-            $html .= '<li><a href="' . e(url('/docs/documentation/' . $it['slug'])) . '">' . e($it['title']) . '</a></li>';
+        foreach ($this->pageFiles() as $slug => $_path) {
+            $title = self::PAGE_TITLES[$slug] ?? $slug;
+            $html .= '<li><a href="' . e(url('/docs/documentation/' . $slug)) . '">' . e($title) . '</a></li>';
         }
 
         $html .= '</ul></div></body></html>';
@@ -49,31 +84,20 @@ class DocumentationController extends Controller
         return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
     }
 
-    public function show(string $page): Response
+    public function show(string $page): Response|RedirectResponse
     {
-        $map = [
-            'payments' => base_path('docs/documentation/payments.html'),
-            'partner-context' => base_path('docs/documentation/partner-context.html'),
-            'partners-permissions' => base_path('docs/documentation/partners-permissions.html'),
-            'settings-roles-custom' => base_path('docs/documentation/settings-roles-custom.html'),
-            'reports-payments' => base_path('docs/documentation/reports-payments.html'),
-            'tbank' => base_path('docs/documentation/tbank.html'),
-            'tbank-admin-payouts' => base_path('docs/documentation/tbank-admin-payouts.html'),
-            'tbank-refunds-payout-cancel' => base_path('docs/documentation/tbank-refunds-payout-cancel.html'),
-            'queues-monitoring' => base_path('docs/documentation/queues-monitoring.html'),
-            'tests-standards' => base_path('docs/documentation/tests-standards.html'),
-            'lesson-packages' => base_path('docs/documentation/lesson-packages.html'),
-            'school-schedule-calendar' => base_path('docs/documentation/school-schedule-calendar.html'),
-            'admin-teams' => base_path('docs/documentation/admin-teams.html'),
-            'admin-users' => base_path('docs/documentation/admin-users.html'),
-            'school-leads-widget' => base_path('docs/documentation/school-leads-widget.html'),
-        ];
+        $slug = $this->normalizeSlug($page);
+        $files = $this->pageFiles();
 
-        if (!isset($map[$page])) {
+        if (!isset($files[$slug])) {
             abort(404);
         }
 
-        $path = $map[$page];
+        if (str_ends_with(strtolower($page), '.html')) {
+            return redirect()->route('docs.documentation.show', ['page' => $slug], 301);
+        }
+
+        $path = $files[$slug];
         if (!is_file($path)) {
             abort(404);
         }
@@ -81,4 +105,3 @@ class DocumentationController extends Controller
         return response(file_get_contents($path), 200)->header('Content-Type', 'text/html; charset=UTF-8');
     }
 }
-

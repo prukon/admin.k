@@ -137,7 +137,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>5.5 Где отображается информация об автовыплатах</h3>
   <ul>
-    <li><b>Страница выплат</b> <code>/admin/tinkoff/payouts</code>: блок «Автовыплаты: включены у партнёров …» и «Обработка отложенных выплат: каждые N мин.»; таблица выплат (DataTables); блок просроченных отложенных выплат (см. отдельно <a href="./tbank-admin-payouts.html">админка выплат</a>).</li>
+    <li><b>Страница выплат</b> <code>/admin/tinkoff/payouts</code>: блок «Автовыплаты: включены у партнёров …» и «Обработка отложенных выплат: каждые N мин.»; таблица выплат (DataTables); блок просроченных отложенных выплат (см. отдельно <a href="/docs/documentation/tbank-admin-payouts">админка выплат</a>).</li>
     <li><b>Страница партнёра</b> <code>/admin/tinkoff/partners/{id}</code>: в карточке слева — «Автовыплата: вкл/выкл», интервал, «За 30 дн.: N автовыплат», ссылка «к выплатам». Счётчик <b>«Ожидают выплат»</b> — это количество выплат в статусах <code>INITIATED</code>/<code>CREDIT_CHECKING</code> (уже созданы и в процессе), а не «платежи, ожидающие создания выплаты».</li>
     <li><b>Страница комиссий</b>: в таблице правил отдельные колонки <b>«Автовыплата»</b> (да/нет) и <b>«Выплат за 30 дн.»</b> (число со ссылкой на автовыплаты партнёра); на форме редактирования правила — блок со счётчиком «За 30 дн.: N автовыплат» и ссылкой на выплаты под чекбоксом автовыплаты.</li>
   </ul>
@@ -226,7 +226,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <h3>8.1 Права/доступы (важно для безопасности)</h3>
   <ul>
     <li><b>Оплата для клиентов</b>: карта — <code>can:payment.method.tbankCard</code>; СБП и QR — <code>can:payment.method.tbankSBP</code>; Робокасса — <code>can:payment.method.robokassa</code> (см. группу прав «Способы оплаты»).</li>
-    <li><b>Выплаты для бухгалтера</b>: действия <code>POST /tinkoff/payouts/{deal}/…</code> и админ‑страница списка <code>/admin/tinkoff/payouts</code> (включая <code>/data</code>, карточку, настройки колонок) — под <code>can:tbank.payouts.manage</code> (permission <code>tbank.payouts.manage</code>). Подробнее: <a href="./tbank-admin-payouts.html">админка выплат</a>.</li>
+    <li><b>Выплаты для бухгалтера</b>: действия <code>POST /tinkoff/payouts/{deal}/…</code> и админ‑страница списка <code>/admin/tinkoff/payouts</code> (включая <code>/data</code>, карточку, настройки колонок) — под <code>can:tbank.payouts.manage</code> (permission <code>tbank.payouts.manage</code>). Подробнее: <a href="/docs/documentation/tbank-admin-payouts">админка выплат</a>.</li>
     <li><b>Полный админ‑доступ</b> (sm-register/debug/карточки/close deal): под <code>can:manage.payment.method.tbank</code> (только владелец/superadmin).</li>
   </ul>
 
@@ -330,7 +330,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
 
   <h3>8.8 Возвраты и отмена отложенной выплаты при возврате</h3>
   <div class="note">
-    Продуктовая логика и термины: <a href="./tbank-refunds-payout-cancel.html">tbank-refunds-payout-cancel.html</a>.
+    Продуктовая логика и термины: <a href="/docs/documentation/tbank-refunds-payout-cancel">tbank-refunds-payout-cancel.html</a>.
   </div>
   <ul>
     <li><b>Правило</b>: возврат из отчёта «Платежи» блокируется, если для той же строки <code>tinkoff_payments</code> есть выплата с непустым <code>tinkoff_payouts.tinkoff_payout_payment_id</code> и статусом не <code>REJECTED</code>. Пока банковского PaymentId выплаты нет (<code>INITIATED</code> с отложенным <code>when_to_run</code> и т.п.), возврат разрешён; подходящие выплаты отменяются (<code>REJECTED</code>, аудит в <code>payload_state</code>). Поиск выплат — только по <code>tinkoff_payouts.payment_id</code> → <code>tinkoff_payments.id</code>, не по <code>deal_id</code>.</li>

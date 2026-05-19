@@ -44,7 +44,7 @@
     <li><b><code>reports.fiscal.receipts.view</code></b> — отчёт “Чеки”.</li>
   </ul>
   <div class="note">
-    Модель прав в разрезе партнёра: <a href="/docs/documentation/partners-permissions.html">partners-permissions</a>.
+    Модель прав в разрезе партнёра: <a href="/docs/documentation/partners-permissions">partners-permissions</a>.
   </div>
   <ul>
     <li><b><code>locations.view</code></b> — не открывает отчёты само по себе, но даёт фильтр «Локация» в отчётах платежей и задолженностей (см. §2.1).</li>
@@ -100,10 +100,10 @@
     </tbody>
   </table>
   <ul>
-    <li>Запись <code>payments.location_id</code> при первой фиксации оплаты — <a href="/docs/documentation/payments.html">payments.html</a>, колонка и фильтр — <a href="/docs/documentation/reports-payments.html">reports-payments.html</a>.</li>
+    <li>Запись <code>payments.location_id</code> при первой фиксации оплаты — <a href="/docs/documentation/payments">payments.html</a>, колонка и фильтр — <a href="/docs/documentation/reports-payments">reports-payments.html</a>.</li>
     <li>Старые строки <code>payments</code> без локации: <code>location_id IS NULL</code> попадают в «Без локации».</li>
     <li>Смена <code>users.location_id</code> после оплаты <b>не меняет</b> уже записанный <code>payments.location_id</code>.</li>
-    <li>Привязка ученика к локации в CRM: раздел <a href="./admin-users.html#user-location">«Пользователи»</a> (<code>users.location_id</code>).</li>
+    <li>Привязка ученика к локации в CRM: раздел <a href="/docs/documentation/admin-users#user-location">«Пользователи»</a> (<code>users.location_id</code>).</li>
   </ul>
 
   <h2>3) Отчёт “Задолженности”</h2>

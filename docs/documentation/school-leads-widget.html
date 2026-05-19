@@ -27,7 +27,7 @@
 <body>
 <div class="wrap">
   <h1>Заявки с сайта: виджет (iframe) для партнёра</h1>
-  <div class="small">Файл: <code>/docs/documentation/school-leads-widget.html</code> · оглавление: <a href="./index.html">/doc</a></div>
+  <div class="small">Файл: <code>/docs/documentation/school-leads-widget.html</code> · оглавление: <a href="/doc">/doc</a></div>
 
   <div class="note">
     <b>Назначение:</b> партнёр (школа) встраивает на свой лендинг iframe-форму сбора заявок.
@@ -61,7 +61,7 @@
   <h2>2) Модель данных</h2>
   <ul>
     <li><code>partner_widgets</code> — один активный виджет на партнёра: <code>widget_key</code> (48 символов), <code>is_active</code>. Создаётся при создании партнёра (<code>Partner::created</code> → <code>PartnerWidgetService::ensureForPartner</code>).</li>
-    <li><code>school_leads</code> — заявки: <code>partner_id</code>, <code>name</code>, <code>phone</code>, статус, UTM, <code>page_url</code>, <code>referrer</code>, согласие ПДн (<code>consent_accepted_at</code>, <code>policy_url</code>), soft delete.</li>
+    <li><code>school_leads</code> — заявки: <code>partner_id</code>, <code>name</code>, <code>phone</code>, <code>location_id</code> (nullable, назначается в CRM), статус, UTM, <code>page_url</code>, <code>referrer</code>, согласие ПДн (<code>consent_accepted_at</code>, <code>policy_url</code>), soft delete.</li>
     <li><code>partner_telegram_link_tokens</code> — одноразовые токены для привязки Telegram через <code>/start</code> (срок жизни ~30 мин).</li>
     <li><code>partners.school_leads_telegram_chat_id</code> — Chat ID для уведомлений партнёра в Telegram.</li>
   </ul>
@@ -73,7 +73,7 @@
       <li><code>schoolLeads.view</code> — страница «Заявки с сайта», datatable, update/delete.</li>
       <li><code>schoolWidget.view</code> — страница «Виджет заявок», код iframe, подключение Telegram.</li>
     </ul>
-    Роль <code>user</code> этих прав <b>не получает</b> по умолчанию. Назначение — через «Права и роли» или сидеры (см. <a href="./partners-permissions.html">партнёры: базовые права</a>).
+    Роль <code>user</code> этих прав <b>не получает</b> по умолчанию. Назначение — через «Права и роли» или сидеры (см. <a href="/docs/documentation/partners-permissions">партнёры: базовые права</a>).
   </div>
   <p class="small">Меню: <code>resources/views/includes/sidebar.blade.php</code> — пункты под <code>@can('schoolLeads.view')</code> и <code>@can('schoolWidget.view')</code>.</p>
 
@@ -102,24 +102,102 @@
         width="100%" height="420" style="border:0;" loading="lazy" title="Заявка"&gt;&lt;/iframe&gt;</code></pre>
   <p class="small">Готовый код копируется на <code>GET /admin/school-widget</code> (<code>SchoolWidgetController</code>).</p>
 
-  <h2>5) CRM: заявки с сайта</h2>
+  <h2>5) CRM: заявки с сайта (<code>/admin/school-leads</code>)</h2>
   <table>
     <thead>
       <tr><th>Метод</th><th>URL</th><th>Middleware</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/admin/school-leads</code></td><td><code>can:schoolLeads.view</code></td><td>Страница списка (DataTables)</td></tr>
-      <tr><td>GET</td><td><code>/admin/school-leads/data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON DataTables, фильтр по статусам</td></tr>
-      <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Статус, комментарий</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads</code></td><td><code>can:schoolLeads.view</code></td><td>HTML: список (DataTables), toolbar со счётчиками, панель фильтров, меню колонок</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON для DataTables (см. §5.2)</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Настройки видимости колонок (<code>user_table_settings</code>, ключ <code>school_leads_index</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Сохранение видимости колонок (<code>columns</code> — объект ключ → bool)</td></tr>
+      <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Статус, комментарий; при <code>locations.view</code> — <code>location_id</code> (<code>UpdateSchoolLeadRequest</code>)</td></tr>
       <tr><td>DELETE</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Soft delete</td></tr>
     </tbody>
   </table>
   <div class="warn">
     <b>Anti-leak:</b> все запросы фильтруются по <code>PartnerContext::partnerId()</code> (текущий партнёр из сессии / <code>user-&gt;partner_id</code>).
     Чужой <code>schoolLead</code> по id → <b>404</b>. Без выбранного партнёра (superadmin без <code>current_partner</code>) → <b>403</b>.
-    См. <a href="./partner-context.html">партнёр-контекст</a>.
+    См. <a href="/docs/documentation/partner-context">партнёр-контекст</a>.
   </div>
-  <p class="small">Статусы: enum <code>App\Enums\SchoolLeadStatus</code> — <code>new</code>, <code>processing</code>, <code>sale</code>, <code>rejected</code>, <code>spam</code> (как у B2B-лидов).</p>
+  <h3>5.1) Интерфейс страницы списка</h3>
+  <p>View: <code>resources/views/admin/school-leads.blade.php</code>, стили toolbar — <code>resources/css/payments-report.css</code> (как у отчёта <a href="/docs/documentation/reports-payments">«Платежи»</a>).</p>
+  <ul>
+    <li><b>Toolbar</b> — заголовок «Заявки с сайта», счётчики по всему партнёру (не зависят от фильтров таблицы):
+      <ul>
+        <li><b>Новых</b> — заявки со статусом <code>new</code>;</li>
+        <li><b>В обработке</b> — <code>processing</code>;</li>
+        <li><b>Всего</b> — все неудалённые заявки партнёра.</li>
+      </ul>
+      При первой загрузке значения из <code>leadStats</code> (контроллер). При каждом ответе <code>GET …/data</code> поле <code>stats</code> в JSON обновляет счётчики на клиенте.
+    </li>
+    <li><b>Фильтры</b> (collapse) — чекбоксы статусов, кнопки «Применить» / «Сброс». Фильтры <b>не</b> применяются при изменении чекбокса: только после «Применить». Сброс возвращает статусы <code>new</code> + <code>processing</code> и очищает локацию.</li>
+    <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings.</li>
+    <li><b>Таблица</b> — server-side DataTables, поиск, сортировка, пагинация; редактирование и удаление в модалках.</li>
+  </ul>
+  <p class="small">Ключи колонок в настройках: <code>name</code>, <code>phone</code>, <code>location</code> (только при <code>locations.view</code>), <code>utm</code>, <code>page_url</code>, <code>status</code>, <code>comment</code>, <code>actions</code>.</p>
+
+  <h3>5.2) Параметры <code>GET /admin/school-leads/data</code></h3>
+  <table>
+    <thead>
+      <tr><th>Параметр</th><th>Описание</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>draw</code>, <code>start</code>, <code>length</code></td><td>Стандарт DataTables</td></tr>
+      <tr><td><code>statuses[]</code></td><td>Массив статусов для фильтра таблицы. Если ключ передан, но после фильтрации массив пуст — условие по статусу не накладывается</td></tr>
+      <tr><td><code>location_id</code></td><td>Только при <code>locations.view</code>: пусто / не передано — все локации; <code>none</code> — только без локации; числовой id — заявки этой локации партнёра</td></tr>
+      <tr><td><code>search[value]</code></td><td>Глобальный поиск: имя, телефон, комментарий, статус, UTM, URL, referrer, дата создания; при <code>locations.view</code> — также имя локации</td></tr>
+      <tr><td><code>order</code>, <code>columns</code></td><td>Сортировка; при <code>locations.view</code> поддерживается <code>location_name</code></td></tr>
+    </tbody>
+  </table>
+  <p>Ответ JSON (фрагмент):</p>
+  <pre><code>{
+  "draw": 1,
+  "recordsTotal": 10,
+  "recordsFiltered": 3,
+  "stats": { "total": 10, "new": 4, "processing": 2 },
+  "data": [
+    {
+      "id": 1,
+      "name": "...",
+      "status": "new",
+      "status_label": "Новый",
+      "utm_summary": "source: google; medium: cpc",
+      "page_url": "https://...",
+      "location_id": 5,
+      "location_name": "Филиал"
+    }
+  ]
+}</code></pre>
+  <p class="small">Поля <code>location_id</code> / <code>location_name</code> в строках — только при <code>locations.view</code>. <code>stats</code> всегда по всему партнёру, независимо от фильтров таблицы.</p>
+
+  <h3>5.3) Локации</h3>
+  <ul>
+    <li>Миграция <code>2026_05_19_160000_add_location_id_to_school_leads_table.php</code> — nullable FK на <code>locations</code>.</li>
+    <li>Заявки из виджета — <code>location_id = null</code>; назначение в CRM (модалка редактирования).</li>
+    <li>При <code>locations.view</code>: столбец «Локация», обычный <code>&lt;select&gt;</code> в фильтре («Все локации» / «Без локации» / активные локации партнёра), поле в модалке. Отключённые и чужие локации недоступны; назначить их через API → 422.</li>
+    <li>Без <code>locations.view</code>: UI локации скрыт; <code>location_id</code> в data и update игнорируется.</li>
+  </ul>
+  <p class="small">Поведение как у <a href="/docs/documentation/admin-users">пользователей</a> (<code>filter-location</code>).</p>
+
+  <h3>5.4) Статусы и редактирование</h3>
+  <p>Статусы: enum <code>App\Enums\SchoolLeadStatus</code> — <code>new</code>, <code>processing</code>, <code>sale</code>, <code>rejected</code>, <code>spam</code>.</p>
+  <p><code>PUT /admin/school-leads/{id}</code> — JSON: <code>status</code>, <code>comment</code>, опционально <code>location_id</code>. Ошибки валидации — 422, тексты на русском (<code>UpdateSchoolLeadRequest</code>).</p>
+
+  <h3>5.5) Доступ к разделу</h3>
+  <table>
+    <thead>
+      <tr><th>Кто</th><th>Страница и API</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Гость</td><td>302 / 401 / 403 / 419 на все маршруты §5</td></tr>
+      <tr><td>Пользователь без <code>schoolLeads.view</code></td><td><b>403</b> на все маршруты §5</td></tr>
+      <tr><td>С <code>schoolLeads.view</code></td><td><b>200</b>: страница, data, columns-settings, update, delete (в пределах своего партнёра)</td></tr>
+      <tr><td>С <code>schoolLeads.view</code> + <code>locations.view</code></td><td>Дополнительно: фильтр/столбец/поле локации в UI и API</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Покрытие: <code>SchoolLeadsAccessFeatureTest</code>, <code>SchoolLeadsFullAccessFeatureTest</code>. Виджет (<code>/admin/school-widget</code>) — отдельное право <code>schoolWidget.view</code> (§6).</p>
 
   <h2>6) CRM: виджет и Telegram</h2>
   <table>
@@ -175,22 +253,30 @@
   <ul>
     <li>Модели: <code>App\Models\SchoolLead</code>, <code>PartnerWidget</code>, <code>PartnerTelegramLinkToken</code></li>
     <li>Сервисы: <code>PartnerWidgetService</code>, <code>PartnerTelegramLinkService</code>, <code>SchoolLeadNotificationService</code>, <code>TelegramBotClient</code></li>
-    <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolWidgetController</code>, <code>TelegramSchoolLeadWebhookController</code></li>
-    <li>Миграции: <code>2026_05_19_140000_*</code>, <code>140001_*</code>, <code>140002_*</code>, <code>150000_*</code>, <code>160000_*</code></li>
+    <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolLeadColumnsSettingsController</code>, <code>Admin\SchoolWidgetController</code>, <code>TelegramSchoolLeadWebhookController</code></li>
+    <li>Request: <code>App\Http\Requests\UpdateSchoolLeadRequest</code></li>
+    <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code></li>
     <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>admin/school-leads.blade.php</code>, <code>admin/school-widget.blade.php</code></li>
   </ul>
 
   <h2>10) Автотесты</h2>
-  <pre><code>php artisan test --env=testing --filter=SchoolLead</code></pre>
+  <pre><code>php artisan test --env=testing --filter=SchoolLead
+php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
+  <p><b>Публичный виджет</b></p>
   <ul>
     <li><code>tests/Feature/Public/SchoolLeadWidgetSubmitTest.php</code> — форма, submit, consent, inactive widget</li>
     <li><code>tests/Feature/Public/SchoolLeadWidgetFullFeatureTest.php</code> — валидация, reCAPTCHA, provisioning виджета</li>
     <li><code>tests/Feature/Public/SchoolLeadNotificationTest.php</code> — email / Telegram при submit</li>
     <li><code>tests/Feature/Public/SchoolLeadTelegramWebhookFeatureTest.php</code> — webhook, токены</li>
-    <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadsAccessFeatureTest.php</code> — 403/200 по правам, все endpoint’ы</li>
-    <li><code>tests/Feature/Crm/SchoolLeads/SchoolWidgetAccessFeatureTest.php</code> — то же для виджета</li>
-    <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadCrudFeatureTest.php</code> — CRUD, anti-leak</li>
-    <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadManagementTest.php</code>, <code>SchoolWidgetTelegramAutoLinkTest.php</code>, <code>SchoolLeadsAuthorizationTest.php</code></li>
+  </ul>
+  <p><b>CRM: заявки и виджет</b></p>
+  <ul>
+    <li><code>SchoolLeadsAuthorizationTest.php</code> — middleware маршрутов, права в конфиге</li>
+    <li><code>SchoolLeadsAccessFeatureTest.php</code>, <code>SchoolLeadsFullAccessFeatureTest.php</code> — гость/403, все endpoint’ы → 200 при <code>schoolLeads.view</code></li>
+    <li><code>SchoolLeadsPageFeatureTest.php</code> — toolbar, stats, фильтры, колонки, пагинация</li>
+    <li><code>SchoolLeadLocationFeatureTest.php</code> — локации: UI, фильтр, сортировка, update, columns-settings</li>
+    <li><code>SchoolLeadCrudFeatureTest.php</code>, <code>SchoolLeadManagementTest.php</code> — CRUD, статусы, anti-leak</li>
+    <li><code>SchoolWidgetAccessFeatureTest.php</code>, <code>SchoolWidgetTelegramAutoLinkTest.php</code> — страница виджета и Telegram</li>
   </ul>
 
   <h2>11) Запланировано позже (не в текущей версии)</h2>
