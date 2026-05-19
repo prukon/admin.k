@@ -117,7 +117,15 @@
   </ul>
   <pre><code>php artisan test --env=testing --filter PartnerBasePermissionsTest</code></pre>
 
-  <h2>7) Кастомные роли в админке</h2>
+  <h2>7) Заявки с сайта (виджет)</h2>
+  <div class="note">
+    Для роли <code>admin</code> в конфиге также заданы <code>schoolLeads.view</code> и <code>schoolWidget.view</code>
+    (список заявок клиентов школы и страница embed-кода / Telegram).
+    Это <b>не</b> то же самое, что <code>partnerLeads.view</code> (B2B-лиды платформы).
+    Подробно: <a href="./school-leads-widget.html">Заявки с сайта: виджет iframe</a>.
+  </div>
+
+  <h2>8) Кастомные роли в админке</h2>
   <div class="note">
     Отдельный сценарий: администратор создаёт <b>новую</b> (несистемную) роль на вкладке «Права и роли».
     Стартовый набор прав для такой роли берётся из того же конфига, ключ <code>roles.admin</code>, но логика и ограничения отличаются от сидеров и от автопроставления при создании партнёра — см.

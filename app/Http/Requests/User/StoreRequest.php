@@ -5,6 +5,7 @@ namespace App\Http\Requests\User;
 use App\Models\UserField;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreRequest extends FormRequest
 {
@@ -34,10 +35,20 @@ class StoreRequest extends FormRequest
                 $this->offsetUnset('phone');
             }
         }
+
+        if ($this->user()?->can('locations.view')) {
+            if ($this->has('location_id') && $this->input('location_id') === '') {
+                $this->merge(['location_id' => null]);
+            }
+        } else {
+            $this->offsetUnset('location_id');
+        }
     }
 
     public function rules(): array
     {
+        $partnerId = app(PartnerContext::class)->partnerId();
+
         $rules = [
             'name'        => 'required|string|max:25',
             'lastname'    => 'required|string|max:25',
@@ -59,6 +70,17 @@ class StoreRequest extends FormRequest
             $rules['phone'] = ['sometimes', 'nullable', 'regex:/^\+7\d{10}$/'];
         }
 
+        if ($this->user()?->can('locations.view') && $partnerId) {
+            $rules['location_id'] = [
+                'nullable',
+                'integer',
+                Rule::exists('locations', 'id')->where(function ($query) use ($partnerId) {
+                    $query->where('partner_id', $partnerId)
+                        ->where('is_enabled', true);
+                }),
+            ];
+        }
+
         return $rules;
     }
 
@@ -71,7 +93,8 @@ class StoreRequest extends FormRequest
             'password'   => 'Пароль',
             'birthday'   => 'Дата рождения',
             'start_date' => 'Дата начала',
-            'team_id'    => 'Группа',
+            'team_id'      => 'Группа',
+            'location_id'  => 'Локация',
             'is_enabled' => 'Активность',
             'role_id'    => 'Роль',
             'phone'      => 'Телефон',
@@ -133,6 +156,9 @@ class StoreRequest extends FormRequest
 
             'team_id.integer'   => 'Некорректный формат группы.',
             'team_id.exists'    => 'Выбранная группа не существует в базе.',
+
+            'location_id.integer' => 'Некорректный формат локации.',
+            'location_id.exists'  => 'Выбранная локация не существует или недоступна.',
 
             'phone.regex'       => 'Поле "Телефон" должно быть российским номером в формате +7XXXXXXXXXX (11 цифр).',
         ];

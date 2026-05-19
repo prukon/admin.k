@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\MyLog;
-use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\Payable;
 use App\Models\PaymentSystem;
@@ -17,6 +16,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Support\Payments\PaymentOutSumNormalizer;
+use App\Services\Payments\PaymentLedgerRecorder;
 
 class RobokassaController extends Controller
 {
@@ -242,18 +242,17 @@ class RobokassaController extends Controller
             $teamName = $user?->team?->title ?? 'Без команды';
             $currentDateTime = now()->format('Y-m-d H:i:s');
 
-            Payment::updateOrCreate(
+            app(PaymentLedgerRecorder::class)->record(
+                (string) $invId,
+                $partnerId,
+                $shpUserId,
                 [
-                    'payment_number' => (string) $invId,
-                    'partner_id'     => $partnerId,
-                ],
-                [
-                    'user_id'         => $shpUserId,
-                    'user_name'       => ($user?->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
-                    'team_title'      => $teamName,
-                    'operation_date'  => $currentDateTime,
-                    'payment_month'   => $shpPaymentDate,
-                    'summ'            => $outSumNorm,
+                    'user_id' => $shpUserId,
+                    'user_name' => ($user?->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
+                    'team_title' => $teamName,
+                    'operation_date' => $currentDateTime,
+                    'payment_month' => $shpPaymentDate,
+                    'summ' => $outSumNorm,
                 ]
             );
 

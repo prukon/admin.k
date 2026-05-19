@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Models\FiscalReceipt;
+use App\Models\Location;
 use App\Models\UserTableSetting;
 use App\Models\Payment;
 use App\Models\PaymentIntent;
@@ -53,6 +54,15 @@ class PaymentReportController extends AdminBaseController
         $paymentsFilterUser = $this->resolvePaymentsFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolvePaymentsFilterTeamLabel($partnerId, $filters);
 
+        $canViewLocations = $authUser?->can('locations.view') ?? false;
+        $activeLocations = $canViewLocations
+            ? Location::query()
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+
         // 7) представление
         return view(
             'admin.report.index',
@@ -66,6 +76,8 @@ class PaymentReportController extends AdminBaseController
                 'filters' => $filters,
                 'paymentsFilterUser' => $paymentsFilterUser,
                 'paymentsFilterTeam' => $paymentsFilterTeam,
+                'canViewLocations' => $canViewLocations,
+                'activeLocations' => $activeLocations,
             ]
         );
     }
@@ -260,9 +272,10 @@ class PaymentReportController extends AdminBaseController
             ->groupBy('payment_id');
 
         return Payment::query()
-            ->with(['user.team'])
+            ->with(['user.team', 'location'])
             ->join('users', 'users.id', '=', 'payments.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->leftJoin('locations as payment_location', 'payment_location.id', '=', 'payments.location_id')
             ->leftJoinSub($latestIncomeReceiptSub, 'latest_income_fiscal_receipts', function ($join) {
                 $join->on('latest_income_fiscal_receipts.payment_id', '=', 'payments.id');
             })
@@ -286,6 +299,7 @@ class PaymentReportController extends AdminBaseController
             ->where('users.partner_id', $partnerId)
             ->select(
                 'payments.*',
+                'payment_location.name as payment_location_name',
                 'fiscal_income_receipt.receipt_url as fiscal_income_receipt_url',
                 'fiscal_return_receipt.receipt_url as fiscal_return_receipt_url',
                 'fiscal_return_receipt.status as fiscal_return_receipt_status',
@@ -545,6 +559,7 @@ SQL;
         $canAdditional = $authUser?->can('reports.additional.value.view') ?? false;
         $canCommissionTotal = $authUser?->can('reports.payments.commission_total.view') ?? false;
         $canPayoutColumn = $authUser?->can('reports.payments.payout_amount.column.view') ?? false;
+        $canViewLocations = $authUser?->can('locations.view') ?? false;
 
         return DataTables::of($paymentsQuery)
             ->addIndexColumn()
@@ -570,6 +585,22 @@ SQL;
                 return $row->user && $row->user->team
                     ? $row->user->team->title
                     : 'Без команды';
+            })
+            ->addColumn('location_title', function (Payment $row) use ($canViewLocations) {
+                if (! $canViewLocations) {
+                    return null;
+                }
+
+                $attrs = $row->getAttributes();
+                if (array_key_exists('payment_location_name', $attrs)) {
+                    $name = trim((string) ($attrs['payment_location_name'] ?? ''));
+
+                    return $name !== '' ? $name : 'Без локации';
+                }
+
+                $name = trim((string) ($row->location?->name ?? ''));
+
+                return $name !== '' ? $name : 'Без локации';
             })
             ->addColumn('summ', function (Payment $row) {
                 return (float) $row->summ;
@@ -639,6 +670,14 @@ SQL;
                     "CASE WHEN teams.title IS NULL OR teams.title = '' THEN 1 ELSE 0 END asc"
                 );
                 $query->orderBy('teams.title', $dir);
+            })
+            ->orderColumn('location_title', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+
+                $query->orderByRaw(
+                    "CASE WHEN payment_location.name IS NULL OR payment_location.name = '' THEN 1 ELSE 0 END asc"
+                );
+                $query->orderBy('payment_location.name', $dir);
             })
             ->orderColumn('user_name', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
@@ -1115,6 +1154,22 @@ SQL;
         } elseif ($request->filled('team_title')) {
             $like = '%'.trim((string) $request->query('team_title')).'%';
             $paymentsQuery->where('teams.title', 'like', $like);
+        }
+
+        /** @var \App\Models\User|null $filterActor */
+        $filterActor = Auth::user();
+        if ($filterActor?->can('locations.view')) {
+            $filterLocationId = $request->query('filter_location_id');
+            if ($filterLocationId !== null && $filterLocationId !== '') {
+                if ($filterLocationId === 'none') {
+                    $paymentsQuery->whereNull('payments.location_id');
+                } elseif (ctype_digit((string) $filterLocationId)) {
+                    $lid = (int) $filterLocationId;
+                    if ($lid > 0) {
+                        $paymentsQuery->where('payments.location_id', $lid);
+                    }
+                }
+            }
         }
 
         if ($request->filled('payment_month')) {
@@ -1605,6 +1660,7 @@ SQL;
         $canAdditional = $authUser?->can('reports.additional.value.view') ?? false;
         $canCommissionTotal = $authUser?->can('reports.payments.commission_total.view') ?? false;
         $canPayoutColumn = $authUser?->can('reports.payments.payout_amount.column.view') ?? false;
+        $canViewLocations = $authUser?->can('locations.view') ?? false;
 
         $settings = UserTableSetting::where('user_id', $userId)
             ->where('table_key', 'reports_payments')
@@ -1614,6 +1670,10 @@ SQL;
 
         if (!is_array($columns)) {
             $columns = [];
+        }
+
+        if (! $canViewLocations) {
+            unset($columns['location']);
         }
 
         if (array_key_exists('bank_commission_total', $columns)) {
@@ -1654,6 +1714,7 @@ SQL;
         $canAdditional = $authUser?->can('reports.additional.value.view') ?? false;
         $canCommissionTotal = $authUser?->can('reports.payments.commission_total.view') ?? false;
         $canPayoutColumn = $authUser?->can('reports.payments.payout_amount.column.view') ?? false;
+        $canViewLocations = $authUser?->can('locations.view') ?? false;
 
         $data = $request->validate([
             'columns' => 'required|array',
@@ -1668,6 +1729,10 @@ SQL;
                 $bool = false;
             }
             $normalized[$key] = $bool;
+        }
+
+        if (! $canViewLocations) {
+            unset($normalized['location']);
         }
 
         if (! $canAdditional) {

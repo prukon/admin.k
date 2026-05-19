@@ -120,6 +120,25 @@
                             </div>
                         </div>
 
+                        @can('locations.view')
+                        <!-- Поле "Локация" -->
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-location" class="form-label">Локация</label>
+                                <select
+                                        id="edit-location"
+                                        name="location_id"
+                                        class="form-select"
+                                >
+                                    <option value="">Без локации</option>
+                                    @foreach($activeLocations as $location)
+                                        <option value="{{ $location->id }}">{{ $location->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        @endcan
+
                         <!-- Поле "Дата начала занятий" -->
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
@@ -532,6 +551,31 @@
             });
         }
 
+        function syncEditLocationSelect(response) {
+            const $select = $('#edit-user-form #edit-location');
+            if (!$select.length) {
+                return;
+            }
+
+            const locationId = response.user.location_id ? String(response.user.location_id) : '';
+            const loc = response.user.location;
+
+            $select.find('option[data-disabled-current="1"]').remove();
+
+            if (locationId && loc && !$select.find('option[value="' + locationId + '"]').length) {
+                const label = loc.is_enabled ? loc.name : (loc.name + ' (отключена)');
+                $select.append(
+                    $('<option>', {
+                        value: loc.id,
+                        text: label,
+                        'data-disabled-current': '1'
+                    })
+                );
+            }
+
+            $select.val(locationId);
+        }
+
         // ОКРЫТЫТЬ МОДАЛКУ ЮЗЕРА и загружаем его данные для редактирования UserController edit
         function editUserLink2() {
             $('.edit-user-link').on('click', function () {
@@ -553,6 +597,7 @@
                         $('#edit-user-form #edit-lastname').val(response.user.lastname);
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-team').val(response.user.team_id);
+                        syncEditLocationSelect(response);
                         $('#edit-user-form #edit-start_date').val(response.user.start_date);
                         $('#edit-user-form #edit-email').val(response.user.email);
                         $('#edit-user-form #edit-phone').val(response.user.phone);
@@ -660,6 +705,7 @@
                         $('#edit-user-form #edit-lastname').val(response.user.lastname);
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-team').val(response.user.team_id);
+                        syncEditLocationSelect(response);
                         $('#edit-user-form #edit-start_date').val(response.user.start_date);
                         $('#edit-user-form #edit-email').val(response.user.email);
                         $('#edit-user-form #edit-phone').val(response.user.phone);

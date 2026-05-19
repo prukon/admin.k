@@ -26,7 +26,17 @@
     <li>Страница: <code>/admin/reports/payments</code></li>
   </ul>
 
-  <h2>2) Поля списка (управление видимостью колонок)</h2>
+  <h2>2) Локация (при праве <code>locations.view</code>)</h2>
+  <ul>
+    <li><b>Колонка</b> «Локация» — после «Группа», ключ в настройках колонок: <code>location</code>.</li>
+    <li><b>Источник</b>: поле <code>payments.location_id</code> (снимок локации ученика в момент оплаты), не текущая <code>users.location_id</code>.</li>
+    <li><b>Фильтр</b>: параметр <code>filter_location_id</code> — id активной локации партнёра или <code>none</code> («Без локации»).</li>
+    <li>Старые платежи (до миграции) имеют <code>location_id = NULL</code> и отображаются как «Без локации».</li>
+    <li>Без права <code>locations.view</code> колонка, фильтр и ключ <code>location</code> в columns-settings недоступны; переданный <code>filter_location_id</code> в запросе игнорируется.</li>
+    <li>Тот же фильтр (без отдельной колонки) есть в отчётах «Платежи по месяцам», LTV и «Задолженности» — см. <a href="/docs/documentation/reports-admin.html#location-filter">reports-admin.html</a> (§2.1).</li>
+  </ul>
+
+  <h2>3) Поля списка (управление видимостью колонок)</h2>
   <div class="note">
     На странице отчёта доступна кнопка <b>“Поля списка”</b> (иконка колонок).
     Можно включать/выключать отображение колонок таблицы (включая “Действия”).
@@ -44,7 +54,7 @@
     <li>Все эти маршруты (включая страницу и DataTables) находятся в группе с middleware <code>can:reports.view</code> — без права <code>reports.view</code> ответ <b>403</b>.</li>
   </ul>
 
-  <h2>3) Колонки: выплаты и комиссии (T‑Bank)</h2>
+  <h2>4) Колонки: выплаты и комиссии (T‑Bank)</h2>
   <div class="note">
     Эти колонки заполняются <b>только для платежей через T‑Bank</b>.
     Для других провайдеров значения будут пустыми.
@@ -99,7 +109,7 @@ net_to_partner   = gross - commission_total</pre>
     “Комиссия банка” → “Комиссия платформы” → “Комиссия” → “К выплате” → “Выплата”.
   </div>
 
-  <h2>4) Колонка “Чек” (онлайн‑чек)</h2>
+  <h2>5) Колонка “Чек” (онлайн‑чек)</h2>
   <div class="note">
     Колонка “Чек” в отчёте “Платежи” показывает онлайн‑чеки из <code>fiscal_receipts</code> и быстрый переход к ним.
   </div>
@@ -135,7 +145,7 @@ net_to_partner   = gross - commission_total</pre>
     (<code>tbank</code>/<code>robokassa</code>) по правилам выше.
   </div>
 
-  <h2>5) Колонки: возвраты</h2>
+  <h2>6) Колонки: возвраты</h2>
   <div class="note">
     В таблице есть 2 колонки, связанные с возвратами:
     <ul>
@@ -162,7 +172,7 @@ net_to_partner   = gross - commission_total</pre>
     <a href="/docs/documentation/tbank-refunds-payout-cancel">tbank-refunds-payout-cancel.html</a>.
   </div>
 
-  <h2>6) Права доступа: сводка по отчёту</h2>
+  <h2>7) Права доступа: сводка по отчёту</h2>
   <div class="note">
     Ниже — соответствие прав и функционала. Подробнее о модели прав: <a href="/docs/documentation/partners-permissions">партнёры и permission_role</a>.
   </div>
@@ -176,7 +186,7 @@ net_to_partner   = gross - commission_total</pre>
       Без права кнопка не рендерится, эндпоинт отвечает <b>403</b>. Требуется также <code>reports.view</code> (маршрут внутри той же группы).</li>
   </ul>
 
-  <h2>7) История платежа T‑Bank (кнопка «История»)</h2>
+  <h2>8) История платежа T‑Bank (кнопка «История»)</h2>
   <div class="note">
     Для строк с провайдером T‑Bank (наличие <code>deal_id</code> / банковского <code>payment_id</code> / <code>payment_status</code> в смысле отчёта)
     в колонке «Действия» может выводиться вторая кнопка — <b>«История»</b>. По нажатию открывается модальное окно и выполняется запрос
@@ -189,11 +199,13 @@ net_to_partner   = gross - commission_total</pre>
     <li><b>Связанная документация:</b> общий обзор T‑Bank — <a href="/docs/documentation/tbank">tbank.html</a>.</li>
   </ul>
 
-  <h2>8) Автотесты</h2>
+  <h2>9) Автотесты</h2>
   <div class="note">
     Фичтесты покрывают доступ к странице и эндпоинтам, зависимость кнопки «История» и API от <code>viewing.all.logs</code>, модалку в HTML,
     чекбоксы колонок от <code>reports.additional.value.view</code>, полный сценарий 200 при выдаче всех нужных прав:
     <br><code>tests/Feature/Crm/Reports/PaymentReportTest.php</code>,
+    <br><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> (колонка/фильтр локации, <code>locations.view</code>),
+    <br><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> (запись <code>payments.location_id</code> при оплате),
     <br><code>tests/Feature/Crm/Reports/PaymentReportTbankHistoryTest.php</code>.
     Сценарии возврата T‑Bank и отмены отложенной выплаты (в т.ч. колонка <code>refund_action</code>): см. раздел 5.1 и
     <a href="/docs/documentation/tbank-refunds-payout-cancel">tbank-refunds-payout-cancel.html</a>.

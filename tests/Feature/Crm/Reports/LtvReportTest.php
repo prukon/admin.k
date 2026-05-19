@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Crm\Reports;
 
+use App\Models\Location;
 use App\Models\Partner;
 use App\Models\Payment;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 class LtvReportTest extends CrmTestCase
@@ -423,5 +425,109 @@ class LtvReportTest extends CrmTestCase
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('reports.ltv.data', ['draw' => 1]))
             ->assertOk();
+    }
+
+    private function grantPermission(string $permissionName): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->user->role_id,
+            'permission_id' => $this->permissionId($permissionName),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_ltv_page_shows_location_filter_with_locations_view(): void
+    {
+        $this->asAdmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'LTV филиал',
+            'is_enabled' => true,
+        ]);
+
+        $this->get(route('reports.ltv'))
+            ->assertOk()
+            ->assertSee('pay-ltv-filter-location', false);
+    }
+
+    public function test_ltv_total_respects_filter_location_id(): void
+    {
+        $this->asAdmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+        $this->grantPermission('locations.view');
+
+        $locA = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+        $locB = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $locB->id,
+        ]);
+
+        Payment::factory()->forUser($student)->create([
+            'location_id' => $locA->id,
+            'summ' => 1000,
+        ]);
+        Payment::factory()->forUser($student)->create([
+            'location_id' => $locB->id,
+            'summ' => 2000,
+        ]);
+
+        $this->get(route('reports.ltv.total', ['filter_location_id' => $locA->id]))
+            ->assertOk()
+            ->assertJson(['total_raw' => 1000.0]);
+
+        $this->get(route('reports.ltv.total', ['filter_location_id' => $locB->id]))
+            ->assertOk()
+            ->assertJson(['total_raw' => 2000.0]);
+    }
+
+    public function test_ltv_data_aggregates_only_payments_matching_location_filter(): void
+    {
+        $this->asAdmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+        $this->grantPermission('locations.view');
+
+        $locA = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        Payment::factory()->forUser($student)->create([
+            'location_id' => $locA->id,
+            'summ' => 500,
+        ]);
+        Payment::factory()->forUser($student)->create([
+            'location_id' => null,
+            'summ' => 300,
+        ]);
+
+        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.ltv.data', [
+                'draw' => 1,
+                'filter_location_id' => $locA->id,
+            ]))
+            ->assertOk()
+            ->json();
+
+        $row = collect($response['data'])->firstWhere('user_id', $student->id);
+        $this->assertNotNull($row);
+        $this->assertEquals(500.0, (float) $row['total_price']);
+        $this->assertEquals(1, (int) $row['payment_count']);
     }
 }

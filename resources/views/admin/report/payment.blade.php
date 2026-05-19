@@ -2,6 +2,8 @@
     $canAdditional = auth()->user() && auth()->user()->can('reports.additional.value.view');
     $canCommissionTotal = auth()->user() && auth()->user()->can('reports.payments.commission_total.view');
     $canPayoutColumn = auth()->user() && auth()->user()->can('reports.payments.payout_amount.column.view');
+    $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
+    $activeLocations = $activeLocations ?? collect();
     $pt = $paymentsToolbar ?? [];
     $ptSum = $pt['sum_payments_formatted'] ?? ($totalPaidPrice ?? '0');
     $canPaymentsToolbarNetToPartner = $canPaymentsToolbarNetToPartner ?? false;
@@ -9,7 +11,8 @@
     $canPaymentsToolbarPlatformCommission = $canPaymentsToolbarPlatformCommission ?? false;
     $paymentsFilterUser = $paymentsFilterUser ?? null;
     $paymentsFilterTeam = $paymentsFilterTeam ?? null;
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
+    $payFilterLocation = $filters['filter_location_id'] ?? '';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -117,6 +120,17 @@
                        checked>
                 <label class="form-check-label" for="payColTeam">Группа</label>
             </div>
+
+            @if($canViewLocations)
+            <div class="form-check">
+                <input class="form-check-input payments-column-toggle"
+                       type="checkbox"
+                       data-column-key="location"
+                       id="payColLocation"
+                       checked>
+                <label class="form-check-label" for="payColLocation">Локация</label>
+            </div>
+            @endif
 
             <div class="form-check">
                 <input class="form-check-input payments-column-toggle"
@@ -298,6 +312,20 @@
                     @endif
                 </select>
             </div>
+            @if($canViewLocations)
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-filter-location">Локация</label>
+                <select class="form-select" id="pay-filter-location" name="filter_location_id">
+                    <option value="">Все локации</option>
+                    <option value="none" {{ (string) $payFilterLocation === 'none' ? 'selected' : '' }}>Без локации</option>
+                    @foreach($activeLocations as $location)
+                        <option value="{{ $location->id }}" {{ (string) $payFilterLocation === (string) $location->id ? 'selected' : '' }}>
+                            {{ $location->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pay-filter-payment-month">Оплаченный месяц</label>
                 <input class="form-control" id="pay-filter-payment-month" type="month" name="payment_month"
@@ -378,6 +406,9 @@
         <th>№</th>
         <th>ФИО</th>
         <th>Группа</th>
+        @if($canViewLocations)
+            <th>Локация</th>
+        @endif
         <th>Сумма платежа</th>
         <th>Оплаченный месяц</th>
         <th>Дата платежа</th>
@@ -505,6 +536,8 @@
             const canAdditional = @json($canAdditional);
             const canCommissionTotal = @json($canCommissionTotal);
             const canPayoutColumn = @json($canPayoutColumn);
+            const canViewLocations = @json($canViewLocations);
+            const paymentsReportDefaultOrderColumnIndex = canViewLocations ? 6 : 5;
             const paymentsToolbarFlags = {
                 net: @json($canPaymentsToolbarNetToPartner),
                 payout: @json($canPaymentsToolbarPayoutAmount),
@@ -613,6 +646,9 @@
                 return {
                     filter_user_id: uid,
                     filter_team_id: tid,
+                    filter_location_id: canViewLocations
+                        ? ($payFiltersForm.find('[name="filter_location_id"]').val() || '')
+                        : '',
                     user_name: uid ? '' : (payReportLegacyFilters.user_name || ''),
                     team_title: tid ? '' : (payReportLegacyFilters.team_title || ''),
                     payment_month: $payFiltersForm.find('[name="payment_month"]').val(),
@@ -689,9 +725,21 @@
             initPaymentsReportFilterSelect2($payFilterUser);
             initPaymentsReportFilterSelect2($payFilterTeam);
 
+            function paymentsReportColumnsMapWithLocation(baseMap) {
+                if (!canViewLocations) {
+                    return baseMap;
+                }
+                const out = {location: 3};
+                Object.keys(baseMap).forEach(function (key) {
+                    out[key] = baseMap[key] >= 3 ? baseMap[key] + 1 : baseMap[key];
+                });
+                return out;
+            }
+
             const defaultColumnsVisibility = {
     user_name: true,
     team_title: true,
+    location: canViewLocations,
     summ: true,
     payment_month: true,
     operation_date: true,
@@ -724,7 +772,7 @@
             let columnsMap;
             if (canAdditional) {
                 if (canPayoutColumn) {
-                    columnsMap = {
+                    columnsMap = paymentsReportColumnsMapWithLocation({
                         user_name: 1,
                         team_title: 2,
                         summ: 3,
@@ -741,9 +789,9 @@
                         payout_date: 14,
                         refund_action: 15,
                         refund_status: 16
-                    };
+                    });
                 } else {
-                    columnsMap = {
+                    columnsMap = paymentsReportColumnsMapWithLocation({
                         user_name: 1,
                         team_title: 2,
                         summ: 3,
@@ -759,10 +807,10 @@
                         payout_date: 13,
                         refund_action: 14,
                         refund_status: 15
-                    };
+                    });
                 }
             } else if (canCommissionTotal && canPayoutColumn) {
-                columnsMap = {
+                columnsMap = paymentsReportColumnsMapWithLocation({
                     user_name: 1,
                     team_title: 2,
                     summ: 3,
@@ -776,9 +824,9 @@
                     payout_date: 11,
                     refund_action: 12,
                     refund_status: 13
-                };
+                });
             } else if (canCommissionTotal && !canPayoutColumn) {
-                columnsMap = {
+                columnsMap = paymentsReportColumnsMapWithLocation({
                     user_name: 1,
                     team_title: 2,
                     summ: 3,
@@ -791,9 +839,9 @@
                     payout_date: 10,
                     refund_action: 11,
                     refund_status: 12
-                };
+                });
             } else if (!canCommissionTotal && canPayoutColumn) {
-                columnsMap = {
+                columnsMap = paymentsReportColumnsMapWithLocation({
                     user_name: 1,
                     team_title: 2,
                     summ: 3,
@@ -806,9 +854,9 @@
                     payout_date: 10,
                     refund_action: 11,
                     refund_status: 12
-                };
+                });
             } else {
-                columnsMap = {
+                columnsMap = paymentsReportColumnsMapWithLocation({
                     user_name: 1,
                     team_title: 2,
                     summ: 3,
@@ -820,7 +868,7 @@
                     payout_date: 9,
                     refund_action: 10,
                     refund_status: 11
-                };
+                });
             }
 
             function toBool(val, fallback = true) {
@@ -856,6 +904,11 @@
                     const colIndex = columnsMap[key];
                     const column = table.column(colIndex);
 
+                    if (key === 'location' && !canViewLocations) {
+                        column.visible(false);
+                        return;
+                    }
+
                     let isVisible = toBool(config[key], defaultColumnsVisibility[key]);
 
                     // Доступ к комиссиям, «к выплате», статусу возврата — только по праву reports.additional.value.view.
@@ -890,6 +943,10 @@
                     success: function (response) {
                         const merged = {};
                         Object.keys(defaultColumnsVisibility).forEach(function (key) {
+                            if (key === 'location' && !canViewLocations) {
+                                merged[key] = false;
+                                return;
+                            }
                             merged[key] = toBool(
                                 response.hasOwnProperty(key) ? response[key] : defaultColumnsVisibility[key],
                                 defaultColumnsVisibility[key]
@@ -918,6 +975,22 @@ const columns = [
         }
     },
     {data: 'team_title', name: 'team_title'},
+];
+
+if (canViewLocations) {
+    columns.push({
+        data: 'location_title',
+        name: 'location_title',
+        render: function (data, type, row) {
+            if (type !== 'display') {
+                return data || '';
+            }
+            return data ? data : 'Без локации';
+        }
+    });
+}
+
+columns.push(
     {
         data: 'summ',
         name: 'summ',
@@ -931,7 +1004,10 @@ const columns = [
             }
             return parseFloat(row.summ);
         }
-    },
+    }
+);
+
+columns.push(
     {
         data: 'payment_month',
         name: 'payment_month',
@@ -1065,7 +1141,7 @@ const columns = [
                 return '<span style="display:inline-flex; align-items:center; gap:8px;">' + incomeHtml + returnHtml + '</span>';
         }
     }
-];
+);
 
 if (canAdditional) {
     function formatMoneyRubCell(data, type) {
@@ -1208,7 +1284,7 @@ columns.push(
         }
     },
     columns: columns,
-    order: [[5, 'desc']], // По умолчанию: ближайшие платежи сверху (по дате)
+    order: [[paymentsReportDefaultOrderColumnIndex, 'desc']], // По умолчанию: ближайшие платежи сверху (по дате)
 
     scrollX: true,
 
@@ -1255,6 +1331,9 @@ columns.push(
                 payReportLegacyFilters.team_title = '';
                 $payFilterUser.val(null).trigger('change');
                 $payFilterTeam.val(null).trigger('change');
+                if (canViewLocations) {
+                    $('#pay-filter-location').val('');
+                }
                 $payFiltersForm.find('[name="bank_commission_acquiring_min"],[name="bank_commission_acquiring_max"],[name="bank_commission_payout_min"],[name="bank_commission_payout_max"]').val('');
                 refreshPaymentsReportTotal();
                 table.ajax.reload();

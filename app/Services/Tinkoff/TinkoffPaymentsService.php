@@ -22,6 +22,7 @@ use Carbon\CarbonInterface;
 
 use App\Jobs\SendCloudKassirReceiptJob;
 use App\Models\FiscalReceipt;
+use App\Services\Payments\PaymentLedgerRecorder;
 
 
 
@@ -430,26 +431,25 @@ class TinkoffPaymentsService
                 $teamName = $user?->team?->title ?? 'Без команды';
                 $currentDateTime = now()->format('Y-m-d H:i:s');
 
-                Payment::updateOrCreate(
+                app(PaymentLedgerRecorder::class)->record(
+                    (string) ($webhook['PaymentId'] ?? ''),
+                    (int) $locked->partner_id,
+                    (int) $locked->user_id,
                     [
-                        'payment_number' => (string) ($webhook['PaymentId'] ?? ''),
-                        'partner_id'     => (int) $locked->partner_id,
-                    ],
-                    [
-                        'user_id'         => (int) $locked->user_id,
-                        'user_name'       => ($user?->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
-                        'team_title'      => $teamName,
-                        'operation_date'  => $currentDateTime,
-                        'payment_month'   => (string) match (true) {
+                        'user_id' => (int) $locked->user_id,
+                        'user_name' => ($user?->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
+                        'team_title' => $teamName,
+                        'operation_date' => $currentDateTime,
+                        'payment_month' => (string) match (true) {
                             (string) $payable->type === 'monthly_fee' => $payable->month?->format('Y-m-d') ?? '',
                             (string) $payable->type === 'custom_payment_fee' => 'Дополнительный платеж',
                             (string) $payable->type === 'lesson_package_fee' => 'Абонемент',
                             default => 'Клубный взнос',
                         },
-                        'summ'            => (string) $locked->out_sum,
-                        'deal_id'         => $payment->deal_id ?: null,
-                        'payment_id'      => (string) ($webhook['PaymentId'] ?? null),
-                        'payment_status'  => (string) ($webhook['Status'] ?? null),
+                        'summ' => (string) $locked->out_sum,
+                        'deal_id' => $payment->deal_id ?: null,
+                        'payment_id' => (string) ($webhook['PaymentId'] ?? null),
+                        'payment_status' => (string) ($webhook['Status'] ?? null),
                     ]
                 );
 

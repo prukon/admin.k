@@ -60,6 +60,8 @@
                         'filters' => $filters ?? [],
                         'paymentsFilterUser' => $paymentsFilterUser ?? null,
                         'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
+                        'canViewLocations' => $canViewLocations ?? false,
+                        'activeLocations' => $activeLocations ?? collect(),
                     ])
                 @elseif($activeTab === 'payment-monthly')
                     @include('admin.report.payment_monthly', [
@@ -67,6 +69,8 @@
                         'filters' => $filters ?? [],
                         'paymentsFilterUser' => $paymentsFilterUser ?? null,
                         'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
+                        'canViewLocations' => $canViewLocations ?? false,
+                        'activeLocations' => $activeLocations ?? collect(),
                     ])
                 @elseif($activeTab === 'debt')
                     @include('admin.report.debt', [
@@ -74,6 +78,8 @@
                         'filters' => $filters ?? [],
                         'paymentsFilterUser' => $paymentsFilterUser ?? null,
                         'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
+                        'canViewLocations' => $canViewLocations ?? false,
+                        'activeLocations' => $activeLocations ?? collect(),
                     ])
                 @elseif($activeTab === 'ltv')
                     @include('admin.report.ltv', [
@@ -81,6 +87,8 @@
                         'filters' => $filters ?? [],
                         'paymentsFilterUser' => $paymentsFilterUser ?? null,
                         'paymentsFilterTeam' => $paymentsFilterTeam ?? null,
+                        'canViewLocations' => $canViewLocations ?? false,
+                        'activeLocations' => $activeLocations ?? collect(),
                     ])
                 @elseif($activeTab === 'payment-intents')
                     <!-- Контент вкладки платежные запросы -->

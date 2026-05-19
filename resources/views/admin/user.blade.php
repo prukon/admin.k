@@ -24,6 +24,17 @@
                             @endforeach
                         </select>
 
+                        @can('locations.view')
+                        <select id="filter-location"
+                                class="form-select search-select width-170 filter-half">
+                            <option value="">Локация</option>
+                            <option value="none">Без локации</option>
+                            @foreach($activeLocations as $location)
+                                <option value="{{ $location->id }}">{{ $location->name }}</option>
+                            @endforeach
+                        </select>
+                        @endcan
+
                         <select id="filter-status"
                                 class="form-select search-select width-170 filter-half">
                             <option value="">Все пользователи</option>
@@ -107,6 +118,19 @@
                                             Группа
                                         </label>
                                     </div>
+
+                                    @can('locations.view')
+                                    <div class="form-check">
+                                        <input class="form-check-input column-toggle"
+                                               type="checkbox"
+                                               data-column-key="location"
+                                               id="colLocation"
+                                               checked>
+                                        <label class="form-check-label" for="colLocation">
+                                            Локация
+                                        </label>
+                                    </div>
+                                    @endcan
 
                                     <div class="form-check">
                                         <input class="form-check-input column-toggle"
@@ -195,6 +219,7 @@
                     <th>Аватар</th>
                     <th>Имя</th>
                     <th>Группа</th>
+                    <th>Локация</th>
                     <th>Дата рождения</th>
                     <th>Email</th>
                     <th>Телефон</th>
@@ -271,10 +296,13 @@
     <script>
         $(document).ready(function () {
 
+            const canViewLocations = @json(auth()->user()->can('locations.view'));
+
             const defaultColumnsVisibility = {
                 avatar: true,
                 name: true,
                 teams: true,
+                location: canViewLocations,
                 birthday: true,
                 email: true,
                 phone: true,
@@ -290,11 +318,12 @@
                 avatar: 1,
                 name: 2,
                 teams: 3,
-                birthday: 4,
-                email: 5,
-                phone: 6,
-                status_label: 7,
-                actions: 8
+                location: 4,
+                birthday: 5,
+                email: 6,
+                phone: 7,
+                status_label: 8,
+                actions: 9
             };
 
             function toBool(val, fallback = true) {
@@ -318,6 +347,11 @@
                     const colIndex = columnsMap[key];
                     const column = table.column(colIndex);
 
+                    if (key === 'location' && !canViewLocations) {
+                        column.visible(false);
+                        return;
+                    }
+
                     const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
 
                     column.visible(isVisible);
@@ -336,6 +370,10 @@
                         const merged = {};
 
                         Object.keys(defaultColumnsVisibility).forEach(function (key) {
+                            if (key === 'location' && !canViewLocations) {
+                                merged[key] = false;
+                                return;
+                            }
                             merged[key] = toBool(
                                 response.hasOwnProperty(key) ? response[key] : defaultColumnsVisibility[key],
                                 defaultColumnsVisibility[key]
@@ -364,6 +402,9 @@
                     data: function (d) {
                         d.name = $('#filter-name').val();
                         d.team_id = $('#filter-team').val();
+                        if (canViewLocations) {
+                            d.location_id = $('#filter-location').val();
+                        }
                         d.status = $('#filter-status').val();
                     }
                 },
@@ -410,13 +451,15 @@
                     },
                     // 3) Группа
                     {data: 'teams', name: 'teams', defaultContent: ''},
-                    // 4) Дата рождения
+                    // 4) Локация
+                    {data: 'location', name: 'location', defaultContent: ''},
+                    // 5) Дата рождения
                     {data: 'birthday', name: 'birthday', defaultContent: ''},
-                    // 5) Email
+                    // 6) Email
                     {data: 'email', name: 'email', defaultContent: ''},
-                    // 6) Телефон
+                    // 7) Телефон
                     {data: 'phone', name: 'phone', defaultContent: ''},
-                    // 7) Статус
+                    // 8) Статус
                     {
                         data: 'status_label',
                         name: 'status_label',
@@ -425,7 +468,7 @@
                             return '<span class="badge ' + badgeClass + '">' + data + '</span>';
                         }
                     },
-                    // 8) Действия
+                    // 9) Действия
                     {
                         data: null,
                         name: 'actions',
@@ -480,6 +523,9 @@
             $('#filter-reset').on('click', function () {
                 $('#filter-name').val('');
                 $('#filter-team').val('');
+                if (canViewLocations) {
+                    $('#filter-location').val('');
+                }
                 $('#filter-status').val('');
                 table.ajax.reload();
             });

@@ -27,7 +27,8 @@ class DocumentationController extends Controller
             ['slug' => 'lesson-packages', 'title' => 'Абонементы: период, привязка к календарю, лимит строк, lessons_remaining и статусы'],
             ['slug' => 'school-schedule-calendar', 'title' => 'Расписание школы: календарь, статусы (consumes_lesson), пробное, JSON/API'],
             ['slug' => 'admin-teams', 'title' => 'Группы (админка): /admin/teams, groups.view и schedule.view (колонка «Расписание», дни в модалках)'],
-            ['slug' => 'admin-users', 'title' => 'Пользователи (админка): /admin/users, создание с доп. полями, POST /admin/users'],
+            ['slug' => 'admin-users', 'title' => 'Пользователи (админка): /admin/users, локация ученика (locations.view), доп. поля'],
+            ['slug' => 'school-leads-widget', 'title' => 'Заявки с сайта: виджет iframe, school_leads, Telegram, уведомления'],
         ];
 
         $html = '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -65,6 +66,7 @@ class DocumentationController extends Controller
             'school-schedule-calendar' => base_path('docs/documentation/school-schedule-calendar.html'),
             'admin-teams' => base_path('docs/documentation/admin-teams.html'),
             'admin-users' => base_path('docs/documentation/admin-users.html'),
+            'school-leads-widget' => base_path('docs/documentation/school-leads-widget.html'),
         ];
 
         if (!isset($map[$page])) {

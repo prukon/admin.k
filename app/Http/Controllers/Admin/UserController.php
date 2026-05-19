@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\User\FilterRequest;
 use App\Http\Requests\User\StoreRequest;
 use App\Http\Requests\User\UpdatePasswordRequest;
+use App\Models\Location;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
@@ -78,9 +79,17 @@ class UserController extends AdminBaseController
             ->orderBy('order_by', 'asc')
             ->get();
 
-        // 6) Отдаём на view
+        // 6) Активные локации партнёра (фильтр, создание, редактирование)
+        $activeLocations = Location::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->orderBy('name')
+            ->get();
+
+        // 7) Отдаём на view
         return view('admin.user', compact(
             'allTeams',
+            'activeLocations',
             'fields',
             'userFieldsPayload',
             'currentUser',
@@ -95,15 +104,18 @@ class UserController extends AdminBaseController
         $validated = $request->validate([
             'id'      => 'nullable|integer',
             'name'    => 'nullable|string',
-            'team_id' => 'nullable|string',   // id или 'none'
-            'status'  => 'nullable|string',   // active / inactive
+            'team_id'     => 'nullable|string',   // id или 'none'
+            'location_id' => 'nullable|string',   // id или 'none'
+            'status'      => 'nullable|string',   // active / inactive
 
             'draw'   => 'nullable|integer',
             'start'  => 'nullable|integer',
             'length' => 'nullable|integer',
         ]);
 
-        $teamFilter = $validated['team_id'] ?? null;
+        $teamFilter     = $validated['team_id'] ?? null;
+        $locationFilter = $validated['location_id'] ?? null;
+        $canViewLocations = $this->currentUser()?->can('locations.view') ?? false;
 
         // Базовый запрос по партнёру через базовый контроллер
         $baseQuery = $this->scopeByPartner(
@@ -136,6 +148,15 @@ class UserController extends AdminBaseController
                 $baseQuery->whereNull('users.team_id');
             } else {
                 $baseQuery->where('users.team_id', $teamFilter);
+            }
+        }
+
+        // Фильтр по локации: id / none / пусто
+        if ($canViewLocations && $locationFilter !== null && $locationFilter !== '') {
+            if ($locationFilter === 'none') {
+                $baseQuery->whereNull('users.location_id');
+            } else {
+                $baseQuery->where('users.location_id', $locationFilter);
             }
         }
 
@@ -186,23 +207,30 @@ class UserController extends AdminBaseController
                         ->orderBy('teams.title', $orderDir);
                     break;
 
-                case 4: // birthday
+                case 4: // locations.name
+                    $baseQuery
+                        ->leftJoin('locations', 'locations.id', '=', 'users.location_id')
+                        ->select('users.*')
+                        ->orderBy('locations.name', $orderDir);
+                    break;
+
+                case 5: // birthday
                     $baseQuery->orderBy('users.birthday', $orderDir);
                     break;
 
-                case 5: // email
+                case 6: // email
                     $baseQuery->orderBy('users.email', $orderDir);
                     break;
 
-                case 6: // phone
+                case 7: // phone
                     $baseQuery->orderBy('users.phone', $orderDir);
                     break;
 
-                case 7: // status_label -> is_enabled
+                case 8: // status_label -> is_enabled
                     $baseQuery->orderBy('users.is_enabled', $orderDir);
                     break;
 
-                case 8: // actions — не сортируем, дефолт
+                case 9: // actions — не сортируем, дефолт
                 default:
                     $baseQuery
                         ->orderBy('users.lastname', 'asc')
@@ -219,14 +247,14 @@ class UserController extends AdminBaseController
         $start  = $validated['start']  ?? 0;
         $length = $validated['length'] ?? 20;
 
-        // Подтягиваем команду
+        // Подтягиваем команду и локацию
         $users = $baseQuery
-            ->with('team')
+            ->with(['team', 'location'])
             ->skip($start)
             ->take($length)
             ->get();
 
-        $data = $users->map(function (User $user) {
+        $data = $users->map(function (User $user) use ($canViewLocations) {
             $avatar = $user->image_crop
                 ? asset('storage/avatars/' . $user->image_crop)
                 : asset('img/default-avatar.png');
@@ -236,6 +264,9 @@ class UserController extends AdminBaseController
                 'avatar'       => $avatar,
                 'name'         => $user->full_name ?: 'Без имени',
                 'teams'        => $user->team ? $user->team->title : '',
+                'location'     => $canViewLocations && $user->location
+                    ? $user->location->name
+                    : '',
                 'birthday'     => $user->birthday
                     ? Carbon::parse($user->birthday)->format('d.m.Y')
                     : '',
@@ -303,14 +334,16 @@ class UserController extends AdminBaseController
         $customInput = $validatedData['custom'] ?? [];
         unset($validatedData['custom']);
 
-        $isEnabled = $request->boolean('is_enabled');          // чекбокс может не прийти — приводим к bool
-        $teamId    = $validatedData['team_id'] ?? null;        // поле опционально — может отсутствовать
+        $isEnabled  = $request->boolean('is_enabled');          // чекбокс может не прийти — приводим к bool
+        $teamId     = $validatedData['team_id'] ?? null;        // поле опционально — может отсутствовать
+        $locationId = $validatedData['location_id'] ?? null;
 
         // Собираем итоговый массив данных для сервиса
         $data = array_merge($validatedData, [
-            'partner_id' => $partnerId,
-            'is_enabled' => $isEnabled,
-            'team_id'    => $teamId, // может быть null
+            'partner_id'  => $partnerId,
+            'is_enabled'  => $isEnabled,
+            'team_id'     => $teamId, // может быть null
+            'location_id' => $locationId,
         ]);
 
         $fieldsPayload = $this->buildUserFieldsPayloadForCurrentPartner();
@@ -329,6 +362,7 @@ class UserController extends AdminBaseController
             &$teamTitleForLog,
             $data,
             $teamId,
+            $locationId,
             $partnerId,
             $customInput,
             $editableSlugSet
@@ -458,8 +492,8 @@ class UserController extends AdminBaseController
             'system' => (bool) $r->is_sistem,
         ])->all();
 
-        // 4) Загружаем связи user->fields (pivot value)
-        $user->load('fields');
+        // 4) Загружаем связи user->fields (pivot value) и локацию
+        $user->load(['fields', 'location']);
 
         if (request()->ajax()) {
             // Преобразуем модель в массив
@@ -468,6 +502,14 @@ class UserController extends AdminBaseController
             // Нормализуем birthday под <input type="date">
             $userArray['birthday'] = $user->birthday
                 ? $user->birthday->format('Y-m-d')
+                : null;
+
+            $userArray['location'] = $user->location
+                ? [
+                    'id'         => $user->location->id,
+                    'name'       => $user->location->name,
+                    'is_enabled' => (bool) $user->location->is_enabled,
+                ]
                 : null;
 
             return response()->json([
@@ -490,6 +532,8 @@ class UserController extends AdminBaseController
         $actor = $this->currentUser();
         $partnerId = $this->partnerId();
 
+        $user->load(['team', 'role', 'location']);
+
         // Снимок старых значений (только то, что потенциально логируем)
         $old = [
             'name'       => (string) ($user->name ?? ''),
@@ -498,6 +542,7 @@ class UserController extends AdminBaseController
             'is_enabled' => (bool)   ($user->is_enabled ?? false),
             'birthday'   => $user->birthday, // Carbon|string|null — отформатируем ниже
             'team'       => (string) ($user->team?->title ?: '-'),
+            'location'   => (string) ($user->location?->name ?: '-'),
             'role'       => (string) ($user->role?->label ?: '-'),
             'phone'      => (string) ($user->phone ?? ''),
         ];
@@ -583,6 +628,8 @@ class UserController extends AdminBaseController
                 }
             };
 
+            $user->load(['team', 'role', 'location']);
+
             $new = [
                 'name'       => (string) ($user->name ?? ''),
                 'lastname'   => (string) ($user->lastname ?? ''),
@@ -590,6 +637,7 @@ class UserController extends AdminBaseController
                 'is_enabled' => (bool)   ($user->is_enabled ?? false),
                 'birthday'   => $user->birthday,
                 'team'       => (string) ($user->team?->title ?: '-'),
+                'location'   => (string) ($user->location?->name ?: '-'),
                 'role'       => (string) ($user->role?->label ?: '-'),
                 'phone'      => (string) ($user->phone ?? ''),
             ];
@@ -615,6 +663,13 @@ class UserController extends AdminBaseController
             }
             if ($old['team'] !== $new['team']) {
                 $changes[] = "Группа: {$old['team']} → {$new['team']}"; // названия, не id
+            }
+            if (
+                $actor
+                && $actor->can('locations.view')
+                && $old['location'] !== $new['location']
+            ) {
+                $changes[] = "Локация: {$old['location']} → {$new['location']}";
             }
             if ($old['role'] !== $new['role']) {
                 $changes[] = "Роль: {$old['role']} → {$new['role']}";

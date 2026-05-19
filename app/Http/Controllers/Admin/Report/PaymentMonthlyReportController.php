@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Models\Location;
 use App\Models\Payment;
 use App\Models\PaymentSystem;
 use App\Models\Team;
@@ -10,6 +11,7 @@ use App\Models\User;
 use App\Services\PartnerContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 
@@ -47,6 +49,17 @@ class PaymentMonthlyReportController extends AdminBaseController
         $paymentsFilterUser = $this->resolveMonthlyFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolveMonthlyFilterTeamLabel($partnerId, $filters);
 
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+        $canViewLocations = $authUser?->can('locations.view') ?? false;
+        $activeLocations = $canViewLocations
+            ? Location::query()
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+
         return view('admin.report.index', [
             'activeTab'          => 'payment-monthly',
             'totalPaidPrice'     => $totalPaidPrice,
@@ -54,6 +67,8 @@ class PaymentMonthlyReportController extends AdminBaseController
             'filters'            => $filters,
             'paymentsFilterUser' => $paymentsFilterUser,
             'paymentsFilterTeam' => $paymentsFilterTeam,
+            'canViewLocations'   => $canViewLocations,
+            'activeLocations'    => $activeLocations,
         ]);
     }
 
@@ -296,6 +311,22 @@ class PaymentMonthlyReportController extends AdminBaseController
         } elseif ($request->filled('team_title')) {
             $like = '%'.trim((string) $request->query('team_title')).'%';
             $paymentsQuery->where('teams.title', 'like', $like);
+        }
+
+        /** @var \App\Models\User|null $filterActor */
+        $filterActor = Auth::user();
+        if ($filterActor?->can('locations.view')) {
+            $filterLocationId = $request->query('filter_location_id');
+            if ($filterLocationId !== null && $filterLocationId !== '') {
+                if ($filterLocationId === 'none') {
+                    $paymentsQuery->whereNull('payments.location_id');
+                } elseif (ctype_digit((string) $filterLocationId)) {
+                    $lid = (int) $filterLocationId;
+                    if ($lid > 0) {
+                        $paymentsQuery->where('payments.location_id', $lid);
+                    }
+                }
+            }
         }
 
         if ($request->filled('payment_month')) {

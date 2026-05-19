@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\Reports;
 
 use App\Http\Controllers\Admin\Report\DeptReportController;
+use App\Models\Location;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -410,5 +411,85 @@ class DeptReportTest extends CrmTestCase
         $result = $controller->formatedDate('НепонятныйФормат 2026');
 
         $this->assertNull($result);
+    }
+
+    private function grantPermission(string $permissionName): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->user->role_id,
+            'permission_id' => $this->permissionId($permissionName),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_debts_page_shows_location_filter_with_locations_view(): void
+    {
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Долги филиал',
+            'is_enabled' => true,
+        ]);
+
+        $this->get(route('debts'))
+            ->assertOk()
+            ->assertSee('pay-debt-filter-location', false);
+    }
+
+    public function test_debts_total_respects_filter_location_id(): void
+    {
+        Carbon::setTestNow('2026-02-15');
+
+        $this->grantPermission('locations.view');
+
+        $locA = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+        $locB = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+
+        $userA = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+            'location_id' => $locA->id,
+        ]);
+        $userB = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+            'location_id' => $locB->id,
+        ]);
+
+        DB::table('users_prices')->insert([
+            [
+                'user_id' => $userA->id,
+                'is_paid' => 0,
+                'price' => 1000,
+                'new_month' => '2026-01-01',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'user_id' => $userB->id,
+                'is_paid' => 0,
+                'price' => 2000,
+                'new_month' => '2026-01-01',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $this->get(route('reports.debts.total', ['filter_location_id' => $locA->id]))
+            ->assertOk()
+            ->assertJson(['total_raw' => 1000.0]);
+
+        $this->get(route('reports.debts.total', ['filter_location_id' => $locB->id]))
+            ->assertOk()
+            ->assertJson(['total_raw' => 2000.0]);
     }
 }

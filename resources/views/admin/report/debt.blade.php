@@ -2,7 +2,10 @@
     $filters = $filters ?? [];
     $paymentsFilterUser = $paymentsFilterUser ?? null;
     $paymentsFilterTeam = $paymentsFilterTeam ?? null;
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'user_name', 'team_title', 'debt_month'];
+    $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
+    $activeLocations = $activeLocations ?? collect();
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_location_id', 'user_name', 'team_title', 'debt_month'];
+    $payFilterLocation = $filters['filter_location_id'] ?? '';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -111,6 +114,20 @@
                     @endif
                 </select>
             </div>
+            @if($canViewLocations)
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-debt-filter-location">Локация</label>
+                <select class="form-select" id="pay-debt-filter-location" name="filter_location_id">
+                    <option value="">Все локации</option>
+                    <option value="none" {{ (string) $payFilterLocation === 'none' ? 'selected' : '' }}>Без локации</option>
+                    @foreach($activeLocations as $location)
+                        <option value="{{ $location->id }}" {{ (string) $payFilterLocation === (string) $location->id ? 'selected' : '' }}>
+                            {{ $location->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
             <div class="col-12 col-md-3">
                 <label class="form-label" for="pay-debt-filter-debt-month">Месяц задолженности</label>
                 <input class="form-control" id="pay-debt-filter-debt-month" type="month" name="debt_month"
@@ -150,6 +167,7 @@
         }
 
         $(function () {
+            var canViewLocations = @json($canViewLocations);
             var $debtFiltersForm = $('#debt-report-filters');
             var $debtFilterUser = $('#pay-debt-filter-user');
             var $debtFilterTeam = $('#pay-debt-filter-team');
@@ -270,6 +288,9 @@
                 return {
                     filter_user_id: uid,
                     filter_team_id: tid,
+                    filter_location_id: canViewLocations
+                        ? ($debtFiltersForm.find('[name="filter_location_id"]').val() || '')
+                        : '',
                     user_name: '',
                     team_title: '',
                     debt_month: $debtFiltersForm.find('[name="debt_month"]').val() || ''
@@ -382,6 +403,9 @@
                 $debtFiltersForm[0].reset();
                 $debtFilterUser.val(null).trigger('change');
                 $debtFilterTeam.val(null).trigger('change');
+                if (canViewLocations) {
+                    $('#pay-debt-filter-location').val('');
+                }
                 refreshDebtReportTotal();
                 table.ajax.reload();
             });

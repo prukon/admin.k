@@ -2,11 +2,13 @@
 
 namespace App\Http\Requests\User;
 
+use App\Models\Location;
+use App\Models\Setting;
+use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
-use App\Models\Setting;
 
 class UpdateRequest extends FormRequest
 {
@@ -69,6 +71,13 @@ class UpdateRequest extends FormRequest
         ]);
     }
 
+        if ($this->user()?->can('locations.view')) {
+            if ($this->has('location_id') && $this->input('location_id') === '') {
+                $this->merge(['location_id' => null]);
+            }
+        } else {
+            $this->offsetUnset('location_id');
+        }
 
     }
 
@@ -128,6 +137,9 @@ class UpdateRequest extends FormRequest
             $rules['role_id'] = ['sometimes', 'required', 'integer', 'exists:roles,id'];
         }
 
+        if ($this->user()->can('locations.view')) {
+            $rules['location_id'] = ['sometimes', 'nullable', 'integer'];
+        }
 
         return $rules;
     }
@@ -181,6 +193,53 @@ class UpdateRequest extends FormRequest
                     'Для администраторов 2FA обязательна согласно общей настройке.'
                 );
             }
+
+            if (!$this->user()->can('locations.view')) {
+                return;
+            }
+
+            if (!$this->has('location_id')) {
+                return;
+            }
+
+            $locationId = $this->input('location_id');
+            if ($locationId === null || $locationId === '') {
+                return;
+            }
+
+            $partnerId = app(PartnerContext::class)->partnerId();
+            if (!$partnerId) {
+                $afterValidator->errors()->add('location_id', 'Текущий партнёр не определён.');
+                return;
+            }
+
+            /** @var Location|null $location */
+            $location = Location::query()
+                ->whereKey((int) $locationId)
+                ->where('partner_id', $partnerId)
+                ->first();
+
+            if (!$location) {
+                $afterValidator->errors()->add(
+                    'location_id',
+                    'Выбранная локация не существует или принадлежит другому партнёру.'
+                );
+                return;
+            }
+
+            if ($location->is_enabled) {
+                return;
+            }
+
+            $targetUser = $this->route('user');
+            $currentLocationId = $targetUser ? (int) ($targetUser->location_id ?? 0) : 0;
+
+            if ($currentLocationId !== (int) $locationId) {
+                $afterValidator->errors()->add(
+                    'location_id',
+                    'Нельзя назначить отключённую локацию.'
+                );
+            }
         });
     }
 
@@ -194,6 +253,7 @@ class UpdateRequest extends FormRequest
             'lastname' => 'Фамилия',
             'birthday' => 'Дата рождения',
             'team_id' => 'Группа',
+            'location_id' => 'Локация',
             'start_date' => 'Дата начала занятий',
             'email' => 'Email',
             'phone' => 'Телефон',
@@ -231,6 +291,9 @@ class UpdateRequest extends FormRequest
             // Группа
             'team_id.integer' => 'Поле "Группа" должно быть числом (ID группы).',
             'team_id.exists' => 'Выбранная группа не существует в базе.',
+
+            // Локация
+            'location_id.integer' => 'Поле "Локация" должно быть числом (ID локации).',
 
             // Email
             'email.required' => 'Поле "Email" обязательно для заполнения.',

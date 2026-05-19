@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: заявки с сайта (виджет iframe)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Заявки с сайта: виджет (iframe) для партнёра</h1>
+  <div class="small">Файл: <code>/docs/documentation/school-leads-widget.html</code> · оглавление: <a href="./index.html">/doc</a></div>
+
+  <div class="note">
+    <b>Назначение:</b> партнёр (школа) встраивает на свой лендинг iframe-форму сбора заявок.
+    Заявки клиентов школы сохраняются в CRM в разрезе <code>partner_id</code> и отображаются в кабинете этой школы.<br>
+    <b>Не путать</b> с разделом «Лиды партнёров» (<code>/admin/partner-leads</code>, таблица <code>partner_leads</code>) — там B2B-заявки с лендинга kidscrm «подключить школу к платформе».
+  </div>
+
+  <h2>1) Две разные сущности заявок</h2>
+  <table>
+    <thead>
+      <tr><th>Раздел CRM</th><th>Таблица</th><th>Кто оставляет заявку</th><th>Изоляция</th><th>Право</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>/admin/partner-leads</code></td>
+        <td><code>partner_leads</code></td>
+        <td>Школа хочет подключиться к kidscrm</td>
+        <td>Глобальный список (платформа)</td>
+        <td><code>partnerLeads.view</code></td>
+      </tr>
+      <tr>
+        <td><code>/admin/school-leads</code></td>
+        <td><code>school_leads</code></td>
+        <td>Клиент школы с лендинга партнёра</td>
+        <td>Только <code>current_partner</code></td>
+        <td><code>schoolLeads.view</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>2) Модель данных</h2>
+  <ul>
+    <li><code>partner_widgets</code> — один активный виджет на партнёра: <code>widget_key</code> (48 символов), <code>is_active</code>. Создаётся при создании партнёра (<code>Partner::created</code> → <code>PartnerWidgetService::ensureForPartner</code>).</li>
+    <li><code>school_leads</code> — заявки: <code>partner_id</code>, <code>name</code>, <code>phone</code>, статус, UTM, <code>page_url</code>, <code>referrer</code>, согласие ПДн (<code>consent_accepted_at</code>, <code>policy_url</code>), soft delete.</li>
+    <li><code>partner_telegram_link_tokens</code> — одноразовые токены для привязки Telegram через <code>/start</code> (срок жизни ~30 мин).</li>
+    <li><code>partners.school_leads_telegram_chat_id</code> — Chat ID для уведомлений партнёра в Telegram.</li>
+  </ul>
+
+  <h2>3) Права и меню</h2>
+  <div class="note">
+    В <code>/config/role_base_permissions.php</code> для роли <code>admin</code> (в разрезе партнёра):
+    <ul>
+      <li><code>schoolLeads.view</code> — страница «Заявки с сайта», datatable, update/delete.</li>
+      <li><code>schoolWidget.view</code> — страница «Виджет заявок», код iframe, подключение Telegram.</li>
+    </ul>
+    Роль <code>user</code> этих прав <b>не получает</b> по умолчанию. Назначение — через «Права и роли» или сидеры (см. <a href="./partners-permissions.html">партнёры: базовые права</a>).
+  </div>
+  <p class="small">Меню: <code>resources/views/includes/sidebar.blade.php</code> — пункты под <code>@can('schoolLeads.view')</code> и <code>@can('schoolWidget.view')</code>.</p>
+
+  <h2>4) Публичный виджет (iframe)</h2>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/widget/{widgetKey}</code></td><td>HTML формы (имя, телефон, согласие, reCAPTCHA v3)</td></tr>
+      <tr><td>POST</td><td><code>/widget/{widgetKey}/submit</code></td><td>Приём заявки, JSON-ответ</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Контроллер: <code>App\Http\Controllers\SchoolLeadWidgetController</code>.</li>
+    <li>Валидация: <code>App\Http\Requests\SubmitSchoolLeadRequest</code> (ошибки по полям в JSON, 422).</li>
+    <li>reCAPTCHA: <code>App\Services\RecaptchaVerificationService</code>, конфиг <code>services.recaptcha</code> / <code>.env</code> <code>RECAPTCHA_*</code>.</li>
+    <li>Throttle: 60 запросов/мин на группу маршрутов виджета.</li>
+    <li>Заголовок <code>Content-Security-Policy: frame-ancestors *</code> (middleware <code>widget.embed</code>) — разрешено встраивание на чужие домены.</li>
+    <li>Согласие ПДн: ссылка на <code>route('policy')</code> (<code>/policy</code>, политика конфиденциальности).</li>
+    <li>UTM: из query iframe; <code>page_url</code> / <code>referrer</code> — из JS (страница родителя, если доступна).</li>
+  </ul>
+
+  <h3>Пример embed-кода для партнёра</h3>
+  <pre><code>&lt;iframe src="https://example.com/widget/{widgetKey}"
+        width="100%" height="420" style="border:0;" loading="lazy" title="Заявка"&gt;&lt;/iframe&gt;</code></pre>
+  <p class="small">Готовый код копируется на <code>GET /admin/school-widget</code> (<code>SchoolWidgetController</code>).</p>
+
+  <h2>5) CRM: заявки с сайта</h2>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Middleware</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/school-leads</code></td><td><code>can:schoolLeads.view</code></td><td>Страница списка (DataTables)</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON DataTables, фильтр по статусам</td></tr>
+      <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Статус, комментарий</td></tr>
+      <tr><td>DELETE</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Soft delete</td></tr>
+    </tbody>
+  </table>
+  <div class="warn">
+    <b>Anti-leak:</b> все запросы фильтруются по <code>PartnerContext::partnerId()</code> (текущий партнёр из сессии / <code>user-&gt;partner_id</code>).
+    Чужой <code>schoolLead</code> по id → <b>404</b>. Без выбранного партнёра (superadmin без <code>current_partner</code>) → <b>403</b>.
+    См. <a href="./partner-context.html">партнёр-контекст</a>.
+  </div>
+  <p class="small">Статусы: enum <code>App\Enums\SchoolLeadStatus</code> — <code>new</code>, <code>processing</code>, <code>sale</code>, <code>rejected</code>, <code>spam</code> (как у B2B-лидов).</p>
+
+  <h2>6) CRM: виджет и Telegram</h2>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Middleware</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/school-widget</code></td><td><code>can:schoolWidget.view</code></td><td>Код iframe, статус Telegram, кнопка подключения</td></tr>
+      <tr><td>POST</td><td><code>/admin/school-widget/telegram-link</code></td><td><code>can:schoolWidget.view</code></td><td>Создать ссылку <code>t.me/bot?start=pl_…</code></td></tr>
+      <tr><td>DELETE</td><td><code>/admin/school-widget/telegram</code></td><td><code>can:schoolWidget.view</code></td><td>Отключить Telegram (очистить chat_id)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6.1) Подключение Telegram без ручного Chat ID</h3>
+  <ol>
+    <li>Admin нажимает «Подключить Telegram» в CRM → создаётся одноразовый токен в <code>partner_telegram_link_tokens</code>.</li>
+    <li>Открывается deep-link на бота платформы (по умолчанию <code>@kidscrmLeadFormBot</code>, см. <code>TELEGRAM_BOT_USERNAME</code>).</li>
+    <li>Пользователь нажимает «Старт» → Telegram шлёт webhook → сохраняется <code>partners.school_leads_telegram_chat_id</code>.</li>
+  </ol>
+  <p class="small">Webhook: <code>POST /webhooks/telegram/school-leads</code> (<code>TelegramSchoolLeadWebhookController</code>). Защита: заголовок <code>X-Telegram-Bot-Api-Secret-Token</code> = <code>TELEGRAM_WEBHOOK_SECRET</code>.</p>
+  <pre><code>php artisan school-leads:telegram-webhook</code></pre>
+  <p class="small">Команда вызывает <code>setWebhook</code> у Telegram API. URL должен быть публичным HTTPS.</p>
+
+  <div class="warn">
+    <b>Важно:</b> у одного бота Telegram — один webhook URL. Команда <code>school-leads:telegram-webhook</code> <b>перезаписывает</b> webhook бота.
+    Глобальные B2B-уведомления на <code>TELEGRAM_CHAT_ID</code> (лиды с лендинга kidscrm через <code>LandingPageController::notifyTelegram</code>) после этого из Telegram API приходить не будут, пока не настроен общий обработчик или отдельный бот для B2B.
+  </div>
+
+  <h2>7) Уведомления о новой заявке</h2>
+  <p>После успешного <code>POST /widget/…/submit</code> вызывается <code>SchoolLeadNotificationService</code>:</p>
+  <ul>
+    <li><b>Email</b> — всем пользователям с ролью <code>admin</code> текущего партнёра (с email) + email организации из <code>partners.email</code>. Mailable: <code>App\Mail\NewSchoolLeadSubmission</code>.</li>
+    <li><b>Telegram</b> — в <code>partners.school_leads_telegram_chat_id</code>, если заполнен. Бот: <code>TELEGRAM_BOT_TOKEN</code>.</li>
+  </ul>
+  <p class="small">B2B-лиды по-прежнему используют глобальный <code>TELEGRAM_CHAT_ID</code> в <code>LandingPageController</code> — это другой канал.</p>
+
+  <h2>8) Переменные окружения (.env)</h2>
+  <table>
+    <thead>
+      <tr><th>Переменная</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>RECAPTCHA_SITE_KEY</code>, <code>RECAPTCHA_SECRET_KEY</code>, <code>RECAPTCHA_MIN_SCORE</code></td><td>Защита формы виджета</td></tr>
+      <tr><td><code>TELEGRAM_BOT_TOKEN</code></td><td>Бот платформы (виджет + привязка + уведомления школам)</td></tr>
+      <tr><td><code>TELEGRAM_BOT_USERNAME</code></td><td>Имя бота для ссылок в CRM (напр. <code>kidscrmLeadFormBot</code>)</td></tr>
+      <tr><td><code>TELEGRAM_BOT_NAME</code></td><td>Отображаемое имя в UI (напр. <code>kidscrmLeadForm</code>)</td></tr>
+      <tr><td><code>TELEGRAM_WEBHOOK_SECRET</code></td><td>Секрет webhook для привязки Telegram</td></tr>
+      <tr><td><code>TELEGRAM_CHAT_ID</code></td><td><b>Только B2B</b> — лиды с лендинга kidscrm, не заявки школ</td></tr>
+    </tbody>
+  </table>
+
+  <h2>9) Ключевые файлы</h2>
+  <ul>
+    <li>Модели: <code>App\Models\SchoolLead</code>, <code>PartnerWidget</code>, <code>PartnerTelegramLinkToken</code></li>
+    <li>Сервисы: <code>PartnerWidgetService</code>, <code>PartnerTelegramLinkService</code>, <code>SchoolLeadNotificationService</code>, <code>TelegramBotClient</code></li>
+    <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolWidgetController</code>, <code>TelegramSchoolLeadWebhookController</code></li>
+    <li>Миграции: <code>2026_05_19_140000_*</code>, <code>140001_*</code>, <code>140002_*</code>, <code>150000_*</code>, <code>160000_*</code></li>
+    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>admin/school-leads.blade.php</code>, <code>admin/school-widget.blade.php</code></li>
+  </ul>
+
+  <h2>10) Автотесты</h2>
+  <pre><code>php artisan test --env=testing --filter=SchoolLead</code></pre>
+  <ul>
+    <li><code>tests/Feature/Public/SchoolLeadWidgetSubmitTest.php</code> — форма, submit, consent, inactive widget</li>
+    <li><code>tests/Feature/Public/SchoolLeadWidgetFullFeatureTest.php</code> — валидация, reCAPTCHA, provisioning виджета</li>
+    <li><code>tests/Feature/Public/SchoolLeadNotificationTest.php</code> — email / Telegram при submit</li>
+    <li><code>tests/Feature/Public/SchoolLeadTelegramWebhookFeatureTest.php</code> — webhook, токены</li>
+    <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadsAccessFeatureTest.php</code> — 403/200 по правам, все endpoint’ы</li>
+    <li><code>tests/Feature/Crm/SchoolLeads/SchoolWidgetAccessFeatureTest.php</code> — то же для виджета</li>
+    <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadCrudFeatureTest.php</code> — CRUD, anti-leak</li>
+    <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadManagementTest.php</code>, <code>SchoolWidgetTelegramAutoLinkTest.php</code>, <code>SchoolLeadsAuthorizationTest.php</code></li>
+  </ul>
+
+  <h2>11) Запланировано позже (не в текущей версии)</h2>
+  <ul>
+    <li>Кастомизация внешнего вида формы (цвета, тексты) в CRM.</li>
+    <li>Allowlist доменов для embed.</li>
+    <li>Отдельный документ «Согласие на обработку ПДн» (сейчас ссылка на <code>/policy</code>).</li>
+  </ul>
+</div>
+</body>
+</html>

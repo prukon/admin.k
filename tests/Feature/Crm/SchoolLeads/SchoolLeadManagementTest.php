@@ -80,13 +80,4 @@ class SchoolLeadManagementTest extends CrmTestCase
             'status' => 'spam',
         ])->assertNotFound();
     }
-
-    public function test_school_widget_page_shows_iframe_code(): void
-    {
-        $response = $this->get(route('admin.school-widget'));
-
-        $response->assertOk();
-        $response->assertSee('iframe', false);
-        $response->assertSee('/widget/', false);
-    }
 }

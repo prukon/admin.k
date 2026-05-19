@@ -468,8 +468,8 @@ class UserControllerTest extends CrmTestCase
             'Ожидали, что команда Alpha (u2) будет раньше Beta (u1) при сортировке по команде asc'
         );
 
-        // 3) Сортировка по email (col=5) asc
-        $json = $this->getJson('/admin/users/data?order[0][column]=5&order[0][dir]=asc')->json();
+        // 3) Сортировка по email (col=6) asc
+        $json = $this->getJson('/admin/users/data?order[0][column]=6&order[0][dir]=asc')->json();
         $ids = collect($json['data'])->pluck('id')->all();
 
         $posU1 = array_search($u1->id, $ids, true);
@@ -484,8 +484,8 @@ class UserControllerTest extends CrmTestCase
             "Ожидали, что u2 (id={$u2->id}, email={$u2->email}) будет раньше u1 (id={$u1->id}, email={$u1->email}) при сортировке по email asc"
         );
 
-        // 4) Сортировка по статусу (col=7) desc — активные первыми
-        $json = $this->getJson('/admin/users/data?order[0][column]=7&order[0][dir]=desc')->json();
+        // 4) Сортировка по статусу (col=8) desc — активные первыми
+        $json = $this->getJson('/admin/users/data?order[0][column]=8&order[0][dir]=desc')->json();
         $ids = collect($json['data'])->pluck('id')->all();
 
         $posU1 = array_search($u1->id, $ids, true); // is_enabled=0

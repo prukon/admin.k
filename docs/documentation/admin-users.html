@@ -9,153 +9,241 @@
     .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
     h1 { font-size: 26px; margin: 0 0 8px; }
     h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
     code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
     .small { color: #555; font-size: 13px; }
     a { color: #2563eb; text-decoration: none; }
     a:hover { text-decoration: underline; }
     table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
     th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
     th { background: #f8fafc; }
+    ul { margin: 8px 0 8px 20px; }
   </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Пользователи в админке</h1>
-  <div class="small">Файл: <code>/docs/documentation/admin-users.html</code> · URL в CRM: <code>/docs/documentation/admin-users</code> (список разделов: <code>/doc</code>)</div>
+  <div class="small">Файл: <code>/docs/documentation/admin-users.html</code> · URL в CRM: <code>/docs/documentation/admin-users</code> · оглавление: <a href="./index.html">/doc</a></div>
 
-  <h2>Назначение и доступ</h2>
+  <h2>1) Назначение и доступ</h2>
   <div class="note">
-    Страница списка: <code>GET /admin/users</code> (<code>UserController@index</code>), view <code>resources/views/admin/user.blade.php</code>.
-    Маршруты раздела обёрнуты в <code>middleware('can:users.view')</code> (см. <code>routes/web.php</code>).
-    Просмотр внутренней документации по адресу <code>/doc</code> / <code>/docs/documentation</code> требует отдельного права <code>documentations.view</code> — это не то же самое, что доступ к <code>/admin/users</code>.
+    <b>Страница списка:</b> <code>GET /admin/users</code> (маршрут <code>admin.user1</code>, <code>UserController@index</code>),
+    view <code>resources/views/admin/user.blade.php</code>.<br>
+    Все маршруты раздела обёрнуты в <code>middleware('can:users.view')</code> (<code>routes/web.php</code>).
+    Без <code>users.view</code> страница и AJAX раздела отвечают <b>403</b>, даже если у роли есть <code>locations.view</code>.<br>
+    Внутренняя документация (<code>/doc</code>) требует отдельное право <code>documentations.view</code> — это не доступ к <code>/admin/users</code>.
   </div>
 
-  <h2>Создание пользователя (<code>POST /admin/users</code>)</h2>
+  <h3>Основные endpoint’ы раздела</h3>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/users</code></td><td>HTML страницы, модалки create/edit</td></tr>
+      <tr><td>GET</td><td><code>/admin/users/data</code></td><td>JSON DataTables (фильтры, сортировка)</td></tr>
+      <tr><td>GET/POST</td><td><code>/admin/users/columns-settings</code></td><td>Настройки видимости колонок (<code>table_key = users_index</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/users</code></td><td>Создание (<code>admin.user.store</code>)</td></tr>
+      <tr><td>GET</td><td><code>/admin/users/{user}/edit</code></td><td>JSON для модалки редактирования (нужен AJAX)</td></tr>
+      <tr><td>PATCH</td><td><code>/admin/users/{user}</code></td><td>Обновление</td></tr>
+      <tr><td>GET</td><td><code>/admin/user/logs-data</code></td><td>Логи пользователей (DataTables)</td></tr>
+    </tbody>
+  </table>
+
+  <p class="small">Модалки create/edit отдают и принимают JSON только при AJAX-запросе (<code>X-Requested-With: XMLHttpRequest</code> / ожидание JSON), иначе <code>store</code> может завершиться без JSON-тела.</p>
+
+  <h2>2) Список пользователей (DataTables)</h2>
+  <ul>
+    <li><b>Фильтры</b> (кнопка «Найти»): <code>name</code>, <code>team_id</code> (<code>none</code> = без группы), <code>status</code> (<code>active</code> / <code>inactive</code>).</li>
+    <li><b>Фильтр «Локация»</b> — только при <code>locations.view</code> (см. §3). Параметр: <code>location_id</code> (<code>none</code> = без локации, id = активная локация партнёра). Без права параметр в запросе <b>игнорируется</b>.</li>
+    <li><b>Колонки</b> настраиваются через «Поля списка»; настройки per user в <code>user_table_settings</code>.</li>
+  </ul>
+
+  <h3>Индексы колонок DataTables (фиксированные)</h3>
+  <p class="small">Колонка «Локация» всегда присутствует в разметке таблицы (стабильные индексы); без <code>locations.view</code> она принудительно скрыта и не попадает в UI настроек.</p>
+  <table>
+    <thead>
+      <tr><th>Индекс</th><th>Ключ настроек</th><th>Заголовок</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>—</td><td># (нумерация)</td></tr>
+      <tr><td>1</td><td><code>avatar</code></td><td>Аватар</td></tr>
+      <tr><td>2</td><td><code>name</code></td><td>Имя</td></tr>
+      <tr><td>3</td><td><code>teams</code></td><td>Группа</td></tr>
+      <tr><td>4</td><td><code>location</code></td><td>Локация (<code>locations.view</code>)</td></tr>
+      <tr><td>5</td><td><code>birthday</code></td><td>Дата рождения</td></tr>
+      <tr><td>6</td><td><code>email</code></td><td>Email</td></tr>
+      <tr><td>7</td><td><code>phone</code></td><td>Телефон</td></tr>
+      <tr><td>8</td><td><code>status_label</code></td><td>Статус</td></tr>
+      <tr><td>9</td><td><code>actions</code></td><td>Действия</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Сортировка по локации: <code>order[0][column]=4</code> → join <code>locations</code>, <code>orderBy locations.name</code>.</p>
+
+  <h2 id="user-location">3) Локация пользователя (<code>users.location_id</code>)</h2>
   <div class="note">
-    Имя маршрута: <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
-    Создание учётной записи выполняется через <code>UserService::store()</code> внутри <code>DB::transaction</code> вместе с записью лога (тип действия создания учётки) и, при наличии данных, значений дополнительных полей в <code>user_field_values</code>.
+    Необязательная привязка учётной записи к справочнику <code>locations</code> текущего партнёра.
+    Миграция: <code>database/migrations/2026_05_19_120000_add_location_id_to_users_table.php</code>.<br>
+    Поле: <code>users.location_id</code> (nullable, FK → <code>locations.id</code>, <code>ON DELETE SET NULL</code>).
+    Модели: <code>User::location()</code>, <code>Location::users()</code>.<br>
+    Один пользователь — не более одной локации (в отличие от many-to-many).
+    Справочник локаций ведётся на <code>GET /admin/locations</code> (права <code>locations.view</code> / <code>locations.manage</code>) — отдельно от привязки к ученику.
   </div>
 
-  <h3>Пароль (без изменений)</h3>
+  <div class="warn">
+    <b>Не путать с расписанием:</b> слоты <code>team_schedule_slots</code> имеют свой <code>location_id</code>.
+    Поле <code>users.location_id</code> — справочная привязка ученика в карточке; автоматической синхронизации со слотами расписания нет.
+  </div>
+
+  <h3>3.1) Права</h3>
+  <table>
+    <thead>
+      <tr><th>Право</th><th>Что даёт в разделе «Пользователи»</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>users.view</code></td>
+        <td>Доступ к странице и всем endpoint’ам раздела (обязательно). Без него — 403.</td>
+      </tr>
+      <tr>
+        <td><code>locations.view</code></td>
+        <td>
+          Селект локации в модалках create/edit; фильтр «Локация»; столбец и ключ <code>location</code> в columns-settings;
+          чтение/запись <code>location_id</code> в store/update; поле <code>location</code> в JSON <code>/admin/users/data</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>locations.manage</code></td>
+        <td><b>Не требуется</b> для привязки ученика к локации — только для CRUD справочника на <code>/admin/locations</code>.</td>
+      </tr>
+      <tr>
+        <td><code>users.group.update</code></td>
+        <td>Только поле «Группа» при редактировании (аналогия: для локации отдельного <code>users.location.update</code> нет).</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Без <code>locations.view</code>: входящий <code>location_id</code> удаляется в <code>StoreRequest</code> / <code>UpdateRequest</code>; в ответе data поле <code>location</code> — пустая строка; фильтр по локации на сервере не применяется.</p>
+
+  <h3>3.2) UI</h3>
+  <ul>
+    <li><b>Create</b> — <code>#create-location</code>, опции: «Без локации» + активные локации партнёра (<code>is_enabled = true</code>).</li>
+    <li><b>Edit</b> — <code>#edit-location</code>: те же активные + текущая локация, если она отключена (в JS подпись «(отключена)», опция добавляется динамически).</li>
+    <li><b>Фильтр</b> — <code>#filter-location</code>: пусто / <code>none</code> / id активной локации.</li>
+    <li><b>Столбец</b> — после «Группа»; по умолчанию виден при первом заходе, если есть <code>locations.view</code>.</li>
+  </ul>
+  <p>В <code>index</code> во view всегда передаётся <code>$activeLocations</code> (активные локации партнёра) — для фильтра и селектов; без права блоки в Blade не рендерятся (<code>@can('locations.view')</code>).</p>
+
+  <h3>3.3) Валидация и сохранение</h3>
+  <table>
+    <thead>
+      <tr><th>Операция</th><th>Request</th><th>Правила</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Создание</td>
+        <td><code>StoreRequest</code></td>
+        <td>
+          При <code>locations.view</code>: <code>location_id</code> nullable, <code>exists:locations,id</code> с <code>partner_id</code> текущего партнёра и <code>is_enabled = true</code>.
+          Пустая строка → <code>null</code>. Ошибки — ключ <code>location_id</code> (вывод под полем в модалке).
+        </td>
+      </tr>
+      <tr>
+        <td>Обновление</td>
+        <td><code>UpdateRequest</code></td>
+        <td>
+          При <code>locations.view</code>: <code>location_id</code> nullable integer.
+          В <code>withValidator</code>: локация того же партнёра; если <code>is_enabled = false</code> — разрешена только если уже назначена этому пользователю.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3.4) API: data и edit</h3>
+  <ul>
+    <li><code>GET /admin/users/data</code> — в каждой строке при <code>locations.view</code>: <code>"location": "Название"</code> (из связи <code>user.location</code>), иначе <code>""</code>.</li>
+    <li><code>GET /admin/users/{id}/edit</code> (AJAX) — в <code>user</code>: <code>location_id</code>; объект <code>location</code>: <code>{ id, name, is_enabled }</code> или <code>null</code>.</li>
+    <li>Изменение локации пишется в пользовательский лог (action 22) строкой «Локация: … → …», если у актора есть <code>locations.view</code>.</li>
+  </ul>
+
+  <h3>3.5) Использование в отчётах</h3>
+  <div class="note">
+    Поле <code>users.location_id</code> задаётся в этом разделе и используется, в частности, в отчёте
+    <a href="./reports-admin.html#location-filter">«Задолженности»</a> (фильтр по текущей привязке ученика).
+    В отчётах по оплатам используется снимок <code>payments.location_id</code> на момент платежа — см.
+    <a href="./reports-payments.html">reports-payments.html</a> и
+    <a href="./payments.html">payments.html</a>.
+    Смена <code>users.location_id</code> <b>не пересчитывает</b> старые строки <code>payments</code>.
+  </div>
+
+  <h2>4) Создание пользователя (<code>POST /admin/users</code>)</h2>
+  <div class="note">
+    Маршрут <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
+    Создание через <code>UserService::store()</code> в <code>DB::transaction</code> с логом (action 21) и опциональными <code>user_field_values</code>.
+  </div>
+
+  <h3>Пароль</h3>
   <div class="note">
     Поле <code>password</code> <b>необязательно</b>.
-    Если пароль не указан или передана пустая строка, в таблице <code>users</code> сохраняется <code>password = NULL</code> (учётные записи без входа в систему).
-    Если пароль указан, действуют ограничения <code>min:8</code> / <code>max:255</code>; хеширование — каст <code>password</code> → <code>hashed</code> у модели <code>User</code>.
+    Пустая строка → <code>password = NULL</code> в БД.
+    Если указан: <code>min:8</code> / <code>max:255</code>; хеш — каст <code>hashed</code> модели <code>User</code>.
   </div>
 
-  <h3>Телефон при создании (новый функционал)</h3>
+  <h3>Телефон</h3>
   <div class="note">
-    В форме создания есть поле <code>phone</code> (тип <code>tel</code>) с маской <code>+7 (999) 999-99-99</code> (Inputmask).
-    На бэкенде телефон хранится и валидируется в каноническом виде: <code>+7XXXXXXXXXX</code> (11 цифр, включая 7), поле <code>users.phone</code>.
+    Поле <code>phone</code> с маской <code>+7 (999) 999-99-99</code> (Inputmask).
+    Хранение: канон <code>+7XXXXXXXXXX</code> в <code>users.phone</code>.
+    Право на запись: <code>users.phone.update</code> (без права поле игнорируется на бэкенде и disabled в UI).
   </div>
 
+  <h3>Дополнительные поля (<code>custom</code>)</h3>
+  <p>В модалке создания — те же доп. поля партнёра, что в edit (фильтр по роли админа, payload <code>fields</code> в JSON edit).</p>
   <table>
     <thead>
-      <tr>
-        <th>Тема</th>
-        <th>Поведение в коде</th>
-      </tr>
+      <tr><th>Тема</th><th>Поведение</th></tr>
     </thead>
     <tbody>
-      <tr>
-        <td>Формат хранения</td>
-        <td>
-          <code>users.phone</code> — строка (до 20 символов), канон: <code>+7</code> + 10 цифр.
-          Модель <code>User</code> дополнительно нормализует входящие значения через mutator <code>setPhoneAttribute()</code>.
-        </td>
-      </tr>
-      <tr>
-        <td>Нормализация masked-ввода</td>
-        <td>
-          <code>StoreRequest</code> приводит ввод (например, <code>+7 (999) 111-22-33</code>) к <code>+79991112233</code>.
-          Если номер не удаётся привести к валидному канону — в запрос подставляется <code>null</code>.
-        </td>
-      </tr>
-      <tr>
-        <td>Валидация</td>
-        <td>
-          Если у актора есть право <code>users.phone.update</code>, применяется правило:
-          <code>regex:/^\+7\d{10}$/</code> (валидируем уже нормализованное значение).
-        </td>
-      </tr>
-      <tr>
-        <td>Права доступа</td>
-        <td>
-          Поле телефона управляется правом <code>users.phone.update</code>.
-          Если права нет, бэкенд игнорирует входящий <code>phone</code> (значение не сохранится и не может «случайно» попасть в БД).
-          На фронте поле в модалке создания disabled и показывается подсказка об отсутствии прав.
-        </td>
-      </tr>
+      <tr><td>Тело</td><td><code>custom[{slug}]</code> — значения для <code>user_field_values</code></td></tr>
+      <tr><td>Валидация</td><td><code>custom.*</code> nullable string; slug должен существовать у <code>UserField</code> текущего партнёра</td></tr>
+      <tr><td>Запись</td><td>Только поля с <code>editable</code> для роли актора</td></tr>
     </tbody>
   </table>
+  <p class="small"><code>custom</code> не передаётся в <code>User::create</code> — извлекается до <code>UserService::store()</code>.</p>
 
-  <h3>Дополнительные поля пользователя при создании (новый функционал)</h3>
-  <p>В модальном окне «Создание пользователя» выводятся те же дополнительные поля текущего партнёра, что и в модалке редактирования (текстовые поля), если для партнёра настроены записи в <code>user_fields</code> и они попадают в выборку по роли текущего администратора (аналогично <code>GET /admin/users/{id}/edit</code> в JSON-ключе <code>fields</code>).</p>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Тема</th>
-        <th>Поведение в коде</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Тело запроса</td>
-        <td>Вложенный массив <code>custom</code>: ключи — <code>slug</code> поля из <code>user_fields</code>, значения — строки (в форме: <code>name="custom[{slug}]"</code>).</td>
-      </tr>
-      <tr>
-        <td>Партнёр</td>
-        <td>Все определения полей и сохранение значений привязаны к <code>partner_id</code> текущего контекста (<code>PartnerContext</code> / <code>SetPartner</code>). Поля другого партнёра передать нельзя: валидация отклонит неизвестный для текущего партнёра <code>slug</code> (ошибка вида <code>custom.{slug}</code>).</td>
-      </tr>
-      <tr>
-        <td>Валидация (<code>StoreRequest</code>)</td>
-        <td><code>custom</code> — необязательный массив; каждый элемент — <code>nullable|string|max:255</code>. Дополнительно проверяется, что каждый переданный ключ существует как <code>slug</code> у <code>UserField</code> с <code>partner_id</code> текущего партнёра.</td>
-      </tr>
-      <tr>
-        <td>Права на запись значения</td>
-        <td>В транзакции сохраняются только поля, помеченные как доступные для редактирования текущим актором (<code>editable</code> в payload полей — та же логика, что для формы редактирования: супер-админ или роль из связи <code>user_field_role</code>). Значения для неразрешённых полей в запросе не создают записей в <code>user_field_values</code> (в т.ч. при подборе slug вручную).</td>
-      </tr>
-      <tr>
-        <td>Пустые значения</td>
-        <td>Пустая строка для доп. поля допустима; при сохранении может быть записана как пустое значение в <code>user_field_values</code> для разрешённых полей.</td>
-      </tr>
-      <tr>
-        <td>Транзакция</td>
-        <td>Создание строки в <code>users</code> и вставка/обновление строк в <code>user_field_values</code> выполняются в одной транзакции с логом создания пользователя.</td>
-      </tr>
-      <tr>
-        <td>Ответ AJAX</td>
-        <td>При успешном запросе с заголовком, ожидающим JSON (как в модалке), возвращается JSON с сообщением и краткими данными пользователя (как раньше); структура не расширялась специально для доп. полей.</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <p class="small">Ключ <code>custom</code> не передаётся в <code>User::create</code>: он извлекается из проверенных данных до вызова <code>UserService::store()</code>, чтобы не попасть в массовое заполнение модели пользователя.</p>
-
-  <h2>Редактирование (<code>PATCH /admin/users/{user}</code>)</h2>
+  <h2>5) Редактирование (<code>PATCH /admin/users/{user}</code>)</h2>
   <div class="note">
-    Дополнительные поля при обновлении по-прежнему передаются в <code>custom[{slug}]</code>, валидация в <code>UpdateRequest</code> (<code>custom.*</code>).
-    Разрешение полей по <code>slug</code> при сохранении учитывает <code>partner_id</code> текущего партнёра.
-    Подробности логирования изменений по доп. полям — в коде <code>UserController@update</code>.
+    Валидация: <code>UpdateRequest</code>. Поля с отдельными правами: имя (<code>users.name.update</code>), группа (<code>users.group.update</code>),
+    email, телефон, роль, активность, дата рождения, дата начала — см. правила в Request.
+    Доп. поля: <code>custom[{slug}]</code> с той же логикой партнёра и <code>editable</code>, что при создании.
+    Локация — §3 (<code>locations.view</code>).
   </div>
 
-  <h2>Связанные файлы</h2>
+  <h2>6) Связанные файлы</h2>
   <ul class="small">
-    <li><code>app/Http/Controllers/Admin/UserController.php</code> — <code>buildUserFieldsPayloadForCurrentPartner()</code>, <code>store</code>, <code>update</code>, <code>edit</code>, <code>index</code></li>
+    <li><code>app/Http/Controllers/Admin/UserController.php</code></li>
     <li><code>app/Http/Requests/User/StoreRequest.php</code>, <code>UpdateRequest.php</code></li>
+    <li><code>app/Models/User.php</code>, <code>Location.php</code></li>
+    <li><code>app/Http/Controllers/Admin/UserTableSettingsController.php</code></li>
+    <li><code>resources/views/admin/user.blade.php</code></li>
     <li><code>resources/views/includes/modal/createUser.blade.php</code>, <code>editUser.blade.php</code></li>
   </ul>
 
-  <h2>Тесты</h2>
+  <h2>7) Тесты (Feature)</h2>
   <div class="note">
-    Feature-тесты: <code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> (сценарии доп. полей при создании и PATCH),
-    <code>tests/Feature/Crm/Users/AdminUsersAccessFeatureTest.php</code> (доступ <code>users.view</code>, смоук основных endpoint’ов включая создание с <code>custom</code> и телефоном),
-    <code>tests/Feature/Crm/Users/AdminUsersPhoneOnCreateFeatureTest.php</code> (телефон при создании: нормализация masked-ввода, права <code>users.phone.update</code>).
+    <ul>
+      <li><code>tests/Feature/Crm/Users/AdminUsersLocationFeatureTest.php</code> — локация: CRUD, фильтр, сортировка, columns-settings, UI, smoke 200, права <code>locations.view</code> / <code>users.view</code></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersAccessFeatureTest.php</code> — доступ <code>users.view</code>, smoke endpoint’ов (в т.ч. <code>location_id</code>), сценарий без <code>locations.view</code></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> — доп. поля</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersPhoneOnCreateFeatureTest.php</code> — телефон при создании</li>
+      <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data, сортировка (индексы колонок с учётом «Локация»)</li>
+      <li><code>tests/Feature/Crm/Users/UserTableSettingsControllerTest.php</code> — columns-settings</li>
+    </ul>
+    Запуск: <code>php artisan test --filter=AdminUsersLocationFeatureTest</code> или <code>AdminUsersAccessFeatureTest</code>.
   </div>
 
-  <p class="small"><a href="./index.html">← К оглавлению (статический файл)</a></p>
+  <p class="small"><a href="./index.html">← К оглавлению</a> ·
+    <a href="./reports-admin.html#location-filter">Отчёты: фильтр по локации</a></p>
 </div>
 </body>
 </html>

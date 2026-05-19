@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Models\Location;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
@@ -59,12 +61,25 @@ class DeptReportController extends AdminBaseController
         $paymentsFilterUser = $this->resolveDebtFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolveDebtFilterTeamLabel($partnerId, $filters);
 
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+        $canViewLocations = $authUser?->can('locations.view') ?? false;
+        $activeLocations = $canViewLocations
+            ? Location::query()
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+
         return view('admin.report.index', [
             'activeTab'          => 'debt',
             'totalUnpaidPrice'   => $totalUnpaidPrice,
             'filters'            => $filters,
             'paymentsFilterUser' => $paymentsFilterUser,
             'paymentsFilterTeam' => $paymentsFilterTeam,
+            'canViewLocations'   => $canViewLocations,
+            'activeLocations'    => $activeLocations,
         ]);
     }
 
@@ -195,6 +210,8 @@ class DeptReportController extends AdminBaseController
             $query->where('teams.title', 'like', $like);
         }
 
+        $this->applyDebtReportLocationFilter($query, $request);
+
         if ($request->filled('debt_month')) {
             $ym = trim((string) $request->query('debt_month'));
             if (preg_match('/^\d{4}-\d{2}$/', $ym) === 1) {
@@ -232,6 +249,8 @@ class DeptReportController extends AdminBaseController
             $query->where('teams.title', 'like', $like);
         }
 
+        $this->applyDebtReportLocationFilter($query, $request);
+
         // debt_month применяем по start/end месяцу
         if ($request->filled('debt_month')) {
             $ym = trim((string) $request->query('debt_month'));
@@ -240,6 +259,36 @@ class DeptReportController extends AdminBaseController
                     $q->where('user_custom_payment.date_start', 'like', $ym.'%')
                         ->orWhere('user_custom_payment.date_end', 'like', $ym.'%');
                 });
+            }
+        }
+    }
+
+    /**
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function applyDebtReportLocationFilter($query, Request $request): void
+    {
+        /** @var \App\Models\User|null $filterActor */
+        $filterActor = Auth::user();
+        if (! $filterActor?->can('locations.view')) {
+            return;
+        }
+
+        $filterLocationId = $request->query('filter_location_id');
+        if ($filterLocationId === null || $filterLocationId === '') {
+            return;
+        }
+
+        if ($filterLocationId === 'none') {
+            $query->whereNull('users.location_id');
+
+            return;
+        }
+
+        if (ctype_digit((string) $filterLocationId)) {
+            $lid = (int) $filterLocationId;
+            if ($lid > 0) {
+                $query->where('users.location_id', $lid);
             }
         }
     }

@@ -2,7 +2,10 @@
     $filters = $filters ?? [];
     $paymentsFilterUser = $paymentsFilterUser ?? null;
     $paymentsFilterTeam = $paymentsFilterTeam ?? null;
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
+    $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
+    $activeLocations = $activeLocations ?? collect();
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
+    $payFilterLocation = $filters['filter_location_id'] ?? '';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -127,6 +130,20 @@
                     @endif
                 </select>
             </div>
+            @if($canViewLocations)
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-ltv-filter-location">Локация</label>
+                <select class="form-select" id="pay-ltv-filter-location" name="filter_location_id">
+                    <option value="">Все локации</option>
+                    <option value="none" {{ (string) $payFilterLocation === 'none' ? 'selected' : '' }}>Без локации</option>
+                    @foreach($activeLocations as $location)
+                        <option value="{{ $location->id }}" {{ (string) $payFilterLocation === (string) $location->id ? 'selected' : '' }}>
+                            {{ $location->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pay-ltv-filter-payment-month">Оплаченный месяц</label>
                 <input class="form-control" id="pay-ltv-filter-payment-month" type="month" name="payment_month"
@@ -178,6 +195,7 @@
     <script type="text/javascript">
         $(function() {
 
+            var canViewLocations = @json($canViewLocations);
             var $ltvFiltersForm = $('#ltv-report-filters');
             var $ltvFilterUser = $('#pay-ltv-filter-user');
             var $ltvFilterTeam = $('#pay-ltv-filter-team');
@@ -271,6 +289,9 @@
                 return {
                     filter_user_id: uid,
                     filter_team_id: tid,
+                    filter_location_id: canViewLocations
+                        ? ($ltvFiltersForm.find('[name="filter_location_id"]').val() || '')
+                        : '',
                     user_name: '',
                     team_title: '',
                     payment_month: $ltvFiltersForm.find('[name="payment_month"]').val() || '',
@@ -458,6 +479,9 @@
                 $ltvFiltersForm[0].reset();
                 $ltvFilterUser.val(null).trigger('change');
                 $ltvFilterTeam.val(null).trigger('change');
+                if (canViewLocations) {
+                    $('#pay-ltv-filter-location').val('');
+                }
                 refreshLtvReportTotal();
                 ltvTable.ajax.reload();
             });

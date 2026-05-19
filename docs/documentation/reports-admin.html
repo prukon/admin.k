@@ -46,6 +46,65 @@
   <div class="note">
     Модель прав в разрезе партнёра: <a href="/docs/documentation/partners-permissions.html">partners-permissions</a>.
   </div>
+  <ul>
+    <li><b><code>locations.view</code></b> — не открывает отчёты само по себе, но даёт фильтр «Локация» в отчётах платежей и задолженностей (см. §2.1).</li>
+  </ul>
+
+  <h2 id="location-filter">2.1) Фильтр по локации в отчётах</h2>
+  <div class="note">
+    Единый параметр запроса: <code>filter_location_id</code>. Пустое значение — все записи; <code>none</code> — только без локации;
+    числовой id — только активная локация текущего партнёра (<code>locations.is_enabled = true</code>).
+    Фильтр в UI и на сервере применяется <b>только при праве</b> <code>locations.view</code>: без права блок не рендерится,
+    а переданный в URL/AJAX <code>filter_location_id</code> <b>игнорируется</b> (защита от обхода через query string).
+    Параметр уходит во все связанные запросы: DataTables, <code>…/total</code>, детализацию по месяцу / платежам ученика.
+  </div>
+  <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead>
+      <tr>
+        <th>Отчёт</th>
+        <th>Страница</th>
+        <th>Поле фильтрации</th>
+        <th>Смысл</th>
+        <th>Элемент UI (<code>id</code>)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Платежи</td>
+        <td><code>/admin/reports/payments</code></td>
+        <td><code>payments.location_id</code></td>
+        <td>Снимок локации ученика на момент оплаты; есть колонка «Локация»</td>
+        <td><code>pay-filter-location</code></td>
+      </tr>
+      <tr>
+        <td>Платежи по месяцам</td>
+        <td><code>/admin/reports/payments/monthly</code></td>
+        <td><code>payments.location_id</code></td>
+        <td>Тот же снимок, что в журнале <code>payments</code></td>
+        <td><code>pay-monthly-filter-location</code></td>
+      </tr>
+      <tr>
+        <td>LTV</td>
+        <td><code>/admin/reports/ltv</code></td>
+        <td><code>payments.location_id</code></td>
+        <td>Агрегация и детализация только по платежам с подходящим снимком</td>
+        <td><code>pay-ltv-filter-location</code></td>
+      </tr>
+      <tr>
+        <td>Задолженности</td>
+        <td><code>/admin/reports/debts</code></td>
+        <td><code>users.location_id</code></td>
+        <td>Текущая привязка ученика (долги из <code>users_prices</code> и доп. платежей, не журнал оплат)</td>
+        <td><code>pay-debt-filter-location</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Запись <code>payments.location_id</code> при первой фиксации оплаты — <a href="/docs/documentation/payments.html">payments.html</a>, колонка и фильтр — <a href="/docs/documentation/reports-payments.html">reports-payments.html</a>.</li>
+    <li>Старые строки <code>payments</code> без локации: <code>location_id IS NULL</code> попадают в «Без локации».</li>
+    <li>Смена <code>users.location_id</code> после оплаты <b>не меняет</b> уже записанный <code>payments.location_id</code>.</li>
+    <li>Привязка ученика к локации в CRM: раздел <a href="./admin-users.html#user-location">«Пользователи»</a> (<code>users.location_id</code>).</li>
+  </ul>
 
   <h2>3) Отчёт “Задолженности”</h2>
   <ul>
@@ -53,6 +112,10 @@
     <li><b>DataTables</b>: <code>GET /admin/reports/getDebts</code> (AJAX)</li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/debts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
   </ul>
+  <div class="note">
+    Фильтр локации — §2.1: <code>users.location_id</code> ученика на момент просмотра отчёта.
+    Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>.
+  </div>
 
   <h2>4) Отчёт “Платежи по ученикам (LTV)”</h2>
   <ul>
@@ -63,6 +126,7 @@
   </ul>
   <div class="note">
     “Общая сумма” в LTV — это <code>sum(payments.summ)</code> по тем же фильтрам (и по текущему партнёру), что и таблица.
+    Фильтр локации — §2.1: <code>payments.location_id</code> (снимок на момент оплаты); тот же параметр в <code>ltv/data</code>, <code>ltv/total</code> и <code>ltv/{user}/payments</code>.
   </div>
 
   <h2>5) Отчёт “Платежи по месяцам”</h2>
@@ -74,7 +138,8 @@
   </ul>
   <div class="note">
     Режим группировки (по дате операции / по месяцу абонемента) в UI хранится в форме/JS и не обязан отражаться в URL.
-    В запросы DataTables/детализации/total передаётся параметр <code>mode</code>.
+    В запросы DataTables/детализации/total передаётся параметр <code>mode</code> (<code>subscription</code> по умолчанию).
+    Фильтр локации — §2.1: <code>payments.location_id</code>; параметр <code>filter_location_id</code> уходит в <code>monthly/data</code>, <code>monthly/total</code> и <code>monthly/{yearMonth}/payments</code>.
   </div>
 
   <h2>6) Отчёт “Платежные запросы” (payment_intents)</h2>
@@ -114,16 +179,21 @@
 
   <h2>8) Автотесты</h2>
   <div class="note">
-    Feature‑тесты покрывают: контроль доступа, работу total endpoints, columns-settings, Select2 search.
+    Feature‑тесты покрывают: контроль доступа (<code>reports.view</code> → 403 без права; smoke 200 при наличии прав),
+    работу <code>…/total</code>, columns-settings, Select2 search, фильтр по локации (§2.1).
   </div>
   <ul>
-    <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code>)</li>
-    <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code>)</li>
-    <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code></li>
+    <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code> — фильтр <code>filter_location_id</code> и доступ (monthly, LTV, debts): smoke всех эндпоинтов, <code>none</code>, игнор без <code>locations.view</code>, различие <code>payments.location_id</code> / <code>users.location_id</code></li>
+    <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code> и фильтр локации)</li>
+    <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code> и фильтр локации)</li>
+    <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code> (включая фильтр локации)</li>
+    <li><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> — отчёт «Платежи»: колонка и фильтр</li>
+    <li><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> — запись <code>payments.location_id</code> при оплате</li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsReportTest.php</code></li>
     <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code></li>
   </ul>
-  <pre><code>php artisan test --env=testing --filter "(DeptReportTest|LtvReportTest|PaymentMonthlyReportTest|PaymentIntentsReportTest|FiscalReceiptsReportTest)"</code></pre>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php
+php artisan test --env=testing --filter "(DeptReportTest|LtvReportTest|PaymentMonthlyReportTest|PaymentReportLocationFeatureTest|PaymentLedgerLocationTest)"</code></pre>
 </div>
 </body>
 </html>

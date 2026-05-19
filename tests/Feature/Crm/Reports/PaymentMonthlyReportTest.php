@@ -2,11 +2,24 @@
 
 namespace Tests\Feature\Crm\Reports;
 
+use App\Models\Location;
 use App\Models\Payment;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 class PaymentMonthlyReportTest extends CrmTestCase
 {
+    private function grantPermission(string $permissionName): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->user->role_id,
+            'permission_id' => $this->permissionId($permissionName),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
     /**
      * [P0] Контроль доступа по праву can:reports.view (страница, data, total).
      */
@@ -57,6 +70,67 @@ class PaymentMonthlyReportTest extends CrmTestCase
             ->assertJson([
                 'total_formatted' => $expectedFormatted,
                 'total_raw' => $expectedRaw,
+            ]);
+    }
+
+    public function test_payment_monthly_page_shows_location_filter_with_locations_view(): void
+    {
+        $this->asAdmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Филиал М',
+            'is_enabled' => true,
+        ]);
+
+        $this->get(route('reports.payments.monthly'))
+            ->assertOk()
+            ->assertSee('pay-monthly-filter-location', false);
+    }
+
+    public function test_payment_monthly_total_respects_filter_location_id(): void
+    {
+        $this->asAdmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+        $this->grantPermission('locations.view');
+
+        $locA = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+        $locB = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $locB->id,
+        ]);
+
+        Payment::factory()->forUser($student)->create([
+            'location_id' => $locA->id,
+            'summ' => 1500,
+            'payment_month' => '2025-03-01',
+        ]);
+        Payment::factory()->forUser($student)->create([
+            'location_id' => $locB->id,
+            'summ' => 2500,
+            'payment_month' => '2025-03-01',
+        ]);
+
+        $this->get(route('reports.payments.monthly.total', ['filter_location_id' => $locA->id]))
+            ->assertOk()
+            ->assertJson([
+                'total_raw' => 1500.0,
+            ]);
+
+        $this->get(route('reports.payments.monthly.total', ['filter_location_id' => $locB->id]))
+            ->assertOk()
+            ->assertJson([
+                'total_raw' => 2500.0,
             ]);
     }
 }
