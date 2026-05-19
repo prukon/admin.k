@@ -3,27 +3,27 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\SchoolLeadStatus;
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\UpdateSchoolLeadRequest;
 use App\Models\Location;
+use App\Models\Role;
 use App\Models\SchoolLead;
-use App\Services\PartnerContext;
+use App\Models\Team;
+use App\Models\UserField;
+use App\Services\SchoolLeads\LatestUserContractLookup;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
-class SchoolLeadController extends Controller
+class SchoolLeadController extends AdminBaseController
 {
-    public function __construct(
-        private readonly PartnerContext $partnerContext,
-    ) {
-    }
-
     public function index(): View
     {
         $partnerId = $this->requirePartnerContext();
         $canViewLocations = Auth::user()?->can('locations.view') ?? false;
+        $canCreateUserFromLead = Auth::user()?->can('users.view') ?? false;
+        $canViewContracts      = Auth::user()?->can('contracts.view') ?? false;
 
         $activeLocations = collect();
         if ($canViewLocations) {
@@ -36,17 +36,44 @@ class SchoolLeadController extends Controller
 
         $stats = $this->buildPartnerLeadStats($partnerId);
 
-        return view('admin.school-leads', [
-            'canViewLocations' => $canViewLocations,
-            'activeLocations'  => $activeLocations,
-            'leadStats'        => $stats,
-        ]);
+        $viewData = [
+            'canViewLocations'        => $canViewLocations,
+            'canCreateUserFromLead'   => $canCreateUserFromLead,
+            'canViewContracts'        => $canViewContracts,
+            'activeLocations'         => $activeLocations,
+            'leadStats'               => $stats,
+        ];
+
+        if ($canCreateUserFromLead) {
+            $isSuperadmin = $this->isSuperAdmin();
+
+            $rolesQuery = Role::query();
+            if (!$isSuperadmin) {
+                $rolesQuery->where('is_visible', 1);
+            }
+            $rolesQuery->where(function ($q) use ($partnerId) {
+                $q->where('is_sistem', 1)
+                    ->orWhereHas('partners', function ($q2) use ($partnerId) {
+                        $q2->where('partner_role.partner_id', $partnerId);
+                    });
+            });
+
+            $viewData['roles'] = $rolesQuery->orderBy('order_by')->get();
+            $viewData['allTeams'] = Team::query()
+                ->where('partner_id', $partnerId)
+                ->orderBy('order_by')
+                ->get();
+            $viewData['userFieldsPayload'] = $this->buildUserFieldsPayloadForCurrentPartner();
+        }
+
+        return view('admin.school-leads', $viewData);
     }
 
     public function dataTable(Request $request): JsonResponse
     {
         $partnerId = $this->requirePartnerContext();
         $canViewLocations = Auth::user()?->can('locations.view') ?? false;
+        $canViewContracts = Auth::user()?->can('contracts.view') ?? false;
 
         $baseQuery = SchoolLead::query()
             ->where('school_leads.partner_id', $partnerId)
@@ -134,12 +161,30 @@ class SchoolLeadController extends Controller
 
         $data = $query->skip($start)->take($length)->get();
 
+        $latestContractsByUser = collect();
+        if ($canViewContracts) {
+            $userIds = $data->pluck('user_id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $latestContractsByUser = app(LatestUserContractLookup::class)
+                ->forUserIds($partnerId, $userIds);
+        }
+
+        $contractLookup = app(LatestUserContractLookup::class);
+
         return response()->json([
             'draw'            => (int) $request->input('draw'),
             'recordsTotal'    => $recordsTotal,
             'recordsFiltered' => $recordsFiltered,
             'stats'           => $this->buildPartnerLeadStats($partnerId),
-            'data'            => $data->map(function (SchoolLead $item) use ($canViewLocations) {
+            'data'            => $data->map(function (SchoolLead $item) use (
+                $canViewLocations,
+                $canViewContracts,
+                $latestContractsByUser,
+                $contractLookup
+            ) {
                 $utmParts = array_filter([
                     $item->utm_source ? 'source: ' . $item->utm_source : null,
                     $item->utm_medium ? 'medium: ' . $item->utm_medium : null,
@@ -150,6 +195,7 @@ class SchoolLeadController extends Controller
                     'id'           => $item->id,
                     'name'         => $item->name,
                     'phone'        => $item->phone,
+                    'user_id'      => $item->user_id,
                     'status'       => $item->status?->value,
                     'status_label' => $item->status
                         ? SchoolLeadStatus::label($item->status->value)
@@ -164,6 +210,22 @@ class SchoolLeadController extends Controller
                 if ($canViewLocations) {
                     $row['location_id']   = $item->location_id;
                     $row['location_name'] = $item->location_name ?? null;
+                }
+
+                if ($canViewContracts && $item->user_id) {
+                    $contract = $latestContractsByUser->get((int) $item->user_id);
+
+                    if ($contract) {
+                        $row['latest_contract'] = [
+                            'id'    => $contract->id,
+                            'label' => $contractLookup->formatActionLabel($contract),
+                            'url'   => route('contracts.show', $contract->id),
+                        ];
+                    } else {
+                        $row['create_contract_url'] = route('contracts.create', [
+                            'user_id' => $item->user_id,
+                        ]);
+                    }
                 }
 
                 return $row;
@@ -225,6 +287,40 @@ class SchoolLeadController extends Controller
     }
 
     /**
+     * @return array<int, array{id:int,name:string,slug:string,field_type:string,roles:array<int,int>,editable:bool}>
+     */
+    private function buildUserFieldsPayloadForCurrentPartner(): array
+    {
+        $partnerId = $this->partnerId();
+        $currentUser = $this->currentUser();
+        $isSuperadmin = $this->isSuperAdmin();
+
+        $fieldsQuery = UserField::with('roles')
+            ->where('partner_id', $partnerId);
+
+        if (!$isSuperadmin && $currentUser?->role_id) {
+            $fieldsQuery->whereHas('roles', fn ($q) =>
+                $q->where('role_id', $currentUser->role_id)
+            );
+        }
+
+        $fields = $fieldsQuery->get();
+
+        return $fields->map(function (UserField $f) use ($currentUser, $isSuperadmin) {
+            $allowedRoles = $f->roles->pluck('id')->map(fn ($i) => (int) $i);
+
+            return [
+                'id'         => $f->id,
+                'name'       => $f->name,
+                'slug'       => $f->slug,
+                'field_type' => $f->field_type,
+                'roles'      => $allowedRoles->all(),
+                'editable'   => $isSuperadmin || $allowedRoles->contains($currentUser?->role_id),
+            ];
+        })->all();
+    }
+
+    /**
      * @return array{total: int, new: int, processing: int}
      */
     private function buildPartnerLeadStats(int $partnerId): array
@@ -252,7 +348,7 @@ class SchoolLeadController extends Controller
 
     private function requirePartnerContext(): int
     {
-        $partnerId = $this->partnerContext->partnerId();
+        $partnerId = $this->partnerId();
 
         if (!$partnerId) {
             abort(403, 'Партнёр не выбран.');

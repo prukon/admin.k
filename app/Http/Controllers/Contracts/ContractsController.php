@@ -45,12 +45,40 @@ class ContractsController extends Controller
         return view('contracts.index', compact('allTeams'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $partner = $this->partner();
         $partnerId = $partner->id;
 
-        return view('contracts.create', compact('partner', 'partnerId'));
+        $preselectedUser = null;
+        $userId = $request->integer('user_id');
+
+        if ($userId > 0) {
+            $preselectedUser = User::query()
+                ->where('id', $userId)
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', 1)
+                ->first(['id', 'name', 'lastname', 'team_id']);
+        }
+
+        if ($preselectedUser) {
+            $teamTitle = null;
+            if ($preselectedUser->team_id) {
+                $teamTitle = Team::query()
+                    ->where('id', $preselectedUser->team_id)
+                    ->where('partner_id', $partnerId)
+                    ->value('title');
+            }
+
+            $preselectedUser = [
+                'id'         => $preselectedUser->id,
+                'text'       => trim(($preselectedUser->lastname ?? '') . ' ' . ($preselectedUser->name ?? '')),
+                'team_id'    => $preselectedUser->team_id,
+                'team_title' => $teamTitle,
+            ];
+        }
+
+        return view('contracts.create', compact('partner', 'partnerId', 'preselectedUser'));
     }
 
     public function store(ContractStoreRequest $request)

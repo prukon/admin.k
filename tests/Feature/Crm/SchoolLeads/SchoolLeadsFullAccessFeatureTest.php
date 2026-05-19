@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\SchoolLeads;
 
 use App\Models\Location;
+use App\Models\Role;
 use App\Models\SchoolLead;
 use App\Models\User;
 use App\Services\PartnerWidgetService;
@@ -12,6 +13,7 @@ use Tests\Feature\Crm\CrmTestCase;
 
 /**
  * Контроль доступа: страница и все endpoint'ы раздела «Заявки с сайта» отдают 200 при наличии schoolLeads.view.
+ * Связанные сценарии (создание клиента из лида, переход к договору) — при users.view / contracts.view.
  */
 final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
 {
@@ -43,13 +45,33 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
 
     private function grantLocationsView(User $actor): void
     {
+        $this->grantPermission($actor, 'locations.view');
+    }
+
+    private function grantUsersView(User $actor): void
+    {
+        $this->grantPermission($actor, 'users.view');
+    }
+
+    private function grantContractsView(User $actor): void
+    {
+        $this->grantPermission($actor, 'contracts.view');
+    }
+
+    private function grantPermission(User $actor, string $permissionName): void
+    {
         DB::table('permission_role')->insertOrIgnore([
             'partner_id'    => $this->partner->id,
             'role_id'       => $actor->role_id,
-            'permission_id' => $this->permissionId('locations.view'),
+            'permission_id' => $this->permissionId($permissionName),
             'created_at'    => now(),
             'updated_at'    => now(),
         ]);
+    }
+
+    private function defaultRoleId(): int
+    {
+        return (int) Role::query()->where('is_visible', 1)->orderBy('order_by')->value('id');
     }
 
     private function actingAsSchoolLeadsViewer(bool $withLocationsView = false): User
@@ -254,6 +276,162 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
         }
     }
 
+    public function test_admin_school_leads_page_and_client_contract_workflows_return_200(): void
+    {
+        $this->asAdmin();
+
+        $leadForUser = SchoolLead::create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Лид для клиента',
+            'phone'      => '+7 900 801-01-01',
+            'status'     => 'new',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->defaultRoleId(),
+            'is_enabled' => 1,
+            'name'       => 'Ученик',
+            'lastname'   => 'Договорный',
+        ]);
+
+        SchoolLead::create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Лид с договором',
+            'phone'      => '+7 900 802-02-02',
+            'status'     => 'processing',
+            'user_id'    => $student->id,
+        ]);
+
+        $this->get(route('admin.school-leads'))
+            ->assertOk()
+            ->assertSee('id="slColContract"', false)
+            ->assertSee('create-user-from-lead', false)
+            ->assertSee('Создать договор', false);
+
+        foreach ($this->workflowRoutesPayload($leadForUser, $student) as $item) {
+            $response = $this->call(
+                $item['method'],
+                $item['url'],
+                $item['data'] ?? [],
+                [],
+                [],
+                $item['headers'] ?? ['HTTP_ACCEPT' => 'application/json']
+            );
+
+            $this->assertSame(
+                200,
+                $response->getStatusCode(),
+                "Админ workflow: {$item['method']} {$item['url']} → {$response->getStatusCode()}"
+            );
+        }
+    }
+
+    public function test_viewer_with_school_leads_users_and_contracts_permissions_all_return_200(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeads.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantSchoolLeadsView($actor);
+        $this->grantUsersView($actor);
+        $this->grantContractsView($actor);
+
+        $lead = SchoolLead::create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Полный доступ лид',
+            'phone'      => '+7 900 803-03-03',
+            'status'     => 'new',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->defaultRoleId(),
+            'is_enabled' => 1,
+        ]);
+
+        $this->get(route('admin.school-leads'))->assertOk();
+
+        foreach ($this->authorizedRoutesPayload() as $item) {
+            $this->call(
+                $item['method'],
+                $item['url'],
+                $item['data'] ?? [],
+                [],
+                [],
+                $item['headers'] ?? ['HTTP_ACCEPT' => 'application/json']
+            )->assertOk();
+        }
+
+        $this->postJson(route('admin.user.store'), [
+            'name'           => 'Полный',
+            'lastname'       => 'Доступ',
+            'role_id'        => $this->defaultRoleId(),
+            'is_enabled'     => 1,
+            'school_lead_id' => $lead->id,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])->assertOk();
+
+        $this->get(route('contracts.create', ['user_id' => $student->id]))->assertOk();
+    }
+
+    public function test_viewer_with_users_view_but_without_contracts_view_datatable_omits_contract_fields(): void
+    {
+        $actor = $this->actingAsSchoolLeadsViewer(withLocationsView: false);
+        $this->grantUsersView($actor);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->defaultRoleId(),
+        ]);
+
+        SchoolLead::create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Без contracts.view',
+            'phone'      => '+7 900 804-04-04',
+            'status'     => 'new',
+            'user_id'    => $user->id,
+        ]);
+
+        $this->get(route('admin.school-leads'))
+            ->assertOk()
+            ->assertSee('id="slColContract"', false);
+
+        $row = collect($this->getJson(route('admin.school-leads.data', [
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 10,
+        ]))->json('data'))->firstWhere('name', 'Без contracts.view');
+
+        $this->assertNotNull($row);
+        $this->assertArrayNotHasKey('latest_contract', $row);
+        $this->assertArrayNotHasKey('create_contract_url', $row);
+    }
+
+    public function test_viewer_without_users_view_cannot_store_user_from_lead(): void
+    {
+        $actor = $this->actingAsSchoolLeadsViewer(withLocationsView: false);
+
+        $lead = SchoolLead::create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Запрет store',
+            'phone'      => '+7 900 805-05-05',
+            'status'     => 'new',
+        ]);
+
+        $this->get(route('admin.school-leads'))->assertOk();
+
+        $this->postJson(route('admin.user.store'), [
+            'name'           => 'Запрет',
+            'lastname'       => 'Store',
+            'role_id'        => $this->defaultRoleId(),
+            'is_enabled'     => 1,
+            'school_lead_id' => $lead->id,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])->assertForbidden();
+    }
+
     public function test_foreign_partner_lead_endpoints_return_not_found(): void
     {
         $this->asAdmin();
@@ -335,6 +513,45 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             [
                 'method' => 'DELETE',
                 'url'    => route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]),
+            ],
+        ];
+    }
+
+    /**
+     * @return list<array{method: string, url: string, data?: array<string, mixed>, headers?: array<string, string>}>
+     */
+    private function workflowRoutesPayload(
+        SchoolLead $leadForUser,
+        User $student,
+    ): array {
+        return [
+            [
+                'method'  => 'POST',
+                'url'     => route('admin.user.store'),
+                'data'    => [
+                    'name'           => 'Лид для клиента',
+                    'lastname'       => 'Создан',
+                    'role_id'        => $this->defaultRoleId(),
+                    'is_enabled'     => 1,
+                    'school_lead_id' => $leadForUser->id,
+                ],
+                'headers' => [
+                    'HTTP_ACCEPT'          => 'application/json',
+                    'X-Requested-With'     => 'XMLHttpRequest',
+                ],
+            ],
+            [
+                'method'  => 'GET',
+                'url'     => route('contracts.create', ['user_id' => $student->id]),
+                'headers' => ['HTTP_ACCEPT' => 'text/html'],
+            ],
+            [
+                'method' => 'GET',
+                'url'    => route('admin.school-leads.data', [
+                    'draw'   => 1,
+                    'start'  => 0,
+                    'length' => 20,
+                ]),
             ],
         ];
     }

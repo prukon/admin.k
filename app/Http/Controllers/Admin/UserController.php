@@ -8,6 +8,7 @@ use App\Http\Requests\User\StoreRequest;
 use App\Http\Requests\User\UpdatePasswordRequest;
 use App\Models\Location;
 use App\Models\Role;
+use App\Models\SchoolLead;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\PartnerContext;
@@ -334,6 +335,11 @@ class UserController extends AdminBaseController
         $customInput = $validatedData['custom'] ?? [];
         unset($validatedData['custom']);
 
+        $schoolLeadId = isset($validatedData['school_lead_id'])
+            ? (int) $validatedData['school_lead_id']
+            : null;
+        unset($validatedData['school_lead_id']);
+
         $isEnabled  = $request->boolean('is_enabled');          // чекбокс может не прийти — приводим к bool
         $teamId     = $validatedData['team_id'] ?? null;        // поле опционально — может отсутствовать
         $locationId = $validatedData['location_id'] ?? null;
@@ -364,11 +370,20 @@ class UserController extends AdminBaseController
             $teamId,
             $locationId,
             $partnerId,
+            $schoolLeadId,
             $customInput,
             $editableSlugSet
         ) {
             // Создаём пользователя через доменный сервис
             $user = $this->service->store($data);
+
+            if ($schoolLeadId) {
+                SchoolLead::query()
+                    ->where('id', $schoolLeadId)
+                    ->where('partner_id', $partnerId)
+                    ->whereNull('user_id')
+                    ->update(['user_id' => $user->id]);
+            }
 
             if (is_array($customInput) && $customInput !== []) {
                 foreach ($customInput as $slug => $newValue) {

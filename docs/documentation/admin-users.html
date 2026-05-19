@@ -211,6 +211,18 @@
   </table>
   <p class="small"><code>custom</code> не передаётся в <code>User::create</code> — извлекается до <code>UserService::store()</code>.</p>
 
+  <h3>Создание из заявки с сайта (<code>school_lead_id</code>)</h3>
+  <div class="note">
+    На странице <a href="/docs/documentation/school-leads-widget">«Заявки с сайта»</a> (<code>/admin/school-leads</code>) при <code>schoolLeads.view</code> + <code>users.view</code>
+    в колонке «Договор» открывается та же модалка <code>createUser.blade.php</code> с предзаполнением имени, телефона и локации из лида
+    и скрытым полем <code>school_lead_id</code>.
+  </div>
+  <ul>
+    <li>Опциональное поле <code>school_lead_id</code> в <code>StoreRequest</code>: заявка текущего партнёра, не удалена, <code>school_leads.user_id</code> ещё <code>null</code>.</li>
+    <li>После успешного <code>store</code> в <code>UserController</code>: <code>school_leads.user_id</code> = id нового ученика (в той же транзакции, что создание пользователя).</li>
+    <li>Отдельного маршрута у заявок для создания клиента нет — только <code>POST /admin/users</code> с middleware <code>can:users.view</code>.</li>
+  </ul>
+
   <h2>5) Редактирование (<code>PATCH /admin/users/{user}</code>)</h2>
   <div class="note">
     Валидация: <code>UpdateRequest</code>. Поля с отдельными правами: имя (<code>users.name.update</code>), группа (<code>users.group.update</code>),

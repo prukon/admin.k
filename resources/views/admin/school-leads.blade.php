@@ -3,6 +3,9 @@
 @section('content')
     @php
         $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
+        $canCreateUserFromLead = $canCreateUserFromLead ?? (auth()->user() && auth()->user()->can('users.view'));
+        $canViewContracts = $canViewContracts ?? (auth()->user() && auth()->user()->can('contracts.view'));
+        $canShowLeadClientColumn = $canViewContracts || $canCreateUserFromLead;
         $leadStats = $leadStats ?? ['total' => 0, 'new' => 0, 'processing' => 0];
         $leadsHasActiveFilters = false;
     @endphp
@@ -109,6 +112,12 @@
                                         <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="comment" id="slColComment" checked>
                                         <label class="form-check-label" for="slColComment">Комментарий</label>
                                     </div>
+                                    @if ($canShowLeadClientColumn)
+                                    <div class="form-check">
+                                        <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="contract" id="slColContract" checked>
+                                        <label class="form-check-label" for="slColContract">Договор</label>
+                                    </div>
+                                    @endif
                                     <div class="form-check">
                                         <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="actions" id="slColActions" checked>
                                         <label class="form-check-label" for="slColActions">Действия</label>
@@ -184,6 +193,9 @@
                     <th>Страница</th>
                     <th>Статус</th>
                     <th>Комментарий</th>
+                    @if ($canShowLeadClientColumn)
+                    <th style="min-width: 200px;">Договор</th>
+                    @endif
                     <th style="width: 120px;">Действия</th>
                 </tr>
             </thead>
@@ -259,6 +271,10 @@
         </div>
     </div>
 
+    @if ($canCreateUserFromLead)
+        @include('includes.modal.createUser')
+    @endif
+
     <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
         <div id="mainToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="d-flex">
@@ -274,6 +290,9 @@
         $(document).ready(function() {
             var csrfToken = $('meta[name="csrf-token"]').attr('content');
             var canViewLocations = @json($canViewLocations);
+            var canCreateUserFromLead = @json($canCreateUserFromLead);
+            var canViewContracts = @json($canViewContracts);
+            var canShowLeadClientColumn = @json($canShowLeadClientColumn);
 
             var $filtersForm = $('#school-leads-filters');
             var $statNew = $('.school-leads-stat-new');
@@ -401,16 +420,28 @@
                 page_url: true,
                 status: true,
                 comment: true,
+                contract: canShowLeadClientColumn,
                 actions: true
             };
 
             var currentColumnsConfig = Object.assign({}, defaultColumnsVisibility);
 
-            var columnsMap = canViewLocations ? {
-                name: 1, phone: 2, location: 3, utm: 4, page_url: 5, status: 6, comment: 7, actions: 8
-            } : {
-                name: 1, phone: 2, utm: 3, page_url: 4, status: 5, comment: 6, actions: 7
-            };
+            var columnsMap = (function buildSchoolLeadsColumnsMap() {
+                var map = { name: 1, phone: 2 };
+                var idx = 3;
+                if (canViewLocations) {
+                    map.location = idx++;
+                }
+                map.utm = idx++;
+                map.page_url = idx++;
+                map.status = idx++;
+                map.comment = idx++;
+                if (canShowLeadClientColumn) {
+                    map.contract = idx++;
+                }
+                map.actions = idx;
+                return map;
+            })();
 
             function toBool(val, fallback) {
                 fallback = fallback !== undefined ? fallback : true;
@@ -433,6 +464,10 @@
                         column.visible(false);
                         return;
                     }
+                    if (key === 'contract' && !canShowLeadClientColumn) {
+                        column.visible(false);
+                        return;
+                    }
                     var isVisible = toBool(config[key], defaultColumnsVisibility[key]);
                     column.visible(isVisible);
                     $('.school-leads-column-toggle[data-column-key="' + key + '"]').prop('checked', isVisible);
@@ -448,6 +483,10 @@
                         var merged = {};
                         Object.keys(defaultColumnsVisibility).forEach(function(key) {
                             if (key === 'location' && !canViewLocations) {
+                                merged[key] = false;
+                                return;
+                            }
+                            if (key === 'contract' && !canShowLeadClientColumn) {
                                 merged[key] = false;
                                 return;
                             }
@@ -519,18 +558,48 @@
                     data: 'comment',
                     name: 'comment',
                     render: function(data) { return data ? $('<div/>').text(data).html() : ''; }
-                },
-                {
+                }
+            );
+
+            if (canShowLeadClientColumn) {
+                dataTableColumns.push({
                     data: null,
+                    name: 'contract',
                     orderable: false,
                     searchable: false,
                     render: function(data, type, row) {
-                        return '' +
-                            '<button type="button" class="btn btn-sm btn-primary me-1 edit-lead" data-id="' + row.id + '"><i class="fa fa-edit"></i></button>' +
-                            '<button type="button" class="btn btn-sm btn-danger delete-lead" data-id="' + row.id + '"><i class="fa fa-trash"></i></button>';
+                        if (!row.user_id) {
+                            if (canCreateUserFromLead) {
+                                return '<button type="button" class="btn btn-sm btn-primary text-nowrap create-user-from-lead" data-id="' + row.id + '">Создать клиента</button>';
+                            }
+                            return '—';
+                        }
+                        if (!canViewContracts) {
+                            return '—';
+                        }
+                        if (row.latest_contract && row.latest_contract.url) {
+                            var contractLabel = row.latest_contract.label || ('Договор №' + row.latest_contract.id);
+                            var contractLabelEscaped = $('<div/>').text(contractLabel).html();
+                            return '<a href="' + row.latest_contract.url + '" class="text-nowrap">' + contractLabelEscaped + '</a>';
+                        }
+                        if (row.create_contract_url) {
+                            return '<a href="' + row.create_contract_url + '" class="btn btn-sm btn-primary text-nowrap">Создать договор</a>';
+                        }
+                        return '—';
                     }
+                });
+            }
+
+            dataTableColumns.push({
+                data: null,
+                orderable: false,
+                searchable: false,
+                render: function(data, type, row) {
+                    return '' +
+                        '<button type="button" class="btn btn-sm btn-primary me-1 edit-lead" data-id="' + row.id + '" title="Редактировать"><i class="fa fa-edit"></i></button>' +
+                        '<button type="button" class="btn btn-sm btn-danger delete-lead" data-id="' + row.id + '" title="Удалить"><i class="fa fa-trash"></i></button>';
                 }
-            );
+            });
 
             var table = $('#leads-table').DataTable({
                 processing: true,
@@ -718,6 +787,70 @@
                     }
                 });
             });
+
+            if (canCreateUserFromLead) {
+                var createUserModalEl = document.getElementById('createUserModal');
+                var createUserModal = createUserModalEl ? new bootstrap.Modal(createUserModalEl) : null;
+                var $createUserForm = $('#create-user-form');
+
+                function resetCreateUserFormErrors() {
+                    $createUserForm.find('.is-invalid').removeClass('is-invalid');
+                    $createUserForm.find('.invalid-feedback').remove();
+                }
+
+                function resetCreateUserFormFields() {
+                    if (!$createUserForm.length) {
+                        return;
+                    }
+                    $createUserForm[0].reset();
+                    $('#create-school-lead-id').val('');
+                    $createUserForm.removeData('success-handler');
+                    resetCreateUserFormErrors();
+                }
+
+                $('#leads-table').on('click', '.create-user-from-lead', function() {
+                    var rowData = table.row($(this).closest('tr')).data();
+                    if (!rowData || rowData.user_id) {
+                        return;
+                    }
+
+                    resetCreateUserFormFields();
+
+                    $('#create-name').val(rowData.name || '');
+                    $('#create-lastname').val('');
+                    $('#create-school-lead-id').val(rowData.id);
+
+                    var $phone = $('#create-phone');
+                    if ($phone.length && !$phone.prop('disabled')) {
+                        $phone.val(rowData.phone || '');
+                        if ($phone.inputmask) {
+                            $phone.trigger('input');
+                        }
+                    }
+
+                    if (canViewLocations) {
+                        $('#create-location').val(rowData.location_id || '');
+                    }
+
+                    $createUserForm.data('success-handler', 'school-leads-table');
+
+                    if (createUserModal) {
+                        createUserModal.show();
+                    }
+                });
+
+                if (createUserModalEl) {
+                    createUserModalEl.addEventListener('hidden.bs.modal', function() {
+                        resetCreateUserFormFields();
+                    });
+                }
+
+                window.onSchoolLeadUserCreated = function(response) {
+                    resetCreateUserFormFields();
+                    table.ajax.reload(null, false);
+                    showToast(response.message || 'Клиент создан.', 'success');
+                };
+            }
         });
     </script>
 @endsection

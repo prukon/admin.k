@@ -29,7 +29,7 @@ class DocumentationController extends Controller
         'admin-teams'                 => 'Группы (админка): /admin/teams, groups.view и schedule.view (колонка «Расписание», дни в модалках)',
         'admin-users'                 => 'Пользователи (админка): /admin/users, локация ученика (locations.view), доп. поля',
         'contracts'                   => 'Договоры (клиентские): скачивание в интерфейсе (CRM и «Мои документы»)',
-        'school-leads-widget'         => 'Заявки с сайта: виджет iframe, school_leads, toolbar/фильтры/локации, Telegram',
+        'school-leads-widget'         => 'Заявки с сайта: виджет, CRM, лид→клиент→договор, toolbar, Telegram',
     ];
 
     /**

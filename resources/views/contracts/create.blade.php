@@ -495,6 +495,28 @@
                 $('#group_id_select').empty().append(new Option('—', '', true, true));
                 $('#group_id_hidden').val('');
             });
+
+            @if (!empty($preselectedUser))
+            (function applyPreselectedStudent() {
+                const pre = @json($preselectedUser);
+                const $userSelect = $('#user_id');
+                const $g = $('#group_id_select');
+                const $h = $('#group_id_hidden');
+
+                $userSelect.append(new Option(pre.text, pre.id, true, true));
+                $userSelect.val(String(pre.id)).trigger('change');
+
+                $g.empty();
+                $h.val('');
+
+                if (pre.team_id && pre.team_title) {
+                    $g.append(new Option(pre.team_title, pre.team_id, true, true));
+                    $h.val(pre.team_id);
+                } else {
+                    $g.append(new Option('— группы нет —', '', true, true));
+                }
+            })();
+            @endif
         });
 
 

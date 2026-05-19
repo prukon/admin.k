@@ -59,6 +59,10 @@ class User extends Authenticatable
         return $this->belongsTo(Location::class, 'location_id');
     }
 
+    public function schoolLead()
+    {
+        return $this->hasOne(SchoolLead::class);
+    }
 
     public function payments()
     {

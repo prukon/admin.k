@@ -39,6 +39,18 @@
     <li>Если статус <code>signed</code>, а файл подписанного PDF в хранилище отсутствует или путь в БД не совпадает с диском, скачивание вернёт ошибку (см. обработку в контроллерах скачивания).</li>
     <li>Файлы хранятся под корнем диска <code>local</code>: <code>storage/app/</code> + относительный путь из <code>source_pdf_path</code> / <code>signed_pdf_path</code>.</li>
   </ul>
+
+  <h2>Создание договора из заявки с сайта</h2>
+  <div class="note">
+    Полный сценарий (лид → ученик → договор) описан в
+    <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5–5.7).
+  </div>
+  <ul>
+    <li>После привязки ученика к заявке в таблице заявок ссылка «Создать договор» ведёт на <code>GET /client-contracts/create?user_id={id}</code> (право <code>contracts.view</code>).</li>
+    <li>Ученик предвыбирается на форме создания (<code>ContractsController@create</code>, <code>preselectedUser</code>).</li>
+    <li>Списание с баланса партнёра — только при <code>POST /client-contracts</code> (загрузка PDF), не при переходе со страницы заявок.</li>
+    <li>В таблице заявок отображается последний договор ученика по <code>created_at</code>; отдельного поля «договор заявки» в <code>contracts</code> нет.</li>
+  </ul>
 </div>
 </body>
 </html>

@@ -43,6 +43,10 @@ class StoreRequest extends FormRequest
         } else {
             $this->offsetUnset('location_id');
         }
+
+        if ($this->has('school_lead_id') && $this->input('school_lead_id') === '') {
+            $this->merge(['school_lead_id' => null]);
+        }
     }
 
     public function rules(): array
@@ -65,6 +69,18 @@ class StoreRequest extends FormRequest
             'custom'               => 'nullable|array',
             'custom.*'             => 'nullable|string|max:255',
         ];
+
+        if ($partnerId) {
+            $rules['school_lead_id'] = [
+                'nullable',
+                'integer',
+                Rule::exists('school_leads', 'id')->where(function ($query) use ($partnerId) {
+                    $query->where('partner_id', $partnerId)
+                        ->whereNull('user_id')
+                        ->whereNull('deleted_at');
+                }),
+            ];
+        }
 
         if ($this->user() ?->can('users.phone.update')) {
             $rules['phone'] = ['sometimes', 'nullable', 'regex:/^\+7\d{10}$/'];
@@ -96,8 +112,9 @@ class StoreRequest extends FormRequest
             'team_id'      => 'Группа',
             'location_id'  => 'Локация',
             'is_enabled' => 'Активность',
-            'role_id'    => 'Роль',
-            'phone'      => 'Телефон',
+            'role_id'        => 'Роль',
+            'phone'          => 'Телефон',
+            'school_lead_id' => 'Заявка с сайта',
         ];
     }
 
@@ -161,6 +178,9 @@ class StoreRequest extends FormRequest
             'location_id.exists'  => 'Выбранная локация не существует или недоступна.',
 
             'phone.regex'       => 'Поле "Телефон" должно быть российским номером в формате +7XXXXXXXXXX (11 цифр).',
+
+            'school_lead_id.integer' => 'Некорректный идентификатор заявки.',
+            'school_lead_id.exists'  => 'Заявка не найдена, уже привязана к клиенту или недоступна.',
         ];
     }
 

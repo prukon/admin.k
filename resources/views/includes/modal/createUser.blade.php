@@ -9,6 +9,7 @@
             <div class="modal-body">
                 <form id="create-user-form" class="text-start" method="post" action="{{ route('admin.user.store') }}">
                 @csrf
+                <input type="hidden" name="school_lead_id" id="create-school-lead-id" value="">
                 <!-- Поля для ввода данных пользователя -->
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
@@ -195,6 +196,18 @@
                 data: $form.serialize(),
                 headers: { 'Accept': 'application/json' }, // чтобы 422 пришёл JSON'ом
                 success: function (response) {
+                    if ($form.data('success-handler') === 'school-leads-table') {
+                        var modalEl = document.getElementById('createUserModal');
+                        var modalInstance = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
+                        if (typeof window.onSchoolLeadUserCreated === 'function') {
+                            window.onSchoolLeadUserCreated(response);
+                        }
+                        return;
+                    }
+
                     showSuccessModal("Создание пользователя", "Пользователь успешно создан.", 1);
                     window.location.reload();
                 },
