@@ -284,6 +284,7 @@ class SettingPricesController extends AdminBaseController
                 'user_custom_payment.date_start',
                 'user_custom_payment.date_end',
                 DB::raw('ROUND(user_custom_payment.amount) as amount'),
+                'user_custom_payment.note',
                 'user_custom_payment.is_paid',
                 'user_custom_payment.is_manual_paid',
                 'user_custom_payment.manual_paid_note',
@@ -295,7 +296,14 @@ class SettingPricesController extends AdminBaseController
             ->addColumn('period', function ($row) {
                 $start = $row->date_start ? SupportCarbon::parse((string) $row->date_start)->format('Y-m-d') : '';
                 $end = $row->date_end ? SupportCarbon::parse((string) $row->date_end)->format('Y-m-d') : '';
-                return trim($start) . ' — ' . trim($end);
+                if ($start === '' && $end === '') {
+                    return '—';
+                }
+                if ($start !== '' && $end !== '') {
+                    return $start.' — '.$end;
+                }
+
+                return $start !== '' ? $start : $end;
             })
             ->addColumn('status', function ($row) {
                 $paid = (bool) $row->effective_is_paid;
@@ -382,8 +390,8 @@ class SettingPricesController extends AdminBaseController
         $row = UserCustomPayment::create([
             'partner_id' => $partnerId,
             'user_id' => (int) $data['user_id'],
-            'date_start' => $data['date_start'],
-            'date_end' => $data['date_end'],
+            'date_start' => $data['date_start'] ?? null,
+            'date_end' => $data['date_end'] ?? null,
             'amount' => (string) $data['amount'],
             'note' => $data['note'] ?? null,
             'is_paid' => false,

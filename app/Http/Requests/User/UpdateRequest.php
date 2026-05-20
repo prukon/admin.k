@@ -3,6 +3,7 @@
 namespace App\Http\Requests\User;
 
 use App\Models\Location;
+use App\Models\Role;
 use App\Models\Setting;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
@@ -79,6 +80,14 @@ class UpdateRequest extends FormRequest
             $this->offsetUnset('location_id');
         }
 
+        if ($this->has('team_ids')) {
+            $ids = $this->input('team_ids');
+            $ids = is_array($ids) ? $ids : [];
+            $this->merge([
+                'team_ids' => array_values(array_filter(array_map('intval', $ids), fn (int $id) => $id > 0)),
+            ]);
+        }
+
     }
 
     /**
@@ -141,7 +150,30 @@ class UpdateRequest extends FormRequest
             $rules['location_id'] = ['sometimes', 'nullable', 'integer'];
         }
 
+        if ($this->user()->can('trainers.view') && $this->isTrainerRoleEffective()) {
+            $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
+            $rules['team_ids'] = ['nullable', 'array'];
+            $rules['team_ids.*'] = [
+                'integer',
+                Rule::exists('teams', 'id')->where(fn ($q) => $q->where('partner_id', $partnerId)),
+            ];
+        }
+
         return $rules;
+    }
+
+    private function isTrainerRoleEffective(): bool
+    {
+        $targetUser = $this->route('user');
+        $roleId = $this->has('role_id')
+            ? (int) $this->input('role_id')
+            : (int) ($targetUser?->role_id ?? 0);
+
+        if ($roleId <= 0) {
+            return false;
+        }
+
+        return Role::query()->whereKey($roleId)->value('name') === 'trainer';
     }
 
     /**
@@ -259,6 +291,8 @@ class UpdateRequest extends FormRequest
             'phone' => 'Телефон',
             'is_enabled' => 'Активность',
             'role_id' => 'Роль',
+            'team_ids' => 'группы тренера',
+            'team_ids.*' => 'группа',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
         ];
     }
@@ -291,6 +325,8 @@ class UpdateRequest extends FormRequest
             // Группа
             'team_id.integer' => 'Поле "Группа" должно быть числом (ID группы).',
             'team_id.exists' => 'Выбранная группа не существует в базе.',
+
+            'team_ids.*.exists' => 'Выберите группы из списка',
 
             // Локация
             'location_id.integer' => 'Поле "Локация" должно быть числом (ID локации).',

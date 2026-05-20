@@ -3,21 +3,29 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserFieldValue;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
-
-
-
 class UserService
 {
+    public function __construct(
+        private readonly TrainerProfileSyncService $trainerProfileSync,
+        private readonly TeamTrainerSyncService $teamTrainerSync,
+    ) {
+    }
+
     //  - Создание учетной записи юзера
     public function store($data)
     {
-        return User::create($data);
+        $user = User::create($data);
+        $user->load('role');
+        $this->trainerProfileSync->syncForUser($user);
+
+        return $user;
     }
 
 //    обновление данных пользователя
@@ -142,8 +150,9 @@ class UserService
                 Log::warning('Данные custom отсутствуют или не являются массивом.');
             }
 
-            // Исключаем 'custom' из основного массива
-            $userData = array_diff_key($data, ['custom' => '']);
+            // Исключаем 'custom' и группы тренера из основного массива
+            $teamIds = array_key_exists('team_ids', $data) ? (array) $data['team_ids'] : null;
+            $userData = array_diff_key($data, ['custom' => '', 'team_ids' => '']);
 
             /**
              * ✅ role_id -> roles.name (кеш в пределах запроса)
@@ -188,8 +197,30 @@ class UserService
                 Log::error('UserService: failed to enforce admin 2FA policy', ['error' => $e->getMessage()]);
             }
 
+            $effectiveRoleId = (int) ($userData['role_id'] ?? $user->role_id ?? 0);
+            if ($roleNameById($effectiveRoleId) === 'trainer') {
+                unset($userData['team_id']);
+            }
+
             // Обновляем основные поля пользователя
             $user->update($userData);
+            $user->refresh();
+            $user->load('role');
+            $this->trainerProfileSync->syncForUser($user);
+
+            if (
+                $user->role?->name === 'trainer'
+                && $teamIds !== null
+                && $currentUser?->can('trainers.view')
+            ) {
+                $profile = TrainerProfile::query()
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                if ($profile) {
+                    $this->teamTrainerSync->syncTeamsForTrainer($profile, $teamIds);
+                }
+            }
 
             // --- обработка custom полей (оставляем как было) ---
             if (!empty($data['custom']) && is_array($data['custom'])) {

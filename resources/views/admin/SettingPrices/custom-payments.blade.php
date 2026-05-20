@@ -23,6 +23,7 @@
                             <th>Ученик</th>
                             <th>Период</th>
                             <th>Сумма</th>
+                            <th>Комментарий</th>
                             <th>Статус</th>
                             <th>Действия</th>
                         </tr>
@@ -60,12 +61,12 @@
                     <div class="row g-2">
                         <div class="col-12 col-md-6 mb-3">
                             <label class="form-label" for="custom-payment-date-start">Дата начала</label>
-                            <input class="form-control" type="date" id="custom-payment-date-start" name="date_start" required>
+                            <input class="form-control" type="date" id="custom-payment-date-start" name="date_start">
                             <div class="invalid-feedback d-block custom-payment-field-error" data-field="date_start" style="display:none;"></div>
                         </div>
                         <div class="col-12 col-md-6 mb-3">
                             <label class="form-label" for="custom-payment-date-end">Дата окончания</label>
-                            <input class="form-control" type="date" id="custom-payment-date-end" name="date_end" required>
+                            <input class="form-control" type="date" id="custom-payment-date-end" name="date_end">
                             <div class="invalid-feedback d-block custom-payment-field-error" data-field="date_end" style="display:none;"></div>
                         </div>
                     </div>

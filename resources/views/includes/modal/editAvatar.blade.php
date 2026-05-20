@@ -517,11 +517,13 @@
     });
 
     // задержка пропадания меню при ховере
-    function initAvatarHoverMenu() {
-        const avatar = document.querySelector('.avatar');
-        if (!avatar) return; // если аватарки нет на странице — просто выходим
+    function initAvatarHoverMenu(avatar) {
+        if (!avatar || avatar.dataset.hoverMenuInit === '1') return;
 
         const menu = avatar.querySelector('.avatar-actions');
+        if (!menu) return;
+
+        avatar.dataset.hoverMenuInit = '1';
         let hideTimer;
 
         const open = () => {
@@ -534,19 +536,19 @@
 
         avatar.addEventListener('mouseenter', open);
         avatar.addEventListener('mouseleave', () => {
-            hideTimer = setTimeout(close, 200); // задержка скрытия
+            hideTimer = setTimeout(close, 200);
         });
 
-        // На самом меню тоже страхуемся
         menu.addEventListener('mouseenter', open);
         menu.addEventListener('mouseleave', () => {
             hideTimer = setTimeout(close, 200);
         });
     }
 
+    window.initAvatarHoverMenu = initAvatarHoverMenu;
 
     document.addEventListener('DOMContentLoaded', function () {
-        initAvatarHoverMenu();
+        document.querySelectorAll('.avatar').forEach(initAvatarHoverMenu);
     });
 
     //Скрытие "открыть фото" для страниц без смены юзера

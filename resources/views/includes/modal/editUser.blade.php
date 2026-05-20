@@ -96,14 +96,15 @@
                             </div>
                         </div>
 
-                        <!-- Поле "Группа" -->
-                        <div class="col-12 col-md-6">
+                        <!-- Поле "Группа" (ученик / сотрудник) -->
+                        <div class="col-12 col-md-6 js-user-student-team-wrap">
                             <div class="mb-3">
                                 <label for="edit-team" class="form-label">Группа</label>
                                 <select
                                         id="edit-team"
                                         name="team_id"
                                         class="form-select"
+                                        data-team-locked="{{ auth()->user()->can('users.group.update') ? '0' : '1' }}"
                                         @cannot('users.group.update') disabled aria-disabled="true" @endcannot
                                 >
                                     <option value="">Без группы</option>
@@ -119,6 +120,17 @@
                                 @endcannot
                             </div>
                         </div>
+
+                        @can('trainers.view')
+                        <!-- Группы тренера -->
+                        <div class="col-12 col-md-6 js-user-trainer-teams-wrap d-none">
+                            @include('admin.trainers._teams_checkboxes', [
+                                'teamsFieldIdPrefix' => 'edit-user-trainer',
+                                'teamOptions' => $allTeams,
+                                'teamsLabel' => 'Группы тренера',
+                            ])
+                        </div>
+                        @endcan
 
                         @can('locations.view')
                         <!-- Поле "Локация" -->
@@ -138,26 +150,6 @@
                             </div>
                         </div>
                         @endcan
-
-                        <!-- Поле "Дата начала занятий" -->
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="edit-start_date" class="form-label">Дата начала занятий</label>
-                                <input
-                                        type="date"
-                                        id="edit-start_date"
-                                        name="start_date"
-                                        class="form-control"
-                                        @cannot('users.startDate.update') disabled aria-disabled="true" @endcannot
-                                >
-                                @cannot('users.startDate.update')
-                                    <div class="form-text text-muted">
-                                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение даты начала
-                                    </div>
-                                @endcannot
-                            </div>
-                        </div>
-
 
                         {{-- Поле "email" --}}
                         <div class="col-12 col-md-6">
@@ -422,6 +414,57 @@
 
     $(document).ready(function () {
 
+        const hasTrainerTeamsUi = $('.js-user-trainer-teams-wrap').length > 0;
+        let editUserRolesCache = [];
+
+        function trainerRoleIdFromRoles(roles) {
+            const found = (roles || []).find(function (r) {
+                return r.name === 'trainer';
+            });
+            return found ? parseInt(found.id, 10) : null;
+        }
+
+        function setEditUserTrainerTeamIds(teamIds) {
+            const ids = (teamIds || []).map(function (id) {
+                return parseInt(id, 10);
+            });
+            $('#edit-user-form input[name="team_ids[]"]').each(function () {
+                $(this).prop('checked', ids.includes(parseInt($(this).val(), 10)));
+            });
+        }
+
+        function syncEditUserTeamFields(roleId, roles, trainerTeamIds) {
+            const trainerRoleId = trainerRoleIdFromRoles(roles);
+            const isTrainer = trainerRoleId && parseInt(roleId, 10) === trainerRoleId;
+            const $studentWrap = $('.js-user-student-team-wrap');
+            const $teamSelect = $('#edit-team');
+            const $trainerWrap = $('.js-user-trainer-teams-wrap');
+            const teamLocked = String($teamSelect.data('team-locked')) === '1';
+
+            if (isTrainer) {
+                $studentWrap.addClass('d-none');
+                $teamSelect.prop('disabled', true);
+                if (hasTrainerTeamsUi) {
+                    $trainerWrap.removeClass('d-none');
+                    $trainerWrap.find('input[name="team_ids[]"]').prop('disabled', false);
+                    if (trainerTeamIds !== undefined && trainerTeamIds !== null) {
+                        setEditUserTrainerTeamIds(trainerTeamIds);
+                    }
+                }
+            } else {
+                $studentWrap.removeClass('d-none');
+                $teamSelect.prop('disabled', teamLocked);
+                if (hasTrainerTeamsUi) {
+                    $trainerWrap.addClass('d-none');
+                    $trainerWrap.find('input[name="team_ids[]"]').prop('disabled', true).prop('checked', false);
+                }
+            }
+        }
+
+        $(document).on('change', '#edit-user-form #role_id', function () {
+            syncEditUserTeamFields($(this).val(), editUserRolesCache, null);
+        });
+
         function applyPhoneUI(user){
             const $phone    = $('#edit-phone');
             const $iconWrap = $('#phone-verify-icon');
@@ -598,7 +641,6 @@
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-team').val(response.user.team_id);
                         syncEditLocationSelect(response);
-                        $('#edit-user-form #edit-start_date').val(response.user.start_date);
                         $('#edit-user-form #edit-email').val(response.user.email);
                         $('#edit-user-form #edit-phone').val(response.user.phone);
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
@@ -612,6 +654,8 @@
                             );
                         });
                         roleSelect.val(response.user.role_id);
+                        editUserRolesCache = response.roles || [];
+                        syncEditUserTeamFields(response.user.role_id, editUserRolesCache, response.user.trainer_team_ids || []);
 
                         // 3) Устанавливаем action формы
                         $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);
@@ -706,7 +750,6 @@
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-team').val(response.user.team_id);
                         syncEditLocationSelect(response);
-                        $('#edit-user-form #edit-start_date').val(response.user.start_date);
                         $('#edit-user-form #edit-email').val(response.user.email);
                         $('#edit-user-form #edit-phone').val(response.user.phone);
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
@@ -720,6 +763,8 @@
                             );
                         });
                         roleSelect.val(response.user.role_id);
+                        editUserRolesCache = response.roles || [];
+                        syncEditUserTeamFields(response.user.role_id, editUserRolesCache, response.user.trainer_team_ids || []);
 
                         // 3) Устанавливаем action формы (используется в обновлении и смене пароля/удалении)
                         $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);
@@ -825,6 +870,10 @@
                                     if (!$input.length) {
                                         $input = $form.find('#' + field.replace(/\./g, '\\.'));
                                     }
+                                    if (!$input.length && field.split('.')[0] === 'team_ids') {
+                                        $form.find('.js-trainer-teams-checkboxes').addClass('border-danger');
+                                        $input = $form.find('input[name="team_ids[]"]').first();
+                                    }
 
                                     if ($input.length) {
                                         $input.addClass('is-invalid');
@@ -906,6 +955,10 @@
 
             $form.find('.is-invalid').removeClass('is-invalid');
             $form.find('.invalid-feedback').remove();
+            $form.find('.js-trainer-teams-checkboxes').removeClass('border-danger');
+            $('.js-user-trainer-teams-wrap').addClass('d-none');
+            $('.js-user-student-team-wrap').removeClass('d-none');
+            editUserRolesCache = [];
         });
 
 

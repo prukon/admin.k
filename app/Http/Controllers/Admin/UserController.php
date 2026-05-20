@@ -508,7 +508,7 @@ class UserController extends AdminBaseController
         ])->all();
 
         // 4) Загружаем связи user->fields (pivot value) и локацию
-        $user->load(['fields', 'location']);
+        $user->load(['fields', 'location', 'role', 'trainerProfile.teams']);
 
         if (request()->ajax()) {
             // Преобразуем модель в массив
@@ -526,6 +526,16 @@ class UserController extends AdminBaseController
                     'is_enabled' => (bool) $user->location->is_enabled,
                 ]
                 : null;
+
+            $trainerTeamIds = [];
+            if ($user->role?->name === 'trainer' && $user->trainerProfile) {
+                $trainerTeamIds = $user->trainerProfile->teams
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->values()
+                    ->all();
+            }
+            $userArray['trainer_team_ids'] = $trainerTeamIds;
 
             return response()->json([
                 'user' => $userArray,

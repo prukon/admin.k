@@ -112,6 +112,11 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\UserLessonPackage::class, 'user_id');
     }
 
+    public function trainerProfile()
+    {
+        return $this->hasOne(TrainerProfile::class, 'user_id');
+    }
+
     public function hasRole(string $roleName): bool
     {
         return $this->role && $this->role->name === $roleName;

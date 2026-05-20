@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\Team;
+use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\Weekday;
 use App\Services\TeamService;
@@ -38,14 +39,12 @@ class TeamController extends AdminBaseController
      */
     public function index()
     {
-        // ✅ ПРОВЕРКА: без партнёра не даём открыть страницу
-        $this->requirePartnerId();
+        $partnerId = $this->requirePartnerId();
 
-        // как и раньше: подтягиваем дни недели для модалок
         $weekdays = Weekday::all();
+        $trainerOptions = $this->trainerOptionsForPartner($partnerId);
 
-        // allTeams больше не нужен, таблицу грузим через DataTables
-        return view('admin.team', compact('weekdays'));
+        return view('admin.team', compact('weekdays', 'trainerOptions'));
     }
 
     /**
@@ -176,6 +175,10 @@ class TeamController extends AdminBaseController
         $authorId = auth()->id();
         $data     = $request->validated();
 
+        if (! $request->user()->can('trainers.view')) {
+            unset($data['trainer_profile_id']);
+        }
+
         $team = $this->service->storeWithLogging($data, $authorId);
 
         if ($request->ajax()) {
@@ -196,12 +199,13 @@ class TeamController extends AdminBaseController
         // ✅ НОВОЕ: проверка партнёра и ограничение выборки по partner_id
         $partnerId = $this->requirePartnerId();
 
-        $team = Team::with('weekdays')
+        $team = Team::with(['weekdays', 'trainerProfiles.user'])
             ->where('partner_id', $partnerId)
             ->where('id', $id)
             ->firstOrFail();
 
         $weekdays = Weekday::all(); // Получаем все дни недели
+        $trainerProfile = $team->trainerProfiles->first();
 
         return response()->json([
             'id'            => $team->id,
@@ -210,6 +214,7 @@ class TeamController extends AdminBaseController
             'default_duration_minutes' => $team->default_duration_minutes,
             'order_by'      => $team->order_by,
             'is_enabled'    => $team->is_enabled,
+            'trainer_profile_id' => $trainerProfile?->id,
             'team_weekdays' => $team->weekdays, // Дни недели, связанные с командой
             'weekdays'      => $weekdays,       // Все дни недели
         ]);
@@ -231,6 +236,10 @@ class TeamController extends AdminBaseController
 
         if (! $canEditSchedule) {
             unset($data['weekdays']);
+        }
+
+        if (! $request->user()->can('trainers.view')) {
+            unset($data['trainer_profile_id']);
         }
 
         // Попытка загрузить команду по ID и партнёру
@@ -370,6 +379,18 @@ class TeamController extends AdminBaseController
         });
 
         return response()->json(['message' => 'Группа и её связь с пользователями успешно помечены как удалённые']);
+    }
+
+    private function trainerOptionsForPartner(int $partnerId)
+    {
+        return TrainerProfile::query()
+            ->with('user')
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->whereHas('user', fn ($q) => $q->where('is_enabled', true))
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
     }
 
     public function log(FilterRequest $request)

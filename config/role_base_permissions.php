@@ -19,6 +19,14 @@ return [
             'payment.method.tbankCard',
             'payment.method.tbankSBP',
         ],
+        'trainer' => [
+            'dashboard.view',
+            'account.user.view',
+            'account.user.name.update',
+            'account.user.email.update',
+            'account.user.phone.update',
+            'account.partner.view',
+        ],
         'admin' => [
             'dashboard.view',
             'reports.view',
@@ -34,6 +42,7 @@ return [
             'lessonPackages.manualPaid.manage',
             'locations.view',
             'locations.manage',
+            'trainers.view',
             'users.view',
             'groups.view',
             'contracts.view',

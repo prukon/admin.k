@@ -49,4 +49,14 @@ class Team extends Model
     {
         return $this->hasMany(TeamScheduleSlot::class, 'team_id');
     }
+
+    public function trainerProfiles()
+    {
+        return $this->belongsToMany(
+            TrainerProfile::class,
+            'team_trainer',
+            'team_id',
+            'trainer_profile_id',
+        )->withTimestamps()->withPivot('partner_id');
+    }
 }

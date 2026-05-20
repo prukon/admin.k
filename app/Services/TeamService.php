@@ -15,9 +15,10 @@ class TeamService
     /** @var PartnerContext */
     protected PartnerContext $partnerContext; // ✅ НОВОЕ
 
-    // ✅ НОВОЕ: внедряем PartnerContext через DI
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly TeamTrainerSyncService $teamTrainerSync,
+    ) {
         $this->partnerContext = $partnerContext;
     }
 
@@ -37,10 +38,22 @@ class TeamService
         $weekdays = $data['weekdays'] ?? [];
         unset($data['weekdays']);
 
+        $trainerProvided = array_key_exists('trainer_profile_id', $data);
+        $trainerProfileId = $trainerProvided
+            ? ($data['trainer_profile_id'] !== null && $data['trainer_profile_id'] !== ''
+                ? (int) $data['trainer_profile_id']
+                : null)
+            : null;
+        unset($data['trainer_profile_id']);
+
         $team = Team::create($data);
 
         if (!empty($weekdays) && $team->id) {
             $team->weekdays()->sync($weekdays);
+        }
+
+        if ($trainerProvided) {
+            $this->teamTrainerSync->syncTrainerForTeam($team, $trainerProfileId);
         }
 
         return $team; // Возвращаем созданную команду
@@ -52,10 +65,21 @@ class TeamService
         $weekdays = $data['weekdays'] ?? [];
         unset($data['weekdays']);
 
+        $trainerProvided = array_key_exists('trainer_profile_id', $data);
+        $trainerProfileId = $trainerProvided
+            ? ($data['trainer_profile_id'] !== null && $data['trainer_profile_id'] !== ''
+                ? (int) $data['trainer_profile_id']
+                : null)
+            : null;
+        unset($data['trainer_profile_id']);
+
         // Обновляем данные команды, проверяем, что команда действительно сохранена
         if ($team->update($data) && $team->exists && $team->id) {
             if ($weekdaysProvided) {
                 $team->weekdays()->sync($weekdays);
+            }
+            if ($trainerProvided) {
+                $this->teamTrainerSync->syncTrainerForTeam($team, $trainerProfileId);
             }
         } else {
             throw new \Exception("Ошибка: команда не обновлена или team_id не существует.");

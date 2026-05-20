@@ -79,6 +79,19 @@
                         </select>
                     </div>
 
+                    @can('trainers.view')
+                    <div class="mb-3">
+                        <label for="trainer_profile_id" class="form-label">Тренер</label>
+                        <select name="trainer_profile_id" class="form-select" id="trainer_profile_id">
+                            <option value="">Без тренера</option>
+                            @foreach($trainerOptions as $trainer)
+                                <option value="{{ $trainer->id }}">{{ $trainer->user?->full_name }}</option>
+                            @endforeach
+                        </select>
+                        <div id="trainer_profile_id-error" class="invalid-feedback"></div>
+                    </div>
+                    @endcan
+
                     <div class="modal-footer-create-team">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                         <button type="submit" class="btn btn-primary">Создать</button>
@@ -148,6 +161,14 @@
                             if (errors.default_duration_minutes?.length) {
                                 durationInput.classList.add('is-invalid');
                                 if (durationError) durationError.textContent = errors.default_duration_minutes[0];
+                            }
+                            const trainerInput = document.getElementById('trainer_profile_id');
+                            const trainerError = document.getElementById('trainer_profile_id-error');
+                            if (trainerInput) trainerInput.classList.remove('is-invalid');
+                            if (trainerError) trainerError.textContent = '';
+                            if (errors.trainer_profile_id?.length) {
+                                if (trainerInput) trainerInput.classList.add('is-invalid');
+                                if (trainerError) trainerError.textContent = errors.trainer_profile_id[0];
                             }
                             return;
                         }

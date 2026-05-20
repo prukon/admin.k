@@ -2,32 +2,57 @@
 
 namespace App\Http\Requests\Team;
 
+use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('trainer_profile_id') && $this->input('trainer_profile_id') === '') {
+            $this->merge(['trainer_profile_id' => null]);
+        }
+    }
+
     public function rules(): array
     {
-        return [
+        $rules = [
             'title' => 'required|string',
             'type' => 'required|string|in:group,individual',
             'default_duration_minutes' => 'nullable|integer|min:1|max:600',
             'weekdays' => 'nullable|array',
             'is_enabled' => 'boolean',
-            'order_by' => 'nullable|integer', // Здесь мы указываем, что это может быть null
+            'order_by' => 'nullable|integer',
+        ];
+
+        if ($this->user()?->can('trainers.view')) {
+            $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
+            $rules['trainer_profile_id'] = [
+                'nullable',
+                'integer',
+                Rule::exists('trainer_profiles', 'id')->where(function ($query) use ($partnerId) {
+                    if ($partnerId > 0) {
+                        $query->where('partner_id', $partnerId);
+                    }
+                }),
+            ];
+        }
+
+        return $rules;
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'title' => 'название группы',
+            'type' => 'тип',
+            'trainer_profile_id' => 'тренер',
         ];
     }
 
@@ -41,11 +66,7 @@ class StoreRequest extends FormRequest
             'default_duration_minutes.integer' => 'Длительность должна быть числом (в минутах)',
             'default_duration_minutes.min' => 'Длительность должна быть больше 0 минут',
             'default_duration_minutes.max' => 'Длительность слишком большая',
+            'trainer_profile_id.exists' => 'Выберите тренера из списка',
         ];
     }
-
-    /**
-     * Modify the validated data before using it.
-     */
- 
 }

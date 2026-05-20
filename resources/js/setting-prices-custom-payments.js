@@ -104,6 +104,17 @@
                             return v;
                         }
                     },
+                    {
+                        data: 'note',
+                        name: 'note',
+                        orderable: false,
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            return (data == null || data === '') ? '—' : String(data);
+                        }
+                    },
                     { data: 'status', name: 'status', orderable: false, searchable: false },
                     { data: 'actions', name: 'actions', orderable: false, searchable: false },
                 ],

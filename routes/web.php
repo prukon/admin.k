@@ -463,6 +463,19 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/teams/data', [TeamController::class, 'data'])->name('admin.team.data');
     });
 
+    // Тренеры (учётная запись user + профиль trainer_profiles)
+    Route::middleware('can:trainers.view')->group(function () {
+        Route::get('admin/trainers', [\App\Http\Controllers\Admin\TrainerController::class, 'index'])->name('admin.trainers.index');
+        Route::get('admin/trainers/{trainerProfile}', [\App\Http\Controllers\Admin\TrainerController::class, 'show'])->whereNumber('trainerProfile')->name('admin.trainers.show');
+        Route::post('admin/trainers', [\App\Http\Controllers\Admin\TrainerController::class, 'store'])->name('admin.trainers.store');
+        Route::put('admin/trainers/{trainerProfile}', [\App\Http\Controllers\Admin\TrainerController::class, 'update'])
+            ->whereNumber('trainerProfile')
+            ->name('admin.trainers.update');
+        Route::delete('admin/trainers/{trainerProfile}', [\App\Http\Controllers\Admin\TrainerController::class, 'destroy'])
+            ->whereNumber('trainerProfile')
+            ->name('admin.trainers.destroy');
+    });
+
     // Локации
     Route::middleware('can:locations.view')->group(function () {
         Route::get('admin/locations', [\App\Http\Controllers\Admin\LocationController::class, 'index'])->name('admin.locations.index');

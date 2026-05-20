@@ -44,8 +44,18 @@ class RolesSeeder extends Seeder
                     'created_at' => $now,
                     'updated_at' => $now,
                 ],
+                [
+                    'id'         => 4,
+                    'name'       => 'trainer',
+                    'label'      => 'Тренер',
+                    'is_sistem'  => 1,
+                    'is_visible' => 0,
+                    'order_by'   => 15,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ],
             ],
-            ['id'], // жёсткий инвариант: id = 1,2,3
+            ['id'], // жёсткий инвариант: id = 1,2,3,4
             ['name', 'label', 'is_sistem', 'is_visible', 'order_by', 'updated_at']
         );
     }

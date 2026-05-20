@@ -58,6 +58,19 @@
                         </select>
                     </div>
 
+                    @can('trainers.view')
+                    <div class="mb-3">
+                        <label for="edit-trainer-profile-id" class="form-label">Тренер</label>
+                        <select name="trainer_profile_id" class="form-select" id="edit-trainer-profile-id">
+                            <option value="">Без тренера</option>
+                            @foreach($trainerOptions as $trainer)
+                                <option value="{{ $trainer->id }}">{{ $trainer->user?->full_name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="invalid-feedback" id="edit-trainer-profile-id-error"></div>
+                    </div>
+                    @endcan
+
                     <hr>
                     <div class="buttons-wrap mb-3">
                         <button type="button" class="btn btn-primary mr-2" id="update-team-btn">Обновить</button>
@@ -111,6 +124,10 @@
                     $('#edit-order_by').val(response.order_by ?? '');
                     $('#edit-activity').val(response.is_enabled);
 
+                    if ($('#edit-trainer-profile-id').length) {
+                        $('#edit-trainer-profile-id').val(response.trainer_profile_id ?? '');
+                    }
+
                     // Расписание: чекбоксы дней недели
                     if (canViewTeamSchedule && $('#edit-weekdays').length) {
                         let weekdaysHtml = '';
@@ -163,6 +180,8 @@
             $('#edit-type-error').text('');
             $('#edit-default_duration_minutes').removeClass('is-invalid');
             $('#edit-default_duration_minutes-error').text('');
+            $('#edit-trainer-profile-id').removeClass('is-invalid');
+            $('#edit-trainer-profile-id-error').text('');
 
             $.ajax({
                 url: `/admin/team/${teamId}`,
@@ -190,6 +209,10 @@
                         if (errors.default_duration_minutes && errors.default_duration_minutes.length) {
                             $('#edit-default_duration_minutes').addClass('is-invalid');
                             $('#edit-default_duration_minutes-error').text(errors.default_duration_minutes[0]);
+                        }
+                        if (errors.trainer_profile_id && errors.trainer_profile_id.length) {
+                            $('#edit-trainer-profile-id').addClass('is-invalid');
+                            $('#edit-trainer-profile-id-error').text(errors.trainer_profile_id[0]);
                         }
                         return;
                     }

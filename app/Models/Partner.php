@@ -80,6 +80,7 @@ class Partner extends Model
         return array_values(array_unique(array_merge(
             self::basePermissionNamesForRole('user'),
             self::basePermissionNamesForRole('admin'),
+            self::basePermissionNamesForRole('trainer'),
         )));
     }
 
@@ -103,11 +104,11 @@ class Partner extends Model
     private static function assignBasePermissionsForPartner(int $partnerId): void
     {
         $roleIdsByName = DB::table('roles')
-            ->whereIn('name', ['user', 'admin'])
+            ->whereIn('name', ['user', 'admin', 'trainer'])
             ->pluck('id', 'name')
             ->all();
 
-        foreach (['user', 'admin'] as $roleName) {
+        foreach (['user', 'admin', 'trainer'] as $roleName) {
             if (!isset($roleIdsByName[$roleName])) {
                 throw new RuntimeException("Required role '{$roleName}' not found in roles table");
             }
@@ -116,11 +117,13 @@ class Partner extends Model
         $permissionNamesByRole = [
             'user' => self::basePermissionNamesForRole('user'),
             'admin' => self::basePermissionNamesForRole('admin'),
+            'trainer' => self::basePermissionNamesForRole('trainer'),
         ];
 
         $allPermissionNames = array_values(array_unique(array_merge(
             $permissionNamesByRole['user'],
             $permissionNamesByRole['admin'],
+            $permissionNamesByRole['trainer'],
         )));
 
         if (empty($allPermissionNames)) {

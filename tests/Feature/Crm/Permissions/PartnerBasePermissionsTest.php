@@ -9,12 +9,16 @@ use Tests\Feature\Crm\CrmTestCase;
 
 class PartnerBasePermissionsTest extends CrmTestCase
 {
-    public function test_creating_partner_assigns_base_permissions_for_user_and_admin_roles(): void
+    /** @var list<string> */
+    private const BASE_ROLE_NAMES = ['user', 'admin', 'trainer'];
+
+    public function test_creating_partner_assigns_base_permissions_for_user_admin_and_trainer_roles(): void
     {
         $partner = Partner::factory()->create();
 
-        $this->assertPartnerHasExactlyConfiguredBasePermissions($partner->id, 'user');
-        $this->assertPartnerHasExactlyConfiguredBasePermissions($partner->id, 'admin');
+        foreach (self::BASE_ROLE_NAMES as $roleName) {
+            $this->assertPartnerHasExactlyConfiguredBasePermissions($partner->id, $roleName);
+        }
     }
 
     public function test_base_permissions_are_isolated_between_partners(): void
@@ -31,6 +35,11 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $p2Admin = $this->permissionNamesForPartnerRole($p2->id, 'admin');
 
         $this->assertEqualsCanonicalizing($p1Admin, $p2Admin);
+
+        $p1Trainer = $this->permissionNamesForPartnerRole($p1->id, 'trainer');
+        $p2Trainer = $this->permissionNamesForPartnerRole($p2->id, 'trainer');
+
+        $this->assertEqualsCanonicalizing($p1Trainer, $p2Trainer);
     }
 
     public function test_missing_permission_throws_and_partner_is_not_created(): void
@@ -62,16 +71,19 @@ class PartnerBasePermissionsTest extends CrmTestCase
     {
         $partner = Partner::factory()->create();
 
-        $userRows = $this->buildPermissionRoleRowsForPartner($partner->id, 'user');
-        $adminRows = $this->buildPermissionRoleRowsForPartner($partner->id, 'admin');
+        $rowsByRole = [];
+        foreach (self::BASE_ROLE_NAMES as $roleName) {
+            $rowsByRole[$roleName] = $this->buildPermissionRoleRowsForPartner($partner->id, $roleName);
+        }
 
-        $expected = count($userRows) + count($adminRows);
+        $allRows = array_merge(...array_values($rowsByRole));
+        $expected = count($allRows);
         $this->assertGreaterThan(0, $expected);
 
         $countBefore = DB::table('permission_role')->where('partner_id', $partner->id)->count();
         $this->assertSame($expected, $countBefore);
 
-        DB::table('permission_role')->insertOrIgnore(array_merge($userRows, $adminRows));
+        DB::table('permission_role')->insertOrIgnore($allRows);
 
         $countAfter = DB::table('permission_role')->where('partner_id', $partner->id)->count();
         $this->assertSame($countBefore, $countAfter, 'Duplicate insertOrIgnore should not add rows');
@@ -125,10 +137,12 @@ class PartnerBasePermissionsTest extends CrmTestCase
 
     private function basePermissionNamesAll(): array
     {
-        return array_values(array_unique(array_merge(
-            $this->basePermissionNamesForRole('user'),
-            $this->basePermissionNamesForRole('admin'),
-        )));
+        $names = [];
+        foreach (self::BASE_ROLE_NAMES as $roleName) {
+            $names = array_merge($names, $this->basePermissionNamesForRole($roleName));
+        }
+
+        return array_values(array_unique($names));
     }
 
     private function permissionNamesForPartnerRole(int $partnerId, string $roleName): array

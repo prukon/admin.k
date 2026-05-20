@@ -29,13 +29,16 @@ final class UserCustomPaymentStoreRequest extends FormRequest
                 }),
             ],
             'date_start' => [
-                'required',
+                'nullable',
                 'date_format:Y-m-d',
             ],
             'date_end' => [
-                'required',
+                'nullable',
                 'date_format:Y-m-d',
-                'after_or_equal:date_start',
+                Rule::when(
+                    fn () => $this->filled('date_start') && $this->filled('date_end'),
+                    'after_or_equal:date_start'
+                ),
             ],
             'amount' => [
                 'required',
@@ -51,9 +54,17 @@ final class UserCustomPaymentStoreRequest extends FormRequest
             // композитная уникальность по (user_id, date_start, date_end)
             'uniq_period' => [
                 Rule::unique('user_custom_payment', 'id')->where(function ($q) use ($userId, $dateStart, $dateEnd) {
-                    $q->where('user_id', $userId)
-                        ->whereDate('date_start', $dateStart)
-                        ->whereDate('date_end', $dateEnd);
+                    $q->where('user_id', $userId);
+                    if ($dateStart !== '') {
+                        $q->whereDate('date_start', $dateStart);
+                    } else {
+                        $q->whereNull('date_start');
+                    }
+                    if ($dateEnd !== '') {
+                        $q->whereDate('date_end', $dateEnd);
+                    } else {
+                        $q->whereNull('date_end');
+                    }
                 }),
             ],
         ];
@@ -78,10 +89,8 @@ final class UserCustomPaymentStoreRequest extends FormRequest
             'user_id.integer' => 'Некорректный ученик.',
             'user_id.exists' => 'Ученик не найден или недоступен в контексте текущего партнёра.',
 
-            'date_start.required' => 'Укажите дату начала.',
             'date_start.date_format' => 'Дата начала должна быть в формате ГГГГ-ММ-ДД.',
 
-            'date_end.required' => 'Укажите дату окончания.',
             'date_end.date_format' => 'Дата окончания должна быть в формате ГГГГ-ММ-ДД.',
             'date_end.after_or_equal' => 'Дата окончания должна быть не раньше даты начала.',
 
