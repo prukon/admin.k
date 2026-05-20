@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: тренеры (админка)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    ul { margin: 8px 0 8px 20px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Тренеры (админка)</h1>
+  <div class="small">Файл: <code>/docs/documentation/admin-trainers.html</code> · URL: <code>/docs/documentation/admin-trainers</code> · страница CRM: <code>/admin/trainers</code></div>
+
+  <h2>1) Назначение и модель данных</h2>
+  <div class="note">
+    <b>Тренер</b> — это обычная учётная запись <code>users</code> с системной ролью <code>trainer</code> и дополнительным профилем <code>trainer_profiles</code> (1:1 по <code>user_id</code>).<br>
+    ФИО, email, телефон, пароль, аватар — в <code>users</code>; описание, флаг активности профиля и порядок сортировки — в <code>trainer_profiles</code>.<br>
+    Отдельной таблицы «тренеры» с собственным ФИО нет (историческая <code>trainers</code> удалена миграцией рефакторинга).
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Таблица / сущность</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>roles.name = trainer</code></td>
+        <td>Системная роль (сидер <code>RolesSeeder</code>, id=4). В UI списка ролей скрыта: <code>is_visible = 0</code>. Базовые права — <code>config/role_base_permissions.php</code> → ключ <code>trainer</code>.</td>
+      </tr>
+      <tr>
+        <td><code>trainer_profiles</code></td>
+        <td>Профиль тренера: <code>partner_id</code>, <code>user_id</code> (unique), <code>description</code>, <code>is_enabled</code>, <code>sort_order</code>, soft delete.</td>
+      </tr>
+      <tr>
+        <td><code>team_trainer</code></td>
+        <td>Связь группа ↔ тренер (many-to-many с ограничением в UI: на группу — один тренер; у тренера — несколько групп). Поля: <code>partner_id</code>, <code>team_id</code>, <code>trainer_profile_id</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="small">Миграции: <code>2026_05_20_140000_refactor_trainers_to_trainer_profiles.php</code>, <code>2026_05_20_150000_create_team_trainer_table.php</code>.</p>
+
+  <div class="warn">
+    <b>Не путать:</b> поле <code>users.team_id</code> у ученика — его основная группа в CRM. Привязка тренера к группам идёт только через <code>team_trainer</code>, не через <code>users.team_id</code> у тренера (у тренера <code>team_id</code> при сохранении сбрасывается в <code>null</code>).
+  </div>
+
+  <h2>2) Доступ и маршруты</h2>
+  <div class="note">
+    Все маршруты раздела в <code>routes/web.php</code> обёрнуты в <code>middleware('can:trainers.view')</code>.
+    Без <code>trainers.view</code> страница и JSON-операции отвечают <b>403</b>.
+    Пункт меню «Тренеры» — <code>resources/views/includes/sidebar.blade.php</code> (<code>@can('trainers.view')</code>).
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Имя маршрута</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/trainers</code></td><td><code>admin.trainers.index</code></td><td>Список тренеров (HTML)</td></tr>
+      <tr><td>GET</td><td><code>/admin/trainers/{trainerProfile}</code></td><td><code>admin.trainers.show</code></td><td>JSON карточки (редактирование)</td></tr>
+      <tr><td>POST</td><td><code>/admin/trainers</code></td><td><code>admin.trainers.store</code></td><td>Создание user + profile + опционально <code>team_ids</code></td></tr>
+      <tr><td>PUT</td><td><code>/admin/trainers/{trainerProfile}</code></td><td><code>admin.trainers.update</code></td><td>Обновление user + profile + <code>team_ids</code></td></tr>
+      <tr><td>DELETE</td><td><code>/admin/trainers/{trainerProfile}</code></td><td><code>admin.trainers.destroy</code></td><td>Soft delete профиля и пользователя</td></tr>
+    </tbody>
+  </table>
+
+  <p class="small">Контроллер: <code>App\Http\Controllers\Admin\TrainerController</code>. Запросы: <code>StoreTrainerRequest</code>, <code>UpdateTrainerRequest</code> (authorize: <code>trainers.view</code>).</p>
+
+  <h3>2.1) Права</h3>
+  <table>
+    <thead>
+      <tr><th>Право</th><th>Что даёт</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>trainers.view</code></td>
+        <td>Раздел «Тренеры», CRUD, выбор тренера в модалках групп, чекбоксы групп у пользователя с ролью trainer, фильтр «Тренер» в отчётах (UI).</td>
+      </tr>
+      <tr>
+        <td><code>reports.view</code></td>
+        <td>Доступ к отчётам; без <code>trainers.view</code> фильтр «Тренер» в отчётах не показывается, но сами страницы отчётов доступны.</td>
+      </tr>
+      <tr>
+        <td><code>users.view</code> + <code>users.role.update</code></td>
+        <td>Нужны для смены роли на <code>trainer</code> в модалке пользователя (создание профиля через <code>TrainerProfileSyncService</code>).</td>
+      </tr>
+      <tr>
+        <td><code>groups.view</code></td>
+        <td>Нужно для назначения <code>trainer_profile_id</code> при создании/редактировании группы (без <code>trainers.view</code> поле с сервера отбрасывается).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>У роли <code>admin</code> по умолчанию <code>trainers.view</code> включён в <code>config/role_base_permissions.php</code> — см.
+    <a href="/docs/documentation/partners-permissions">базовые права партнёра</a>.</p>
+
+  <h2>3) Синхронизация профиля при смене роли</h2>
+  <p><code>App\Services\TrainerProfileSyncService::syncForUser</code> вызывается из <code>UserService</code> после обновления пользователя:</p>
+  <ul>
+    <li>роль <code>trainer</code> → создать или восстановить (restore) <code>trainer_profiles</code>;</li>
+    <li>любая другая роль → soft delete существующего профиля по <code>user_id</code>.</li>
+  </ul>
+  <p>Создание тренера через <code>POST /admin/trainers</code> сразу создаёт user с <code>role_id = trainer</code> и профиль. При обновлении через страницу тренеров, если у user была другая роль, но профиль остался — роль принудительно возвращается на <code>trainer</code>.</p>
+
+  <h2>4) Привязка к группам</h2>
+  <p><code>App\Services\TeamTrainerSyncService</code>:</p>
+  <ul>
+    <li><b>Из карточки тренера</b> — массив <code>team_ids[]</code> в store/update: тренер привязывается к нескольким группам; лишние строки в <code>team_trainer</code> для этого профиля удаляются.</li>
+    <li><b>Из группы</b> — поле <code>trainer_profile_id</code> в <code>POST/PATCH /admin/team/{id}</code> (<code>TeamController</code>): на группу назначается один тренер; предыдущий тренер группы снимается.</li>
+  </ul>
+  <p>UI: чекбоксы групп — <code>resources/views/admin/trainers/_teams_checkboxes.blade.php</code>; в модалках групп — селект тренера при <code>@can('trainers.view')</code> — см. <a href="/docs/documentation/admin-teams">Группы (админка)</a>.</p>
+
+  <h2>5) Редактирование пользователя с ролью «Тренер»</h2>
+  <div class="note">
+    В модалке <code>editUser.blade.php</code> при <code>trainers.view</code> и выбранной роли <code>trainer</code>:
+    скрывается селект основной группы (<code>team_id</code>), показываются чекбоксы <code>team_ids[]</code>.
+    <code>UserService::update</code> синхронизирует группы только если у актора есть <code>trainers.view</code> и в запросе передан ключ <code>team_ids</code>.
+    JSON <code>GET /admin/users/{user}/edit</code> отдаёт <code>trainer_team_ids</code> для предзаполнения.
+  </div>
+  <p>Подробнее о разделе пользователей: <a href="/docs/documentation/admin-users">Пользователи в админке</a>.</p>
+
+  <h2>6) UI страницы <code>/admin/trainers</code></h2>
+  <ul>
+    <li>Список: ФИО, email, телефон, статус, действия.</li>
+    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны.</li>
+    <li><b>Редактирование</b> — как у пользователя: аватар с cropper (<code>editAvatar</code>), маска телефона, смена пароля отдельной кнопкой → <code>POST /admin/user/{id}/update-password</code> (право <code>users.password.update</code>).</li>
+    <li>Ошибки валидации возвращаются JSON (<code>422</code>) и выводятся под полями формы.</li>
+  </ul>
+
+  <h2>7) Фильтр «Тренер» в отчётах</h2>
+  <div class="note">
+    Параметр: <code>filter_trainer_profile_id</code> (id из <code>trainer_profiles</code>).
+    Логика: берутся <code>team_id</code> из <code>team_trainer</code> для выбранного профиля, затем отбираются ученики с <code>users.team_id</code> из этого списка.
+    Если у тренера нет групп — отчёт пустой (<code>whereRaw('1 = 0')</code>).
+  </div>
+  <p>Подробная таблица отчётов и отличие от фильтра локации: <a href="/docs/documentation/reports-admin#trainer-filter">Отчёты: фильтр по тренеру</a>.</p>
+  <ul>
+    <li>Select2 поиск: <code>GET /admin/reports/payments/trainers-search</code> (<code>reports.payments.trainers.search</code>) — в группе <code>reports.view</code>; по ФИО user.</li>
+    <li>Отчёты: Платежи, Платежи по месяцам, LTV, Задолженности — тот же параметр в DataTables и <code>…/total</code>.</li>
+  </ul>
+
+  <h2>8) Изоляция по партнёру</h2>
+  <ul>
+    <li>Список и операции — только <code>trainer_profiles.partner_id = current_partner</code>.</li>
+    <li>Чужой профиль по id → <b>404</b> на show/update/destroy.</li>
+    <li><code>team_ids</code> и <code>trainer_profile_id</code> валидируются: группа и профиль должны принадлежать текущему партнёру.</li>
+  </ul>
+
+  <h2>9) Связанные файлы</h2>
+  <ul class="small">
+    <li><code>app/Http/Controllers/Admin/TrainerController.php</code></li>
+    <li><code>app/Services/TrainerProfileSyncService.php</code>, <code>TeamTrainerSyncService.php</code></li>
+    <li><code>app/Models/TrainerProfile.php</code></li>
+    <li><code>app/Http/Requests/Admin/StoreTrainerRequest.php</code>, <code>UpdateTrainerRequest.php</code></li>
+    <li><code>app/Http/Requests/User/UpdateRequest.php</code> — правила <code>team_ids</code> для роли trainer</li>
+    <li><code>resources/views/admin/trainers/index.blade.php</code></li>
+    <li><code>app/Http/Controllers/Admin/Report/PaymentReportController.php</code> — <code>trainersSearch</code>, фильтр в <code>getPayments</code></li>
+    <li>Аналогичные фильтры: <code>PaymentMonthlyReportController</code>, <code>LtvReportController</code>, <code>DeptReportController</code></li>
+  </ul>
+
+  <h2>10) Автотесты (Feature)</h2>
+  <div class="note">
+    <ul>
+      <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code> — CRUD, права, валидация, sync роли</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainersAccessSmokeFeatureTest.php</code> — 200/403 по всем маршрутам, роль trainer в справочнике</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainerSyncAndTeamsFeatureTest.php</code> — store/show team_ids, user update, смена роли</li>
+      <li><code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code> — привязка через группу и update тренера</li>
+      <li><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> — фильтрация данных по тренеру</li>
+      <li><code>tests/Feature/Crm/Reports/ReportsTrainerAccessFeatureTest.php</code> — доступ к отчётам, видимость фильтра, trainers-search</li>
+      <li><code>tests/Feature/Crm/Permissions/PartnerBasePermissionsTest.php</code> — базовые права ролей <code>user</code>, <code>admin</code>, <code>trainer</code></li>
+    </ul>
+  </div>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/Trainers tests/Feature/Crm/Reports/ReportsTrainerAccessFeatureTest.php tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code></pre>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-teams">Группы</a> ·
+    <a href="/docs/documentation/admin-users">Пользователи</a> ·
+    <a href="/docs/documentation/reports-admin#trainer-filter">Отчёты: фильтр по тренеру</a> ·
+    <a href="/docs/documentation/partners-permissions">Права партнёра</a>
+  </p>
+</div>
+</body>
+</html>

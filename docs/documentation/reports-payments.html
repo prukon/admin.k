@@ -36,6 +36,13 @@
     <li>Тот же фильтр (без отдельной колонки) есть в отчётах «Платежи по месяцам», LTV и «Задолженности» — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1).</li>
   </ul>
 
+  <h2>2.1) Фильтр «Тренер» (при праве <code>trainers.view</code>)</h2>
+  <ul>
+    <li><b>Параметр</b>: <code>filter_trainer_profile_id</code> — id из <code>trainer_profiles</code>; отбор учеников по <code>users.team_id</code> из групп тренера (<code>team_trainer</code>).</li>
+    <li><b>UI</b>: Select2, поиск <code>GET /admin/reports/payments/trainers-search</code>; блок скрыт без <code>trainers.view</code>.</li>
+    <li>Тот же фильтр в monthly, LTV, debts — см. <a href="/docs/documentation/reports-admin#trainer-filter">reports-admin.html</a> (§2.2) и <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.</li>
+  </ul>
+
   <h2>3) Поля списка (управление видимостью колонок)</h2>
   <div class="note">
     На странице отчёта доступна кнопка <b>“Поля списка”</b> (иконка колонок).
@@ -206,7 +213,8 @@ net_to_partner   = gross - commission_total</pre>
     <br><code>tests/Feature/Crm/Reports/PaymentReportTest.php</code>,
     <br><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> (колонка/фильтр локации, <code>locations.view</code>),
     <br><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> (запись <code>payments.location_id</code> при оплате),
-    <br><code>tests/Feature/Crm/Reports/PaymentReportTbankHistoryTest.php</code>.
+    <br><code>tests/Feature/Crm/Reports/PaymentReportTbankHistoryTest.php</code>,
+    <br><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> (фильтр по тренеру).
     Сценарии возврата T‑Bank и отмены отложенной выплаты (в т.ч. колонка <code>refund_action</code>): см. раздел 5.1 и
     <a href="/docs/documentation/tbank-refunds-payout-cancel">tbank-refunds-payout-cancel.html</a>.
   </div>

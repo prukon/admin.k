@@ -106,6 +106,51 @@
     <li>Привязка ученика к локации в CRM: раздел <a href="/docs/documentation/admin-users#user-location">«Пользователи»</a> (<code>users.location_id</code>).</li>
   </ul>
 
+  <h2 id="trainer-filter">2.2) Фильтр по тренеру в отчётах</h2>
+  <div class="note">
+    Единый параметр запроса: <code>filter_trainer_profile_id</code> (id из <code>trainer_profiles</code> текущего партнёра).
+    Логика: из <code>team_trainer</code> берутся <code>team_id</code> выбранного тренера, затем в выборку попадают ученики с <code>users.team_id</code> из этого списка.
+    Если у тренера нет групп — пустой результат.
+    Select2: <code>GET /admin/reports/payments/trainers-search</code> (<code>reports.payments.trainers.search</code>, middleware <code>reports.view</code>).
+    Подробно о модели тренеров и привязках: <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.
+  </div>
+  <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead>
+      <tr>
+        <th>Отчёт</th>
+        <th>Страница</th>
+        <th>Элемент UI (label)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Платежи</td>
+        <td><code>/admin/reports/payments</code></td>
+        <td><code>for="pay-filter-trainer">Тренер</code></td>
+      </tr>
+      <tr>
+        <td>Платежи по месяцам</td>
+        <td><code>/admin/reports/payments/monthly</code></td>
+        <td><code>for="pay-monthly-filter-trainer">Тренер</code></td>
+      </tr>
+      <tr>
+        <td>LTV</td>
+        <td><code>/admin/reports/ltv</code></td>
+        <td><code>for="pay-ltv-filter-trainer">Тренер</code></td>
+      </tr>
+      <tr>
+        <td>Задолженности</td>
+        <td><code>/admin/reports/debts</code></td>
+        <td><code>for="pay-debt-filter-trainer">Тренер</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Блок фильтра в Blade рендерится только при <code>trainers.view</code> (<code>$canViewTrainers</code> в контроллерах отчётов). Без права страница отчёта остаётся доступной при <code>reports.view</code>, но селект «Тренер» не выводится.</li>
+    <li>Параметр <code>filter_trainer_profile_id</code> в AJAX/DataTables и <code>…/total</code> передаётся вместе с остальными фильтрами при применении формы (как у локации).</li>
+    <li>Отличие от фильтра локации (§2.1): на сервере фильтр по тренеру <b>не привязан</b> к проверке <code>trainers.view</code> в query — UI скрыт без права; при ручной подстановке параметра в URL фильтрация может сработать (см. тесты в <code>PaymentReportTrainerFilterFeatureTest</code>).</li>
+  </ul>
+
   <h2>3) Отчёт “Задолженности”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/debts</code> (middleware <code>can:reports.view</code>)</li>
@@ -191,6 +236,8 @@
     <li><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> — запись <code>payments.location_id</code> при оплате</li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsReportTest.php</code></li>
     <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code></li>
+    <li><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> — фильтр <code>filter_trainer_profile_id</code> по группам тренера</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsTrainerAccessFeatureTest.php</code> — доступ к отчётам, видимость фильтра, <code>trainers-search</code></li>
   </ul>
   <pre><code>php artisan test --env=testing tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php
 php artisan test --env=testing --filter "(DeptReportTest|LtvReportTest|PaymentMonthlyReportTest|PaymentReportLocationFeatureTest|PaymentLedgerLocationTest)"</code></pre>

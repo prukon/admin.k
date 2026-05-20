@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Report;
 use App\Http\Controllers\AdminBaseController;
 use App\Models\Location;
 use App\Models\Team;
+use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
 use Illuminate\Http\Request;
@@ -33,7 +34,7 @@ class LtvReportController extends AdminBaseController
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('payments.summ', '>', 0)
             ->where('users.partner_id', $partnerId);
-        $this->applyLtvReportFilters($totalQuery, $request, false);
+        $this->applyLtvReportFilters($totalQuery, $request, $partnerId, false);
 
         $totalRaw = $totalQuery->sum('payments.summ');
         $totalPaidPrice = number_format((float) $totalRaw, 0, '', ' ');
@@ -43,6 +44,10 @@ class LtvReportController extends AdminBaseController
 
         /** @var \App\Models\User|null $authUser */
         $authUser = Auth::user();
+        $canViewTrainers = $authUser?->can('trainers.view') ?? false;
+        $paymentsFilterTrainer = $canViewTrainers
+            ? $this->resolveLtvFilterTrainerLabel($partnerId, $filters)
+            : null;
         $canViewLocations = $authUser?->can('locations.view') ?? false;
         $activeLocations = $canViewLocations
             ? Location::query()
@@ -58,6 +63,8 @@ class LtvReportController extends AdminBaseController
             'filters'            => $filters,
             'paymentsFilterUser' => $paymentsFilterUser,
             'paymentsFilterTeam' => $paymentsFilterTeam,
+            'paymentsFilterTrainer' => $paymentsFilterTrainer,
+            'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
         ]);
@@ -76,7 +83,7 @@ class LtvReportController extends AdminBaseController
             ->where('payments.summ', '>', 0)
             ->where('users.partner_id', $partnerId);
 
-        $this->applyLtvReportFilters($totalQuery, $request, false);
+        $this->applyLtvReportFilters($totalQuery, $request, $partnerId, false);
 
         $raw = $totalQuery->sum('payments.summ');
 
@@ -114,7 +121,7 @@ class LtvReportController extends AdminBaseController
             ->where('payments.summ', '>', 0)
             ->where('users.partner_id', $partnerId);
 
-        $this->applyLtvReportFilters($baseQuery, $request, false);
+        $this->applyLtvReportFilters($baseQuery, $request, $partnerId, false);
 
         $baseQuery->selectRaw("
                 users.id as user_id,
@@ -176,7 +183,7 @@ class LtvReportController extends AdminBaseController
             ->where('users.id', $userId)
             ->where('payments.summ', '>', 0);
 
-        $this->applyLtvReportFilters($payments, $request, true);
+        $this->applyLtvReportFilters($payments, $request, $partnerId, true);
 
         $paymentRows = $payments->selectRaw("
                 payments.id,
@@ -260,7 +267,7 @@ class LtvReportController extends AdminBaseController
      *
      * @param  \Illuminate\Database\Query\Builder  $paymentsQuery
      */
-    private function applyLtvReportFilters($paymentsQuery, Request $request, bool $forSingleUserDetail): void
+    private function applyLtvReportFilters($paymentsQuery, Request $request, int $partnerId, bool $forSingleUserDetail): void
     {
         if (! $forSingleUserDetail) {
             $filterUserId = $request->query('filter_user_id');
@@ -286,6 +293,25 @@ class LtvReportController extends AdminBaseController
             } elseif ($request->filled('team_title')) {
                 $like = '%'.trim((string) $request->query('team_title')).'%';
                 $paymentsQuery->where('teams.title', 'like', $like);
+            }
+
+            $filterTrainerProfileId = $request->query('filter_trainer_profile_id');
+            if ($filterTrainerProfileId !== null && $filterTrainerProfileId !== '' && ctype_digit((string) $filterTrainerProfileId)) {
+                $tpid = (int) $filterTrainerProfileId;
+                if ($tpid > 0) {
+                    $trainerTeamIds = DB::table('team_trainer')
+                        ->where('partner_id', $partnerId)
+                        ->where('trainer_profile_id', $tpid)
+                        ->pluck('team_id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+
+                    if ($trainerTeamIds === []) {
+                        $paymentsQuery->whereRaw('1 = 0');
+                    } else {
+                        $paymentsQuery->whereIn('users.team_id', $trainerTeamIds);
+                    }
+                }
             }
         }
 
@@ -402,6 +428,39 @@ class LtvReportController extends AdminBaseController
         return [
             'id'   => $t->id,
             'text' => (string) ($t->title ?? ''),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolveLtvFilterTrainerLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_trainer_profile_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $tpid = (int) $raw;
+        if ($tpid <= 0) {
+            return null;
+        }
+
+        $profile = TrainerProfile::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey($tpid)
+            ->with('user:id,name,lastname')
+            ->first(['id', 'user_id']);
+
+        if (! $profile || ! $profile->user) {
+            return null;
+        }
+
+        $u = $profile->user;
+        $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
+        return [
+            'id' => $profile->id,
+            'text' => $text !== '' ? $text : '—',
         ];
     }
 }

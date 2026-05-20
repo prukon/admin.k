@@ -231,6 +231,19 @@
     Локация — §3 (<code>locations.view</code>).
   </div>
 
+  <h3 id="user-trainer-teams">5.1) Роль «Тренер» и группы (<code>team_ids</code>)</h3>
+  <div class="note">
+    При <code>trainers.view</code> и роли <code>trainer</code> в модалке редактирования скрывается селект основной группы (<code>team_id</code>),
+    показываются чекбоксы <code>team_ids[]</code> (те же, что на странице <code>/admin/trainers</code>).
+    <code>UserService::update</code> синхронизирует <code>team_trainer</code> только при <code>trainers.view</code> у актора и наличии ключа <code>team_ids</code> в запросе.
+    Смена роли на <code>trainer</code> создаёт <code>trainer_profiles</code> через <code>TrainerProfileSyncService</code>; смена на другую роль — soft delete профиля.
+    Подробно: <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.
+  </div>
+  <ul>
+    <li>JSON edit: <code>trainer_team_ids</code> — id групп для предзаполнения чекбоксов.</li>
+    <li>Для роли <code>trainer</code> поле <code>team_id</code> в update не сохраняется (сбрасывается на сервере).</li>
+  </ul>
+
   <h2>6) Связанные файлы</h2>
   <ul class="small">
     <li><code>app/Http/Controllers/Admin/UserController.php</code></li>
@@ -250,11 +263,14 @@
       <li><code>tests/Feature/Crm/Users/AdminUsersPhoneOnCreateFeatureTest.php</code> — телефон при создании</li>
       <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data, сортировка (индексы колонок с учётом «Локация»)</li>
       <li><code>tests/Feature/Crm/Users/UserTableSettingsControllerTest.php</code> — columns-settings</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code> — смена роли на trainer и появление в списке тренеров</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainerSyncAndTeamsFeatureTest.php</code> — <code>team_ids</code> при update пользователя</li>
     </ul>
     Запуск: <code>php artisan test --filter=AdminUsersLocationFeatureTest</code> или <code>AdminUsersAccessFeatureTest</code>.
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
     <a href="/docs/documentation/reports-admin#location-filter">Отчёты: фильтр по локации</a></p>
 </div>
 </body>

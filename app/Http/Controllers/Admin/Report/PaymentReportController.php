@@ -10,6 +10,7 @@ use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\Refund;
 use App\Models\Team;
+use App\Models\TrainerProfile;
 use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
@@ -53,6 +54,10 @@ class PaymentReportController extends AdminBaseController
         $filters = $request->query();
         $paymentsFilterUser = $this->resolvePaymentsFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolvePaymentsFilterTeamLabel($partnerId, $filters);
+        $canViewTrainers = $authUser?->can('trainers.view') ?? false;
+        $paymentsFilterTrainer = $canViewTrainers
+            ? $this->resolvePaymentsFilterTrainerLabel($partnerId, $filters)
+            : null;
 
         $canViewLocations = $authUser?->can('locations.view') ?? false;
         $activeLocations = $canViewLocations
@@ -76,6 +81,8 @@ class PaymentReportController extends AdminBaseController
                 'filters' => $filters,
                 'paymentsFilterUser' => $paymentsFilterUser,
                 'paymentsFilterTeam' => $paymentsFilterTeam,
+                'paymentsFilterTrainer' => $paymentsFilterTrainer,
+                'canViewTrainers' => $canViewTrainers,
                 'canViewLocations' => $canViewLocations,
                 'activeLocations' => $activeLocations,
             ]
@@ -191,6 +198,45 @@ class PaymentReportController extends AdminBaseController
     }
 
     /**
+     * Select2: поиск тренеров текущего партнёра по ФИО.
+     */
+    public function trainersSearch(PaymentsReportSelect2SearchRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        $q = (string) ($request->validated()['q'] ?? '');
+
+        $profiles = TrainerProfile::query()
+            ->where('trainer_profiles.partner_id', $partnerId)
+            ->join('users', 'users.id', '=', 'trainer_profiles.user_id')
+            ->when($q !== '', function ($qq) use ($q) {
+                $needle = '%'.$q.'%';
+                $qq->where(function ($w) use ($needle) {
+                    $w->where('users.name', 'like', $needle)
+                        ->orWhere('users.lastname', 'like', $needle);
+                });
+            })
+            ->orderBy('users.lastname')
+            ->orderBy('users.name')
+            ->limit(50)
+            ->get([
+                'trainer_profiles.id',
+                'users.name',
+                'users.lastname',
+            ]);
+
+        $results = $profiles->map(static function ($row) {
+            $text = trim(($row->lastname ?? '').' '.($row->name ?? ''));
+
+            return [
+                'id' => (int) $row->id,
+                'text' => $text !== '' ? $text : '—',
+            ];
+        });
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
      * @param  array<string, mixed>  $filters
      */
     private function resolvePaymentsFilterUserLabel(int $partnerId, array $filters): ?array
@@ -247,6 +293,39 @@ class PaymentReportController extends AdminBaseController
         return [
             'id' => $t->id,
             'text' => (string) ($t->title ?? ''),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolvePaymentsFilterTrainerLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_trainer_profile_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $tpid = (int) $raw;
+        if ($tpid <= 0) {
+            return null;
+        }
+
+        $profile = TrainerProfile::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey($tpid)
+            ->with('user:id,name,lastname')
+            ->first(['id', 'user_id']);
+
+        if (! $profile || ! $profile->user) {
+            return null;
+        }
+
+        $u = $profile->user;
+        $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
+        return [
+            'id' => $profile->id,
+            'text' => $text !== '' ? $text : '—',
         ];
     }
 
@@ -1154,6 +1233,25 @@ SQL;
         } elseif ($request->filled('team_title')) {
             $like = '%'.trim((string) $request->query('team_title')).'%';
             $paymentsQuery->where('teams.title', 'like', $like);
+        }
+
+        $filterTrainerProfileId = $request->query('filter_trainer_profile_id');
+        if ($filterTrainerProfileId !== null && $filterTrainerProfileId !== '' && ctype_digit((string) $filterTrainerProfileId)) {
+            $tpid = (int) $filterTrainerProfileId;
+            if ($tpid > 0) {
+                $trainerTeamIds = DB::table('team_trainer')
+                    ->where('partner_id', $partnerId)
+                    ->where('trainer_profile_id', $tpid)
+                    ->pluck('team_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                if ($trainerTeamIds === []) {
+                    $paymentsQuery->whereRaw('1 = 0');
+                } else {
+                    $paymentsQuery->whereIn('users.team_id', $trainerTeamIds);
+                }
+            }
         }
 
         /** @var \App\Models\User|null $filterActor */

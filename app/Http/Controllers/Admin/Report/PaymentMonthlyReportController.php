@@ -7,6 +7,7 @@ use App\Models\Location;
 use App\Models\Payment;
 use App\Models\PaymentSystem;
 use App\Models\Team;
+use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
 use Carbon\Carbon;
@@ -35,7 +36,7 @@ class PaymentMonthlyReportController extends AdminBaseController
             ->join('users', 'users.id', '=', 'payments.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId);
-        $this->applyMonthlyReportFilters($totalQuery, $request);
+        $this->applyMonthlyReportFilters($totalQuery, $request, $partnerId);
 
         $totalRaw = $totalQuery->sum('payments.summ');
         $totalPaidPrice = number_format((float) $totalRaw, 0, '', ' ');
@@ -51,6 +52,10 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         /** @var \App\Models\User|null $authUser */
         $authUser = Auth::user();
+        $canViewTrainers = $authUser?->can('trainers.view') ?? false;
+        $paymentsFilterTrainer = $canViewTrainers
+            ? $this->resolveMonthlyFilterTrainerLabel($partnerId, $filters)
+            : null;
         $canViewLocations = $authUser?->can('locations.view') ?? false;
         $activeLocations = $canViewLocations
             ? Location::query()
@@ -67,6 +72,8 @@ class PaymentMonthlyReportController extends AdminBaseController
             'filters'            => $filters,
             'paymentsFilterUser' => $paymentsFilterUser,
             'paymentsFilterTeam' => $paymentsFilterTeam,
+            'paymentsFilterTrainer' => $paymentsFilterTrainer,
+            'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
         ]);
@@ -84,7 +91,7 @@ class PaymentMonthlyReportController extends AdminBaseController
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId);
 
-        $this->applyMonthlyReportFilters($totalQuery, $request);
+        $this->applyMonthlyReportFilters($totalQuery, $request, $partnerId);
 
         $raw = $totalQuery->sum('payments.summ');
 
@@ -121,7 +128,7 @@ class PaymentMonthlyReportController extends AdminBaseController
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId);
 
-        $this->applyMonthlyReportFilters($monthsQuery, $request);
+        $this->applyMonthlyReportFilters($monthsQuery, $request, $partnerId);
 
         if ($mode === 'subscription') {
             // Группировка по месяцу абонемента (payment_month: varchar 'YYYY-MM-DD')
@@ -223,7 +230,7 @@ class PaymentMonthlyReportController extends AdminBaseController
             ->where('users.partner_id', $partnerId)
             ->select('payments.*');
 
-        $this->applyMonthlyReportFilters($paymentsQuery, $request);
+        $this->applyMonthlyReportFilters($paymentsQuery, $request, $partnerId);
 
         if ($mode === 'subscription') {
             // По месяцу абонемента: payment_month LIKE 'YYYY-MM-%'
@@ -286,7 +293,7 @@ class PaymentMonthlyReportController extends AdminBaseController
      *
      * @param  QueryBuilder|EloquentBuilder  $paymentsQuery
      */
-    private function applyMonthlyReportFilters($paymentsQuery, Request $request): void
+    private function applyMonthlyReportFilters($paymentsQuery, Request $request, int $partnerId): void
     {
         $filterUserId = $request->query('filter_user_id');
         if ($filterUserId !== null && $filterUserId !== '' && ctype_digit((string) $filterUserId)) {
@@ -311,6 +318,25 @@ class PaymentMonthlyReportController extends AdminBaseController
         } elseif ($request->filled('team_title')) {
             $like = '%'.trim((string) $request->query('team_title')).'%';
             $paymentsQuery->where('teams.title', 'like', $like);
+        }
+
+        $filterTrainerProfileId = $request->query('filter_trainer_profile_id');
+        if ($filterTrainerProfileId !== null && $filterTrainerProfileId !== '' && ctype_digit((string) $filterTrainerProfileId)) {
+            $tpid = (int) $filterTrainerProfileId;
+            if ($tpid > 0) {
+                $trainerTeamIds = DB::table('team_trainer')
+                    ->where('partner_id', $partnerId)
+                    ->where('trainer_profile_id', $tpid)
+                    ->pluck('team_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                if ($trainerTeamIds === []) {
+                    $paymentsQuery->whereRaw('1 = 0');
+                } else {
+                    $paymentsQuery->whereIn('users.team_id', $trainerTeamIds);
+                }
+            }
         }
 
         /** @var \App\Models\User|null $filterActor */
@@ -426,6 +452,39 @@ class PaymentMonthlyReportController extends AdminBaseController
         return [
             'id'   => $t->id,
             'text' => (string) ($t->title ?? ''),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolveMonthlyFilterTrainerLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_trainer_profile_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $tpid = (int) $raw;
+        if ($tpid <= 0) {
+            return null;
+        }
+
+        $profile = TrainerProfile::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey($tpid)
+            ->with('user:id,name,lastname')
+            ->first(['id', 'user_id']);
+
+        if (! $profile || ! $profile->user) {
+            return null;
+        }
+
+        $u = $profile->user;
+        $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
+        return [
+            'id' => $profile->id,
+            'text' => $text !== '' ? $text : '—',
         ];
     }
 }

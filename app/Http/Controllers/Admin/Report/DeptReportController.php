@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Report;
 use App\Http\Controllers\AdminBaseController;
 use App\Models\Location;
 use App\Models\Team;
+use App\Models\TrainerProfile;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +41,7 @@ class DeptReportController extends AdminBaseController
             ->where('users_prices.new_month', '<', $currentMonth)
             ->where('users.partner_id', $partnerId);
 
-        $this->applyDebtReportFilters($totalMonthly, $request);
+        $this->applyDebtReportFilters($totalMonthly, $request, $partnerId);
 
         $today = Carbon::now()->format('Y-m-d');
 
@@ -53,7 +54,7 @@ class DeptReportController extends AdminBaseController
             ->where('user_custom_payment.amount', '>', 0)
             ->where('user_custom_payment.date_end', '<', $today);
 
-        $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request);
+        $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request, $partnerId);
 
         $totalRaw = (float) $totalMonthly->sum('users_prices.price') + (float) $totalPeriods->sum('user_custom_payment.amount');
         $totalUnpaidPrice = number_format($totalRaw, 0, '', ' ');
@@ -63,6 +64,10 @@ class DeptReportController extends AdminBaseController
 
         /** @var \App\Models\User|null $authUser */
         $authUser = Auth::user();
+        $canViewTrainers = $authUser?->can('trainers.view') ?? false;
+        $paymentsFilterTrainer = $canViewTrainers
+            ? $this->resolveDebtFilterTrainerLabel($partnerId, $filters)
+            : null;
         $canViewLocations = $authUser?->can('locations.view') ?? false;
         $activeLocations = $canViewLocations
             ? Location::query()
@@ -78,6 +83,8 @@ class DeptReportController extends AdminBaseController
             'filters'            => $filters,
             'paymentsFilterUser' => $paymentsFilterUser,
             'paymentsFilterTeam' => $paymentsFilterTeam,
+            'paymentsFilterTrainer' => $paymentsFilterTrainer,
+            'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
         ]);
@@ -102,7 +109,7 @@ class DeptReportController extends AdminBaseController
             ->where('users_prices.new_month', '<', $currentMonth)
             ->where('users.partner_id', $partnerId);
 
-        $this->applyDebtReportFilters($totalMonthly, $request);
+        $this->applyDebtReportFilters($totalMonthly, $request, $partnerId);
 
         $today = Carbon::now()->format('Y-m-d');
         $totalPeriods = DB::table('user_custom_payment')
@@ -114,7 +121,7 @@ class DeptReportController extends AdminBaseController
             ->where('user_custom_payment.amount', '>', 0)
             ->where('user_custom_payment.date_end', '<', $today);
 
-        $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request);
+        $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request, $partnerId);
 
         $raw = (float) $totalMonthly->sum('users_prices.price') + (float) $totalPeriods->sum('user_custom_payment.amount');
 
@@ -150,7 +157,7 @@ class DeptReportController extends AdminBaseController
                 ->where('users_prices.new_month', '<', $currentMonth)
                 ->where('users.partner_id', $partnerId);
 
-            $this->applyDebtReportFilters($monthly, $request);
+            $this->applyDebtReportFilters($monthly, $request, $partnerId);
 
             $periods = DB::table('user_custom_payment')
                 ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
@@ -168,7 +175,7 @@ class DeptReportController extends AdminBaseController
                 ->where('user_custom_payment.amount', '>', 0)
                 ->where('user_custom_payment.date_end', '<', $today);
 
-            $this->applyDebtReportFiltersForPeriodPrices($periods, $request);
+            $this->applyDebtReportFiltersForPeriodPrices($periods, $request, $partnerId);
 
             $union = $monthly->unionAll($periods);
             $base = DB::query()->fromSub($union, 'debts');
@@ -186,7 +193,7 @@ class DeptReportController extends AdminBaseController
     /**
      * @param  \Illuminate\Database\Query\Builder  $query
      */
-    private function applyDebtReportFilters($query, Request $request): void
+    private function applyDebtReportFilters($query, Request $request, int $partnerId): void
     {
         $filterUserId = $request->query('filter_user_id');
         if ($filterUserId !== null && $filterUserId !== '' && ctype_digit((string) $filterUserId)) {
@@ -210,6 +217,7 @@ class DeptReportController extends AdminBaseController
             $query->where('teams.title', 'like', $like);
         }
 
+        $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
         $this->applyDebtReportLocationFilter($query, $request);
 
         if ($request->filled('debt_month')) {
@@ -225,7 +233,7 @@ class DeptReportController extends AdminBaseController
      *
      * @param  \Illuminate\Database\Query\Builder  $query
      */
-    private function applyDebtReportFiltersForPeriodPrices($query, Request $request): void
+    private function applyDebtReportFiltersForPeriodPrices($query, Request $request, int $partnerId): void
     {
         $filterUserId = $request->query('filter_user_id');
         if ($filterUserId !== null && $filterUserId !== '' && ctype_digit((string) $filterUserId)) {
@@ -249,6 +257,7 @@ class DeptReportController extends AdminBaseController
             $query->where('teams.title', 'like', $like);
         }
 
+        $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
         $this->applyDebtReportLocationFilter($query, $request);
 
         // debt_month применяем по start/end месяцу
@@ -261,6 +270,37 @@ class DeptReportController extends AdminBaseController
                 });
             }
         }
+    }
+
+    /**
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function applyDebtReportTrainerFilter($query, Request $request, int $partnerId): void
+    {
+        $filterTrainerProfileId = $request->query('filter_trainer_profile_id');
+        if ($filterTrainerProfileId === null || $filterTrainerProfileId === '' || ! ctype_digit((string) $filterTrainerProfileId)) {
+            return;
+        }
+
+        $tpid = (int) $filterTrainerProfileId;
+        if ($tpid <= 0) {
+            return;
+        }
+
+        $trainerTeamIds = DB::table('team_trainer')
+            ->where('partner_id', $partnerId)
+            ->where('trainer_profile_id', $tpid)
+            ->pluck('team_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($trainerTeamIds === []) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereIn('users.team_id', $trainerTeamIds);
     }
 
     /**
@@ -350,6 +390,39 @@ class DeptReportController extends AdminBaseController
         return [
             'id'   => $t->id,
             'text' => (string) ($t->title ?? ''),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function resolveDebtFilterTrainerLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_trainer_profile_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $tpid = (int) $raw;
+        if ($tpid <= 0) {
+            return null;
+        }
+
+        $profile = TrainerProfile::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey($tpid)
+            ->with('user:id,name,lastname')
+            ->first(['id', 'user_id']);
+
+        if (! $profile || ! $profile->user) {
+            return null;
+        }
+
+        $u = $profile->user;
+        $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
+        return [
+            'id' => $profile->id,
+            'text' => $text !== '' ? $text : '—',
         ];
     }
 

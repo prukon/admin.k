@@ -2,9 +2,11 @@
     $filters = $filters ?? [];
     $paymentsFilterUser = $paymentsFilterUser ?? null;
     $paymentsFilterTeam = $paymentsFilterTeam ?? null;
+    $paymentsFilterTrainer = $paymentsFilterTrainer ?? null;
+    $canViewTrainers = $canViewTrainers ?? (auth()->user() && auth()->user()->can('trainers.view'));
     $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
     $activeLocations = $activeLocations ?? collect();
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_location_id', 'user_name', 'team_title', 'debt_month'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'debt_month'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
@@ -114,6 +116,21 @@
                     @endif
                 </select>
             </div>
+            @if($canViewTrainers)
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-debt-filter-trainer">Тренер</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-debt-filter-trainer"
+                        name="filter_trainer_profile_id"
+                        data-placeholder="Все тренеры"
+                        data-search-url="{{ route('reports.payments.trainers.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterTrainer)
+                        <option value="{{ $paymentsFilterTrainer['id'] }}" selected>{{ $paymentsFilterTrainer['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            @endif
             @if($canViewLocations)
             <div class="col-12 col-md-3">
                 <label class="form-label" for="pay-debt-filter-location">Локация</label>
@@ -171,6 +188,7 @@
             var $debtFiltersForm = $('#debt-report-filters');
             var $debtFilterUser = $('#pay-debt-filter-user');
             var $debtFilterTeam = $('#pay-debt-filter-team');
+            var $debtFilterTrainer = $('#pay-debt-filter-trainer');
             var $debtReportTotalAmount = $('.payments-report-total-amount');
             var $debtReportTotalStat = $('#debtReportTotalStat');
             var $debtReportTotalValueInner = $('.payments-report-total-value-inner');
@@ -281,13 +299,18 @@
 
             initPaymentsReportFilterSelect2($debtFilterUser);
             initPaymentsReportFilterSelect2($debtFilterTeam);
+            initPaymentsReportFilterSelect2($debtFilterTrainer);
 
             function debtReportFilterParams() {
                 var uid = $debtFiltersForm.find('[name="filter_user_id"]').val() || '';
                 var tid = $debtFiltersForm.find('[name="filter_team_id"]').val() || '';
+                var tpid = $debtFilterTrainer.length
+                    ? ($debtFiltersForm.find('[name="filter_trainer_profile_id"]').val() || '')
+                    : '';
                 return {
                     filter_user_id: uid,
                     filter_team_id: tid,
+                    filter_trainer_profile_id: tpid,
                     filter_location_id: canViewLocations
                         ? ($debtFiltersForm.find('[name="filter_location_id"]').val() || '')
                         : '',
@@ -403,6 +426,7 @@
                 $debtFiltersForm[0].reset();
                 $debtFilterUser.val(null).trigger('change');
                 $debtFilterTeam.val(null).trigger('change');
+                $debtFilterTrainer.val(null).trigger('change');
                 if (canViewLocations) {
                     $('#pay-debt-filter-location').val('');
                 }

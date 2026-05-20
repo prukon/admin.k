@@ -2,9 +2,11 @@
     $filters = $filters ?? [];
     $paymentsFilterUser = $paymentsFilterUser ?? null;
     $paymentsFilterTeam = $paymentsFilterTeam ?? null;
+    $paymentsFilterTrainer = $paymentsFilterTrainer ?? null;
+    $canViewTrainers = $canViewTrainers ?? (auth()->user() && auth()->user()->can('trainers.view'));
     $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
     $activeLocations = $activeLocations ?? collect();
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
@@ -134,6 +136,21 @@
                     @endif
                 </select>
             </div>
+            @if($canViewTrainers)
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-monthly-filter-trainer">Тренер</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-monthly-filter-trainer"
+                        name="filter_trainer_profile_id"
+                        data-placeholder="Все тренеры"
+                        data-search-url="{{ route('reports.payments.trainers.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterTrainer)
+                        <option value="{{ $paymentsFilterTrainer['id'] }}" selected>{{ $paymentsFilterTrainer['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            @endif
             @if($canViewLocations)
             <div class="col-12 col-md-3">
                 <label class="form-label" for="pay-monthly-filter-location">Локация</label>
@@ -201,6 +218,7 @@
             var $payMonthlyFiltersForm = $('#payments-monthly-filters');
             var $payMonthlyFilterUser = $('#pay-monthly-filter-user');
             var $payMonthlyFilterTeam = $('#pay-monthly-filter-team');
+            var $payMonthlyFilterTrainer = $('#pay-monthly-filter-trainer');
             var $paymentsMonthlyReportTotalAmount = $('.payments-report-total-amount');
             var $paymentsMonthlyReportTotalStat = $('#paymentsMonthlyReportTotalStat');
             var $paymentsMonthlyReportTotalValueInner = $('.payments-report-total-value-inner');
@@ -288,10 +306,14 @@
             function paymentsMonthlyFilterParams() {
                 var uid = $payMonthlyFiltersForm.find('[name=\"filter_user_id\"]').val() || '';
                 var tid = $payMonthlyFiltersForm.find('[name=\"filter_team_id\"]').val() || '';
+                var tpid = $payMonthlyFilterTrainer.length
+                    ? ($payMonthlyFiltersForm.find('[name=\"filter_trainer_profile_id\"]').val() || '')
+                    : '';
                 return {
                     mode: currentMode,
                     filter_user_id: uid,
                     filter_team_id: tid,
+                    filter_trainer_profile_id: tpid,
                     filter_location_id: canViewLocations
                         ? ($payMonthlyFiltersForm.find('[name=\"filter_location_id\"]').val() || '')
                         : '',
@@ -353,6 +375,7 @@
 
             initPaymentsReportFilterSelect2($payMonthlyFilterUser);
             initPaymentsReportFilterSelect2($payMonthlyFilterTeam);
+            initPaymentsReportFilterSelect2($payMonthlyFilterTrainer);
 
             $payMonthlyFiltersForm.on('submit', function (e) {
                 e.preventDefault();
@@ -364,6 +387,7 @@
                 $payMonthlyFiltersForm[0].reset();
                 $payMonthlyFilterUser.val(null).trigger('change');
                 $payMonthlyFilterTeam.val(null).trigger('change');
+                $payMonthlyFilterTrainer.val(null).trigger('change');
                 if (canViewLocations) {
                     $('#pay-monthly-filter-location').val('');
                 }

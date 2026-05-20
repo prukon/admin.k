@@ -203,6 +203,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/payments/total', [PaymentReportController::class, 'paymentsTotal'])->name('reports.payments.total');
         Route::get('/admin/reports/payments/users-search', [PaymentReportController::class, 'usersSearch'])->name('reports.payments.users.search');
         Route::get('/admin/reports/payments/teams-search', [PaymentReportController::class, 'teamsSearch'])->name('reports.payments.teams.search');
+        Route::get('/admin/reports/payments/trainers-search', [PaymentReportController::class, 'trainersSearch'])->name('reports.payments.trainers.search');
         Route::post('/admin/reports/payments/{payment}/refund', [PaymentRefundController::class, 'store'])->name('payments.refund')->whereNumber('payment');
         Route::get('/admin/reports/payments/{payment}/tbank-history', [PaymentReportController::class, 'tbankHistory'])
             ->middleware('can:viewing.all.logs')

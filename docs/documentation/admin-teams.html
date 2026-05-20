@@ -87,14 +87,27 @@
   <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code> строка <code>schedule.view</code> по умолчанию <strong>закомментирована</strong>: у нового партнёра у администратора это право может отсутствовать, пока его явно не включат в матрице прав партнёра. Общая модель прав — в
     <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
 
-  <h2>5) Представления и контроллер</h2>
+  <h2>5) Тренер группы (<code>trainer_profile_id</code>)</h2>
+  <div class="note">
+    При наличии <code>trainers.view</code> в модалках создания и редактирования группы показывается селект тренера.
+    Поле запроса: <code>trainer_profile_id</code> (id из <code>trainer_profiles</code> текущего партнёра).
+    Сохранение через <code>TeamTrainerSyncService::syncTrainerForTeam</code>: на одну группу — не более одного тренера; смена тренера заменяет предыдущую привязку.
+    Без <code>trainers.view</code> ключ <code>trainer_profile_id</code> удаляется в <code>TeamController</code> до сохранения (как <code>weekdays</code> без <code>schedule.view</code>).
+    Подробно: <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.
+  </div>
+  <ul>
+    <li><code>GET /admin/team/{id}/edit</code> (JSON) — поле <code>trainer_profile_id</code> (первый связанный профиль).</li>
+    <li>Тесты: <code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code>.</li>
+  </ul>
+
+  <h2>6) Представления и контроллер</h2>
   <ul>
     <li><code>resources/views/admin/team.blade.php</code> — таблица, настройки колонок, инициализация DataTables.</li>
     <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки создания/редактирования.</li>
     <li><code>app/Http/Controllers/Admin/TeamController.php</code> — методы <code>index</code>, <code>data</code>, <code>store</code>, <code>edit</code>, <code>update</code>, логи.</li>
   </ul>
 
-  <h2>6) Автотесты</h2>
+  <h2>7) Автотесты</h2>
   <div class="note">
     Фичтесты: <code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — видимость колонки/блоков, недоступность изменения дней без права, доступность эндпоинтов при <code>groups.view</code>, сортировка по имени колонки.
     Общие сценарии групп: <code>tests/Feature/Crm/Teams/TeamControllerTest.php</code>.

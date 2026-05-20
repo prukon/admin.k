@@ -2,9 +2,11 @@
     $filters = $filters ?? [];
     $paymentsFilterUser = $paymentsFilterUser ?? null;
     $paymentsFilterTeam = $paymentsFilterTeam ?? null;
+    $paymentsFilterTrainer = $paymentsFilterTrainer ?? null;
+    $canViewTrainers = $canViewTrainers ?? (auth()->user() && auth()->user()->can('trainers.view'));
     $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
     $activeLocations = $activeLocations ?? collect();
-    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
+    $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
@@ -130,6 +132,21 @@
                     @endif
                 </select>
             </div>
+            @if($canViewTrainers)
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pay-ltv-filter-trainer">Тренер</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="pay-ltv-filter-trainer"
+                        name="filter_trainer_profile_id"
+                        data-placeholder="Все тренеры"
+                        data-search-url="{{ route('reports.payments.trainers.search') }}">
+                    <option value=""></option>
+                    @if($paymentsFilterTrainer)
+                        <option value="{{ $paymentsFilterTrainer['id'] }}" selected>{{ $paymentsFilterTrainer['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            @endif
             @if($canViewLocations)
             <div class="col-12 col-md-3">
                 <label class="form-label" for="pay-ltv-filter-location">Локация</label>
@@ -199,6 +216,7 @@
             var $ltvFiltersForm = $('#ltv-report-filters');
             var $ltvFilterUser = $('#pay-ltv-filter-user');
             var $ltvFilterTeam = $('#pay-ltv-filter-team');
+            var $ltvFilterTrainer = $('#pay-ltv-filter-trainer');
             var $ltvReportTotalAmount = $('.payments-report-total-amount');
             var $ltvReportTotalStat = $('#ltvReportTotalStat');
             var $ltvReportTotalValueInner = $('.payments-report-total-value-inner');
@@ -286,9 +304,13 @@
             function ltvReportFilterParams() {
                 var uid = $ltvFiltersForm.find('[name="filter_user_id"]').val() || '';
                 var tid = $ltvFiltersForm.find('[name="filter_team_id"]').val() || '';
+                var tpid = $ltvFilterTrainer.length
+                    ? ($ltvFiltersForm.find('[name="filter_trainer_profile_id"]').val() || '')
+                    : '';
                 return {
                     filter_user_id: uid,
                     filter_team_id: tid,
+                    filter_trainer_profile_id: tpid,
                     filter_location_id: canViewLocations
                         ? ($ltvFiltersForm.find('[name="filter_location_id"]').val() || '')
                         : '',
@@ -350,6 +372,7 @@
 
             initPaymentsReportFilterSelect2($ltvFilterUser);
             initPaymentsReportFilterSelect2($ltvFilterTeam);
+            initPaymentsReportFilterSelect2($ltvFilterTrainer);
 
             var ltvTable = $('#ltv-table').DataTable({
                 processing: true,
@@ -479,6 +502,7 @@
                 $ltvFiltersForm[0].reset();
                 $ltvFilterUser.val(null).trigger('change');
                 $ltvFilterTeam.val(null).trigger('change');
+                $ltvFilterTrainer.val(null).trigger('change');
                 if (canViewLocations) {
                     $('#pay-ltv-filter-location').val('');
                 }
