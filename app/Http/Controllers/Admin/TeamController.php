@@ -116,6 +116,20 @@ class TeamController extends AdminBaseController
                     $baseQuery->orderBy('teams.title', $orderDir);
                     break;
 
+                case 'trainer_label':
+                    $baseQuery
+                        ->leftJoin('team_trainer', function ($join) use ($partnerId) {
+                            $join->on('team_trainer.team_id', '=', 'teams.id')
+                                ->where('team_trainer.partner_id', '=', $partnerId);
+                        })
+                        ->leftJoin('trainer_profiles', 'trainer_profiles.id', '=', 'team_trainer.trainer_profile_id')
+                        ->leftJoin('users as trainer_users', 'trainer_users.id', '=', 'trainer_profiles.user_id')
+                        ->select('teams.*')
+                        ->orderBy('trainer_users.lastname', $orderDir)
+                        ->orderBy('trainer_users.name', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
                 case 'status_label':
                     $baseQuery->orderBy('teams.is_enabled', $orderDir)
                         ->orderBy('teams.title', 'asc');
@@ -138,7 +152,7 @@ class TeamController extends AdminBaseController
         $length = $validated['length'] ?? 20;
 
         $teams = $baseQuery
-            ->with('weekdays') // чтобы собрать расписание
+            ->with(['weekdays', 'trainerProfiles.user'])
             ->skip($start)
             ->take($length)
             ->get();
@@ -152,10 +166,17 @@ class TeamController extends AdminBaseController
                     ->implode(', ');
             }
 
+            $trainerLabel = '';
+            if ($team->relationLoaded('trainerProfiles')) {
+                $trainerProfile = $team->trainerProfiles->first();
+                $trainerLabel = $trainerProfile?->user?->full_name ?? '';
+            }
+
             return [
                 'id'             => $team->id,
                 'order_by'       => $team->order_by,
                 'title'          => $team->title,
+                'trainer_label'  => $trainerLabel,
                 'weekdays_label' => $weekdaysLabel,
                 'status_label'   => $team->is_enabled ? 'Активна' : 'Неактивна',
                 'is_enabled'     => (int) $team->is_enabled,

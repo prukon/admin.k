@@ -56,9 +56,9 @@
 
   <h2>2) Список пользователей (DataTables)</h2>
   <ul>
-    <li><b>Фильтры</b> (кнопка «Найти»): <code>name</code>, <code>team_id</code> (<code>none</code> = без группы), <code>status</code> (<code>active</code> / <code>inactive</code>).</li>
+    <li><b>Фильтры</b> (кнопка «Найти»): <code>name</code> — ищет также по ФИО родителя (<code>parent_*</code>), email, телефону, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>).</li>
     <li><b>Фильтр «Локация»</b> — только при <code>locations.view</code> (см. §3). Параметр: <code>location_id</code> (<code>none</code> = без локации, id = активная локация партнёра). Без права параметр в запросе <b>игнорируется</b>.</li>
-    <li><b>Колонки</b> настраиваются через «Поля списка»; настройки per user в <code>user_table_settings</code>.</li>
+    <li><b>Колонки</b> настраиваются через «Поля списка»; настройки per user в <code>user_table_settings</code> (ключ <code>parent</code> для колонки «Родитель»).</li>
   </ul>
 
   <h3>Индексы колонок DataTables (фиксированные)</h3>
@@ -85,12 +85,58 @@
 
   <h2 id="user-parent">2.1) Данные родителя на карточке ученика</h2>
   <div class="note">
-    Миграция: <code>database/migrations/2026_05_21_120000_add_parent_name_fields_to_users_table.php</code>.<br>
-    Поля в <code>users</code> (все nullable, до 100 символов): <code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>.<br>
-    В списке и в API data — колонка <code>parent</code> (аксессор <code>User::parent_full_name</code>).<br>
-    <code>email</code> и <code>phone</code> ученика — контакт родителя (оплаты, напоминания). ФИО родителя — отдельно, для справочника и предзаполнения подписанта договора.<br>
-    При отправке договора на подпись (<code>contracts/show</code>, модалка «Отправка на подпись») поля подписанта предзаполняются из <code>parent_*</code> и <code>phone</code>; в Подпислон уходят <code>signer_lastname</code> / <code>signer_firstname</code> / <code>signer_middlename</code> из формы (снимок в <code>contract_sign_requests</code>).<br>
-    Валидация: <code>StoreRequest</code>, <code>UpdateRequest</code> — все три поля необязательны; пустая строка → <code>null</code>.
+    Отдельной сущности «Родители» и связи many-to-many <b>нет</b>: ФИО хранится в той же записи <code>users</code>, что и ученик (роль <code>user</code>).
+    Миграция: <code>database/migrations/2026_05_21_120000_add_parent_name_fields_to_users_table.php</code>.
+  </div>
+
+  <h3>2.1.1) Поля в БД и API</h3>
+  <table>
+    <thead>
+      <tr><th>Поле</th><th>Описание</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>parent_lastname</code></td><td>Фамилия родителя / подписанта (nullable, max 100)</td></tr>
+      <tr><td><code>parent_firstname</code></td><td>Имя (nullable, max 100)</td></tr>
+      <tr><td><code>parent_middlename</code></td><td>Отчество (nullable, max 100)</td></tr>
+      <tr><td><code>parent_full_name</code></td><td>Аксессор: склейка трёх полей для списка и логов</td></tr>
+      <tr><td><code>email</code>, <code>phone</code></td><td>Контакт родителя (оплаты, напоминания, SMS при подписании договора) — как и раньше, не дублируются в <code>parent_*</code></td></tr>
+    </tbody>
+  </table>
+  <p class="small">В <code>GET /admin/users/data</code> в каждой строке: <code>"parent": "Фамилия Имя Отчество"</code> или пустая строка. Сортировка по родителю: <code>order[0][column]=3</code> → <code>parent_lastname</code>, <code>parent_firstname</code>.</p>
+
+  <h3>2.1.2) UI (модалки create / edit)</h3>
+  <ul>
+    <li>Блок «Данные родителя (подписант договора)» после ФИО ученика: <code>#create-parent-lastname</code>, <code>#create-parent-firstname</code>, <code>#create-parent-middlename</code> (и аналоги <code>#edit-parent-*</code>).</li>
+    <li>Все три поля <b>необязательны</b>; отдельного права на родителя нет — редактирует любой, у кого есть доступ к store/update пользователя.</li>
+    <li>В «Поля списка» — чекбокс колонки «Родитель» (<code>data-column-key="parent"</code>).</li>
+  </ul>
+
+  <h3>2.1.3) Валидация и логи</h3>
+  <table>
+    <thead>
+      <tr><th>Операция</th><th>Request</th><th>Правила</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Создание</td>
+        <td><code>StoreRequest</code></td>
+        <td><code>parent_*</code> — <code>nullable|string|max:100</code>; trim; пустая строка → <code>null</code>. Ошибки — под соответствующим полем в модалке.</td>
+      </tr>
+      <tr>
+        <td>Обновление</td>
+        <td><code>UpdateRequest</code></td>
+        <td>Те же правила для <code>parent_*</code> (всегда в rules, без отдельного permission).</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>При изменении ФИО родителя в лог пользователя (action 22) добавляется строка «Родитель: … → …».</p>
+
+  <h3>2.1.4) Связь с договорами</h3>
+  <div class="note">
+    На карточке договора <code>GET /client-contracts/{id}</code> в блоке основной информации выводится строка «Родитель» (<code>parent_full_name</code>), перед «Ученик» (<code>full_name</code> ученика).
+    В модалке «Отправка на подпись» поля подписанта предзаполняются из <code>parent_*</code> и <code>phone</code>.
+    В Подпислон уходят значения из формы отправки; в <code>contract_sign_requests</code> сохраняется снимок (<code>signer_lastname</code>, <code>signer_firstname</code>, <code>signer_middlename</code>, <code>signer_phone</code>) — см. <a href="/docs/documentation/contracts#contract-parent">договоры §2–3</a>.
+    В <code>ContractsController@show</code> при загрузке <code>$student</code> поля <code>parent_*</code> обязательно должны быть в <code>select()</code>, иначе предзаполнение в UI будет пустым.
   </div>
 
   <h2 id="user-location">3) Локация пользователя (<code>users.location_id</code>)</h2>
@@ -142,7 +188,7 @@
     <li><b>Create</b> — <code>#create-location</code>, опции: «Без локации» + активные локации партнёра (<code>is_enabled = true</code>).</li>
     <li><b>Edit</b> — <code>#edit-location</code>: те же активные + текущая локация, если она отключена (в JS подпись «(отключена)», опция добавляется динамически).</li>
     <li><b>Фильтр</b> — <code>#filter-location</code>: пусто / <code>none</code> / id активной локации.</li>
-    <li><b>Столбец</b> — после «Группа»; по умолчанию виден при первом заходе, если есть <code>locations.view</code>.</li>
+    <li><b>Столбец «Локация»</b> — после «Группа»; по умолчанию виден при первом заходе, если есть <code>locations.view</code>.</li>
   </ul>
   <p>В <code>index</code> во view всегда передаётся <code>$activeLocations</code> (активные локации партнёра) — для фильтра и селектов; без права блоки в Blade не рендерятся (<code>@can('locations.view')</code>).</p>
 
@@ -268,19 +314,20 @@
   <h2>7) Тесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>tests/Feature/Crm/Users/AdminUsersLocationFeatureTest.php</code> — локация: CRUD, фильтр, сортировка, columns-settings, UI, smoke 200, права <code>locations.view</code> / <code>users.view</code></li>
-      <li><code>tests/Feature/Crm/Users/AdminUsersAccessFeatureTest.php</code> — доступ <code>users.view</code>, smoke endpoint’ов (в т.ч. <code>location_id</code>), сценарий без <code>locations.view</code></li>
-      <li><code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> — доп. поля</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, валидация max, columns-settings</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersAccessTest.php</code> — гость / без <code>users.view</code> → 403; smoke 200 раздела (в т.ч. store/update с <code>parent_*</code>)</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersLocationFeatureTest.php</code> — локация: CRUD, фильтр, сортировка (<code>column=5</code>), columns-settings, UI</li>
+      <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data, сортировка (индексы с колонкой «Родитель»), <code>test_store_and_update_persist_parent_name_fields</code></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> — доп. поля (<code>UserField</code>, не путать с <code>parent_*</code>)</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPhoneOnCreateFeatureTest.php</code> — телефон при создании</li>
-      <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data, сортировка (индексы колонок с учётом «Локация»)</li>
       <li><code>tests/Feature/Crm/Users/UserTableSettingsControllerTest.php</code> — columns-settings</li>
-      <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code> — смена роли на trainer и появление в списке тренеров</li>
-      <li><code>tests/Feature/Crm/Trainers/TrainerSyncAndTeamsFeatureTest.php</code> — <code>team_ids</code> при update пользователя</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code>, <code>TrainerSyncAndTeamsFeatureTest.php</code> — роль trainer</li>
     </ul>
-    Запуск: <code>php artisan test --filter=AdminUsersLocationFeatureTest</code> или <code>AdminUsersAccessFeatureTest</code>.
+    Запуск: <code>php artisan test --filter=AdminUsersParentFeatureTest</code> или <code>AdminUsersAccessTest</code>.
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/contracts#contract-parent">Договоры: родитель и подписант</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
     <a href="/docs/documentation/reports-admin#location-filter">Отчёты: фильтр по локации</a></p>
 </div>

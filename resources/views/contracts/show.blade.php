@@ -6,18 +6,22 @@
 @section('content')
 
     @php
-        function fileIconClass(?string $path): string {
-            $ext = strtolower(pathinfo((string)$path, PATHINFO_EXTENSION));
-            return match($ext) {
-                'pdf'          => 'fa-file-pdf',
-                'doc','docx'   => 'fa-file-word',
-                'xls','xlsx'   => 'fa-file-excel',
-                'ppt','pptx'   => 'fa-file-powerpoint',
-                'png','jpg','jpeg','gif','webp','bmp' => 'fa-file-image',
-                'txt','rtf'    => 'fa-file-lines',
-                'zip','rar','7z'=> 'fa-file-zipper',
-                default        => 'fa-file',
-            };
+        if (!function_exists('contractShowFileIconClass')) {
+            function contractShowFileIconClass(?string $path): string
+            {
+                $ext = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
+
+                return match ($ext) {
+                    'pdf' => 'fa-file-pdf',
+                    'doc', 'docx' => 'fa-file-word',
+                    'xls', 'xlsx' => 'fa-file-excel',
+                    'ppt', 'pptx' => 'fa-file-powerpoint',
+                    'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp' => 'fa-file-image',
+                    'txt', 'rtf' => 'fa-file-lines',
+                    'zip', 'rar', '7z' => 'fa-file-zipper',
+                    default => 'fa-file',
+                };
+            }
         }
     @endphp
 
@@ -247,7 +251,7 @@
                                 <a href="{{ route('contracts.downloadSigned', $contract) }}"
                                    class="d-inline-flex flex-column align-items-center text-decoration-none"
                                    title="Скачать подписанный договор">
-                                    <i class="fa-solid {{ fileIconClass($contract->signed_pdf_path ?? $contract->source_pdf_path) }} fa-3x mb-2"></i>
+                                    <i class="fa-solid {{ contractShowFileIconClass($contract->signed_pdf_path ?? $contract->source_pdf_path) }} fa-3x mb-2"></i>
                                     <span>Скачать подписанный</span>
                                 </a>
                             @else
@@ -255,7 +259,7 @@
                                 <a href="{{ route('contracts.downloadOriginal', $contract) }}"
                                    class="d-inline-flex flex-column align-items-center text-decoration-none"
                                    title="Скачать оригинал договора">
-                                    <i class="fa-solid {{ fileIconClass($contract->source_pdf_path) }} fa-3x mb-2"></i>
+                                    <i class="fa-solid {{ contractShowFileIconClass($contract->source_pdf_path) }} fa-3x mb-2"></i>
                                     <span>Скачать оригинал</span>
                                 </a>
                             @endif

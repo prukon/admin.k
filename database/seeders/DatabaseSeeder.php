@@ -26,10 +26,12 @@ class DatabaseSeeder extends Seeder
                 DevPartnersSeeder::class, // добавляем случайных партнеров
                 DevUserRoleBasePermissionsSeeder::class, // базовые права роли user для всех партнёров (dev)
                 DevAdminRoleBasePermissionsSeeder::class, // базовые права роли admin для всех партнёров (dev)
+                DevTrainerRoleBasePermissionsSeeder::class, // базовые права роли trainer для всех партнёров (dev)
                 DevTeamsSeeder::class, // добавляем команды
                 DevLocationsSeeder::class, // локации (dev)
                 DevAdminsSeeder::class, // добавляем администраторов
                 DevUsersSeeder::class, // добавляем рандомных пользователей
+                DevTrainersSeeder::class, // тренеры (dev)
                 DevSchoolLeadsSeeder::class, // заявки с сайта (dev)
                 DevLessonPackagesSeeder::class, // шаблоны абонементов (dev)
                 DevSchoolScheduleSeeder::class, // расписание школы и слоты (dev)

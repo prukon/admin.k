@@ -28,8 +28,8 @@ class DocumentationController extends Controller
         'school-schedule-calendar'    => 'Расписание школы: календарь, статусы (consumes_lesson), пробное, JSON/API',
         'admin-teams'                 => 'Группы (админка): /admin/teams, groups.view и schedule.view (колонка «Расписание», дни в модалках)',
         'admin-trainers'              => 'Тренеры (админка): /admin/trainers, trainer_profiles, team_trainer, фильтр в отчётах',
-        'admin-users'                 => 'Пользователи (админка): /admin/users, локация ученика (locations.view), доп. поля',
-        'contracts'                   => 'Договоры (клиентские): скачивание в интерфейсе (CRM и «Мои документы»)',
+        'admin-users'                 => 'Пользователи (админка): /admin/users, ФИО родителя, локация, доп. поля',
+        'contracts'                   => 'Договоры (клиентские): карточка, родитель, SMS/Подпислон, скачивание',
         'school-leads-widget'         => 'Заявки с сайта: виджет, CRM, лид→клиент→договор, toolbar, Telegram',
     ];
 

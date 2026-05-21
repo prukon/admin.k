@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\Teams;
 
 use App\Models\Team;
+use App\Models\User;
 use App\Models\Weekday;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -85,6 +86,36 @@ class TeamScheduleViewAndPageAccessFeatureTest extends CrmTestCase
         $this->get('/admin/teams')
             ->assertOk()
             ->assertDontSee('<th>Расписание</th>', false);
+    }
+
+    public function test_teams_index_shows_trainer_table_header_when_trainers_view_granted(): void
+    {
+        $this->get('/admin/teams')
+            ->assertOk()
+            ->assertSee('<th>Тренер</th>', false);
+    }
+
+    public function test_teams_index_hides_trainer_table_header_without_trainers_view(): void
+    {
+        $actor = $this->createUserWithoutPermission('trainers.view', $this->partner);
+        $this->grantGroupsViewForUser($actor);
+        $this->actingAs($actor);
+
+        $this->get('/admin/teams')
+            ->assertOk()
+            ->assertDontSee('<th>Тренер</th>', false)
+            ->assertDontSee('data-column-key="trainer_label"', false);
+    }
+
+    private function grantGroupsViewForUser(User $user): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => $this->partner->id,
+            'role_id'       => $user->role_id,
+            'permission_id' => $this->permissionId('groups.view'),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
     }
 
     public function test_teams_index_hides_create_modal_schedule_block_without_schedule_view(): void

@@ -3,63 +3,152 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Договоры (клиентские): скачивание в интерфейсе</title>
+  <title>Документация: договоры (клиентские)</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
     .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
     h1 { font-size: 26px; margin: 0 0 8px; }
     h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
     a { color: #0b5fff; text-decoration: none; }
     a:hover { text-decoration: underline; }
     .small { color: #555; font-size: 13px; }
     .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
     ul { margin: 8px 0 8px 20px; }
     code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
   </style>
 </head>
 <body>
 <div class="wrap">
   <p class="small"><a href="/doc">← Документация</a></p>
-  <h1>Договоры (клиентские): скачивание в интерфейсе</h1>
-  <div class="small">Папка: <code>/docs/documentation</code></div>
+  <h1>Договоры (клиентские)</h1>
+  <div class="small">Файл: <code>/docs/documentation/contracts.html</code> · раздел CRM: <code>/client-contracts</code> · оглавление: <a href="/doc">/doc</a></div>
 
+  <h2>1) Назначение и доступ</h2>
   <div class="note">
-    Правило единое для карточки договора в CRM (<code>/client-contracts/{id}</code>) и для вкладки «Мои документы» в учётной записи пользователя.
+    Раздел для работы школы с PDF-договорами учеников: список, создание, карточка, отправка на подпись (Подпислон / SMS), email, скачивание файлов.<br>
+    Все маршруты обёрнуты в <code>middleware('can:contracts.view')</code> (<code>routes/web.php</code>). Без права — <b>403</b> (HTML и JSON).<br>
+    Маршруты с <code>{contract}</code> дополнительно проверяют <code>contract.partner</code> (договор того же партнёра, что <code>current_partner</code>).<br>
+    Синхронизация статуса с Подпислоном: <code>GET …/status</code> — отдельно <code>can:contracts.sync</code>.
   </div>
 
-  <h2>Какая кнопка показывается</h2>
-  <ul>
-    <li>Если статус договора <code>signed</code> (<code>Contract::STATUS_SIGNED</code>) — в интерфейсе предлагается только скачивание <strong>подписанного</strong> файла. Подпись кнопки/ссылки: «Скачать подписанный».</li>
-    <li>Если статус любой другой — предлагается только скачивание <strong>оригинала</strong> (неподписанного PDF). Подпись: «Скачать оригинал».</li>
-  </ul>
+  <h3>Основные URL</h3>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/client-contracts</code></td><td>Список (DataTables)</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/create</code></td><td>Форма создания (PDF + ученик)</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts</code></td><td>Сохранение договора, списание с баланса партнёра</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/send</code></td><td>Первая отправка на подпись (SMS)</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/resend</code></td><td>Повторная отправка</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/send-email</code></td><td>Отправка PDF на email</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/{contract}/download-original</code></td><td>Скачивание неподписанного PDF</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/{contract}/download-signed</code></td><td>Скачивание подписанного PDF</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/{contract}/status</code></td><td>Ручная синхронизация с Подпислоном (<code>contracts.sync</code>)</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Контроллеры: <code>App\Http\Controllers\Contracts\ContractsController</code>, <code>ContractSigningController</code>, <code>ContractTableController</code>, <code>ContractLookupsController</code>. View карточки: <code>resources/views/contracts/show.blade.php</code>.</p>
 
-  <h2>Предзаполнение подписанта (SMS)</h2>
+  <h3>1.1) Проверка доступа (ожидаемые коды)</h3>
+  <table>
+    <thead>
+      <tr><th>Кто</th><th>Страница / API</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Гость</td><td><code>/client-contracts</code> → 302; JSON без сессии → 401</td></tr>
+      <tr><td>Авторизован, нет <code>contracts.view</code></td><td>403</td></tr>
+      <tr><td>Авторизован, есть <code>contracts.view</code></td><td>200 на index, create, data, columns-settings, show (свой партнёр), check-balance, download при наличии файла, send-email (с валидным телом)</td></tr>
+      <tr><td>Чужой партнёр (<code>{contract}</code>)</td><td>403 (middleware <code>contract.partner</code>)</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="contract-parent">2) Родитель и ученик на карточке договора</h2>
   <div class="note">
-    На <code>GET /client-contracts/{id}</code> в модалке «Отправка на подпись» ФИО и телефон берутся из карточки ученика:
-    <code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>, <code>phone</code>
-    (см. <a href="/docs/documentation/admin-users#user-parent">admin-users.html §2.1</a>).
-    В <code>ContractsController@show</code> эти поля должны быть в <code>select</code> при загрузке <code>$student</code>.
-    В блоке основной информации карточки договора перед «Ученик» выводится строка «Родитель» (<code>parent_full_name</code>).
+    Договор привязан к ученику (<code>contracts.user_id</code> → <code>users</code>). ФИО родителя хранится в полях ученика — см. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a> (<code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>).
   </div>
 
-  <h2>Замечания</h2>
-  <ul>
-    <li>Критерий выбора кнопки — именно поле <code>contracts.status</code>, а не наличие <code>signed_pdf_path</code>.</li>
-    <li>Если статус <code>signed</code>, а файл подписанного PDF в хранилище отсутствует или путь в БД не совпадает с диском, скачивание вернёт ошибку (см. обработку в контроллерах скачивания).</li>
-    <li>Файлы хранятся под корнем диска <code>local</code>: <code>storage/app/</code> + относительный путь из <code>source_pdf_path</code> / <code>signed_pdf_path</code>.</li>
-  </ul>
+  <h3>2.1) Блок основной информации</h3>
+  <p>На <code>GET /client-contracts/{id}</code> в карточке (<code>&lt;dl&gt;</code>) порядок строк:</p>
+  <table>
+    <thead>
+      <tr><th>Подпись</th><th>Источник</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Родитель</td><td><code>$student->parent_full_name</code> или «—», если пусто</td></tr>
+      <tr><td>Ученик</td><td><code>$student->full_name</code> (фамилия + имя ученика)</td></tr>
+      <tr><td>Группа</td><td><code>teams.title</code> по <code>user.team_id</code></td></tr>
+      <tr><td>Статус</td><td><code>contracts.status</code> (бейдж)</td></tr>
+      <tr><td>Телефон</td><td><code>users.phone</code> (контакт родителя)</td></tr>
+      <tr><td>Почта</td><td><code>users.email</code></td></tr>
+    </tbody>
+  </table>
 
-  <h2>Создание договора из заявки с сайта</h2>
+  <h3>2.2) Загрузка ученика в контроллере</h3>
+  <div class="warn">
+    В <code>ContractsController@show</code> ученик выбирается явным <code>select()</code>. В выборку обязательно входят <code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code> (плюс <code>name</code>, <code>lastname</code>, <code>phone</code>, <code>email</code>, <code>team_id</code>).
+    Если их не включить, в UI родитель и предзаполнение подписанта будут пустыми при заполненной карточке ученика.
+  </div>
+
+  <h2>3) Предзаполнение подписанта (модалка «Отправка на подпись»)</h2>
+  <p>Кнопки «Отправить СМС на подпись» / «Повторно отправить» открывают модалку <code>#sendModal</code>. Значения по умолчанию (до правки оператором):</p>
+  <table>
+    <thead>
+      <tr><th>Поле в модалке</th><th>Источник в БД</th><th>Отправка в API</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Фамилия (<code>#signerLastname</code>)</td><td><code>parent_lastname</code></td><td><code>signer_lastname</code> (<code>ContractSendRequest</code>)</td></tr>
+      <tr><td>Имя (<code>#signerFirstname</code>)</td><td><code>parent_firstname</code></td><td><code>signer_firstname</code></td></tr>
+      <tr><td>Отчество (<code>#signerMiddlename</code>)</td><td><code>parent_middlename</code></td><td><code>signer_middlename</code> (nullable)</td></tr>
+      <tr><td>Телефон (<code>#signerPhone</code>)</td><td><code>phone</code> (10 цифр без +7 для маски)</td><td><code>signer_phone</code> → канон <code>7XXXXXXXXXX</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.1) Подпислон</h3>
   <div class="note">
-    Полный сценарий (лид → ученик → договор) описан в
-    <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5–5.7).
+    Провайдер: <code>App\Services\Signatures\Providers\PodpislonProvider</code>.
+    В <code>PUT /add-document</code> передаются <code>name</code> (имя), <code>last_name</code> (фамилия), <code>second_name</code> (отчество), <code>phone</code> — из данных формы отправки, не напрямую из <code>users.parent_*</code> после сохранения договора.<br>
+    После отправки в <code>contract_sign_requests</code> фиксируется снимок подписанта; сменить подписанта у уже созданного договора нельзя — только новый договор или новая отправка с новыми данными в форме.
+  </div>
+
+  <h2>4) Скачивание PDF в интерфейсе</h2>
+  <div class="note">
+    Правило единое для карточки договора в CRM и для вкладки «Мои документы» в кабинете ученика.
   </div>
   <ul>
-    <li>После привязки ученика к заявке в таблице заявок ссылка «Создать договор» ведёт на <code>GET /client-contracts/create?user_id={id}</code> (право <code>contracts.view</code>).</li>
-    <li>Ученик предвыбирается на форме создания (<code>ContractsController@create</code>, <code>preselectedUser</code>).</li>
-    <li>Списание с баланса партнёра — только при <code>POST /client-contracts</code> (загрузка PDF), не при переходе со страницы заявок.</li>
-    <li>В таблице заявок отображается последний договор ученика по <code>created_at</code>; отдельного поля «договор заявки» в <code>contracts</code> нет.</li>
+    <li>Статус <code>signed</code> (<code>Contract::STATUS_SIGNED</code>) — кнопка «Скачать подписанный» (<code>signed_pdf_path</code>).</li>
+    <li>Любой другой статус — «Скачать оригинал» (<code>source_pdf_path</code>).</li>
+    <li>Критерий кнопки — поле <code>contracts.status</code>, а не только наличие пути к файлу.</li>
+    <li>Файлы: диск <code>local</code>, <code>storage/app/</code> + относительный путь из БД.</li>
   </ul>
+
+  <h2>5) Создание договора и заявки с сайта</h2>
+  <ul>
+    <li>После привязки ученика к заявке — ссылка «Создать договор» → <code>GET /client-contracts/create?user_id={id}</code>.</li>
+    <li>Ученик предвыбирается на форме (<code>preselectedUser</code>); ФИО родителя на форме создания <b>не</b> показывается — заполняется в карточке ученика до отправки SMS.</li>
+    <li>Списание с баланса партнёра — только при <code>POST /client-contracts</code> (загрузка PDF).</li>
+    <li>Полный сценарий лид → клиент → договор: <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5–5.7).</li>
+  </ul>
+
+  <h2>6) Тесты (Feature)</h2>
+  <div class="note">
+    <ul>
+      <li><code>tests/Feature/Crm/Contracts/ContractsParentAndAccessTest.php</code> — доступ <code>contracts.view</code>, smoke endpoint’ов 200, родитель на show, предзаполнение подписанта</li>
+      <li><code>tests/Feature/Crm/Contracts/ContractsAccessTest.php</code> — гость, 403 без права, 200 show</li>
+      <li><code>tests/Feature/Crm/Contracts/ContractsSigningTest.php</code> — отправка / resend, <code>ContractSendRequest</code></li>
+      <li><code>tests/Feature/Crm/Contracts/ContractsSyncFeatureTest.php</code> — <code>/status</code>, <code>contracts.sync</code></li>
+      <li><code>tests/Feature/Crm/Contracts/ContractsCrudAndFilesTest.php</code> — create, store, download</li>
+    </ul>
+    Запуск: <code>php artisan test --filter=ContractsParentAndAccessTest</code>.
+  </div>
+
+  <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/admin-users#user-parent">Пользователи: данные родителя</a></p>
 </div>
 </body>
 </html>

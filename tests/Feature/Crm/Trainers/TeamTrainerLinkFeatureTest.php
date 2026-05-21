@@ -38,6 +38,29 @@ final class TeamTrainerLinkFeatureTest extends CrmTestCase
         ]);
     }
 
+    public function test_data_endpoint_returns_trainer_label_for_linked_trainer(): void
+    {
+        $this->grantPermission('trainers.view');
+        $this->grantPermission('groups.view');
+
+        $team = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Группа с тренером']);
+        $profile = $this->makeTrainerProfile('Иван');
+
+        $this->patchJson("/admin/team/{$team->id}", [
+            'title' => $team->title,
+            'type' => 'group',
+            'is_enabled' => 1,
+            'trainer_profile_id' => $profile->id,
+        ])->assertOk();
+
+        $json = $this->get('/admin/teams/data')->assertOk()->json();
+        $row = collect($json['data'])->firstWhere('id', $team->id);
+
+        $this->assertNotNull($row);
+        $this->assertArrayHasKey('trainer_label', $row);
+        $this->assertStringContainsString('Иван', (string) $row['trainer_label']);
+    }
+
     public function test_team_update_assigns_single_trainer(): void
     {
         $this->grantPermission('trainers.view');

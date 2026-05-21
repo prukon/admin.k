@@ -36,6 +36,8 @@ class DevUsersSeeder extends Seeder
 
         $userRoleId = Role::query()->where('name', 'user')->value('id');
 
+        $this->fillParentNamesForStudentsWithoutParent($userRoleId);
+
         $this->assignPartnerTeamAndLocation(
             User::query()
                 ->whereNull('location_id')
@@ -68,8 +70,41 @@ class DevUsersSeeder extends Seeder
                     $user->team_id = (int) $teamId;
                 }
 
+                $user->fill($this->randomParentNameFields());
                 $user->save();
             });
+    }
+
+    private function fillParentNamesForStudentsWithoutParent(?int $userRoleId): void
+    {
+        User::query()
+            ->when($userRoleId, fn ($q) => $q->where('role_id', $userRoleId))
+            ->whereNull('parent_lastname')
+            ->orderBy('id')
+            ->each(function (User $user) {
+                $user->fill($this->randomParentNameFields());
+                $user->save();
+            });
+    }
+
+    /**
+     * @return array{parent_lastname: string, parent_firstname: string, parent_middlename: ?string}
+     */
+    private function randomParentNameFields(): array
+    {
+        $faker = fake();
+
+        $middlename = $faker->boolean(75)
+            ? ($faker->boolean()
+                ? $faker->middleNameMale()
+                : $faker->middleNameFemale())
+            : null;
+
+        return [
+            'parent_lastname' => $faker->lastName(),
+            'parent_firstname' => $faker->firstName(),
+            'parent_middlename' => $middlename,
+        ];
     }
 
     /**

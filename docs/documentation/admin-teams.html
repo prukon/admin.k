@@ -75,19 +75,23 @@
     <li>Группы маршрутов журнала и статусов расписания в <code>routes/web.php</code> с <code>middleware('can:schedule.view')</code> (например <code>/schedule</code>, <code>/schedule/statuses</code> и др.).</li>
   </ul>
 
-  <h2>3) Серверное поведение (группы)</h2>
+  <h2>3) Право <code>trainers.view</code> — колонка «Тренер» в таблице</h2>
+  <p>По аналогии с <code>schedule.view</code> для «Расписание»: при наличии <code>trainers.view</code> в таблице групп и в выпадающем списке «Поля списка» доступны колонка <code>trainer_label</code> (ФИО из <code>users.full_name</code> связанного профиля) и её настройка видимости. Без права колонка и пункт настроек не выводятся (Blade <code>@can('trainers.view')</code>).</p>
+  <p>Порядок колонок: сортировка → название → тренер → расписание (если есть) → статус → действия. В JSON <code>GET /admin/teams/data</code> поле <code>trainer_label</code> приходит всегда; скрытие только на клиенте. Сортировка по имени колонки <code>trainer_label</code> — по фамилии и имени пользователя тренера.</p>
+
+  <h2>4) Серверное поведение (группы)</h2>
   <ul>
-    <li><strong>Список для таблицы</strong> <code>GET /admin/teams/data</code>: в JSON по-прежнему приходит поле <code>weekdays_label</code> для каждой строки — скрытие колонки только клиентское; это сознательно не фильтруется на сервере для пользователей без <code>schedule.view</code>.</li>
+    <li><strong>Список для таблицы</strong> <code>GET /admin/teams/data</code>: в JSON по-прежнему приходит поле <code>weekdays_label</code> для каждой строки — скрытие колонки только клиентское; это сознательно не фильтруется на сервере для пользователей без <code>schedule.view</code>. Аналогично — <code>trainer_label</code> без фильтрации по <code>trainers.view</code>.</li>
     <li><strong>Обновление группы</strong> <code>PATCH /admin/team/{id}</code>: если у пользователя <strong>нет</strong> <code>schedule.view</code>, поле <code>weekdays</code> из запроса отбрасывается до вызова сервиса — назначение дней недели изменить нельзя (в т.ч. при попытке передать дни вручную). Запись в логах изменения «Дни недели» для такого сохранения не формируется.</li>
     <li><strong>Сервис</strong> <code>App\Services\TeamService::update</code>: синхронизация связи <code>team_weekday</code> выполняется только если ключ <code>weekdays</code> был передан в данных обновления (после валидации). Если ключа нет — связь дней недели не трогают.</li>
     <li><strong>Сортировка DataTables</strong> на <code>GET /admin/teams/data</code>: порядок сортировки определяется по <strong>имени колонки</strong> из массива запроса <code>columns[*].name</code>, а не только по индексу колонки — чтобы корректно работать при скрытой колонке «Расписание».</li>
   </ul>
 
-  <h2>4) Базовые роли и конфиг</h2>
+  <h2>5) Базовые роли и конфиг</h2>
   <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code> строка <code>schedule.view</code> по умолчанию <strong>закомментирована</strong>: у нового партнёра у администратора это право может отсутствовать, пока его явно не включат в матрице прав партнёра. Общая модель прав — в
     <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
 
-  <h2>5) Тренер группы (<code>trainer_profile_id</code>)</h2>
+  <h2>6) Тренер группы (<code>trainer_profile_id</code>)</h2>
   <div class="note">
     При наличии <code>trainers.view</code> в модалках создания и редактирования группы показывается селект тренера.
     Поле запроса: <code>trainer_profile_id</code> (id из <code>trainer_profiles</code> текущего партнёра).
@@ -100,14 +104,14 @@
     <li>Тесты: <code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code>.</li>
   </ul>
 
-  <h2>6) Представления и контроллер</h2>
+  <h2>7) Представления и контроллер</h2>
   <ul>
     <li><code>resources/views/admin/team.blade.php</code> — таблица, настройки колонок, инициализация DataTables.</li>
     <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки создания/редактирования.</li>
     <li><code>app/Http/Controllers/Admin/TeamController.php</code> — методы <code>index</code>, <code>data</code>, <code>store</code>, <code>edit</code>, <code>update</code>, логи.</li>
   </ul>
 
-  <h2>7) Автотесты</h2>
+  <h2>8) Автотесты</h2>
   <div class="note">
     Фичтесты: <code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — видимость колонки/блоков, недоступность изменения дней без права, доступность эндпоинтов при <code>groups.view</code>, сортировка по имени колонки.
     Общие сценарии групп: <code>tests/Feature/Crm/Teams/TeamControllerTest.php</code>.

@@ -85,6 +85,19 @@
                                     </label>
                                 </div>
 
+                                @can('trainers.view')
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="trainer_label"
+                                           id="colTrainer"
+                                           checked>
+                                    <label class="form-check-label" for="colTrainer">
+                                        Тренер
+                                    </label>
+                                </div>
+                                @endcan
+
                                 @can('schedule.view')
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
@@ -144,6 +157,9 @@
                     <th>#</th>
                     <th>Сортировка</th>
                     <th>Название</th>
+                    @can('trainers.view')
+                    <th>Тренер</th>
+                    @endcan
                     @can('schedule.view')
                     <th>Расписание</th>
                     @endcan
@@ -208,10 +224,12 @@
         $(document).ready(function () {
 
             const canViewSchedule = @json(auth()->user()->can('schedule.view'));
+            const canViewTrainers = @json(auth()->user()->can('trainers.view'));
 
             const defaultColumnsVisibility = {
                 order_by: true,
                 title: true,
+                ...(canViewTrainers ? { trainer_label: true } : {}),
                 ...(canViewSchedule ? { weekdays_label: true } : {}),
                 status_label: true,
                 actions: true
@@ -220,20 +238,19 @@
             let currentColumnsConfig = {...defaultColumnsVisibility};
 
             // Индексы колонок DataTables (нумерация # не настраивается)
-            const columnsMap = canViewSchedule
-                ? {
-                    order_by: 1,
-                    title: 2,
-                    weekdays_label: 3,
-                    status_label: 4,
-                    actions: 5
+            const columnsMap = (function () {
+                const map = { order_by: 1, title: 2 };
+                let idx = 3;
+                if (canViewTrainers) {
+                    map.trainer_label = idx++;
                 }
-                : {
-                    order_by: 1,
-                    title: 2,
-                    status_label: 3,
-                    actions: 4
-                };
+                if (canViewSchedule) {
+                    map.weekdays_label = idx++;
+                }
+                map.status_label = idx++;
+                map.actions = idx;
+                return map;
+            })();
 
             const csrfToken = $('meta[name="csrf-token"]').attr('content');
 
@@ -292,6 +309,19 @@
                 });
             }
 
+            const trainerColumn = {
+                data: 'trainer_label',
+                name: 'trainer_label',
+                orderable: true,
+                searchable: false,
+                render: function (data) {
+                    if (!data) {
+                        return '<span class="text-muted">—</span>';
+                    }
+                    return '<span title="' + data + '">' + data + '</span>';
+                }
+            };
+
             const scheduleColumn = {
                 data: 'weekdays_label',
                 name: 'weekdays_label',
@@ -341,6 +371,7 @@
                             '</a>';
                     }
                 },
+                ...(canViewTrainers ? [trainerColumn] : []),
                 ...(canViewSchedule ? [scheduleColumn] : []),
                 // Статус
                 {
