@@ -88,6 +88,18 @@ class UpdateRequest extends FormRequest
             ]);
         }
 
+        foreach (['parent_lastname', 'parent_firstname', 'parent_middlename'] as $key) {
+            if (!$this->has($key)) {
+                continue;
+            }
+            $value = $this->input($key);
+            if (!is_string($value)) {
+                continue;
+            }
+            $trimmed = trim(preg_replace('/\s+/', ' ', $value));
+            $this->merge([$key => $trimmed !== '' ? $trimmed : null]);
+        }
+
     }
 
     /**
@@ -104,6 +116,10 @@ class UpdateRequest extends FormRequest
             'custom.*' => ['nullable', 'string', 'max:255'],
             // 2FA (булево)
             'two_factor_enabled' => ['nullable', 'boolean'],
+
+            'parent_lastname'   => ['nullable', 'string', 'max:100'],
+            'parent_firstname'  => ['nullable', 'string', 'max:100'],
+            'parent_middlename' => ['nullable', 'string', 'max:100'],
         ];
 
         if ($this->user()->can('users.name.update')) {
@@ -294,6 +310,9 @@ class UpdateRequest extends FormRequest
             'team_ids' => 'группы тренера',
             'team_ids.*' => 'группа',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
+            'parent_lastname'   => 'Фамилия родителя',
+            'parent_firstname'  => 'Имя родителя',
+            'parent_middlename' => 'Отчество родителя',
         ];
     }
 

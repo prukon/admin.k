@@ -70,17 +70,28 @@
     <tbody>
       <tr><td>0</td><td>—</td><td># (нумерация)</td></tr>
       <tr><td>1</td><td><code>avatar</code></td><td>Аватар</td></tr>
-      <tr><td>2</td><td><code>name</code></td><td>Имя</td></tr>
-      <tr><td>3</td><td><code>teams</code></td><td>Группа</td></tr>
-      <tr><td>4</td><td><code>location</code></td><td>Локация (<code>locations.view</code>)</td></tr>
-      <tr><td>5</td><td><code>birthday</code></td><td>Дата рождения</td></tr>
-      <tr><td>6</td><td><code>email</code></td><td>Email</td></tr>
-      <tr><td>7</td><td><code>phone</code></td><td>Телефон</td></tr>
-      <tr><td>8</td><td><code>status_label</code></td><td>Статус</td></tr>
-      <tr><td>9</td><td><code>actions</code></td><td>Действия</td></tr>
+      <tr><td>2</td><td><code>name</code></td><td>Имя (ученик)</td></tr>
+      <tr><td>3</td><td><code>parent</code></td><td>Родитель (склейка ФИО)</td></tr>
+      <tr><td>4</td><td><code>teams</code></td><td>Группа</td></tr>
+      <tr><td>5</td><td><code>location</code></td><td>Локация (<code>locations.view</code>)</td></tr>
+      <tr><td>6</td><td><code>birthday</code></td><td>Дата рождения</td></tr>
+      <tr><td>7</td><td><code>email</code></td><td>Email</td></tr>
+      <tr><td>8</td><td><code>phone</code></td><td>Телефон</td></tr>
+      <tr><td>9</td><td><code>status_label</code></td><td>Статус</td></tr>
+      <tr><td>10</td><td><code>actions</code></td><td>Действия</td></tr>
     </tbody>
   </table>
-  <p class="small">Сортировка по локации: <code>order[0][column]=4</code> → join <code>locations</code>, <code>orderBy locations.name</code>.</p>
+  <p class="small">Сортировка по локации: <code>order[0][column]=5</code> → join <code>locations</code>, <code>orderBy locations.name</code>.</p>
+
+  <h2 id="user-parent">2.1) Данные родителя на карточке ученика</h2>
+  <div class="note">
+    Миграция: <code>database/migrations/2026_05_21_120000_add_parent_name_fields_to_users_table.php</code>.<br>
+    Поля в <code>users</code> (все nullable, до 100 символов): <code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>.<br>
+    В списке и в API data — колонка <code>parent</code> (аксессор <code>User::parent_full_name</code>).<br>
+    <code>email</code> и <code>phone</code> ученика — контакт родителя (оплаты, напоминания). ФИО родителя — отдельно, для справочника и предзаполнения подписанта договора.<br>
+    При отправке договора на подпись (<code>contracts/show</code>, модалка «Отправка на подпись») поля подписанта предзаполняются из <code>parent_*</code> и <code>phone</code>; в Подпислон уходят <code>signer_lastname</code> / <code>signer_firstname</code> / <code>signer_middlename</code> из формы (снимок в <code>contract_sign_requests</code>).<br>
+    Валидация: <code>StoreRequest</code>, <code>UpdateRequest</code> — все три поля необязательны; пустая строка → <code>null</code>.
+  </div>
 
   <h2 id="user-location">3) Локация пользователя (<code>users.location_id</code>)</h2>
   <div class="note">

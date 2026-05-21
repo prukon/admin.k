@@ -47,6 +47,18 @@ class StoreRequest extends FormRequest
         if ($this->has('school_lead_id') && $this->input('school_lead_id') === '') {
             $this->merge(['school_lead_id' => null]);
         }
+
+        foreach (['parent_lastname', 'parent_firstname', 'parent_middlename'] as $key) {
+            if (!$this->has($key)) {
+                continue;
+            }
+            $value = $this->input($key);
+            if (!is_string($value)) {
+                continue;
+            }
+            $trimmed = trim(preg_replace('/\s+/', ' ', $value));
+            $this->merge([$key => $trimmed !== '' ? $trimmed : null]);
+        }
     }
 
     public function rules(): array
@@ -68,6 +80,10 @@ class StoreRequest extends FormRequest
 
             'custom'               => 'nullable|array',
             'custom.*'             => 'nullable|string|max:255',
+
+            'parent_lastname'   => 'nullable|string|max:100',
+            'parent_firstname'  => 'nullable|string|max:100',
+            'parent_middlename' => 'nullable|string|max:100',
         ];
 
         if ($partnerId) {
@@ -115,6 +131,9 @@ class StoreRequest extends FormRequest
             'role_id'        => 'Роль',
             'phone'          => 'Телефон',
             'school_lead_id' => 'Заявка с сайта',
+            'parent_lastname'   => 'Фамилия родителя',
+            'parent_firstname'  => 'Имя родителя',
+            'parent_middlename' => 'Отчество родителя',
         ];
     }
 
@@ -181,6 +200,13 @@ class StoreRequest extends FormRequest
 
             'school_lead_id.integer' => 'Некорректный идентификатор заявки.',
             'school_lead_id.exists'  => 'Заявка не найдена, уже привязана к клиенту или недоступна.',
+
+            'parent_lastname.string'   => 'Поле «:attribute» должно быть строкой.',
+            'parent_lastname.max'      => 'Поле «:attribute» не должно превышать :max символов.',
+            'parent_firstname.string'  => 'Поле «:attribute» должно быть строкой.',
+            'parent_firstname.max'     => 'Поле «:attribute» не должно превышать :max символов.',
+            'parent_middlename.string' => 'Поле «:attribute» должно быть строкой.',
+            'parent_middlename.max'    => 'Поле «:attribute» не должно превышать :max символов.',
         ];
     }
 

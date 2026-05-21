@@ -151,6 +151,43 @@
                         </div>
                         @endcan
 
+                        <div class="col-12">
+                            <div class="small text-muted mb-2">Данные родителя (подписант договора)</div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="mb-3">
+                                <label for="edit-parent-lastname" class="form-label">Фамилия родителя</label>
+                                <input type="text"
+                                       name="parent_lastname"
+                                       class="form-control"
+                                       id="edit-parent-lastname"
+                                       maxlength="100">
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="mb-3">
+                                <label for="edit-parent-firstname" class="form-label">Имя родителя</label>
+                                <input type="text"
+                                       name="parent_firstname"
+                                       class="form-control"
+                                       id="edit-parent-firstname"
+                                       maxlength="100">
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="mb-3">
+                                <label for="edit-parent-middlename" class="form-label">Отчество родителя</label>
+                                <input type="text"
+                                       name="parent_middlename"
+                                       class="form-control"
+                                       id="edit-parent-middlename"
+                                       maxlength="100">
+                            </div>
+                        </div>
+
                         {{-- Поле "email" --}}
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
@@ -638,6 +675,9 @@
                         // 1) Заполняем стандартные поля
                         $('#edit-user-form #edit-name').val(response.user.name);
                         $('#edit-user-form #edit-lastname').val(response.user.lastname);
+                        $('#edit-user-form #edit-parent-lastname').val(response.user.parent_lastname || '');
+                        $('#edit-user-form #edit-parent-firstname').val(response.user.parent_firstname || '');
+                        $('#edit-user-form #edit-parent-middlename').val(response.user.parent_middlename || '');
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-team').val(response.user.team_id);
                         syncEditLocationSelect(response);
@@ -747,6 +787,9 @@
                         // 1) Заполняем стандартные поля
                         $('#edit-user-form #edit-name').val(response.user.name);
                         $('#edit-user-form #edit-lastname').val(response.user.lastname);
+                        $('#edit-user-form #edit-parent-lastname').val(response.user.parent_lastname || '');
+                        $('#edit-user-form #edit-parent-firstname').val(response.user.parent_firstname || '');
+                        $('#edit-user-form #edit-parent-middlename').val(response.user.parent_middlename || '');
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-team').val(response.user.team_id);
                         syncEditLocationSelect(response);

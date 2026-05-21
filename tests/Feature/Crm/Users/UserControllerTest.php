@@ -421,6 +421,8 @@ class UserControllerTest extends CrmTestCase
             'team_id' => $teamBeta->id,
             'lastname' => 'Бета',
             'name' => 'Сергей',
+            'parent_lastname' => 'Яковлев',
+            'parent_firstname' => 'Яков',
             'email' => 'b@example.com',
             'phone' => '+70000000001',
             'is_enabled' => 0,
@@ -431,6 +433,8 @@ class UserControllerTest extends CrmTestCase
             'team_id' => $teamAlpha->id,
             'lastname' => 'Альфа',
             'name' => 'Иван',
+            'parent_lastname' => 'Антонов',
+            'parent_firstname' => 'Антон',
             'email' => 'a@example.com',
             'phone' => '+70000000002',
             'is_enabled' => 1,
@@ -452,8 +456,23 @@ class UserControllerTest extends CrmTestCase
             'Ожидали, что Альфа (u2) будет раньше Беты (u1) при сортировке по имени asc'
         );
 
-        // 2) Сортировка по команде (col=3) asc — по teams.title
+        // 2) Сортировка по родителю (col=3) asc — parent_lastname, parent_firstname
         $json = $this->getJson('/admin/users/data?order[0][column]=3&order[0][dir]=asc')->json();
+        $ids = collect($json['data'])->pluck('id')->all();
+
+        $posU1 = array_search($u1->id, $ids, true);
+        $posU2 = array_search($u2->id, $ids, true);
+
+        $this->assertNotFalse($posU1, 'u1 не найден в результатах сортировки по родителю asc');
+        $this->assertNotFalse($posU2, 'u2 не найден в результатах сортировки по родителю asc');
+
+        $this->assertTrue(
+            $posU2 < $posU1,
+            'Ожидали, что родитель Антонов (u2) будет раньше Яковлев (u1) при сортировке по родителю asc'
+        );
+
+        // 3) Сортировка по команде (col=4) asc — по teams.title
+        $json = $this->getJson('/admin/users/data?order[0][column]=4&order[0][dir]=asc')->json();
         $ids = collect($json['data'])->pluck('id')->all();
 
         $posU1 = array_search($u1->id, $ids, true);
@@ -468,8 +487,8 @@ class UserControllerTest extends CrmTestCase
             'Ожидали, что команда Alpha (u2) будет раньше Beta (u1) при сортировке по команде asc'
         );
 
-        // 3) Сортировка по email (col=6) asc
-        $json = $this->getJson('/admin/users/data?order[0][column]=6&order[0][dir]=asc')->json();
+        // 4) Сортировка по email (col=7) asc
+        $json = $this->getJson('/admin/users/data?order[0][column]=7&order[0][dir]=asc')->json();
         $ids = collect($json['data'])->pluck('id')->all();
 
         $posU1 = array_search($u1->id, $ids, true);
@@ -484,8 +503,8 @@ class UserControllerTest extends CrmTestCase
             "Ожидали, что u2 (id={$u2->id}, email={$u2->email}) будет раньше u1 (id={$u1->id}, email={$u1->email}) при сортировке по email asc"
         );
 
-        // 4) Сортировка по статусу (col=8) desc — активные первыми
-        $json = $this->getJson('/admin/users/data?order[0][column]=8&order[0][dir]=desc')->json();
+        // 5) Сортировка по статусу (col=9) desc — активные первыми
+        $json = $this->getJson('/admin/users/data?order[0][column]=9&order[0][dir]=desc')->json();
         $ids = collect($json['data'])->pluck('id')->all();
 
         $posU1 = array_search($u1->id, $ids, true); // is_enabled=0
@@ -644,6 +663,62 @@ class UserControllerTest extends CrmTestCase
         $this->assertEquals(1, $created->is_enabled);
 
         $this->assertEquals('Пользователь создан успешно', $json['message']);
+    }
+
+    /**
+     * Сохранение ФИО родителя при создании и обновлении ученика.
+     */
+    public function test_store_and_update_persist_parent_name_fields(): void
+    {
+        $role = Role::firstOrCreate(
+            ['name' => 'user'],
+            [
+                'label' => 'user',
+                'is_sistem' => 1,
+                'is_visible' => 1,
+                'order_by' => 0,
+            ]
+        );
+
+        $storeResponse = $this->postJson('/admin/users', [
+            'name' => 'Петя',
+            'lastname' => 'Петров',
+            'parent_lastname' => 'Иванов',
+            'parent_firstname' => 'Иван',
+            'parent_middlename' => 'Иванович',
+            'role_id' => $role->id,
+            'is_enabled' => 1,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $storeResponse->assertStatus(200);
+        $userId = (int) ($storeResponse->json('user.id') ?? 0);
+        $this->assertGreaterThan(0, $userId);
+
+        $created = User::findOrFail($userId);
+        $this->assertSame('Иванов', $created->parent_lastname);
+        $this->assertSame('Иван', $created->parent_firstname);
+        $this->assertSame('Иванович', $created->parent_middlename);
+        $this->assertSame('Иванов Иван Иванович', $created->parent_full_name);
+
+        $updateResponse = $this->patchJson("/admin/users/{$userId}", [
+            'name' => 'Петя',
+            'lastname' => 'Петров',
+            'parent_lastname' => 'Сидоров',
+            'parent_firstname' => 'Сидор',
+            'parent_middlename' => '',
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $updateResponse->assertStatus(200);
+
+        $created->refresh();
+        $this->assertSame('Сидоров', $created->parent_lastname);
+        $this->assertSame('Сидор', $created->parent_firstname);
+        $this->assertNull($created->parent_middlename);
+        $this->assertSame('Сидоров Сидор', $created->parent_full_name);
     }
 
     /**

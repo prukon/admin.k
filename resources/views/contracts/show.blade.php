@@ -38,8 +38,11 @@
                 <div class="card">
                     <div class="card-body">
                         <dl class="row mb-0">
+                            <dt class="col-sm-4">Родитель</dt>
+                            <dd class="col-sm-8">{{ $student?->parent_full_name ?: '—' }}</dd>
+
                             <dt class="col-sm-4">Ученик</dt>
-                            <dd class="col-sm-8">{{ $student->name ?? '—' }}</dd>
+                            <dd class="col-sm-8">{{ $student->full_name ?? $student->name ?? '—' }}</dd>
 
                             <dt class="col-sm-4">Группа</dt>
                             <dd class="col-sm-8">{{ $teamTitle ?? '—' }}</dd>
@@ -278,8 +281,9 @@
                     <input type="hidden" id="contractId" value="{{ $contract->id }}">
 
                     @php
-                        $defaultLast  = trim($student->lastname ?? '');
-                        $defaultFirst = trim($student->name ?? '');
+                        $defaultLast   = trim($student->parent_lastname ?? '');
+                        $defaultFirst  = trim($student->parent_firstname ?? '');
+                        $defaultMiddle = trim($student->parent_middlename ?? '');
                     @endphp
 
                     <div class="mb-3">
@@ -287,17 +291,17 @@
                         <div class="row g-2">
                             <div class="col-12 col-md-4">
                                 <input type="text" class="form-control" id="signerLastname" placeholder="Фамилия"
-                                       {{--value="{{ $student->lastname ?? '' }}" --}}
+                                       value="{{ $defaultLast }}"
                                        maxlength="100" required>
                             </div>
                             <div class="col-12 col-md-4">
                                 <input type="text" class="form-control" id="signerFirstname" placeholder="Имя"
-                                       {{--value="{{ $student->name ?? '' }}" --}}
+                                       value="{{ $defaultFirst }}"
                                        maxlength="100" required>
                             </div>
                             <div class="col-12 col-md-4">
                                 <input type="text" class="form-control" id="signerMiddlename" placeholder="Отчество"
-                                       value="" maxlength="100">
+                                       value="{{ $defaultMiddle }}" maxlength="100">
                             </div>
                         </div>
                     </div>

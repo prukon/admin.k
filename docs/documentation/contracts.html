@@ -33,6 +33,15 @@
     <li>Если статус любой другой — предлагается только скачивание <strong>оригинала</strong> (неподписанного PDF). Подпись: «Скачать оригинал».</li>
   </ul>
 
+  <h2>Предзаполнение подписанта (SMS)</h2>
+  <div class="note">
+    На <code>GET /client-contracts/{id}</code> в модалке «Отправка на подпись» ФИО и телефон берутся из карточки ученика:
+    <code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>, <code>phone</code>
+    (см. <a href="/docs/documentation/admin-users#user-parent">admin-users.html §2.1</a>).
+    В <code>ContractsController@show</code> эти поля должны быть в <code>select</code> при загрузке <code>$student</code>.
+    В блоке основной информации карточки договора перед «Ученик» выводится строка «Родитель» (<code>parent_full_name</code>).
+  </div>
+
   <h2>Замечания</h2>
   <ul>
     <li>Критерий выбора кнопки — именно поле <code>contracts.status</code>, а не наличие <code>signed_pdf_path</code>.</li>

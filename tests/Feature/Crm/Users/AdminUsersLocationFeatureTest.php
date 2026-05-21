@@ -481,7 +481,8 @@ final class AdminUsersLocationFeatureTest extends CrmTestCase
             'lastname'    => 'Aaa',
         ]);
 
-        $json = $this->getJson('/admin/users/data?order[0][column]=4&order[0][dir]=asc')->json();
+        // Индекс 5 — колонка «Локация» (после #, аватар, имя, родитель, группа)
+        $json = $this->getJson('/admin/users/data?order[0][column]=5&order[0][dir]=asc')->json();
         $ids = collect($json['data'])->pluck('id')->all();
 
         $posA = array_search($userA->id, $ids, true);

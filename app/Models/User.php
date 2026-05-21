@@ -38,7 +38,7 @@ class User extends Authenticatable
         'has_used_school_schedule_trial' => 'boolean',
     ];
 
-    protected $appends = ['full_name'];
+    protected $appends = ['full_name', 'parent_full_name'];
 
 
     public $timestamps = true;
@@ -164,6 +164,15 @@ class User extends Authenticatable
     {
         // Склеиваем фамилию и имя с пробелом, убираем лишние
         return trim(collect([$this->lastname, $this->name])->filter()->implode(' '));
+    }
+
+    public function getParentFullNameAttribute(): string
+    {
+        return trim(collect([
+            $this->parent_lastname,
+            $this->parent_firstname,
+            $this->parent_middlename,
+        ])->filter()->implode(' '));
     }
 
 

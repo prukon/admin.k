@@ -177,8 +177,17 @@ class ContractsController extends Controller
         $events = $contract->events()->orderBy('id', 'desc')->get();
         $requests = $contract->signRequests()->orderBy('id', 'desc')->get();
 
-        $student = User::select('id', 'name', 'lastname', 'phone', 'email', 'team_id')
-            ->find($contract->user_id);
+        $student = User::select(
+            'id',
+            'name',
+            'lastname',
+            'phone',
+            'email',
+            'team_id',
+            'parent_lastname',
+            'parent_firstname',
+            'parent_middlename',
+        )->find($contract->user_id);
 
         $teamTitle = null;
         if ($student && $student->team_id) {

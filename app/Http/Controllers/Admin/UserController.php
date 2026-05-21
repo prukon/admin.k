@@ -137,6 +137,9 @@ class UserController extends AdminBaseController
             $baseQuery->where(function ($q) use ($like) {
                 $q->where('users.name', 'like', $like)
                     ->orWhere('users.lastname', 'like', $like)
+                    ->orWhere('users.parent_lastname', 'like', $like)
+                    ->orWhere('users.parent_firstname', 'like', $like)
+                    ->orWhere('users.parent_middlename', 'like', $like)
                     ->orWhere('users.email', 'like', $like)
                     ->orWhere('users.phone', 'like', $like)
                     ->orWhere('users.birthday', 'like', $like);
@@ -201,37 +204,43 @@ class UserController extends AdminBaseController
                         ->orderBy('users.name', $orderDir);
                     break;
 
-                case 3: // teams.title
+                case 3: // parent FIO
+                    $baseQuery
+                        ->orderBy('users.parent_lastname', $orderDir)
+                        ->orderBy('users.parent_firstname', $orderDir);
+                    break;
+
+                case 4: // teams.title
                     $baseQuery
                         ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
                         ->select('users.*')
                         ->orderBy('teams.title', $orderDir);
                     break;
 
-                case 4: // locations.name
+                case 5: // locations.name
                     $baseQuery
                         ->leftJoin('locations', 'locations.id', '=', 'users.location_id')
                         ->select('users.*')
                         ->orderBy('locations.name', $orderDir);
                     break;
 
-                case 5: // birthday
+                case 6: // birthday
                     $baseQuery->orderBy('users.birthday', $orderDir);
                     break;
 
-                case 6: // email
+                case 7: // email
                     $baseQuery->orderBy('users.email', $orderDir);
                     break;
 
-                case 7: // phone
+                case 8: // phone
                     $baseQuery->orderBy('users.phone', $orderDir);
                     break;
 
-                case 8: // status_label -> is_enabled
+                case 9: // status_label -> is_enabled
                     $baseQuery->orderBy('users.is_enabled', $orderDir);
                     break;
 
-                case 9: // actions — не сортируем, дефолт
+                case 10: // actions — не сортируем, дефолт
                 default:
                     $baseQuery
                         ->orderBy('users.lastname', 'asc')
@@ -264,6 +273,7 @@ class UserController extends AdminBaseController
                 'id'           => $user->id,
                 'avatar'       => $avatar,
                 'name'         => $user->full_name ?: 'Без имени',
+                'parent'       => $user->parent_full_name,
                 'teams'        => $user->team ? $user->team->title : '',
                 'location'     => $canViewLocations && $user->location
                     ? $user->location->name
@@ -570,6 +580,7 @@ class UserController extends AdminBaseController
             'location'   => (string) ($user->location?->name ?: '-'),
             'role'       => (string) ($user->role?->label ?: '-'),
             'phone'      => (string) ($user->phone ?? ''),
+            'parent'     => $user->parent_full_name ?: '-',
         ];
 
         // Валидные входные данные
@@ -665,6 +676,7 @@ class UserController extends AdminBaseController
                 'location'   => (string) ($user->location?->name ?: '-'),
                 'role'       => (string) ($user->role?->label ?: '-'),
                 'phone'      => (string) ($user->phone ?? ''),
+                'parent'     => $user->parent_full_name ?: '-',
             ];
 
             $changes = [];
@@ -708,6 +720,10 @@ class UserController extends AdminBaseController
                 $oldPhone = $old['phone'] !== '' ? $old['phone'] : '-';
                 $newPhone = $new['phone'] !== '' ? $new['phone'] : '-';
                 $changes[] = "Телефон: {$oldPhone} → {$newPhone}";
+            }
+
+            if ($old['parent'] !== $new['parent']) {
+                $changes[] = "Родитель: {$old['parent']} → {$new['parent']}";
             }
 
             // Приклеиваем изменения по кастом-полям

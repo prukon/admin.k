@@ -111,6 +111,17 @@
                                     <div class="form-check">
                                         <input class="form-check-input column-toggle"
                                                type="checkbox"
+                                               data-column-key="parent"
+                                               id="colParent"
+                                               checked>
+                                        <label class="form-check-label" for="colParent">
+                                            Родитель
+                                        </label>
+                                    </div>
+
+                                    <div class="form-check">
+                                        <input class="form-check-input column-toggle"
+                                               type="checkbox"
                                                data-column-key="teams"
                                                id="colTeams"
                                                checked>
@@ -218,6 +229,7 @@
                     <th>#</th>
                     <th>Аватар</th>
                     <th>Имя</th>
+                    <th>Родитель</th>
                     <th>Группа</th>
                     <th>Локация</th>
                     <th>Дата рождения</th>
@@ -301,6 +313,7 @@
             const defaultColumnsVisibility = {
                 avatar: true,
                 name: true,
+                parent: true,
                 teams: true,
                 location: canViewLocations,
                 birthday: true,
@@ -317,13 +330,14 @@
             const columnsMap = {
                 avatar: 1,
                 name: 2,
-                teams: 3,
-                location: 4,
-                birthday: 5,
-                email: 6,
-                phone: 7,
-                status_label: 8,
-                actions: 9
+                parent: 3,
+                teams: 4,
+                location: 5,
+                birthday: 6,
+                email: 7,
+                phone: 8,
+                status_label: 9,
+                actions: 10
             };
 
             function toBool(val, fallback = true) {
@@ -449,17 +463,19 @@
                                 '</a>';
                         }
                     },
-                    // 3) Группа
+                    // 3) Родитель
+                    {data: 'parent', name: 'parent', defaultContent: ''},
+                    // 4) Группа
                     {data: 'teams', name: 'teams', defaultContent: ''},
-                    // 4) Локация
+                    // 5) Локация
                     {data: 'location', name: 'location', defaultContent: ''},
-                    // 5) Дата рождения
+                    // 6) Дата рождения
                     {data: 'birthday', name: 'birthday', defaultContent: ''},
-                    // 6) Email
+                    // 7) Email
                     {data: 'email', name: 'email', defaultContent: ''},
-                    // 7) Телефон
+                    // 8) Телефон
                     {data: 'phone', name: 'phone', defaultContent: ''},
-                    // 8) Статус
+                    // 9) Статус
                     {
                         data: 'status_label',
                         name: 'status_label',

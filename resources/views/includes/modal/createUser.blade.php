@@ -30,6 +30,46 @@
                             </div>
                         </div>
 
+                        <div class="col-12">
+                            <div class="small text-muted mb-2">Данные родителя (подписант договора)</div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="mb-3">
+                                <label for="create-parent-lastname" class="form-label">Фамилия родителя</label>
+                                <input type="text"
+                                       name="parent_lastname"
+                                       class="form-control"
+                                       id="create-parent-lastname"
+                                       maxlength="100"
+                                       value="{{ old('parent_lastname') }}">
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="mb-3">
+                                <label for="create-parent-firstname" class="form-label">Имя родителя</label>
+                                <input type="text"
+                                       name="parent_firstname"
+                                       class="form-control"
+                                       id="create-parent-firstname"
+                                       maxlength="100"
+                                       value="{{ old('parent_firstname') }}">
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="mb-3">
+                                <label for="create-parent-middlename" class="form-label">Отчество родителя</label>
+                                <input type="text"
+                                       name="parent_middlename"
+                                       class="form-control"
+                                       id="create-parent-middlename"
+                                       maxlength="100"
+                                       value="{{ old('parent_middlename') }}">
+                            </div>
+                        </div>
+
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
                                 <label for="create-birthday" class="form-label">Дата рождения</label>
