@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\StoreScheduleStatusRequest;
+use App\Http\Requests\Admin\UpdateScheduleStatusRequest;
 use App\Models\MyLog;
-use Illuminate\Support\Facades\Log;
 use App\Models\Status;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Services\PartnerContext;
 
 class StatusController extends AdminBaseController
@@ -24,42 +26,44 @@ class StatusController extends AdminBaseController
         $partnerId = $this->partnerId();
 
 
-        $statuses = Status::where('partner_id', $partnerId)
-//            ->where('is_deleted', false)
-            ->orderBy('is_system', 'desc') // системные можно показывать первыми
-            ->get();
-
         return response()->json([
-            'statuses' => $statuses,
+            'statuses' => $this->statusesForScheduleJson($partnerId, true),
         ]);
     }
 
     public function index(Request $request)
     {
-        // Получаем текущего партнёра из контекста приложения
-        // (ранее брали из $request->user(), теперь — из app('current_partner'))
-        $partnerId    = $this->requirePartnerId();  // ← изменение #1
+        $partnerId = $this->requirePartnerId();
 
-        // Проверяем, суперадмин ли текущий пользователь
-        $isSuperadmin = $this->isSuperAdmin();
-
-    // Строим запрос по статусам для данного партнёра
-    $statusesQuery = Status::where('partner_id', $partnerId); // ← изменение #1
-
-    // Если это не суперадмин — показываем только видимые статусы
-    if (! $isSuperadmin) {                                 // ← изменение #3
-        $statusesQuery->where('is_visible', 1);            // ← изменение #3
+        return response()->json([
+            'statuses' => $this->statusesForScheduleJson($partnerId, $this->isSuperAdmin()),
+        ]);
     }
 
-    // Системные статусы в начале
-    $statuses = $statusesQuery
-        ->orderBy('is_system', 'desc')
-        ->get();
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function statusesForScheduleJson(int $partnerId, bool $isSuperadmin): array
+    {
+        $query = Status::query()->forSchedulePartner($partnerId);
 
-    return response()->json([
-        'statuses' => $statuses,
-    ]);
-}
+        if (! $isSuperadmin && Schema::hasColumn('statuses', 'is_visible')) {
+            $query->where(function ($q) {
+                $q->where('is_visible', 1)->orWhereNull('is_visible');
+            });
+        }
+
+        if (Schema::hasColumn('statuses', 'sort_order')) {
+            $query->orderBy('sort_order');
+        }
+
+        return $query
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Status $status) => $status->toScheduleJsonArray())
+            ->values()
+            ->all();
+    }
 
 
     // Создать новый пользовательский статус
@@ -103,34 +107,25 @@ class StatusController extends AdminBaseController
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreScheduleStatusRequest $request)
     {
-        // авторизованный пользователь
         $authorId = auth()->id();
-
-        // 1) Валидация входящих данных
-        $request->validate([
-            'name'  => 'required|string|max:255',
-            'icon'  => 'nullable|string|max:255',
-            'color' => 'nullable|string|max:50',
-        ]);
-
-        // ИЗМЕНЕНИЕ #1: получаем partner_id не из $request->user(), а из контекста текущего партнёра
         $partnerId = $this->requirePartnerId();
+        $data = $request->validated();
 
-        // переменная для результата
+        $sortOrder = isset($data['sort_order'])
+            ? (int) $data['sort_order']
+            : $this->nextCustomSortOrder($partnerId);
+
         $status = null;
 
-        DB::transaction(function () use ($authorId, $request, $partnerId, &$status) {
-            // 2) Создаем новую запись статуса
+        DB::transaction(function () use ($authorId, $data, $partnerId, $sortOrder, &$status) {
             $status = new Status();
-
-            // ИЗМЕНЕНИЕ #2: сохраняем partner_id, чтобы статус принадлежал текущему партнёру
             $status->partner_id = $partnerId;
-
-            $status->name      = $request->input('name');
-            $status->icon      = $request->input('icon');
-            $status->color     = $request->input('color');
+            $status->name = $data['name'];
+            $status->icon = $data['icon'] ?? null;
+            $status->color = $data['color'] ?? null;
+            $status->sort_order = $sortOrder;
             $status->is_system = false;
             $status->save();
 
@@ -209,55 +204,51 @@ class StatusController extends AdminBaseController
         return response()->json(['success' => true, 'status' => $status]);
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateScheduleStatusRequest $request, $id)
     {
         $authorId  = auth()->id();
-        $partnerId = $this->requirePartnerId(); // ← ИЗМЕНЕНИЕ #1: получаем текущего партнёра
+        $partnerId = $this->requirePartnerId();
 
-        // ИЗМЕНЕНИЕ #2: ищем статус только в пределах этого партнёра
-        $status = Status::where('id', $id)
+        $status = Status::query()
+            ->where('id', $id)
             ->where('partner_id', $partnerId)
             ->firstOrFail();
 
-        $request->validate([
-            'name'  => 'required|string|max:255',
-            'icon'  => 'nullable|string|max:255',
-            'color' => 'nullable|string|max:50',
-        ]);
-
-        // запрещаем правку системных статусов (они общие для всех партнёров)
         if ($status->is_system) {
             return response()->json([
-                'error' => 'Системные статусы нельзя редактировать.'
+                'message' => 'Системные статусы нельзя редактировать.',
             ], 403);
         }
 
-        DB::transaction(function () use ($authorId, $request, $status, $partnerId) {
-            // сохраняем старые значения
-            $oldName  = $status->name;
-            $oldIcon  = $status->icon;
-            $oldColor = $status->color;
+        $data = $request->validated();
 
-            // обновляем поля
+        DB::transaction(function () use ($authorId, $data, $status, $partnerId) {
+            $oldName = $status->name;
+            $oldIcon = $status->icon;
+            $oldColor = $status->color;
+            $oldSort = $status->sort_order;
+
             $status->update([
-                'name'  => $request->input('name'),
-                'icon'  => $request->input('icon'),
-                'color' => $request->input('color'),
+                'name' => $data['name'],
+                'icon' => $data['icon'] ?? null,
+                'color' => $data['color'] ?? null,
+                'sort_order' => (int) $data['sort_order'],
             ]);
 
-            // формируем описание для лога
             $description = sprintf(
                 "Обновление статуса расписания: %s, ID: %d.\n" .
-                "Было: %s, %s, %s\n" .
-                "Стало: %s, %s, %s",
+                "Было: %s, %s, %s, сортировка %d\n" .
+                "Стало: %s, %s, %s, сортировка %d",
                 $status->name,
                 $status->id,
                 $oldName,
                 $oldIcon,
                 $oldColor,
+                $oldSort,
                 $status->name,
                 $status->icon,
-                $status->color
+                $status->color,
+                $status->sort_order,
             );
 
             // ИЗМЕНЕНИЕ #3: сохраняем partner_id в логе
@@ -338,6 +329,13 @@ class StatusController extends AdminBaseController
         return response()->json(['success' => true]);
     }
 
+    private function nextCustomSortOrder(int $partnerId): int
+    {
+        $max = Status::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_system', false)
+            ->max('sort_order');
 
-
+        return ((int) $max) + 10;
+    }
 }

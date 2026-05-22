@@ -23,6 +23,9 @@ class ScheduleUser extends Model
         return $this->belongsTo(Status::class, 'status_id');
     }
 
-
+    public function trainerProfile()
+    {
+        return $this->belongsTo(TrainerProfile::class, 'trainer_profile_id');
+    }
 }
 

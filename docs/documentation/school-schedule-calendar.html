@@ -27,7 +27,8 @@
   <div class="note">
     Страница входит в раздел <strong>«Абонементы»</strong> как вкладка <strong>«Расписание школы»</strong>.
     Доступ к экрану и JSON календаря задаётся правом <code>lessonPackages.view</code> (группа маршрутов в <code>routes/web.php</code> с middleware <code>can:lessonPackages.view</code>).
-    Отдельно: управление слотами расписания групп (<code>scheduleSlots.manage</code> / просмотр) описано в коде прав и тестах календаря; здесь — клиентская часть календаря и модалки слота.
+    Отдельно: управление слотами расписания групп (<code>scheduleSlots.manage</code> / просмотр) описано в коде прав и тестах календаря; здесь — клиентская часть календаря и модалки слота.<br>
+    <strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule.view</code>, таблицы <code>schedule_users</code> / <code>statuses</code>) — см. <a href="/docs/documentation/schedule-journal">Журнал расписания</a>.
   </div>
 
   <h2>Данные недели для сетки</h2>

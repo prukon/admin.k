@@ -120,13 +120,14 @@
   </ul>
   <p>Создание тренера через <code>POST /admin/trainers</code> сразу создаёт user с <code>role_id = trainer</code> и профиль. При обновлении через страницу тренеров, если у user была другая роль, но профиль остался — роль принудительно возвращается на <code>trainer</code>.</p>
 
-  <h2>4) Привязка к группам</h2>
+  <h2 id="team-link">4) Привязка к группам</h2>
   <p><code>App\Services\TeamTrainerSyncService</code>:</p>
   <ul>
     <li><b>Из карточки тренера</b> — массив <code>team_ids[]</code> в store/update: тренер привязывается к нескольким группам; лишние строки в <code>team_trainer</code> для этого профиля удаляются.</li>
     <li><b>Из группы</b> — поле <code>trainer_profile_id</code> в <code>POST/PATCH /admin/team/{id}</code> (<code>TeamController</code>): на группу назначается один тренер; предыдущий тренер группы снимается.</li>
+    <li><b>Список групп</b> — на <code>/admin/teams</code> при <code>trainers.view</code> колонка «Тренер» (<code>trainer_label</code> в JSON <code>/admin/teams/data</code>, настройка в «Поля списка»). Без права колонка скрыта, но поле в JSON остаётся. См. <a href="/docs/documentation/admin-teams">Группы (админка)</a>.</li>
   </ul>
-  <p>UI: чекбоксы групп — <code>resources/views/admin/trainers/_teams_checkboxes.blade.php</code>; в модалках групп — селект тренера при <code>@can('trainers.view')</code> — см. <a href="/docs/documentation/admin-teams">Группы (админка)</a>.</p>
+  <p>UI: чекбоксы групп — <code>resources/views/admin/trainers/_teams_checkboxes.blade.php</code>; в модалках групп — селект тренера при <code>@can('trainers.view')</code>.</p>
 
   <h2>5) Редактирование пользователя с ролью «Тренер»</h2>
   <div class="note">
@@ -145,7 +146,15 @@
     <li>Ошибки валидации возвращаются JSON (<code>422</code>) и выводятся под полями формы.</li>
   </ul>
 
-  <h2>7) Фильтр «Тренер» в отчётах</h2>
+  <h2 id="schedule-journal-trainer">7) Тренер в журнале <code>/schedule</code> (отметка «Посетил»)</h2>
+  <div class="note">
+    Отдельно от фильтра в отчётах: при сохранении ячейки журнала со статусом «Посетил» в <code>schedule_users.trainer_profile_id</code> можно указать тренера или «Без тренера».
+    UI — только модалка ячейки на <code>/schedule</code>; право <code>schedule.view</code> (не <code>trainers.view</code>).
+    По умолчанию подставляется первый тренер группы ученика из <code>team_trainer</code> (тот же порядок, что при одном тренере на группу в §4).
+    Подробно: <a href="/docs/documentation/schedule-journal#visited-trainer">Журнал расписания: тренер при «Посетил»</a>.
+  </div>
+
+  <h2>8) Фильтр «Тренер» в отчётах</h2>
   <div class="note">
     Параметр: <code>filter_trainer_profile_id</code> (id из <code>trainer_profiles</code>).
     Логика: берутся <code>team_id</code> из <code>team_trainer</code> для выбранного профиля, затем отбираются ученики с <code>users.team_id</code> из этого списка.
@@ -157,14 +166,14 @@
     <li>Отчёты: Платежи, Платежи по месяцам, LTV, Задолженности — тот же параметр в DataTables и <code>…/total</code>.</li>
   </ul>
 
-  <h2>8) Изоляция по партнёру</h2>
+  <h2>9) Изоляция по партнёру</h2>
   <ul>
     <li>Список и операции — только <code>trainer_profiles.partner_id = current_partner</code>.</li>
     <li>Чужой профиль по id → <b>404</b> на show/update/destroy.</li>
     <li><code>team_ids</code> и <code>trainer_profile_id</code> валидируются: группа и профиль должны принадлежать текущему партнёру.</li>
   </ul>
 
-  <h2>9) Связанные файлы</h2>
+  <h2>10) Связанные файлы</h2>
   <ul class="small">
     <li><code>app/Http/Controllers/Admin/TrainerController.php</code></li>
     <li><code>app/Services/TrainerProfileSyncService.php</code>, <code>TeamTrainerSyncService.php</code></li>
@@ -176,15 +185,17 @@
     <li>Аналогичные фильтры: <code>PaymentMonthlyReportController</code>, <code>LtvReportController</code>, <code>DeptReportController</code></li>
   </ul>
 
-  <h2>10) Автотесты (Feature)</h2>
+  <h2>11) Автотесты (Feature)</h2>
   <div class="note">
     <ul>
       <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code> — CRUD, права, валидация, sync роли</li>
       <li><code>tests/Feature/Crm/Trainers/TrainersAccessSmokeFeatureTest.php</code> — 200/403 по всем маршрутам, роль trainer в справочнике</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerSyncAndTeamsFeatureTest.php</code> — store/show team_ids, user update, смена роли</li>
       <li><code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code> — привязка через группу и update тренера</li>
+      <li><code>tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php</code> — колонка «Тренер» на <code>/admin/teams</code></li>
       <li><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> — фильтрация данных по тренеру</li>
       <li><code>tests/Feature/Crm/Reports/ReportsTrainerAccessFeatureTest.php</code> — доступ к отчётам, видимость фильтра, trainers-search</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — тренер в ячейке «Посетил» журнала <code>/schedule</code></li>
       <li><code>tests/Feature/Crm/Permissions/PartnerBasePermissionsTest.php</code> — базовые права ролей <code>user</code>, <code>admin</code>, <code>trainer</code></li>
     </ul>
   </div>
@@ -192,6 +203,7 @@
 
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/schedule-journal">Журнал расписания</a> ·
     <a href="/docs/documentation/admin-teams">Группы</a> ·
     <a href="/docs/documentation/admin-users">Пользователи</a> ·
     <a href="/docs/documentation/reports-admin#trainer-filter">Отчёты: фильтр по тренеру</a> ·

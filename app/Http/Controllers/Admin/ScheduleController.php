@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
-
-use App\Models\MyLog;
+use App\Http\Requests\Admin\GetScheduleCellContextRequest;
+use App\Http\Requests\Admin\UpdateScheduleCellRequest;
 use App\Http\Requests\Team\FilterRequest;
+use App\Models\MyLog;
+use App\Models\TrainerProfile;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\ScheduleUser;
@@ -34,13 +36,11 @@ class ScheduleController extends AdminBaseController
         // 1) Текущий партнер
         $partnerId = $this->requirePartnerId();
 
-        // 2) Доступные статусы: свои + системные
-        //    ИЗМЕНЕНИЕ #1: вместо фильтра только по partner_id делаем OR с is_system = 1
-        $availableStatuses = Status::where(function($q) use ($partnerId) {
-            $q->where('partner_id', $partnerId)
-                ->orWhere('is_system', 1);
-        })
-            ->orderBy('is_system', 'desc')
+        // 2) Кастомные статусы партнёра + общие системные (partner_id IS NULL)
+        $availableStatuses = Status::query()
+            ->forSchedulePartner($partnerId)
+            ->orderBy('sort_order')
+            ->orderBy('id')
             ->get();
 
         // 3) Фильтры: год, месяц и группа
@@ -99,7 +99,8 @@ class ScheduleController extends AdminBaseController
             ->toArray();
     }
 
-    // 10) Рендерим
+    $visitedStatusId = Status::globalVisitedId();
+
     return view('admin.schedule', compact(
         'year',
         'month',
@@ -111,86 +112,132 @@ class ScheduleController extends AdminBaseController
         'startOfMonth',
         'endOfMonth',
         'teamWeekdays',
-        'availableStatuses'
+        'availableStatuses',
+        'visitedStatusId',
     ));
 }
 
-//    обновление расписания ячейки
-    public function update(Request $request)
+    public function cellContext(GetScheduleCellContextRequest $request)
     {
-        // Авторизованный пользователь
-        $authorId  = auth()->id();
-        // ИЗМЕНЕНИЕ #1: получаем partner_id из контекста (не из $request->user())
         $partnerId = $this->requirePartnerId();
+        $data = $request->validated();
 
-        // 1) Валидация входящих данных
-        $data = $request->validate([
-            'user_id'     => 'required|integer|exists:users,id',
-            'date'        => 'required|date_format:Y-m-d',
-            'status_id'   => 'required|exists:statuses,id',
-            'description' => 'nullable|string',
+        $user = User::query()
+            ->where('id', $data['user_id'])
+            ->where('partner_id', $partnerId)
+            ->firstOrFail();
+
+        $entry = ScheduleUser::query()
+            ->with('trainerProfile.user')
+            ->where('user_id', $user->id)
+            ->where('date', $data['date'])
+            ->first();
+
+        $visitedStatusId = Status::globalVisitedId();
+        $teamDefault = $this->teamDefaultTrainerProfile($partnerId, $user->team_id);
+        $trainers = $this->trainerOptionsForPartner($partnerId);
+
+        $currentStatusId = $entry?->status_id;
+        $isVisitedEntry = $visitedStatusId !== null
+            && $currentStatusId !== null
+            && (int) $currentStatusId === (int) $visitedStatusId;
+
+        $trainerForSelect = '';
+        if ($isVisitedEntry) {
+            $trainerForSelect = $entry->trainer_profile_id !== null
+                ? (string) $entry->trainer_profile_id
+                : '';
+        }
+
+        return response()->json([
+            'visited_status_id' => $visitedStatusId,
+            'current_status_id' => $currentStatusId,
+            'team_id' => $user->team_id ? (int) $user->team_id : null,
+            'team_default_trainer_profile_id' => $teamDefault?->id,
+            'trainer_profile_id_for_select' => $isVisitedEntry ? $trainerForSelect : null,
+            'trainers' => $trainers->map(fn (TrainerProfile $profile) => [
+                'id' => $profile->id,
+                'name' => $this->trainerDisplayName($profile),
+            ])->values(),
         ]);
+    }
+
+    public function update(UpdateScheduleCellRequest $request)
+    {
+        $authorId = auth()->id();
+        $partnerId = $this->requirePartnerId();
+        $data = $request->validated();
 
         DB::transaction(function () use ($authorId, $partnerId, $data) {
-            // 2) ИЗМЕНЕНИЕ #2: ищем пользователя только в рамках партнёра
-            $user = User::where('id', $data['user_id'])
+            $user = User::query()
+                ->where('id', $data['user_id'])
                 ->where('partner_id', $partnerId)
                 ->firstOrFail();
 
-            // 3) ИЗМЕНЕНИЕ #3: ищем статус только для этого партнёра или системный
-            $status = Status::where('id', $data['status_id'])
-                ->where(function ($q) use ($partnerId) {
-                    $q->where('partner_id', $partnerId)
-                        ->orWhere('is_system', 1);
-                })
-                ->firstOrFail();
-
+            $status = Status::findForSchedulePartner((int) $data['status_id'], $partnerId);
             $descriptionText = $data['description'] ?? '';
 
-            // 4) Получаем существующую запись расписания (если есть)
-            $existingSchedule = ScheduleUser::where('user_id', $user->id)
+            $visitedStatusId = Status::globalVisitedId();
+            $trainerProfileId = ($visitedStatusId !== null && (int) $status->id === $visitedStatusId)
+                ? ($data['trainer_profile_id'] ?? null)
+                : null;
+
+            if ($trainerProfileId !== null) {
+                $validTrainer = TrainerProfile::query()
+                    ->where('partner_id', $partnerId)
+                    ->whereKey($trainerProfileId)
+                    ->exists();
+
+                if (! $validTrainer) {
+                    throw new \InvalidArgumentException('Тренер не найден.');
+                }
+            }
+
+            $existingSchedule = ScheduleUser::query()
+                ->with(['statusRelation', 'trainerProfile.user'])
+                ->where('user_id', $user->id)
                 ->where('date', $data['date'])
                 ->first();
 
-            $oldStatusName = $existingSchedule && $existingSchedule->statusRelation
-                ? $existingSchedule->statusRelation->name
-                : 'не было';
+            $oldStatusName = $existingSchedule?->statusRelation?->name ?? 'не было';
+            $oldTrainerName = $this->trainerDisplayName($existingSchedule?->trainerProfile);
 
-            // 5) Создаём или обновляем запись расписания
             $schedule = ScheduleUser::updateOrCreate(
                 [
                     'user_id' => $user->id,
-                    'date'    => $data['date'],
+                    'date' => $data['date'],
                 ],
                 [
-                    'status_id'   => $status->id,
+                    'status_id' => $status->id,
                     'description' => $descriptionText,
+                    'trainer_profile_id' => $trainerProfileId,
                 ]
             );
-            $schedule->refresh();
+            $schedule->load(['statusRelation', 'trainerProfile.user']);
 
-            $newStatusName = $schedule->statusRelation
-                ? $schedule->statusRelation->name
-                : 'неопределён';
+            $newStatusName = $schedule->statusRelation?->name ?? 'неопределён';
+            $newTrainerName = $this->trainerDisplayName($schedule->trainerProfile);
 
-            // 6) Форматируем дату для лога
             $formattedDate = Carbon::parse($data['date'])->format('d.m.Y');
 
-            // 7) Запись в лог с указанием partner_id
             MyLog::create([
-                'type'        => 9,
-                'action'      => 93,
-                'target_type'  => 'App\Models\ScheduleUser',
-                'target_id'    => $user->id,
+                'type' => 9,
+                'action' => 93,
+                'target_type' => 'App\Models\ScheduleUser',
+                'target_id' => $user->id,
                 'target_label' => $user->full_name,
-                'user_id'   => $user->id,
+                'user_id' => $user->id,
+                'partner_id' => $partnerId,
                 'description' => sprintf(
-                    'Дата: "%s", Имя: "%s",%sСтатус до: "%s", Статус после: "%s",%sКомментарий: "%s"',
+                    'Дата: "%s", Имя: "%s",%sСтатус до: "%s", Статус после: "%s",%sТренер до: "%s", Тренер после: "%s",%sКомментарий: "%s"',
                     $formattedDate,
                     $user->full_name,
                     "\n",
                     $oldStatusName,
                     $newStatusName,
+                    "\n",
+                    $oldTrainerName,
+                    $newTrainerName,
                     "\n",
                     $descriptionText
                 ),
@@ -362,6 +409,14 @@ class ScheduleController extends AdminBaseController
         $to       = Carbon::parse($data['date_to']);
 
 
+        $defaultVisitedStatusId = Status::globalVisitedId();
+        if (! $defaultVisitedStatusId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Системный статус «Посетил» не найден.',
+            ], 422);
+        }
+
         // 4) Формируем массив вставок
         $period  = CarbonPeriod::create($from, $to);
         $inserts = [];
@@ -370,7 +425,7 @@ class ScheduleController extends AdminBaseController
                 $inserts[] = [
                     'user_id'     => $user->id,
                     'date'        => $day->toDateString(),
-                    'status_id'   => 2,
+                    'status_id'   => $defaultVisitedStatusId,
                     'description' => null,
                     'created_at'  => now(),
                     'updated_at'  => now(),
@@ -422,6 +477,45 @@ class ScheduleController extends AdminBaseController
     public function getLogsData(FilterRequest $request)
     {
         return $this->buildLogDataTable(9);
+    }
+
+    private function trainerOptionsForPartner(int $partnerId)
+    {
+        return TrainerProfile::query()
+            ->with('user')
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->whereHas('user', fn ($q) => $q->where('is_enabled', true))
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+    }
+
+    private function teamDefaultTrainerProfile(int $partnerId, ?int $teamId): ?TrainerProfile
+    {
+        if (! $teamId) {
+            return null;
+        }
+
+        return TrainerProfile::query()
+            ->with('user')
+            ->select('trainer_profiles.*')
+            ->join('team_trainer', 'team_trainer.trainer_profile_id', '=', 'trainer_profiles.id')
+            ->where('team_trainer.partner_id', $partnerId)
+            ->where('team_trainer.team_id', $teamId)
+            ->orderBy('team_trainer.id')
+            ->first();
+    }
+
+    private function trainerDisplayName(?TrainerProfile $profile): string
+    {
+        if (! $profile) {
+            return 'Без тренера';
+        }
+
+        $name = trim($profile->user?->full_name ?? '');
+
+        return $name !== '' ? $name : 'Без тренера';
     }
 }
 

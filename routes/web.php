@@ -313,6 +313,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Журнал расписания
     Route::middleware('can:schedule.view')->group(function () {
         Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
+        Route::get('/schedule/cell-context', [ScheduleController::class, 'cellContext'])->name('schedule.cell-context');
         Route::post('/schedule/update', [ScheduleController::class, 'update'])->name('schedule.update');
         Route::get('/schedule/logs-data', [ScheduleController::class, 'getLogsData'])->name('logs.data.schedule');
         Route::get('/schedule/user-schedule/{user}', [ScheduleController::class, 'getUserScheduleInfo'])->name('user.schedule.info');

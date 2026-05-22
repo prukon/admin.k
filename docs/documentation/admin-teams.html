@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Документация: группы (админка) — права groups.view и schedule.view</title>
+  <title>Документация: группы (админка) — /admin/teams</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
     .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
@@ -27,96 +27,178 @@
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
   <h1>Группы (админка): <code>/admin/teams</code></h1>
-  <div class="small">Файл: <code>/docs/documentation/admin-teams.html</code></div>
+  <div class="small">Файл: <code>/docs/documentation/admin-teams.html</code> · страница CRM: <code>GET /admin/teams</code></div>
 
   <div class="note">
-    Раздел <strong>«Группы»</strong> в боковом меню ведёт на <code>GET /admin/teams</code>.
-    Доступ к странице и ко всем CRUD/JSON эндпоинтам групп задаётся одним правом: <code>groups.view</code> (группа маршрутов в <code>routes/web.php</code> с middleware <code>can:groups.view</code>).
+    Раздел <strong>«Группы»</strong> в боковом меню ведёт на <code>GET /admin/teams</code> (<code>admin.team.index</code>).<br>
+    <strong>Доступ к странице и ко всем эндпоинтам раздела</strong> — одно право <code>groups.view</code> (middleware <code>can:groups.view</code> в <code>routes/web.php</code>). Без него — <b>403</b>; для гостя — редирект/401.<br>
+    Дополнительные права <code>schedule.view</code> и <code>trainers.view</code> <strong>не открывают</strong> страницу групп и <strong>не заменяют</strong> <code>groups.view</code> — они только включают отдельные элементы UI на этой странице.
   </div>
 
-  <h2>1) Право <code>schedule.view</code> на странице групп</h2>
-  <p>Одно и то же permission <code>schedule.view</code> (в справочнике permissions исторически описано как страница «Журнал расписания») дополнительно используется для <strong>элементов «Расписание»</strong> на <code>/admin/teams</code>: оно <strong>не открывает</strong> саму страницу групп и <strong>не заменяет</strong> <code>groups.view</code>.</p>
+  <h2>1) Эндпоинты раздела (все под <code>groups.view</code>)</h2>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Имя / назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/teams</code></td><td><code>admin.team.index</code> — HTML страница, DataTables</td></tr>
+      <tr><td>GET</td><td><code>/admin/teams/data</code></td><td><code>admin.team.data</code> — JSON для таблицы (serverSide)</td></tr>
+      <tr><td>GET</td><td><code>/admin/teams/columns-settings</code></td><td>Настройки видимости колонок (<code>user_table_settings</code>, ключ <code>teams_index</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/teams/columns-settings</code></td><td>Сохранение настроек колонок</td></tr>
+      <tr><td>GET</td><td><code>/admin/teams/logs-data</code></td><td><code>logs.data.team</code> — логи изменений групп</td></tr>
+      <tr><td>POST</td><td><code>/admin/teams</code></td><td><code>admin.team.store</code> — создание группы</td></tr>
+      <tr><td>GET</td><td><code>/admin/team/{id}/edit</code></td><td><code>admin.team.edit</code> — JSON для модалки редактирования</td></tr>
+      <tr><td>PATCH</td><td><code>/admin/team/{id}</code></td><td><code>admin.team.update</code> — обновление группы</td></tr>
+      <tr><td>DELETE</td><td><code>/admin/team/{team}</code></td><td><code>admin.team.delete</code> — soft delete группы</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Контроллер настроек колонок: <code>TeamColumnsSettingsController</code>. Изоляция по партнёру — через <code>PartnerContext</code> / <code>current_partner</code> в сессии.</p>
+
+  <h2>2) Таблица групп и «Поля списка»</h2>
+  <p>Таблица — DataTables (serverSide), фильтры: название группы, статус (активные/неактивные). Колонка «#» (нумерация) не настраивается.</p>
+
+  <h3>Порядок колонок (при всех правах)</h3>
+  <ol>
+    <li><code>#</code> (rownum) — всегда видима</li>
+    <li>Сортировка (<code>order_by</code>)</li>
+    <li>Название (<code>title</code>) — ссылка на модалку редактирования</li>
+    <li><strong>Тренер</strong> (<code>trainer_label</code>) — только при <code>trainers.view</code></li>
+    <li><strong>Расписание</strong> (<code>weekdays_label</code>) — только при <code>schedule.view</code></li>
+    <li>Статус (<code>status_label</code>)</li>
+    <li>Действия (<code>actions</code>)</li>
+  </ol>
+
+  <p>Выпадающий список <strong>«Поля списка»</strong> (иконка колонок) сохраняет видимость в <code>user_table_settings.columns</code> для <code>table_key = teams_index</code>. Ключи: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>weekdays_label</code>, <code>status_label</code>, <code>actions</code> (последние два опциональных ключа появляются в UI только при соответствующем праве).</p>
+
+  <h2 id="schedule-view">3) Право <code>schedule.view</code></h2>
+  <p>Permission управляет страницей <a href="/docs/documentation/schedule-journal">«Журнал расписания»</a> (<code>/schedule</code>) и дополнительно — элементами <strong>«Расписание»</strong> на <code>/admin/teams</code>.</p>
 
   <table>
     <thead>
       <tr>
         <th>Элемент UI</th>
-        <th>При отсутствии <code>schedule.view</code></th>
-        <th>При наличии <code>schedule.view</code></th>
+        <th>Без <code>schedule.view</code></th>
+        <th>С <code>schedule.view</code></th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td>Таблица групп (DataTables)</td>
-        <td>Колонка «Расписание» и пункт «Расписание» в выпадающем списке «Поля списка» не выводятся (Blade <code>@can('schedule.view')</code>, колонка на клиенте отключена через флаг JS).</td>
-        <td>Колонка с подписью дней недели (<code>weekdays_label</code>) и настройка видимости колонки доступны.</td>
+        <td>Таблица</td>
+        <td>Нет колонки «Расписание» и пункта в «Поля списка» (<code>@can('schedule.view')</code> в Blade, флаг <code>canViewSchedule</code> в JS).</td>
+        <td>Колонка <code>weekdays_label</code> (дни недели через запятую) и настройка видимости.</td>
       </tr>
       <tr>
-        <td>Модалка «Создание группы»</td>
-        <td>Блок выбора дней недели («Расписание») скрыт.</td>
-        <td>Блок с чекбоксами дней недели показывается.</td>
+        <td>Модалки создания / редактирования</td>
+        <td>Блок чекбоксов дней недели скрыт; <code>weekdays</code> в PATCH отбрасывается в <code>TeamController</code>.</td>
+        <td>Чекбоксы дней; данные из <code>GET /admin/team/{id}/edit</code>.</td>
       </tr>
       <tr>
-        <td>Модалка «Редактирование группы»</td>
-        <td>Блок «Расписание» скрыт; скрипт не заполняет чекбоксы дней.</td>
-        <td>Чекбоксы дней недели показываются и заполняются из <code>GET /admin/team/{id}/edit</code>.</td>
+        <td>JSON <code>GET /admin/teams/data</code></td>
+        <td>Поле <code>weekdays_label</code> <strong>всё равно приходит</strong> в каждой строке — скрытие только на клиенте.</td>
+        <td>То же.</td>
       </tr>
     </tbody>
   </table>
 
   <div class="warn">
-    Не путать с вкладкой <strong>«Расписание школы»</strong> в разделе абонементов: её экран и календарь завязаны на <code>lessonPackages.view</code> и связанные права — см. <a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь</a>. Там другой контур доступа.
+    Не путать с <strong>«Расписание школы»</strong> (абонементы, календарь) — там <code>lessonPackages.view</code> и отдельные маршруты. См. <a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь</a>.<br>
+    Полное описание журнала <code>/schedule</code> (ячейки, статусы, тренер при «Посетил»): <a href="/docs/documentation/schedule-journal">Журнал расписания</a>.
   </div>
 
-  <h2>2) Где ещё используется <code>schedule.view</code> в проекте</h2>
-  <ul>
-    <li>Gate <code>schedule.view</code> в <code>app/Providers/AuthServiceProvider.php</code> (проверка <code>hasPermission('schedule.view')</code> для текущего партнёра).</li>
-    <li>Пункт меню «Журнал расписания» (<code>/schedule</code>) в <code>resources/views/includes/sidebar.blade.php</code> — директива <code>@can('schedule.view')</code>.</li>
-    <li>Группы маршрутов журнала и статусов расписания в <code>routes/web.php</code> с <code>middleware('can:schedule.view')</code> (например <code>/schedule</code>, <code>/schedule/statuses</code> и др.).</li>
-  </ul>
+  <h2>4) Право <code>trainers.view</code> — колонка «Тренер»</h2>
+  <p>Permission раздела <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a> (<code>/admin/trainers</code>). На странице групп управляет колонкой и селектом тренера в модалках.</p>
 
-  <h2>3) Право <code>trainers.view</code> — колонка «Тренер» в таблице</h2>
-  <p>По аналогии с <code>schedule.view</code> для «Расписание»: при наличии <code>trainers.view</code> в таблице групп и в выпадающем списке «Поля списка» доступны колонка <code>trainer_label</code> (ФИО из <code>users.full_name</code> связанного профиля) и её настройка видимости. Без права колонка и пункт настроек не выводятся (Blade <code>@can('trainers.view')</code>).</p>
-  <p>Порядок колонок: сортировка → название → тренер → расписание (если есть) → статус → действия. В JSON <code>GET /admin/teams/data</code> поле <code>trainer_label</code> приходит всегда; скрытие только на клиенте. Сортировка по имени колонки <code>trainer_label</code> — по фамилии и имени пользователя тренера.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Элемент UI</th>
+        <th>Без <code>trainers.view</code></th>
+        <th>С <code>trainers.view</code></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Таблица</td>
+        <td>Нет колонки «Тренер» и пункта в «Поля списка» (<code>@can('trainers.view')</code>, <code>canViewTrainers</code> в JS).</td>
+        <td>Колонка <code>trainer_label</code> — ФИО тренера (<code>User::full_name</code> первого профиля из <code>team_trainer</code>). Пусто → «—».</td>
+      </tr>
+      <tr>
+        <td>Модалки создания / редактирования</td>
+        <td>Селект <code>trainer_profile_id</code> скрыт; ключ удаляется в <code>TeamController</code> до сохранения.</td>
+        <td>Селект активных тренеров партнёра (<code>trainerOptions</code> в <code>index</code>).</td>
+      </tr>
+      <tr>
+        <td>JSON <code>GET /admin/teams/data</code></td>
+        <td>Поле <code>trainer_label</code> <strong>всё равно приходит</strong> — скрытие только на клиенте (как <code>weekdays_label</code>).</td>
+        <td>То же.</td>
+      </tr>
+      <tr>
+        <td>Сортировка таблицы</td>
+        <td>—</td>
+        <td>По <code>columns[*].name = trainer_label</code>: join <code>team_trainer</code> → <code>trainer_profiles</code> → <code>users</code>, порядок по <code>lastname</code>, <code>name</code>.</td>
+      </tr>
+    </tbody>
+  </table>
 
-  <h2>4) Серверное поведение (группы)</h2>
-  <ul>
-    <li><strong>Список для таблицы</strong> <code>GET /admin/teams/data</code>: в JSON по-прежнему приходит поле <code>weekdays_label</code> для каждой строки — скрытие колонки только клиентское; это сознательно не фильтруется на сервере для пользователей без <code>schedule.view</code>. Аналогично — <code>trainer_label</code> без фильтрации по <code>trainers.view</code>.</li>
-    <li><strong>Обновление группы</strong> <code>PATCH /admin/team/{id}</code>: если у пользователя <strong>нет</strong> <code>schedule.view</code>, поле <code>weekdays</code> из запроса отбрасывается до вызова сервиса — назначение дней недели изменить нельзя (в т.ч. при попытке передать дни вручную). Запись в логах изменения «Дни недели» для такого сохранения не формируется.</li>
-    <li><strong>Сервис</strong> <code>App\Services\TeamService::update</code>: синхронизация связи <code>team_weekday</code> выполняется только если ключ <code>weekdays</code> был передан в данных обновления (после валидации). Если ключа нет — связь дней недели не трогают.</li>
-    <li><strong>Сортировка DataTables</strong> на <code>GET /admin/teams/data</code>: порядок сортировки определяется по <strong>имени колонки</strong> из массива запроса <code>columns[*].name</code>, а не только по индексу колонки — чтобы корректно работать при скрытой колонке «Расписание».</li>
-  </ul>
-
-  <h2>5) Базовые роли и конфиг</h2>
-  <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code> строка <code>schedule.view</code> по умолчанию <strong>закомментирована</strong>: у нового партнёра у администратора это право может отсутствовать, пока его явно не включат в матрице прав партнёра. Общая модель прав — в
-    <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
-
-  <h2>6) Тренер группы (<code>trainer_profile_id</code>)</h2>
+  <h2>5) Привязка тренера к группе (<code>trainer_profile_id</code>)</h2>
   <div class="note">
-    При наличии <code>trainers.view</code> в модалках создания и редактирования группы показывается селект тренера.
-    Поле запроса: <code>trainer_profile_id</code> (id из <code>trainer_profiles</code> текущего партнёра).
-    Сохранение через <code>TeamTrainerSyncService::syncTrainerForTeam</code>: на одну группу — не более одного тренера; смена тренера заменяет предыдущую привязку.
-    Без <code>trainers.view</code> ключ <code>trainer_profile_id</code> удаляется в <code>TeamController</code> до сохранения (как <code>weekdays</code> без <code>schedule.view</code>).
-    Подробно: <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.
+    Связь many-to-many <code>team_trainer</code>; в UI на группу — <strong>не более одного</strong> тренера (<code>TeamTrainerSyncService::syncTrainerForTeam</code>).<br>
+    Сохранение: <code>POST /admin/teams</code>, <code>PATCH /admin/team/{id}</code> — поле <code>trainer_profile_id</code> (id из <code>trainer_profiles</code> текущего партнёра). Пустое значение снимает тренера с группы.<br>
+    <code>GET /admin/team/{id}/edit</code> (JSON) возвращает <code>trainer_profile_id</code> первого связанного профиля.<br>
+    Обратная привязка из карточки тренера — <code>team_ids[]</code> на <code>/admin/trainers</code>. Подробнее: <a href="/docs/documentation/admin-trainers#team-link">Тренеры: привязка к группам</a>.
   </div>
+
+  <h2>6) Серверное поведение <code>GET /admin/teams/data</code></h2>
   <ul>
-    <li><code>GET /admin/team/{id}/edit</code> (JSON) — поле <code>trainer_profile_id</code> (первый связанный профиль).</li>
-    <li>Тесты: <code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code>.</li>
+    <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), параметры DataTables (<code>draw</code>, <code>start</code>, <code>length</code>, <code>order</code>, <code>columns</code>).</li>
+    <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>.</li>
+    <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>weekdays_label</code>, <code>status_label</code>, <code>is_enabled</code>.</li>
+    <li><strong>Сортировка</strong> определяется по <code>columns[order.0.column].name</code>, а не только по индексу — чтобы работать при скрытых колонках «Тренер» / «Расписание». Поддерживаются: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>status_label</code>; <code>weekdays_label</code> и <code>actions</code> — сортировка по умолчанию (<code>order_by</code>, <code>title</code>).</li>
+    <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–4).</li>
   </ul>
 
-  <h2>7) Представления и контроллер</h2>
+  <h2>7) Базовые роли и конфиг</h2>
+  <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code>:</p>
   <ul>
-    <li><code>resources/views/admin/team.blade.php</code> — таблица, настройки колонок, инициализация DataTables.</li>
-    <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки создания/редактирования.</li>
-    <li><code>app/Http/Controllers/Admin/TeamController.php</code> — методы <code>index</code>, <code>data</code>, <code>store</code>, <code>edit</code>, <code>update</code>, логи.</li>
+    <li><code>groups.view</code> — есть (доступ к разделу групп);</li>
+    <li><code>trainers.view</code> — есть (колонка «Тренер» и селект в модалках у типового админа);</li>
+    <li><code>schedule.view</code> — <strong>закомментировано</strong> (колонка «Расписание» и дни в модалках нужно включать в матрице прав партнёра).</li>
+  </ul>
+  <p>Общая модель прав: <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
+
+  <h2>8) Представления и код</h2>
+  <ul>
+    <li><code>resources/views/admin/team.blade.php</code> — таблица, «Поля списка», DataTables, настройки колонок.</li>
+    <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки.</li>
+    <li><code>app/Http/Controllers/Admin/TeamController.php</code> — <code>index</code>, <code>data</code>, CRUD.</li>
+    <li><code>app/Http/Controllers/Admin/TeamColumnsSettingsController.php</code> — <code>teams_index</code>.</li>
+    <li><code>app/Services/TeamService.php</code>, <code>TeamTrainerSyncService.php</code>.</li>
   </ul>
 
-  <h2>8) Автотесты</h2>
+  <h2>9) Автотесты</h2>
   <div class="note">
-    Фичтесты: <code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — видимость колонки/блоков, недоступность изменения дней без права, доступность эндпоинтов при <code>groups.view</code>, сортировка по имени колонки.
-    Общие сценарии групп: <code>tests/Feature/Crm/Teams/TeamControllerTest.php</code>.
+    <ul>
+      <li><code>tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php</code> — колонка «Тренер»: UI, <code>trainer_label</code>, сортировка, «Поля списка».</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsPageFullAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на все эндпоинты; без права / гость → 403.</li>
+      <li><code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — <code>schedule.view</code>, дни недели в модалках.</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php</code> — доступ к <code>/schedule</code> и всем эндпоинтам журнала.</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — тренер при «Посетил» в ячейке журнала.</li>
+      <li><code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code> — <code>trainer_profile_id</code>, sync <code>team_trainer</code>.</li>
+      <li><code>tests/Feature/Crm/Teams/TeamControllerTest.php</code> — CRUD, фильтры, изоляция партнёра.</li>
+      <li><code>tests/Feature/Crm/Teams/TeamColumnsSettingsTest.php</code> — API настроек колонок.</li>
+    </ul>
   </div>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code></pre>
+  <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php \
+  tests/Feature/Crm/Teams/TeamsPageFullAccessFeatureTest.php \
+  tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code></pre>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a> ·
+    <a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> ·
+    <a href="/docs/documentation/partners-permissions">Права партнёра</a>
+  </p>
 </div>
 </body>
 </html>

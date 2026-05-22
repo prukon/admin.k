@@ -453,6 +453,13 @@ table.dataTable tbody th, table.dataTable tbody td {
     z-index: 2100 !important;
 }
 
+#statuses-table .status-sort-order {
+    min-width: 5rem;
+    color: #212529 !important;
+    font-weight: 600;
+    vertical-align: middle !important;
+}
+
 #createStatusModal {
     z-index: 2100 !important;
 }

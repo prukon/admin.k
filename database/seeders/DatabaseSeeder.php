@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
         if (env('SEED_DEV_DATA', false)) {
             $this->call([
                 DevPartnersSeeder::class, // добавляем случайных партнеров
+                DevScheduleStatusesSeeder::class, // статусы посещаемости журнала /schedule (dev)
                 DevUserRoleBasePermissionsSeeder::class, // базовые права роли user для всех партнёров (dev)
                 DevAdminRoleBasePermissionsSeeder::class, // базовые права роли admin для всех партнёров (dev)
                 DevTrainerRoleBasePermissionsSeeder::class, // базовые права роли trainer для всех партнёров (dev)

@@ -13,13 +13,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // Кнопка "Настройки"
     var btnSettings = document.getElementById('btn-settings');
     // Таблица статусов
-    var statusesTableBody = document.querySelector('#statuses-table tbody');
+    var statusesTableBody = document.getElementById('statuses-table-body');
     // Кнопка "Новый статус"
     var btnNewStatus = document.getElementById('btn-new-status');
 
     // При клике "Настройки" — грузим статусы и показываем модалку
     btnSettings.addEventListener('click', function () {
-        loadStatuses();
         settingsModal.show();
     });
 
@@ -32,57 +31,122 @@ document.addEventListener('DOMContentLoaded', function () {
         createStatusModal.show();
     });
 
+    function clearScheduleStatusFormErrors(form) {
+        if (!form) {
+            return;
+        }
+        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        form.querySelectorAll('[data-error-for]').forEach(el => {
+            el.textContent = '';
+            el.style.display = 'none';
+        });
+    }
+
+    function showScheduleStatusFormErrors(form, errors) {
+        if (!form || !errors) {
+            return;
+        }
+        Object.keys(errors).forEach(field => {
+            const input = form.querySelector('[name="' + field + '"]');
+            const feedback = form.querySelector('[data-error-for="' + field + '"]');
+            const messages = errors[field];
+            if (!messages || !messages.length) {
+                return;
+            }
+            if (input) {
+                input.classList.add('is-invalid');
+            }
+            if (feedback) {
+                feedback.textContent = messages[0];
+                feedback.style.display = 'block';
+            }
+        });
+    }
+
+    function parseJsonResponse(resp) {
+        return resp.json().then(body => ({ ok: resp.ok, status: resp.status, body }));
+    }
+
     // Загрузка статусов
     function loadStatuses() {
+        if (!statusesTableBody) {
+            return;
+        }
+
         fetch("/schedule/statuses")
             .then(resp => resp.json())
             .then(data => {
+                if (!Array.isArray(data.statuses)) {
+                    return;
+                }
+
                 statusesTableBody.innerHTML = '';
                 data.statuses.forEach(st => {
+                    const sortOrder = (st.sort_order !== undefined && st.sort_order !== null)
+                        ? Number(st.sort_order)
+                        : 0;
+                    const isSystem = !!st.is_system;
+
                     let tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>
-                            ${st.name}
-                            ${
-                        st.is_system
-                            ? `<i class="fas fa-question-circle ms-1"
-                                      data-bs-toggle="tooltip"
-                                      title="Системный статус. Невозможно удалить"
-                                   ></i>`
-                            : ''
-                        }
-                        </td>
-                        <td>
-                            ${
-                        st.icon
-                            ? `<i class="${st.icon}"
-                                     style="background-color: ${st.color};
-                                            color: #000000;
-                                            padding: 5px;
-                                            border-radius: 3px;"></i>`
-                            : ''
-                        }
-                        </td>
-                        <td>
-                            ${
-                        st.is_system
-                            ? ''
-                            : `<button class="btn btn-sm btn-success"
-                                           data-action="edit"
-                                           data-id="${st.id}"
-                                           data-name="${st.name}"
-                                           data-icon="${st.icon ?? ''}"
-                                           data-color="${st.color ?? ''}">
-                                       Изменить
-                                   </button>
-                                   <button class="btn btn-sm btn-danger"
-                                           data-action="delete"
-                                           data-id="${st.id}">
-                                       Удалить
-                                   </button>`
-                        }
-                        </td>
-                    `;
+
+                    let tdName = document.createElement('td');
+                    tdName.appendChild(document.createTextNode(st.name || ''));
+                    if (isSystem) {
+                        let hint = document.createElement('i');
+                        hint.className = 'fas fa-question-circle ms-1';
+                        hint.setAttribute('data-bs-toggle', 'tooltip');
+                        hint.setAttribute('title', 'Системный статус. Нельзя изменить или удалить');
+                        tdName.appendChild(document.createTextNode(' '));
+                        tdName.appendChild(hint);
+                    }
+                    tr.appendChild(tdName);
+
+                    let tdSort = document.createElement('td');
+                    let sortSpan = document.createElement('span');
+                    if (isSystem) {
+                        sortSpan.className = 'text-muted';
+                    }
+                    sortSpan.textContent = String(sortOrder);
+                    tdSort.appendChild(sortSpan);
+                    tr.appendChild(tdSort);
+
+                    let tdIcon = document.createElement('td');
+                    if (st.icon) {
+                        let iconEl = document.createElement('i');
+                        iconEl.className = st.icon;
+                        iconEl.style.backgroundColor = st.color || '';
+                        iconEl.style.color = '#000000';
+                        iconEl.style.padding = '5px';
+                        iconEl.style.borderRadius = '3px';
+                        tdIcon.appendChild(iconEl);
+                    }
+                    tr.appendChild(tdIcon);
+
+                    let tdActions = document.createElement('td');
+                    if (!isSystem) {
+                        let btnEdit = document.createElement('button');
+                        btnEdit.type = 'button';
+                        btnEdit.className = 'btn btn-sm btn-success me-1';
+                        btnEdit.textContent = 'Изменить';
+                        btnEdit.dataset.action = 'edit';
+                        btnEdit.dataset.id = String(st.id);
+                        btnEdit.dataset.name = st.name || '';
+                        btnEdit.dataset.icon = st.icon || '';
+                        btnEdit.dataset.color = st.color || '';
+                        btnEdit.dataset.sortOrder = String(sortOrder);
+
+                        let btnDelete = document.createElement('button');
+                        btnDelete.type = 'button';
+                        btnDelete.className = 'btn btn-sm btn-danger';
+                        btnDelete.textContent = 'Удалить';
+                        btnDelete.dataset.action = 'delete';
+                        btnDelete.dataset.id = String(st.id);
+
+                        tdActions.appendChild(btnEdit);
+                        tdActions.appendChild(btnDelete);
+                    }
+                    tr.appendChild(tdActions);
+
                     statusesTableBody.appendChild(tr);
                 });
 
@@ -99,22 +163,30 @@ document.addEventListener('DOMContentLoaded', function () {
     var createStatusForm = document.getElementById('createStatusForm');
     createStatusForm.addEventListener('submit', function (e) {
         e.preventDefault();
+        clearScheduleStatusFormErrors(createStatusForm);
         let formData = new FormData(createStatusForm);
 
         fetch("/schedule/statuses", {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
             },
             body: formData
         })
-            .then(resp => resp.json())
-            .then(data => {
-                if (data.success) {
-                    showSuccessModal("Создание статуса", "Статус успешно создан.", 1);
-                } else {
-                    $('#errorModal').modal('show');
+            .then(parseJsonResponse)
+            .then(({ ok, body }) => {
+                if (ok && body.success) {
+                    loadStatuses();
+                    createStatusModal.hide();
+                    showSuccessModal("Создание статуса", "Статус успешно создан.", 0);
+                    return;
                 }
+                if (body.errors) {
+                    showScheduleStatusFormErrors(createStatusForm, body.errors);
+                    return;
+                }
+                $('#errorModal').modal('show');
             })
             .catch(err => console.error(err));
     });
@@ -128,11 +200,14 @@ document.addEventListener('DOMContentLoaded', function () {
             let name = e.target.dataset.name;
             let icon = e.target.dataset.icon;
             let color = e.target.dataset.color || '#ffffff';
+            let sortOrder = e.target.dataset.sortOrder ?? '0';
 
+            clearScheduleStatusFormErrors(editStatusForm);
             document.getElementById('editStatusId').value = id;
             document.getElementById('editName').value = name;
             document.getElementById('editIcon').value = icon;
             document.getElementById('editColor').value = color;
+            document.getElementById('editSortOrder').value = sortOrder;
 
             document.querySelectorAll('#editIconList .icon-item').forEach(item => {
                 item.classList.remove('selected');
@@ -157,7 +232,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         .then(resp => resp.json())
                         .then(d => {
                             if (d.success) {
-                                showSuccessModal("Удаление статуса", "Статус успешно удален.", 1);
+                                loadStatuses();
+                                showSuccessModal("Удаление статуса", "Статус успешно удален.", 0);
                             } else {
                                 $('#errorModal').modal('show');
                             }
@@ -170,6 +246,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Сабмит формы редактирования (исправление 405: POST + _method=PATCH)
     editStatusForm.addEventListener('submit', function (e) {
         e.preventDefault();
+        clearScheduleStatusFormErrors(editStatusForm);
 
         let statusId = document.getElementById('editStatusId').value;
         let formData = new FormData(editStatusForm);
@@ -178,17 +255,24 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch("/schedule/statuses/" + statusId, {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
             },
             body: formData
         })
-            .then(resp => resp.json())
-            .then(d => {
-                if (d.success) {
-                    showSuccessModal("Редактирование статуса", "Статус успешно обновлен.", 1);
-                } else {
-                    $('#errorModal').modal('show');
+            .then(parseJsonResponse)
+            .then(({ ok, body }) => {
+                if (ok && body.success) {
+                    loadStatuses();
+                    editStatusModal.hide();
+                    showSuccessModal("Редактирование статуса", "Статус успешно обновлен.", 0);
+                    return;
                 }
+                if (body.errors) {
+                    showScheduleStatusFormErrors(editStatusForm, body.errors);
+                    return;
+                }
+                $('#errorModal').modal('show');
             })
             .catch(err => console.error(err));
     });
@@ -291,40 +375,129 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var cellEditModal = new bootstrap.Modal(document.getElementById('cellEditModal'), {});
     var currentCell;
+    var visitedStatusId = window.SCHEDULE_VISITED_STATUS_ID
+        ? parseInt(window.SCHEDULE_VISITED_STATUS_ID, 10)
+        : null;
+    var cellContextCache = null;
+
+    function isVisitedStatusId(statusId) {
+        return visitedStatusId && parseInt(statusId, 10) === visitedStatusId;
+    }
+
+    function populateTrainerSelect(trainers, selectedValue) {
+        var $sel = $('#cell-trainer-profile-id');
+        $sel.empty();
+        $sel.append($('<option>', { value: '', text: 'Без тренера' }));
+        (trainers || []).forEach(function (trainer) {
+            $sel.append($('<option>', { value: trainer.id, text: trainer.name }));
+        });
+        if (selectedValue === null || selectedValue === undefined) {
+            $sel.val('');
+        } else {
+            $sel.val(String(selectedValue));
+        }
+    }
+
+    function trainerSelectValueForVisited(ctx) {
+        if (!ctx) {
+            return '';
+        }
+        if (ctx.trainer_profile_id_for_select !== null && ctx.trainer_profile_id_for_select !== undefined) {
+            return ctx.trainer_profile_id_for_select;
+        }
+        if (ctx.team_default_trainer_profile_id) {
+            return String(ctx.team_default_trainer_profile_id);
+        }
+        return '';
+    }
+
+    function syncTrainerBlock() {
+        var checked = $('input[name="status_id"]:checked');
+        var statusVal = checked.val();
+        if (!isVisitedStatusId(statusVal)) {
+            $('#cell-trainer-wrap').addClass('d-none');
+            $('#cell-trainer-profile-id').val('');
+            $('#cell-trainer-hint').text('');
+            return;
+        }
+
+        $('#cell-trainer-wrap').removeClass('d-none');
+        var selectVal = trainerSelectValueForVisited(cellContextCache);
+        if ($('#cell-trainer-profile-id option').length <= 1 && cellContextCache && cellContextCache.trainers) {
+            populateTrainerSelect(cellContextCache.trainers, selectVal);
+        } else {
+            $('#cell-trainer-profile-id').val(selectVal === null ? '' : String(selectVal));
+        }
+
+        var hint = '';
+        if (cellContextCache && cellContextCache.team_default_trainer_profile_id && selectVal === String(cellContextCache.team_default_trainer_profile_id)) {
+            hint = 'По умолчанию — первый тренер группы.';
+        }
+        $('#cell-trainer-hint').text(hint);
+    }
+
+    $(document).on('change', 'input[name="status_id"]', function () {
+        syncTrainerBlock();
+    });
 
     //Вызов Редактирование ячейки
     $(document).on('click', '.schedule-cell', function () {
         currentCell = $(this);
         let userId = $(this).data('user-id');
         let date = $(this).data('date');
-        let statusId = $(this).data('status-id') || '';
-        // let comment = $(this).data('comment') || '';
+        let statusId = $(this).data('status-id');
         let comment = $(this).attr('data-comment') || '';
-        let userName = $(this).data('user-name'); // НОВОЕ
-
+        let userName = $(this).data('user-name');
 
         $('#edit-user-id').val(userId);
         $('#edit-date').val(date);
-        $('#edit-status-id').val(statusId);
         $('#description').val(comment);
+        $('input[name="status_id"]').prop('checked', false);
+        if (statusId) {
+            $('input[name="status_id"][value="' + statusId + '"]').prop('checked', true);
+        } else {
+            $('#status-empty').prop('checked', true);
+        }
 
-
-        // Вставка отображаемых значений
         $('#edit-user-name-display').text(userName);
         $('#edit-date-display').text(formatDateHuman(date));
 
+        cellContextCache = null;
+        populateTrainerSelect([], '');
+        $('#cell-trainer-wrap').addClass('d-none');
+        $('#cell-trainer-hint').text('');
+
+        $.ajax({
+            url: '/schedule/cell-context',
+            method: 'GET',
+            data: { user_id: userId, date: date },
+            headers: { 'Accept': 'application/json' },
+            success: function (ctx) {
+                cellContextCache = ctx;
+                populateTrainerSelect(ctx.trainers || [], '');
+                syncTrainerBlock();
+            },
+        });
+
         cellEditModal.show();
-        console.log($(this));
-    })
+    });
 
     //Сохранить Редактирование ячейки
     $('#cellEditForm').on('submit', function (e) {
         e.preventDefault();
 
+        var formData = $(this).serializeArray();
+        var chosenStatus = $('input[name="status_id"]:checked').val();
+        if (!isVisitedStatusId(chosenStatus)) {
+            formData = formData.filter(function (item) {
+                return item.name !== 'trainer_profile_id';
+            });
+        }
+
         $.ajax({
             url: "/schedule/update",
             method: "POST",
-            data: $(this).serialize(),
+            data: $.param(formData),
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
