@@ -27,7 +27,7 @@
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
   <h1>Журнал расписания: <code>/schedule</code></h1>
-  <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · страница CRM: <code>GET /schedule</code> (<code>schedule.index</code>)</div>
+  <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · вкладка «Журнал»: <code>GET /schedule</code> (<code>schedule.index</code>) · см. также <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a></div>
 
   <div class="warn">
     <strong>Не путать</strong> с разделом <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> (абонементы, календарь слотов, <code>lesson_occurrence_statuses</code>, <code>lessonPackages.view</code>).<br>
@@ -35,8 +35,10 @@
   </div>
 
   <div class="note">
-    Пункт меню «Журнал расписания» — <code>resources/views/includes/sidebar.blade.php</code> (<code>@can('schedule.view')</code>).<br>
-    Все маршруты журнала и статусов журнала в <code>routes/web.php</code> обёрнуты в <code>middleware('can:schedule.view')</code> внутри группы <code>auth</code> + <code>2fa</code>.
+    Пункт меню «Журнал расписания» — <code>resources/views/includes/sidebar.blade.php</code>
+    (<code>@can('schedule.view')</code> <strong>или</strong> <code>schedule.trainerSalary.view</code>; ссылка на <code>/schedule</code> или <code>/schedule/trainer-salary</code>).<br>
+    Маршруты вкладки «Журнал» и статусов в <code>routes/web.php</code> — <code>middleware('can:schedule.view')</code> внутри <code>auth</code> + <code>2fa</code>.
+    Вкладки «ЗП тренеров» / «Листы ЗП» — отдельные права <code>schedule.trainerSalary.*</code>.
   </div>
 
   <h2>1) Право доступа <code>schedule.view</code></h2>
@@ -76,6 +78,8 @@
       <tr><td>POST</td><td><code>/schedule/statuses</code></td><td><code>statuses.store</code></td><td>Создать кастомный статус партнёра</td></tr>
       <tr><td>PATCH</td><td><code>/schedule/statuses/{id}</code></td><td><code>statuses.update</code></td><td>Изменить кастомный статус (не системный)</td></tr>
       <tr><td>DELETE</td><td><code>/schedule/statuses/{id}</code></td><td><code>statuses.destroy</code></td><td>Удалить кастомный статус (soft delete)</td></tr>
+      <tr><td>GET</td><td><code>/schedule/trainer-workload</code></td><td><code>schedule.trainer-workload</code></td><td>Вкладка «Нагрузка тренеров» — см. <a href="/docs/documentation/schedule-trainer-workload">отдельный раздел</a></td></tr>
+      <tr><td>GET</td><td><code>/schedule/trainer-workload/data</code></td><td><code>schedule.trainer-workload.data</code></td><td>AJAX-данные матрицы нагрузки (HTML фрагмент таблицы)</td></tr>
     </tbody>
   </table>
   <p>Изоляция: ученик, группа, статус и тренер в запросах проверяются на <code>partner_id = current_partner</code>; чужой ученик → <b>404</b>.</p>
@@ -108,7 +112,26 @@
     ID «Посетил» для логики тренера: <code>Status::globalVisitedId()</code> (имя <code>Status::VISITED_NAME</code>).
   </p>
 
-  <h2>4) UI страницы</h2>
+  <h2>4) Вкладки раздела «Журнал расписания»</h2>
+  <p>Оболочка: <code>resources/views/admin/schedule/index.blade.php</code> (вкладки по аналогии с <a href="/docs/documentation/reports-admin">отчётами админки</a>).</p>
+  <table>
+    <thead>
+      <tr><th>Вкладка</th><th>URL</th><th>Содержание</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Журнал расписания</td><td><code>/schedule</code></td><td>Таблица учеников × дни месяца (этот раздел документации)</td></tr>
+      <tr><td>Нагрузка тренеров</td><td><code>/schedule/trainer-workload</code></td><td>Матрица тренер × день недели за период; быстрый выбор из трёх календарных месяцев — <a href="/docs/documentation/schedule-trainer-workload#month-presets">отдельная документация</a></td></tr>
+      <tr><td>ЗП тренеров</td><td><code>/schedule/trainer-salary</code></td><td>Черновик и слепки ЗП за месяц — <a href="/docs/documentation/schedule-trainer-salary">отдельная документация</a></td></tr>
+      <tr><td>Листы ЗП</td><td><code>/schedule/trainer-salary-sheets</code></td><td>Архив слепков — <a href="/docs/documentation/schedule-trainer-salary-sheets">отдельная документация</a></td></tr>
+    </tbody>
+  </table>
+  <p>
+    Вкладки «Журнал» и «Нагрузка» в шапке раздела видны при <code>schedule.view</code>.
+    «ЗП тренеров» и «Листы ЗП» — при <code>schedule.trainerSalary.view</code>; редактирование черновика и слепки — <code>schedule.trainerSalary.manage</code>.
+    Подробно: <a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров</a>, <a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП</a>.
+  </p>
+
+  <h2>5) UI вкладки «Журнал расписания»</h2>
   <ul>
     <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id группы).</li>
     <li>Таблица: строки — ученики, столбцы — дни месяца; цвет/иконка из статуса.</li>
@@ -117,15 +140,15 @@
     <li>Кнопка «Настройки» → список статусов, создание/редактирование кастомных.</li>
     <li>Полноэкранный режим, поиск по таблице (DataTables).</li>
   </ul>
-  <p>Шаблон: <code>resources/views/admin/schedule.blade.php</code>, стили/скрипты: <code>resources/css/schedule.css</code>, <code>resources/js/schedule.js</code>.</p>
+  <p>Шаблон вкладки: <code>resources/views/admin/schedule/journal.blade.php</code>, стили/скрипты: <code>resources/css/schedule.css</code>, <code>resources/js/schedule.js</code> (только на вкладке журнала).</p>
 
-  <h2 id="visited-trainer">5) Тренер при статусе «Посетил»</h2>
+  <h2 id="visited-trainer">6) Тренер при статусе «Посетил»</h2>
   <div class="note">
-    Назначение тренера — <strong>только в модалке ячейки</strong>, не в самой таблице (в ячейке сетки тренер не отображается).
-    Задумано как основа для будущих отчётов по тренерам и расчёта ЗП (количество тренировок по отметкам «Посетил») — отдельная итерация.
+    Назначение тренера — <strong>только в модалке ячейки</strong>, не в самой таблице журнала (в ячейке сетки тренер не отображается).
+    Эти данные использует отчёт <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a> (агрегация по <code>trainer_profile_id</code> и дню недели).
   </div>
 
-  <h3>5.1) Поведение в модалке</h3>
+  <h3>6.1) Поведение в модалке</h3>
   <ol>
     <li>При открытии ячейки — <code>GET /schedule/cell-context?user_id=&amp;date=</code>.</li>
     <li>Блок «Тренер» (<code>#cell-trainer-wrap</code>) показывается, если выбран статус «Посетил».</li>
@@ -135,7 +158,7 @@
     <li>При смене статуса с «Посетил» на другой — поле тренера в запрос не уходит; в БД <code>trainer_profile_id</code> обнуляется на сервере.</li>
   </ol>
 
-  <h3>5.2) API <code>GET /schedule/cell-context</code></h3>
+  <h3>6.2) API <code>GET /schedule/cell-context</code></h3>
   <p>Валидация: <code>GetScheduleCellContextRequest</code> (<code>user_id</code>, <code>date</code>).</p>
   <p>Ответ (основные поля):</p>
   <ul>
@@ -146,7 +169,7 @@
     <li><code>trainers</code> — массив <code>{ id, name }</code> (ФИО из <code>users.full_name</code>)</li>
   </ul>
 
-  <h3>5.3) API <code>POST /schedule/update</code></h3>
+  <h3>6.3) API <code>POST /schedule/update</code></h3>
   <p>Валидация: <code>UpdateScheduleCellRequest</code>.</p>
   <ul>
     <li><code>trainer_profile_id</code> — nullable; значения <code>""</code>, <code>none</code>, <code>0</code> приводятся к <code>null</code></li>
@@ -155,34 +178,35 @@
   </ul>
   <p>В лог (<code>MyLog</code>, action 93) добавлены строки «Тренер до» / «Тренер после».</p>
 
-  <h3>5.4) Связь с тренерами и группами</h3>
+  <h3>6.4) Связь с тренерами и группами</h3>
   <p>
     Дефолтный тренер ячейки = первый в <code>team_trainer</code> для группы ученика — тот же порядок, что при одном тренере на группу в
     <a href="/docs/documentation/admin-trainers#team-link">привязке тренера к группе</a>.
     Если у ученика нет <code>team_id</code> или у группы нет тренера — дефолт пустой, можно выбрать любого тренера партнёра или «Без тренера».
   </p>
 
-  <h2>6) Массовое «Личное расписание ученика»</h2>
+  <h2>7) Массовое «Личное расписание ученика»</h2>
   <p>
     <code>POST /schedule/user/{user}/update-schedule-range</code> удаляет записи ученика в диапазоне дат и вставляет «Посетил» на выбранные дни недели (<code>weekdays</code>: 1–7 ISO).
     Поле <code>trainer_profile_id</code> при массовой вставке <strong>не заполняется</strong> (остаётся <code>null</code>).
     Тренера для таких дней при необходимости задают вручную через модалку ячейки.
   </p>
 
-  <h2>7) Настройки статусов</h2>
+  <h2>8) Настройки статусов</h2>
   <p>Модалка «Настройки» на странице журнала. Таблица статусов с сервера (в т.ч. колонка сортировки); CRUD только для кастомных.</p>
   <p>Запросы: <code>StoreScheduleStatusRequest</code>, <code>UpdateScheduleStatusRequest</code> (обязательны <code>name</code>, для update — <code>sort_order</code>).</p>
   <p>На dev: <code>php artisan db:seed --class=DevScheduleStatusesSeeder</code> (при <code>SEED_DEV_DATA=true</code> — в составе сидов).</p>
 
-  <h2>8) Миграции и сиды</h2>
+  <h2>9) Миграции и сиды</h2>
   <ul>
     <li><code>2026_05_21_140000_add_sort_order_to_statuses_table.php</code></li>
     <li><code>2026_05_21_150000_add_trainer_profile_id_to_schedule_users_table.php</code></li>
     <li><code>database/seeders/DevScheduleStatusesSeeder.php</code> — системные + кастомные статусы партнёров</li>
   </ul>
 
-  <h2>9) Связанные файлы</h2>
+  <h2>10) Связанные файлы</h2>
   <ul class="small">
+    <li><code>resources/views/admin/schedule/index.blade.php</code>, <code>journal.blade.php</code></li>
     <li><code>app/Http/Controllers/Admin/ScheduleController.php</code></li>
     <li><code>app/Http/Controllers/Admin/StatusController.php</code></li>
     <li><code>app/Http/Requests/Admin/UpdateScheduleCellRequest.php</code>, <code>GetScheduleCellContextRequest.php</code></li>
@@ -190,11 +214,12 @@
     <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>schedule.view</code></li>
   </ul>
 
-  <h2>10) Автотесты (Feature)</h2>
+  <h2>11) Автотесты (Feature)</h2>
   <div class="note">
     <ul>
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php</code> — гость 401/302, без права 403, со <code>schedule.view</code> страница и все эндпоинты 200</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — контекст ячейки, сохранение тренера / «без тренера», сброс при смене статуса, изоляция партнёра, первый тренер группы</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleTrainerWorkloadAccessFeatureTest.php</code>, <code>ScheduleTrainerWorkloadFeatureTest.php</code> — отчёт нагрузки (см. <a href="/docs/documentation/schedule-trainer-workload#tests">отдельный раздел</a>)</li>
       <li><code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — <code>schedule.view</code> на странице групп (дни недели)</li>
     </ul>
   </div>
@@ -204,6 +229,7 @@
     <a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/admin-teams">Группы</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
+    <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a> ·
     <a href="/docs/documentation/school-schedule-calendar">Расписание школы</a>
   </p>
 </div>

@@ -143,6 +143,14 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('schedule.view');
         });
 
+        // ЗП тренеров (вкладка на /schedule)
+        Gate::define('schedule.trainerSalary.view', function (User $user) {
+            return $user->hasPermission('schedule.trainerSalary.view');
+        });
+        Gate::define('schedule.trainerSalary.manage', function (User $user) {
+            return $user->hasPermission('schedule.trainerSalary.manage');
+        });
+
         // Расписание школы (слоты)
         Gate::define('scheduleSlots.view', function (User $user) {
             return $user->hasPermission('scheduleSlots.view');

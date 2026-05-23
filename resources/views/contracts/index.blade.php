@@ -36,9 +36,13 @@
                                 class="form-select search-select width-170 filter-half">
                             <option value="">Все статусы</option>
                             <option value="draft">Черновик</option>
-                            <option value="active">Активный</option>
+                            <option value="awaiting_client_fill">Ожидает заполнения</option>
+                            <option value="sent">Отправлено</option>
+                            <option value="opened">Открыто</option>
                             <option value="signed">Подписан</option>
-                            <option value="cancelled">Отменён</option>
+                            <option value="revoked">Отозван</option>
+                            <option value="expired">Истёк срок</option>
+                            <option value="failed">Ошибка</option>
                         </select>
 
                         <button id="filter-apply"
@@ -60,6 +64,11 @@
                         <a href="{{ url('/client-contracts/create') }}"
                            class="btn btn-primary width-170">
                             Создать договор
+                        </a>
+
+                        <a href="{{ route('contract-templates.index') }}"
+                           class="btn btn-outline-secondary width-170">
+                            Шаблоны
                         </a>
 
                         {{-- Dropdown "Поля списка" --}}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\LessonPackages;
 
+use App\Models\LessonPackage;
 use App\Models\User;
 use App\Models\UserLessonPackage;
 use Illuminate\Database\Eloquent\Builder;
@@ -129,5 +130,32 @@ final class SchoolCalendarAssignmentEligibilityService
     public function hasAnySingleLesson(int $partnerId): bool
     {
         return $this->singleLessonAssignmentsQuery($partnerId)->exists();
+    }
+
+    /**
+     * Активные шаблоны абонементов «разовое занятие» партнёра.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<LessonPackage>
+     */
+    public function singleLessonTemplatesQuery(int $partnerId): \Illuminate\Database\Eloquent\Builder
+    {
+        return LessonPackage::query()
+            ->where('partner_id', $partnerId)
+            ->where('schedule_type', 'no_schedule')
+            ->where('is_active', true)
+            ->where('lessons_count', '>', 0)
+            ->orderBy('name');
+    }
+
+    public function hasAnySingleLessonTemplate(int $partnerId): bool
+    {
+        return $this->singleLessonTemplatesQuery($partnerId)->exists();
+    }
+
+    public function formatSingleLessonAssignmentLabel(UserLessonPackage $ulp): string
+    {
+        $name = $ulp->lessonPackage?->name ?? 'Разовое занятие';
+
+        return $name.' №'.(int) $ulp->id.' — осталось '.(int) $ulp->lessons_remaining;
     }
 }

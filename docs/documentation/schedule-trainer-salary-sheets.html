@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: листы ЗП (/schedule/trainer-salary-sheets)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #0b5fff; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Листы ЗП</h1>
+  <div class="small">Файл: <code>/docs/documentation/schedule-trainer-salary-sheets.html</code></div>
+
+  <div class="note">
+    Четвёртая вкладка раздела «Журнал расписания». Архив <strong>сформированных слепков</strong> ЗП (только просмотр).
+    Создание слепков — на вкладке <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a> (<code>schedule.trainerSalary.manage</code>).
+  </div>
+
+  <h2>1) Права</h2>
+  <p>Достаточно <code>schedule.trainerSalary.view</code> (то же, что для «ЗП тренеров»). <code>schedule.view</code> не обязателен.</p>
+  <table>
+    <thead><tr><th>Ситуация</th><th>Результат</th></tr></thead>
+    <tbody>
+      <tr><td>Гость</td><td>редирект / JSON <b>401</b></td></tr>
+      <tr><td>Нет <code>schedule.trainerSalary.view</code></td><td><b>403</b></td></tr>
+      <tr><td>Есть <code>view</code></td><td>список, <code>data</code>, карточки batch/snapshot → <b>200</b></td></tr>
+      <tr><td>Слепок другого партнёра</td><td>карточка snapshot → <b>404</b></td></tr>
+    </tbody>
+  </table>
+
+  <h2>2) Маршруты</h2>
+  <p>Группа <code>can:schedule.trainerSalary.view</code> в <code>routes/web.php</code>.</p>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Имя</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/schedule/trainer-salary-sheets</code></td><td><code>schedule.trainer-salary-sheets</code></td><td>HTML: список листов + фильтры</td></tr>
+      <tr><td>GET</td><td><code>/schedule/trainer-salary-sheets/data</code></td><td><code>schedule.trainer-salary-sheets.data</code></td><td>JSON: таблица листов, блок «актуальные по тренерам»</td></tr>
+      <tr><td>GET</td><td><code>/schedule/trainer-salary-sheets/batch/{batchId}</code></td><td><code>schedule.trainer-salary-sheets.batch.show</code></td><td>Полный лист пакета «Сформировать всех» (readonly)</td></tr>
+      <tr><td>GET</td><td><code>/schedule/trainer-salary-sheets/snapshot/{id}</code></td><td><code>schedule.trainer-salary-sheets.snapshot.show</code></td><td>Лист одного тренера (версия vN, readonly)</td></tr>
+    </tbody>
+  </table>
+  <p>Параметры списка: <code>year</code>, <code>month</code>, <code>latest_only=1</code> (только актуальные версии / последний пакет).</p>
+
+  <h2>3) Типы листов</h2>
+  <ul>
+    <li><strong>Полный лист</strong> — все слепки с одним <code>batch_id</code> (кнопка «Сформировать всех»). В списке — одна строка на пакет.</li>
+    <li><strong>По тренеру</strong> — слепок без <code>batch_id</code> («Сформировать» в строке); в списке — отдельные строки с версией vN.</li>
+  </ul>
+  <p>Колонка «Сумма итого» — сумма <code>total</code> по всем строкам листа. Ссылки «Открыть» ведут на batch или snapshot show.</p>
+
+  <h2>4) UI</h2>
+  <ul>
+    <li>Список: <code>trainer_salary_sheets.blade.php</code>, JS <code>trainer-salary-sheets.js</code>.</li>
+    <li>Деталь: <code>trainer_salary_sheet_show.blade.php</code>, таблица <code>_trainer_salary_sheet_detail_table.blade.php</code> (класс <code>trainer-salary-table--readonly</code>).</li>
+    <li>Бейдж «Актуальная» — последняя <code>version</code> тренера за выбранный месяц.</li>
+    <li>Бейдж «Последний пакет» — последний полный <code>batch_id</code> за месяц.</li>
+    <li>Блок «Актуальная версия по каждому тренеру» — сводка последних слепков (при выключенном «Только актуальные»).</li>
+  </ul>
+
+  <h2>5) Бэкенд</h2>
+  <ul>
+    <li>Контроллер: <code>ScheduleTrainerSalarySheetsController</code>.</li>
+    <li>Сервис: <code>TrainerSalarySheetService</code>.</li>
+    <li>Запрос: <code>TrainerSalarySheetsReportRequest</code>.</li>
+  </ul>
+
+  <h2>6) Тесты</h2>
+  <pre><code>php artisan test --env=testing --filter=ScheduleTrainerSalarySheets</code></pre>
+  <p class="small">Общий фильтр ЗП: <code>--filter=ScheduleTrainerSalary</code> (включает и листы, и вкладку черновика).</p>
+
+  <p class="small">
+    <a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров</a> ·
+    <a href="/docs/documentation/schedule-journal">Журнал расписания</a>
+  </p>
+</div>
+</body>
+</html>

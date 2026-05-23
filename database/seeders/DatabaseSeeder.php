@@ -33,6 +33,8 @@ class DatabaseSeeder extends Seeder
                 DevAdminsSeeder::class, // добавляем администраторов
                 DevUsersSeeder::class, // добавляем рандомных пользователей
                 DevTrainersSeeder::class, // тренеры (dev)
+                DevTrainerSalaryDefaultsSeeder::class, // оклад и ставка за тренировку у всех тренеров (dev)
+                DevScheduleJournalSeeder::class, // журнал /schedule: посещаемость за 6 мес. (dev)
                 DevSchoolLeadsSeeder::class, // заявки с сайта (dev)
                 DevLessonPackagesSeeder::class, // шаблоны абонементов (dev)
                 DevSchoolScheduleSeeder::class, // расписание школы и слоты (dev)

@@ -152,6 +152,26 @@
                                     <button type="button" class="btn btn-primary w-100" id="schoolCalOpenFixed" disabled>Привязать фиксированный абонемент</button>
                                 </span>
                             </div>
+                            <div class="d-none mt-3 border-top pt-3" id="schoolCalSlotSingleFormWrap">
+                                <div class="d-none mb-3" id="schoolCalSlotSingleBindFields">
+                                    <label class="form-label small mb-1" for="schoolCalSlotSingleUlp">Назначение</label>
+                                    <select class="form-select form-select-sm" id="schoolCalSlotSingleUlp" aria-describedby="schoolCalSlotSingleUlpErr"></select>
+                                    <div class="small text-danger mt-1 d-none" id="schoolCalSlotSingleUlpErr" data-err="user_lesson_package_id" role="alert"></div>
+                                </div>
+                                <div class="d-none" id="schoolCalSlotSingleCreateFields">
+                                    <div class="mb-3">
+                                        <label class="form-label small mb-1" for="schoolCalSlotSingleTemplate">Шаблон абонемента</label>
+                                        <select class="form-select form-select-sm" id="schoolCalSlotSingleTemplate" aria-describedby="schoolCalSlotSingleTemplateErr"></select>
+                                        <div class="small text-danger mt-1 d-none" id="schoolCalSlotSingleTemplateErr" data-err="lesson_package_id" role="alert"></div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small mb-1" for="schoolCalSlotSingleFee">Стоимость, ₽</label>
+                                        <input type="number" class="form-control form-control-sm" id="schoolCalSlotSingleFee" min="0" step="0.01" inputmode="decimal" aria-describedby="schoolCalSlotSingleFeeErr">
+                                        <div class="small text-danger mt-1 d-none" id="schoolCalSlotSingleFeeErr" data-err="fee_amount" role="alert"></div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 btn-sm" id="schoolCalSlotSingleSubmit">Записать в расписание</button>
+                            </div>
                         </div>
                     </div>
                     {{-- <hr class="my-3"> --}}
@@ -336,6 +356,8 @@
                 occurrenceStatusHistory: @json(route('admin.lesson-packages.school-schedule.occurrence-status.history')),
                 trialRegistrationStore: @json(route('admin.lesson-packages.school-schedule.trial-registration.store')),
                 trialRegistrationDestroy: @json(route('admin.lesson-packages.school-schedule.trial-registration.destroy', ['userTeamScheduleSlot' => 0])),
+                singleLessonRegistrationStore: @json(route('admin.lesson-packages.school-schedule.single-lesson-registration.store')),
+                singleLessonRegistrationDestroy: @json(route('admin.lesson-packages.school-schedule.single-lesson-registration.destroy', ['userTeamScheduleSlot' => 0])),
                 viewSettingsSave: @json(route('admin.lesson-packages.school-schedule.view-settings.save')),
             };
             const viewSettingsInitial = @json($schoolScheduleViewSettings ?? ['view_start_min' => 540, 'view_end_min' => 1260]);
@@ -450,6 +472,14 @@
                 const base = String(routes.trialRegistrationDestroy || '');
                 return base.replace(/\/0$/, '/' + String(id));
             }
+
+            function singleLessonRegistrationDestroyUrl(id) {
+                const base = String(routes.singleLessonRegistrationDestroy || '');
+                return base.replace(/\/0$/, '/' + String(id));
+            }
+
+            let schoolCalSlotSinglePayload = null;
+            let schoolCalSlotSingleFeeTouched = false;
 
             /** ISO weekday 1=Пн … 7=Вс для локальной даты Y-m-d */
             function isoWeekdayFromYmd(ymd) {
@@ -965,6 +995,17 @@
                     head.appendChild(balanceSpan);
                     head.appendChild(kindEl);
 
+                    const isSingleLesson = !!r.is_single_lesson || r.schedule_type === 'no_schedule';
+                    let singleCancel = null;
+                    if (isSingleLesson) {
+                        singleCancel = document.createElement('a');
+                        singleCancel.href = '#';
+                        singleCancel.className = 'small text-decoration-none flex-shrink-0';
+                        singleCancel.textContent = '(Отменить)';
+                        singleCancel.style.marginLeft = '0.25rem';
+                        head.appendChild(singleCancel);
+                    }
+
                     const sel = document.createElement('select');
                     sel.className = 'form-select form-select-sm w-100';
                     sel.setAttribute('aria-label', 'Статус занятия');
@@ -1054,6 +1095,55 @@
                         showAlert('success', data.message || 'Статус сохранён.');
                         loadWeek();
                     });
+
+                    if (singleCancel) {
+                        singleCancel.addEventListener('click', async function (e) {
+                            e.preventDefault();
+                            errDiv.textContent = '';
+                            errDiv.style.display = 'none';
+
+                            const bindId = r.user_team_schedule_slot_id || r.id;
+                            if (!bindId) {
+                                errDiv.textContent = 'Не удалось определить запись для отмены.';
+                                errDiv.style.display = 'block';
+                                return;
+                            }
+                            if (!confirm('Отменить запись разового занятия? Назначение абонемента сохранится.')) {
+                                return;
+                            }
+
+                            singleCancel.style.pointerEvents = 'none';
+                            singleCancel.style.opacity = '0.6';
+                            try {
+                                const fd = new FormData();
+                                fd.append('_token', token);
+                                fd.append('_method', 'DELETE');
+                                const url = singleLessonRegistrationDestroyUrl(bindId);
+                                const res = await fetch(url, {
+                                    method: 'POST',
+                                    body: fd,
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Accept': 'application/json',
+                                    }
+                                });
+                                const data = await res.json().catch(function () { return {}; });
+                                if (!res.ok) {
+                                    const msg = (data && data.message) ? data.message : 'Не удалось отменить запись разового занятия.';
+                                    errDiv.textContent = msg;
+                                    errDiv.style.display = 'block';
+                                    showAlert('danger', msg);
+                                    return;
+                                }
+                                showAlert('success', data.message || 'Готово');
+                                bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
+                                loadWeek();
+                            } finally {
+                                singleCancel.style.pointerEvents = '';
+                                singleCancel.style.opacity = '';
+                            }
+                        });
+                    }
 
                     const controlsRow = document.createElement('div');
                     controlsRow.className = 'row g-2 align-items-center school-cal__reg-controls-row';
@@ -1182,8 +1272,264 @@
                 }
             }
 
+            function showSchoolCalSlotTrialFieldErr(msg) {
+                const el = document.getElementById('schoolCalSlotTrialErr');
+                if (el) {
+                    el.textContent = msg || '';
+                    el.classList.remove('d-none');
+                }
+                const $s = window.jQuery('#schoolCalSlotUserSelect');
+                if ($s.length) {
+                    $s.addClass('is-invalid');
+                    const c = $s.next('.select2-container');
+                    if (c.length) {
+                        c.find('.select2-selection').addClass('is-invalid');
+                    }
+                }
+            }
+
+            function clearSchoolCalSlotSingleFieldErrs() {
+                const wrap = document.getElementById('schoolCalSlotSingleFormWrap');
+                if (!wrap) {
+                    return;
+                }
+                wrap.querySelectorAll('[data-err]').forEach(function (el) {
+                    el.textContent = '';
+                    el.classList.add('d-none');
+                });
+                document.getElementById('schoolCalSlotSingleUlp')?.classList.remove('is-invalid');
+                document.getElementById('schoolCalSlotSingleTemplate')?.classList.remove('is-invalid');
+                document.getElementById('schoolCalSlotSingleFee')?.classList.remove('is-invalid');
+            }
+
+            function showSchoolCalSlotSingleFieldErrs(errors) {
+                clearSchoolCalSlotSingleFieldErrs();
+                if (!errors || typeof errors !== 'object') {
+                    return;
+                }
+                Object.keys(errors).forEach(function (key) {
+                    const msg = errors[key] && errors[key][0] ? errors[key][0] : '';
+                    if (!msg) {
+                        return;
+                    }
+                    const el = document.querySelector('#schoolCalSlotSingleFormWrap [data-err="' + key + '"]');
+                    if (el) {
+                        el.textContent = msg;
+                        el.classList.remove('d-none');
+                    }
+                    if (key === 'user_lesson_package_id') {
+                        document.getElementById('schoolCalSlotSingleUlp')?.classList.add('is-invalid');
+                    }
+                    if (key === 'lesson_package_id') {
+                        document.getElementById('schoolCalSlotSingleTemplate')?.classList.add('is-invalid');
+                    }
+                    if (key === 'fee_amount') {
+                        document.getElementById('schoolCalSlotSingleFee')?.classList.add('is-invalid');
+                    }
+                    if (key === 'user_id') {
+                        showSchoolCalSlotTrialFieldErr(msg);
+                    }
+                });
+            }
+
+            function resetSchoolCalSlotSingleForm() {
+                schoolCalSlotSinglePayload = null;
+                schoolCalSlotSingleFeeTouched = false;
+                clearSchoolCalSlotSingleFieldErrs();
+                const formWrap = document.getElementById('schoolCalSlotSingleFormWrap');
+                const bindFields = document.getElementById('schoolCalSlotSingleBindFields');
+                const createFields = document.getElementById('schoolCalSlotSingleCreateFields');
+                const ulpSel = document.getElementById('schoolCalSlotSingleUlp');
+                const tplSel = document.getElementById('schoolCalSlotSingleTemplate');
+                const feeInp = document.getElementById('schoolCalSlotSingleFee');
+                if (formWrap) {
+                    formWrap.classList.add('d-none');
+                }
+                if (bindFields) {
+                    bindFields.classList.add('d-none');
+                }
+                if (createFields) {
+                    createFields.classList.add('d-none');
+                }
+                if (ulpSel) {
+                    ulpSel.innerHTML = '';
+                }
+                if (tplSel) {
+                    tplSel.innerHTML = '';
+                }
+                if (feeInp) {
+                    feeInp.value = '';
+                }
+            }
+
+            function populateSchoolCalSlotSingleForm(single) {
+                schoolCalSlotSinglePayload = single || null;
+                schoolCalSlotSingleFeeTouched = false;
+                clearSchoolCalSlotSingleFieldErrs();
+                const formWrap = document.getElementById('schoolCalSlotSingleFormWrap');
+                const bindFields = document.getElementById('schoolCalSlotSingleBindFields');
+                const createFields = document.getElementById('schoolCalSlotSingleCreateFields');
+                const ulpSel = document.getElementById('schoolCalSlotSingleUlp');
+                const tplSel = document.getElementById('schoolCalSlotSingleTemplate');
+                const feeInp = document.getElementById('schoolCalSlotSingleFee');
+                if (formWrap) {
+                    formWrap.classList.add('d-none');
+                }
+                if (!single || !single.allowed) {
+                    if (bindFields) {
+                        bindFields.classList.add('d-none');
+                    }
+                    if (createFields) {
+                        createFields.classList.add('d-none');
+                    }
+                    return;
+                }
+                const mode = single.mode || '';
+                const existing = single.existing_assignments || [];
+                const templates = single.templates || [];
+                if (mode === 'bind_existing' && existing.length > 1 && ulpSel && bindFields) {
+                    ulpSel.innerHTML = existing.map(function (item) {
+                        return '<option value="' + String(item.id) + '">' + escapeHtml(item.label || ('#' + item.id)) + '</option>';
+                    }).join('');
+                    bindFields.classList.remove('d-none');
+                    if (createFields) {
+                        createFields.classList.add('d-none');
+                    }
+                } else if (mode === 'create_new' && tplSel && feeInp && createFields) {
+                    tplSel.innerHTML = templates.map(function (item) {
+                        return '<option value="' + String(item.id) + '" data-fee-default="' + String(item.fee_amount_default ?? '') + '">' + escapeHtml(item.label || ('#' + item.id)) + '</option>';
+                    }).join('');
+                    const first = templates[0];
+                    if (first) {
+                        feeInp.value = first.fee_amount_default != null ? String(first.fee_amount_default) : '';
+                    }
+                    createFields.classList.remove('d-none');
+                    if (bindFields) {
+                        bindFields.classList.add('d-none');
+                    }
+                } else {
+                    if (bindFields) {
+                        bindFields.classList.add('d-none');
+                    }
+                    if (createFields) {
+                        createFields.classList.add('d-none');
+                    }
+                }
+            }
+
+            function schoolCalSlotSingleNeedsForm() {
+                const single = schoolCalSlotSinglePayload || {};
+                const mode = single.mode || '';
+                const existing = single.existing_assignments || [];
+                const templates = single.templates || [];
+                if (mode === 'bind_existing') {
+                    return existing.length > 1;
+                }
+                if (mode === 'create_new') {
+                    return templates.length > 0;
+                }
+                return false;
+            }
+
+            function showSchoolCalSlotSingleFormIfNeeded() {
+                const formWrap = document.getElementById('schoolCalSlotSingleFormWrap');
+                if (formWrap && schoolCalSlotSingleNeedsForm()) {
+                    formWrap.classList.remove('d-none');
+                }
+            }
+
+            async function submitSchoolCalSlotSingleRegistration() {
+                const $ = window.jQuery;
+                if (!$ || !selectedOccurrence) {
+                    return;
+                }
+                clearSchoolCalSlotTrialFieldErr();
+                clearSchoolCalSlotSingleFieldErrs();
+                const uid = $('#schoolCalSlotUserSelect').val();
+                if (!uid) {
+                    showSchoolCalSlotTrialFieldErr('Выберите ученика.');
+                    return;
+                }
+                const single = schoolCalSlotSinglePayload || {};
+                const fd = new FormData();
+                fd.append('_token', token);
+                fd.append('user_id', String(uid));
+                fd.append('team_schedule_slot_id', String(selectedOccurrence.id));
+                fd.append('occurrence_date', String(selectedOccurrence.date));
+                const mode = single.mode || '';
+                const existing = single.existing_assignments || [];
+                if (mode === 'bind_existing') {
+                    let ulpId = existing.length === 1 ? String(existing[0].id) : String(document.getElementById('schoolCalSlotSingleUlp')?.value || '');
+                    if (!ulpId) {
+                        showSchoolCalSlotSingleFieldErrs({ user_lesson_package_id: ['Выберите назначение.'] });
+                        showSchoolCalSlotSingleFormIfNeeded();
+                        return;
+                    }
+                    fd.append('user_lesson_package_id', ulpId);
+                } else if (mode === 'create_new') {
+                    const tplId = document.getElementById('schoolCalSlotSingleTemplate')?.value || '';
+                    const feeVal = document.getElementById('schoolCalSlotSingleFee')?.value ?? '';
+                    if (!tplId) {
+                        showSchoolCalSlotSingleFieldErrs({ lesson_package_id: ['Выберите шаблон абонемента.'] });
+                        showSchoolCalSlotSingleFormIfNeeded();
+                        return;
+                    }
+                    if (feeVal === '') {
+                        showSchoolCalSlotSingleFieldErrs({ fee_amount: ['Укажите стоимость разового занятия.'] });
+                        showSchoolCalSlotSingleFormIfNeeded();
+                        return;
+                    }
+                    fd.append('lesson_package_id', String(tplId));
+                    fd.append('fee_amount', String(feeVal));
+                } else {
+                    showAlert('danger', 'Разовое занятие недоступно для выбранного ученика.');
+                    return;
+                }
+                const submitBtn = document.getElementById('schoolCalSlotSingleSubmit');
+                const openBtn = document.getElementById('schoolCalOpenSingle');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                }
+                if (openBtn) {
+                    openBtn.disabled = true;
+                }
+                try {
+                    const res = await fetch(routes.singleLessonRegistrationStore, {
+                        method: 'POST',
+                        body: fd,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                    });
+                    const data = await res.json().catch(function () { return {}; });
+                    if (!res.ok) {
+                        const err = data.errors || {};
+                        showSchoolCalSlotSingleFieldErrs(err);
+                        if (data.message) {
+                            showAlert('danger', data.message);
+                        } else if (!Object.keys(err).length) {
+                            showAlert('danger', 'Не удалось записать разовое занятие.');
+                        }
+                        showSchoolCalSlotSingleFormIfNeeded();
+                        return;
+                    }
+                    showAlert('success', data.message || 'Готово');
+                    bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
+                    loadWeek();
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                    }
+                    if (openBtn && schoolCalSlotSinglePayload && schoolCalSlotSinglePayload.allowed) {
+                        openBtn.disabled = false;
+                    }
+                }
+            }
+
             function resetSlotModalUserPicker() {
                 clearSchoolCalSlotTrialFieldErr();
+                resetSchoolCalSlotSingleForm();
                 const loading = document.getElementById('schoolCalSlotBindActionsLoading');
                 const err = document.getElementById('schoolCalSlotBindActionsError');
                 const wrap = document.getElementById('schoolCalSlotBindButtonsWrap');
@@ -1215,6 +1561,7 @@
                 setSlotBindActionButtonState('schoolCalOpenFixed', !!fixed.allowed, fixed.reason || '');
                 setSlotBindActionButtonState('schoolCalOpenSingle', !!single.allowed, single.reason || '');
                 setSlotBindActionButtonState('schoolCalOpenTrial', !!trial.allowed, trial.reason || '');
+                populateSchoolCalSlotSingleForm(single);
             }
 
             function scheduleFetchSlotUserBindActions() {
@@ -1437,20 +1784,40 @@
                 new bootstrap.Modal(document.getElementById('schoolCalFixedModal')).show();
             });
 
-            document.getElementById('schoolCalOpenSingle')?.addEventListener('click', () => {
+            document.getElementById('schoolCalOpenSingle')?.addEventListener('click', async function () {
                 const btn = document.getElementById('schoolCalOpenSingle');
                 if (btn && btn.disabled) {
                     return;
                 }
-                bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
                 if (!selectedOccurrence) {
                     return;
                 }
-                document.getElementById('schoolCalSingleSlotId').value = selectedOccurrence.id;
-                document.getElementById('schoolCalSingleDate').value = selectedOccurrence.date;
-                document.getElementById('schoolCalSingleUlp').innerHTML = '<option value="">Сначала выберите ученика</option>';
-                syncUserSelectFromSlotTo(window.jQuery('#schoolCalSingleUser'));
-                new bootstrap.Modal(document.getElementById('schoolCalSingleModal')).show();
+                if (schoolCalSlotSingleNeedsForm()) {
+                    showSchoolCalSlotSingleFormIfNeeded();
+                    return;
+                }
+                await submitSchoolCalSlotSingleRegistration();
+            });
+
+            document.getElementById('schoolCalSlotSingleSubmit')?.addEventListener('click', function () {
+                submitSchoolCalSlotSingleRegistration();
+            });
+
+            document.getElementById('schoolCalSlotSingleTemplate')?.addEventListener('change', function () {
+                if (schoolCalSlotSingleFeeTouched) {
+                    return;
+                }
+                const opt = this.options[this.selectedIndex];
+                const feeInp = document.getElementById('schoolCalSlotSingleFee');
+                if (!opt || !feeInp) {
+                    return;
+                }
+                const def = opt.getAttribute('data-fee-default');
+                feeInp.value = def != null ? String(def) : '';
+            });
+
+            document.getElementById('schoolCalSlotSingleFee')?.addEventListener('input', function () {
+                schoolCalSlotSingleFeeTouched = true;
             });
 
             document.getElementById('schoolCalOpenTrial')?.addEventListener('click', async () => {

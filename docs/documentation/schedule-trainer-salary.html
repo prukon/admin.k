@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: ЗП тренеров (/schedule/trainer-salary)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #0b5fff; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>ЗП тренеров</h1>
+  <div class="small">
+    Файл: <code>/docs/documentation/schedule-trainer-salary.html</code> ·
+    страницы: <code>GET /schedule/trainer-salary</code> (<code>schedule.trainer-salary</code>),
+    <code>GET /schedule/trainer-salary/data</code> (<code>schedule.trainer-salary.data</code>)
+  </div>
+
+  <div class="warn">
+    <strong>Не путать</strong> с <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> (слоты абонементов).<br>
+    Расчёт строится из <a href="/docs/documentation/schedule-journal">журнала посещаемости</a> (<code>schedule_users</code>, статус «Посетил», <code>trainer_profile_id</code>) — так же, как <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a>.
+  </div>
+
+  <div class="note">
+    Вкладка «ЗП тренеров» в разделе «Журнал расписания» (оболочка <code>resources/views/admin/schedule/index.blade.php</code>).<br>
+    За календарный месяц ведётся <strong>черновик</strong> в БД (autosave). Кнопки «Сформировать» / «Сформировать всех» создают <strong>версионные слепки</strong> — их архив на вкладке <a href="/docs/documentation/schedule-trainer-salary-sheets">«Листы ЗП»</a>.
+  </div>
+
+  <h2>1) Права</h2>
+  <table>
+    <thead><tr><th>Право</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td><code>schedule.trainerSalary.view</code></td><td>Вкладки «ЗП тренеров» и «Листы ЗП», просмотр черновика, <code>GET …/data</code></td></tr>
+      <tr><td><code>schedule.trainerSalary.manage</code></td><td>Редактирование черновика (PATCH), «Сформировать» / «Сформировать всех» (POST)</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Права заведены в <code>database/seeders/PermissionSeeder.php</code> (<code>schedule.trainerSalary.view</code>, <code>schedule.trainerSalary.manage</code>).
+    У роли <code>admin</code> по умолчанию в <code>config/role_base_permissions.php</code> они <strong>не включены</strong> — нужно выдать в матрице прав партнёра.
+  </p>
+  <p><code>schedule.view</code> для этой вкладки <strong>не обязателен</strong>: пункт меню «Журнал расписания» ведёт на <code>/schedule/trainer-salary</code>, если журнала нет, но есть <code>schedule.trainerSalary.view</code> (<code>sidebar.blade.php</code>).</p>
+
+  <h3>1.1) Матрица доступа</h3>
+  <table>
+    <thead><tr><th>Ситуация</th><th>Страница / <code>data</code></th><th>PATCH draft / POST snapshots</th></tr></thead>
+    <tbody>
+      <tr><td>Гость</td><td>редирект на логин / <b>401</b> JSON</td><td><b>401</b></td></tr>
+      <tr><td>Нет <code>schedule.trainerSalary.view</code></td><td><b>403</b></td><td><b>403</b></td></tr>
+      <tr><td>Только <code>view</code></td><td><b>200</b>, таблица без редактирования</td><td><b>403</b></td></tr>
+      <tr><td><code>view</code> + <code>manage</code></td><td><b>200</b>, редактируемые поля</td><td><b>200</b> при валидных данных</td></tr>
+      <tr><td>Чужой <code>trainer_profile</code> (другой партнёр)</td><td>—</td><td><b>404</b></td></tr>
+    </tbody>
+  </table>
+
+  <h2>2) Маршруты</h2>
+  <p>Все маршруты в <code>routes/web.php</code> внутри <code>auth</code> + <code>2fa</code>. Просмотр — <code>middleware('can:schedule.trainerSalary.view')</code>, изменения — <code>can:schedule.trainerSalary.manage</code>.</p>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Имя</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/schedule/trainer-salary</code></td><td><code>schedule.trainer-salary</code></td><td>HTML вкладки (начальная таблица + фильтр месяца)</td></tr>
+      <tr><td>GET</td><td><code>/schedule/trainer-salary/data</code></td><td><code>schedule.trainer-salary.data</code></td><td>JSON: период, строки, <code>table_html</code>, <code>can_manage</code></td></tr>
+      <tr><td>PATCH</td><td><code>/schedule/trainer-salary/draft/{trainerProfile}</code></td><td><code>schedule.trainer-salary.draft.update</code></td><td>Сохранение полей черновика (одно поле за запрос с фронта)</td></tr>
+      <tr><td>POST</td><td><code>/schedule/trainer-salary/snapshots/{trainerProfile}</code></td><td><code>schedule.trainer-salary.snapshots.form-one</code></td><td>Слепок одного тренера (версия +1)</td></tr>
+      <tr><td>POST</td><td><code>/schedule/trainer-salary/snapshots</code></td><td><code>schedule.trainer-salary.snapshots.form-all</code></td><td>Слепки всех активных тренеров, общий <code>batch_id</code></td></tr>
+    </tbody>
+  </table>
+  <p>
+    Параметры периода: <code>year</code>, <code>month</code> (query/body).
+    Если оба не переданы — текущий календарный месяц (<code>TrainerSalaryReportRequest::resolvedYearMonth()</code>).
+  </p>
+
+  <h2>3) Справочник: оклад и ставка по умолчанию</h2>
+  <p>
+    В карточке тренера (<a href="/docs/documentation/admin-trainers">/admin/trainers</a>) поля
+    <code>default_base_salary</code>, <code>default_rate_per_training</code> (<code>trainer_profiles</code>, миграция <code>2026_05_22_100000_add_salary_defaults_to_trainer_profiles_table.php</code>).
+  </p>
+  <p>При первом появлении тренера в черновике за месяц значения копируются в строку <code>trainer_salary_draft_lines</code>. Дальнейшее изменение в черновике <strong>не меняет</strong> справочник в карточке тренера.</p>
+
+  <h2>4) Таблицы и модели</h2>
+  <table>
+    <thead><tr><th>Таблица</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td><code>trainer_salary_periods</code></td><td>Месяц партнёра: unique (<code>partner_id</code>, <code>year</code>, <code>month</code>)</td></tr>
+      <tr><td><code>trainer_salary_draft_lines</code></td><td>Черновик на тренера за период: unique (<code>trainer_salary_period_id</code>, <code>trainer_profile_id</code>)</td></tr>
+      <tr><td><code>trainer_salary_snapshots</code></td><td>Слепки: <code>version</code> на тренера в периоде, опционально <code>batch_id</code> (UUID при «всех»), <code>formed_at</code>, <code>formed_by_user_id</code></td></tr>
+    </tbody>
+  </table>
+  <p class="small">Миграция: <code>2026_05_22_100100_create_trainer_salary_tables.php</code>. Модели: <code>TrainerSalaryPeriod</code>, <code>TrainerSalaryDraftLine</code>, <code>TrainerSalarySnapshot</code>.</p>
+
+  <h3>4.1) Поля строки (черновик и слепок)</h3>
+  <table>
+    <thead><tr><th>Поле</th><th>Редактируется в UI</th><th>Источник / расчёт</th></tr></thead>
+    <tbody>
+      <tr><td><code>base_salary</code></td><td>да (при manage)</td><td>Из черновика; при создании — из <code>default_base_salary</code></td></tr>
+      <tr><td><code>rate_per_training</code></td><td>да</td><td>Из черновика; при создании — из <code>default_rate_per_training</code></td></tr>
+      <tr><td><code>trainings_count</code></td><td>нет (readonly)</td><td>Пересчёт при каждой загрузке отчёта / перед слепком</td></tr>
+      <tr><td><code>trainings_amount</code></td><td>нет</td><td><code>кол-во × ставка</code> (<code>TrainerSalaryCalculator</code>, <code>bcmul</code>)</td></tr>
+      <tr><td><code>bonuses</code>, <code>deductions</code></td><td>да</td><td>Ввод пользователя, ≥ 0</td></tr>
+      <tr><td><code>comment</code></td><td>да</td><td>До 5000 символов</td></tr>
+      <tr><td><code>total</code></td><td>нет</td><td>См. формулу ниже</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5) Кто попадает в таблицу</h2>
+  <p>Активные тренеры партнёра (<code>TrainerSalaryService::activeTrainersForPartner</code>):</p>
+  <ul>
+    <li><code>trainer_profiles.is_enabled = true</code>;</li>
+    <li>связанный <code>users.is_enabled = true</code>;</li>
+    <li>сортировка: <code>sort_order</code>, затем <code>id</code>.</li>
+  </ul>
+  <p>Отключённый тренер или пользователь в таблице ЗП <strong>не показывается</strong>; существующая строка черновика при отключении не удаляется автоматически.</p>
+
+  <h2>6) Кол-во тренировок</h2>
+  <p>
+    Совпадает с <strong>итогом по строке тренера</strong> в <a href="/docs/documentation/schedule-trainer-workload">«Нагрузке тренеров»</a> при режиме «без групп» (суммы по дням недели):
+    один календарный день может учитываться <strong>дважды</strong>, если в этот день были визиты учеников из разных групп с одним тренером.
+  </p>
+  <p>Сервис: <code>TrainerWorkloadReportService::trainerRowTrainingsTotals($partnerId, $dateFrom, $dateTo)</code> — вызывается при <code>buildReport</code> и перед формированием слепка.</p>
+
+  <h2>7) Формула итого</h2>
+  <pre><code>итого = оклад + (кол-во_тренировок × ставка) + бонусы − вычеты</code></pre>
+  <p>Расчёт только на сервере: <code>App\Services\Schedule\TrainerSalaryCalculator</code> (денежные поля — 2 знака, <code>bc*</code>).</p>
+  <p>Пример: оклад 10000, 3 тренировки × 300, бонусы 0, вычеты 0 → сумма за тренировки 900, итого 10900.</p>
+
+  <h2>8) UI и фронтенд</h2>
+  <ul>
+    <li>Шаблон: <code>resources/views/admin/schedule/trainer_salary.blade.php</code>, фрагмент таблицы: <code>_trainer_salary_table.blade.php</code>.</li>
+    <li>Скрипт: <code>resources/js/trainer-salary.js</code> (Vite на вкладке).</li>
+    <li>Фильтр «Период» — <code>input type="month"</code>; смена месяца → <code>GET …/data</code>, обновление URL query (<code>year</code>, <code>month</code>).</li>
+    <li>При <code>manage</code>: autosave черновика по <code>change</code>/<code>blur</code> полей (debounce 400 мс) → <code>PATCH …/draft/{id}</code>; ошибки 422 — под соответствующим полем (<code>data-error-for</code>).</li>
+    <li>Кнопка «Сформировать» в строке → <code>POST …/snapshots/{id}</code>; под именем тренера — подсказка «Слепок vN · дата · кто сформировал».</li>
+    <li>«Сформировать всех» — confirm, затем <code>POST …/snapshots</code>; создаёт слепок v1 для каждого активного тренера с одним <code>batch_id</code>.</li>
+    <li>Без <code>manage</code>: денежные поля и комментарий readonly, колонки «Действие» нет.</li>
+  </ul>
+
+  <h2>9) Бэкенд</h2>
+  <ul>
+    <li>Контроллер: <code>ScheduleTrainerSalaryController</code>.</li>
+    <li>Сервис: <code>TrainerSalaryService</code> — период, синхронизация строк, пересчёт тренировок, PATCH, слепки.</li>
+    <li>Запросы: <code>TrainerSalaryReportRequest</code> (view), <code>UpdateTrainerSalaryDraftLineRequest</code>, <code>FormTrainerSalarySnapshotRequest</code> (manage; authorize + rules + messages).</li>
+  </ul>
+
+  <h3>9.1) Ответ <code>GET …/data</code></h3>
+  <p>JSON: <code>year</code>, <code>month</code>, <code>month_label</code>, <code>date_from</code>, <code>date_to</code>, <code>can_manage</code>, <code>table_html</code>, <code>rows[]</code>.</p>
+  <p>Элемент <code>rows[]</code>: <code>trainer_profile_id</code>, <code>trainer_name</code>, денежные поля строкой <code>"NNNN.NN"</code>, <code>trainings_count</code>, <code>comment</code>, <code>latest_snapshot</code> (или <code>null</code>: <code>id</code>, <code>version</code>, <code>batch_id</code>, <code>formed_at</code>, <code>formed_by_name</code>, <code>total</code>).</p>
+
+  <h2>10) Версии слепков</h2>
+  <ul>
+    <li>«Сформировать» по тренеру: <code>version</code> = max(version) + 1 в рамках периода и тренера; <code>batch_id = null</code>.</li>
+    <li>«Сформировать всех»: для каждого активного тренера слепок v1 (или следующая версия, если уже были одиночные слепки), общий <code>batch_id</code> (UUID).</li>
+    <li>Слепок фиксирует все поля строки на момент формирования; черновик после этого можно менять — новый слепок возьмёт актуальный черновик.</li>
+  </ul>
+
+  <h2>11) Тесты</h2>
+  <pre><code>php artisan test --env=testing --filter=ScheduleTrainerSalary</code></pre>
+  <p class="small">
+    Классы: <code>ScheduleTrainerSalaryFeatureTest</code> (черновик, формула, слепки, валидация),
+    <code>ScheduleTrainerSalaryAccessFeatureTest</code> (гость, 403/200 по правам, smoke всех эндпоинтов),
+    <code>ScheduleTrainerSalarySheetsFeatureTest</code> — см. <a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП</a>.
+    Базовый кейс: <code>ScheduleTrainerSalaryTestCase</code> extends <code>ScheduleJournalTestCase</code>.
+  </p>
+
+  <p class="small">
+    <a href="/docs/documentation/schedule-journal">Журнал расписания</a> ·
+    <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a> ·
+    <a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП</a> ·
+    <a href="/docs/documentation/admin-trainers">Тренеры</a>
+  </p>
+</div>
+</body>
+</html>

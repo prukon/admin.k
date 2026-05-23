@@ -83,15 +83,29 @@
 
 
 
+                                        @if($c->canClientFill())
+                                            <a class="btn btn-sm btn-primary"
+                                               href="{{ route('account.documents.fill', $c) }}">
+                                                Заполнить договор
+                                            </a>
+                                        @endif
+
+                                        @if($c->canClientSign())
+                                            <a class="btn btn-sm btn-success"
+                                               href="{{ route('account.documents.fill', $c) }}">
+                                                Подписать
+                                            </a>
+                                        @endif
+
                                         @if($c->status === \App\Models\Contract::STATUS_SIGNED)
                                             <a class="btn btn-sm btn-primary"
                                                href="{{ route('account.documents.downloadSigned', $c) }}">
                                                 Скачать подписанный
                                             </a>
-                                        @else
+                                        @elseif($c->source_pdf_path)
                                             <a class="btn btn-sm btn-outline-primary"
                                                href="{{ route('account.documents.downloadOriginal', $c) }}">
-                                                Скачать оригинал
+                                                Скачать PDF
                                             </a>
                                         @endif
                                     </div>

@@ -10,6 +10,9 @@ use App\Models\Contract;
 use App\Models\ContractEvent;
 use App\Models\ContractSignRequest;
 use App\Models\MyLog;
+use App\Models\Partner;
+use App\Services\Contracts\ContractBillingService;
+use App\Services\Contracts\ContractPodpislonSendService;
 use App\Services\Signatures\Providers\PodpislonProvider;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Auth;
@@ -20,172 +23,11 @@ use Illuminate\Support\Facades\Storage;
 
 class ContractSigningController extends Controller
 {
-    public function send(Contract $contract, ContractSendRequest $request, SignatureProvider $provider)
+    public function send(Contract $contract, ContractSendRequest $request, ContractPodpislonSendService $sendService)
     {
-        $validated = $request->validated();
+        $result = $sendService->send($contract, $request->validated(), Auth::id());
 
-        $signerFio = trim(
-            preg_replace('/\s+/', ' ',
-                ($validated['signer_lastname'] ?? '') . ' ' .
-                ($validated['signer_firstname'] ?? '') . ' ' .
-                ($validated['signer_middlename'] ?? '')
-            )
-        );
-
-        $phone = (string)$validated['signer_phone']; // только цифры 7XXXXXXXXXX
-
-        $sr = new ContractSignRequest([
-            'signer_name'       => $signerFio,
-            'signer_lastname'   => $validated['signer_lastname'] ?? null,
-            'signer_firstname'  => $validated['signer_firstname'] ?? null,
-            'signer_middlename' => $validated['signer_middlename'] ?? null,
-            'signer_phone'      => $phone,
-            'ttl_hours'         => $validated['ttl_hours'] ?? 72,
-            'status'            => 'created',
-        ]);
-        $contract->signRequests()->save($sr);
-
-        MyLog::create([
-            'type'         => 500,
-            'action'       => 510,
-            'user_id'      => $contract->user_id,
-            'target_type'  => Contract::class,
-            'target_id'    => $contract->id,
-            'target_label' => "Договор № {$contract->id}",
-            'description'  =>
-                "Запрос на подпись создан!!!\n" .
-                "ФИО: {$signerFio}\n" .
-                "Телефон: {$phone}\n" .
-                "TTL (часы): " . ($validated['ttl_hours'] ?? 72) . "\n" .
-                "Договор: Договор #{$contract->id}",
-            'created_at'   => now(),
-        ]);
-
-        // ===== РЕСЕНД через /send (когда документ уже существует у провайдера)
-        if ($contract->provider === 'podpislon' && $contract->provider_doc_id) {
-            return $this->resendInternal($contract, $sr, null);
-        }
-
-        // ===== ПЕРВАЯ ОТПРАВКА
-        try {
-            $res = $provider->send($contract, $sr);
-
-            $doc = $this->pollForSent($contract);
-
-            if ($doc) {
-                $changes = [];
-
-                $oldSrStatus = $sr->status;
-                $sr->status = 'sent';
-                $sr->save();
-                if ($oldSrStatus !== $sr->status) {
-                    $changes[] = 'Статус запроса: "' . $oldSrStatus . '" → "' . $sr->status . '"';
-                }
-
-                $oldContractStatus = $contract->status;
-                $contract->status = Contract::STATUS_SENT;
-                $contract->save();
-                if ($oldContractStatus !== $contract->status) {
-                    $changes[] = 'Статус договора: "' . $oldContractStatus . '" → "' . $contract->status . '"';
-                }
-
-                if ($changes) {
-                    MyLog::create([
-                        'type'         => 500,
-                        'action'       => 513,
-                        'user_id'      => $contract->user_id,
-                        'target_type'  => Contract::class,
-                        'target_id'    => $contract->id,
-                        'target_label' => "Договор № {$contract->id}",
-                        'description'  => implode("\n", $changes),
-                        'created_at'   => now(),
-                    ]);
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'SMS отправлена',
-                    'status'  => 'sent',
-                ], 200);
-            }
-
-            // не подтвердили "отправлено"
-            $oldSrStatus = $sr->status;
-            $sr->status = 'failed';
-            $sr->save();
-
-            $oldContractStatus = $contract->status;
-            $contract->status = Contract::STATUS_FAILED;
-            $contract->save();
-
-            $links = $this->signingLinks($contract);
-            ContractEvent::create([
-                'contract_id'  => $contract->id,
-                'author_id'    => Auth::id(),
-                'type'         => 'failed',
-                'payload_json' => json_encode(['res' => $res, 'links' => $links], JSON_UNESCAPED_UNICODE),
-            ]);
-
-            MyLog::create([
-                'type'         => 500,
-                'action'       => 514,
-                'user_id'      => $contract->user_id,
-                'target_type'  => Contract::class,
-                'target_id'    => $contract->id,
-                'target_label' => "Договор № {$contract->id}",
-                'description'  =>
-                    "Статус запроса: \"{$oldSrStatus}\" → \"{$sr->status}\"\n" .
-                    "Статус договора: \"{$oldContractStatus}\" → \"{$contract->status}\"",
-                'created_at'   => now(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Провайдер не подтвердил отправку SMS.',
-                'code'    => 'send_not_sent',
-                'links'   => $links,
-            ], 422);
-        } catch (\Throwable $e) {
-            $oldSrStatus = $sr->status;
-            $sr->status = 'failed';
-            $sr->save();
-
-            $oldContractStatus = $contract->status;
-            $contract->status = Contract::STATUS_FAILED;
-            $contract->save();
-
-            ContractEvent::create([
-                'contract_id'  => $contract->id,
-                'author_id'    => Auth::id(),
-                'type'         => 'failed',
-                'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
-            ]);
-
-            MyLog::create([
-                'type'         => 500,
-                'action'       => 514,
-                'user_id'      => $contract->user_id,
-                'target_type'  => Contract::class,
-                'target_id'    => $contract->id,
-                'target_label' => "Договор № {$contract->id}",
-                'description'  =>
-                    "Статус запроса: \"{$oldSrStatus}\" → \"{$sr->status}\"\n" .
-                    "Статус договора: \"{$oldContractStatus}\" → \"{$contract->status}\"\n" .
-                    "Ошибка: {$e->getMessage()}",
-                'created_at'   => now(),
-            ]);
-
-            Log::error('[contracts.send] fail', [
-                'contract_id' => $contract->id,
-                'error'       => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'code'    => 'send_failed',
-            ], 422);
-        }
+        return response()->json($result, !empty($result['success']) ? 200 : 422);
     }
 
     /**
@@ -361,8 +203,12 @@ class ContractSigningController extends Controller
         }
     }
 
-    public function revoke(Contract $contract, SignatureProvider $provider)
+    public function revoke(Contract $contract, SignatureProvider $provider, ContractBillingService $billing)
     {
+        if ($contract->canRevokeWithRefund()) {
+            return $this->revokeAwaitingClientFillWithRefund($contract, $billing);
+        }
+
         try {
             $provider->revoke($contract);
 
@@ -377,6 +223,45 @@ class ContractSigningController extends Controller
             ]);
 
             return response()->json(['message' => 'Подписание отозвано', 'status' => 'revoked']);
+        } catch (\Throwable $e) {
+            ContractEvent::create([
+                'contract_id'  => $contract->id,
+                'author_id'    => Auth::id(),
+                'type'         => 'failed',
+                'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
+            ]);
+
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    private function revokeAwaitingClientFillWithRefund(Contract $contract, ContractBillingService $billing)
+    {
+        try {
+            DB::transaction(function () use ($contract, $billing) {
+                $partner = Partner::query()->whereKey($contract->school_id)->lockForUpdate()->first();
+                abort_unless($partner, 422, 'Партнёр не найден.');
+
+                $billing->refundCreationFee($partner, $contract);
+
+                $contract->status = Contract::STATUS_REVOKED;
+                $contract->save();
+
+                ContractEvent::create([
+                    'contract_id'  => $contract->id,
+                    'author_id'    => Auth::id(),
+                    'type'         => 'revoked',
+                    'payload_json' => json_encode([
+                        'refunded' => true,
+                        'reason'   => 'awaiting_client_fill',
+                    ], JSON_UNESCAPED_UNICODE),
+                ]);
+            });
+
+            return response()->json([
+                'message' => 'Договор отозван. Средства возвращены на баланс партнёра.',
+                'status'  => 'revoked',
+            ]);
         } catch (\Throwable $e) {
             ContractEvent::create([
                 'contract_id'  => $contract->id,

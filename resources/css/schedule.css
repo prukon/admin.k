@@ -553,3 +553,764 @@ table.dataTable tbody th, table.dataTable tbody td {
     margin-left: 0!important;
     margin-right: 0!important;
 }
+
+/* ——— Нагрузка тренеров ——— */
+.trainer-workload-report {
+    --twl-body-cell: #f8fafc;
+    --twl-body-cell-alt: #f1f5f9;
+    --twl-body-cell-hover: #eef2f6;
+    --twl-body-head: #f8fafc;
+    --twl-body-text: #475569;
+    --twl-body-chip: #e2e8f0;
+    --twl-body-chip-text: #334155;
+    --twl-total-cell: #eff6ff;
+    --twl-total-cell-deep: #e8f2ff;
+    --twl-total-head: #eef2ff;
+    --twl-total-accent: #dbeafe;
+    --twl-total-text: #1e40af;
+    --twl-total-chip: #eff6ff;
+}
+
+.trainer-workload-surface {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08)) !important;
+    border-radius: 0.75rem;
+    overflow: visible;
+}
+
+.trainer-workload-title {
+    letter-spacing: -0.02em;
+}
+
+.trainer-workload-subtitle {
+    max-width: 36rem;
+    line-height: 1.45;
+}
+
+.trainer-workload-period-badge {
+    padding: 0.35rem 0.75rem;
+    border-radius: 2rem;
+    background: var(--bs-light, #f8f9fa);
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+    white-space: nowrap;
+}
+
+.trainer-workload-filters {
+    padding: 0.85rem 1rem;
+    border-radius: 0.5rem;
+    background: var(--bs-light, #f8f9fa);
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.06));
+}
+
+.trainer-workload-show-groups-switch {
+    min-height: 1.875rem;
+    padding-top: 0.125rem;
+}
+
+.trainer-workload-show-groups-switch .form-check-label {
+    color: var(--bs-body-color);
+    cursor: pointer;
+}
+
+.trainer-workload-month-presets {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.06));
+}
+
+.trainer-workload-month-presets-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.15rem 0.35rem;
+}
+
+.trainer-workload-month-presets-sep {
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.8125rem;
+    user-select: none;
+}
+
+.trainer-workload-month-link {
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+}
+
+.trainer-workload-month-link:hover {
+    color: var(--bs-primary, #0d6efd);
+    text-decoration: underline;
+}
+
+.trainer-workload-month-link.is-active {
+    font-weight: 600;
+    color: var(--bs-primary, #0d6efd);
+    text-decoration: none;
+    pointer-events: none;
+}
+
+.trainer-workload-table-scroll {
+    position: relative;
+    max-height: calc(100vh - 260px);
+    overflow: auto;
+    border-radius: 0.5rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+    -webkit-overflow-scrolling: touch;
+    transition: opacity 0.15s ease;
+}
+
+.trainer-workload-table-scroll.is-loading {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.trainer-workload-table-scroll.is-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: -0.875rem 0 0 -0.875rem;
+    border: 2px solid rgba(13, 110, 253, 0.2);
+    border-top-color: var(--bs-primary, #0d6efd);
+    border-radius: 50%;
+    animation: trainer-workload-spin 0.65s linear infinite;
+}
+
+@keyframes trainer-workload-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.trainer-workload-table {
+    width: max-content;
+    min-width: 100%;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.75rem;
+    line-height: 1.35;
+}
+
+.trainer-workload-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    padding: 0.45rem 0.35rem;
+    font-weight: 600;
+    font-size: 0.625rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color, #6c757d);
+    background: #f8fafc;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.1));
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* Угол: закреп и по вертикали, и по горизонтали (z-index выше остальных sticky-ячеек) */
+.trainer-workload-table thead th.trainer-workload-corner {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    min-width: 7.5rem;
+    max-width: 9rem;
+    width: 7.5rem;
+    text-align: left;
+    background: var(--twl-body-head) !important;
+    background-clip: padding-box;
+    border-right: 1px solid var(--twl-body-chip);
+    box-shadow:
+        1px 0 0 rgba(0, 0, 0, 0.06),
+        0 1px 0 rgba(0, 0, 0, 0.04);
+    color: var(--twl-body-text);
+}
+
+.trainer-workload-corner-label {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.trainer-workload-day-head {
+    min-width: 5.25rem;
+    max-width: 5.75rem;
+    width: 5.5rem;
+}
+
+.trainer-workload-day-head:not(.trainer-workload-day-head--total) {
+    background: var(--twl-body-head);
+    color: var(--twl-body-text);
+}
+
+.trainer-workload-day-head.is-weekend:not(.trainer-workload-day-head--total) {
+    background: var(--twl-body-cell-alt);
+    color: var(--twl-body-text);
+}
+
+.trainer-workload-day-head--total {
+    background: var(--twl-total-head);
+    color: var(--twl-total-text);
+}
+
+.trainer-workload-day-label {
+    display: inline-block;
+}
+
+.trainer-workload-data--body {
+    background: var(--twl-body-cell);
+}
+
+.trainer-workload-data--body.is-weekend {
+    background: var(--twl-body-cell-alt);
+}
+
+.trainer-workload-row:hover .trainer-workload-data--body {
+    background: var(--twl-body-cell-hover);
+}
+
+.trainer-workload-trainer-name {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 7.5rem;
+    max-width: 9rem;
+    width: 7.5rem;
+    padding: 0.4rem 0.5rem;
+    font-weight: 500;
+    font-size: 0.75rem;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg, #fff);
+    background-clip: padding-box;
+    border-right: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.06));
+    box-shadow: 1px 0 0 rgba(0, 0, 0, 0.04);
+    vertical-align: top;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.trainer-workload-row:nth-child(even) .trainer-workload-trainer-name {
+    background: #fafbfc;
+}
+
+.trainer-workload-data {
+    padding: 0.35rem 0.3rem;
+    vertical-align: top;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.06);
+    border-right: 1px solid rgba(51, 65, 85, 0.05);
+}
+
+.trainer-workload-data.is-empty .trainer-workload-cell-empty {
+    display: block;
+    text-align: center;
+    color: var(--bs-border-color, #dee2e6);
+    font-size: 0.75rem;
+    padding: 0.15rem 0;
+    user-select: none;
+}
+
+.trainer-workload-data--row-total,
+.trainer-workload-data--col-total,
+.trainer-workload-data--grand-total {
+    background: var(--twl-total-cell) !important;
+    border-color: rgba(30, 64, 175, 0.1);
+}
+
+.trainer-workload-data--row-total {
+    border-left: 2px solid var(--twl-total-accent);
+}
+
+.trainer-workload-row--footer .trainer-workload-trainer-name--footer {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    font-weight: 600;
+    background: var(--twl-total-head) !important;
+    background-clip: padding-box;
+    border-top: 2px solid var(--twl-total-accent);
+    box-shadow: 1px 0 0 rgba(0, 0, 0, 0.06);
+    color: var(--twl-total-text);
+}
+
+.trainer-workload-row--footer .trainer-workload-data--col-total,
+.trainer-workload-row--footer .trainer-workload-data--grand-total {
+    background: var(--twl-total-cell-deep) !important;
+    border-top: 2px solid var(--twl-total-accent);
+}
+
+.trainer-workload-data--grand-total {
+    background: var(--twl-total-cell-deep) !important;
+}
+
+.trainer-workload-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.trainer-workload-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.2rem;
+    padding: 0.15rem 0.3rem;
+    border-radius: 0.3rem;
+    background: #fff;
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.trainer-workload-row:hover .trainer-workload-chip {
+    border-color: rgba(13, 110, 253, 0.2);
+}
+
+.trainer-workload-chip__team {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--bs-body-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trainer-workload-chips--body .trainer-workload-chip__count,
+.trainer-workload-data--body .trainer-workload-chip__count {
+    color: var(--twl-body-chip-text);
+    background: var(--twl-body-chip);
+}
+
+.trainer-workload-chip__count {
+    flex-shrink: 0;
+    min-width: 1.1rem;
+    padding: 0.05rem 0.3rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    text-align: center;
+    color: var(--twl-total-text);
+    background: var(--twl-total-chip);
+    border-radius: 2rem;
+}
+
+.trainer-workload-chips--total .trainer-workload-chip,
+.trainer-workload-chips--grand .trainer-workload-chip {
+    background: #fff;
+    border-color: rgba(30, 64, 175, 0.12);
+}
+
+.trainer-workload-chips--total .trainer-workload-chip__count,
+.trainer-workload-chips--grand .trainer-workload-chip__count {
+    color: var(--twl-total-text);
+    background: var(--twl-total-chip);
+}
+
+.trainer-workload-empty-state {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--bs-secondary-color);
+    font-size: 0.9rem;
+}
+
+.trainer-workload-data--body .trainer-workload-sum-only {
+    color: var(--twl-body-chip-text);
+    background: var(--twl-body-chip);
+}
+
+.trainer-workload-sum-only {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    color: var(--twl-total-text);
+    background: var(--twl-total-chip);
+    border-radius: 0.3rem;
+}
+
+.trainer-workload-data.is-empty .trainer-workload-sum-only {
+    display: none;
+}
+
+.trainer-workload-sum-only--total,
+.trainer-workload-sum-only--grand {
+    color: var(--twl-total-text);
+    background: var(--twl-total-chip);
+}
+
+.trainer-workload-data:not(.is-empty) {
+    text-align: center;
+}
+
+.trainer-workload-data:not(.is-empty) .trainer-workload-chips {
+    text-align: left;
+}
+
+@media (max-width: 576px) {
+    .trainer-workload-period-badge {
+        width: 100%;
+        text-align: center;
+    }
+
+    .trainer-workload-table thead th.trainer-workload-corner,
+    .trainer-workload-trainer-name {
+        min-width: 6.5rem;
+        width: 6.5rem;
+    }
+
+    .trainer-workload-day-head {
+        min-width: 4.75rem;
+        width: 4.75rem;
+    }
+}
+
+/* ——— ЗП тренеров (визуал как «Нагрузка тренеров») ——— */
+.trainer-salary-report,
+.trainer-salary-table-scroll {
+    --tsl-body-cell: #f8fafc;
+    --tsl-body-cell-alt: #f1f5f9;
+    --tsl-body-cell-hover: #eef2f6;
+    --tsl-body-head: #f8fafc;
+    --tsl-body-text: #475569;
+    --tsl-body-chip: #e2e8f0;
+    --tsl-body-chip-text: #334155;
+    --tsl-total-cell: #eff6ff;
+    --tsl-total-head: #eef2ff;
+    --tsl-total-accent: #dbeafe;
+    --tsl-total-text: #1e40af;
+    --tsl-total-chip: #eff6ff;
+}
+
+.trainer-salary-surface {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08)) !important;
+    border-radius: 0.75rem;
+    overflow: visible;
+}
+
+.trainer-salary-title {
+    letter-spacing: -0.02em;
+}
+
+.trainer-salary-subtitle {
+    max-width: 36rem;
+    line-height: 1.45;
+}
+
+.trainer-salary-filters {
+    padding: 0.85rem 1rem;
+    border-radius: 0.5rem;
+    background: var(--bs-light, #f8f9fa);
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.06));
+}
+
+.trainer-salary-table-scroll {
+    position: relative;
+    max-height: calc(100vh - 260px);
+    overflow: auto;
+    border-radius: 0.5rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+    -webkit-overflow-scrolling: touch;
+    transition: opacity 0.15s ease;
+}
+
+.trainer-salary-table-scroll.is-loading {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.trainer-salary-table-scroll.is-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: -0.875rem 0 0 -0.875rem;
+    border: 2px solid rgba(13, 110, 253, 0.2);
+    border-top-color: var(--bs-primary, #0d6efd);
+    border-radius: 50%;
+    animation: trainer-workload-spin 0.65s linear infinite;
+}
+
+.trainer-salary-table {
+    width: 100%;
+    min-width: 100%;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    table-layout: fixed;
+}
+
+.trainer-salary-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    padding: 0.45rem 0.35rem;
+    font-weight: 600;
+    font-size: 0.625rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+    color: var(--bs-secondary-color, #6c757d);
+    background: var(--tsl-body-head);
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.1));
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+    white-space: normal;
+    line-height: 1.2;
+    vertical-align: bottom;
+    hyphens: auto;
+}
+
+.trainer-salary-table thead th.trainer-salary-corner {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    min-width: 7.5rem;
+    max-width: 9rem;
+    width: 7.5rem;
+    text-align: left;
+    background: var(--tsl-body-head) !important;
+    background-clip: padding-box;
+    border-right: 1px solid var(--tsl-body-chip);
+    box-shadow:
+        1px 0 0 rgba(0, 0, 0, 0.06),
+        0 1px 0 rgba(0, 0, 0, 0.04);
+    color: var(--tsl-body-text);
+}
+
+.trainer-salary-corner-label,
+.trainer-salary-th-label {
+    display: inline-block;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.trainer-salary-col--money {
+    width: 4.75rem;
+}
+
+.trainer-salary-col--count {
+    width: 3.25rem;
+}
+
+.trainer-salary-col--comment {
+    width: auto;
+}
+
+.trainer-salary-col--total,
+.trainer-salary-head--total {
+    width: 4.75rem;
+}
+
+.trainer-salary-head--total {
+    background: var(--tsl-total-head) !important;
+    color: var(--tsl-total-text);
+}
+
+.trainer-salary-col--action {
+    width: 5.5rem;
+}
+
+.trainer-salary-trainer-name {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 7.5rem;
+    max-width: 9rem;
+    width: 7.5rem;
+    padding: 0.4rem 0.5rem;
+    font-weight: 500;
+    font-size: 0.75rem;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg, #fff);
+    background-clip: padding-box;
+    border-right: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.06));
+    box-shadow: 1px 0 0 rgba(0, 0, 0, 0.04);
+    vertical-align: top;
+    white-space: normal;
+    line-height: 1.35;
+}
+
+.trainer-salary-row:nth-child(even) .trainer-salary-trainer-name {
+    background: #fafbfc;
+}
+
+.trainer-salary-cell {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.trainer-salary-data {
+    padding: 0.35rem 0.3rem;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.06);
+    border-right: 1px solid rgba(51, 65, 85, 0.05);
+}
+
+.trainer-salary-data--body {
+    background: var(--tsl-body-cell);
+}
+
+.trainer-salary-row:hover .trainer-salary-data--body {
+    background: var(--tsl-body-cell-hover);
+}
+
+.trainer-salary-data--total {
+    background: var(--tsl-total-cell) !important;
+    border-color: rgba(30, 64, 175, 0.1);
+    border-left: 2px solid var(--tsl-total-accent);
+}
+
+.trainer-salary-row:hover .trainer-salary-data--total {
+    background: #e8f2ff !important;
+}
+
+.trainer-salary-cell.text-end .trainer-salary-input,
+.trainer-salary-cell.text-end .trainer-salary-readonly,
+.trainer-salary-cell.text-end .trainer-salary-value {
+    text-align: right;
+}
+
+.trainer-salary-input {
+    min-width: 0;
+    width: 100%;
+    max-width: 5.25rem;
+    padding: 0.15rem 0.3rem;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+    border-color: var(--bs-border-color-translucent, rgba(0, 0, 0, 0.12));
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.trainer-salary-row:hover .trainer-salary-input {
+    border-color: rgba(13, 110, 253, 0.25);
+}
+
+.trainer-salary-cell--comment .trainer-salary-input {
+    max-width: none;
+    font-variant-numeric: normal;
+}
+
+.trainer-salary-value,
+.trainer-salary-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    white-space: nowrap;
+    color: var(--tsl-body-chip-text);
+    background: var(--tsl-body-chip);
+    border-radius: 0.3rem;
+}
+
+.trainer-salary-cell.text-end .trainer-salary-value {
+    justify-content: flex-end;
+    margin-left: auto;
+}
+
+.trainer-salary-value--total {
+    color: var(--tsl-total-text);
+    background: var(--tsl-total-chip);
+}
+
+.trainer-salary-readonly:not(.trainer-salary-value):not(.trainer-salary-count) {
+    display: inline-block;
+    padding: 0.1rem 0;
+    font-size: 0.75rem;
+    color: var(--bs-body-color);
+}
+
+.trainer-salary-form-one-btn {
+    padding: 0.15rem 0.4rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.trainer-salary-empty-state {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--bs-secondary-color);
+    font-size: 0.9rem;
+}
+
+.trainer-salary-snapshot-hint {
+    margin-top: 0.2rem;
+    line-height: 1.25;
+    font-size: 0.625rem;
+    font-weight: 400;
+    color: var(--bs-secondary-color) !important;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+@media (max-width: 576px) {
+    .trainer-salary-table thead th.trainer-salary-corner,
+    .trainer-salary-trainer-name {
+        min-width: 6.5rem;
+        width: 6.5rem;
+    }
+}
+
+/* ——— Листы ЗП ——— */
+.trainer-salary-sheets-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
+}
+
+.trainer-salary-sheets-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.55rem 0.5rem;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.trainer-salary-sheets-table tbody td {
+    padding: 0.5rem 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.trainer-salary-sheets-row.is-latest {
+    background: #f8fffe;
+}
+
+.trainer-salary-sheets-empty-state {
+    text-align: center;
+    color: #64748b;
+    padding: 2rem 1rem;
+}
+
+.trainer-salary-table--readonly .trainer-salary-cell {
+    vertical-align: middle;
+}

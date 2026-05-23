@@ -23,7 +23,7 @@ class AccountDocumentsController extends Controller
 
         $contracts = Contract::query()
             ->where('user_id', $user->id)
-            ->with(['user', 'team', 'lastSignRequest'])
+            ->with(['user', 'team', 'lastSignRequest', 'templateVersion.template'])
             ->when($status, fn($q) => $q->where('status', $status))
             ->orderByDesc('id')
             ->paginate(12);
@@ -31,6 +31,7 @@ class AccountDocumentsController extends Controller
         // для удобного рендера бейджей
         $statusMap = [
             'draft'   => ['label' => 'Черновик',        'class' => 'secondary'],
+            Contract::STATUS_AWAITING_CLIENT_FILL => ['label' => 'Требуется заполнение', 'class' => 'primary'],
             'sent'    => ['label' => 'Отправлено',      'class' => 'info'],
             'opened'  => ['label' => 'Открыт',          'class' => 'warning'],
             'signed'  => ['label' => 'Подписан',        'class' => 'success'],

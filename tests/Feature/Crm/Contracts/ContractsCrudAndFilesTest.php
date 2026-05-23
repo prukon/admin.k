@@ -35,8 +35,9 @@ class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
 
         $resp = $this->from('/client-contracts/create')
             ->post('/client-contracts', [
-                'user_id' => $student->id,
-                'pdf'     => $pdf,
+                'creation_mode' => Contract::CREATION_MODE_PDF,
+                'user_id'       => $student->id,
+                'pdf'           => $pdf,
             ]);
 
         $resp->assertStatus(302);
@@ -61,8 +62,9 @@ class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
         $pdf = UploadedFile::fake()->create('contract.pdf', 20, 'application/pdf');
 
         $resp = $this->post('/client-contracts', [
-            'user_id' => $student->id,
-            'pdf'     => $pdf,
+            'creation_mode' => Contract::CREATION_MODE_PDF,
+            'user_id'       => $student->id,
+            'pdf'           => $pdf,
         ]);
 
         $resp->assertStatus(302);

@@ -1,0 +1,106 @@
+<?php
+
+namespace App\Http\Controllers\Contracts;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Contracts\StoreContractTemplateRequest;
+use App\Http\Requests\Contracts\UpdateContractTemplateRequest;
+use App\Models\ContractTemplate;
+use App\Models\Partner;
+use App\Services\Contracts\ContractTemplatePrefillSources;
+use App\Services\Contracts\ContractTemplateService;
+use Illuminate\Support\Facades\Storage;
+
+class ContractTemplateController extends Controller
+{
+    public function __construct(
+        private readonly ContractTemplateService $templateService,
+    ) {
+    }
+
+    private function partner(): Partner
+    {
+        $p = app('current_partner');
+        abort_unless($p, 403, 'Партнёр не выбран.');
+
+        return $p;
+    }
+
+    public function index()
+    {
+        $partnerId = $this->partner()->id;
+
+        $templates = ContractTemplate::query()
+            ->forPartner($partnerId)
+            ->with('currentVersion')
+            ->orderByDesc('id')
+            ->paginate(20);
+
+        return view('contract-templates.index', compact('templates'));
+    }
+
+    public function create()
+    {
+        $prefillSources = ContractTemplatePrefillSources::labels();
+
+        return view('contract-templates.create', compact('prefillSources'));
+    }
+
+    public function store(StoreContractTemplateRequest $request)
+    {
+        $validated = $request->validated();
+
+        $template = $this->templateService->create($this->partner(), [
+            'title'           => $validated['title'],
+            'docx'            => $request->file('docx'),
+            'fields'          => $validated['fields'] ?? null,
+            'email_subject'   => $validated['email_subject'] ?? null,
+            'email_body_html' => $validated['email_body_html'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('contract-templates.edit', $template)
+            ->with('success', 'Шаблон создан. Проверьте поля и текст письма.');
+    }
+
+    public function edit(ContractTemplate $template)
+    {
+        $template->load('currentVersion');
+        $prefillSources = ContractTemplatePrefillSources::labels();
+        $fields = $template->currentVersion?->fields_schema ?? [];
+
+        return view('contract-templates.edit', compact('template', 'prefillSources', 'fields'));
+    }
+
+    public function update(UpdateContractTemplateRequest $request, ContractTemplate $template)
+    {
+        $validated = $request->validated();
+
+        $this->templateService->update($template, [
+            'title'           => $validated['title'],
+            'docx'            => $request->file('docx'),
+            'fields'          => $validated['fields'] ?? null,
+            'email_subject'   => $validated['email_subject'] ?? null,
+            'email_body_html' => $validated['email_body_html'] ?? null,
+            'is_archived'     => $request->boolean('is_archived'),
+        ]);
+
+        return redirect()
+            ->route('contract-templates.edit', $template)
+            ->with('success', 'Шаблон сохранён.');
+    }
+
+    public function downloadDocx(ContractTemplate $template)
+    {
+        $template->load('currentVersion');
+        $path = $template->currentVersion?->docx_path;
+
+        if (!$path || !Storage::exists($path)) {
+            return back()->withErrors(['docx' => 'DOCX-файл шаблона не найден.']);
+        }
+
+        $filename = 'template-' . $template->id . '-v' . ($template->currentVersion->version ?? 1) . '.docx';
+
+        return Storage::download($path, $filename);
+    }
+}

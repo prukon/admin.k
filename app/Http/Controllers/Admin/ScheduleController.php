@@ -101,7 +101,7 @@ class ScheduleController extends AdminBaseController
 
     $visitedStatusId = Status::globalVisitedId();
 
-    return view('admin.schedule', compact(
+    return view('admin.schedule.index', array_merge(compact(
         'year',
         'month',
         'team_id',
@@ -114,7 +114,9 @@ class ScheduleController extends AdminBaseController
         'teamWeekdays',
         'availableStatuses',
         'visitedStatusId',
-    ));
+    ), [
+        'activeTab' => 'journal',
+    ]));
 }
 
     public function cellContext(GetScheduleCellContextRequest $request)

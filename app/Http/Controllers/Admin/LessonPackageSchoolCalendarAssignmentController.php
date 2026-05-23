@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\AssignSchoolCalendarFixedRequest;
 use App\Http\Requests\Admin\AssignSchoolCalendarFlexibleRequest;
 use App\Http\Requests\Admin\AssignSchoolCalendarSingleLessonRequest;
 use App\Http\Requests\Admin\AssignSchoolCalendarTrialRequest;
+use App\Http\Requests\Admin\StoreSchoolCalendarSingleLessonRegistrationRequest;
 use App\Models\LessonPackage;
 use App\Models\MyLog;
 use App\Models\TeamScheduleSlot;
@@ -16,6 +17,7 @@ use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\LessonPackages\SchoolCalendarSingleLessonRegistrationService;
 use App\Services\LessonPackages\SchoolCalendarSlotUserBindActionsService;
 use App\Services\LessonPackages\SchoolCalendarTrialEligibilityService;
 use App\Services\PartnerContext;
@@ -37,6 +39,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         private readonly UserLessonPackageCalendarPeriodService $calendarPeriodService,
         private readonly SchoolCalendarTrialEligibilityService $trialEligibilityService,
         private readonly SchoolCalendarSlotUserBindActionsService $slotUserBindActionsService,
+        private readonly SchoolCalendarSingleLessonRegistrationService $singleLessonRegistrationService,
     ) {
         parent::__construct($partnerContext);
     }
@@ -57,7 +60,13 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             return response()->json([
                 'flexible' => ['allowed' => false, 'reason' => $r],
                 'fixed' => ['allowed' => false, 'reason' => $r],
-                'single_lesson' => ['allowed' => false, 'reason' => $r],
+                'single_lesson' => [
+                    'allowed' => false,
+                    'reason' => $r,
+                    'mode' => null,
+                    'existing_assignments' => [],
+                    'templates' => [],
+                ],
                 'trial' => ['allowed' => false, 'reason' => $r],
             ]);
         }
@@ -216,20 +225,6 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ], 422);
         }
 
-        $scheduledForUlp = UserTeamScheduleSlot::query()
-            ->where('user_lesson_package_id', (int) $ulp->id)
-            ->count();
-        if ($scheduledForUlp >= (int) $ulp->lessons_total) {
-            $msg = (int) $ulp->lessons_total === 1
-                ? 'Для этого назначения слот в календаре уже выбран. Оформите новое разовое занятие отдельным абонементом.'
-                : 'Достигнут лимит занятий в календаре для этого абонемента.';
-
-            return response()->json([
-                'message' => $msg,
-                'errors' => ['user_lesson_package_id' => [$msg]],
-            ], 422);
-        }
-
         /** @var TeamScheduleSlot|null $slot */
         $slot = TeamScheduleSlot::query()->whereKey((int) $data['team_schedule_slot_id'])->first();
 
@@ -242,65 +237,23 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
 
         $occurrence = CarbonImmutable::createFromFormat('Y-m-d', (string) $data['occurrence_date'])->startOfDay();
 
-        if ((int) $slot->weekday !== (int) $occurrence->format('N')) {
-            return response()->json([
-                'message' => 'Дата не соответствует дню недели выбранного слота.',
-                'errors' => ['occurrence_date' => ['Дата не соответствует дню недели выбранного слота.']],
-            ], 422);
-        }
-
-        if (! $this->calendarService->slotActiveOnDate($slot, $occurrence)) {
-            return response()->json([
-                'message' => 'Слот недействителен на выбранную дату.',
-                'errors' => ['occurrence_date' => ['Слот недействителен на выбранную дату.']],
-            ], 422);
-        }
-
-        if ($this->calendarService->isOccurrenceSkipped((int) $slot->id, $occurrence)) {
-            return response()->json([
-                'message' => 'На эту дату занятие исключено из расписания школы.',
-                'errors' => ['occurrence_date' => ['На эту дату занятие исключено из расписания школы.']],
-            ], 422);
-        }
-
-        $exists = UserTeamScheduleSlot::query()
-            ->where('user_id', $ulp->user_id)
-            ->where('team_schedule_slot_id', $slot->id)
-            ->whereDate('starts_at', $occurrence->toDateString())
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'message' => 'Это занятие уже привязано к ученику.',
-                'errors' => ['occurrence_date' => ['Это занятие уже привязано к ученику.']],
-            ], 422);
-        }
-
         try {
-            DB::transaction(function () use ($ulp, $partnerId, $slot, $occurrence) {
-                $this->calendarPeriodService->applyFirstCalendarAnchor($ulp, $occurrence);
-                $ulp->refresh();
-
-                $ulpStart = Carbon::parse((string) $ulp->starts_at)->startOfDay();
-                $ulpEnd = Carbon::parse((string) $ulp->ends_at)->endOfDay();
-                if ($occurrence->lt($ulpStart) || $occurrence->gt($ulpEnd)) {
-                    throw new InvalidArgumentException('Дата выходит за пределы периода абонемента.');
-                }
-
-                UserTeamScheduleSlot::query()->create([
-                    'partner_id' => $partnerId,
-                    'user_id' => (int) $ulp->user_id,
-                    'user_lesson_package_id' => (int) $ulp->id,
-                    'team_schedule_slot_id' => (int) $slot->id,
-                    'starts_at' => $occurrence->toDateString(),
-                    'ends_at' => Carbon::parse((string) $ulp->ends_at)->format('Y-m-d'),
-                    'created_by' => auth()->id(),
-                ]);
-            });
+            $this->singleLessonRegistrationService->bindUlpToSlot(
+                $partnerId,
+                $ulp,
+                $slot,
+                $occurrence,
+                auth()->id(),
+            );
         } catch (InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            $field = str_contains($msg, 'назначен') || str_contains($msg, 'абонемент') || str_contains($msg, 'лимит') || str_contains($msg, 'слот в календаре')
+                ? 'user_lesson_package_id'
+                : 'occurrence_date';
+
             return response()->json([
-                'message' => $e->getMessage(),
-                'errors' => ['occurrence_date' => [$e->getMessage()]],
+                'message' => $msg,
+                'errors' => [$field => [$msg]],
             ], 422);
         } catch (\Throwable $e) {
             report($e);
@@ -312,6 +265,85 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         }
 
         return response()->json(['message' => 'Разовое занятие записано в расписание.']);
+    }
+
+    /**
+     * Разовое занятие из модалки слота: привязка существующего назначения или создание нового с записью в календарь.
+     */
+    public function storeSingleLessonRegistration(StoreSchoolCalendarSingleLessonRegistrationRequest $request): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $data = $request->validated();
+
+        /** @var User|null $user */
+        $user = User::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey((int) $data['user_id'])
+            ->where('is_enabled', 1)
+            ->first();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Ученик не найден или недоступен.',
+                'errors' => ['user_id' => ['Ученик не найден или недоступен.']],
+            ], 422);
+        }
+
+        try {
+            $this->singleLessonRegistrationService->register($partnerId, $data, auth()->id());
+        } catch (InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            $field = 'occurrence_date';
+            if (str_contains($msg, 'назначен') || str_contains($msg, 'абонемент') || str_contains($msg, 'лимит') || str_contains($msg, 'слот в календаре')) {
+                $field = 'user_lesson_package_id';
+            } elseif (str_contains($msg, 'Шаблон') || str_contains($msg, 'шаблон')) {
+                $field = 'lesson_package_id';
+            } elseif (str_contains($msg, 'слот')) {
+                $field = 'team_schedule_slot_id';
+            }
+
+            return response()->json([
+                'message' => $msg,
+                'errors' => [$field => [$msg]],
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'Не удалось записать разовое занятие. Попробуйте ещё раз.',
+                'errors' => ['user_id' => ['Не удалось записать разовое занятие.']],
+            ], 422);
+        }
+
+        return response()->json(['message' => 'Разовое занятие записано в расписание.']);
+    }
+
+    /**
+     * Отмена записи разового занятия в календаре: строка расписания удаляется, назначение абонемента сохраняется.
+     */
+    public function destroySingleLessonRegistration(UserTeamScheduleSlot $userTeamScheduleSlot): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+
+        try {
+            $this->singleLessonRegistrationService->cancelRegistration(
+                $userTeamScheduleSlot,
+                $partnerId,
+                auth()->id(),
+            );
+        } catch (InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 404);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'Не удалось отменить запись.',
+            ], 422);
+        }
+
+        return response()->json(['message' => 'Запись разового занятия отменена. Назначение абонемента сохранено.']);
     }
 
     public function assignFixed(AssignSchoolCalendarFixedRequest $request): JsonResponse

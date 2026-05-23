@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: нагрузка тренеров (/schedule/trainer-workload)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Нагрузка тренеров</h1>
+  <div class="small">
+    Файл: <code>/docs/documentation/schedule-trainer-workload.html</code> ·
+    страницы: <code>GET /schedule/trainer-workload</code> (<code>schedule.trainer-workload</code>),
+    <code>GET /schedule/trainer-workload/data</code> (<code>schedule.trainer-workload.data</code>)
+  </div>
+
+  <div class="warn">
+    <strong>Не путать</strong> с <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> (слоты абонементов, <code>team_schedule_slots</code>, <code>lessonPackages.view</code>).<br>
+    Отчёт строится только из <a href="/docs/documentation/schedule-journal">журнала посещаемости</a> (<code>schedule_users</code> + статус «Посетил» + <code>trainer_profile_id</code>).
+  </div>
+
+  <div class="note">
+    Вкладка «Нагрузка тренеров» — вторая вкладка на экране раздела «Журнал расписания» (общая оболочка <code>resources/views/admin/schedule/index.blade.php</code>, по аналогии с вкладками в <a href="/docs/documentation/reports-admin">отчётах админки</a>).<br>
+    Первую вкладку «Журнал расписания» см. в <a href="/docs/documentation/schedule-journal">отдельном разделе</a>.
+  </div>
+
+  <h2>1) Право доступа <code>schedule.view</code></h2>
+  <p>То же permission, что и для журнала <code>/schedule</code>. Отдельного права на отчёт нет.</p>
+  <table>
+    <thead>
+      <tr><th>Ситуация</th><th>Результат</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Гость</td><td><code>GET /schedule/trainer-workload</code> → редирект на логин; <code>GET …/data</code> → <b>401</b></td></tr>
+      <tr><td>Авторизован, нет <code>schedule.view</code></td><td>Страница и <code>data</code> → <b>403</b></td></tr>
+      <tr><td>Есть <code>schedule.view</code></td><td>Страница и <code>data</code> при валидных параметрах → <b>200</b> (в т.ч. для каждого из трёх пресетов месяца и режимов <code>show_groups=0|1</code>)</td></tr>
+    </tbody>
+  </table>
+  <p class="small">
+    Право <code>trainers.view</code> для отчёта <strong>не требуется</strong>: список тренеров берётся из активных <code>trainer_profiles</code> партнёра (как в модалке «Посетил» журнала).
+    Smoke по всем сценариям с правом — <code>ScheduleTrainerWorkloadAccessFeatureTest::test_all_trainer_workload_endpoints_return_ok_with_schedule_view</code>.
+  </p>
+
+  <h2>2) Эндпоинты</h2>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Имя</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>GET</td>
+        <td><code>/schedule/trainer-workload</code></td>
+        <td><code>schedule.trainer-workload</code></td>
+        <td>HTML: фильтры, матрица тренер × дни недели, первая отрисовка на сервере</td>
+      </tr>
+      <tr>
+        <td>GET</td>
+        <td><code>/schedule/trainer-workload/data</code></td>
+        <td><code>schedule.trainer-workload.data</code></td>
+        <td>JSON + фрагмент HTML таблицы (AJAX при смене периода / переключателя)</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Оба маршрута в <code>routes/web.php</code> в группе <code>middleware('can:schedule.view')</code> (внутри <code>auth</code> + <code>2fa</code>).</p>
+
+  <h3>2.1) Параметры запроса</h3>
+  <table>
+    <thead>
+      <tr><th>Параметр</th><th>Описание</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>date_from</code>, <code>date_to</code></td><td>Опционально, формат <code>Y-m-d</code>. Если оба пустые — период <strong>последние 30 календарных дней</strong> (сегодня − 29 … сегодня). Если указана только одна дата — вторая достраивается ещё на 29 дней в ту же сторону.</td></tr>
+      <tr><td><code>show_groups</code></td><td>Опционально, boolean. По умолчанию <strong>выключено</strong> (<code>false</code>): в ячейках только суммы. <code>show_groups=1</code> — разбивка по группам (название + число дат).</td></tr>
+    </tbody>
+  </table>
+  <p>Валидация: <code>TrainerWorkloadReportRequest</code> — <code>date_to &gt;= date_from</code>, максимальная длина периода <strong>366 дней</strong> (иначе 422, ошибки под полями дат в UI).</p>
+
+  <h3>2.2) Ответ <code>GET …/data</code></h3>
+  <ul>
+    <li><code>date_from</code>, <code>date_to</code> — фактический период после нормализации</li>
+    <li><code>show_groups</code> — bool</li>
+    <li><code>table_html</code> — HTML фрагмент таблицы (<code>_trainer_workload_table.blade.php</code>)</li>
+    <li><code>report</code> — массив агрегата (те же данные, что для первой отрисовки на сервере; UI обновляет в основном <code>table_html</code>)</li>
+  </ul>
+  <p>Изоляция: агрегат только по <code>users.partner_id = current_partner</code> и <code>trainer_profiles.partner_id = current_partner</code>.</p>
+
+  <h2>3) Источник данных и формула ячейки</h2>
+  <h3>3.1) Какие записи журнала попадают в отчёт</h3>
+  <ul>
+    <li>Таблица <code>schedule_users</code>, join <code>users</code> (<code>is_enabled = 1</code>, партнёр текущий).</li>
+    <li><code>status_id</code> = системный «Посетил» (<code>Status::globalVisitedId()</code>).</li>
+    <li><code>trainer_profile_id IS NOT NULL</code>.</li>
+    <li><code>date</code> в выбранном периоде [<code>date_from</code>, <code>date_to</code>].</li>
+  </ul>
+  <p>Записи «Посетил» без тренера, другие статусы и визиты чужого партнёра <strong>не учитываются</strong>.</p>
+
+  <h3>3.2) Группировка</h3>
+  <p>SQL-агрегат (сервис <code>TrainerWorkloadReportService</code>):</p>
+  <ul>
+    <li>ось Y — все <strong>активные</strong> тренеры партнёра (<code>trainer_profiles.is_enabled</code>, user включён), сортировка <code>sort_order</code>, <code>id</code> (даже без визитов за период — пустая строка);</li>
+    <li>ось X — дни недели ISO 1–7 (Пн … Вс), из <code>WEEKDAY(date)+1</code>;</li>
+    <li>в ячейке — уникальные <strong>группы</strong> ученика (<code>users.team_id</code> → <code>teams.title</code>, без группы → «Без группы»);</li>
+    <li>число в ячейке — <code>COUNT(DISTINCT DATE(schedule_users.date))</code> для пары (тренер, день недели, группа) за период (не число учеников и не число строк <code>schedule_users</code>).</li>
+  </ul>
+
+  <h3>3.3) Режим «Показывать группы»</h3>
+  <table>
+    <thead>
+      <tr><th>Переключатель</th><th>Отображение в ячейке</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Включён</td><td>Список: <code>Название группы</code> + счётчик (чипы)</td></tr>
+      <tr><td>Выключен (по умолчанию)</td><td>Одно число — сумма <code>dates_count</code> по всем группам в этой ячейке</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.4) Строка и столбец «Итого»</h3>
+  <ul>
+    <li><strong>Столбец «Итого»</strong> (справа у каждого тренера) — сумма по всем дням недели за период (по группам или одной суммой — как в режиме переключателя).</li>
+    <li><strong>Строка «Итого»</strong> (внизу) — сумма по всем тренерам для каждого дня недели.</li>
+    <li><strong>Правый нижний угол</strong> — общий итог за матрицу.</li>
+  </ul>
+  <p class="small">
+    То же значение столбца «Итого» (режим без групп) используется как <code>trainings_count</code> на вкладке
+    <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a> за календарный месяц
+    (<code>TrainerWorkloadReportService::trainerRowTrainingsTotals()</code>).
+  </p>
+
+  <h2>4) UI и AJAX</h2>
+  <ul>
+    <li>Фильтры: «С», «По» (тип <code>date</code>), переключатель «Показывать группы». Кнопок «Показать» / «Сбросить» нет — обновление <strong>на лету</strong>.</li>
+    <li>Под полями дат — <strong>быстрый выбор месяца</strong> (см. <a href="#month-presets">§4.1</a>).</li>
+    <li>Смена дат — debounce ~300 мс, затем <code>GET …/data</code>.</li>
+    <li>Смена переключателя — запрос сразу.</li>
+    <li>URL в адресной строке синхронизируется через <code>history.replaceState</code> (период + <code>show_groups=0|1</code>).</li>
+    <li>Во время загрузки таблица слегка затемняется (класс <code>is-loading</code> на контейнере).</li>
+    <li>Дублирующий бейдж периода справа в шапке <strong>убран</strong> — период виден в полях «С» / «По».</li>
+  </ul>
+
+  <h3 id="month-presets">4.1) Быстрый выбор месяца</h3>
+  <p>
+    Под полями «С» / «По» выводятся <strong>три текстовые ссылки</strong> с названиями календарных месяцев
+    (именительный падеж, как в фильтре месяца журнала: «Март», «Апрель», «Май»).
+    Состав ссылок <strong>всегда пересчитывается от текущей даты сервера</strong> при открытии страницы:
+  </p>
+  <table>
+    <thead>
+      <tr><th>Порядок (слева → направо)</th><th>Месяц</th><th>Что подставляется в «С» / «По»</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>Позапрошлый календарный месяц</td><td><code>1-е</code> … <code>последний день</code> этого месяца</td></tr>
+      <tr><td>2</td><td>Прошлый календарный месяц</td><td>то же</td></tr>
+      <tr><td>3</td><td>Текущий календарный месяц</td><td>то же (<code>date_to</code> — <strong>последний день месяца</strong>, не «сегодня»)</td></tr>
+    </tbody>
+  </table>
+  <p class="small">
+    Пример при дате сервера 15 мая 2026: ссылки «Март», «Апрель», «Май» → периоды
+    <code>2026-03-01…2026-03-31</code>, <code>2026-04-01…2026-04-30</code>, <code>2026-05-01…2026-05-31</code>.
+    В январе — «Ноябрь», «Декабрь», «Январь» (с учётом смены года).
+  </p>
+  <ul>
+    <li><strong>Клик по ссылке</strong> — в поля «С» и «По» записываются границы выбранного месяца, сразу выполняется тот же AJAX <code>GET …/data</code>, что при ручной смене дат (без отдельной кнопки).</li>
+    <li><strong>Подсветка активной ссылки</strong> — класс <code>is-active</code> и <code>aria-current="true"</code>, если в полях ровно полный календарный месяц (совпадение с одним из трёх пресетов). При периоде по умолчанию (последние 30 дней) или произвольном диапазоне активной ссылки нет.</li>
+    <li>Ручная правка дат в полях снимает или переносит подсветку (логика в <code>trainer-workload.js</code>, функция <code>syncActiveMonthLinks</code>).</li>
+    <li>Отдельных query-параметров и эндпоинтов для пресетов <strong>нет</strong> — только стандартные <code>date_from</code> / <code>date_to</code>. Любой полный месяц укладывается в лимит 366 дней.</li>
+  </ul>
+  <p class="small">
+    Разметка: блок <code>#trainer-workload-month-presets</code>, ссылки
+    <code>.trainer-workload-month-link</code> с атрибутами <code>data-date-from</code>, <code>data-date-to</code>
+    (значения считаются в <code>trainer_workload.blade.php</code> через <code>Carbon</code>).
+    Стили: <code>.trainer-workload-month-presets*</code> в <code>schedule.css</code>.
+  </p>
+
+  <p>Шаблоны: <code>resources/views/admin/schedule/trainer_workload.blade.php</code>, <code>_trainer_workload_table.blade.php</code>, <code>_trainer_workload_cell.blade.php</code>.</p>
+  <p>Скрипт: <code>resources/js/trainer-workload.js</code> (подключается только на вкладке нагрузки в <code>schedule/index.blade.php</code>).</p>
+  <p>Стили: общий файл <code>resources/css/schedule.css</code> (блок <code>.trainer-workload-*</code>).</p>
+
+  <h2>5) Связь с журналом и тренерами</h2>
+  <ul>
+    <li>Тренер в ячейке журнала задаётся при сохранении «Посетил» — см. <a href="/docs/documentation/schedule-journal#visited-trainer">Журнал: тренер при «Посетил»</a>.</li>
+    <li>Справочник тренеров и привязка к группам — <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.</li>
+    <li>Массовое «Личное расписание» (<code>update-schedule-range</code>) <strong>не заполняет</strong> <code>trainer_profile_id</code> — такие дни в отчёт не попадут, пока тренер не указан вручную в модалке ячейки.</li>
+  </ul>
+
+  <h2>6) Связанные файлы (код)</h2>
+  <ul class="small">
+    <li><code>app/Http/Controllers/Admin/ScheduleTrainerWorkloadController.php</code></li>
+    <li><code>app/Services/Schedule/TrainerWorkloadReportService.php</code></li>
+    <li><code>app/Http/Requests/Admin/TrainerWorkloadReportRequest.php</code></li>
+    <li><code>app/Http/Controllers/Admin/ScheduleController.php</code> — вкладка «Журнал» (<code>schedule.index</code>)</li>
+  </ul>
+
+  <h2 id="tests">7) Автотесты (Feature)</h2>
+  <div class="note">
+    <ul>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleTrainerWorkloadAccessFeatureTest.php</code> — гость (302/401), 403 без <code>schedule.view</code>, smoke 200 страницы и <code>data</code>, полный прогон 200 для всех пресетов месяца и <code>show_groups</code></li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleTrainerWorkloadFeatureTest.php</code> — агрегация, итоги, режим групп/сумм, валидация периода, изоляция партнёра, UI</li>
+      <li>Быстрый выбор месяца: три ссылки и даты (<code>trainerWorkloadMonthPresets()</code> в <code>ScheduleJournalTestCase</code>), порядок старый→новый, <code>is-active</code>, <code>data</code> по каждому пресету, граница года (январь)</li>
+    </ul>
+  </div>
+  <pre><code>php artisan test --env=testing --filter=ScheduleTrainerWorkload</code></pre>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/schedule-journal">Журнал расписания</a> ·
+    <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
+    <a href="/docs/documentation/school-schedule-calendar">Расписание школы</a>
+  </p>
+</div>
+</body>
+</html>

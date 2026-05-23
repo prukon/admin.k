@@ -14,11 +14,19 @@ class Contract extends Model
 
 
     protected $casts = [
-        'signed_at' => 'datetime',
+        'signed_at'       => 'datetime',
+        'fill_expires_at' => 'datetime',
+        'filled_data'     => 'array',
     ];
+
+    public const CREATION_MODE_PDF      = 'pdf';
+    public const CREATION_MODE_TEMPLATE = 'template';
+
+    public const FILL_TTL_DAYS = 7;
 
     // Статусы
     public const STATUS_DRAFT   = 'draft';
+    public const STATUS_AWAITING_CLIENT_FILL = 'awaiting_client_fill';
     public const STATUS_SENT    = 'sent';
     public const STATUS_OPENED  = 'opened';
     public const STATUS_SIGNED  = 'signed';
@@ -28,6 +36,7 @@ class Contract extends Model
 
     public static array $STATUS_RU = [
         self::STATUS_DRAFT   => 'Черновик',
+        self::STATUS_AWAITING_CLIENT_FILL => 'Ожидает заполнения клиентом',
         self::STATUS_SENT    => 'Отправлено',
         self::STATUS_OPENED  => 'Открыто',
         self::STATUS_SIGNED  => 'Подписано',
@@ -38,6 +47,7 @@ class Contract extends Model
 
     public static array $STATUS_BADGE = [
         self::STATUS_DRAFT   => 'bg-secondary',
+        self::STATUS_AWAITING_CLIENT_FILL => 'bg-primary',
         self::STATUS_SENT    => 'bg-warning text-dark',
         self::STATUS_OPENED  => 'bg-info',
         self::STATUS_SIGNED  => 'bg-success',
@@ -70,6 +80,51 @@ class Contract extends Model
     public function lastSignRequest(): HasOne
     {
         return $this->hasOne(ContractSignRequest::class)->latestOfMany();
+    }
+
+    public function templateVersion(): BelongsTo
+    {
+        return $this->belongsTo(ContractTemplateVersion::class, 'contract_template_version_id');
+    }
+
+    public function isPdfMode(): bool
+    {
+        return ($this->creation_mode ?? self::CREATION_MODE_PDF) === self::CREATION_MODE_PDF;
+    }
+
+    public function isTemplateMode(): bool
+    {
+        return $this->creation_mode === self::CREATION_MODE_TEMPLATE;
+    }
+
+    public function canAdminSendSms(): bool
+    {
+        return $this->isPdfMode() && $this->status === self::STATUS_DRAFT;
+    }
+
+    public function canRevokeWithRefund(): bool
+    {
+        return $this->isTemplateMode()
+            && $this->status === self::STATUS_AWAITING_CLIENT_FILL;
+    }
+
+    public function isFillExpired(): bool
+    {
+        return $this->fill_expires_at !== null && $this->fill_expires_at->isPast();
+    }
+
+    public function canClientFill(): bool
+    {
+        return $this->isTemplateMode()
+            && $this->status === self::STATUS_AWAITING_CLIENT_FILL
+            && !$this->isFillExpired();
+    }
+
+    public function canClientSign(): bool
+    {
+        return $this->isTemplateMode()
+            && $this->status === self::STATUS_DRAFT
+            && !empty($this->source_pdf_path);
     }
 
     // ===== Аксессоры =====

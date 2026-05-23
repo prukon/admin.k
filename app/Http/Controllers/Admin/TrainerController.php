@@ -58,6 +58,8 @@ class TrainerController extends AdminBaseController
             'description' => $data['description'] ?? null,
             'is_enabled' => (bool) ($data['is_enabled'] ?? true),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
+            'default_base_salary' => $this->normalizeSalaryDefault($data['default_base_salary'] ?? null),
+            'default_rate_per_training' => $this->normalizeSalaryDefault($data['default_rate_per_training'] ?? null),
         ];
 
         $enabled = (bool) ($data['is_enabled'] ?? true);
@@ -158,6 +160,8 @@ class TrainerController extends AdminBaseController
             'description' => $data['description'] ?? null,
             'is_enabled' => $enabled,
             'sort_order' => (int) ($data['sort_order'] ?? 0),
+            'default_base_salary' => $this->normalizeSalaryDefault($data['default_base_salary'] ?? null),
+            'default_rate_per_training' => $this->normalizeSalaryDefault($data['default_rate_per_training'] ?? null),
         ];
 
         $teamIds = $data['team_ids'] ?? [];
@@ -257,6 +261,8 @@ class TrainerController extends AdminBaseController
             'description' => $profile->description,
             'is_enabled' => (int) $profile->is_enabled,
             'sort_order' => (int) $profile->sort_order,
+            'default_base_salary' => number_format((float) ($profile->default_base_salary ?? 0), 2, '.', ''),
+            'default_rate_per_training' => number_format((float) ($profile->default_rate_per_training ?? 0), 2, '.', ''),
             'avatar_url' => $this->avatarUrl($user),
             'image' => $user?->image,
             'image_crop' => $user?->image_crop,
@@ -292,6 +298,15 @@ class TrainerController extends AdminBaseController
             'image' => $bigName,
             'image_crop' => $cropName,
         ]);
+    }
+
+    private function normalizeSalaryDefault(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '0.00';
+        }
+
+        return number_format((float) $value, 2, '.', '');
     }
 
     private function deleteUserAvatarFiles(User $user): void

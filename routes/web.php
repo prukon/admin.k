@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\Report\PaymentMonthlyReportController;
 use App\Http\Controllers\Admin\Report\PaymentRefundController;
 use App\Http\Controllers\Admin\Report\PaymentReportController;
 use App\Http\Controllers\Admin\ScheduleController;
+use App\Http\Controllers\Admin\ScheduleTrainerWorkloadController;
 use App\Http\Controllers\Admin\SchoolScheduleViewSettingsController;
 use App\Http\Controllers\Admin\Setting\PaymentSystemController;
 use App\Http\Controllers\Admin\Setting\RuleController;
@@ -313,6 +314,38 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Журнал расписания
     Route::middleware('can:schedule.view')->group(function () {
         Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
+        Route::get('/schedule/trainer-workload', [ScheduleTrainerWorkloadController::class, 'index'])
+            ->name('schedule.trainer-workload');
+        Route::get('/schedule/trainer-workload/data', [ScheduleTrainerWorkloadController::class, 'data'])
+            ->name('schedule.trainer-workload.data');
+    });
+
+    Route::middleware('can:schedule.trainerSalary.view')->group(function () {
+        Route::get('/schedule/trainer-salary', [\App\Http\Controllers\Admin\ScheduleTrainerSalaryController::class, 'index'])
+            ->name('schedule.trainer-salary');
+        Route::get('/schedule/trainer-salary/data', [\App\Http\Controllers\Admin\ScheduleTrainerSalaryController::class, 'data'])
+            ->name('schedule.trainer-salary.data');
+        Route::get('/schedule/trainer-salary-sheets', [\App\Http\Controllers\Admin\ScheduleTrainerSalarySheetsController::class, 'index'])
+            ->name('schedule.trainer-salary-sheets');
+        Route::get('/schedule/trainer-salary-sheets/data', [\App\Http\Controllers\Admin\ScheduleTrainerSalarySheetsController::class, 'data'])
+            ->name('schedule.trainer-salary-sheets.data');
+        Route::get('/schedule/trainer-salary-sheets/batch/{batchId}', [\App\Http\Controllers\Admin\ScheduleTrainerSalarySheetsController::class, 'showBatch'])
+            ->name('schedule.trainer-salary-sheets.batch.show');
+        Route::get('/schedule/trainer-salary-sheets/snapshot/{snapshot}', [\App\Http\Controllers\Admin\ScheduleTrainerSalarySheetsController::class, 'showSnapshot'])
+            ->whereNumber('snapshot')
+            ->name('schedule.trainer-salary-sheets.snapshot.show');
+    });
+
+    Route::middleware('can:schedule.trainerSalary.manage')->group(function () {
+        Route::patch('/schedule/trainer-salary/draft/{trainerProfile}', [\App\Http\Controllers\Admin\ScheduleTrainerSalaryController::class, 'updateDraft'])
+            ->name('schedule.trainer-salary.draft.update');
+        Route::post('/schedule/trainer-salary/snapshots/{trainerProfile}', [\App\Http\Controllers\Admin\ScheduleTrainerSalaryController::class, 'formOne'])
+            ->name('schedule.trainer-salary.snapshots.form-one');
+        Route::post('/schedule/trainer-salary/snapshots', [\App\Http\Controllers\Admin\ScheduleTrainerSalaryController::class, 'formAll'])
+            ->name('schedule.trainer-salary.snapshots.form-all');
+    });
+
+    Route::middleware('can:schedule.view')->group(function () {
         Route::get('/schedule/cell-context', [ScheduleController::class, 'cellContext'])->name('schedule.cell-context');
         Route::post('/schedule/update', [ScheduleController::class, 'update'])->name('schedule.update');
         Route::get('/schedule/logs-data', [ScheduleController::class, 'getLogsData'])->name('logs.data.schedule');
@@ -400,6 +433,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.school-schedule.assign-fixed');
         Route::post('/admin/lesson-packages/school-schedule/assign-single-lesson', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'assignSingleLesson'])
             ->name('admin.lesson-packages.school-schedule.assign-single-lesson');
+        Route::post('/admin/lesson-packages/school-schedule/single-lesson-registration', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'storeSingleLessonRegistration'])
+            ->name('admin.lesson-packages.school-schedule.single-lesson-registration.store');
         Route::post('/admin/lesson-packages/school-schedule/trial-registration', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'storeTrialRegistration'])
             ->name('admin.lesson-packages.school-schedule.trial-registration.store');
         Route::get('/admin/lesson-packages/school-schedule/trial-registration-eligibility', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'trialRegistrationEligibility'])
@@ -409,6 +444,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/admin/lesson-packages/school-schedule/trial-registration/{userTeamScheduleSlot}', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'destroyTrialRegistration'])
             ->whereNumber('userTeamScheduleSlot')
             ->name('admin.lesson-packages.school-schedule.trial-registration.destroy');
+        Route::delete('/admin/lesson-packages/school-schedule/single-lesson-registration/{userTeamScheduleSlot}', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'destroySingleLessonRegistration'])
+            ->whereNumber('userTeamScheduleSlot')
+            ->name('admin.lesson-packages.school-schedule.single-lesson-registration.destroy');
         Route::post('/admin/lesson-packages/school-schedule/occurrence-status', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarOccurrenceStatusController::class, 'store'])
             ->name('admin.lesson-packages.school-schedule.occurrence-status.store');
         Route::get('/admin/lesson-packages/school-schedule/occurrence-status/history', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarOccurrenceStatusController::class, 'history'])
@@ -641,6 +679,15 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('account-settings/documents/contracts/{contract}/requests', [AccountDocumentsController::class, 'requests'])->name('account.documents.requests');
         Route::get('account-settings/documents/contracts/{contract}/download-original', [AccountDocumentsController::class, 'downloadOriginal'])->name('account.documents.downloadOriginal');
         Route::get('account-settings/documents/contracts/{contract}/download-signed', [AccountDocumentsController::class, 'downloadSigned'])->name('account.documents.downloadSigned');
+
+        Route::middleware('contract.owner')->group(function () {
+            Route::get('account-settings/documents/contracts/{contract}/fill', [\App\Http\Controllers\AccountContractFillController::class, 'show'])
+                ->name('account.documents.fill');
+            Route::post('account-settings/documents/contracts/{contract}/generate', [\App\Http\Controllers\AccountContractFillController::class, 'generate'])
+                ->name('account.documents.generate');
+            Route::post('account-settings/documents/contracts/{contract}/sign', [\App\Http\Controllers\AccountContractFillController::class, 'sign'])
+                ->name('account.documents.sign');
+        });
     });
 
     // Лиды партнёров (заявки с лендинга, feature test +)
@@ -696,6 +743,22 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     //Договоры (feature test +)
     Route::middleware('can:contracts.view')->group(function () {
+
+        Route::get('/client-contract-templates', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'index'])
+            ->name('contract-templates.index');
+        Route::get('/client-contract-templates/create', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'create'])
+            ->name('contract-templates.create');
+        Route::post('/client-contract-templates', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'store'])
+            ->name('contract-templates.store');
+
+        Route::middleware('contract-template.partner')->group(function () {
+            Route::get('/client-contract-templates/{template}/edit', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'edit'])
+                ->name('contract-templates.edit');
+            Route::put('/client-contract-templates/{template}', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'update'])
+                ->name('contract-templates.update');
+            Route::get('/client-contract-templates/{template}/download-docx', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'downloadDocx'])
+                ->name('contract-templates.download-docx');
+        });
 
         // AJAX для Select2 (поиск учеников текущего партнёра)
         Route::get('/client-contracts/users-search', [ContractLookupsController::class, 'usersSearch'])->name('contracts.users.search');

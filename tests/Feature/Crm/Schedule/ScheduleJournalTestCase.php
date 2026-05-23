@@ -130,4 +130,59 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
             'team_id' => $teamId,
         ]);
     }
+
+    protected function createVisitedScheduleEntry(int $userId, int $trainerProfileId, string $date): void
+    {
+        \App\Models\ScheduleUser::query()->create([
+            'user_id' => $userId,
+            'date' => $date,
+            'status_id' => $this->visitedStatusId,
+            'trainer_profile_id' => $trainerProfileId,
+        ]);
+    }
+
+    protected function workloadSession(): array
+    {
+        return [
+            'current_partner' => $this->partner->id,
+            '2fa:passed' => true,
+        ];
+    }
+
+    /**
+     * Пресеты быстрого выбора месяца на /schedule/trainer-workload (3 месяца: −2 … текущий).
+     *
+     * @return list<array{label: string, date_from: string, date_to: string}>
+     */
+    protected function trainerWorkloadMonthPresets(?\Carbon\Carbon $reference = null): array
+    {
+        $reference = ($reference ?? \Carbon\Carbon::now())->copy()->startOfDay();
+
+        $monthNames = [
+            '01' => 'Январь',
+            '02' => 'Февраль',
+            '03' => 'Март',
+            '04' => 'Апрель',
+            '05' => 'Май',
+            '06' => 'Июнь',
+            '07' => 'Июль',
+            '08' => 'Август',
+            '09' => 'Сентябрь',
+            '10' => 'Октябрь',
+            '11' => 'Ноябрь',
+            '12' => 'Декабрь',
+        ];
+
+        $presets = [];
+        for ($monthsAgo = 2; $monthsAgo >= 0; $monthsAgo--) {
+            $monthStart = $reference->copy()->subMonths($monthsAgo)->startOfMonth();
+            $presets[] = [
+                'label' => $monthNames[$monthStart->format('m')] ?? $monthStart->format('m'),
+                'date_from' => $monthStart->toDateString(),
+                'date_to' => $monthStart->copy()->endOfMonth()->toDateString(),
+            ];
+        }
+
+        return $presets;
+    }
 }

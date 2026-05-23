@@ -60,15 +60,15 @@
         @endcan
 
         {{--Журнал расписания--}}
-        @can('schedule.view')
+        @if(auth()->user()?->can('schedule.view') || auth()->user()?->can('schedule.trainerSalary.view'))
             <li class="nav-item">
-                <a href="/schedule" class="nav-link">
+                <a href="{{ auth()->user()?->can('schedule.view') ? '/schedule' : route('schedule.trainer-salary') }}" class="nav-link">
 {{--                    <i class="nav-icon fa-solid fa-receipt"></i>--}}
                     <i class="nav-icon fa-solid fa-calendar-days"></i>
                     <p>Журнал расписания</p>
                 </a>
             </li>
-        @endcan
+        @endif
 
         {{--Расписание школы (слоты)--}}
         @can('scheduleSlots.view')

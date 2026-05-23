@@ -22,6 +22,8 @@
                             <th>ФИО</th>
                             <th>Группы</th>
                             <th>Email</th>
+                            <th class="text-end">Оклад</th>
+                            <th class="text-end">Ставка за тренировку</th>
                             <th style="width: 100px" class="text-center">Порядок</th>
                             <th style="width: 120px" class="text-center">Активен</th>
                             <th style="width: 140px"></th>
@@ -48,6 +50,8 @@
                                 <td>{{ $u ? $u->full_name : '' }}</td>
                                 <td>{{ $t->teams->pluck('title')->implode(', ') ?: '—' }}</td>
                                 <td>{{ $u ? $u->email : '' }}</td>
+                                <td class="text-end text-nowrap">{{ number_format((float) ($t->default_base_salary ?? 0), 2, '.', ' ') }}</td>
+                                <td class="text-end text-nowrap">{{ number_format((float) ($t->default_rate_per_training ?? 0), 2, '.', ' ') }}</td>
                                 <td class="text-center">{{ $t->sort_order }}</td>
                                 <td class="text-center">{{ $t->is_enabled ? 'Да' : 'Нет' }}</td>
                                 <td class="text-end">
@@ -132,6 +136,20 @@
                                     <label class="form-label" for="trainer-create-sort-order">Порядок сортировки</label>
                                     <input type="number" class="form-control" name="sort_order" id="trainer-create-sort-order" value="0" min="0" />
                                     <div class="invalid-feedback d-block" data-error-for="sort_order"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label" for="trainer-create-default-base-salary">Оклад по умолчанию</label>
+                                    <input type="number" class="form-control" name="default_base_salary" id="trainer-create-default-base-salary" value="0" min="0" step="0.01" />
+                                    <div class="invalid-feedback d-block" data-error-for="default_base_salary"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label" for="trainer-create-default-rate">Ставка за тренировку</label>
+                                    <input type="number" class="form-control" name="default_rate_per_training" id="trainer-create-default-rate" value="0" min="0" step="0.01" />
+                                    <div class="invalid-feedback d-block" data-error-for="default_rate_per_training"></div>
                                 </div>
                             </div>
                             <div class="col-12">
@@ -248,6 +266,20 @@
                                         <option value="0">Нет</option>
                                     </select>
                                     <div class="invalid-feedback d-block" data-error-for="is_enabled"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label" for="trainer-edit-default-base-salary">Оклад по умолчанию</label>
+                                    <input type="number" class="form-control" name="default_base_salary" id="trainer-edit-default-base-salary" min="0" step="0.01" />
+                                    <div class="invalid-feedback d-block" data-error-for="default_base_salary"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label" for="trainer-edit-default-rate">Ставка за тренировку</label>
+                                    <input type="number" class="form-control" name="default_rate_per_training" id="trainer-edit-default-rate" min="0" step="0.01" />
+                                    <div class="invalid-feedback d-block" data-error-for="default_rate_per_training"></div>
                                 </div>
                             </div>
                         </div>
@@ -566,6 +598,14 @@
                     resetTrainerPasswordUi();
                     editForm.querySelector('[name="is_enabled"]').value = String(data.is_enabled ?? 1);
                     editForm.querySelector('[name="sort_order"]').value = String(data.sort_order ?? 0);
+                    const baseSalaryEl = editForm.querySelector('[name="default_base_salary"]');
+                    if (baseSalaryEl) {
+                        baseSalaryEl.value = data.default_base_salary ?? '0.00';
+                    }
+                    const rateEl = editForm.querySelector('[name="default_rate_per_training"]');
+                    if (rateEl) {
+                        rateEl.value = data.default_rate_per_training ?? '0.00';
+                    }
                     setTeamIdsCheckboxes(editForm, data.team_ids || []);
                     applyTrainerEditAvatar(data);
                     const modal = new bootstrap.Modal(document.getElementById('trainerEditModal'));

@@ -47,7 +47,7 @@
       </tr>
       <tr>
         <td><code>trainer_profiles</code></td>
-        <td>Профиль тренера: <code>partner_id</code>, <code>user_id</code> (unique), <code>description</code>, <code>is_enabled</code>, <code>sort_order</code>, soft delete.</td>
+        <td>Профиль тренера: <code>partner_id</code>, <code>user_id</code> (unique), <code>description</code>, <code>is_enabled</code>, <code>sort_order</code>, <code>default_base_salary</code>, <code>default_rate_per_training</code>, soft delete.</td>
       </tr>
       <tr>
         <td><code>team_trainer</code></td>
@@ -140,11 +140,19 @@
 
   <h2>6) UI страницы <code>/admin/trainers</code></h2>
   <ul>
-    <li>Список: ФИО, email, телефон, статус, действия.</li>
-    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны.</li>
+    <li>Список: ФИО, email, телефон, колонки «Оклад по умолчанию» и «Ставка за тренировку», статус, действия.</li>
+    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны; поля <code>default_base_salary</code>, <code>default_rate_per_training</code> (число ≥ 0).</li>
     <li><b>Редактирование</b> — как у пользователя: аватар с cropper (<code>editAvatar</code>), маска телефона, смена пароля отдельной кнопкой → <code>POST /admin/user/{id}/update-password</code> (право <code>users.password.update</code>).</li>
     <li>Ошибки валидации возвращаются JSON (<code>422</code>) и выводятся под полями формы.</li>
   </ul>
+
+  <h3 id="trainer-salary-defaults">6.1) Оклад и ставка по умолчанию (ЗП тренеров)</h3>
+  <p>
+    Поля профиля используются при <strong>первом</strong> создании строки черновика за месяц на вкладке
+    <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a> (<code>/schedule/trainer-salary</code>).
+    Изменение в карточке тренера не перезаписывает уже существующий черновик за прошлые/текущие месяцы.
+  </p>
+  <p>Права на расчёт ЗП — отдельные: <code>schedule.trainerSalary.view</code> / <code>schedule.trainerSalary.manage</code> (не <code>trainers.view</code>).</p>
 
   <h2 id="schedule-journal-trainer">7) Тренер в журнале <code>/schedule</code> (отметка «Посетил»)</h2>
   <div class="note">
@@ -152,6 +160,7 @@
     UI — только модалка ячейки на <code>/schedule</code>; право <code>schedule.view</code> (не <code>trainers.view</code>).
     По умолчанию подставляется первый тренер группы ученика из <code>team_trainer</code> (тот же порядок, что при одном тренере на группу в §4).
     Подробно: <a href="/docs/documentation/schedule-journal#visited-trainer">Журнал расписания: тренер при «Посетил»</a>.
+    Агрегация визитов по тренеру и дню недели — отчёт <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a> (<code>/schedule/trainer-workload</code>, то же право <code>schedule.view</code>; это <strong>не</strong> фильтр «Тренер» в платёжных отчётах ниже).
   </div>
 
   <h2>8) Фильтр «Тренер» в отчётах</h2>

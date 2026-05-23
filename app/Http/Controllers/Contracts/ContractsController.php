@@ -6,14 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Contracts\ContractCheckBalanceRequest;
 use App\Http\Requests\Contracts\ContractStoreRequest;
 use App\Models\Contract;
-use App\Models\ContractEvent;
-use App\Models\MyLog;
+use App\Models\ContractTemplate;
 use App\Models\Partner;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\Contracts\ContractBillingService;
+use App\Services\Contracts\ContractCreationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -21,7 +21,12 @@ use Illuminate\Validation\ValidationException;
 
 class ContractsController extends Controller
 {
-    // единая точка входа
+    public function __construct(
+        private readonly ContractCreationService $creationService,
+        private readonly ContractBillingService $billing,
+    ) {
+    }
+
     private function partner(): Partner
     {
         $p = app('current_partner');
@@ -78,102 +83,40 @@ class ContractsController extends Controller
             ];
         }
 
-        return view('contracts.create', compact('partner', 'partnerId', 'preselectedUser'));
+        $contractTemplates = ContractTemplate::query()
+            ->forPartner($partnerId)
+            ->active()
+            ->whereNotNull('current_version_id')
+            ->orderBy('title')
+            ->get(['id', 'title']);
+
+        return view('contracts.create', compact('partner', 'partnerId', 'preselectedUser', 'contractTemplates'));
     }
 
     public function store(ContractStoreRequest $request)
     {
-        $partner = $this->partner();
-        $partnerId = $partner->id;
-
         $validated = $request->validated();
 
-        /** @var User|null $student */
-        $student = User::query()
-            ->where('id', $validated['user_id'])
-            ->where('partner_id', $partnerId)
-            ->where('is_enabled', 1)
-            ->first();
-
-        abort_unless($student, 422, 'Ученик не найден у текущего партнёра.');
-
-        $fee = $this->createContractFee();
-
         try {
-            $contract = DB::transaction(function () use ($request, $partnerId, $student, $fee) {
-                /** @var Partner $partner */
-                $partner = app('current_partner');
-
-                if ($partner->wallet_balance < $fee) {
-                    throw ValidationException::withMessages([
-                        'wallet' => 'Недостаточно средств для создания договора.',
-                    ]);
-                }
-
-                $partner->wallet_balance = $partner->wallet_balance - $fee;
-                $partner->save();
-                Cache::forget("partner_balance_{$partner->id}");
-
-                $groupId = $student->team_id;
-
-                $path = $request->file('pdf')->store('documents/' . date('Y/m'));
-                $sha = hash_file('sha256', Storage::path($path));
-
-                $contract = Contract::create([
-                    'school_id'        => $partnerId,
-                    'user_id'          => $student->id,
-                    'group_id'         => $groupId,
-                    'source_pdf_path'  => $path,
-                    'source_sha256'    => $sha,
-                    'status'           => Contract::STATUS_DRAFT,
-                    'provider'         => 'podpislon',
-                ]);
-
-                ContractEvent::create([
-                    'contract_id'  => $contract->id,
-                    'author_id'    => Auth::id(),
-                    'type'         => 'Списание баланса за создание договора',
-                    'payload_json' => json_encode([
-                        'amount'        => number_format($fee, 2, '.', ''),
-                        'currency'      => 'RUB',
-                        'partner_id'    => $partnerId,
-                        'balance_after' => number_format($partner->wallet_balance, 2, '.', ''),
-                    ], JSON_UNESCAPED_UNICODE),
-                ]);
-
-                ContractEvent::create([
-                    'contract_id'  => $contract->id,
-                    'author_id'    => Auth::id(),
-                    'type'         => 'created',
-                    'payload_json' => null,
-                ]);
-
-                MyLog::create([
-                    'type'         => 500,
-                    'action'       => 500,
-                    'user_id'      => $student->id,
-                    'target_type'  => Contract::class,
-                    'target_id'    => $partner->id,
-                    'target_label' => $partner->title,
-                    'description'  => 'Договор создан: № ' . $contract->id,
-                    'created_at'   => now(),
-                ]);
-
-                return $contract;
-            });
+            $contract = $this->creationService->create($this->partner(), $validated);
         } catch (ValidationException $e) {
             return back()
                 ->withErrors($e->errors())
                 ->withInput()
-                ->with('error', 'Недостаточно средств для создания договора.');
+                ->with('error', 'Не удалось создать договор.');
         }
 
-        return redirect()->route('contracts.show', $contract->id)
-            ->with('success', 'Договор создан. С баланса списано 70 ₽. Теперь можно отправить на подпись.');
+        $message = $contract->isTemplateMode()
+            ? 'Договор создан. С баланса списано 70 ₽. Клиенту отправлено уведомление в личный кабинет (и на email, если указан).'
+            : 'Договор создан. С баланса списано 70 ₽. Теперь можно отправить на подпись.';
+
+        return redirect()->route('contracts.show', $contract->id)->with('success', $message);
     }
 
     public function show(Contract $contract)
     {
+        $contract->load('templateVersion.template');
+
         $events = $contract->events()->orderBy('id', 'desc')->get();
         $requests = $contract->signRequests()->orderBy('id', 'desc')->get();
 
@@ -258,15 +201,10 @@ class ContractsController extends Controller
         }
     }
 
-    private function createContractFee(): float
-    {
-        return (float)(config('billing.contract_create_fee') ?? 70.00);
-    }
-
     public function checkBalance(ContractCheckBalanceRequest $request)
     {
         $partnerId = $this->partnerId();
-        $fee = (float)(config('billing.contract_create_fee') ?? 70.00);
+        $fee = $this->billing->createFee();
 
         $balance = Partner::whereKey($partnerId)->value('wallet_balance');
 
@@ -293,4 +231,3 @@ class ContractsController extends Controller
         ], 422);
     }
 }
-

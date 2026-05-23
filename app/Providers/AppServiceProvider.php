@@ -37,6 +37,13 @@ class AppServiceProvider extends ServiceProvider
             return new PodpislonProvider();
         });
 
+        $this->app->singleton(\App\Services\Contracts\ContractPdfConverterResolver::class);
+
+        $this->app->bind(
+            \App\Services\Contracts\ContractPdfConverterInterface::class,
+            fn () => app(\App\Services\Contracts\ContractPdfConverterResolver::class)->resolve()
+        );
+
         // Контекст партнёра — один на запрос
         $this->app->singleton(PartnerContext::class, function () {
             return new PartnerContext();

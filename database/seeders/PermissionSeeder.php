@@ -40,6 +40,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'setPrices.customPayments.view',  'description' => 'Установка цен / Консоль: просмотр дополнительных платежей', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 20],
             ['name' => 'setPrices.manualPaid.manage',    'description' => 'Установка цен: ручная отметка оплаты месяца',    'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 21],
             ['name' => 'schedule.view',                  'description' => 'Страница "Журнал расписания"',                  'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 30],
+            ['name' => 'schedule.trainerSalary.view',    'description' => 'ЗП тренеров: просмотр вкладки и черновика',     'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 31],
+            ['name' => 'schedule.trainerSalary.manage',  'description' => 'ЗП тренеров: редактирование и формирование слепков', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 32],
             ['name' => 'scheduleSlots.view',             'description' => 'Расписание школы: просмотр данных слота (календарь, карточка)', 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 31],
             ['name' => 'scheduleSlots.manage',           'description' => 'Расписание школы: управление слотами',          'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 32],
             ['name' => 'scheduleSlots.table',            'description' => 'Расписание школы: вкладка «Таблица занятий»',   'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 33],

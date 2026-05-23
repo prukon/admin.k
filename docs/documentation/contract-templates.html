@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: шаблоны договоров</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    a { color: #0b5fff; text-decoration: none; }
+    .small { color: #555; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1>Шаблоны договоров (DOCX)</h1>
+  <div class="small">Файл: <code>/docs/documentation/contract-templates.html</code> · CRM: <code>/client-contract-templates</code></div>
+
+  <h2>1) Назначение</h2>
+  <div class="note">
+    Партнёр загружает DOCX с плейсхолдерами <code>{{ключ}}</code>. При создании договора в режиме «форма клиенту»
+    списывается 70&nbsp;₽, клиенту уходит email (шаблон привязан к версии DOCX) и задача в личном кабинете
+    (<code>/account-settings/documents</code>). Генерация PDF (LibreOffice) и подпись SMS из кабинета — см. §4.
+  </div>
+
+  <h2>2) Таблицы БД</h2>
+  <table>
+    <thead><tr><th>Таблица</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td><code>contract_templates</code></td><td>Шаблон партнёра: название, <code>current_version_id</code>, архив</td></tr>
+      <tr><td><code>contract_template_versions</code></td><td>Версия DOCX, <code>fields_schema</code> (JSON), email subject/body</td></tr>
+      <tr><td><code>contracts</code></td><td><code>creation_mode</code> pdf|template, <code>contract_template_version_id</code>, <code>fill_expires_at</code> (7 дней)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3) URL (право <code>contracts.view</code>)</h2>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/client-contract-templates</code></td></tr>
+      <tr><td>GET/POST</td><td><code>/client-contract-templates/create</code>, <code>POST /client-contract-templates</code></td></tr>
+      <tr><td>GET/PUT</td><td><code>/client-contract-templates/{template}/edit</code></td></tr>
+      <tr><td>GET</td><td><code>/client-contract-templates/{template}/download-docx</code></td></tr>
+      <tr><td>POST</td><td><code>/client-contracts</code> с <code>creation_mode=template</code></td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code> в статусе <code>awaiting_client_fill</code> — возврат 70&nbsp;₽</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4) Кабинет клиента (итерация 2)</h2>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/account-settings/documents/contracts/{contract}/fill</code></td><td>Форма полей + подписание</td></tr>
+      <tr><td>POST</td><td><code>…/generate</code></td><td>DOCX→PDF, статус <code>draft</code></td></tr>
+      <tr><td>POST</td><td><code>…/sign</code></td><td>SMS Подпислон (клиент, не админ)</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Право: <code>account.documents.view</code>, middleware <code>contract.owner</code>.</p>
+  <p class="small">
+    Конвертер PDF: <code>CONTRACT_PDF_CONVERTER=auto</code> (по умолчанию) —
+    LibreOffice при наличии <code>proc_open</code>, иначе PhpWord+Dompdf (shared hosting).
+    Явно: <code>phpword</code> | <code>libreoffice</code> | <code>fake</code> (тесты).
+  </p>
+
+  <h2>5) Сервисы</h2>
+  <ul>
+    <li><code>DocxPlaceholderExtractor</code> — парсинг плейсхолдеров из DOCX</li>
+    <li><code>ContractDocxPlaceholderFiller</code> — подстановка в DOCX</li>
+    <li><code>LibreOfficePdfConverter</code> / <code>FakeContractPdfConverter</code></li>
+    <li><code>ContractPdfGenerationService</code> — формирование PDF клиентом</li>
+    <li><code>ContractPodpislonSendService</code> — отправка SMS (CRM и кабинет)</li>
+    <li><code>ContractPrefillResolver</code> — предзаполнение из users/teams</li>
+  </ul>
+
+  <p class="small">См. также <a href="/docs/documentation/contracts">договоры (клиентские)</a>.</p>
+</div>
+</body>
+</html>

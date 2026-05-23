@@ -101,12 +101,25 @@
       <tr><td>Списки назначений для модалок</td><td><code>GET …/school-schedule/fixed-packages</code>, <code>flexible-assignments</code>, <code>fixed-assignments</code>, <code>single-lesson-assignments</code></td></tr>
       <tr><td>Поиск учеников</td><td><code>GET …/school-schedule/flexible-users-search</code>, <code>single-lesson-users-search</code>, <code>…/lesson-packages/assignments/users-search</code></td></tr>
       <tr><td>Привязка</td><td><code>POST …/assign-flexible</code>, <code>assign-fixed</code>, <code>assign-single-lesson</code></td></tr>
+      <tr><td>Разовое: запись из модалки слота</td><td><code>POST …/single-lesson-registration</code> (<code>SchoolCalendarSingleLessonRegistrationService</code>)</td></tr>
       <tr><td>Пробное: доступность / создание / отмена</td><td><code>GET …/trial-registration-eligibility</code>, <code>POST …/trial-registration</code>, <code>DELETE …/trial-registration/{id}</code></td></tr>
+      <tr><td>Разовое: отмена записи в календаре</td><td><code>DELETE …/single-lesson-registration/{userTeamScheduleSlot}</code> — строка календаря удаляется, <code>user_lesson_packages</code> сохраняется</td></tr>
       <tr><td>Разрешённые действия по ячейке</td><td><code>GET …/slot-user-bind-actions</code> (<code>SchoolCalendarSlotUserBindActionsService</code>)</td></tr>
       <tr><td>Статус занятия</td><td><code>POST …/occurrence-status</code>, <code>GET …/occurrence-status/history</code></td></tr>
     </tbody>
   </table>
   <p>Все перечисленные маршруты защищены правом <code>lessonPackages.view</code>. Управление самими слотами расписания групп (создание/пропуск даты и т.д.) — отдельные права <code>scheduleSlots.*</code>, см. код и тесты календаря.</p>
+
+  <h2>Разовые занятия в модалке слота</h2>
+  <p>Кнопка «Добавить разовое занятие» доступна для любого выбранного ученика, если ячейка слота/даты свободна (без предварительного назначения абонемента). Ответ <code>GET …/slot-user-bind-actions</code> для <code>single_lesson</code> дополнительно содержит:</p>
+  <ul>
+    <li><code>mode</code> — <code>bind_existing</code> (есть свободное назначение <code>no_schedule</code>) или <code>create_new</code>;</li>
+    <li><code>existing_assignments[]</code> — список назначений для select (если несколько);</li>
+    <li><code>templates[]</code> — активные шаблоны <code>no_schedule</code> с <code>fee_amount_default</code> (цена из <code>price_cents</code>).</li>
+  </ul>
+  <p><strong>POST</strong> <code>…/single-lesson-registration</code>: либо <code>user_lesson_package_id</code> (привязка существующего), либо <code>lesson_package_id</code> + <code>fee_amount</code> (создание назначения и запись в календарь в одной транзакции). Если свободное назначение одно — привязка выполняется сразу, без выбора в UI.</p>
+  <p><strong>DELETE</strong> <code>…/single-lesson-registration/{userTeamScheduleSlot}</code> — убирает запись из расписания, назначение <code>user_lesson_packages</code> сохраняется; при списанном статусе остаток восстанавливается; статусы события удаляются; аудит <code>my_logs</code> <code>type=60</code>, <code>action=602</code>.</p>
+  <p>В JSON недели у регистрации разового занятия: <code>is_single_lesson=true</code>, <code>schedule_type=no_schedule</code>. В списке «Записаны на занятие» — ссылка «(Отменить)».</p>
 
   <h2>Пробные занятия: добавление, баланс и ограничения</h2>
   <p>Пробное — запись без абонемента: <code>user_team_schedule_slots</code> с <code>is_trial_lesson = true</code>, <code>user_lesson_package_id = NULL</code>. Пробное действует <strong>только в выбранную дату</strong>: <code>ends_at</code> равно <code>starts_at</code>. При создании через API задаются <code>trial_lessons_remaining = 1</code>, <code>trial_lessons_total = 1</code>. Списание единицы пробного «урока» происходит при выборе статуса с <code>consumes_lesson = true</code> (аналогично абонементу, но поля другие).</p>
@@ -140,7 +153,8 @@
   <p>Разметка модалки и фильтра локации, <code>team_title</code> в JSON недели, ответы <code>200</code>/<code>403</code> — <code>LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleAccessAndMutationsFeatureTest.php</code>.
     Доступ к поверхности календаря и основным эндпоинтам — <code>tests/Feature/Crm/Schedule/SchoolScheduleCalendarAccessFeatureTest.php</code>.
     Интеграция привязок и пробных — <code>LessonPackageSchoolScheduleIntegrationFeatureTest.php</code>; фиксированные шаблоны — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
-    статусы и баланс в JSON — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>; пробные сценарии — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>.
+    статусы и баланс в JSON — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>; пробные сценарии — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>;
+    разовые из модалки слота — <code>LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest.php</code>.
     Общие требования к тестам — <a href="/docs/documentation/tests-standards">tests-standards</a>.</p>
 </div>
 </body>

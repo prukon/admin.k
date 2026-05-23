@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Contracts;
 
+use App\Models\Contract;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ContractStoreRequest extends FormRequest
 {
@@ -13,17 +15,37 @@ class ContractStoreRequest extends FormRequest
 
     public function rules(): array
     {
+        $partnerId = app('current_partner')?->id;
+
         return [
+            'creation_mode' => [
+                'required',
+                'string',
+                Rule::in([Contract::CREATION_MODE_PDF, Contract::CREATION_MODE_TEMPLATE]),
+            ],
             'user_id' => ['required', 'integer', 'min:1'],
-            'pdf'     => ['required', 'file', 'mimes:pdf', 'max:10240'],
+            'pdf'     => ['required_if:creation_mode,' . Contract::CREATION_MODE_PDF, 'nullable', 'file', 'mimes:pdf', 'max:10240'],
+            'contract_template_id' => [
+                'required_if:creation_mode,' . Contract::CREATION_MODE_TEMPLATE,
+                'nullable',
+                'integer',
+                'min:1',
+                Rule::exists('contract_templates', 'id')
+                    ->where(fn ($q) => $q
+                        ->where('partner_id', $partnerId)
+                        ->where('is_archived', false)
+                        ->whereNotNull('current_version_id')),
+            ],
         ];
     }
 
     public function attributes(): array
     {
         return [
-            'user_id' => 'Ученик',
-            'pdf'     => 'PDF-файл договора',
+            'creation_mode'          => 'Способ создания',
+            'user_id'                => 'Ученик',
+            'pdf'                    => 'PDF-файл договора',
+            'contract_template_id'   => 'Шаблон договора',
         ];
     }
 
@@ -34,11 +56,16 @@ class ContractStoreRequest extends FormRequest
             'user_id.integer'  => 'Некорректный идентификатор ученика.',
             'user_id.min'      => 'Некорректный идентификатор ученика.',
 
-            'pdf.required' => 'Загрузите PDF-файл договора.',
-            'pdf.file'     => 'Файл договора должен быть файлом.',
-            'pdf.mimes'    => 'Файл договора должен быть в формате PDF.',
-            'pdf.max'      => 'PDF-файл договора не должен превышать :max КБ.',
+            'creation_mode.required' => 'Выберите способ создания договора.',
+            'creation_mode.in'       => 'Некорректный способ создания договора.',
+
+            'pdf.required_if' => 'Загрузите PDF-файл договора.',
+            'pdf.file'        => 'Файл договора должен быть файлом.',
+            'pdf.mimes'       => 'Файл договора должен быть в формате PDF.',
+            'pdf.max'         => 'PDF-файл договора не должен превышать :max КБ.',
+
+            'contract_template_id.required_if' => 'Выберите шаблон договора.',
+            'contract_template_id.exists'      => 'Шаблон договора не найден или недоступен.',
         ];
     }
 }
-

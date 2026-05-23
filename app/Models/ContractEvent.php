@@ -12,6 +12,12 @@ class ContractEvent extends Model
     // ContractEvent.php
 public static array $TYPE_RU = [
 'created'             => 'Создан',
+'balance_charged'     => 'Списание с баланса',
+'balance_refunded'    => 'Возврат на баланс',
+'client_invited_to_fill' => 'Клиент приглашён заполнить договор',
+'client_invite_email_failed' => 'Ошибка email-уведомления клиенту',
+'pdf_generated_by_client' => 'PDF сформирован клиентом',
+'revoked'             => 'Отозван',
 'sent'                => 'Отправлено СМС',
 'failed'              => 'Ошибка',
 'status_sync'         => 'Синхронизация статуса',

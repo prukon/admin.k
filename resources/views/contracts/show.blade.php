@@ -56,6 +56,24 @@
                                 <span class="badge {{ $contract->status_badge_class }}">{{ $contract->status_ru }}</span>
                             </dd>
 
+                            <dt class="col-sm-4">Способ создания</dt>
+                            <dd class="col-sm-8">
+                                @if($contract->isTemplateMode())
+                                    Форма клиента (шаблон
+                                    @if($contract->templateVersion?->template)
+                                        «{{ $contract->templateVersion->template->title }}», v{{ $contract->templateVersion->version }}
+                                    @endif
+                                    )
+                                @else
+                                    Готовый PDF
+                                @endif
+                            </dd>
+
+                            @if($contract->isTemplateMode() && $contract->fill_expires_at)
+                                <dt class="col-sm-4">Срок заполнения</dt>
+                                <dd class="col-sm-8">{{ $contract->fill_expires_at->format('d.m.Y H:i') }}</dd>
+                            @endif
+
                             <dt class="col-sm-4">Телефон</dt>
                             <dd class="col-sm-8">{{ $student->phone ?? '—' }}</dd>
 
@@ -78,11 +96,22 @@
                         @endif
 
 
-                        @if($contract->status === 'draft')
+                        @if($contract->canAdminSendSms())
                             <button class="btn btn-success" id="openSendModal" data-id="{{ $contract->id }}">Отправить СМС
                                 на подпись
                             </button>
+                        @endif
 
+                        @if($contract->canRevokeWithRefund())
+                            <button type="button" class="btn btn-outline-danger" id="revokeAwaitingBtn" data-id="{{ $contract->id }}">
+                                Отозвать (возврат 70 ₽)
+                            </button>
+                        @endif
+
+                        @if($contract->isTemplateMode() && $contract->status === \App\Models\Contract::STATUS_AWAITING_CLIENT_FILL)
+                            <span class="text-muted small align-self-center">
+                                Клиент заполняет договор в личном кабинете и сам отправляет SMS на подпись.
+                            </span>
                         @endif
 
                         @if(in_array($contract->status, ['sent','opened','failed','expired']))
@@ -540,6 +569,25 @@
                         $('#error-modal-message').text(msg);
                         eroorRespone(response);
                     }
+                });
+            });
+
+            $('#revokeAwaitingBtn').on('click', function () {
+                if (!confirm('Отозвать договор? Клиент не сможет его заполнить. 70 ₽ будут возвращены на баланс партнёра.')) {
+                    return;
+                }
+                var contractId = $(this).data('id');
+                $.ajax({
+                    method: 'POST',
+                    url: '/client-contracts/' + contractId + '/revoke',
+                    dataType: 'json',
+                    headers: {'Accept': 'application/json'},
+                    data: {_token: csrf}
+                }).done(function (resp) {
+                    alert((resp && resp.message) ? resp.message : 'Договор отозван.');
+                    location.reload();
+                }).fail(function (xhr) {
+                    alert((xhr.responseJSON && xhr.responseJSON.message) || 'Ошибка отзыва.');
                 });
             });
 

@@ -28,9 +28,13 @@ class DocumentationController extends Controller
         'school-schedule-calendar'    => 'Расписание школы: календарь, статусы (consumes_lesson), пробное, JSON/API',
         'admin-teams'                 => 'Группы (админка): /admin/teams — groups.view, колонки «Тренер» и «Расписание», поля списка',
         'schedule-journal'            => 'Журнал расписания: /schedule, statuses, schedule_users, тренер при «Посетил»',
+        'schedule-trainer-workload'   => 'Нагрузка тренеров: вкладка /schedule/trainer-workload, матрица, быстрый выбор месяца, AJAX data',
+        'schedule-trainer-salary'     => 'ЗП тренеров: черновик, формула, autosave, слепки vN/batch, schedule.trainerSalary.*',
+        'schedule-trainer-salary-sheets' => 'Листы ЗП: архив слепков (readonly), batch/snapshot, latest_only',
         'admin-trainers'              => 'Тренеры (админка): /admin/trainers, trainer_profiles, team_trainer, фильтр в отчётах',
         'admin-users'                 => 'Пользователи (админка): /admin/users, ФИО родителя, локация, доп. поля',
         'contracts'                   => 'Договоры (клиентские): карточка, родитель, SMS/Подпислон, скачивание',
+        'contract-templates'          => 'Шаблоны договоров DOCX: версии, поля, email, режим «форма клиенту»',
         'school-leads-widget'         => 'Заявки с сайта: виджет, CRM, лид→клиент→договор, toolbar, Telegram',
     ];
 

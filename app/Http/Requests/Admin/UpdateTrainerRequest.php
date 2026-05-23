@@ -79,6 +79,8 @@ class UpdateTrainerRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:10000'],
             'is_enabled' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'default_base_salary' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'default_rate_per_training' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'avatar' => ['nullable', 'file', 'max:5120', 'mimetypes:image/jpeg,image/png,image/webp'],
             'remove_avatar' => ['nullable', 'boolean'],
             'team_ids' => ['nullable', 'array'],
@@ -104,6 +106,8 @@ class UpdateTrainerRequest extends FormRequest
             'description' => 'описание',
             'is_enabled' => 'активен',
             'sort_order' => 'порядок сортировки',
+            'default_base_salary' => 'оклад по умолчанию',
+            'default_rate_per_training' => 'ставка за тренировку',
             'avatar' => 'аватар',
             'remove_avatar' => 'удаление аватара',
             'team_ids' => 'группы',
@@ -123,6 +127,8 @@ class UpdateTrainerRequest extends FormRequest
             'avatar.max' => 'Аватар не должен превышать :max КБ',
             'avatar.mimetypes' => 'Аватар должен быть в формате JPEG, PNG или WebP',
             'team_ids.*.exists' => 'Выберите группы из списка',
+            'default_base_salary.min' => 'Оклад не может быть отрицательным.',
+            'default_rate_per_training.min' => 'Ставка не может быть отрицательной.',
         ];
     }
 

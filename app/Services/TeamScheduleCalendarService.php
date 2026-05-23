@@ -333,6 +333,7 @@ final class TeamScheduleCalendarService
         }
 
         $registrationKind = $isTrial ? 'trial' : 'package';
+        $isSingleLesson = ! $isTrial && $lp !== null && (string) $lp->schedule_type === 'no_schedule';
 
         $hasPackageBalance = ! $isTrial && $row->user_lesson_package_id !== null && $ulp !== null;
         $hasTrialBalance = $isTrial && $row->user_lesson_package_id === null;
@@ -353,6 +354,8 @@ final class TeamScheduleCalendarService
             'lesson_package_name' => $lessonPackageName,
             'registration_kind' => $registrationKind,
             'is_trial_lesson' => $isTrial,
+            'is_single_lesson' => $isSingleLesson,
+            'schedule_type' => $lp?->schedule_type,
             'user_team_schedule_slot_id' => (int) $row->id,
             'user_id' => (int) $row->user_id,
             'team_schedule_slot_id' => (int) $row->team_schedule_slot_id,

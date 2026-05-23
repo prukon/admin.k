@@ -59,9 +59,51 @@
                     </div>
 
                     <div class="col-12">
+                        <label class="form-label d-block">Способ создания</label>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="creation_mode" id="mode_pdf"
+                                   value="pdf" @checked(old('creation_mode', 'pdf') === 'pdf')>
+                            <label class="form-check-label" for="mode_pdf">Прикрепить готовый PDF</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="creation_mode" id="mode_template"
+                                   value="template" @checked(old('creation_mode') === 'template')>
+                            <label class="form-check-label" for="mode_template">Отправить форму клиенту (шаблон DOCX)</label>
+                        </div>
+                        @error('creation_mode')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="col-12" id="block-pdf">
                         <label class="form-label">PDF-файл договора</label>
-                        <input type="file" name="pdf" class="form-control" accept="application/pdf" required>
+                        <input type="file" name="pdf" id="input_pdf" class="form-control" accept="application/pdf">
                         @error('pdf')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="col-12" id="block-template" style="display:none">
+                        <label class="form-label">Шаблон договора</label>
+                        <select name="contract_template_id" id="contract_template_id" class="form-select">
+                            <option value="">— выберите шаблон —</option>
+                            @foreach($contractTemplates as $tpl)
+                                <option value="{{ $tpl->id }}" @selected((int) old('contract_template_id') === (int) $tpl->id)>
+                                    {{ $tpl->title }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @if($contractTemplates->isEmpty())
+                            <div class="form-text text-warning">
+                                Нет активных шаблонов.
+                                <a href="{{ route('contract-templates.create') }}">Создать шаблон</a>
+                            </div>
+                        @else
+                            <div class="form-text">
+                                <a href="{{ route('contract-templates.index') }}">Управление шаблонами</a>
+                            </div>
+                        @endif
+                        @error('contract_template_id')
                         <div class="text-danger small mt-1">{{ $message }}</div>
                         @enderror
                     </div>
@@ -520,8 +562,25 @@
         });
 
 
+        function toggleCreationMode() {
+            var mode = $('input[name="creation_mode"]:checked').val();
+            if (mode === 'template') {
+                $('#block-pdf').hide();
+                $('#input_pdf').prop('required', false);
+                $('#block-template').show();
+                $('#contract_template_id').prop('required', true);
+            } else {
+                $('#block-pdf').show();
+                $('#input_pdf').prop('required', true);
+                $('#block-template').hide();
+                $('#contract_template_id').prop('required', false);
+            }
+        }
+
         // Инициализация
         $(function initContractCreateForm() {
+            $('input[name="creation_mode"]').on('change', toggleCreationMode);
+            toggleCreationMode();
             $('#btn-save').on('click', onSaveClick);
         });
 

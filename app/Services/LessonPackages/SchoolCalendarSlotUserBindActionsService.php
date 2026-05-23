@@ -12,7 +12,13 @@ use Carbon\CarbonImmutable;
 /**
  * Доступность действий привязки в модалке слота для выбранного ученика и даты.
  *
- * @phpstan-type ActionPayload array{allowed: bool, reason: string|null}
+ * @phpstan-type ActionPayload array{
+ *   allowed: bool,
+ *   reason: string|null,
+ *   mode?: 'bind_existing'|'create_new'|null,
+ *   existing_assignments?: list<array{id: int, label: string}>,
+ *   templates?: list<array{id: int, label: string, fee_amount_default: float}>
+ * }
  * @phpstan-type SlotUserBindActionsPayload array{
  *   flexible: ActionPayload,
  *   fixed: ActionPayload,
@@ -87,10 +93,7 @@ final class SchoolCalendarSlotUserBindActionsService
                 'allowed' => $fixed['allowed'],
                 'reason' => $fixed['reason'],
             ],
-            'single_lesson' => [
-                'allowed' => $single['allowed'],
-                'reason' => $single['reason'],
-            ],
+            'single_lesson' => $single,
             'trial' => [
                 'allowed' => $trial['allowed'],
                 'reason' => $trial['reason'],
@@ -165,22 +168,62 @@ final class SchoolCalendarSlotUserBindActionsService
     private function evaluateSingleLesson(int $partnerId, int $userId, bool $calendarRowExists, string $calendarBlockReason): array
     {
         if ($calendarRowExists) {
-            return ['allowed' => false, 'reason' => $calendarBlockReason];
-        }
-
-        $has = $this->assignmentEligibility
-            ->singleLessonAssignmentsQuery($partnerId)
-            ->where('user_id', $userId)
-            ->exists();
-
-        if (! $has) {
             return [
                 'allowed' => false,
-                'reason' => 'Нет разового занятия со свободной записью в календарь школы.',
+                'reason' => $calendarBlockReason,
+                'mode' => null,
+                'existing_assignments' => [],
+                'templates' => [],
             ];
         }
 
-        return ['allowed' => true, 'reason' => null];
+        $existingRows = $this->assignmentEligibility
+            ->singleLessonAssignmentsQuery($partnerId)
+            ->where('user_id', $userId)
+            ->get();
+
+        if ($existingRows->isNotEmpty()) {
+            $existing = $existingRows->map(fn ($ulp) => [
+                'id' => (int) $ulp->id,
+                'label' => $this->assignmentEligibility->formatSingleLessonAssignmentLabel($ulp),
+            ])->values()->all();
+
+            return [
+                'allowed' => true,
+                'reason' => null,
+                'mode' => 'bind_existing',
+                'existing_assignments' => $existing,
+                'templates' => [],
+            ];
+        }
+
+        $templateRows = $this->assignmentEligibility
+            ->singleLessonTemplatesQuery($partnerId)
+            ->get(['id', 'name', 'price_cents']);
+
+        if ($templateRows->isEmpty()) {
+            return [
+                'allowed' => false,
+                'reason' => 'Нет шаблонов разового занятия. Создайте абонемент с типом «Разовое занятие».',
+                'mode' => 'create_new',
+                'existing_assignments' => [],
+                'templates' => [],
+            ];
+        }
+
+        $templates = $templateRows->map(fn ($pkg) => [
+            'id' => (int) $pkg->id,
+            'label' => (string) $pkg->name,
+            'fee_amount_default' => round(((int) $pkg->price_cents) / 100, 2),
+        ])->values()->all();
+
+        return [
+            'allowed' => true,
+            'reason' => null,
+            'mode' => 'create_new',
+            'existing_assignments' => [],
+            'templates' => $templates,
+        ];
     }
 
     /**
@@ -188,13 +231,20 @@ final class SchoolCalendarSlotUserBindActionsService
      */
     private function allBlocked(string $reason): array
     {
-        $blocked = ['allowed' => false, 'reason' => $reason];
+        $simple = ['allowed' => false, 'reason' => $reason];
+        $singleBlocked = [
+            'allowed' => false,
+            'reason' => $reason,
+            'mode' => null,
+            'existing_assignments' => [],
+            'templates' => [],
+        ];
 
         return [
-            'flexible' => $blocked,
-            'fixed' => $blocked,
-            'single_lesson' => $blocked,
-            'trial' => $blocked,
+            'flexible' => $simple,
+            'fixed' => $simple,
+            'single_lesson' => $singleBlocked,
+            'trial' => $simple,
         ];
     }
 }
