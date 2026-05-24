@@ -25,7 +25,7 @@ class DocumentationController extends Controller
         'queues-monitoring'             => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker',
         'tests-standards'             => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)',
         'lesson-packages'             => 'Абонементы: период, привязка к календарю, лимит строк, lessons_remaining и статусы',
-        'school-schedule-calendar'    => 'Расписание школы: календарь, статусы (consumes_lesson), пробное, JSON/API',
+        'school-schedule-calendar'    => 'Расписание школы: календарь, статусы, пробное, разовое занятие, JSON/API',
         'admin-teams'                 => 'Группы (админка): /admin/teams — groups.view, колонки «Тренер» и «Расписание», поля списка',
         'schedule-journal'            => 'Журнал расписания: /schedule, statuses, schedule_users, тренер при «Посетил»',
         'schedule-trainer-workload'   => 'Нагрузка тренеров: вкладка /schedule/trainer-workload, матрица, быстрый выбор месяца, AJAX data',

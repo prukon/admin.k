@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Разовое занятие в калendаре школы: eligibility, создание назначения, привязка, отмена.
+ * Разовое занятие в календаре школы: eligibility, создание назначения, привязка, отмена, валидация и доступ.
  */
 final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest extends CrmTestCase
 {
@@ -428,5 +428,343 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
             fn (array $reg): bool => ($reg['is_single_lesson'] ?? false) === true
                 && ($reg['schedule_type'] ?? '') === 'no_schedule'
         ));
+    }
+
+    public function test_slot_bind_actions_single_lesson_json_structure_includes_mode_and_lists(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+        $this->singleTemplate('Разовое A', 150000);
+        $this->singleTemplate('Разовое B', 250000);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure([
+                'single_lesson' => [
+                    'allowed',
+                    'reason',
+                    'mode',
+                    'existing_assignments',
+                    'templates' => [
+                        ['id', 'label', 'fee_amount_default'],
+                    ],
+                ],
+            ])
+            ->assertJsonPath('single_lesson.mode', 'create_new')
+            ->assertJsonCount(2, 'single_lesson.templates');
+    }
+
+    public function test_slot_bind_actions_templates_include_fee_amount_default_from_price_cents(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+        $this->singleTemplate('Разовое цена', 123450);
+
+        $response = $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ]))->assertOk();
+
+        $this->assertSame(1234.50, (float) $response->json('single_lesson.templates.0.fee_amount_default'));
+    }
+
+    public function test_slot_bind_actions_returns_multiple_existing_assignments(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+        $package = $this->singleTemplate();
+
+        foreach ([1, 2] as $i) {
+            UserLessonPackage::query()->create([
+                'user_id' => $student->id,
+                'lesson_package_id' => $package->id,
+                'starts_at' => null,
+                'ends_at' => null,
+                'lessons_total' => 1,
+                'lessons_remaining' => 1,
+                'fee_amount' => 500 + $i,
+                'created_by' => $this->user->id,
+            ]);
+        }
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('single_lesson.mode', 'bind_existing')
+            ->assertJsonCount(2, 'single_lesson.existing_assignments');
+    }
+
+    public function test_slot_bind_actions_single_lesson_blocked_when_cell_occupied(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+        $this->singleTemplate();
+
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => null,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => self::WEEK_MONDAY,
+            'ends_at' => self::WEEK_MONDAY,
+            'is_trial_lesson' => true,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('single_lesson.allowed', false)
+            ->assertJsonPath('single_lesson.mode', null);
+    }
+
+    public function test_slot_bind_actions_single_lesson_blocked_when_no_templates(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('single_lesson.allowed', false)
+            ->assertJsonPath('single_lesson.mode', 'create_new')
+            ->assertJsonPath('single_lesson.templates', []);
+    }
+
+    public function test_store_single_lesson_registration_validation_errors_when_required_fields_missing(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.store'), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['user_id', 'team_schedule_slot_id', 'occurrence_date']);
+    }
+
+    public function test_store_single_lesson_registration_validation_rejects_both_bind_and_create_fields(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+        $package = $this->singleTemplate();
+
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount' => 500,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'user_lesson_package_id' => $ulp->id,
+            'lesson_package_id' => $package->id,
+            'fee_amount' => 1000,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['user_lesson_package_id']);
+    }
+
+    public function test_store_single_lesson_registration_requires_fee_amount_when_creating_new(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+        $package = $this->singleTemplate();
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'lesson_package_id' => $package->id,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['fee_amount']);
+    }
+
+    public function test_store_single_lesson_registration_rejects_occupied_cell(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+        $package = $this->singleTemplate();
+
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => null,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => self::WEEK_MONDAY,
+            'ends_at' => self::WEEK_MONDAY,
+            'is_trial_lesson' => true,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'lesson_package_id' => $package->id,
+            'fee_amount' => 1000,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['occurrence_date']);
+    }
+
+    public function test_store_single_lesson_registration_forbidden_without_lesson_packages_view(): void
+    {
+        $user = $this->createUserWithoutPermission('lessonPackages.view', $this->partner);
+        $this->actingAs($user);
+        $this->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed' => true,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.store'), [
+            'user_id' => 1,
+            'team_schedule_slot_id' => 1,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'lesson_package_id' => 1,
+            'fee_amount' => 1000,
+        ])->assertForbidden();
+    }
+
+    public function test_destroy_single_lesson_registration_returns_404_for_trial_row(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+
+        $trial = UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => null,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => self::WEEK_MONDAY,
+            'ends_at' => self::WEEK_MONDAY,
+            'is_trial_lesson' => true,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->deleteJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.destroy', [
+            'userTeamScheduleSlot' => $trial->id,
+        ]))->assertNotFound();
+    }
+
+    public function test_destroy_single_lesson_registration_returns_404_for_flexible_package_row(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+
+        $flexPackage = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Гибкий не разовый',
+            'schedule_type' => 'flexible',
+            'duration_days' => 30,
+            'lessons_count' => 4,
+            'price_cents' => 100000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $flexPackage->id,
+            'starts_at' => '2026-04-01',
+            'ends_at' => '2026-12-31',
+            'lessons_total' => 4,
+            'lessons_remaining' => 3,
+            'created_by' => $this->user->id,
+        ]);
+
+        $bind = UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => self::WEEK_MONDAY,
+            'ends_at' => '2026-12-31',
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->deleteJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.destroy', [
+            'userTeamScheduleSlot' => $bind->id,
+        ]))->assertNotFound();
+    }
+
+    public function test_destroy_single_lesson_registration_forbidden_without_lesson_packages_view(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot();
+        $package = $this->singleTemplate();
+
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount' => 500,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'user_lesson_package_id' => $ulp->id,
+        ])->assertOk();
+
+        $bindId = (int) UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->value('id');
+
+        $actor = $this->createUserWithoutPermission('lessonPackages.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed' => true,
+        ]);
+
+        $this->deleteJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.destroy', [
+            'userTeamScheduleSlot' => $bindId,
+        ]))->assertForbidden();
     }
 }

@@ -53,6 +53,16 @@
 
   <h2>Пробные занятия (trial) в календаре школы</h2>
   <p>Пробное занятие не является назначением абонемента. Это отдельная запись в <code>user_team_schedule_slots</code> с <code>is_trial_lesson = true</code> и <code>user_lesson_package_id = NULL</code>; у записи задаётся пробный баланс <code>trial_lessons_remaining</code> / <code>trial_lessons_total</code> (обычно 1/1). Списание пробного баланса и флаг «пробное уже использовано» у ученика описаны в <a href="/docs/documentation/school-schedule-calendar">разделе про календарь школы</a>.</p>
+
+  <h2>Разовое занятие (<code>no_schedule</code>)</h2>
+  <p>Шаблон абонемента с <code>lesson_packages.schedule_type = no_schedule</code>. Назначение ученику — строка <code>user_lesson_packages</code> с <code>lessons_total</code> / <code>lessons_remaining</code> (обычно 1/1) и индивидуальной стоимостью <code>fee_amount</code>.</p>
+  <ul>
+    <li><strong>Страница «Назначения»</strong> (<code>POST /admin/lesson-packages/assignments</code>): создаётся назначение без периода (<code>starts_at</code>/<code>ends_at</code> = NULL). Привязка к календарю — отдельным шагом.</li>
+    <li><strong>Модалка слота календаря школы</strong> (<code>POST …/school-schedule/single-lesson-registration</code>): если у ученика уже есть свободное назначение (<code>mode=bind_existing</code>), выполняется только привязка к слоту; иначе (<code>mode=create_new</code>) в одной транзакции создаётся назначение и строка календаря. Подробности UI и API — в <a href="/docs/documentation/school-schedule-calendar">разделе «Расписание школы»</a>.</li>
+    <li><strong>Legacy-модалка</strong> <code>#schoolCalSingleModal</code>: привязка уже существующего назначения через <code>POST …/assign-single-lesson</code> (выбор <code>user_lesson_package_id</code>). Основной сценарий для администратора — модалка слота.</li>
+  </ul>
+  <p>Период назначения (<code>starts_at</code>/<code>ends_at</code>) задаётся при первой привязке к календарю через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>, как у гибкого абонемента. Списание <code>lessons_remaining</code> — только через статус занятия с <code>consumes_lesson</code>.</p>
+  <p><strong>Отмена записи в календаре</strong> (<code>DELETE …/single-lesson-registration/{userTeamScheduleSlot}</code>) удаляет строку <code>user_team_schedule_slots</code>, но <strong>не удаляет</strong> назначение <code>user_lesson_packages</code> — его можно снова привязать к другому слоту. Если статус уже списывал занятие, остаток восстанавливается (+1).</p>
 </div>
 </body>
 </html>

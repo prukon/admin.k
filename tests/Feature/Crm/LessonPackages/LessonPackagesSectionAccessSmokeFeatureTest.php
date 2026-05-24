@@ -8,6 +8,9 @@ use App\Models\LessonPackage;
 use App\Models\Location;
 use App\Models\Team;
 use App\Models\TeamScheduleSlot;
+use App\Models\User;
+use App\Models\UserLessonPackage;
+use App\Models\UserTeamScheduleSlot;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -61,7 +64,9 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
 
         $this->get(route('admin.lesson-packages.school-schedule'))
             ->assertOk()
-            ->assertSee('Расписание школы', false);
+            ->assertSee('Расписание школы', false)
+            ->assertSee('Добавить разовое занятие', false)
+            ->assertSee('schoolCalSlotSingleFormWrap', false);
 
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))
             ->assertOk();
@@ -176,10 +181,108 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
             'team_schedule_slot_id' => 0,
             'occurrence_date' => '',
         ]))->assertOk();
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => 1,
+        ]);
+        $slot = TeamScheduleSlot::query()->where('partner_id', $this->partner->id)->firstOrFail();
+
+        LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Smoke разовое',
+            'schedule_type' => 'no_schedule',
+            'duration_days' => 1,
+            'lessons_count' => 1,
+            'price_cents' => 100000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure([
+                'single_lesson' => ['allowed', 'reason', 'mode', 'existing_assignments', 'templates'],
+            ])
+            ->assertJsonPath('single_lesson.allowed', true);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'lesson_package_id' => LessonPackage::query()
+                ->where('partner_id', $this->partner->id)
+                ->where('schedule_type', 'no_schedule')
+                ->value('id'),
+            'fee_amount' => 1000,
+        ])->assertOk();
+
+        $bindId = (int) UserTeamScheduleSlot::query()
+            ->where('user_id', $student->id)
+            ->where('team_schedule_slot_id', $slot->id)
+            ->value('id');
+
+        $this->deleteJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.destroy', [
+            'userTeamScheduleSlot' => $bindId,
+        ]))->assertOk();
     }
 
     public function test_lesson_packages_surface_forbidden_without_lesson_packages_view(): void
     {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => 1,
+        ]);
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '11:00',
+            'time_end' => '12:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Smoke forbidden разовое',
+            'schedule_type' => 'no_schedule',
+            'duration_days' => 1,
+            'lessons_count' => 1,
+            'price_cents' => 100000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount' => 500,
+            'created_by' => $this->user->id,
+        ]);
+        $bind = UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => self::WEEK_MONDAY,
+            'ends_at' => self::WEEK_MONDAY,
+            'created_by' => $this->user->id,
+        ]);
+
         $actor = $this->createUserWithoutPermission('lessonPackages.view', $this->partner);
         $this->actingAs($actor);
         $this->withSession([
@@ -199,6 +302,18 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.lesson-packages.school-schedule.week', [
             'week' => self::WEEK_MONDAY,
+        ]))->assertForbidden();
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.store'), [
+            'user_id' => 1,
+            'team_schedule_slot_id' => 1,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'lesson_package_id' => 1,
+            'fee_amount' => 1000,
+        ])->assertForbidden();
+
+        $this->deleteJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.destroy', [
+            'userTeamScheduleSlot' => $bind->id,
         ]))->assertForbidden();
     }
 }

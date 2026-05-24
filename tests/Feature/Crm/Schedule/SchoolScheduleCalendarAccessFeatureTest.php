@@ -70,6 +70,8 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertSee('schoolCalGrid', false)
             ->assertSee('Добавить пробное занятие', false)
+            ->assertSee('Добавить разовое занятие', false)
+            ->assertSee('schoolCalSlotSingleFormWrap', false)
             ->assertSee('Загрузка расписания', false);
     }
 
@@ -237,7 +239,7 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             ->assertJsonStructure([
                 'flexible' => ['allowed', 'reason'],
                 'fixed' => ['allowed', 'reason'],
-                'single_lesson' => ['allowed', 'reason'],
+                'single_lesson' => ['allowed', 'reason', 'mode', 'existing_assignments', 'templates'],
                 'trial' => ['allowed', 'reason'],
             ]);
 
@@ -324,7 +326,7 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             ->assertJsonStructure([
                 'flexible' => ['allowed', 'reason'],
                 'fixed' => ['allowed', 'reason'],
-                'single_lesson' => ['allowed', 'reason'],
+                'single_lesson' => ['allowed', 'reason', 'mode', 'existing_assignments', 'templates'],
                 'trial' => ['allowed', 'reason'],
             ]);
     }
@@ -360,6 +362,48 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             'starts_at' => $trialOccurrence,
             'ends_at' => $trialOccurrence,
             'is_trial_lesson' => true,
+            'created_by' => $this->user->id,
+        ]);
+
+        $singleSlot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $trialTeam->id,
+            'location_id' => null,
+            'weekday' => 2,
+            'time_start' => '12:00',
+            'time_end' => '13:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+        $singlePackage = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Forbidden разовое',
+            'schedule_type' => 'no_schedule',
+            'duration_days' => 1,
+            'lessons_count' => 1,
+            'price_cents' => 100000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        $singleUlp = UserLessonPackage::query()->create([
+            'user_id' => $trialStudent->id,
+            'lesson_package_id' => $singlePackage->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount' => 500,
+            'created_by' => $this->user->id,
+        ]);
+        $singleUtss = UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $trialStudent->id,
+            'user_lesson_package_id' => $singleUlp->id,
+            'team_schedule_slot_id' => $singleSlot->id,
+            'starts_at' => $trialOccurrence,
+            'ends_at' => $trialOccurrence,
             'created_by' => $this->user->id,
         ]);
 
@@ -425,6 +469,18 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             'team_schedule_slot_id' => 1,
             'occurrence_date' => '2026-05-04',
         ])->assertForbidden();
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.store'), [
+            'user_id' => 1,
+            'team_schedule_slot_id' => 1,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'lesson_package_id' => 1,
+            'fee_amount' => 1000,
+        ])->assertForbidden();
+
+        $this->deleteJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.destroy', [
+            'userTeamScheduleSlot' => $singleUtss->id,
+        ]))->assertForbidden();
 
         $this->postJson(route('admin.lesson-packages.school-schedule.occurrence-status.store'), [
             'team_schedule_slot_id' => 1,
@@ -617,5 +673,70 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             'week' => self::WEEK_MONDAY,
         ]))->assertOk()
             ->assertJsonStructure(['week_start', 'occurrences']);
+    }
+
+    /**
+     * POST/DELETE single-lesson-registration из модалки слота возвращают 200 при lessonPackages.view.
+     */
+    public function test_single_lesson_registration_store_and_destroy_return_200_with_lesson_packages_view(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => 1,
+        ]);
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '20:00',
+            'time_end' => '21:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Разовое календарь',
+            'schedule_type' => 'no_schedule',
+            'duration_days' => 1,
+            'lessons_count' => 1,
+            'price_cents' => 150000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('single_lesson.allowed', true)
+            ->assertJsonPath('single_lesson.mode', 'create_new');
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.store'), [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+            'lesson_package_id' => $package->id,
+            'fee_amount' => 1500,
+        ])->assertOk();
+
+        $bindId = (int) UserTeamScheduleSlot::query()
+            ->where('user_id', $student->id)
+            ->where('team_schedule_slot_id', $slot->id)
+            ->value('id');
+        $this->assertGreaterThan(0, $bindId);
+
+        $this->deleteJson(route('admin.lesson-packages.school-schedule.single-lesson-registration.destroy', [
+            'userTeamScheduleSlot' => $bindId,
+        ]))->assertOk();
     }
 }

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Расписание школы: календарь, статусы, пробное, API</title>
+  <title>Расписание школы: календарь, статусы, пробное, разовое занятие, API</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
     .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
@@ -65,6 +65,22 @@
         <td><code>#schoolCalSlotSummaryLoc</code></td>
         <td>Строка «Локация» / значение локации показываются только при <code>locations.view</code>. Без права разметка строки не попадает в HTML.</td>
       </tr>
+      <tr>
+        <td><code>#schoolCalOpenSingle</code></td>
+        <td>Кнопка «Добавить разовое занятие». Доступность и подсказка (<code>title</code>) берутся из <code>GET …/slot-user-bind-actions</code> → <code>single_lesson</code>. При одном свободном назначении (<code>mode=bind_existing</code>, одна строка в <code>existing_assignments</code>) запись выполняется одним кликом; иначе раскрывается форма ниже.</td>
+      </tr>
+      <tr>
+        <td><code>#schoolCalSlotSingleFormWrap</code></td>
+        <td>Inline-форма разового занятия (как у пробного — внутри модалки слота, не отдельная основная модалка). Скрыта по умолчанию; показывается при необходимости выбора назначения, шаблона или стоимости.</td>
+      </tr>
+      <tr>
+        <td><code>#schoolCalSlotSingleBindFields</code> / <code>#schoolCalSlotSingleUlp</code></td>
+        <td>Блок выбора существующего назначения (<code>mode=bind_existing</code>, несколько записей в <code>existing_assignments</code>). Ошибки валидации — в <code>#schoolCalSlotSingleUlpErr</code> (<code>data-err="user_lesson_package_id"</code>).</td>
+      </tr>
+      <tr>
+        <td><code>#schoolCalSlotSingleCreateFields</code></td>
+        <td>Блок создания нового назначения (<code>mode=create_new</code>): select шаблона <code>#schoolCalSlotSingleTemplate</code>, поле стоимости <code>#schoolCalSlotSingleFee</code> (₽, по умолчанию из <code>fee_amount_default</code> шаблона; при ручном вводе дефолт при смене шаблона не перезаписывается). Submit — <code>#schoolCalSlotSingleSubmit</code> «Записать в расписание».</td>
+      </tr>
     </tbody>
   </table>
 
@@ -84,6 +100,8 @@
   <p>Каждый элемент <code>occurrences[]</code> содержит массив <code>registrations[]</code>. Для строк из БД формируются поля (среди прочего):</p>
   <ul>
     <li><code>registration_kind</code> — <code>trial</code> или <code>package</code>;</li>
+    <li><code>is_trial_lesson</code>, <code>is_single_lesson</code> — флаги типа записи;</li>
+    <li><code>schedule_type</code> — тип шаблона абонемента (<code>no_schedule</code> у разового); для пробного — <code>null</code>;</li>
     <li><code>lessons_remaining</code>, <code>lessons_total</code> — для абонемента берутся из связанного <code>user_lesson_packages</code>, для пробного — из <code>trial_lessons_*</code> строки календаря;</li>
     <li><code>line</code>, <code>user_label</code>, <code>current_status</code>, <code>occurrence_status_history_count</code> — для отображения в модалке «Записаны на занятие».</li>
   </ul>
@@ -111,15 +129,41 @@
   <p>Все перечисленные маршруты защищены правом <code>lessonPackages.view</code>. Управление самими слотами расписания групп (создание/пропуск даты и т.д.) — отдельные права <code>scheduleSlots.*</code>, см. код и тесты календаря.</p>
 
   <h2>Разовые занятия в модалке слота</h2>
-  <p>Кнопка «Добавить разовое занятие» доступна для любого выбранного ученика, если ячейка слота/даты свободна (без предварительного назначения абонемента). Ответ <code>GET …/slot-user-bind-actions</code> для <code>single_lesson</code> дополнительно содержит:</p>
+  <p>Разовое занятие — назначение абонемента с шаблоном <code>schedule_type = no_schedule</code> (<code>user_lesson_packages</code> + строка <code>user_team_schedule_slots</code>). В отличие от гибкого/фиксированного абонемента, запись доступна <strong>без предварительного назначения</strong> на странице «Назначения»: при отсутствии свободного назначения создаётся новое в той же операции.</p>
+
+  <h3>Доступность (<code>GET …/slot-user-bind-actions</code>)</h3>
+  <p>Параметры: <code>user_id</code>, <code>team_schedule_slot_id</code>, <code>occurrence_date</code>. В ответе объект <code>single_lesson</code>:</p>
   <ul>
-    <li><code>mode</code> — <code>bind_existing</code> (есть свободное назначение <code>no_schedule</code>) или <code>create_new</code>;</li>
-    <li><code>existing_assignments[]</code> — список назначений для select (если несколько);</li>
-    <li><code>templates[]</code> — активные шаблоны <code>no_schedule</code> с <code>fee_amount_default</code> (цена из <code>price_cents</code>).</li>
+    <li><code>allowed</code>, <code>reason</code> — можно ли записать; при занятой ячейке слота/даты у ученика — <code>allowed=false</code>;</li>
+    <li><code>mode</code> — <code>bind_existing</code> (есть «свободное» назначение: число строк в <code>user_team_schedule_slots</code> по этому <code>user_lesson_package_id</code> &lt; <code>lessons_total</code>) или <code>create_new</code>;</li>
+    <li><code>existing_assignments[]</code> — <code>{ id, label }</code> для select (если несколько); label формирует <code>formatSingleLessonAssignmentLabel</code>;</li>
+    <li><code>templates[]</code> — активные шаблоны партнёра (<code>is_active</code>, <code>lessons_count &gt; 0</code>) с <code>{ id, label, fee_amount_default }</code> (<code>price_cents / 100</code>). При <code>bind_existing</code> массив пустой.</li>
   </ul>
-  <p><strong>POST</strong> <code>…/single-lesson-registration</code>: либо <code>user_lesson_package_id</code> (привязка существующего), либо <code>lesson_package_id</code> + <code>fee_amount</code> (создание назначения и запись в календарь в одной транзакции). Если свободное назначение одно — привязка выполняется сразу, без выбора в UI.</p>
-  <p><strong>DELETE</strong> <code>…/single-lesson-registration/{userTeamScheduleSlot}</code> — убирает запись из расписания, назначение <code>user_lesson_packages</code> сохраняется; при списанном статусе остаток восстанавливается; статусы события удаляются; аудит <code>my_logs</code> <code>type=60</code>, <code>action=602</code>.</p>
-  <p>В JSON недели у регистрации разового занятия: <code>is_single_lesson=true</code>, <code>schedule_type=no_schedule</code>. В списке «Записаны на занятие» — ссылка «(Отменить)».</p>
+  <p>Если свободных назначений нет и активных шаблонов разового занятия тоже нет — <code>allowed=false</code>, <code>reason</code> про отсутствие шаблонов.</p>
+  <p>Два разовых занятия у одного ученика <strong>в один день в разных слотах</strong> разрешены (проверка только пересечения слот+дата, не «одно разовое в день»).</p>
+
+  <h3>UI-поток</h3>
+  <ol>
+    <li>Выбрать ученика в модалке слота — фронт запрашивает <code>slot-user-bind-actions</code>.</li>
+    <li><code>bind_existing</code>, одно назначение — клик «Добавить разовое занятие» сразу вызывает POST без формы.</li>
+    <li><code>bind_existing</code>, несколько назначений — раскрывается select «Назначение», затем «Записать в расписание».</li>
+    <li><code>create_new</code> — всегда форма: шаблон + стоимость (редактируемая), затем submit.</li>
+  </ol>
+  <p>Ошибки валидации с бэкенда (<code>422</code>, объект <code>errors</code>) выводятся под соответствующими полями формы. Legacy-модалка <code>#schoolCalSingleModal</code> и <code>POST …/assign-single-lesson</code> по-прежнему привязывают уже созданное назначение; основной сценарий — модалка слота.</p>
+
+  <h3>API: запись (<code>POST …/single-lesson-registration</code>)</h3>
+  <p>Имя маршрута: <code>admin.lesson-packages.school-schedule.single-lesson-registration.store</code>. Request: <code>StoreSchoolCalendarSingleLessonRegistrationRequest</code>. Сервис: <code>SchoolCalendarSingleLessonRegistrationService::register</code>.</p>
+  <p>Обязательные поля: <code>user_id</code>, <code>team_schedule_slot_id</code>, <code>occurrence_date</code> (<code>Y-m-d</code>).</p>
+  <p>Взаимоисключающие варианты (ровно один):</p>
+  <ul>
+    <li><strong>Привязка существующего:</strong> <code>user_lesson_package_id</code> — назначение из <code>singleLessonAssignmentsQuery</code> для этого ученика;</li>
+    <li><strong>Создание нового:</strong> <code>lesson_package_id</code> + <code>fee_amount</code> (число ≥ 0) — шаблон из <code>singleLessonTemplatesQuery</code>; создаётся <code>user_lesson_packages</code> (<code>is_paid=false</code>, <code>lessons_total</code>/<code>lessons_remaining</code> из шаблона) и строка календаря в одной транзакции.</li>
+  </ul>
+  <p>При привязке: период назначения задаётся через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code> (если даты ещё NULL); <code>lessons_remaining</code> не уменьшается. Успех — <code>200</code> с <code>{ "message": "…" }</code>; фронт перезагружает неделю календаря.</p>
+  <p>В JSON недели у регистрации разового: <code>is_single_lesson=true</code>, <code>schedule_type=no_schedule</code>, <code>registration_kind=package</code>.</p>
+
+  <h3>API: отмена записи (<code>DELETE …/single-lesson-registration/{userTeamScheduleSlot}</code>)</h3>
+  <p>Имя маршрута: <code>admin.lesson-packages.school-schedule.single-lesson-registration.destroy</code>. Допустима только строка с <code>user_lesson_package_id</code> и шаблоном <code>no_schedule</code> (не пробное, не гибкое/фиксированное). Идентификатор — <code>user_team_schedule_slot_id</code> из JSON недели. Назначение <code>user_lesson_packages</code> <strong>сохраняется</strong> и снова доступно для привязки.</p>
 
   <h2>Пробные занятия: добавление, баланс и ограничения</h2>
   <p>Пробное — запись без абонемента: <code>user_team_schedule_slots</code> с <code>is_trial_lesson = true</code>, <code>user_lesson_package_id = NULL</code>. Пробное действует <strong>только в выбранную дату</strong>: <code>ends_at</code> равно <code>starts_at</code>. При создании через API задаются <code>trial_lessons_remaining = 1</code>, <code>trial_lessons_total = 1</code>. Списание единицы пробного «урока» происходит при выборе статуса с <code>consumes_lesson = true</code> (аналогично абонементу, но поля другие).</p>
@@ -127,8 +171,12 @@
   <p><strong>GET</strong> <code>…/trial-registration-eligibility</code> — заранее проверяет возможность добавления (ответ <code>allowed</code>, <code>reason</code>).</p>
 
   <h2>UI: «(Отменить)» в списке записей</h2>
-  <p>В модалке слота в блоке <strong>«Записаны на занятие»</strong> для пробной записи рядом с подписью «Пробное занятие» выводится ссылка <code>(Отменить)</code>.
-    Ссылка доступна пользователям с правом <code>lessonPackages.view</code> (так же, как и сам экран) и снимает пробную запись с занятия.</p>
+  <p>В модалке слота в блоке <strong>«Записаны на занятие»</strong> ссылка <code>(Отменить)</code> выводится для:</p>
+  <ul>
+    <li><strong>пробного</strong> — рядом с подписью «Пробное занятие»;</li>
+    <li><strong>разового</strong> (<code>is_single_lesson</code> или <code>schedule_type=no_schedule</code>) — рядом с названием абонемента в строке записи.</li>
+  </ul>
+  <p>Доступна при праве <code>lessonPackages.view</code>. Пробное снимается через <code>DELETE …/trial-registration/{id}</code>; разовое — через <code>DELETE …/single-lesson-registration/{id}</code>. Гибкие и фиксированные абонементы в этом списке ссылку «(Отменить)» не получают.</p>
 
   <h2>API: удаление (отмена) пробного занятия</h2>
   <p>Для отмены используется эндпоинт:</p>
@@ -138,16 +186,24 @@
   <p>Идентификатор берётся из JSON недели (каждая регистрация содержит поле <code>user_team_schedule_slot_id</code>).</p>
 
   <h2>Побочные эффекты отмены</h2>
+
+  <h3>Пробное (<code>DELETE …/trial-registration/{id}</code>)</h3>
   <ul>
-    <li><strong>Очистка статусов</strong>: удаляются все записи в <code>user_lesson_occurrence_status_events</code> для этой даты/слота/ученика,
-      относящиеся к пробному (условие <code>user_lesson_package_id IS NULL</code>).</li>
-    <li><strong>Аудит</strong>: создаётся запись в <code>my_logs</code> с <code>type = 60</code> («Расписание») и <code>action = 601</code> («Отмена пробного занятия в расписании»),
-      с заполненными <code>target_type/target_id/target_label</code>.</li>
+    <li><strong>Очистка статусов</strong>: удаляются записи в <code>user_lesson_occurrence_status_events</code> для этой даты/слота/ученика с <code>user_lesson_package_id IS NULL</code>.</li>
+    <li><strong>Аудит</strong>: <code>my_logs</code>, <code>type = 60</code>, <code>action = 601</code> («Отмена пробного занятия в расписании»).</li>
+  </ul>
+
+  <h3>Разовое (<code>DELETE …/single-lesson-registration/{id}</code>)</h3>
+  <ul>
+    <li><strong>Строка календаря</strong> удаляется; назначение <code>user_lesson_packages</code> остаётся в системе.</li>
+    <li><strong>Восстановление остатка</strong>: если последний статус по этой записи имел <code>consumes_lesson = true</code>, к <code>lessons_remaining</code> применяется дельта +1 (<code>UserLessonPackageConsumptionAdjuster</code>).</li>
+    <li><strong>Очистка статусов</strong>: удаляются события в <code>user_lesson_occurrence_status_events</code> для этой даты/слота/ученика с тем же <code>user_lesson_package_id</code>.</li>
+    <li><strong>Аудит</strong>: <code>my_logs</code>, <code>type = 60</code>, <code>action = 602</code> («Отмена записи разового занятия в расписании»).</li>
   </ul>
 
   <h2>Связь с логикой абонементов</h2>
-  <p>Период назначения <code>starts_at</code>/<code>ends_at</code>, лимит строк календаря по <code>lessons_total</code> и отсутствие списания <code>lessons_remaining</code> при самой привязке описаны в
-    <a href="/docs/documentation/lesson-packages">«Абонементы: назначение и период с календаря школы»</a>. Текущая страница дополняет это правилами статусов, пробного баланса и полей JSON недели; разметка модалки и право <code>locations.view</code> — только отображение.</p>
+  <p>Период назначения <code>starts_at</code>/<code>ends_at</code>, лимит строк календаря по <code>lessons_total</code>, разовое занятие (<code>no_schedule</code>) и отсутствие списания <code>lessons_remaining</code> при самой привязке описаны в
+    <a href="/docs/documentation/lesson-packages">«Абонементы: назначение и период с календаря школы»</a>. Текущая страница дополняет это правилами статусов, пробного баланса, разовой записи из модалки слота и полей JSON недели; разметка модалки и право <code>locations.view</code> — только отображение.</p>
 
   <h2>Тесты</h2>
   <p>Разметка модалки и фильтра локации, <code>team_title</code> в JSON недели, ответы <code>200</code>/<code>403</code> — <code>LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleAccessAndMutationsFeatureTest.php</code>.
