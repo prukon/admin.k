@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Team;
 use App\Services\PartnerContext;
 use App\Services\TeamTrainerSyncService;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -31,20 +32,162 @@ class TrainerController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerId();
 
-        $trainers = TrainerProfile::query()
-            ->with(['user', 'teams'])
-            ->where('partner_id', $partnerId)
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->paginate(50);
-
         $teamOptions = Team::query()
             ->where('partner_id', $partnerId)
             ->orderBy('order_by')
             ->orderBy('title')
             ->get(['id', 'title']);
 
-        return view('admin.trainers.index', compact('trainers', 'teamOptions') + ['activeTab' => 'trainers']);
+        return view('admin.trainers.index', compact('teamOptions') + ['activeTab' => 'trainers']);
+    }
+
+    public function data(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        $validated = $request->validate([
+            'name'    => 'nullable|string',
+            'status'  => 'nullable|string',
+            'team_id' => 'nullable|integer',
+
+            'draw'   => 'nullable|integer',
+            'start'  => 'nullable|integer',
+            'length' => 'nullable|integer',
+        ]);
+
+        $nameSearch = trim((string) ($validated['name'] ?? ''));
+        if ($nameSearch === '' && $request->filled('search.value')) {
+            $nameSearch = trim((string) $request->input('search.value'));
+        }
+
+        $baseQuery = TrainerProfile::query()
+            ->where('trainer_profiles.partner_id', $partnerId);
+
+        if ($nameSearch !== '') {
+            $like = '%' . $nameSearch . '%';
+            $baseQuery->whereHas('user', function ($q) use ($like) {
+                $q->where('name', 'like', $like)
+                    ->orWhere('lastname', 'like', $like)
+                    ->orWhere('email', 'like', $like)
+                    ->orWhere('phone', 'like', $like);
+            });
+        }
+
+        if (!empty($validated['status'])) {
+            if ($validated['status'] === 'active') {
+                $baseQuery->where('trainer_profiles.is_enabled', 1);
+            } elseif ($validated['status'] === 'inactive') {
+                $baseQuery->where('trainer_profiles.is_enabled', 0);
+            }
+        }
+
+        if (!empty($validated['team_id'])) {
+            $teamId = (int) $validated['team_id'];
+            $baseQuery->whereHas('teams', function ($q) use ($teamId, $partnerId) {
+                $q->where('teams.id', $teamId)
+                    ->where('teams.partner_id', $partnerId);
+            });
+        }
+
+        $totalRecords = TrainerProfile::query()
+            ->where('partner_id', $partnerId)
+            ->count();
+
+        $recordsFiltered = (clone $baseQuery)->count();
+
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir         = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
+        $columnsDef       = $request->input('columns', []);
+        $orderColumnName  = null;
+
+        if ($orderColumnIndex !== null && isset($columnsDef[(int) $orderColumnIndex]['name'])) {
+            $orderColumnName = $columnsDef[(int) $orderColumnIndex]['name'];
+        }
+
+        if ($orderColumnName !== null && $orderColumnName !== '') {
+            switch ($orderColumnName) {
+                case 'full_name':
+                    $baseQuery
+                        ->join('users', 'users.id', '=', 'trainer_profiles.user_id')
+                        ->select('trainer_profiles.*')
+                        ->orderBy('users.lastname', $orderDir)
+                        ->orderBy('users.name', $orderDir);
+                    break;
+
+                case 'email':
+                    $baseQuery
+                        ->join('users', 'users.id', '=', 'trainer_profiles.user_id')
+                        ->select('trainer_profiles.*')
+                        ->orderBy('users.email', $orderDir)
+                        ->orderBy('users.lastname', $orderDir)
+                        ->orderBy('users.name', $orderDir);
+                    break;
+
+                case 'default_base_salary':
+                    $baseQuery->orderBy('trainer_profiles.default_base_salary', $orderDir);
+                    break;
+
+                case 'default_rate_per_training':
+                    $baseQuery->orderBy('trainer_profiles.default_rate_per_training', $orderDir);
+                    break;
+
+                case 'sort_order':
+                    $baseQuery->orderBy('trainer_profiles.sort_order', $orderDir);
+                    break;
+
+                case 'is_enabled':
+                    $baseQuery->orderBy('trainer_profiles.is_enabled', $orderDir);
+                    break;
+
+                case 'rownum':
+                case 'avatar_url':
+                case 'teams_label':
+                case 'actions':
+                default:
+                    $baseQuery->orderBy('trainer_profiles.sort_order', 'asc')
+                        ->orderBy('trainer_profiles.id', 'asc');
+                    break;
+            }
+        } else {
+            $baseQuery->orderBy('trainer_profiles.sort_order', 'asc')
+                ->orderBy('trainer_profiles.id', 'asc');
+        }
+
+        $baseQuery->orderBy('trainer_profiles.id', 'asc');
+
+        $start  = $validated['start'] ?? 0;
+        $length = $validated['length'] ?? 10;
+
+        $trainers = $baseQuery
+            ->with(['user', 'teams'])
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $data = $trainers->map(function (TrainerProfile $profile) {
+            $user = $profile->user;
+            $teamsLabel = $profile->teams->pluck('title')->implode(', ');
+
+            return [
+                'id'                          => $profile->id,
+                'avatar_url'                  => $this->avatarUrl($user),
+                'full_name'                   => $user?->full_name ?? '',
+                'teams_label'                 => $teamsLabel,
+                'email'                       => $user?->email ?? '',
+                'default_base_salary'         => $this->formatSalaryRubles($profile->default_base_salary),
+                'default_rate_per_training'   => $this->formatSalaryRubles($profile->default_rate_per_training),
+                'sort_order'                  => (int) $profile->sort_order,
+                'is_enabled'                  => (int) $profile->is_enabled,
+                'status_label'                => $profile->is_enabled ? 'Да' : 'Нет',
+            ];
+        })->toArray();
+
+        return response()->json([
+            'draw'            => (int) ($validated['draw'] ?? 0),
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ]);
     }
 
     public function store(StoreTrainerRequest $request)
@@ -261,8 +404,8 @@ class TrainerController extends AdminBaseController
             'description' => $profile->description,
             'is_enabled' => (int) $profile->is_enabled,
             'sort_order' => (int) $profile->sort_order,
-            'default_base_salary' => number_format((float) ($profile->default_base_salary ?? 0), 2, '.', ''),
-            'default_rate_per_training' => number_format((float) ($profile->default_rate_per_training ?? 0), 2, '.', ''),
+            'default_base_salary' => $this->salaryRublesForForm($profile->default_base_salary),
+            'default_rate_per_training' => $this->salaryRublesForForm($profile->default_rate_per_training),
             'avatar_url' => $this->avatarUrl($user),
             'image' => $user?->image,
             'image_crop' => $user?->image_crop,
@@ -300,13 +443,23 @@ class TrainerController extends AdminBaseController
         ]);
     }
 
+    private function formatSalaryRubles(mixed $value): string
+    {
+        return number_format((int) round((float) ($value ?? 0)), 0, '.', ' ');
+    }
+
+    private function salaryRublesForForm(mixed $value): string
+    {
+        return (string) (int) round((float) ($value ?? 0));
+    }
+
     private function normalizeSalaryDefault(mixed $value): string
     {
         if ($value === null || $value === '') {
             return '0.00';
         }
 
-        return number_format((float) $value, 2, '.', '');
+        return number_format(round((float) $value), 2, '.', '');
     }
 
     private function deleteUserAvatarFiles(User $user): void

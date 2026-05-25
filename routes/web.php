@@ -506,6 +506,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // Тренеры (учётная запись user + профиль trainer_profiles)
     Route::middleware('can:trainers.view')->group(function () {
         Route::get('admin/trainers', [\App\Http\Controllers\Admin\TrainerController::class, 'index'])->name('admin.trainers.index');
+        Route::get('admin/trainers/data', [\App\Http\Controllers\Admin\TrainerController::class, 'data'])->name('admin.trainers.data');
+        Route::get('admin/trainers/columns-settings', [\App\Http\Controllers\Admin\TrainerColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.trainers.columns-settings.get');
+        Route::post('admin/trainers/columns-settings', [\App\Http\Controllers\Admin\TrainerColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.trainers.columns-settings.save');
         Route::get('admin/trainers/{trainerProfile}', [\App\Http\Controllers\Admin\TrainerController::class, 'show'])->whereNumber('trainerProfile')->name('admin.trainers.show');
         Route::post('admin/trainers', [\App\Http\Controllers\Admin\TrainerController::class, 'store'])->name('admin.trainers.store');
         Route::put('admin/trainers/{trainerProfile}', [\App\Http\Controllers\Admin\TrainerController::class, 'update'])

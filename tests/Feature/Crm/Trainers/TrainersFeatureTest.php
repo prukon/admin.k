@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Crm\Trainers;
 
+use App\Models\Partner;
 use App\Models\Role;
+use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -68,7 +70,8 @@ final class TrainersFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewHas('activeTab', 'trainers')
             ->assertSee('Все пользователи', false)
-            ->assertSee('Тренеры', false);
+            ->assertSee('Тренеры', false)
+            ->assertSee('value="active" selected', false);
     }
 
     public function test_index_ok_for_admin_by_default_base_permissions(): void
@@ -351,8 +354,178 @@ final class TrainersFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
         ]);
 
-        $this->get(route('admin.trainers.index'))
+        $this->getJson(route('admin.trainers.data', ['draw' => 1, 'start' => 0, 'length' => 10]))
             ->assertOk()
-            ->assertSee($staff->email, false);
+            ->assertJsonFragment(['email' => $staff->email]);
+    }
+
+    public function test_data_returns_only_trainers_of_current_partner(): void
+    {
+        $this->grantPermission('trainers.view');
+
+        $profileA = $this->createTrainerProfile([
+            'email' => 'trainer-a-' . uniqid() . '@example.test',
+        ]);
+        $profileB = $this->createTrainerProfile([
+            'email' => 'trainer-b-' . uniqid() . '@example.test',
+        ]);
+
+        $otherPartner = Partner::factory()->create();
+        $otherUser = User::factory()->create([
+            'partner_id' => $otherPartner->id,
+            'role_id' => $this->trainerRoleId,
+            'email' => 'other-partner-' . uniqid() . '@example.test',
+        ]);
+        TrainerProfile::factory()->create([
+            'partner_id' => $otherPartner->id,
+            'user_id' => $otherUser->id,
+        ]);
+
+        $json = $this->getJson(route('admin.trainers.data', ['draw' => 1, 'start' => 0, 'length' => 100]))
+            ->assertOk()
+            ->json();
+
+        $this->assertArrayHasKey('recordsTotal', $json);
+        $this->assertArrayHasKey('recordsFiltered', $json);
+        $this->assertArrayHasKey('data', $json);
+
+        $ids = collect($json['data'])->pluck('id')->all();
+        $this->assertContains($profileA->id, $ids);
+        $this->assertContains($profileB->id, $ids);
+        $this->assertNotContains($otherUser->id, $ids);
+    }
+
+    public function test_data_filters_by_name_status_and_team(): void
+    {
+        $this->grantPermission('trainers.view');
+
+        $teamA = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Группа A',
+        ]);
+        $teamB = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Группа B',
+        ]);
+
+        $activeInTeamA = $this->createTrainerProfile([
+            'name' => 'Алексей',
+            'lastname' => 'Сидоров',
+            'email' => 'sidorov-' . uniqid() . '@example.test',
+        ], ['is_enabled' => true]);
+        DB::table('team_trainer')->insert([
+            'partner_id' => $this->partner->id,
+            'team_id' => $teamA->id,
+            'trainer_profile_id' => $activeInTeamA->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $inactiveOther = $this->createTrainerProfile([
+            'name' => 'Борис',
+            'lastname' => 'Петров',
+            'email' => 'petrov-' . uniqid() . '@example.test',
+        ], ['is_enabled' => false]);
+        DB::table('team_trainer')->insert([
+            'partner_id' => $this->partner->id,
+            'team_id' => $teamB->id,
+            'trainer_profile_id' => $inactiveOther->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $byName = $this->getJson(route('admin.trainers.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'name' => 'Сидоров',
+        ]))->assertOk()->json();
+
+        $this->assertSame(1, $byName['recordsFiltered']);
+        $this->assertSame($activeInTeamA->id, $byName['data'][0]['id']);
+
+        $activeOnly = $this->getJson(route('admin.trainers.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'status' => 'active',
+        ]))->assertOk()->json();
+
+        $activeIds = collect($activeOnly['data'])->pluck('id')->all();
+        $this->assertContains($activeInTeamA->id, $activeIds);
+        $this->assertNotContains($inactiveOther->id, $activeIds);
+
+        $byTeam = $this->getJson(route('admin.trainers.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'team_id' => $teamB->id,
+        ]))->assertOk()->json();
+
+        $this->assertSame(1, $byTeam['recordsFiltered']);
+        $this->assertSame($inactiveOther->id, $byTeam['data'][0]['id']);
+    }
+
+    public function test_data_status_active_excludes_inactive_trainers(): void
+    {
+        $this->grantPermission('trainers.view');
+
+        $active = $this->createTrainerProfile([
+            'email' => 'active-default-' . uniqid() . '@example.test',
+        ], ['is_enabled' => true]);
+
+        $inactive = $this->createTrainerProfile([
+            'email' => 'inactive-default-' . uniqid() . '@example.test',
+        ], ['is_enabled' => false]);
+
+        $json = $this->getJson(route('admin.trainers.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'status' => 'active',
+        ]))->assertOk()->json();
+
+        $ids = collect($json['data'])->pluck('id')->all();
+        $this->assertContains($active->id, $ids);
+        $this->assertNotContains($inactive->id, $ids);
+    }
+
+    public function test_data_paginates_results(): void
+    {
+        $this->grantPermission('trainers.view');
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->createTrainerProfile([
+                'email' => 'paginate-' . $i . '-' . uniqid() . '@example.test',
+            ], ['sort_order' => $i]);
+        }
+
+        $page1 = $this->getJson(route('admin.trainers.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 2,
+        ]))->assertOk()->json();
+
+        $page2 = $this->getJson(route('admin.trainers.data', [
+            'draw' => 1,
+            'start' => 2,
+            'length' => 2,
+        ]))->assertOk()->json();
+
+        $this->assertCount(2, $page1['data']);
+        $this->assertCount(2, $page2['data']);
+        $this->assertEmpty(array_intersect(
+            collect($page1['data'])->pluck('id')->all(),
+            collect($page2['data'])->pluck('id')->all(),
+        ));
+    }
+
+    public function test_data_denied_without_view_permission(): void
+    {
+        $user = $this->createUserWithoutPermission('trainers.view');
+        $this->actingAs($user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+
+        $this->getJson(route('admin.trainers.data'))->assertStatus(403);
     }
 }

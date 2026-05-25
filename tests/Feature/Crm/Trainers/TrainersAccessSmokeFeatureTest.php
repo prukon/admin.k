@@ -60,6 +60,13 @@ final class TrainersAccessSmokeFeatureTest extends CrmTestCase
             ->assertViewHas('activeTab', 'trainers')
             ->assertSee('id="usersSectionTabs"', false);
 
+        $this->getJson(route('admin.trainers.data', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+
+        $this->getJson(route('admin.trainers.columns-settings.get'))
+            ->assertOk();
+
         $this->getJson(route('admin.trainers.show', $this->profile->id))
             ->assertOk()
             ->assertJsonPath('id', $this->profile->id);
@@ -99,6 +106,10 @@ final class TrainersAccessSmokeFeatureTest extends CrmTestCase
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
         $this->get(route('admin.trainers.index'))->assertStatus(403);
+
+        $this->getJson(route('admin.trainers.data'))->assertStatus(403);
+
+        $this->getJson(route('admin.trainers.columns-settings.get'))->assertStatus(403);
 
         $this->getJson(route('admin.trainers.show', $this->profile->id))
             ->assertStatus(403);

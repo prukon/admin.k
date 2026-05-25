@@ -1,4 +1,10 @@
 /* Общий тулбар списков и отчётов: карточка, кнопки, фильтры, итог */
+
+/* Не сдвигаем sidebar/контент при появлении вертикального скролла (раскрытие фильтров и т.п.) */
+html {
+    scrollbar-gutter: stable;
+}
+
 .payments-report-surface {
     background: var(--bs-body-bg, #fff);
     border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08)) !important;

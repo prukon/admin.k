@@ -41,6 +41,8 @@ class StoreTrainerRequest extends FormRequest
                 'team_ids' => array_values(array_filter(array_map('intval', $ids), fn (int $id) => $id > 0)),
             ]);
         }
+
+        $this->mergeSalaryRubles(['default_base_salary', 'default_rate_per_training']);
     }
 
     public function rules(): array
@@ -56,8 +58,8 @@ class StoreTrainerRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:10000'],
             'is_enabled' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
-            'default_base_salary' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
-            'default_rate_per_training' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'default_base_salary' => ['nullable', 'integer', 'min:0', 'max:99999999'],
+            'default_rate_per_training' => ['nullable', 'integer', 'min:0', 'max:99999999'],
             'avatar' => ['nullable', 'file', 'max:5120', 'mimetypes:image/jpeg,image/png,image/webp'],
             'team_ids' => ['nullable', 'array'],
             'team_ids.*' => [
@@ -122,5 +124,25 @@ class StoreTrainerRequest extends FormRequest
         }
 
         return $d ? '+' . $d : null;
+    }
+
+    /**
+     * @param  list<string>  $fields
+     */
+    private function mergeSalaryRubles(array $fields): void
+    {
+        foreach ($fields as $field) {
+            if (!$this->has($field)) {
+                continue;
+            }
+
+            $value = $this->input($field);
+            if ($value === null || $value === '') {
+                $this->merge([$field => null]);
+                continue;
+            }
+
+            $this->merge([$field => (int) round((float) $value)]);
+        }
     }
 }
