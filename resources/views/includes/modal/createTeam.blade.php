@@ -66,19 +66,6 @@
                     </div>
                     @endcan
 
-                    <div class="mb-3">
-                        <label for="order_by" class="form-label">Сортировка</label>
-                        <input type="text" name="order_by" placeholder="10" class="form-control" id="order_by" value="{{ old('order_by') }}">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="activity">Активность</label>
-                        <select name="is_enabled" class="form-control" id='activity'>
-                            <option value="1">Активен</option>
-                            <option value="0">Неактивен</option>
-                        </select>
-                    </div>
-
                     @can('trainers.view')
                     <div class="mb-3">
                         <label for="trainer_profile_id" class="form-label">Тренер</label>
@@ -91,6 +78,19 @@
                         <div id="trainer_profile_id-error" class="invalid-feedback"></div>
                     </div>
                     @endcan
+
+                    <div class="mb-3">
+                        <label for="order_by" class="form-label">Сортировка</label>
+                        <input type="text" name="order_by" placeholder="10" class="form-control" id="order_by" value="{{ old('order_by') }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="activity">Активность</label>
+                        <select name="is_enabled" class="form-control" id='activity'>
+                            <option value="1">Активен</option>
+                            <option value="0">Неактивен</option>
+                        </select>
+                    </div>
 
                     <div class="modal-footer-create-team">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>

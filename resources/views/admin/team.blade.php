@@ -1,67 +1,75 @@
 @extends('layouts.admin2')
 
+@php
+    $teamsHasActiveFilters = false;
+@endphp
+
 @section('content')
+    @vite(['resources/css/admin-list-toolbar.css'])
+
     <div class="main-content text-start">
-        <h4 class="pt-3">Группы</h4>
-        <hr>
+        <h4 class="pt-3 pb-3 text-start">Группы</h4>
 
-        <div class="buttons">
-            <div class="row gy-2 index-team-wrap">
-                {{-- ЛЕВАЯ ЧАСТЬ: фильтры --}}
-                <div id="search-container" class="col-12 col-md-6">
-                    <div class="d-flex flex-wrap gap-2 align-items-center">
-
-                        <input id="filter-title"
-                               class="form-control search-input width-170 filter-half"
-                               type="text"
-                               placeholder="Название группы">
-
-                        <select id="filter-status"
-                                class="form-select search-select width-170 filter-half">
-                            <option value="">Все группы</option>
-                            <option value="active" selected>Только активные</option>
-                            <option value="inactive">Только неактивные</option>
-                        </select>
-
-                        <button id="filter-apply"
-                                class="btn btn-primary filter-half filter-apply">
-                            Найти
-                        </button>
-
-                        <button id="filter-reset"
-                                class="btn btn-secondary btn-reset-filters">
-                            Сбросить
-                        </button>
-                    </div>
-                </div>
-
-                {{-- ПРАВАЯ ЧАСТЬ: действия + поля списка + логи --}}
-                <div class="col-12 col-md-6 text-start">
-                    <div class="d-flex flex-wrap justify-content-md-end gap-2 align-items-center index-team-actions">
-
-                        {{-- Добавить группу --}}
+        <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3">
+            <div class="card-body px-3 py-3">
+                <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+                    <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Группы</h1>
+                    <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
                         <button id="new-team"
                                 type="button"
-                                class="btn btn-primary mr-2 new-team width-170"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
                                 data-bs-toggle="modal"
                                 data-bs-target="#createTeamModal">
-                            Добавить группу
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-plus payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Добавить</span>
                         </button>
 
-                        {{-- Dropdown "Поля списка" --}}
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary dropdown-toggle wrap-icon wrap-select"
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#historyModal"
+                                title="История изменений">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                        </button>
+
+                        <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#teamsReportFiltersCollapse"
+                                aria-expanded="{{ $teamsHasActiveFilters ? 'true' : 'false' }}"
+                                aria-controls="teamsReportFiltersCollapse"
+                                id="teamsReportFiltersToggle">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
+
+                        <div class="dropdown payments-report-toolbar-dropdown">
+                            <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
                                     type="button"
                                     id="columnsDropdown"
                                     data-bs-toggle="dropdown"
+                                    data-bs-auto-close="outside"
                                     aria-expanded="false"
-                                    title="Поля списка">
-                                <i class="fa-solid fa-table-columns icon-columns"></i>
+                                    aria-haspopup="true"
+                                    title="Какие колонки показывать в таблице">
+                                <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                    <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                                </span>
+                                <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                                <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
                             </button>
 
-                            <div class="dropdown-menu p-3"
-                                 aria-labelledby="columnsDropdown"
-                                 style="min-width: 220px;">
+                            <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                                 aria-labelledby="columnsDropdown">
+                                <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
 
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
@@ -69,9 +77,7 @@
                                            data-column-key="order_by"
                                            id="colOrderBy"
                                            checked>
-                                    <label class="form-check-label" for="colOrderBy">
-                                        Сортировка
-                                    </label>
+                                    <label class="form-check-label" for="colOrderBy">Сортировка</label>
                                 </div>
 
                                 <div class="form-check">
@@ -80,9 +86,7 @@
                                            data-column-key="title"
                                            id="colTitle"
                                            checked>
-                                    <label class="form-check-label" for="colTitle">
-                                        Название
-                                    </label>
+                                    <label class="form-check-label" for="colTitle">Название</label>
                                 </div>
 
                                 @can('trainers.view')
@@ -92,9 +96,7 @@
                                            data-column-key="trainer_label"
                                            id="colTrainer"
                                            checked>
-                                    <label class="form-check-label" for="colTrainer">
-                                        Тренер
-                                    </label>
+                                    <label class="form-check-label" for="colTrainer">Тренер</label>
                                 </div>
                                 @endcan
 
@@ -105,9 +107,7 @@
                                            data-column-key="weekdays_label"
                                            id="colWeekdays"
                                            checked>
-                                    <label class="form-check-label" for="colWeekdays">
-                                        Расписание
-                                    </label>
+                                    <label class="form-check-label" for="colWeekdays">Расписание</label>
                                 </div>
                                 @endcan
 
@@ -117,9 +117,7 @@
                                            data-column-key="status_label"
                                            id="colStatus"
                                            checked>
-                                    <label class="form-check-label" for="colStatus">
-                                        Статус
-                                    </label>
+                                    <label class="form-check-label" for="colStatus">Статус</label>
                                 </div>
 
                                 <div class="form-check">
@@ -128,28 +126,56 @@
                                            data-column-key="actions"
                                            id="colActions"
                                            checked>
-                                    <label class="form-check-label" for="colActions">
-                                        Действия
-                                    </label>
+                                    <label class="form-check-label" for="colActions">Действия</label>
                                 </div>
                             </div>
                         </div>
-
-                        {{-- Логи --}}
-                        <div class="wrap-icon btn"
-                             data-bs-toggle="modal"
-                             data-bs-target="#historyModal">
-                            <i class="fa-solid fa-clock-rotate-left logs"></i>
-                        </div>
-
                     </div>
                 </div>
             </div>
         </div>
 
-        <hr>
+        <div class="collapse {{ $teamsHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="teamsReportFiltersCollapse">
+            <form id="teams-report-filters" class="border rounded p-2 p-md-3 bg-light">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-title">Название</label>
+                        <input id="filter-title"
+                               class="form-control"
+                               type="text"
+                               placeholder="Название группы">
+                    </div>
 
-        {{-- ТАБЛИЦА DataTables --}}
+                    @can('trainers.view')
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-trainer">Тренер</label>
+                        <select id="filter-trainer" class="form-select">
+                            <option value="">Все тренеры</option>
+                            <option value="none">Без тренера</option>
+                            @foreach($trainerOptions as $trainer)
+                                <option value="{{ $trainer->id }}">{{ $trainer->user?->full_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endcan
+
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-status">Статус</label>
+                        <select id="filter-status" class="form-select">
+                            <option value="">Все группы</option>
+                            <option value="active" selected>Только активные</option>
+                            <option value="inactive">Только неактивные</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                        <button id="filter-apply" class="btn btn-primary payments-report-filters-submit" type="button">Применить</button>
+                        <button id="filter-reset" class="btn btn-outline-secondary payments-report-filters-reset" type="button">Сброс</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
         <div class="table-responsive">
             <table id="teams-table" class="table table-striped table-bordered align-middle w-100">
                 <thead>
@@ -167,64 +193,23 @@
                     <th>Действия</th>
                 </tr>
                 </thead>
-                <tbody>
-                {{-- тело будет заполняться DataTables через AJAX --}}
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
 
-    {{-- Модальные окна --}}
     @include('includes.modal.createTeam')
     @include('includes.modal.editTeam')
     @include('includes.logModal')
-
-    <style>
-        /* Скрываем "Сбросить" на мобилках */
-        @media (max-width: 767.98px) {
-            .btn-reset-filters {
-                display: none !important;
-            }
-
-            #search-container .filter-half {
-                flex: 0 0 calc(50% - .5rem);
-                max-width: calc(50% - .5rem);
-            }
-
-            #search-container .search-input,
-            #search-container .search-select {
-                width: 100%;
-            }
-        }
-
-        .icon-columns {
-            color: #000;
-        }
-
-        .wrap-select:hover .icon-columns {
-            color: #fff;
-        }
-
-        .wrap-select:hover {
-            border-color: #f3a12b;
-        }
-
-        .filter-apply {
-            height: 34px !important;
-        }
-
-        .btn-reset-filters {
-            height: 34px !important;
-        }
-    </style>
 @endsection
 
-@section('scripts')
+@push('scripts')
     <script>
         $(document).ready(function () {
 
             const canViewSchedule = @json(auth()->user()->can('schedule.view'));
             const canViewTrainers = @json(auth()->user()->can('trainers.view'));
+            const defaultFilterStatus = 'active';
 
             const defaultColumnsVisibility = {
                 order_by: true,
@@ -237,7 +222,6 @@
 
             let currentColumnsConfig = {...defaultColumnsVisibility};
 
-            // Индексы колонок DataTables (нумерация # не настраивается)
             const columnsMap = (function () {
                 const map = { order_by: 1, title: 2 };
                 let idx = 3;
@@ -309,6 +293,35 @@
                 });
             }
 
+            function teamsFilterParams() {
+                return {
+                    title: $('#filter-title').val() || '',
+                    status: $('#filter-status').val() || '',
+                    trainer_profile_id: canViewTrainers ? ($('#filter-trainer').val() || '') : ''
+                };
+            }
+
+            function teamsHasNonDefaultFilters() {
+                const params = teamsFilterParams();
+                return params.title !== ''
+                    || params.trainer_profile_id !== ''
+                    || params.status !== defaultFilterStatus;
+            }
+
+            function syncTeamsFiltersCollapseState() {
+                const hasActive = teamsHasNonDefaultFilters();
+                const collapseEl = document.getElementById('teamsReportFiltersCollapse');
+                const $toggle = $('#teamsReportFiltersToggle');
+
+                if (collapseEl && hasActive && !collapseEl.classList.contains('show')) {
+                    bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false }).show();
+                }
+
+                if ($toggle.length && collapseEl) {
+                    $toggle.attr('aria-expanded', collapseEl.classList.contains('show') ? 'true' : 'false');
+                }
+            }
+
             const trainerColumn = {
                 data: 'trainer_label',
                 name: 'trainer_label',
@@ -336,7 +349,6 @@
             };
 
             const dataTableColumns = [
-                // 0) Нумерация строк
                 {
                     data: null,
                     name: 'rownum',
@@ -347,7 +359,6 @@
                         return meta.row + meta.settings._iDisplayStart + 1;
                     }
                 },
-                // 1) Сортировка (order_by)
                 {
                     data: 'order_by',
                     name: 'order_by',
@@ -357,7 +368,6 @@
                         return data !== null && data !== undefined && data !== '' ? data : '';
                     }
                 },
-                // 2) Название группы
                 {
                     data: 'title',
                     name: 'title',
@@ -373,7 +383,6 @@
                 },
                 ...(canViewTrainers ? [trainerColumn] : []),
                 ...(canViewSchedule ? [scheduleColumn] : []),
-                // Статус
                 {
                     data: 'status_label',
                     name: 'status_label',
@@ -382,7 +391,6 @@
                         return '<span class="badge ' + badgeClass + '">' + data + '</span>';
                     }
                 },
-                // Действия
                 {
                     data: null,
                     name: 'actions',
@@ -401,25 +409,28 @@
                 }
             ];
 
-            // --- Инициализация DataTables ---
             const table = $('#teams-table').DataTable({
                 processing: true,
                 serverSide: true,
-                pageLength: 20,
+                pageLength: 10,
                 lengthMenu: [10, 20, 50, 100],
                 ajax: {
                     url: '/admin/teams/data',
                     type: 'GET',
                     data: function (d) {
-                        d.title  = $('#filter-title').val();
-                        d.status = $('#filter-status').val();
+                        const params = teamsFilterParams();
+                        d.title = params.title;
+                        d.status = params.status;
+                        if (canViewTrainers) {
+                            d.trainer_profile_id = params.trainer_profile_id;
+                        }
                     }
                 },
 
                 columns: dataTableColumns,
 
-                // по умолчанию сортируем по полю order_by
                 order: [[1, 'asc']],
+                scrollX: true,
                 language: {
                     "processing": "Обработка...",
                     "search": "",
@@ -444,27 +455,45 @@
                 }
             });
 
-            // после инициализации — подтянуть конфиг колонок
             loadColumnsConfigFromServer();
+            table.columns.adjust();
 
-            // --- Фильтры ---
-            $('#filter-apply').on('click', function () {
+            function reloadTeamsTable() {
                 table.ajax.reload();
+                syncTeamsFiltersCollapseState();
+            }
+
+            $('#filter-apply').on('click', function () {
+                reloadTeamsTable();
+            });
+
+            $('#teams-report-filters').on('submit', function (e) {
+                e.preventDefault();
+                reloadTeamsTable();
             });
 
             $('#filter-reset').on('click', function () {
                 $('#filter-title').val('');
-                $('#filter-status').val('');
-                table.ajax.reload();
+                $('#filter-status').val(defaultFilterStatus);
+                if (canViewTrainers) {
+                    $('#filter-trainer').val('');
+                }
+                reloadTeamsTable();
             });
 
             $('#filter-title').on('keyup', function (e) {
                 if (e.key === 'Enter') {
-                    table.ajax.reload();
+                    reloadTeamsTable();
                 }
             });
 
-            // --- Обработчик чекбоксов "Поля списка" ---
+            $('#teamsReportFiltersCollapse').on('shown.bs.collapse hidden.bs.collapse', function () {
+                $('#teamsReportFiltersToggle').attr(
+                    'aria-expanded',
+                    $('#teamsReportFiltersCollapse').hasClass('show') ? 'true' : 'false'
+                );
+            });
+
             $('.column-toggle').on('change', function () {
                 const key = $(this).data('column-key');
                 const isChecked = $(this).is(':checked');
@@ -480,15 +509,13 @@
                         _token: csrfToken,
                         columns: currentColumnsConfig
                     },
-                    success: function () {},
                     error: function () {
                         console.error('Не удалось сохранить настройки колонок');
                     }
                 });
             });
 
-            // Логи для групп
             showLogModal("{{ route('logs.data.team') }}");
         });
     </script>
-@endsection
+@endpush

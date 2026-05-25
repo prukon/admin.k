@@ -5,7 +5,9 @@ namespace Tests\Feature\Crm\Teams;
 use App\Http\Middleware\SetPartner;
 use App\Models\MyLog;
 use App\Models\Partner;
+use App\Models\Role;
 use App\Models\Team;
+use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\Weekday;
 use Illuminate\Support\Facades\DB;
@@ -89,6 +91,81 @@ class TeamControllerTest extends CrmTestCase
         $this->assertNotContains('Чужая группа', collect($json['data'])->pluck('title')->all());
     }
 
+    public function test_data_datatables_search_finds_team_by_title(): void
+    {
+        $target = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'DtTeamsSearchUnique',
+        ]);
+
+        Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Другая группа поиск',
+        ]);
+
+        $json = $this->getJson('/admin/teams/data?search[value]=DtTeamsSearchUnique')
+            ->assertOk()
+            ->json();
+
+        $this->assertSame(1, $json['recordsFiltered']);
+        $this->assertSame($target->id, $json['data'][0]['id']);
+    }
+
+    public function test_data_panel_title_takes_precedence_over_datatables_search(): void
+    {
+        $byPanel = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'ПриоритетПанелиГруппа',
+        ]);
+
+        Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'ПриоритетПоискаГруппа',
+        ]);
+
+        $json = $this->getJson(
+            '/admin/teams/data?title=ПриоритетПанелиГруппа&search[value]=ПриоритетПоискаГруппа'
+        )
+            ->assertOk()
+            ->json();
+
+        $titles = collect($json['data'])->pluck('title')->all();
+        $this->assertContains('ПриоритетПанелиГруппа', $titles);
+        $this->assertNotContains('ПриоритетПоискаГруппа', $titles);
+        $this->assertSame(1, $json['recordsFiltered']);
+    }
+
+    public function test_data_datatables_search_finds_team_by_trainer_name(): void
+    {
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Группа для поиска тренера',
+        ]);
+
+        $profile = $this->makeTrainerProfileForFilter('УникальныйПоиск', 'Тренерович');
+
+        DB::table('team_trainer')->insert([
+            'partner_id'         => $this->partner->id,
+            'team_id'            => $team->id,
+            'trainer_profile_id' => $profile->id,
+            'created_at'         => now(),
+            'updated_at'         => now(),
+        ]);
+
+        Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Без нужного тренера',
+        ]);
+
+        $json = $this->getJson('/admin/teams/data?search[value]=УникальныйПоиск')
+            ->assertOk()
+            ->json();
+
+        $titles = collect($json['data'])->pluck('title')->all();
+        $this->assertContains('Группа для поиска тренера', $titles);
+        $this->assertNotContains('Без нужного тренера', $titles);
+    }
+
     public function test_data_filters_by_title_within_current_partner()
     {
         Team::factory()->create([
@@ -147,6 +224,66 @@ class TeamControllerTest extends CrmTestCase
         $titlesInactive = collect($jsonInactive['data'])->pluck('title')->all();
         $this->assertContains('Неактивная', $titlesInactive);
         $this->assertNotContains('Активная', $titlesInactive);
+    }
+
+    public function test_data_filters_by_trainer_profile_id(): void
+    {
+        $withTrainer = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'С тренером фильтр',
+        ]);
+        $withoutTrainer = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Без тренера фильтр',
+        ]);
+
+        $profile = $this->makeTrainerProfileForFilter('Иван', 'Тренеров');
+
+        DB::table('team_trainer')->insert([
+            'partner_id'         => $this->partner->id,
+            'team_id'            => $withTrainer->id,
+            'trainer_profile_id' => $profile->id,
+            'created_at'         => now(),
+            'updated_at'         => now(),
+        ]);
+
+        $json = $this->get('/admin/teams/data?trainer_profile_id=' . $profile->id)
+            ->assertOk()
+            ->json();
+
+        $titles = collect($json['data'])->pluck('title')->all();
+        $this->assertContains('С тренером фильтр', $titles);
+        $this->assertNotContains('Без тренера фильтр', $titles);
+    }
+
+    public function test_data_filters_by_trainer_none(): void
+    {
+        $withTrainer = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Есть тренер none',
+        ]);
+        $withoutTrainer = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Нет тренера none',
+        ]);
+
+        $profile = $this->makeTrainerProfileForFilter('Пётр', 'Безгруппов');
+
+        DB::table('team_trainer')->insert([
+            'partner_id'         => $this->partner->id,
+            'team_id'            => $withTrainer->id,
+            'trainer_profile_id' => $profile->id,
+            'created_at'         => now(),
+            'updated_at'         => now(),
+        ]);
+
+        $json = $this->get('/admin/teams/data?trainer_profile_id=none')
+            ->assertOk()
+            ->json();
+
+        $titles = collect($json['data'])->pluck('title')->all();
+        $this->assertContains('Нет тренера none', $titles);
+        $this->assertNotContains('Есть тренер none', $titles);
     }
 
     public function test_data_paginates_results()
@@ -587,5 +724,23 @@ class TeamControllerTest extends CrmTestCase
         // По SetPartner: redirect()->back() + session errors
         $res->assertStatus(302);
         $res->assertSessionHasErrors(['partner']);
+    }
+
+    private function makeTrainerProfileForFilter(string $name, string $lastname): TrainerProfile
+    {
+        $trainerRoleId = (int) Role::query()->where('name', 'trainer')->value('id');
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $trainerRoleId,
+            'name'       => $name,
+            'lastname'   => $lastname,
+            'email'      => strtolower($name) . '-' . uniqid() . '@example.test',
+        ]);
+
+        return TrainerProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id'    => $user->id,
+        ]);
     }
 }

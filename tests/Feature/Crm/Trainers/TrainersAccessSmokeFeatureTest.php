@@ -67,6 +67,10 @@ final class TrainersAccessSmokeFeatureTest extends CrmTestCase
         $this->getJson(route('admin.trainers.columns-settings.get'))
             ->assertOk();
 
+        $this->postJson(route('admin.trainers.columns-settings.save'), [
+            'columns' => ['full_name' => true, 'email' => true],
+        ])->assertOk();
+
         $this->getJson(route('admin.trainers.show', $this->profile->id))
             ->assertOk()
             ->assertJsonPath('id', $this->profile->id);
@@ -110,6 +114,10 @@ final class TrainersAccessSmokeFeatureTest extends CrmTestCase
         $this->getJson(route('admin.trainers.data'))->assertStatus(403);
 
         $this->getJson(route('admin.trainers.columns-settings.get'))->assertStatus(403);
+
+        $this->postJson(route('admin.trainers.columns-settings.save'), [
+            'columns' => ['full_name' => true],
+        ])->assertStatus(403);
 
         $this->getJson(route('admin.trainers.show', $this->profile->id))
             ->assertStatus(403);

@@ -43,21 +43,6 @@
                     </div>
                     @endcan
 
-                    <!-- Сортировка -->
-                    <div class="mb-3">
-                        <label for="edit-order_by" class="form-label">Сортировка</label>
-                        <input type="text" name="order_by" class="form-control" id="edit-order_by">
-                    </div>
-
-                    <!-- Активность -->
-                    <div class="mb-3">
-                        <label for="edit-activity">Активность</label>
-                        <select name="is_enabled" class="form-control" id="edit-activity">
-                            <option value="0">Неактивен</option>
-                            <option value="1">Активен</option>
-                        </select>
-                    </div>
-
                     @can('trainers.view')
                     <div class="mb-3">
                         <label for="edit-trainer-profile-id" class="form-label">Тренер</label>
@@ -70,6 +55,19 @@
                         <div class="invalid-feedback" id="edit-trainer-profile-id-error"></div>
                     </div>
                     @endcan
+
+                    <div class="mb-3">
+                        <label for="edit-order_by" class="form-label">Сортировка</label>
+                        <input type="text" name="order_by" class="form-control" id="edit-order_by">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit-activity">Активность</label>
+                        <select name="is_enabled" class="form-control" id="edit-activity">
+                            <option value="0">Неактивен</option>
+                            <option value="1">Активен</option>
+                        </select>
+                    </div>
 
                     <hr>
                     <div class="buttons-wrap mb-3">

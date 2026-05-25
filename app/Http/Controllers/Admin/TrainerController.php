@@ -445,7 +445,7 @@ class TrainerController extends AdminBaseController
 
     private function formatSalaryRubles(mixed $value): string
     {
-        return number_format((int) round((float) ($value ?? 0)), 0, '.', ' ');
+        return number_format((int) round((float) ($value ?? 0)), 0, '.', ' ') . ' руб';
     }
 
     private function salaryRublesForForm(mixed $value): string

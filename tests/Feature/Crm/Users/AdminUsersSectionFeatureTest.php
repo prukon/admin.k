@@ -242,6 +242,15 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
             ->assertViewHas('activeTab', 'trainers')
             ->assertSee('trainerCreateModal', false);
 
+        $this->getJson(route('admin.trainers.data', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+
+        $this->getJson(route('admin.trainers.columns-settings.get'))->assertOk();
+        $this->postJson(route('admin.trainers.columns-settings.save'), [
+            'columns' => ['full_name' => true, 'email' => true],
+        ])->assertOk();
+
         $this->getJson(route('admin.trainers.show', $this->trainerProfile->id))
             ->assertOk()
             ->assertJsonPath('id', $this->trainerProfile->id);
@@ -319,6 +328,14 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
             'lastname' => 'Патч',
         ])->assertOk();
 
+        $this->getJson(route('admin.trainers.data', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk();
+
+        $this->getJson(route('admin.trainers.columns-settings.get'))->assertOk();
+        $this->postJson(route('admin.trainers.columns-settings.save'), [
+            'columns' => ['full_name' => true],
+        ])->assertOk();
+
         $this->getJson(route('admin.trainers.show', $this->trainerProfile->id))
             ->assertOk()
             ->assertJsonPath('id', $this->trainerProfile->id);
@@ -386,6 +403,11 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
         $this->actingAs($denied);
 
         $this->get(route('admin.trainers.index'))->assertForbidden();
+        $this->getJson(route('admin.trainers.data', ['draw' => 1]))->assertForbidden();
+        $this->getJson(route('admin.trainers.columns-settings.get'))->assertForbidden();
+        $this->postJson(route('admin.trainers.columns-settings.save'), [
+            'columns' => ['full_name' => true],
+        ])->assertForbidden();
         $this->getJson(route('admin.trainers.show', $this->trainerProfile->id))->assertForbidden();
         $this->postJson(route('admin.trainers.store'), [
             'lastname'   => 'Запрет',

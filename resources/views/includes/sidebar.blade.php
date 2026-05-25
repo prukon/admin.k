@@ -151,14 +151,14 @@
         @endcan
 
         {{--Сообщения (Чат)--}}
-        @can('messages.view')
+        {{-- @can('messages.view')
             <li class="nav-item">
                 <a href="/chat" class="nav-link">
                     <i class="nav-icon fa-solid fa-message"></i>
                               <p>Сообщения</p>
                 </a>
             </li>
-        @endcan
+        @endcan --}}
 
         {{--Блог--}}
         @can('blog.view')
@@ -177,7 +177,7 @@
 
 
         {{--Оплата сервиса--}}
-        @can('servicePayments.view')
+        {{-- @can('servicePayments.view')
         <li class="nav-item">
                 <a href="/partner-payment/recharge" class="nav-link">
                     <i class="nav-icon fa-solid fa-credit-card"></i>
@@ -185,7 +185,7 @@
                     <p>Оплата сервиса<span class="badge badge-info right"></span></p>
                 </a>
             </li>
-        @endcan
+        @endcan --}}
 
         {{--О сервисе--}}
             <li class="nav-item">

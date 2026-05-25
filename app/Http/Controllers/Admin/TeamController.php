@@ -57,8 +57,9 @@ class TeamController extends AdminBaseController
 
         // валидация входящих параметров DataTables
         $validated = $request->validate([
-            'title'  => 'nullable|string',
-            'status' => 'nullable|string', // active / inactive
+            'title'                => 'nullable|string',
+            'status'               => 'nullable|string', // active / inactive
+            'trainer_profile_id'   => 'nullable|string', // id или 'none'
 
             'draw'   => 'nullable|integer',
             'start'  => 'nullable|integer',
@@ -69,11 +70,29 @@ class TeamController extends AdminBaseController
         $baseQuery = Team::query()
             ->where('teams.partner_id', $partnerId);
 
-        // фильтр: название
-        if (!empty($validated['title'])) {
-            $value = $validated['title'];
-            $like  = '%' . $value . '%';
-            $baseQuery->where('teams.title', 'like', $like);
+        // Поиск: панель фильтров (title) или глобальный поиск DataTables (search.value)
+        $titleSearch = trim((string) ($validated['title'] ?? ''));
+        if ($titleSearch === '' && $request->filled('search.value')) {
+            $titleSearch = trim((string) $request->input('search.value'));
+        }
+
+        if ($titleSearch !== '') {
+            $like = '%' . $titleSearch . '%';
+            $baseQuery->where(function ($q) use ($like, $partnerId, $titleSearch) {
+                $q->where('teams.title', 'like', $like);
+
+                if (ctype_digit($titleSearch)) {
+                    $q->orWhere('teams.order_by', (int) $titleSearch);
+                }
+
+                $q->orWhereHas('trainerProfiles', function ($tq) use ($like, $partnerId) {
+                    $tq->where('team_trainer.partner_id', $partnerId)
+                        ->whereHas('user', function ($uq) use ($like) {
+                            $uq->where('name', 'like', $like)
+                                ->orWhere('lastname', 'like', $like);
+                        });
+                });
+            });
         }
 
         // фильтр: статус
@@ -82,6 +101,22 @@ class TeamController extends AdminBaseController
                 $baseQuery->where('teams.is_enabled', 1);
             } elseif ($validated['status'] === 'inactive') {
                 $baseQuery->where('teams.is_enabled', 0);
+            }
+        }
+
+        // фильтр: тренер
+        $trainerFilter = $validated['trainer_profile_id'] ?? null;
+        if ($trainerFilter !== null && $trainerFilter !== '') {
+            if ($trainerFilter === 'none') {
+                $baseQuery->whereDoesntHave('trainerProfiles', function ($q) use ($partnerId) {
+                    $q->where('team_trainer.partner_id', $partnerId);
+                });
+            } elseif (ctype_digit((string) $trainerFilter)) {
+                $profileId = (int) $trainerFilter;
+                $baseQuery->whereHas('trainerProfiles', function ($q) use ($partnerId, $profileId) {
+                    $q->where('team_trainer.partner_id', $partnerId)
+                        ->where('trainer_profiles.id', $profileId);
+                });
             }
         }
 
