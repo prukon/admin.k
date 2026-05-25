@@ -81,14 +81,14 @@
         @endcan
 
         {{--Абонементы--}}
-        @can('lessonPackages.view')
+        {{-- @can('lessonPackages.view')
             <li class="nav-item">
                 <a href="/admin/lesson-packages" class="nav-link">
                     <i class="nav-icon fa-solid fa-id-card"></i>
                     <p>Абонементы</p>
                 </a>
             </li>
-        @endcan
+        @endcan --}}
 
         {{--Локации--}}
         @can('locations.view')

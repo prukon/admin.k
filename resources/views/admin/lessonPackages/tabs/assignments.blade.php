@@ -184,6 +184,28 @@
                 </div>
             </div>
         </div>
+
+        <div class="modal fade" id="ulpPayLinkModal" tabindex="-1" aria-labelledby="ulpPayLinkModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="ulpPayLinkModalLabel">Ссылка на оплату через СБП</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small mb-2">Отправьте ссылку ученику. Если копирование не сработало автоматически, нажмите «Скопировать» или выделите ссылку вручную (Ctrl+C / Cmd+C).</p>
+                        <label class="form-label visually-hidden" for="ulp-pay-link-url">Ссылка на оплату</label>
+                        <input type="text" class="form-control font-monospace small" id="ulp-pay-link-url" readonly>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="button" class="btn btn-primary" id="ulp-pay-link-copy-btn">
+                            <i class="fas fa-copy me-1" aria-hidden="true"></i>Скопировать
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endcan
 
 </div>
@@ -554,6 +576,13 @@
                 });
 
                 const copyToast = document.getElementById('ulp-copy-pay-toast');
+                const payLinkModalEl = document.getElementById('ulpPayLinkModal');
+                const payLinkInputEl = document.getElementById('ulp-pay-link-url');
+                const payLinkCopyBtn = document.getElementById('ulp-pay-link-copy-btn');
+                const payLinkModal = payLinkModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal
+                    ? bootstrap.Modal.getOrCreateInstance(payLinkModalEl)
+                    : null;
+
                 function showCopyToast() {
                     if (!copyToast) return;
                     copyToast.classList.remove('d-none');
@@ -562,6 +591,72 @@
                         copyToast.classList.add('d-none');
                     }, 3200);
                 }
+
+                function copyViaTextarea(text) {
+                    try {
+                        const ta = document.createElement('textarea');
+                        ta.value = text;
+                        ta.setAttribute('readonly', '');
+                        ta.style.position = 'fixed';
+                        ta.style.left = '-9999px';
+                        ta.style.top = '0';
+                        document.body.appendChild(ta);
+                        ta.focus();
+                        ta.select();
+                        ta.setSelectionRange(0, text.length);
+                        const ok = document.execCommand('copy');
+                        document.body.removeChild(ta);
+                        return !!ok;
+                    } catch (err) {
+                        return false;
+                    }
+                }
+
+                function copyTextToClipboard(text) {
+                    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                        return navigator.clipboard.writeText(text).then(function () {
+                            return true;
+                        }).catch(function () {
+                            return copyViaTextarea(text);
+                        });
+                    }
+                    return Promise.resolve(copyViaTextarea(text));
+                }
+
+                function selectPayLinkInput() {
+                    if (!payLinkInputEl) return;
+                    payLinkInputEl.focus();
+                    payLinkInputEl.select();
+                    if (typeof payLinkInputEl.setSelectionRange === 'function') {
+                        payLinkInputEl.setSelectionRange(0, payLinkInputEl.value.length);
+                    }
+                }
+
+                function showPayLinkModal(url) {
+                    if (!payLinkModal || !payLinkInputEl) {
+                        window.prompt('Ссылка на оплату:', url);
+                        return;
+                    }
+                    payLinkInputEl.value = url;
+                    payLinkModal.show();
+                }
+
+                if (payLinkModalEl) {
+                    payLinkModalEl.addEventListener('shown.bs.modal', selectPayLinkInput);
+                }
+
+                payLinkCopyBtn?.addEventListener('click', function () {
+                    const url = payLinkInputEl?.value || '';
+                    if (!url) return;
+                    copyTextToClipboard(url).then(function (copied) {
+                        if (copied) {
+                            showCopyToast();
+                            payLinkModal?.hide();
+                            return;
+                        }
+                        selectPayLinkInput();
+                    });
+                });
 
                 $(document).on('click', '.js-ulp-copy-pay-link', async function (e) {
                     e.preventDefault();
@@ -579,10 +674,14 @@
                             window.alert((payload && payload.message) || ('Не удалось получить ссылку (' + status + ')'));
                             return;
                         }
-                        await navigator.clipboard.writeText(payload.url);
-                        showCopyToast();
+                        const copied = await copyTextToClipboard(payload.url);
+                        if (copied) {
+                            showCopyToast();
+                        } else {
+                            showPayLinkModal(payload.url);
+                        }
                     } catch (err) {
-                        window.alert('Не удалось скопировать ссылку.');
+                        window.alert('Не удалось получить ссылку. Проверьте соединение и попробуйте снова.');
                     } finally {
                         btn.prop('disabled', false);
                         btn.html(prevHtml);
