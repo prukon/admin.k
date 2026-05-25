@@ -19,14 +19,106 @@ class LocationController extends AdminBaseController
 
     public function index()
     {
+        $this->requirePartnerId();
+
+        return view('admin.locations.index');
+    }
+
+    public function data(Request $request)
+    {
         $partnerId = $this->requirePartnerId();
 
-        $locations = Location::query()
-            ->where('partner_id', $partnerId)
-            ->orderBy('name')
-            ->paginate(50);
+        $validated = $request->validate([
+            'name'   => 'nullable|string',
+            'status' => 'nullable|string',
+            'draw'   => 'nullable|integer',
+            'start'  => 'nullable|integer',
+            'length' => 'nullable|integer',
+        ]);
 
-        return view('admin.locations.index', compact('locations'));
+        $baseQuery = Location::query()
+            ->where('partner_id', $partnerId);
+
+        $nameSearch = trim((string) ($validated['name'] ?? ''));
+        if ($nameSearch === '' && $request->filled('search.value')) {
+            $nameSearch = trim((string) $request->input('search.value'));
+        }
+
+        if ($nameSearch !== '') {
+            $like = '%' . $nameSearch . '%';
+            $baseQuery->where(function ($q) use ($like, $nameSearch) {
+                $q->where('name', 'like', $like)
+                    ->orWhere('address', 'like', $like)
+                    ->orWhere('description', 'like', $like);
+
+                if (ctype_digit($nameSearch)) {
+                    $q->orWhere('id', (int) $nameSearch);
+                }
+            });
+        }
+
+        if (! empty($validated['status'])) {
+            if ($validated['status'] === 'active') {
+                $baseQuery->where('is_enabled', 1);
+            } elseif ($validated['status'] === 'inactive') {
+                $baseQuery->where('is_enabled', 0);
+            }
+        }
+
+        $totalRecords = Location::where('partner_id', $partnerId)->count();
+        $recordsFiltered = (clone $baseQuery)->count();
+
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir         = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
+        $columnsDef       = $request->input('columns', []);
+        $orderColumnName  = null;
+        if ($orderColumnIndex !== null && isset($columnsDef[(int) $orderColumnIndex]['name'])) {
+            $orderColumnName = $columnsDef[(int) $orderColumnIndex]['name'];
+        }
+
+        switch ($orderColumnName) {
+            case 'id':
+                $baseQuery->orderBy('id', $orderDir);
+                break;
+            case 'address':
+                $baseQuery->orderBy('address', $orderDir)
+                    ->orderBy('name', 'asc');
+                break;
+            case 'is_enabled_label':
+                $baseQuery->orderBy('is_enabled', $orderDir)
+                    ->orderBy('name', 'asc');
+                break;
+            case 'name':
+            default:
+                $baseQuery->orderBy('name', $orderDir)
+                    ->orderBy('id', 'asc');
+                break;
+        }
+
+        $start  = $validated['start'] ?? 0;
+        $length = $validated['length'] ?? 10;
+
+        $locations = $baseQuery
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $data = $locations->map(function (Location $location) {
+            return [
+                'id'                => $location->id,
+                'name'              => $location->name,
+                'address'           => $location->address ?? '',
+                'is_enabled'        => (int) $location->is_enabled,
+                'is_enabled_label'  => $location->is_enabled ? 'Да' : 'Нет',
+            ];
+        })->toArray();
+
+        return response()->json([
+            'draw'            => (int) ($validated['draw'] ?? 0),
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ]);
     }
 
     public function store(StoreLocationRequest $request)
@@ -127,10 +219,12 @@ class LocationController extends AdminBaseController
         $location->delete();
 
         if ($request->ajax() || $request->expectsJson()) {
-            return response()->json(['message' => 'Локация удалена']);
+            return response()->json([
+                'message' => 'Локация удалена',
+                'success' => true,
+            ]);
         }
 
         return redirect()->route('admin.locations.index');
     }
 }
-

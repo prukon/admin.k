@@ -46,7 +46,222 @@ final class LocationsFeatureTest extends CrmTestCase
 
         $this->get(route('admin.locations.index'))
             ->assertOk()
-            ->assertSee('Локации');
+            ->assertSee('Локации')
+            ->assertSee('id="locations-table"', false)
+            ->assertDontSee('locationCreateModal', false)
+            ->assertDontSee('id="locationCreateSubmit"', false);
+    }
+
+    public function test_index_renders_datatables_and_manage_actions_when_allowed(): void
+    {
+        $this->grantPermission('locations.view');
+        $this->grantPermission('locations.manage');
+
+        $this->get(route('admin.locations.index'))
+            ->assertOk()
+            ->assertSee('serverSide: true', false)
+            ->assertSee('pageLength: 10', false)
+            ->assertSee('js-location-edit', false);
+    }
+
+    public function test_data_denied_without_view_permission(): void
+    {
+        $user = $this->createUserWithoutPermission('locations.view');
+        $this->actingAs($user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+
+        $this->getJson(route('admin.locations.data'))->assertStatus(403);
+    }
+
+    public function test_data_returns_partner_scoped_locations(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $own = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Кабинет Alpha',
+            'address' => 'Улица 1',
+            'is_enabled' => true,
+        ]);
+
+        Location::factory()->create([
+            'partner_id' => $this->foreignPartner->id,
+            'name' => 'Чужая локация',
+        ]);
+
+        $response = $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('recordsTotal', 1)
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $own->id)
+            ->assertJsonPath('data.0.name', 'Кабинет Alpha')
+            ->assertJsonPath('data.0.address', 'Улица 1')
+            ->assertJsonPath('data.0.is_enabled_label', 'Да');
+    }
+
+    public function test_index_edit_modal_has_confirm_delete_button(): void
+    {
+        $this->grantPermission('locations.view');
+        $this->grantPermission('locations.manage');
+
+        $this->get(route('admin.locations.index'))
+            ->assertOk()
+            ->assertSee('id="locationDeleteBtn"', false)
+            ->assertSee('confirm-delete-modal', false)
+            ->assertSee('deleteLocation', false)
+            ->assertSee('showConfirmDeleteModal', false);
+    }
+
+    public function test_index_renders_toolbar_and_filters_like_users_page(): void
+    {
+        $this->grantPermission('locations.view');
+        $this->grantPermission('locations.manage');
+
+        $this->get(route('admin.locations.index'))
+            ->assertOk()
+            ->assertSee('payments-report-toolbar', false)
+            ->assertSee('locationsReportFiltersCollapse', false)
+            ->assertSee('filter-name', false)
+            ->assertSee('filter-status', false)
+            ->assertSee('locationsColumnsDropdown', false)
+            ->assertSee('id="new-location"', false);
+    }
+
+    public function test_data_panel_name_takes_precedence_over_datatables_search(): void
+    {
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Panel Alpha',
+        ]);
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Search Beta',
+        ]);
+
+        $response = $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'name' => 'Panel',
+            'search' => ['value' => 'Search'],
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.name', 'Panel Alpha');
+    }
+
+    public function test_data_filters_by_status_active(): void
+    {
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Active loc',
+            'is_enabled' => true,
+        ]);
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Inactive loc',
+            'is_enabled' => false,
+        ]);
+
+        $response = $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'status' => 'active',
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('recordsTotal', 2)
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.name', 'Active loc');
+    }
+
+    public function test_columns_settings_roundtrip(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $this->postJson(route('admin.locations.columns-settings.save'), [
+            'columns' => [
+                'id' => true,
+                'name' => false,
+                'address' => true,
+                'is_enabled_label' => true,
+            ],
+        ])->assertOk();
+
+        $this->getJson(route('admin.locations.columns-settings.get'))
+            ->assertOk()
+            ->assertJsonPath('name', false)
+            ->assertJsonPath('address', true);
+    }
+
+    public function test_data_search_filters_by_name(): void
+    {
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Кабинет Alpha',
+        ]);
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Кабинет Beta',
+        ]);
+
+        $response = $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'search' => ['value' => 'Alpha'],
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('recordsTotal', 2)
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Кабинет Alpha');
+    }
+
+    public function test_data_paginates_results(): void
+    {
+        $this->grantPermission('locations.view');
+
+        foreach (['Aaa', 'Bbb', 'Ccc'] as $name) {
+            Location::factory()->create([
+                'partner_id' => $this->partner->id,
+                'name' => $name,
+            ]);
+        }
+
+        $response = $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 1,
+            'length' => 1,
+            'order' => [['column' => 1, 'dir' => 'asc']],
+            'columns' => [
+                ['name' => 'id'],
+                ['name' => 'name'],
+                ['name' => 'address'],
+                ['name' => 'is_enabled_label'],
+            ],
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('recordsTotal', 3)
+            ->assertJsonPath('recordsFiltered', 3)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Bbb');
     }
 
     public function test_index_ok_for_admin_by_default_base_permissions(): void
@@ -193,7 +408,9 @@ final class LocationsFeatureTest extends CrmTestCase
         ]);
 
         $this->deleteJson(route('admin.locations.destroy', $loc->id))
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Локация удалена');
 
         $this->assertDatabaseMissing('locations', [
             'id' => $loc->id,

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\Teams;
 
 use App\Models\Team;
+use App\Models\User;
 use App\Models\Weekday;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -78,6 +79,88 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
         ])->assertOk();
 
         $this->deleteJson(route('admin.team.delete', $team->id))->assertOk();
+    }
+
+    public function test_user_with_only_groups_view_can_access_page_and_all_section_endpoints_return_ok(): void
+    {
+        $actor = $this->createUserWithoutPermission('groups.view', $this->partner);
+        $this->grantGroupsViewForUser($actor);
+        $this->actingAs($actor);
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Groups view only smoke',
+            'order_by'   => 3,
+        ]);
+
+        $this->get(route('admin.team.index'))
+            ->assertOk()
+            ->assertViewIs('admin.team')
+            ->assertViewHas(['weekdays', 'trainerOptions']);
+
+        $this->getJson('/admin/teams/data?draw=1&start=0&length=10')->assertOk();
+        $this->getJson('/admin/teams/data?draw=1&status=active&search[value]=Groups')->assertOk();
+        $this->getJson('/admin/teams/data?draw=1&title=Groups&status=active&trainer_profile_id=none')->assertOk();
+
+        $this->getJson('/admin/teams/columns-settings')->assertOk();
+        $this->postJson('/admin/teams/columns-settings', [
+            'columns' => [
+                'order_by'     => true,
+                'title'        => true,
+                'status_label' => true,
+                'actions'      => true,
+            ],
+        ])->assertOk();
+
+        $this->get(route('logs.data.team'))->assertOk();
+        $this->getJson(route('admin.team.edit', $team->id))->assertOk();
+
+        $this->postJson(route('admin.team.store'), [
+            'title'                    => 'Created with groups.view only',
+            'type'                     => 'group',
+            'default_duration_minutes' => 60,
+            'order_by'                 => 7,
+            'is_enabled'               => 1,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])->assertOk();
+
+        $this->patchJson(route('admin.team.update', $team->id), [
+            'title'                    => 'Updated with groups.view only',
+            'type'                     => 'group',
+            'default_duration_minutes' => 60,
+            'order_by'                 => $team->order_by,
+            'is_enabled'               => (int) $team->is_enabled,
+        ])->assertOk();
+
+        $deleteTarget = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'To delete groups view only',
+        ]);
+
+        $this->deleteJson(route('admin.team.delete', $deleteTarget->id))->assertOk();
+    }
+
+    public function test_teams_data_new_filter_and_search_params_return_200(): void
+    {
+        Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Filter 200 smoke',
+            'is_enabled' => 1,
+        ]);
+
+        $queries = [
+            '/admin/teams/data?draw=1&start=0&length=10&status=active',
+            '/admin/teams/data?draw=1&start=0&length=10&status=inactive',
+            '/admin/teams/data?draw=1&start=0&length=10&title=Filter',
+            '/admin/teams/data?draw=1&start=0&length=10&trainer_profile_id=none',
+            '/admin/teams/data?draw=1&start=0&length=10&search[value]=Filter',
+            '/admin/teams/data?draw=1&start=0&length=10&title=Filter&search[value]=Other&status=active',
+        ];
+
+        foreach ($queries as $url) {
+            $this->get($url)->assertOk();
+        }
     }
 
     public function test_data_endpoint_with_full_column_layout_returns_200(): void
@@ -235,6 +318,17 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
             $status = $call()->getStatusCode();
             $this->assertContains($status, [302, 401, 403], 'Unexpected status: ' . $status);
         }
+    }
+
+    private function grantGroupsViewForUser(User $user): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => $this->partner->id,
+            'role_id'       => $user->role_id,
+            'permission_id' => $this->permissionId('groups.view'),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
     }
 
     private function grantScheduleViewForAdmin(): void

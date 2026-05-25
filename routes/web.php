@@ -522,6 +522,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // Локации
     Route::middleware('can:locations.view')->group(function () {
         Route::get('admin/locations', [\App\Http\Controllers\Admin\LocationController::class, 'index'])->name('admin.locations.index');
+        Route::get('admin/locations/data', [\App\Http\Controllers\Admin\LocationController::class, 'data'])->name('admin.locations.data');
+        Route::get('admin/locations/columns-settings', [\App\Http\Controllers\Admin\LocationColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.locations.columns-settings.get');
+        Route::post('admin/locations/columns-settings', [\App\Http\Controllers\Admin\LocationColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.locations.columns-settings.save');
         Route::get('admin/locations/{location}', [\App\Http\Controllers\Admin\LocationController::class, 'show'])->whereNumber('location')->name('admin.locations.show');
         Route::post('admin/locations', [\App\Http\Controllers\Admin\LocationController::class, 'store'])
             ->middleware('can:locations.manage')
