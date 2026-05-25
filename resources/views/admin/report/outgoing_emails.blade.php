@@ -1,4 +1,4 @@
-@vite(['resources/css/payments-report.css'])
+@vite(['resources/css/admin-list-toolbar.css'])
 
 @php
     $et = $emailsToolbar ?? [];

@@ -1,4 +1,4 @@
-/* Шапка отчёта «Платежи»: карточка, тулбар, итог */
+/* Общий тулбар списков и отчётов: карточка, кнопки, фильтры, итог */
 .payments-report-surface {
     background: var(--bs-body-bg, #fff);
     border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08)) !important;
@@ -343,4 +343,22 @@
 /* Select2 в блоке фильтров (как на /cabinet) */
 .payments-report-filter-select2 {
     width: 100% !important;
+}
+
+/* Тулбар с 4+ кнопками (например /admin/users) */
+.payments-report-toolbar-actions--many {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 0.35rem;
+}
+
+@media (max-width: 575.98px) {
+    .payments-report-toolbar-actions--many .payments-report-toolbar-action {
+        padding-left: 0.4rem;
+        padding-right: 0.4rem;
+    }
+
+    .payments-report-toolbar-actions--many .payments-report-toolbar-label {
+        display: none !important;
+    }
 }

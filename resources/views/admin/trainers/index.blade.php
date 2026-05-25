@@ -4,12 +4,16 @@
 
 @section('content')
     <div class="main-content">
-        <div class="d-flex align-items-center justify-content-between pt-3 pb-3">
-            <h4 class="text-start mb-0">Тренеры</h4>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#trainerCreateModal">
-                Добавить
-            </button>
-        </div>
+        <h4 class="pt-3 pb-3 text-start">Пользователи</h4>
+        <div class="">
+            @include('admin.users._users_section_tabs', ['activeTab' => $activeTab ?? 'trainers'])
+
+            <div class="tab-content">
+                <div class="d-flex align-items-center justify-content-end pb-3">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#trainerCreateModal">
+                        Добавить
+                    </button>
+                </div>
 
         <div class="card">
             <div class="card-body">
@@ -72,7 +76,8 @@
                 </div>
             </div>
         </div>
-    </div>
+            </div>
+        </div>
 
     <div class="modal fade" id="trainerCreateModal" tabindex="-1" aria-labelledby="trainerCreateModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -330,6 +335,7 @@
     </div>
 
     @include('includes.modal.editAvatar')
+    </div>
 @endsection
 
 @section('scripts')

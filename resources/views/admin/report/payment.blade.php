@@ -545,7 +545,7 @@
 </div>
 @endcan
 
-@vite(['resources/css/payments-report.css'])
+@vite(['resources/css/admin-list-toolbar.css'])
 
 @section('scripts')
     <script type="text/javascript">

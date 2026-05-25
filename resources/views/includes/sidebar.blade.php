@@ -100,16 +100,6 @@
             </li>
         @endcan
 
-        {{--Тренеры--}}
-        @can('trainers.view')
-            <li class="nav-item">
-                <a href="/admin/trainers" class="nav-link">
-                    <i class="nav-icon fa-solid fa-person-running"></i>
-                    <p>Тренеры</p>
-                </a>
-            </li>
-        @endcan
-
         {{--Пользователи--}}
         @can('users.view')
             <li class="nav-item">

@@ -10,7 +10,7 @@
         $leadsHasActiveFilters = false;
     @endphp
 
-    @vite(['resources/css/payments-report.css'])
+    @vite(['resources/css/admin-list-toolbar.css'])
 
     <div class="main-content text-start">
 

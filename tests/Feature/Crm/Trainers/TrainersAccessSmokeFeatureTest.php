@@ -55,7 +55,10 @@ final class TrainersAccessSmokeFeatureTest extends CrmTestCase
     {
         $this->grantTrainersView();
 
-        $this->get(route('admin.trainers.index'))->assertOk();
+        $this->get(route('admin.trainers.index'))
+            ->assertOk()
+            ->assertViewHas('activeTab', 'trainers')
+            ->assertSee('id="usersSectionTabs"', false);
 
         $this->getJson(route('admin.trainers.show', $this->profile->id))
             ->assertOk()

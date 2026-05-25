@@ -1,314 +1,277 @@
 @extends('layouts.admin2')
 
+@php
+    $usersHasActiveFilters = false;
+@endphp
+
 @section('content')
+    @vite(['resources/css/admin-list-toolbar.css'])
+
     <div class="main-content text-start">
-        <h4 class="pt-3">Пользователи</h4>
-        <hr>
+        <h4 class="pt-3 pb-3 text-start">Пользователи</h4>
+        <div class="">
+            @include('admin.users._users_section_tabs', ['activeTab' => $activeTab ?? 'users'])
 
-        <div class="buttons">
-            <div class="row gy-2 index-user-wrap">
-                {{-- ЛЕВАЯ ЧАСТЬ: фильтры --}}
-                <div id="search-container" class="col-12 col-md-6">
-                    <div class="d-flex flex-wrap gap-2 align-items-center">
-                        <input id="filter-name"
-                               class="form-control search-input width-170 filter-half"
-                               type="text"
-                               placeholder="Имя">
-
-                        <select id="filter-team"
-                                class="form-select search-select width-170 filter-half">
-                            <option value="">Группа</option>
-                            <option value="none">Без группы</option>
-                            @foreach($allTeams as $team)
-                                <option value="{{ $team->id }}">{{ $team->title }}</option>
-                            @endforeach
-                        </select>
-
-                        @can('locations.view')
-                        <select id="filter-location"
-                                class="form-select search-select width-170 filter-half">
-                            <option value="">Локация</option>
-                            <option value="none">Без локации</option>
-                            @foreach($activeLocations as $location)
-                                <option value="{{ $location->id }}">{{ $location->name }}</option>
-                            @endforeach
-                        </select>
-                        @endcan
-
-                        <select id="filter-status"
-                                class="form-select search-select width-170 filter-half">
-                            <option value="">Все пользователи</option>
-                            <option value="active" selected>Только активные</option>
-                            <option value="inactive">Только неактивные</option>
-                        </select>
-
-                        <button id="filter-apply" class="btn btn-primary filter-half filter-apply">
-                            Найти
-                        </button>
-
-
-                        <button id="filter-reset" class="btn btn-secondary btn-reset-filters">
-                            Сбросить
-                        </button>
-                    </div>
-                </div>
-
-                {{-- ПРАВАЯ ЧАСТЬ: кнопки действий и настройка колонок --}}
-                <div class="col-12 col-md-6 text-start">
-                    <div class="d-flex flex-wrap justify-content-md-end gap-2 align-items-center index-user-actions">
-
-
-                        <button id="new-user" type="button" class="btn btn-primary mr-2 new-user width-170"
-                                data-bs-toggle="modal"
-                                data-bs-target="#createUserModal">
-                            Новый пользователь
-                        </button>
-
-                        <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#fieldModal">
-                            <i class="fa-solid fa-gear settings-icon"></i>
-                        </div>
-
-                        {{-- Группа: поля списка + история --}}
-                        <div class="d-flex align-items-center gap-2">
-
-                            {{-- Dropdown "Поля списка" --}}
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary dropdown-toggle wrap-icon wrap-select"
+            <div class="tab-content">
+                <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+                    <div class="card-body px-3 py-3">
+                        <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+                            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Все пользователи</h1>
+                            <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
+                                <button id="new-user"
                                         type="button"
-                                        id="columnsDropdown"
-                                        data-bs-toggle="dropdown"
-                                        aria-expanded="false"
-                                        title="Поля списка">
-                                    <i class="fa-solid fa-table-columns icon-columns"></i>
+                                        class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#createUserModal">
+                                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                        <i class="fas fa-user-plus payments-report-toolbar-icon"></i>
+                                    </span>
+                                    <span class="payments-report-toolbar-label d-none d-sm-inline">Добавить</span>
                                 </button>
 
-                                <div class="dropdown-menu p-3"
-                                     aria-labelledby="columnsDropdown"
-                                     style="min-width: 220px;">
+                                <button type="button"
+                                        class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#fieldModal"
+                                        title="Настройка пользовательских полей">
+                                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                        <i class="fas fa-gear payments-report-toolbar-icon"></i>
+                                    </span>
+                                    <span class="payments-report-toolbar-label d-none d-sm-inline">Настройки</span>
+                                </button>
 
-                                    <div class="form-check">
-                                        <input class="form-check-input column-toggle"
-                                               type="checkbox"
-                                               data-column-key="avatar"
-                                               id="colAvatar"
-                                               checked>
-                                        <label class="form-check-label" for="colAvatar">
-                                            Аватар
-                                        </label>
-                                    </div>
+                                <button type="button"
+                                        class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#historyModal"
+                                        title="История изменений">
+                                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                        <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                                    </span>
+                                    <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                                </button>
 
-                                    <div class="form-check">
-                                        <input class="form-check-input column-toggle"
-                                               type="checkbox"
-                                               data-column-key="name"
-                                               id="colName"
-                                               checked>
-                                        <label class="form-check-label" for="colName">
-                                            Имя
-                                        </label>
-                                    </div>
+                                <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#usersReportFiltersCollapse"
+                                        aria-expanded="{{ $usersHasActiveFilters ? 'true' : 'false' }}"
+                                        aria-controls="usersReportFiltersCollapse"
+                                        id="usersReportFiltersToggle">
+                                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                        <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                                    </span>
+                                    <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                                    <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                                </button>
 
-                                    <div class="form-check">
-                                        <input class="form-check-input column-toggle"
-                                               type="checkbox"
-                                               data-column-key="parent"
-                                               id="colParent"
-                                               checked>
-                                        <label class="form-check-label" for="colParent">
-                                            Родитель
-                                        </label>
-                                    </div>
+                                <div class="dropdown payments-report-toolbar-dropdown">
+                                    <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                            type="button"
+                                            id="columnsDropdown"
+                                            data-bs-toggle="dropdown"
+                                            data-bs-auto-close="outside"
+                                            aria-expanded="false"
+                                            aria-haspopup="true"
+                                            title="Какие колонки показывать в таблице">
+                                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                            <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                                        </span>
+                                        <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                                        <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                                    </button>
 
-                                    <div class="form-check">
-                                        <input class="form-check-input column-toggle"
-                                               type="checkbox"
-                                               data-column-key="teams"
-                                               id="colTeams"
-                                               checked>
-                                        <label class="form-check-label" for="colTeams">
-                                            Группа
-                                        </label>
-                                    </div>
+                                    <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                                         aria-labelledby="columnsDropdown">
+                                        <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
 
-                                    @can('locations.view')
-                                    <div class="form-check">
-                                        <input class="form-check-input column-toggle"
-                                               type="checkbox"
-                                               data-column-key="location"
-                                               id="colLocation"
-                                               checked>
-                                        <label class="form-check-label" for="colLocation">
-                                            Локация
-                                        </label>
-                                    </div>
-                                    @endcan
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="avatar"
+                                                   id="colAvatar"
+                                                   checked>
+                                            <label class="form-check-label" for="colAvatar">Аватар</label>
+                                        </div>
 
-                                    <div class="form-check">
-                                        <input class="form-check-input column-toggle"
-                                               type="checkbox"
-                                               data-column-key="birthday"
-                                               id="colBirthday"
-                                               checked>
-                                        <label class="form-check-label" for="colBirthday">
-                                            Дата рождения
-                                        </label>
-                                    </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="name"
+                                                   id="colName"
+                                                   checked>
+                                            <label class="form-check-label" for="colName">Имя</label>
+                                        </div>
 
-                                    <div class="form-check">
-                                        <input class="form-check-input column-toggle"
-                                               type="checkbox"
-                                               data-column-key="email"
-                                               id="colEmail"
-                                               checked>
-                                        <label class="form-check-label" for="colEmail">
-                                            Email
-                                        </label>
-                                    </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="parent"
+                                                   id="colParent"
+                                                   checked>
+                                            <label class="form-check-label" for="colParent">Родитель</label>
+                                        </div>
 
-                                    <div class="form-check">
-                                        <input class="form-check-input column-toggle"
-                                               type="checkbox"
-                                               data-column-key="phone"
-                                               id="colPhone"
-                                               checked>
-                                        <label class="form-check-label" for="colPhone">
-                                            Телефон
-                                        </label>
-                                    </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="teams"
+                                                   id="colTeams"
+                                                   checked>
+                                            <label class="form-check-label" for="colTeams">Группа</label>
+                                        </div>
 
-                                    <div class="form-check">
-                                        <input class="form-check-input column-toggle"
-                                               type="checkbox"
-                                               data-column-key="status_label"
-                                               id="colStatus"
-                                               checked>
-                                        <label class="form-check-label" for="colStatus">
-                                            Статус
-                                        </label>
-                                    </div>
+                                        @can('locations.view')
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="location"
+                                                   id="colLocation"
+                                                   checked>
+                                            <label class="form-check-label" for="colLocation">Локация</label>
+                                        </div>
+                                        @endcan
 
-                                    <div class="form-check">
-                                        <input class="form-check-input column-toggle"
-                                               type="checkbox"
-                                               data-column-key="actions"
-                                               id="colActions"
-                                               checked>
-                                        <label class="form-check-label" for="colActions">
-                                            Действия
-                                        </label>
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="birthday"
+                                                   id="colBirthday"
+                                                   checked>
+                                            <label class="form-check-label" for="colBirthday">Дата рождения</label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="email"
+                                                   id="colEmail"
+                                                   checked>
+                                            <label class="form-check-label" for="colEmail">Email</label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="phone"
+                                                   id="colPhone"
+                                                   checked>
+                                            <label class="form-check-label" for="colPhone">Телефон</label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="status_label"
+                                                   id="colStatus"
+                                                   checked>
+                                            <label class="form-check-label" for="colStatus">Статус</label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="actions"
+                                                   id="colActions"
+                                                   checked>
+                                            <label class="form-check-label" for="colActions">Действия</label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-
-                            {{-- Логи --}}
-                            <div class="wrap-icon btn"
-                                 data-bs-toggle="modal"
-                                 data-bs-target="#historyModal">
-                                <i class="fa-solid fa-clock-rotate-left logs"></i>
-                            </div>
-
                         </div>
-
-                        {{-- Модалки, как и были --}}
-                        @include('includes.modal.createUser')
-                        @include('includes.modal.editUser')
-                        @include('includes.modal.fieldModal')
-                        @include('includes.logModal')
                     </div>
                 </div>
+
+                <div class="collapse {{ $usersHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="usersReportFiltersCollapse">
+                    <form id="users-report-filters" class="border rounded p-2 p-md-3 bg-light">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="filter-name">Имя</label>
+                                <input id="filter-name"
+                                       class="form-control"
+                                       type="text"
+                                       placeholder="Поиск по имени, email, телефону">
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="filter-team">Группа</label>
+                                <select id="filter-team" class="form-select">
+                                    <option value="">Все группы</option>
+                                    <option value="none">Без группы</option>
+                                    @foreach($allTeams as $team)
+                                        <option value="{{ $team->id }}">{{ $team->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            @can('locations.view')
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="filter-location">Локация</label>
+                                <select id="filter-location" class="form-select">
+                                    <option value="">Все локации</option>
+                                    <option value="none">Без локации</option>
+                                    @foreach($activeLocations as $location)
+                                        <option value="{{ $location->id }}">{{ $location->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endcan
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="filter-status">Статус</label>
+                                <select id="filter-status" class="form-select">
+                                    <option value="">Все пользователи</option>
+                                    <option value="active" selected>Только активные</option>
+                                    <option value="inactive">Только неактивные</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                                <button id="filter-apply" class="btn btn-primary payments-report-filters-submit" type="button">Применить</button>
+                                <button id="filter-reset" class="btn btn-outline-secondary payments-report-filters-reset" type="button">Сброс</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="table-responsive">
+                    <table id="users-table" class="table table-striped table-bordered align-middle w-100">
+                        <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Аватар</th>
+                            <th>Имя</th>
+                            <th>Родитель</th>
+                            <th>Группа</th>
+                            <th>Локация</th>
+                            <th>Дата рождения</th>
+                            <th>Email</th>
+                            <th>Телефон</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                @include('includes.modal.createUser')
+                @include('includes.modal.editUser')
+                @include('includes.modal.fieldModal')
             </div>
         </div>
 
-        <hr>
-
-        {{-- ТАБЛИЦА DataTables --}}
-        <div class="table-responsive">
-            <table id="users-table" class="table table-striped table-bordered align-middle w-100">
-                <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Аватар</th>
-                    <th>Имя</th>
-                    <th>Родитель</th>
-                    <th>Группа</th>
-                    <th>Локация</th>
-                    <th>Дата рождения</th>
-                    <th>Email</th>
-                    <th>Телефон</th>
-                    <th>Статус</th>
-                    <th>Действия</th>
-                </tr>
-                </thead>
-                <tbody>
-                {{-- тело будет заполняться DataTables через AJAX --}}
-                </tbody>
-            </table>
-        </div>
+        @include('includes.logModal')
     </div>
-
-    <style>
-        /* Скрываем "Сбросить" на мобилках (то, что уже обсуждали) */
-        @media (max-width: 767.98px) {
-            .btn-reset-filters {
-                display: none !important;
-            }
-        }
-
-        /* Имя + Группа в одну строку на мобиле */
-        @media (max-width: 767.98px) {
-            #search-container .d-flex.flex-wrap {
-                flex-wrap: wrap;
-            }
-
-            #filter-name,
-            #filter-team {
-                flex: 1 1 calc(50% - 4px);
-                min-width: 0;
-            }
-        }
-
-        .icon-columns {
-            color: #000;
-        }
-
-        .wrap-select:hover .icon-columns {
-            color: #fff;
-        }
-
-        .wrap-select:hover {
-            border-color: #f3a12b;
-        }
-
-        @media (max-width: 767.98px) {
-            /* элементы, помеченные filter-half, делим строку пополам */
-            #search-container .filter-half {
-                flex: 0 0 calc(50% - .5rem);
-                max-width: calc(50% - .5rem);
-            }
-
-            /* на маленьких экранах убираем фиксированную width-170 */
-            #search-container .search-input,
-            #search-container .search-select {
-                width: 100%;
-            }
-        }
-
-        .filter-apply {
-            height: 34px!important;
-        }
-
-        .btn-reset-filters {
-            height: 34px!important;
-        }
-    </style>
-
 @endsection
 
-@section('scripts')
+@push('scripts')
     <script>
         $(document).ready(function () {
 
             const canViewLocations = @json(auth()->user()->can('locations.view'));
+            const defaultFilterStatus = 'active';
 
             const defaultColumnsVisibility = {
                 avatar: true,
@@ -325,8 +288,6 @@
 
             let currentColumnsConfig = {...defaultColumnsVisibility};
 
-            // Маппинг ключей на ИНДЕКСЫ колонок DataTables
-            // 0 – нумерация (всегда видна, не настраиваем)
             const columnsMap = {
                 avatar: 1,
                 name: 2,
@@ -404,7 +365,37 @@
                 });
             }
 
-            // --- Инициализация DataTables ---
+            function usersFilterParams() {
+                return {
+                    name: $('#filter-name').val() || '',
+                    team_id: $('#filter-team').val() || '',
+                    location_id: canViewLocations ? ($('#filter-location').val() || '') : '',
+                    status: $('#filter-status').val() || ''
+                };
+            }
+
+            function usersHasNonDefaultFilters() {
+                const params = usersFilterParams();
+                return params.name !== ''
+                    || params.team_id !== ''
+                    || params.location_id !== ''
+                    || params.status !== defaultFilterStatus;
+            }
+
+            function syncUsersFiltersCollapseState() {
+                const hasActive = usersHasNonDefaultFilters();
+                const collapseEl = document.getElementById('usersReportFiltersCollapse');
+                const $toggle = $('#usersReportFiltersToggle');
+
+                if (collapseEl && hasActive && !collapseEl.classList.contains('show')) {
+                    bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false }).show();
+                }
+
+                if ($toggle.length && collapseEl) {
+                    $toggle.attr('aria-expanded', collapseEl.classList.contains('show') ? 'true' : 'false');
+                }
+            }
+
             const table = $('#users-table').DataTable({
                 processing: true,
                 serverSide: true,
@@ -414,17 +405,17 @@
                     url: '/admin/users/data',
                     type: 'GET',
                     data: function (d) {
-                        d.name = $('#filter-name').val();
-                        d.team_id = $('#filter-team').val();
+                        const params = usersFilterParams();
+                        d.name = params.name;
+                        d.team_id = params.team_id;
                         if (canViewLocations) {
-                            d.location_id = $('#filter-location').val();
+                            d.location_id = params.location_id;
                         }
-                        d.status = $('#filter-status').val();
+                        d.status = params.status;
                     }
                 },
 
                 columns: [
-                    // 0) Нумерация строк
                     {
                         data: null,
                         name: 'rownum',
@@ -432,12 +423,9 @@
                         searchable: false,
                         className: 'text-center',
                         render: function (data, type, row, meta) {
-                            // meta.row — индекс в пределах страницы (0..)
-                            // _iDisplayStart — с какого элемента начинается страница
                             return meta.row + meta.settings._iDisplayStart + 1;
                         }
                     },
-                    // 1) Аватар
                     {
                         data: 'avatar',
                         name: 'avatar',
@@ -449,7 +437,6 @@
                             return '<img src="' + url + '" alt="" class="rounded-circle" style="width:32px;height:32px;object-fit:cover;">';
                         }
                     },
-                    // 2) Имя
                     {
                         data: 'name',
                         name: 'name',
@@ -463,19 +450,12 @@
                                 '</a>';
                         }
                     },
-                    // 3) Родитель
                     {data: 'parent', name: 'parent', defaultContent: ''},
-                    // 4) Группа
                     {data: 'teams', name: 'teams', defaultContent: ''},
-                    // 5) Локация
                     {data: 'location', name: 'location', defaultContent: ''},
-                    // 6) Дата рождения
                     {data: 'birthday', name: 'birthday', defaultContent: ''},
-                    // 7) Email
                     {data: 'email', name: 'email', defaultContent: ''},
-                    // 8) Телефон
                     {data: 'phone', name: 'phone', defaultContent: ''},
-                    // 9) Статус
                     {
                         data: 'status_label',
                         name: 'status_label',
@@ -484,7 +464,6 @@
                             return '<span class="badge ' + badgeClass + '">' + data + '</span>';
                         }
                     },
-                    // 9) Действия
                     {
                         data: null,
                         name: 'actions',
@@ -503,7 +482,8 @@
                     }
                 ],
 
-                order: [[2, 'asc']], // теперь имя на индексе 2 (0 – номер, 1 – аватар)
+                order: [[2, 'asc']],
+                scrollX: true,
                 language: {
                     "processing": "Обработка...",
                     "search": "",
@@ -528,12 +508,21 @@
                 }
             });
 
-            // после инициализации — подгружаем конфиг из БД
             loadColumnsConfigFromServer();
+            table.columns.adjust();
 
-            // --- Фильтры ---
-            $('#filter-apply').on('click', function () {
+            function reloadUsersTable() {
                 table.ajax.reload();
+                syncUsersFiltersCollapseState();
+            }
+
+            $('#filter-apply').on('click', function () {
+                reloadUsersTable();
+            });
+
+            $('#users-report-filters').on('submit', function (e) {
+                e.preventDefault();
+                reloadUsersTable();
             });
 
             $('#filter-reset').on('click', function () {
@@ -542,17 +531,23 @@
                 if (canViewLocations) {
                     $('#filter-location').val('');
                 }
-                $('#filter-status').val('');
-                table.ajax.reload();
+                $('#filter-status').val(defaultFilterStatus);
+                reloadUsersTable();
             });
 
             $('#filter-name').on('keyup', function (e) {
                 if (e.key === 'Enter') {
-                    table.ajax.reload();
+                    reloadUsersTable();
                 }
             });
 
-            // --- Обработчик чекбоксов "Поля списка" ---
+            $('#usersReportFiltersCollapse').on('shown.bs.collapse hidden.bs.collapse', function () {
+                $('#usersReportFiltersToggle').attr(
+                    'aria-expanded',
+                    $('#usersReportFiltersCollapse').hasClass('show') ? 'true' : 'false'
+                );
+            });
+
             $('.column-toggle').on('change', function () {
                 const key = $(this).data('column-key');
                 const isChecked = $(this).is(':checked');
@@ -568,8 +563,6 @@
                         _token: '{{ csrf_token() }}',
                         columns: currentColumnsConfig
                     },
-                    success: function () {
-                    },
                     error: function () {
                         console.error('Не удалось сохранить настройки колонок');
                     }
@@ -579,7 +572,4 @@
             showLogModal("{{ route('logs.data.user') }}");
         });
     </script>
-@endsection
-
-
-
+@endpush

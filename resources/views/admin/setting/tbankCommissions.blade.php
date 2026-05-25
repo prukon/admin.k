@@ -91,7 +91,7 @@
         </form>
 
     @else
-        @vite(['resources/css/payments-report.css'])
+        @vite(['resources/css/admin-list-toolbar.css'])
         @php
             $tbankFilterPartnerId = old('filter_partner_id', request('filter_partner_id'));
             $tbankFilterMethod = old('filter_method', request('filter_method'));

@@ -44,7 +44,7 @@ class TrainerController extends AdminBaseController
             ->orderBy('title')
             ->get(['id', 'title']);
 
-        return view('admin.trainers.index', compact('trainers', 'teamOptions'));
+        return view('admin.trainers.index', compact('trainers', 'teamOptions') + ['activeTab' => 'trainers']);
     }
 
     public function store(StoreTrainerRequest $request)

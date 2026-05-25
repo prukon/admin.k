@@ -9,7 +9,7 @@
         }
     }
 @endphp
-@vite(['resources/css/payments-report.css'])
+@vite(['resources/css/admin-list-toolbar.css'])
 
 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
     <div class="card-body px-3 py-3">

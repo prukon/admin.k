@@ -96,7 +96,7 @@ class UserController extends AdminBaseController
             'currentUser',
             'roles',
             'user'
-        ));
+        ) + ['activeTab' => 'users']);
     }
 
     public function data(Request $request)
@@ -118,6 +118,11 @@ class UserController extends AdminBaseController
         $locationFilter = $validated['location_id'] ?? null;
         $canViewLocations = $this->currentUser()?->can('locations.view') ?? false;
 
+        $nameSearch = trim((string) ($validated['name'] ?? ''));
+        if ($nameSearch === '' && $request->filled('search.value')) {
+            $nameSearch = trim((string) $request->input('search.value'));
+        }
+
         // Базовый запрос по партнёру через базовый контроллер
         $baseQuery = $this->scopeByPartner(
             User::query(),
@@ -129,10 +134,9 @@ class UserController extends AdminBaseController
             $baseQuery->where('users.id', $validated['id']);
         }
 
-        // Фильтр по имени / email / телефону / дате рождения
-        if (!empty($validated['name'])) {
-            $value = $validated['name'];
-            $like  = '%' . $value . '%';
+        // Фильтр по имени / email / телефону / дате рождения (панель фильтров или поиск DataTables)
+        if ($nameSearch !== '') {
+            $like = '%' . $nameSearch . '%';
 
             $baseQuery->where(function ($q) use ($like) {
                 $q->where('users.name', 'like', $like)

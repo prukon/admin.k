@@ -66,7 +66,9 @@ final class TrainersFeatureTest extends CrmTestCase
 
         $this->get(route('admin.trainers.index'))
             ->assertOk()
-            ->assertSee('Тренеры');
+            ->assertViewHas('activeTab', 'trainers')
+            ->assertSee('Все пользователи', false)
+            ->assertSee('Тренеры', false);
     }
 
     public function test_index_ok_for_admin_by_default_base_permissions(): void
