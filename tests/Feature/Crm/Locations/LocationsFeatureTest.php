@@ -159,6 +159,197 @@ final class LocationsFeatureTest extends CrmTestCase
             ->assertJsonPath('data.0.name', 'Panel Alpha');
     }
 
+    public function test_data_returns_expected_row_structure(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $loc = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Struct loc',
+            'address' => 'Addr',
+            'is_enabled' => false,
+        ]);
+
+        $json = $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]))
+            ->assertOk()
+            ->json();
+
+        $row = collect($json['data'])->firstWhere('id', $loc->id);
+        $this->assertNotNull($row);
+        $this->assertSame([
+            'id',
+            'name',
+            'address',
+            'is_enabled',
+            'is_enabled_label',
+        ], array_keys($row));
+        $this->assertSame('Нет', $row['is_enabled_label']);
+        $this->assertSame(0, $row['is_enabled']);
+    }
+
+    public function test_data_filters_by_status_inactive(): void
+    {
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Active loc 2',
+            'is_enabled' => true,
+        ]);
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Inactive loc 2',
+            'is_enabled' => false,
+        ]);
+
+        $response = $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'status' => 'inactive',
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.name', 'Inactive loc 2')
+            ->assertJsonPath('data.0.is_enabled_label', 'Нет');
+    }
+
+    public function test_data_search_filters_by_address(): void
+    {
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Loc A',
+            'address' => 'Уникальный адрес 42',
+        ]);
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Loc B',
+            'address' => 'Другой адрес',
+        ]);
+
+        $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'search' => ['value' => 'Уникальный'],
+        ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.address', 'Уникальный адрес 42');
+    }
+
+    public function test_data_search_filters_by_numeric_id(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $loc = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'By id search',
+        ]);
+
+        $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'search' => ['value' => (string) $loc->id],
+        ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.id', $loc->id);
+    }
+
+    public function test_data_filters_combined_name_and_status(): void
+    {
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Combo Active',
+            'is_enabled' => true,
+        ]);
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Combo Inactive',
+            'is_enabled' => false,
+        ]);
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Other Active',
+            'is_enabled' => true,
+        ]);
+
+        $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'name' => 'Combo',
+            'status' => 'inactive',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.name', 'Combo Inactive');
+    }
+
+    public function test_data_sort_by_is_enabled_desc(): void
+    {
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Sort A',
+            'is_enabled' => true,
+        ]);
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Sort B',
+            'is_enabled' => false,
+        ]);
+
+        $response = $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'order' => [['column' => 3, 'dir' => 'desc']],
+            'columns' => [
+                ['name' => 'id'],
+                ['name' => 'name'],
+                ['name' => 'address'],
+                ['name' => 'is_enabled_label'],
+            ],
+        ]));
+
+        $response->assertOk();
+        $labels = array_column($response->json('data'), 'is_enabled_label');
+        $this->assertSame(['Да', 'Нет'], $labels);
+    }
+
+    public function test_columns_settings_denied_without_view_permission(): void
+    {
+        $user = $this->createUserWithoutPermission('locations.view');
+        $this->actingAs($user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+
+        $this->getJson(route('admin.locations.columns-settings.get'))->assertStatus(403);
+        $this->postJson(route('admin.locations.columns-settings.save'), [
+            'columns' => ['name' => true],
+        ])->assertStatus(403);
+    }
+
+    public function test_columns_settings_save_requires_columns_array(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $this->postJson(route('admin.locations.columns-settings.save'), [])
+            ->assertStatus(422);
+    }
+
     public function test_data_filters_by_status_active(): void
     {
         $this->grantPermission('locations.view');

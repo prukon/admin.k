@@ -943,19 +943,23 @@
                 });
         }
 
-        // Вызов модалки удаления
-        $(document).on('click', '.confirm-delete-modal', function () {
+        // Вызов модалки удаления (только кнопка в этой модалке)
+        $(document).on('click', '#delete-user-btn.confirm-delete-modal', function () {
             deleteUser();
         });
 
         function deleteUser() {
-            // Показываем модалку с текстом и передаём колбэк, который удалит пользователя
             showConfirmDeleteModal(
                 "Удаление пользователя",
                 "Вы уверены, что хотите удалить пользователя?",
                 function () {
-                    let userId = $('#edit-user-form').attr('action').split('/').pop(); // Получаем ID пользователя
-                    let token = $('input[name="_token"]').val();
+                    const confirmEl = document.getElementById('confirmDeleteModal');
+                    const editEl = document.getElementById('editUserModal');
+
+                    $(confirmEl).off('hidden.bs.modal.return');
+
+                    const userId = $('#edit-user-form').attr('action').split('/').pop();
+                    const token = $('input[name="_token"]').val();
 
                     $.ajax({
                         url: `/admin/user/${userId}`,
@@ -963,7 +967,14 @@
                         headers: {'X-CSRF-TOKEN': token},
                         success: function (response) {
                             if (response.success) {
-                                showSuccessModal("Удаление пользователя", "Пользователь успешно удален.", 1);
+                                $(editEl).off('hidden.bs.modal.openNext');
+                                bootstrap.Modal.getInstance(editEl)?.hide();
+
+                                if ($.fn.DataTable.isDataTable('#users-table')) {
+                                    $('#users-table').DataTable().ajax.reload(null, false);
+                                }
+
+                                showSuccessModal("Удаление пользователя", "Пользователь успешно удален.", 0);
                             } else {
                                 $('#error-modal-message').text('Произошла ошибка при удалении пользователя.');
                                 $('#errorModal').modal('show');

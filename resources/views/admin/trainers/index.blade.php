@@ -1003,6 +1003,11 @@
             function performTrainerDelete() {
                 const id = editForm.querySelector('[name="id"]').value;
                 if (!id) return;
+
+                const confirmEl = document.getElementById('confirmDeleteModal');
+                const editEl = document.getElementById('trainerEditModal');
+                $(confirmEl).off('hidden.bs.modal.return');
+
                 fetch(`/admin/trainers/${id}`, {
                     method: 'POST',
                     headers: {
@@ -1011,12 +1016,32 @@
                         'Accept': 'application/json',
                     },
                     body: new URLSearchParams({ _method: 'DELETE' }),
-                }).then(res => {
+                }).then(async res => {
+                    const data = await res.json().catch(() => ({}));
                     if (res.ok) {
+                        $(editEl).off('hidden.bs.modal.openNext');
                         hideModal('trainerEditModal');
+
                         if (typeof window.__reloadTrainersTable === 'function') {
                             window.__reloadTrainersTable();
                         }
+
+                        if (typeof showSuccessModal === 'function') {
+                            showSuccessModal(
+                                'Удаление тренера',
+                                data.message || 'Тренер успешно удалён.',
+                                0
+                            );
+                        }
+                        return;
+                    }
+
+                    const msg = data.message || 'Произошла ошибка при удалении тренера.';
+                    if (typeof showErrorModal === 'function') {
+                        showErrorModal('Ошибка', msg, 1);
+                    } else if ($('#errorModal').length) {
+                        $('#error-modal-message').text(msg);
+                        $('#errorModal').modal('show');
                     }
                 });
             }
