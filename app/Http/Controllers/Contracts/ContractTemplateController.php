@@ -9,6 +9,7 @@ use App\Models\ContractTemplate;
 use App\Models\Partner;
 use App\Services\Contracts\ContractTemplatePrefillSources;
 use App\Services\Contracts\ContractTemplateService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class ContractTemplateController extends Controller
@@ -26,7 +27,7 @@ class ContractTemplateController extends Controller
         return $p;
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $partnerId = $this->partner()->id;
 
@@ -36,14 +37,33 @@ class ContractTemplateController extends Controller
             ->orderByDesc('id')
             ->paginate(20);
 
-        return view('contract-templates.index', compact('templates'));
+        $prefillSources = ContractTemplatePrefillSources::labels();
+        $editTemplate = null;
+        $editFields = [];
+
+        if ($request->filled('edit')) {
+            $editTemplate = ContractTemplate::query()
+                ->forPartner($partnerId)
+                ->with('currentVersion')
+                ->whereKey($request->integer('edit'))
+                ->firstOrFail();
+
+            $editFields = old('fields')
+                ? array_values(old('fields'))
+                : ($editTemplate->currentVersion?->fields_schema ?? []);
+        }
+
+        return view('contract-templates.index', compact(
+            'templates',
+            'prefillSources',
+            'editTemplate',
+            'editFields',
+        ) + ['activeTab' => 'templates']);
     }
 
     public function create()
     {
-        $prefillSources = ContractTemplatePrefillSources::labels();
-
-        return view('contract-templates.create', compact('prefillSources'));
+        return redirect()->route('contract-templates.index', ['create' => 1]);
     }
 
     public function store(StoreContractTemplateRequest $request)
@@ -59,17 +79,13 @@ class ContractTemplateController extends Controller
         ]);
 
         return redirect()
-            ->route('contract-templates.edit', $template)
-            ->with('success', 'Шаблон создан. Проверьте поля и текст письма.');
+            ->route('contract-templates.index')
+            ->with('success', 'Шаблон «' . $template->title . '» создан.');
     }
 
     public function edit(ContractTemplate $template)
     {
-        $template->load('currentVersion');
-        $prefillSources = ContractTemplatePrefillSources::labels();
-        $fields = $template->currentVersion?->fields_schema ?? [];
-
-        return view('contract-templates.edit', compact('template', 'prefillSources', 'fields'));
+        return redirect()->route('contract-templates.index', ['edit' => $template->id]);
     }
 
     public function update(UpdateContractTemplateRequest $request, ContractTemplate $template)
@@ -86,8 +102,8 @@ class ContractTemplateController extends Controller
         ]);
 
         return redirect()
-            ->route('contract-templates.edit', $template)
-            ->with('success', 'Шаблон сохранён.');
+            ->route('contract-templates.index')
+            ->with('success', 'Шаблон «' . $template->fresh()->title . '» сохранён.');
     }
 
     public function downloadDocx(ContractTemplate $template)

@@ -13,6 +13,13 @@ class UpdateContractTemplateRequest extends FormRequest
         return true;
     }
 
+    protected function getRedirectUrl(): string
+    {
+        $template = $this->route('template');
+
+        return route('contract-templates.index', ['edit' => $template->id]);
+    }
+
     public function rules(): array
     {
         return [

@@ -47,7 +47,7 @@ class ContractsController extends Controller
             ->orderBy('order_by', 'asc')
             ->get();
 
-        return view('contracts.index', compact('allTeams'));
+        return view('contracts.index', compact('allTeams') + ['activeTab' => 'contracts']);
     }
 
     public function create(Request $request)

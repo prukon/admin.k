@@ -37,8 +37,16 @@ class ContractTemplatesAccessFeatureTest extends ContractsFeatureTestCase
         $template = $this->createContractTemplateWithVersion();
 
         $this->get(route('contract-templates.index'))->assertOk();
-        $this->get(route('contract-templates.create'))->assertOk();
-        $this->get(route('contract-templates.edit', $template))->assertOk();
+        $this->get(route('contract-templates.create'))
+            ->assertRedirect(route('contract-templates.index', ['create' => 1]));
+        $this->get(route('contract-templates.index'))
+            ->assertOk()
+            ->assertSee('createContractTemplateModal', false);
+        $this->get(route('contract-templates.edit', $template))
+            ->assertRedirect(route('contract-templates.index', ['edit' => $template->id]));
+        $this->get(route('contract-templates.index', ['edit' => $template->id]))
+            ->assertOk()
+            ->assertSee('editContractTemplateModal', false);
 
         $this->put(route('contract-templates.update', $template), [
             'title'          => 'Обновлённый шаблон',
@@ -52,13 +60,13 @@ class ContractTemplatesAccessFeatureTest extends ContractsFeatureTestCase
                     'prefill_source' => null,
                 ],
             ],
-        ])->assertRedirect(route('contract-templates.edit', $template));
+        ])->assertRedirect(route('contract-templates.index'));
 
         $this->get(route('contract-templates.download-docx', $template))->assertOk();
     }
 
     /** @test */
-    public function store_template_redirects_to_edit_with_contracts_view(): void
+    public function store_template_redirects_to_index_with_contracts_view(): void
     {
         $resp = $this->post(route('contract-templates.store'), [
             'title'         => 'Новый шаблон доступа',
@@ -67,8 +75,10 @@ class ContractTemplatesAccessFeatureTest extends ContractsFeatureTestCase
         ]);
 
         $resp->assertSessionHasNoErrors();
-        $resp->assertRedirect();
-        $this->followRedirects($resp)->assertOk();
+        $resp->assertRedirect(route('contract-templates.index'));
+        $this->followRedirects($resp)
+            ->assertOk()
+            ->assertSee('Новый шаблон доступа', false);
     }
 
     /** @test */

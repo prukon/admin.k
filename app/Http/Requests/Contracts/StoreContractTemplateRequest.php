@@ -8,6 +8,8 @@ use Illuminate\Validation\Rule;
 
 class StoreContractTemplateRequest extends FormRequest
 {
+    protected $redirectRoute = 'contract-templates.index';
+
     public function authorize(): bool
     {
         return true;

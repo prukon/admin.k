@@ -24,7 +24,7 @@ class ContractTemplatesCrudFeatureTest extends ContractsFeatureTestCase
                     'prefill_source' => null,
                 ],
             ],
-        ])->assertRedirect(route('contract-templates.edit', $template));
+        ])->assertRedirect(route('contract-templates.index'));
 
         $template->refresh();
         $template->load('currentVersion');
@@ -43,7 +43,7 @@ class ContractTemplatesCrudFeatureTest extends ContractsFeatureTestCase
         $this->put(route('contract-templates.update', $template), [
             'title' => 'С новым DOCX',
             'docx'  => $this->fakeDocxUploadedFile(['passport']),
-        ])->assertRedirect(route('contract-templates.edit', $template));
+        ])->assertRedirect(route('contract-templates.index'));
 
         $template->refresh();
         $template->load('currentVersion');

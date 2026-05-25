@@ -2,38 +2,170 @@
 
 @section('title','Документы')
 
+@php
+    $contractsHasActiveFilters = false;
+@endphp
+
 @section('content')
+    @vite(['resources/css/admin-list-toolbar.css'])
+
     <div class="main-content text-start">
-        <h4 class="pt-3">Документы</h4>
-        <hr>
+        <h4 class="pt-3 pb-3 text-start">Документы</h4>
 
-        {{-- Верхняя панель: фильтры слева, кнопки справа --}}
-        <div class="buttons">
-            <div class="row gy-2 index-contract-wrap">
+        <div class="">
+            @include('contracts._contracts_section_tabs', ['activeTab' => $activeTab ?? 'contracts'])
 
-                {{-- ЛЕВАЯ ЧАСТЬ: фильтры --}}
-                <div id="search-container" class="col-12 col-md-6">
-                    <div class="d-flex flex-wrap gap-2 align-items-center">
+            <div class="tab-content">
+        <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+            <div class="card-body px-3 py-3">
+                <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+                    <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Договоры</h1>
+                    <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
+                        <a href="{{ url('/client-contracts/create') }}"
+                           class="payments-report-toolbar-action d-inline-flex align-items-center gap-2 text-decoration-none">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-plus payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Создать</span>
+                        </a>
 
-                        {{-- Поиск по имени/фамилии/телефону/email --}}
+                        <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#contractsReportFiltersCollapse"
+                                aria-expanded="{{ $contractsHasActiveFilters ? 'true' : 'false' }}"
+                                aria-controls="contractsReportFiltersCollapse"
+                                id="contractsReportFiltersToggle">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
+
+                        <div class="dropdown payments-report-toolbar-dropdown">
+                            <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                    type="button"
+                                    id="contractsColumnsDropdown"
+                                    data-bs-toggle="dropdown"
+                                    data-bs-auto-close="outside"
+                                    aria-expanded="false"
+                                    aria-haspopup="true"
+                                    title="Какие колонки показывать в таблице">
+                                <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                    <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                                </span>
+                                <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                                <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                            </button>
+
+                            <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                                 aria-labelledby="contractsColumnsDropdown">
+                                <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="user_name"
+                                           id="colUserName"
+                                           checked>
+                                    <label class="form-check-label" for="colUserName">Имя</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="user_lastname"
+                                           id="colUserLastname"
+                                           checked>
+                                    <label class="form-check-label" for="colUserLastname">Фамилия</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="team_title"
+                                           id="colTeamTitle"
+                                           checked>
+                                    <label class="form-check-label" for="colTeamTitle">Группа</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="user_phone"
+                                           id="colUserPhone"
+                                           checked>
+                                    <label class="form-check-label" for="colUserPhone">Телефон</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="user_email"
+                                           id="colUserEmail"
+                                           checked>
+                                    <label class="form-check-label" for="colUserEmail">Email</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="status_label"
+                                           id="colStatusLabel"
+                                           checked>
+                                    <label class="form-check-label" for="colStatusLabel">Статус</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="updated_at"
+                                           id="colUpdatedAt"
+                                           checked>
+                                    <label class="form-check-label" for="colUpdatedAt">Обновлён</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="actions"
+                                           id="colActions"
+                                           checked>
+                                    <label class="form-check-label" for="colActions">Действия</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="collapse {{ $contractsHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="contractsReportFiltersCollapse">
+            <form id="contracts-report-filters" class="border rounded p-2 p-md-3 bg-light">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-search">Поиск</label>
                         <input id="filter-search"
-                               class="form-control search-input width-170 filter-half"
+                               class="form-control"
                                type="text"
-                               placeholder="Поиск (имя, телефон, email)">
+                               placeholder="Имя, телефон, email">
+                    </div>
 
-                        {{-- Фильтр по группе --}}
-                        <select id="filter-group"
-                                class="form-select search-select width-170 filter-half">
-                            <option value="">Группа</option>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-group">Группа</label>
+                        <select id="filter-group" class="form-select">
+                            <option value="">Все группы</option>
                             <option value="none">Без группы</option>
                             @foreach($allTeams as $team)
                                 <option value="{{ $team->id }}">{{ $team->title }}</option>
                             @endforeach
                         </select>
+                    </div>
 
-                        {{-- Фильтр по статусу (значения подправишь под свои статусы) --}}
-                        <select id="filter-status"
-                                class="form-select search-select width-170 filter-half">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-status">Статус</label>
+                        <select id="filter-status" class="form-select">
                             <option value="">Все статусы</option>
                             <option value="draft">Черновик</option>
                             <option value="awaiting_client_fill">Ожидает заполнения</option>
@@ -44,151 +176,20 @@
                             <option value="expired">Истёк срок</option>
                             <option value="failed">Ошибка</option>
                         </select>
+                    </div>
 
-                        <button id="filter-apply"
-                                class="btn btn-primary filter-half filter-apply">
-                            Найти
-                        </button>
-
-                        <button id="filter-reset"
-                                class="btn btn-secondary btn-reset-filters">
-                            Сбросить
-                        </button>
+                    <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                        <button id="filter-apply" class="btn btn-primary payments-report-filters-submit" type="button">Применить</button>
+                        <button id="filter-reset" class="btn btn-outline-secondary payments-report-filters-reset" type="button">Сброс</button>
                     </div>
                 </div>
-
-                {{-- ПРАВАЯ ЧАСТЬ: кнопка создания + настройка колонок --}}
-                <div class="col-12 col-md-6 text-start">
-                    <div class="d-flex flex-wrap justify-content-md-end gap-2 align-items-center">
-
-                        <a href="{{ url('/client-contracts/create') }}"
-                           class="btn btn-primary width-170">
-                            Создать договор
-                        </a>
-
-                        <a href="{{ route('contract-templates.index') }}"
-                           class="btn btn-outline-secondary width-170">
-                            Шаблоны
-                        </a>
-
-                        {{-- Dropdown "Поля списка" --}}
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary dropdown-toggle wrap-icon wrap-select"
-                                    type="button"
-                                    id="columnsDropdown"
-                                    data-bs-toggle="dropdown"
-                                    aria-expanded="false"
-                                    title="Поля списка">
-                                <i class="fa-solid fa-table-columns icon-columns"></i>
-                            </button>
-                            <div class="dropdown-menu p-3"
-                                 aria-labelledby="columnsDropdown"
-                                 style="min-width: 220px;">
-
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="user_name"
-                                           id="colUserName"
-                                           checked>
-                                    <label class="form-check-label" for="colUserName">
-                                        Имя
-                                    </label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="user_lastname"
-                                           id="colUserLastname"
-                                           checked>
-                                    <label class="form-check-label" for="colUserLastname">
-                                        Фамилия
-                                    </label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="team_title"
-                                           id="colTeamTitle"
-                                           checked>
-                                    <label class="form-check-label" for="colTeamTitle">
-                                        Группа
-                                    </label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="user_phone"
-                                           id="colUserPhone"
-                                           checked>
-                                    <label class="form-check-label" for="colUserPhone">
-                                        Телефон
-                                    </label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="user_email"
-                                           id="colUserEmail"
-                                           checked>
-                                    <label class="form-check-label" for="colUserEmail">
-                                        Email
-                                    </label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="status_label"
-                                           id="colStatusLabel"
-                                           checked>
-                                    <label class="form-check-label" for="colStatusLabel">
-                                        Статус
-                                    </label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="updated_at"
-                                           id="colUpdatedAt"
-                                           checked>
-                                    <label class="form-check-label" for="colUpdatedAt">
-                                        Обновлён
-                                    </label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="actions"
-                                           id="colActions"
-                                           checked>
-                                    <label class="form-check-label" for="colActions">
-                                        Действия
-                                    </label>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
+            </form>
         </div>
 
-        <hr>
-
-        {{-- Сообщение об успехе (если есть) --}}
         @if(session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif
 
-        {{-- ТАБЛИЦА DataTables --}}
         <div class="table-responsive">
             <table id="contracts-table"
                    class="table table-striped table-bordered align-middle w-100">
@@ -205,56 +206,12 @@
                     <th>Действия</th>
                 </tr>
                 </thead>
-                <tbody>
-                {{-- тело заполняет DataTables через AJAX --}}
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
+            </div>
+        </div>
     </div>
-
-    <style>
-        @media (max-width: 767.98px) {
-            .btn-reset-filters {
-                display: none !important;
-            }
-        }
-
-        @media (max-width: 767.98px) {
-            #search-container .d-flex.flex-wrap {
-                flex-wrap: wrap;
-            }
-
-            #search-container .filter-half {
-                flex: 0 0 calc(50% - .5rem);
-                max-width: calc(50% - .5rem);
-            }
-
-            #search-container .search-input,
-            #search-container .search-select {
-                width: 100%;
-            }
-        }
-
-        .icon-columns {
-            color: #000;
-        }
-
-        .wrap-select:hover .icon-columns {
-            color: #fff;
-        }
-
-        .wrap-select:hover {
-            border-color: #f3a12b;
-        }
-
-        .filter-apply {
-            height: 34px !important;
-        }
-
-        .btn-reset-filters {
-            height: 34px !important;
-        }
-    </style>
 @endsection
 
 @section('scripts')
@@ -262,7 +219,6 @@
         $(document).ready(function () {
             const csrfToken = $('meta[name="csrf-token"]').attr('content');
 
-            // Конфиг видимости колонок по умолчанию
             const defaultColumnsVisibility = {
                 user_name: true,
                 user_lastname: true,
@@ -276,8 +232,6 @@
 
             let currentColumnsConfig = {...defaultColumnsVisibility};
 
-            // Маппинг ключей на индексы колонок DataTables
-            // 0 – нумерация (всегда видна)
             const columnsMap = {
                 user_name: 1,
                 user_lastname: 2,
@@ -301,7 +255,7 @@
                 return fallback;
             }
 
-            function applyVisibleColumns(config, table) {
+            function applyVisibleColumns(config) {
                 Object.keys(columnsMap).forEach(function (key) {
                     const colIndex = columnsMap[key];
                     const column = table.column(colIndex);
@@ -314,7 +268,7 @@
                 });
             }
 
-            function loadColumnsConfigFromServer(table) {
+            function loadColumnsConfigFromServer() {
                 $.ajax({
                     url: '/client-contracts/columns-settings',
                     type: 'GET',
@@ -328,16 +282,44 @@
                             );
                         });
                         currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig, table);
+                        applyVisibleColumns(currentColumnsConfig);
                     },
                     error: function () {
                         currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig, table);
+                        applyVisibleColumns(currentColumnsConfig);
                     }
                 });
             }
 
-            // --- Инициализация DataTables ---
+            function contractsFilterParams() {
+                return {
+                    search_value: $('#filter-search').val() || '',
+                    group_id: $('#filter-group').val() || '',
+                    status: $('#filter-status').val() || ''
+                };
+            }
+
+            function contractsHasNonDefaultFilters() {
+                const params = contractsFilterParams();
+                return params.search_value !== ''
+                    || params.group_id !== ''
+                    || params.status !== '';
+            }
+
+            function syncContractsFiltersCollapseState() {
+                const hasActive = contractsHasNonDefaultFilters();
+                const collapseEl = document.getElementById('contractsReportFiltersCollapse');
+                const $toggle = $('#contractsReportFiltersToggle');
+
+                if (collapseEl && hasActive && !collapseEl.classList.contains('show')) {
+                    bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false }).show();
+                }
+
+                if ($toggle.length && collapseEl) {
+                    $toggle.attr('aria-expanded', collapseEl.classList.contains('show') ? 'true' : 'false');
+                }
+            }
+
             const table = $('#contracts-table').DataTable({
                 processing: true,
                 serverSide: true,
@@ -347,9 +329,10 @@
                     url: '/client-contracts/data',
                     type: 'GET',
                     data: function (d) {
-                        d.search_value = $('#filter-search').val();
-                        d.group_id = $('#filter-group').val();
-                        d.status = $('#filter-status').val();
+                        const params = contractsFilterParams();
+                        d.search_value = params.search_value;
+                        d.group_id = params.group_id;
+                        d.status = params.status;
                     }
                 },
                 columns: [
@@ -390,7 +373,7 @@
                         }
                     }
                 ],
-                order: [[7, 'desc']], // по умолчанию сортируем по "Обновлён"
+                order: [[7, 'desc']],
                 language: {
                     "processing": "Обработка...",
                     "search": "",
@@ -415,35 +398,49 @@
                 }
             });
 
-            // после инициализации — подгружаем конфиг колонок из БД
-            loadColumnsConfigFromServer(table);
+            loadColumnsConfigFromServer();
 
-            // --- Фильтры ---
-            $('#filter-apply').on('click', function () {
+            function reloadContractsTable() {
                 table.ajax.reload();
+                syncContractsFiltersCollapseState();
+            }
+
+            $('#filter-apply').on('click', function () {
+                reloadContractsTable();
+            });
+
+            $('#contracts-report-filters').on('submit', function (e) {
+                e.preventDefault();
+                reloadContractsTable();
             });
 
             $('#filter-reset').on('click', function () {
                 $('#filter-search').val('');
                 $('#filter-group').val('');
                 $('#filter-status').val('');
-                table.ajax.reload();
+                reloadContractsTable();
             });
 
             $('#filter-search').on('keyup', function (e) {
                 if (e.key === 'Enter') {
-                    table.ajax.reload();
+                    reloadContractsTable();
                 }
             });
 
-            // --- Обработчик чекбоксов "Поля списка" ---
+            $('#contractsReportFiltersCollapse').on('shown.bs.collapse hidden.bs.collapse', function () {
+                $('#contractsReportFiltersToggle').attr(
+                    'aria-expanded',
+                    $('#contractsReportFiltersCollapse').hasClass('show') ? 'true' : 'false'
+                );
+            });
+
             $('.column-toggle').on('change', function () {
                 const key = $(this).data('column-key');
                 const isChecked = $(this).is(':checked');
 
                 currentColumnsConfig[key] = isChecked ? 1 : 0;
 
-                applyVisibleColumns(currentColumnsConfig, table);
+                applyVisibleColumns(currentColumnsConfig);
 
                 $.ajax({
                     url: '/client-contracts/columns-settings',
@@ -451,8 +448,6 @@
                     data: {
                         _token: csrfToken,
                         columns: currentColumnsConfig
-                    },
-                    success: function () {
                     },
                     error: function () {
                         console.error('Не удалось сохранить настройки колонок');

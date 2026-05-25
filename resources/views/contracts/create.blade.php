@@ -85,20 +85,20 @@
 
                     <div class="col-12" id="block-template" style="display:none">
                         <label class="form-label">Шаблон договора</label>
-                        <select name="contract_template_id" id="contract_template_id" class="form-select">
-                            <option value="">— выберите шаблон —</option>
-                            @foreach($contractTemplates as $tpl)
-                                <option value="{{ $tpl->id }}" @selected((int) old('contract_template_id') === (int) $tpl->id)>
-                                    {{ $tpl->title }}
-                                </option>
-                            @endforeach
-                        </select>
                         @if($contractTemplates->isEmpty())
-                            <div class="form-text text-warning">
-                                Нет активных шаблонов.
-                                <a href="{{ route('contract-templates.create') }}">Создать шаблон</a>
+                            <div class="alert alert-warning mb-0" role="alert">
+                                Шаблонов нет.
+                                <a href="{{ route('contract-templates.create') }}" class="alert-link">Создать шаблон</a>
                             </div>
                         @else
+                            <select name="contract_template_id" id="contract_template_id" class="form-select">
+                                <option value="">— выберите шаблон —</option>
+                                @foreach($contractTemplates as $tpl)
+                                    <option value="{{ $tpl->id }}" @selected((int) old('contract_template_id') === (int) $tpl->id)>
+                                        {{ $tpl->title }}
+                                    </option>
+                                @endforeach
+                            </select>
                             <div class="form-text">
                                 <a href="{{ route('contract-templates.index') }}">Управление шаблонами</a>
                             </div>
@@ -446,6 +446,8 @@
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
+        const hasContractTemplates = @json($contractTemplates->isNotEmpty());
+
         $(function () {
             const USERS_URL = '/client-contracts/users-search';
 
@@ -564,16 +566,25 @@
 
         function toggleCreationMode() {
             var mode = $('input[name="creation_mode"]:checked').val();
+            var $templateSelect = $('#contract_template_id');
             if (mode === 'template') {
                 $('#block-pdf').hide();
                 $('#input_pdf').prop('required', false);
                 $('#block-template').show();
-                $('#contract_template_id').prop('required', true);
+                if (hasContractTemplates) {
+                    $templateSelect.prop('required', true);
+                    $('#btn-save').prop('disabled', false);
+                } else {
+                    $('#btn-save').prop('disabled', true);
+                }
             } else {
                 $('#block-pdf').show();
                 $('#input_pdf').prop('required', true);
                 $('#block-template').hide();
-                $('#contract_template_id').prop('required', false);
+                if (hasContractTemplates) {
+                    $templateSelect.prop('required', false);
+                }
+                $('#btn-save').prop('disabled', false);
             }
         }
 
