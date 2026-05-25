@@ -6,17 +6,29 @@ use App\Models\Partner;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Tests\Feature\Crm\CrmTestCase;
+use Tests\Support\InteractsWithRoleBasePermissionsConfig;
 
 class PartnerBasePermissionsTest extends CrmTestCase
 {
-    /** @var list<string> */
-    private const BASE_ROLE_NAMES = ['user', 'admin', 'trainer'];
+    use InteractsWithRoleBasePermissionsConfig;
+
+    public function test_global_roles_required_for_partner_creation_exist_after_seeders(): void
+    {
+        $this->assertGlobalBaseRolesExist();
+    }
+
+    public function test_global_permissions_required_for_partner_creation_exist_after_seeders(): void
+    {
+        $this->assertNotEmpty($this->basePermissionNamesAll());
+
+        $this->assertGlobalBasePermissionsExist();
+    }
 
     public function test_creating_partner_assigns_base_permissions_for_user_admin_and_trainer_roles(): void
     {
         $partner = Partner::factory()->create();
 
-        foreach (self::BASE_ROLE_NAMES as $roleName) {
+        foreach (self::PARTNER_BASE_ROLE_NAMES as $roleName) {
             $this->assertPartnerHasExactlyConfiguredBasePermissions($partner->id, $roleName);
         }
     }
@@ -67,12 +79,27 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertSame($before, $after, 'Partner row should not be created when base permissions are missing');
     }
 
+    public function test_missing_trainer_role_throws_and_partner_is_not_created(): void
+    {
+        $this->assertMissingRoleBlocksPartnerCreation('trainer');
+    }
+
+    public function test_missing_admin_role_throws_and_partner_is_not_created(): void
+    {
+        $this->assertMissingRoleBlocksPartnerCreation('admin');
+    }
+
+    public function test_missing_user_role_throws_and_partner_is_not_created(): void
+    {
+        $this->assertMissingRoleBlocksPartnerCreation('user');
+    }
+
     public function test_permission_role_triplet_is_unique_and_insert_is_idempotent(): void
     {
         $partner = Partner::factory()->create();
 
         $rowsByRole = [];
-        foreach (self::BASE_ROLE_NAMES as $roleName) {
+        foreach (self::PARTNER_BASE_ROLE_NAMES as $roleName) {
             $rowsByRole[$roleName] = $this->buildPermissionRoleRowsForPartner($partner->id, $roleName);
         }
 
@@ -116,6 +143,27 @@ class PartnerBasePermissionsTest extends CrmTestCase
         }
     }
 
+    private function assertMissingRoleBlocksPartnerCreation(string $roleName): void
+    {
+        $roleId = DB::table('roles')->where('name', $roleName)->value('id');
+        $this->assertNotNull($roleId, "Role '{$roleName}' must exist before test setup");
+
+        DB::table('roles')->where('name', $roleName)->delete();
+
+        $before = DB::table('partners')->count();
+
+        try {
+            // Как в PartnerController::store — при ошибке в created() транзакция откатывает insert.
+            DB::transaction(static fn () => Partner::factory()->create());
+            $this->fail('Expected RuntimeException was not thrown');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString("Required role '{$roleName}' not found", $e->getMessage());
+        }
+
+        $after = DB::table('partners')->count();
+        $this->assertSame($before, $after, 'Partner row should be rolled back when a base role is missing');
+    }
+
     private function assertPartnerHasExactlyConfiguredBasePermissions(int $partnerId, string $roleName): void
     {
         $expected = $this->basePermissionNamesForRole($roleName);
@@ -124,25 +172,6 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $actual = $this->permissionNamesForPartnerRole($partnerId, $roleName);
 
         $this->assertEqualsCanonicalizing($expected, $actual);
-    }
-
-    private function basePermissionNamesForRole(string $roleName): array
-    {
-        $names = config("role_base_permissions.roles.{$roleName}", []);
-        $names = is_array($names) ? $names : [];
-        $names = array_values(array_unique(array_map('trim', $names)));
-
-        return array_values(array_filter($names, static fn ($v) => $v !== ''));
-    }
-
-    private function basePermissionNamesAll(): array
-    {
-        $names = [];
-        foreach (self::BASE_ROLE_NAMES as $roleName) {
-            $names = array_merge($names, $this->basePermissionNamesForRole($roleName));
-        }
-
-        return array_values(array_unique($names));
     }
 
     private function permissionNamesForPartnerRole(int $partnerId, string $roleName): array
@@ -191,4 +220,3 @@ class PartnerBasePermissionsTest extends CrmTestCase
         return $rows;
     }
 }
-
