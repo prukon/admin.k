@@ -752,6 +752,12 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
         Route::get('/client-contract-templates', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'index'])
             ->name('contract-templates.index');
+        Route::get('/client-contract-templates/data', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'data'])
+            ->name('contract-templates.data');
+        Route::get('/client-contract-templates/columns-settings', [\App\Http\Controllers\Contracts\ContractTemplateColumnsSettingsController::class, 'getColumnsSettings'])
+            ->name('contract-templates.columns-settings.get');
+        Route::post('/client-contract-templates/columns-settings', [\App\Http\Controllers\Contracts\ContractTemplateColumnsSettingsController::class, 'saveColumnsSettings'])
+            ->name('contract-templates.columns-settings.save');
         Route::get('/client-contract-templates/create', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'create'])
             ->name('contract-templates.create');
         Route::post('/client-contract-templates', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'store'])

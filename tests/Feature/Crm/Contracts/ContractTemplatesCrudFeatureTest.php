@@ -97,9 +97,15 @@ class ContractTemplatesCrudFeatureTest extends ContractsFeatureTestCase
             'is_archived' => false,
         ]);
 
-        $this->get(route('contract-templates.index'))
-            ->assertOk()
-            ->assertSee($mine->title, false)
-            ->assertDontSee('Чужой шаблон', false);
+        $response = $this->getJson(route('contract-templates.data', [
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 50,
+        ]));
+
+        $response->assertOk();
+        $titles = collect($response->json('data'))->pluck('title')->all();
+        $this->assertContains($mine->title, $titles);
+        $this->assertNotContains('Чужой шаблон', $titles);
     }
 }

@@ -1,5 +1,5 @@
 <div class="modal fade" id="createContractTemplateModal" tabindex="-1" aria-labelledby="createContractTemplateModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable contract-template-create-modal">
+    <div class="modal-dialog modal-dialog-centered contract-template-create-modal">
         <div class="modal-content">
             <form id="contractTemplateCreateForm"
                   method="post"
@@ -12,7 +12,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
 
-                <div class="modal-body text-start">
+                <div class="modal-body text-start contract-template-create-modal-body">
                     <p class="text-muted small">
                         Загрузите DOCX с плейсхолдерами вида <code>&#123;&#123;fio_parent&#125;&#125;</code>.
                         После сохранения проверьте подписи полей и текст email-уведомления.
@@ -93,5 +93,13 @@
 <style>
     .contract-template-create-modal {
         max-width: 520px;
+    }
+
+    #createContractTemplateModal .contract-template-create-modal-body {
+        max-height: calc(100vh - 11rem);
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
     }
 </style>

@@ -1,6 +1,6 @@
 @if(!empty($editTemplate))
     <div class="modal fade" id="editContractTemplateModal" tabindex="-1" aria-labelledby="editContractTemplateModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable contract-template-edit-modal">
+        <div class="modal-dialog modal-dialog-centered contract-template-edit-modal">
             <div class="modal-content">
                 <form id="contractTemplateEditForm"
                       method="post"
@@ -14,7 +14,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                     </div>
 
-                    <div class="modal-body text-start">
+                    <div class="modal-body text-start contract-template-edit-modal-body">
                         @include('contract-templates.partials.edit-form', [
                             'template' => $editTemplate,
                             'fields' => $editFields ?? [],
@@ -34,6 +34,14 @@
     <style>
         .contract-template-edit-modal {
             max-width: 720px;
+        }
+
+        #editContractTemplateModal .contract-template-edit-modal-body {
+            max-height: calc(100vh - 11rem);
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
         }
     </style>
 @endif

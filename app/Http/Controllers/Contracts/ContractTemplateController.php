@@ -31,12 +31,6 @@ class ContractTemplateController extends Controller
     {
         $partnerId = $this->partner()->id;
 
-        $templates = ContractTemplate::query()
-            ->forPartner($partnerId)
-            ->with('currentVersion')
-            ->orderByDesc('id')
-            ->paginate(20);
-
         $prefillSources = ContractTemplatePrefillSources::labels();
         $editTemplate = null;
         $editFields = [];
@@ -54,11 +48,125 @@ class ContractTemplateController extends Controller
         }
 
         return view('contract-templates.index', compact(
-            'templates',
             'prefillSources',
             'editTemplate',
             'editFields',
         ) + ['activeTab' => 'templates']);
+    }
+
+    public function data(Request $request)
+    {
+        $partnerId = $this->partner()->id;
+
+        $validated = $request->validate([
+            'draw'   => 'nullable|integer',
+            'start'  => 'nullable|integer',
+            'length' => 'nullable|integer',
+        ]);
+
+        $baseQuery = ContractTemplate::query()
+            ->forPartner($partnerId)
+            ->with('currentVersion')
+            ->leftJoin(
+                'contract_template_versions as current_version',
+                'contract_templates.current_version_id',
+                '=',
+                'current_version.id'
+            )
+            ->select('contract_templates.*');
+
+        $search = trim((string) $request->input('search.value', ''));
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+            $baseQuery->where(function ($q) use ($like, $search) {
+                $q->where('contract_templates.title', 'like', $like);
+
+                if (ctype_digit($search)) {
+                    $q->orWhere('contract_templates.id', (int) $search);
+                }
+            });
+        }
+
+        $totalRecords = ContractTemplate::query()
+            ->forPartner($partnerId)
+            ->count();
+        $recordsFiltered = (clone $baseQuery)->count('contract_templates.id');
+
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir         = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
+        $columnsDef       = $request->input('columns', []);
+        $orderColumnName  = null;
+        if ($orderColumnIndex !== null && isset($columnsDef[(int) $orderColumnIndex]['name'])) {
+            $orderColumnName = $columnsDef[(int) $orderColumnIndex]['name'];
+        }
+
+        switch ($orderColumnName) {
+            case 'title':
+                $baseQuery->orderBy('contract_templates.title', $orderDir)
+                    ->orderByDesc('contract_templates.id');
+                break;
+            case 'version':
+                $baseQuery->orderBy('current_version.version', $orderDir)
+                    ->orderByDesc('contract_templates.id');
+                break;
+            case 'fields_count':
+                $baseQuery->orderByRaw(
+                    'JSON_LENGTH(current_version.fields_schema) ' . $orderDir
+                )->orderByDesc('contract_templates.id');
+                break;
+            case 'status_label':
+                $baseQuery->orderBy('contract_templates.is_archived', $orderDir)
+                    ->orderByRaw(
+                        'CASE WHEN contract_templates.current_version_id IS NULL THEN 1 ELSE 0 END ' . $orderDir
+                    )
+                    ->orderByDesc('contract_templates.id');
+                break;
+            case 'id':
+            default:
+                $baseQuery->orderBy('contract_templates.id', $orderDir);
+                break;
+        }
+
+        $start  = $validated['start'] ?? 0;
+        $length = $validated['length'] ?? 20;
+
+        $templates = $baseQuery
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $data = $templates->map(function (ContractTemplate $template) {
+            $fieldsSchema = $template->currentVersion?->fields_schema;
+            $fieldsCount  = is_array($fieldsSchema) ? count($fieldsSchema) : 0;
+
+            if ($template->is_archived) {
+                $statusKey   = 'archived';
+                $statusLabel = 'В архиве';
+            } elseif ($template->isUsable()) {
+                $statusKey   = 'active';
+                $statusLabel = 'Активен';
+            } else {
+                $statusKey   = 'no_version';
+                $statusLabel = 'Нет версии';
+            }
+
+            return [
+                'id'            => $template->id,
+                'title'         => $template->title,
+                'version'       => $template->currentVersion?->version,
+                'fields_count'  => $fieldsCount,
+                'status_key'    => $statusKey,
+                'status_label'  => $statusLabel,
+                'edit_url'      => route('contract-templates.index', ['edit' => $template->id]),
+            ];
+        })->toArray();
+
+        return response()->json([
+            'draw'            => (int) ($validated['draw'] ?? 0),
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ]);
     }
 
     public function create()
