@@ -579,6 +579,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     //Партнеры (feature test +)
     Route::middleware(['can:partner.view'])->group(function () {
         Route::get('admin/partners', [PartnerController::class, 'index'])->name('admin.partner.index');
+        Route::get('admin/partners/data', [PartnerController::class, 'data'])->name('admin.partner.data');
+        Route::get('admin/partners/columns-settings', [\App\Http\Controllers\Admin\PartnerColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.partner.columns-settings.get');
+        Route::post('admin/partners/columns-settings', [\App\Http\Controllers\Admin\PartnerColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.partner.columns-settings.save');
         Route::post('admin/partners', [PartnerController::class, 'store'])->name('admin.partner.store');
         Route::get('admin/partner/{partner}/edit', [PartnerController::class, 'edit'])->name('admin.partner.edit');
         Route::patch('admin/partner/{partner}', [PartnerController::class, 'update'])->name('admin.partner.update');
@@ -700,6 +703,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:partnerLeads.view')->group(function () {
         Route::get('/admin/partner-leads', [LandingPageController::class, 'partnerLeadsIndex'])->name('admin.partner-leads');
         Route::get('/admin/partner-leads/data', [LandingPageController::class, 'partnerLeadsDataTable'])->name('admin.partner-leads.data');
+        Route::get('/admin/partner-leads/columns-settings', [\App\Http\Controllers\Admin\PartnerLeadColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.partner-leads.columns-settings.get');
+        Route::post('/admin/partner-leads/columns-settings', [\App\Http\Controllers\Admin\PartnerLeadColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.partner-leads.columns-settings.save');
         Route::put('/admin/partner-leads/{partnerLead}', [LandingPageController::class, 'updatePartnerLead'])->name('admin.partner-leads.update');
         Route::delete('/admin/partner-leads/{partnerLead}', [LandingPageController::class, 'destroyPartnerLead'])->name('admin.partner-leads.destroy');
     });
@@ -715,6 +720,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     Route::middleware('can:schoolWidget.view')->group(function () {
+        Route::get('/admin/school-leads/widget', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'widgetTab'])->name('admin.school-leads.widget');
         Route::get('/admin/school-widget', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'index'])->name('admin.school-widget');
         Route::post('/admin/school-widget/telegram-link', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'createTelegramLink'])->name('admin.school-widget.telegram-link');
         Route::delete('/admin/school-widget/telegram', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'disconnectTelegram'])->name('admin.school-widget.telegram-disconnect');
@@ -858,7 +864,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/tinkoff/payouts/{deal}/delay', [TinkoffPayoutController::class, 'delay']);
 
         // Админка: список выплат + карточка (DataTables)
-        Route::get('/admin/tinkoff/payouts', [TinkoffAdminPayoutController::class, 'index']);
+        Route::get('/admin/tinkoff/payouts', [TinkoffAdminPayoutController::class, 'index'])
+            ->name('admin.tinkoff.payouts.index');
         Route::get('/admin/tinkoff/payouts/data', [TinkoffAdminPayoutController::class, 'data']);
         Route::get('/admin/tinkoff/payouts/total', [TinkoffAdminPayoutController::class, 'total']);
         Route::get('/admin/tinkoff/payouts/partners-search', [TinkoffAdminPayoutController::class, 'partnersSearch']);

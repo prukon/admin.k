@@ -60,6 +60,8 @@ final class SchoolLeadsPageFeatureTest extends CrmTestCase
 
         $this->get(route('admin.school-leads'))
             ->assertOk()
+            ->assertViewIs('admin.school-leads.index')
+            ->assertViewHas('activeTab', 'leads')
             ->assertViewHas('leadStats', [
                 'total'      => 4,
                 'new'        => 2,

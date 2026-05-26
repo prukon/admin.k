@@ -13,6 +13,9 @@ class ContractTemplatesAccessFeatureTest extends ContractsFeatureTestCase
 
         $this->get(route('contract-templates.index'))->assertStatus(302);
         $this->get(route('contract-templates.create'))->assertStatus(302);
+
+        $this->getJson(route('contract-templates.data', ['draw' => 1]))->assertStatus(401);
+        $this->getJson(route('contract-templates.columns-settings.get'))->assertStatus(401);
     }
 
     /** @test */
@@ -28,6 +31,11 @@ class ContractTemplatesAccessFeatureTest extends ContractsFeatureTestCase
         $this->actingAs($actor)
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
             ->get(route('contract-templates.create'))
+            ->assertStatus(403);
+
+        $this->actingAs($actor)
+            ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
+            ->getJson(route('contract-templates.data', ['draw' => 1]))
             ->assertStatus(403);
     }
 
@@ -47,6 +55,12 @@ class ContractTemplatesAccessFeatureTest extends ContractsFeatureTestCase
         $this->get(route('contract-templates.index', ['edit' => $template->id]))
             ->assertOk()
             ->assertSee('editContractTemplateModal', false);
+
+        $this->getJson(route('contract-templates.data', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertOk();
+        $this->getJson(route('contract-templates.columns-settings.get'))->assertOk();
+        $this->postJson(route('contract-templates.columns-settings.save'), [
+            'columns' => ['title' => true, 'actions' => true],
+        ])->assertOk();
 
         $this->put(route('contract-templates.update', $template), [
             'title'          => 'Обновлённый шаблон',

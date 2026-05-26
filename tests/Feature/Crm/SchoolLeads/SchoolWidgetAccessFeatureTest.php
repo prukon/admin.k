@@ -28,6 +28,7 @@ class SchoolWidgetAccessFeatureTest extends CrmTestCase
         Auth::logout();
 
         $routes = [
+            ['GET', route('admin.school-leads.widget')],
             ['GET', route('admin.school-widget')],
             ['POST', route('admin.school-widget.telegram-link')],
             ['DELETE', route('admin.school-widget.telegram-disconnect')],
@@ -49,6 +50,7 @@ class SchoolWidgetAccessFeatureTest extends CrmTestCase
         $this->actingAs($denied);
         $this->withSession(['current_partner' => $this->partner->id]);
 
+        $this->get(route('admin.school-leads.widget'))->assertForbidden();
         $this->get(route('admin.school-widget'))->assertForbidden();
         $this->postJson(route('admin.school-widget.telegram-link'))->assertForbidden();
         $this->deleteJson(route('admin.school-widget.telegram-disconnect'))->assertForbidden();
@@ -58,11 +60,17 @@ class SchoolWidgetAccessFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
 
-        $this->get(route('admin.school-widget'))
+        $this->get(route('admin.school-leads.widget'))
             ->assertOk()
-            ->assertSee('Виджет заявок', false)
+            ->assertViewIs('admin.school-leads.index')
+            ->assertViewHas('activeTab', 'widget')
+            ->assertSee('>Виджет для сайта</a>', false)
             ->assertSee('Подключить Telegram', false)
             ->assertSee('iframe', false);
+
+        $this->get(route('admin.school-widget'))
+            ->assertOk()
+            ->assertViewHas('activeTab', 'widget');
 
         $this->postJson(route('admin.school-widget.telegram-link'))
             ->assertOk()

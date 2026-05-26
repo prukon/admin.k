@@ -28,7 +28,8 @@ class SchoolLeadsAuthorizationTest extends CrmTestCase
     public function test_school_widget_routes_use_school_widget_view_middleware(): void
     {
         $expected = [
-            'admin.school-widget'                    => 'can:schoolWidget.view',
+            'admin.school-leads.widget'                => 'can:schoolWidget.view',
+            'admin.school-widget'                      => 'can:schoolWidget.view',
             'admin.school-widget.telegram-link'        => 'can:schoolWidget.view',
             'admin.school-widget.telegram-disconnect'  => 'can:schoolWidget.view',
         ];

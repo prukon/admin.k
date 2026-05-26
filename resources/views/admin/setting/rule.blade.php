@@ -5,22 +5,38 @@
     /** @var \Illuminate\Database\Eloquent\Collection|\App\Models\PermissionGroup[] $groups */
 @endphp
 
-<h4 class="pt-3 text-start">Права и роли</h4>
-<hr>
+@vite(['resources/css/admin-list-toolbar.css'])
 
-<div class="col-12 d-flex justify-content-between align-items-center mb-3">
-    <button id="new-role" type="button" class="btn btn-primary new-role width-170"
-            data-bs-toggle="modal"
-            data-bs-target="#createRoleModal">
-        Настройки
-    </button>
+<div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+    <div class="card-body px-3 py-3">
+        <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Права и роли</h1>
+            <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
+                <button type="button"
+                        class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                        data-bs-toggle="modal"
+                        data-bs-target="#createRoleModal"
+                        title="Управление ролями">
+                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                        <i class="fas fa-gear payments-report-toolbar-icon"></i>
+                    </span>
+                    <span class="payments-report-toolbar-label d-none d-sm-inline">Настройки</span>
+                </button>
 
-    <div class="wrap-icon btn" data-bs-toggle="modal" data-bs-target="#historyModal">
-        <i class="fa-solid fa-clock-rotate-left logs"></i>
+                <button type="button"
+                        class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                        data-bs-toggle="modal"
+                        data-bs-target="#historyModal"
+                        title="История изменений">
+                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                        <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                    </span>
+                    <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
-
-<hr>
 
 <style>
     :root {

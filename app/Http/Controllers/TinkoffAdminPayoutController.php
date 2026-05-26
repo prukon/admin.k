@@ -56,7 +56,7 @@ class TinkoffAdminPayoutController extends Controller
 
         $toolbarTotals = $this->computeToolbarTotals(request(), [], $isSuperadmin, $currentPartnerId);
 
-        return view('tinkoff.payouts.index', compact(
+        return view('admin.partners.index', array_merge(compact(
             'partners',
             'isSuperadmin',
             'autoPayoutByPartnerId',
@@ -65,7 +65,9 @@ class TinkoffAdminPayoutController extends Controller
             'overdueScheduledPayoutsCount',
             'overdueScheduledPayouts',
             'toolbarTotals'
-        ));
+        ), [
+            'activeTab' => 'payouts',
+        ]));
     }
 
     /**

@@ -4,27 +4,6 @@
 @endphp
 
 <div class="container py-3">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h5 mb-0"> </h1>
-
-        @if(($mode ?? 'list') === 'list')
-            <div class="d-flex flex-wrap align-items-center gap-2">
-                <button type="button"
-                        class="btn btn-primary btn-sm"
-                        data-bs-toggle="modal"
-                        data-bs-target="#tbankPayoutSettingsModal">
-                    Настройки выплат
-                </button>
-                <button type="button"
-                        class="btn btn-primary btn-sm"
-                        data-bs-toggle="modal"
-                        data-bs-target="#tbankCommissionCreateModal">
-                    Добавить комиссию
-                </button>
-            </div>
-        @endif
-    </div>
-
     @if(session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
@@ -102,23 +81,44 @@
         <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
             <div class="card-body px-3 py-3">
                 <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
-                    <h2 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Правила комиссий и выплат</h2>
-                    <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
-                        <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
-                            <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
-                                    type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#tbankCommissionsFiltersCollapse"
-                                    aria-expanded="{{ $tbankFiltersActive ? 'true' : 'false' }}"
-                                    aria-controls="tbankCommissionsFiltersCollapse"
-                                    id="tbankCommissionsFiltersToggle">
-                                <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
-                                    <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
-                                </span>
-                                <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
-                                <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
-                            </button>
-                        </div>
+                    <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Правила комиссий и выплат</h1>
+                    <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#tbankPayoutSettingsModal"
+                                title="Глобальные настройки выплат Т‑Банк">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-gear payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Настройки выплат</span>
+                        </button>
+
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#tbankCommissionCreateModal"
+                                title="Новое правило комиссии">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-plus payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Добавить комиссию</span>
+                        </button>
+
+                        <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#tbankCommissionsFiltersCollapse"
+                                aria-expanded="{{ $tbankFiltersActive ? 'true' : 'false' }}"
+                                aria-controls="tbankCommissionsFiltersCollapse"
+                                id="tbankCommissionsFiltersToggle"
+                                title="Фильтры таблицы">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </div>
             </div>

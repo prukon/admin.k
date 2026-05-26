@@ -21,30 +21,12 @@ class SchoolWidgetController extends Controller
 
     public function index(): View
     {
-        $partner = $this->resolveCurrentPartner();
+        return $this->renderTabsWidget();
+    }
 
-        $widget = $this->widgetService->ensureForPartner((int) $partner->id);
-
-        $widgetUrl = route('widget.school-lead.show', ['widgetKey' => $widget->widget_key]);
-        $iframeCode = sprintf(
-            '<iframe src="%s" width="100%%" height="420" style="border:0;" loading="lazy" title="Заявка"></iframe>',
-            e($widgetUrl)
-        );
-
-        $botUsername = ltrim((string) config('services.telegram.bot_username'), '@');
-        $botName = (string) config('services.telegram.bot_name');
-        $telegramBotUrl = $botUsername !== '' ? 'https://t.me/' . $botUsername : null;
-
-        return view('admin.school-widget', [
-            'widget'                         => $widget,
-            'widgetUrl'                      => $widgetUrl,
-            'iframeCode'                     => $iframeCode,
-            'partner'                        => $partner,
-            'telegramBotUsername'            => $botUsername,
-            'telegramBotName'                => $botName,
-            'telegramBotUrl'                 => $telegramBotUrl,
-            'telegramConfigured'             => (bool) config('services.telegram.bot_token'),
-        ]);
+    public function widgetTab(): View
+    {
+        return $this->renderTabsWidget();
     }
 
     public function createTelegramLink(): JsonResponse
@@ -94,5 +76,34 @@ class SchoolWidgetController extends Controller
         }
 
         return Partner::query()->findOrFail($partnerId);
+    }
+
+    private function renderTabsWidget(): View
+    {
+        $partner = $this->resolveCurrentPartner();
+
+        $widget = $this->widgetService->ensureForPartner((int) $partner->id);
+
+        $widgetUrl = route('widget.school-lead.show', ['widgetKey' => $widget->widget_key]);
+        $iframeCode = sprintf(
+            '<iframe src="%s" width="100%%" height="420" style="border:0;" loading="lazy" title="Заявка"></iframe>',
+            e($widgetUrl)
+        );
+
+        $botUsername = ltrim((string) config('services.telegram.bot_username'), '@');
+        $botName = (string) config('services.telegram.bot_name');
+        $telegramBotUrl = $botUsername !== '' ? 'https://t.me/' . $botUsername : null;
+
+        return view('admin.school-leads.index', [
+            'activeTab'                      => 'widget',
+            'widget'                         => $widget,
+            'widgetUrl'                      => $widgetUrl,
+            'iframeCode'                     => $iframeCode,
+            'partner'                        => $partner,
+            'telegramBotUsername'            => $botUsername,
+            'telegramBotName'                => $botName,
+            'telegramBotUrl'                 => $telegramBotUrl,
+            'telegramConfigured'             => (bool) config('services.telegram.bot_token'),
+        ]);
     }
 }

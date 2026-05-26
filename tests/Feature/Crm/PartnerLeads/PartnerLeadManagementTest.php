@@ -138,6 +138,7 @@ class PartnerLeadManagementTest extends CrmTestCase
                 'draw',
                 'recordsTotal',
                 'recordsFiltered',
+                'stats' => ['total', 'new', 'processing'],
                 'data' => [
                     '*' => [
                         'id',
@@ -199,5 +200,36 @@ class PartnerLeadManagementTest extends CrmTestCase
         foreach ($response->json('data') as $row) {
             $this->assertSame('processing', $row['status']);
         }
+    }
+
+    public function test_partner_leads_datatable_returns_stats_counts(): void
+    {
+        PartnerLead::create([
+            'name'   => 'Stats new 1',
+            'phone'  => '+7 900 111-11-11',
+            'status' => 'new',
+        ]);
+        PartnerLead::create([
+            'name'   => 'Stats new 2',
+            'phone'  => '+7 900 222-22-22',
+            'status' => 'new',
+        ]);
+        PartnerLead::create([
+            'name'   => 'Stats processing',
+            'phone'  => '+7 900 333-33-33',
+            'status' => 'processing',
+        ]);
+
+        $response = $this->getJson(route('admin.partner-leads.data', [
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 10,
+        ]));
+
+        $response->assertOk();
+        $stats = $response->json('stats');
+        $this->assertGreaterThanOrEqual(3, $stats['total']);
+        $this->assertGreaterThanOrEqual(2, $stats['new']);
+        $this->assertGreaterThanOrEqual(1, $stats['processing']);
     }
 }

@@ -78,7 +78,13 @@ class TbankAdminPayoutsAccessFeatureTest extends CrmTestCase
             'completed_at' => null,
         ]);
 
-        $this->get('/admin/tinkoff/payouts')->assertOk();
+        $this->get('/admin/tinkoff/payouts')
+            ->assertOk()
+            ->assertViewIs('admin.partners.index')
+            ->assertSee('partnersSectionTabs', false)
+            ->assertSee('role="tab">Выплаты T‑Bank</a>', false)
+            ->assertSee('id="payouts-table"', false)
+            ->assertSee('tbankPayoutsFiltersCollapse', false);
 
         $this->get('/admin/tinkoff/payouts/total')->assertOk()->assertJsonStructure([
             'payments_total_formatted',

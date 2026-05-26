@@ -66,7 +66,9 @@ class SchoolLeadController extends AdminBaseController
             $viewData['userFieldsPayload'] = $this->buildUserFieldsPayloadForCurrentPartner();
         }
 
-        return view('admin.school-leads', $viewData);
+        return view('admin.school-leads.index', $viewData + [
+            'activeTab' => 'leads',
+        ]);
     }
 
     public function dataTable(Request $request): JsonResponse

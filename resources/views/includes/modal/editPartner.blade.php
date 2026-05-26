@@ -553,6 +553,9 @@
                         createForm.reset();
                         const modal = bootstrap.Modal.getInstance(document.getElementById('createPartnerModal'));
                         modal && modal.hide();
+                        if (typeof window.reloadPartnersTable === 'function') {
+                            window.reloadPartnersTable();
+                        }
                     })
                     .catch(errors => {
                         console.warn('[Partner.store] validation errors:', errors);
@@ -611,7 +614,8 @@
             };
         }
 
-        $('.edit-partner-link').on('click', function () {
+        $(document).on('click', '.edit-partner-link', function (e) {
+            e.preventDefault();
             const partnerId = $(this).data('id');
 
             document.getElementById('edit-partner-form').reset();
@@ -707,6 +711,9 @@
                     console.log('[Partner.update] success:', resp);
                     showSuccessModal("Редактирование партнера", "Партнёр успешно отредактирован.", 1);
                     $('#editPartnerModal').modal('hide');
+                    if (typeof window.reloadPartnersTable === 'function') {
+                        window.reloadPartnersTable();
+                    }
                 },
                 error: function (xhr) {
                     console.error('[Partner.update] error:', xhr?.responseText || xhr);
@@ -745,6 +752,9 @@
                             console.log('[Partner.delete] success:', resp);
                             showSuccessModal("Удаление партнёра", "Партнёр успешно удалён.", 1);
                             $('#editPartnerModal').modal('hide');
+                            if (typeof window.reloadPartnersTable === 'function') {
+                                window.reloadPartnersTable();
+                            }
                         },
                         error: function (xhr) {
                             console.error('[Partner.delete] error:', xhr?.responseText || xhr);

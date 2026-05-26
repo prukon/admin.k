@@ -26,13 +26,14 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('>Договоры</h1>', false)
             ->assertSee('id="contractsReportFiltersCollapse"', false)
             ->assertSee('id="contractsColumnsDropdown"', false)
-            ->assertSee('id="contracts-table"', false);
+            ->assertSee('id="contracts-table"', false)
+            ->assertSee('<th>№</th>', false);
     }
 
     /** @test */
-    public function templates_index_renders_tabs_create_modal_and_list(): void
+    public function templates_index_renders_tabs_toolbar_datatable_and_create_modal(): void
     {
-        $template = $this->createContractTemplateWithVersion(['title' => 'UI Шаблон списка']);
+        $this->createContractTemplateWithVersion(['title' => 'UI Шаблон списка']);
 
         $this->get(route('contract-templates.index'))
             ->assertOk()
@@ -41,9 +42,12 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('id="contractsSectionTabs"', false)
             ->assertSee('nav-link active', false)
             ->assertSee('>Шаблоны</a>', false)
+            ->assertSee('payments-report-toolbar', false)
+            ->assertSee('Шаблоны договоров', false)
             ->assertSee('id="createContractTemplateModal"', false)
             ->assertSee('Добавить шаблон', false)
-            ->assertSee($template->title, false)
+            ->assertSee('id="contract-templates-table"', false)
+            ->assertSee('<th>№</th>', false)
             ->assertDontSee('id="editContractTemplateModal"', false);
     }
 
@@ -195,15 +199,16 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
     }
 
     /** @test */
-    public function templates_index_edit_link_points_to_index_with_edit_query(): void
+    public function templates_datatable_json_provides_edit_link_for_row(): void
     {
         $template = $this->createContractTemplateWithVersion();
 
-        $this->get(route('contract-templates.index'))
+        $this->getJson(route('contract-templates.data', [
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 10,
+        ]))
             ->assertOk()
-            ->assertSee(
-                'href="' . route('contract-templates.index', ['edit' => $template->id]) . '"',
-                false
-            );
+            ->assertJsonPath('data.0.edit_url', route('contract-templates.index', ['edit' => $template->id]));
     }
 }

@@ -39,14 +39,14 @@
         @endcan
 
         {{--Группа юзера--}}
-        @can('myGroup.view')
+        {{-- @can('myGroup.view')
             <li class="nav-item">
                 <a href="/my-group" class="nav-link">
                     <i class="nav-icon fa-solid fa-layer-group"></i>
                     <p>Моя группа</p>
                 </a>
             </li>
-        @endcan
+        @endcan --}}
 
 
         {{--Установка цен--}}
@@ -197,7 +197,7 @@
             </li>
 
             {{-- лиды партнёров (заявки с лендинга) --}}
-            @can('partnerLeads.view')
+            {{-- @can('partnerLeads.view')
                 <hr class="sidebar-separator">
                 <li class="nav-item">
                     <a href="/admin/partner-leads" class="nav-link">
@@ -206,22 +206,13 @@
                         <p>Лиды партнёров<span class="badge badge-info right"></span></p>
                     </a>
                 </li>
-            @endcan
+            @endcan --}}
 
             @can('schoolLeads.view')
                 <li class="nav-item">
                     <a href="{{ route('admin.school-leads') }}" class="nav-link">
                         <i class="nav-icon fa-solid fa-inbox"></i>
                         <p>Заявки с сайта</p>
-                    </a>
-                </li>
-            @endcan
-
-            @can('schoolWidget.view')
-                <li class="nav-item">
-                    <a href="{{ route('admin.school-widget') }}" class="nav-link">
-                        <i class="nav-icon fa-solid fa-code"></i>
-                        <p>Виджет заявок</p>
                     </a>
                 </li>
             @endcan
@@ -245,14 +236,14 @@
             @endcan
 
             {{-- T‑Bank: выплаты --}}
-            @can('tbank.payouts.manage')
+            {{-- @can('tbank.payouts.manage')
                 <li class="nav-item">
                     <a href="/admin/tinkoff/payouts" class="nav-link">
                         <i class="nav-icon fa-solid fa-money-bill-transfer"></i>
                         <p>Выплаты (T‑Bank)</p>
                     </a>
                 </li>
-            @endcan
+            @endcan --}}
 
 
     </ul>

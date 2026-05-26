@@ -4,12 +4,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
-use App\Http\Requests\Team\FilterRequest;
-
-//use App\Http\Requests\Partner\UpdateRequest;
-//use App\Http\Requests\Team\StoreRequest;
+use App\Http\Requests\Partner\PartnerDataTableRequest;
 use App\Http\Requests\Partner\StorePartnerRequest;
 use App\Http\Requests\Partner\UpdatePartnerRequest;
+use App\Http\Requests\Team\FilterRequest;
 
 
 use App\Models\Partner;
@@ -24,10 +22,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
-use Yajra\DataTables\DataTables;
-
-
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\MyLog;
 
@@ -48,25 +43,121 @@ class PartnerController extends AdminBaseController
         $this->service = $service;
     }
 
-    public function index(FilterRequest $request)
+    public function index()
     {
+        return view('admin.partners.index', [
+            'activeTab' => 'partners',
+        ]);
+    }
 
-        $data = $request->validated();
-        $title = isset($data['title']) ? trim((string)$data['title']) : null;
+    public function data(PartnerDataTableRequest $request)
+    {
+        $validated = $request->validated();
 
-        $partnersQuery = Partner::query();
+        $baseQuery = Partner::query();
 
-        if (!empty($title)) {
-            $partnersQuery->where('title', 'like', '%' . $title . '%');
+        $titleSearch = trim((string) ($validated['title'] ?? ''));
+        if ($titleSearch === '' && $request->filled('search.value')) {
+            $titleSearch = trim((string) $request->input('search.value'));
         }
 
-        $allPartners = $partnersQuery
-            ->orderBy('order_by', 'asc') // сортировка по полю order_by по возрастанию
-            ->paginate(10);
+        if ($titleSearch !== '') {
+            $like = '%' . $titleSearch . '%';
+            $baseQuery->where(function ($q) use ($like, $titleSearch) {
+                $q->where('title', 'like', $like)
+                    ->orWhere('organization_name', 'like', $like)
+                    ->orWhere('tax_id', 'like', $like)
+                    ->orWhere('email', 'like', $like)
+                    ->orWhere('phone', 'like', $like);
 
+                if (ctype_digit($titleSearch)) {
+                    $q->orWhere('id', (int) $titleSearch);
+                }
+            });
+        }
 
-        return view("admin/partner", compact('allPartners'
-        ));
+        $status = $validated['status'] ?? null;
+        if ($status === 'active') {
+            $baseQuery->where('is_enabled', 1);
+        } elseif ($status === 'inactive') {
+            $baseQuery->where('is_enabled', 0);
+        }
+
+        $totalRecords = Partner::query()->count();
+        $recordsFiltered = (clone $baseQuery)->count();
+
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir         = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
+        $columnsDef       = $request->input('columns', []);
+        $orderColumnName  = null;
+        if ($orderColumnIndex !== null && isset($columnsDef[(int) $orderColumnIndex]['name'])) {
+            $orderColumnName = $columnsDef[(int) $orderColumnIndex]['name'];
+        }
+
+        switch ($orderColumnName) {
+            case 'order_by':
+                $baseQuery->orderBy('order_by', $orderDir)
+                    ->orderBy('title', 'asc');
+                break;
+            case 'title':
+                $baseQuery->orderBy('title', $orderDir);
+                break;
+            case 'organization_name':
+                $baseQuery->orderBy('organization_name', $orderDir)
+                    ->orderBy('title', 'asc');
+                break;
+            case 'tax_id':
+                $baseQuery->orderBy('tax_id', $orderDir)
+                    ->orderBy('title', 'asc');
+                break;
+            case 'email':
+                $baseQuery->orderBy('email', $orderDir)
+                    ->orderBy('title', 'asc');
+                break;
+            case 'phone':
+                $baseQuery->orderBy('phone', $orderDir)
+                    ->orderBy('title', 'asc');
+                break;
+            case 'status_label':
+                $baseQuery->orderBy('is_enabled', $orderDir)
+                    ->orderBy('title', 'asc');
+                break;
+            case 'rownum':
+            case 'actions':
+            default:
+                $baseQuery->orderBy('order_by', 'asc')
+                    ->orderBy('title', 'asc');
+                break;
+        }
+
+        $start  = $validated['start'] ?? 0;
+        $length = $validated['length'] ?? 10;
+
+        $partners = $baseQuery
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $data = $partners->map(function (Partner $partner) {
+            return [
+                'id'                 => $partner->id,
+                'order_by'           => $partner->order_by,
+                'title'              => $partner->title,
+                'organization_name'  => $partner->organization_name ?? '',
+                'tax_id'             => $partner->tax_id ?? '',
+                'email'              => $partner->email ?? '',
+                'phone'              => $partner->phone ?? '',
+                'status_label'       => $partner->is_enabled ? 'Активен' : 'Неактивен',
+                'is_enabled'         => (int) $partner->is_enabled,
+            ];
+        })->toArray();
+
+        return response()->json([
+            'draw'            => (int) ($validated['draw'] ?? 0),
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ]);
     }
 
     public function store(StorePartnerRequest $request)

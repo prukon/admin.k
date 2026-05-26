@@ -30,9 +30,24 @@ class LandingPageController extends Controller
 
     public function partnerLeadsIndex()
     {
-        $partnerLeads = PartnerLead::latest()->paginate(20);
+        return view('admin.partners.index', [
+            'activeTab' => 'leads',
+            'leadStats' => $this->buildPartnerLeadsStats(),
+        ]);
+    }
 
-        return view('admin.partner-leads', compact('partnerLeads'));
+    /**
+     * @return array{total: int, new: int, processing: int}
+     */
+    private function buildPartnerLeadsStats(): array
+    {
+        $base = PartnerLead::query()->whereNull('deleted_at');
+
+        return [
+            'total'      => (int) (clone $base)->count(),
+            'new'        => (int) (clone $base)->where('status', PartnerLeadStatus::New->value)->count(),
+            'processing' => (int) (clone $base)->where('status', PartnerLeadStatus::Processing->value)->count(),
+        ];
     }
 
     public function partnerLeadsDataTable(Request $request)
@@ -115,6 +130,7 @@ class LandingPageController extends Controller
             'draw'            => (int) $request->input('draw'),
             'recordsTotal'    => $recordsTotal,
             'recordsFiltered' => $recordsFiltered,
+            'stats'           => $this->buildPartnerLeadsStats(),
             'data'            => $data->map(function ($item) {
                 return [
                     'id'           => $item->id,

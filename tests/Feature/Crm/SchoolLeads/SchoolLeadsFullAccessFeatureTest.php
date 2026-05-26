@@ -142,7 +142,10 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
 
         $this->get(route('admin.school-leads'))
             ->assertOk()
+            ->assertViewIs('admin.school-leads.index')
+            ->assertViewHas('activeTab', 'leads')
             ->assertSee('Заявки с сайта', false)
+            ->assertSee('payments-report-title', false)
             ->assertDontSee('id="sl-filter-location"', false);
 
         $this->getJson(route('admin.school-leads.data', [

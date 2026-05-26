@@ -66,6 +66,11 @@ class PartnerControllerTest extends CrmTestCase
         $this->get(route('admin.partner.index'))->assertStatus(302);
 
         // JSON ручки для гостя обычно дают 401
+        $this->getJson(route('admin.partner.data'))->assertStatus(401);
+        $this->getJson(route('admin.partner.columns-settings.get'))->assertStatus(401);
+        $this->postJson(route('admin.partner.columns-settings.save'), [
+            'columns' => ['title' => true],
+        ])->assertStatus(401);
         $this->postJson(route('admin.partner.store'), [])->assertStatus(401);
         $this->getJson(route('admin.partner.edit', $partner))->assertStatus(401);
         $this->patchJson(route('admin.partner.update', $partner), [])->assertStatus(401);
@@ -83,6 +88,11 @@ class PartnerControllerTest extends CrmTestCase
         $partner = Partner::factory()->create();
 
         $this->get(route('admin.partner.index'))->assertStatus(403);
+        $this->getJson(route('admin.partner.data'))->assertStatus(403);
+        $this->getJson(route('admin.partner.columns-settings.get'))->assertStatus(403);
+        $this->postJson(route('admin.partner.columns-settings.save'), [
+            'columns' => ['title' => true],
+        ])->assertStatus(403);
         $this->postJson(route('admin.partner.store'), $this->validPartnerPayload())->assertStatus(403);
         $this->getJson(route('admin.partner.edit', $partner))->assertStatus(403);
         $this->patchJson(route('admin.partner.update', $partner), $this->validPartnerPayload())->assertStatus(403);
@@ -124,7 +134,78 @@ class PartnerControllerTest extends CrmTestCase
 
         $this->get(route('admin.partner.index'))
             ->assertOk()
-            ->assertSee('Партнеры', escape: false);
+            ->assertViewIs('admin.partners.index')
+            ->assertSee('Партнеры', escape: false)
+            ->assertSee('partnersSectionTabs', false)
+            ->assertSee('id="partners-table"', false)
+            ->assertSee('serverSide: true', false)
+            ->assertSee('>№<', false);
+    }
+
+    public function test_data_denied_without_partner_view_permission(): void
+    {
+        $actor = $this->createUserWithoutPermission('partner.view');
+
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $actor->partner_id, '2fa:passed' => true]);
+
+        $this->getJson(route('admin.partner.data'))->assertStatus(403);
+    }
+
+    public function test_data_returns_active_partners_by_default_filter(): void
+    {
+        $this->asSuperadmin();
+
+        $active = Partner::factory()->create([
+            'title' => 'Активный партнёр DT',
+            'is_enabled' => true,
+        ]);
+
+        Partner::factory()->create([
+            'title' => 'Неактивный партнёр DT',
+            'is_enabled' => false,
+        ]);
+
+        $response = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'status' => 'active',
+        ]));
+
+        $response->assertOk();
+
+        $titles = collect($response->json('data'))->pluck('title')->all();
+        $this->assertContains($active->title, $titles);
+        $this->assertNotContains('Неактивный партнёр DT', $titles);
+    }
+
+    public function test_data_search_by_title(): void
+    {
+        $this->asSuperadmin();
+
+        Partner::factory()->create([
+            'title' => 'УникальныйПоискXYZ',
+            'is_enabled' => true,
+        ]);
+
+        Partner::factory()->create([
+            'title' => 'Другой партнёр',
+            'is_enabled' => true,
+        ]);
+
+        $response = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'status' => 'active',
+            'title' => 'УникальныйПоискXYZ',
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('recordsFiltered', 1);
+
+        $this->assertSame('УникальныйПоискXYZ', $response->json('data.0.title'));
     }
 
     public function test_store_creates_partner_and_writes_log_scoped_by_current_partner(): void
