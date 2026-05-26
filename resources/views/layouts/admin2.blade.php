@@ -177,6 +177,7 @@
     @include('includes.metrika')
     @include('includes.gtm')
 
+    @stack('styles')
 
 </head>
 

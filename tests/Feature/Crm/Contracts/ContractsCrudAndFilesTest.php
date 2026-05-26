@@ -11,9 +11,18 @@ use Illuminate\Support\Facades\Storage;
 class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
 {
     /** @test */
-    public function create_page_ok(): void
+    public function create_route_redirects_to_index(): void
     {
-        $this->get('/client-contracts/create')->assertStatus(200);
+        $this->get('/client-contracts/create')
+            ->assertRedirect(route('contracts.index', ['create' => 1]));
+    }
+
+    /** @test */
+    public function index_page_includes_create_contract_modal(): void
+    {
+        $this->get(route('contracts.index'))
+            ->assertOk()
+            ->assertSee('id="createContractModal"', false);
     }
 
     /** @test */
@@ -33,7 +42,7 @@ class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
 
         $pdf = UploadedFile::fake()->create('contract.pdf', 20, 'application/pdf');
 
-        $resp = $this->from('/client-contracts/create')
+        $resp = $this->from(route('contracts.index', ['create' => 1]))
             ->post('/client-contracts', [
                 'creation_mode' => Contract::CREATION_MODE_PDF,
                 'user_id'       => $student->id,

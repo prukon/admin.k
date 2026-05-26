@@ -47,10 +47,32 @@ class ContractsController extends Controller
             ->orderBy('order_by', 'asc')
             ->get();
 
-        return view('contracts.index', compact('allTeams') + ['activeTab' => 'contracts']);
+        $createForm = $this->createFormContext($request);
+        $shouldOpenCreateModal = $request->boolean('create')
+            || $request->filled('user_id')
+            || $request->session()->has('errors');
+
+        return view('contracts.index', compact('allTeams', 'shouldOpenCreateModal') + $createForm + [
+            'activeTab' => 'contracts',
+        ]);
     }
 
     public function create(Request $request)
+    {
+        $params = ['create' => 1];
+
+        $userId = $request->integer('user_id');
+        if ($userId > 0) {
+            $params['user_id'] = $userId;
+        }
+
+        return redirect()->route('contracts.index', $params);
+    }
+
+    /**
+     * @return array{partner: Partner, partnerId: int, preselectedUser: ?array, contractTemplates: \Illuminate\Support\Collection}
+     */
+    private function createFormContext(Request $request): array
     {
         $partner = $this->partner();
         $partnerId = $partner->id;
@@ -59,28 +81,28 @@ class ContractsController extends Controller
         $userId = $request->integer('user_id');
 
         if ($userId > 0) {
-            $preselectedUser = User::query()
+            $student = User::query()
                 ->where('id', $userId)
                 ->where('partner_id', $partnerId)
                 ->where('is_enabled', 1)
                 ->first(['id', 'name', 'lastname', 'team_id']);
-        }
 
-        if ($preselectedUser) {
-            $teamTitle = null;
-            if ($preselectedUser->team_id) {
-                $teamTitle = Team::query()
-                    ->where('id', $preselectedUser->team_id)
-                    ->where('partner_id', $partnerId)
-                    ->value('title');
+            if ($student) {
+                $teamTitle = null;
+                if ($student->team_id) {
+                    $teamTitle = Team::query()
+                        ->where('id', $student->team_id)
+                        ->where('partner_id', $partnerId)
+                        ->value('title');
+                }
+
+                $preselectedUser = [
+                    'id'         => $student->id,
+                    'text'       => trim(($student->lastname ?? '') . ' ' . ($student->name ?? '')),
+                    'team_id'    => $student->team_id,
+                    'team_title' => $teamTitle,
+                ];
             }
-
-            $preselectedUser = [
-                'id'         => $preselectedUser->id,
-                'text'       => trim(($preselectedUser->lastname ?? '') . ' ' . ($preselectedUser->name ?? '')),
-                'team_id'    => $preselectedUser->team_id,
-                'team_title' => $teamTitle,
-            ];
         }
 
         $contractTemplates = ContractTemplate::query()
@@ -90,7 +112,7 @@ class ContractsController extends Controller
             ->orderBy('title')
             ->get(['id', 'title']);
 
-        return view('contracts.create', compact('partner', 'partnerId', 'preselectedUser', 'contractTemplates'));
+        return compact('partner', 'partnerId', 'preselectedUser', 'contractTemplates');
     }
 
     public function store(ContractStoreRequest $request)
@@ -100,7 +122,14 @@ class ContractsController extends Controller
         try {
             $contract = $this->creationService->create($this->partner(), $validated);
         } catch (ValidationException $e) {
-            return back()
+            $redirectParams = ['create' => 1];
+            $userId = (int) ($validated['user_id'] ?? $request->input('user_id', 0));
+            if ($userId > 0) {
+                $redirectParams['user_id'] = $userId;
+            }
+
+            return redirect()
+                ->route('contracts.index', $redirectParams)
                 ->withErrors($e->errors())
                 ->withInput()
                 ->with('error', 'Не удалось создать договор.');

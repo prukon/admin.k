@@ -173,10 +173,10 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
     {
         ContractTemplate::query()->where('partner_id', $this->partner->id)->delete();
 
-        $this->get(route('contracts.create'))
+        $this->get(route('contracts.index', ['create' => 1]))
             ->assertOk()
             ->assertSee('Шаблонов нет.', false)
-            ->assertSee(route('contract-templates.create'), false)
+            ->assertSee(route('contract-templates.index', ['create' => 1]), false)
             ->assertSee('const hasContractTemplates = false', false)
             ->assertDontSee('id="contract_template_id"', false);
     }
@@ -186,7 +186,7 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
     {
         $this->createContractTemplateWithVersion(['title' => 'Выбираемый шаблон']);
 
-        $this->get(route('contracts.create'))
+        $this->get(route('contracts.index', ['create' => 1]))
             ->assertOk()
             ->assertSee('id="contract_template_id"', false)
             ->assertSee('Выбираемый шаблон', false)

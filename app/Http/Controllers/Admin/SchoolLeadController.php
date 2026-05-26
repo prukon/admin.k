@@ -222,7 +222,7 @@ class SchoolLeadController extends AdminBaseController
                             'url'   => route('contracts.show', $contract->id),
                         ];
                     } else {
-                        $row['create_contract_url'] = route('contracts.create', [
+                        $row['create_contract_url'] = route('contracts.index', [
                             'user_id' => $item->user_id,
                         ]);
                     }

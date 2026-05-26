@@ -372,7 +372,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'X-Requested-With' => 'XMLHttpRequest',
         ])->assertOk();
 
-        $this->get(route('contracts.create', ['user_id' => $student->id]))->assertOk();
+        $this->get(route('contracts.index', ['user_id' => $student->id]))->assertOk();
     }
 
     public function test_viewer_with_users_view_but_without_contracts_view_datatable_omits_contract_fields(): void
@@ -542,7 +542,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             ],
             [
                 'method'  => 'GET',
-                'url'     => route('contracts.create', ['user_id' => $student->id]),
+                'url'     => route('contracts.index', ['user_id' => $student->id]),
                 'headers' => ['HTTP_ACCEPT' => 'text/html'],
             ],
             [

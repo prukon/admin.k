@@ -123,7 +123,8 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
 
         $this->get(route('contracts.index'))->assertOk();
         $this->get(route('contract-templates.index'))->assertOk();
-        $this->get(route('contracts.create'))->assertOk();
+        $this->get(route('contracts.create'))
+            ->assertRedirect(route('contracts.index', ['create' => 1]));
         $this->get(route('contract-templates.create'))
             ->assertRedirect(route('contract-templates.index', ['create' => 1]));
         $this->get(route('contract-templates.index', ['create' => 1]))->assertOk();
@@ -191,7 +192,7 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
             ->assertRedirect(route('contract-templates.index'));
 
         $pdf = UploadedFile::fake()->create('access-contract.pdf', 20, 'application/pdf');
-        $storeContract = $this->from(route('contracts.create'))
+        $storeContract = $this->from(route('contracts.index', ['create' => 1]))
             ->post(route('contracts.store'), [
                 'creation_mode' => Contract::CREATION_MODE_PDF,
                 'user_id'       => $student->id,

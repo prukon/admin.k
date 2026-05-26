@@ -104,7 +104,7 @@ class ContractTemplateWorkflowFeatureTest extends ContractsFeatureTestCase
     {
         $this->createContractTemplateWithVersion(['title' => 'Шаблон для выбора']);
 
-        $this->get('/client-contracts/create')
+        $this->get(route('contracts.index', ['create' => 1]))
             ->assertOk()
             ->assertSee('creation_mode', false)
             ->assertSee(Contract::CREATION_MODE_TEMPLATE, false);

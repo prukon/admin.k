@@ -4,6 +4,10 @@
 
 @php
     $contractsHasActiveFilters = false;
+    $shouldOpenCreateModal = $shouldOpenCreateModal ?? false;
+    $partner = $partner ?? null;
+    $contractTemplates = $contractTemplates ?? collect();
+    $preselectedUser = $preselectedUser ?? null;
 @endphp
 
 @section('content')
@@ -21,13 +25,15 @@
                 <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
                     <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Договоры</h1>
                     <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
-                        <a href="{{ url('/client-contracts/create') }}"
-                           class="payments-report-toolbar-action d-inline-flex align-items-center gap-2 text-decoration-none">
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#createContractModal">
                             <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
                                 <i class="fas fa-plus payments-report-toolbar-icon"></i>
                             </span>
                             <span class="payments-report-toolbar-label d-none d-sm-inline">Создать</span>
-                        </a>
+                        </button>
 
                         <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
                                 type="button"
@@ -212,6 +218,8 @@
             </div>
         </div>
     </div>
+
+    @include('contracts.partials.create-modal')
 @endsection
 
 @section('scripts')

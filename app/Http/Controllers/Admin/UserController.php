@@ -259,7 +259,7 @@ class UserController extends AdminBaseController
 
         // Пагинация DataTables
         $start  = $validated['start']  ?? 0;
-        $length = $validated['length'] ?? 20;
+        $length = $validated['length'] ?? 10;
 
         // Подтягиваем команду и локацию
         $users = $baseQuery

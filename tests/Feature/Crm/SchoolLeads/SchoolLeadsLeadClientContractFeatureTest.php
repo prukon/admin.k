@@ -136,13 +136,14 @@ final class SchoolLeadsLeadClientContractFeatureTest extends CrmTestCase
         $this->assertSame($userId, (int) $row['user_id']);
         $this->assertArrayNotHasKey('latest_contract', $row);
         $this->assertStringContainsString(
-            route('contracts.create', ['user_id' => $userId]),
+            route('contracts.index', ['user_id' => $userId]),
             (string) $row['create_contract_url']
         );
 
         $this->get($row['create_contract_url'])
             ->assertOk()
-            ->assertViewHas('preselectedUser', fn ($pre) => is_array($pre) && (int) $pre['id'] === $userId);
+            ->assertViewHas('preselectedUser', fn ($pre) => is_array($pre) && (int) $pre['id'] === $userId)
+            ->assertViewHas('shouldOpenCreateModal', true);
     }
 
     public function test_store_rejects_school_lead_from_foreign_partner(): void

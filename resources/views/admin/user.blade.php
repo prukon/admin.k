@@ -399,7 +399,7 @@
             const table = $('#users-table').DataTable({
                 processing: true,
                 serverSide: true,
-                pageLength: 20,
+                pageLength: 10,
                 lengthMenu: [10, 20, 50, 100],
                 ajax: {
                     url: '/admin/users/data',

@@ -125,14 +125,18 @@ final class SchoolLeadContractActionFeatureTest extends CrmTestCase
             'lastname'   => 'Учеников',
         ]);
 
-        $this->get(route('contracts.create', ['user_id' => $user->id]))
+        $this->get(route('contracts.index', ['user_id' => $user->id]))
             ->assertOk()
             ->assertViewHas('preselectedUser', function ($pre) use ($user) {
                 return is_array($pre)
                     && (int) ($pre['id'] ?? 0) === $user->id
                     && str_contains((string) ($pre['text'] ?? ''), 'Петр')
                     && str_contains((string) ($pre['text'] ?? ''), 'Учеников');
-            });
+            })
+            ->assertViewHas('shouldOpenCreateModal', true);
+
+        $this->get(route('contracts.create', ['user_id' => $user->id]))
+            ->assertRedirect(route('contracts.index', ['create' => 1, 'user_id' => $user->id]));
     }
 
     public function test_latest_contract_lookup_picks_newest_by_created_at(): void
@@ -216,8 +220,8 @@ final class SchoolLeadContractActionFeatureTest extends CrmTestCase
         ]);
 
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
-            ->get(route('contracts.create', ['user_id' => $foreignUser->id]))
+            ->get(route('contracts.index', ['user_id' => $foreignUser->id]))
             ->assertOk()
-            ->assertDontSee('applyPreselectedStudent', false);
+            ->assertViewHas('preselectedUser', null);
     }
 }

@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Contracts;
 
 use App\Models\Contract;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 class ContractStoreRequest extends FormRequest
@@ -47,6 +49,23 @@ class ContractStoreRequest extends FormRequest
             'pdf'                    => 'PDF-файл договора',
             'contract_template_id'   => 'Шаблон договора',
         ];
+    }
+
+    protected function failedValidation(Validator $validator): void
+    {
+        $params = ['create' => 1];
+
+        $userId = (int) $this->input('user_id', 0);
+        if ($userId > 0) {
+            $params['user_id'] = $userId;
+        }
+
+        throw new HttpResponseException(
+            redirect()
+                ->route('contracts.index', $params)
+                ->withErrors($validator)
+                ->withInput()
+        );
     }
 
     public function messages(): array

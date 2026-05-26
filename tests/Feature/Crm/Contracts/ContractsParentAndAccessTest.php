@@ -67,7 +67,8 @@ class ContractsParentAndAccessTest extends ContractsFeatureTestCase
         Storage::put($contract->source_pdf_path, '%PDF-test');
 
         $this->get('/client-contracts')->assertOk();
-        $this->get('/client-contracts/create')->assertOk();
+        $this->get('/client-contracts/create')
+            ->assertRedirect(route('contracts.index', ['create' => 1]));
         $this->getJson('/client-contracts/data?draw=1&start=0&length=10')->assertOk();
         $this->getJson('/client-contracts/columns-settings')->assertOk();
         $this->postJson('/client-contracts/columns-settings', [
