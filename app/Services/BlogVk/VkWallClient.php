@@ -5,6 +5,7 @@ namespace App\Services\BlogVk;
 use App\Services\BlogVk\Exceptions\VkApiException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class VkWallClient
 {
@@ -16,8 +17,8 @@ class VkWallClient
     }
 
     /**
-     * Публикация на стену группы: текст + ссылка (превью VK подтягивает по OG страницы).
-     * Загрузка фото через API не используется — токен сообщества не поддерживает photos.getWallUploadServer.
+     * Публикация на стену группы: текст + ссылка со сниппетом (через wall.parseAttachedLink).
+     * Если VK не смог собрать превью — пост только текстом со ссылкой в message.
      *
      * @return array{post_id: int, owner_id: int}
      */
@@ -30,12 +31,27 @@ class VkWallClient
 
         $ownerId = -$groupId;
 
-        $response = $this->call('wall.post', [
+        $postParams = [
             'owner_id' => $ownerId,
             'from_group' => 1,
             'message' => $message,
-            'attachments' => $articleUrl,
-        ]);
+        ];
+
+        $linkSnippet = $this->resolveLinkSnippet($articleUrl);
+        if ($linkSnippet !== null) {
+            $postParams['attachments'] = $articleUrl;
+            if ($linkSnippet['link_title'] !== null) {
+                $postParams['link_title'] = $linkSnippet['link_title'];
+            }
+            $postParams['link_photo_id'] = $linkSnippet['link_photo_id'];
+        } else {
+            $postParams['message'] = $this->messageWithUrl($message, $articleUrl);
+            Log::info('VK wall.post: сниппет ссылки недоступен, публикация без attachments', [
+                'url' => $articleUrl,
+            ]);
+        }
+
+        $response = $this->call('wall.post', $postParams);
 
         $postId = (int) data_get($response, 'response.post_id', 0);
         if ($postId <= 0) {
@@ -46,6 +62,59 @@ class VkWallClient
             'post_id' => $postId,
             'owner_id' => $ownerId,
         ];
+    }
+
+    /**
+     * @return array{link_title: ?string, link_photo_id: string}|null
+     */
+    private function resolveLinkSnippet(string $articleUrl): ?array
+    {
+        try {
+            $body = $this->call('wall.parseAttachedLink', [
+                'links' => json_encode([$articleUrl], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ]);
+        } catch (VkApiException $e) {
+            Log::warning('VK wall.parseAttachedLink failed', [
+                'url' => $articleUrl,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        $item = data_get($body, 'response.data.0')
+            ?? data_get($body, 'response.0');
+
+        if (!is_array($item)) {
+            return null;
+        }
+
+        $photo = data_get($item, 'link.photo') ?? data_get($item, 'photo');
+        if (!is_array($photo)) {
+            return null;
+        }
+
+        $photoId = (int) data_get($photo, 'id', 0);
+        $photoOwnerId = (int) data_get($photo, 'owner_id', 0);
+        if ($photoId <= 0 || $photoOwnerId === 0) {
+            return null;
+        }
+
+        $title = trim((string) (data_get($item, 'link.title') ?? data_get($item, 'title') ?? ''));
+
+        return [
+            'link_title' => $title !== '' ? $title : null,
+            'link_photo_id' => $photoOwnerId . '_' . $photoId,
+        ];
+    }
+
+    private function messageWithUrl(string $message, string $articleUrl): string
+    {
+        if (str_contains($message, $articleUrl)) {
+            return $message;
+        }
+
+        return rtrim($message) . "\n\n" . $articleUrl;
     }
 
     /**

@@ -65,9 +65,45 @@ trait ConfiguresBlogVk
         return $root;
     }
 
+    protected function fakeVkApiParseLinkSuccess(array $linkOverrides = []): void
+    {
+        Http::fake([
+            'api.vk.com/method/wall.parseAttachedLink*' => Http::response([
+                'response' => [
+                    'data' => [[
+                        'type' => 'link',
+                        'link' => array_merge([
+                            'url' => 'https://example.com/blog/test',
+                            'title' => 'Заголовок из VK parse',
+                            'photo' => [
+                                'id' => 789,
+                                'owner_id' => -123456,
+                            ],
+                        ], $linkOverrides),
+                    ]],
+                ],
+            ]),
+        ]);
+    }
+
     protected function fakeVkApiSuccess(): void
     {
         Http::fake([
+            'api.vk.com/method/wall.parseAttachedLink*' => Http::response([
+                'response' => [
+                    'data' => [[
+                        'type' => 'link',
+                        'link' => [
+                            'url' => 'https://example.com/blog/test',
+                            'title' => 'Заголовок из VK parse',
+                            'photo' => [
+                                'id' => 789,
+                                'owner_id' => -123456,
+                            ],
+                        ],
+                    ]],
+                ],
+            ]),
             'api.vk.com/method/wall.post*' => Http::response([
                 'response' => ['post_id' => 999],
             ]),
@@ -77,6 +113,20 @@ trait ConfiguresBlogVk
     protected function fakeVkApiWallPostError(): void
     {
         Http::fake([
+            'api.vk.com/method/wall.parseAttachedLink*' => Http::response([
+                'response' => [
+                    'data' => [[
+                        'type' => 'link',
+                        'link' => [
+                            'title' => 'Заголовок',
+                            'photo' => [
+                                'id' => 789,
+                                'owner_id' => -123456,
+                            ],
+                        ],
+                    ]],
+                ],
+            ]),
             'api.vk.com/method/wall.post*' => Http::response([
                 'error' => [
                     'error_code' => 15,

@@ -30,6 +30,7 @@ class PublishBlogPostToVkJob implements ShouldQueue
     public function __construct(
         public readonly int $blogPostId,
     ) {
+        $this->onQueue('blog_vk');
     }
 
     public function handle(
@@ -37,9 +38,22 @@ class PublishBlogPostToVkJob implements ShouldQueue
         BlogVkMessageBuilder $messageBuilder,
         BlogVkUrlBuilder $urlBuilder,
         VkWallClient $vkClient,
-        BlogVkPublicationCoordinator $coordinator,
     ): void {
-        if (!$settings->globallyEnabled()) {
+        if ($reason = $settings->disabledReason()) {
+            $publication = BlogPostSocialPublication::query()
+                ->where('blog_post_id', $this->blogPostId)
+                ->where('platform', BlogPostSocialPublication::PLATFORM_VK)
+                ->first();
+
+            if ($publication) {
+                $this->markFailed($publication, $reason, new \RuntimeException($reason));
+            }
+
+            Log::warning('PublishBlogPostToVkJob aborted: VK not configured', [
+                'blog_post_id' => $this->blogPostId,
+                'reason' => $reason,
+            ]);
+
             return;
         }
 
@@ -49,6 +63,10 @@ class PublishBlogPostToVkJob implements ShouldQueue
             ->find($this->blogPostId);
 
         if (!$post) {
+            Log::warning('PublishBlogPostToVkJob: post not found', [
+                'blog_post_id' => $this->blogPostId,
+            ]);
+
             return;
         }
 
@@ -58,7 +76,7 @@ class PublishBlogPostToVkJob implements ShouldQueue
             ->first();
 
         if (!$publication) {
-            $coordinator->syncForPost($post);
+            app(BlogVkPublicationCoordinator::class)->syncForPost($post);
 
             return;
         }
@@ -67,8 +85,20 @@ class PublishBlogPostToVkJob implements ShouldQueue
             return;
         }
 
-        if (!$post->publish_to_vk || !$post->isPubliclyVisible()) {
-            $coordinator->syncForPost($post);
+        if (!$post->publish_to_vk) {
+            $publication->update([
+                'status' => BlogPostSocialPublication::STATUS_SKIPPED,
+                'error_message' => null,
+            ]);
+
+            return;
+        }
+
+        if (!$post->isPubliclyVisible()) {
+            $publication->update([
+                'status' => BlogPostSocialPublication::STATUS_SKIPPED,
+                'error_message' => 'Статья не опубликована на сайте.',
+            ]);
 
             return;
         }

@@ -124,7 +124,52 @@ class BlogVkPublicationCoordinator
             'error_message' => null,
         ]);
 
+        $this->purgeVkJobsForPost($post->id);
         dispatch(new PublishBlogPostToVkJob($post->id));
+    }
+
+    /**
+     * Удаляет все задачи PublishBlogPostToVkJob из jobs (застрявшие дубликаты).
+     */
+    public function purgeAllVkJobsFromQueue(): int
+    {
+        if (!DB::getSchemaBuilder()->hasTable('jobs')) {
+            return 0;
+        }
+
+        $ids = DB::table('jobs')
+            ->where('payload', 'like', '%PublishBlogPostToVkJob%')
+            ->pluck('id');
+
+        if ($ids->isEmpty()) {
+            return 0;
+        }
+
+        DB::table('jobs')->whereIn('id', $ids)->delete();
+
+        return $ids->count();
+    }
+
+    public function purgeVkJobsForPost(int $blogPostId): int
+    {
+        if (!DB::getSchemaBuilder()->hasTable('jobs')) {
+            return 0;
+        }
+
+        $deleted = 0;
+        $rows = DB::table('jobs')
+            ->whereIn('queue', ['default', 'blog_vk'])
+            ->where('payload', 'like', '%PublishBlogPostToVkJob%')
+            ->get(['id', 'payload']);
+
+        foreach ($rows as $row) {
+            if ($this->payloadBelongsToPost((string) $row->payload, $blogPostId)) {
+                DB::table('jobs')->where('id', $row->id)->delete();
+                $deleted++;
+            }
+        }
+
+        return $deleted;
     }
 
     /**
@@ -135,6 +180,9 @@ class BlogVkPublicationCoordinator
         if (!$this->settings->globallyEnabled()) {
             return 0;
         }
+
+        // Сбрасываем «зависшие» дубликаты в jobs перед новой постановкой.
+        $this->purgeAllVkJobsFromQueue();
 
         $count = 0;
 
@@ -213,6 +261,7 @@ class BlogVkPublicationCoordinator
         }
 
         $payloads = DB::table('jobs')
+            ->whereIn('queue', ['default', 'blog_vk'])
             ->where('payload', 'like', '%PublishBlogPostToVkJob%')
             ->pluck('payload');
 

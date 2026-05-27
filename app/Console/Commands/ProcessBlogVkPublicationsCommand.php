@@ -19,6 +19,8 @@ class ProcessBlogVkPublicationsCommand extends Command
             $this->info("Обработано статей: {$processed}");
         }
 
+        $this->line('Worker должен слушать очереди: default,blog_vk,platform_outbound_mail');
+
         return self::SUCCESS;
     }
 }

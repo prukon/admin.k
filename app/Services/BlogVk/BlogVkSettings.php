@@ -8,18 +8,30 @@ class BlogVkSettings
 {
     public function globallyEnabled(): bool
     {
+        return $this->disabledReason() === null;
+    }
+
+    public function disabledReason(): ?string
+    {
         if (!config('services.vk.enabled')) {
-            return false;
+            return 'VK отключён в .env (VK_ENABLED=false).';
         }
 
         $token = (string) config('services.vk.access_token', '');
-        $groupId = (string) config('services.vk.group_id', '');
-
-        if ($token === '' || $groupId === '') {
-            return false;
+        if ($token === '') {
+            return 'Не задан VK_GROUP_TOKEN в .env.';
         }
 
-        return $this->adminEnabled();
+        $groupId = (string) config('services.vk.group_id', '');
+        if ($groupId === '' || (int) $groupId <= 0) {
+            return 'Не задан или некорректен VK_GROUP_ID в .env.';
+        }
+
+        if (!$this->adminEnabled()) {
+            return 'Публикация в VK выключена в настройках блога (/admin/blog/settings).';
+        }
+
+        return null;
     }
 
     public function adminEnabled(): bool
