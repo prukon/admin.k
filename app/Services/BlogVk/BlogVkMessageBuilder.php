@@ -3,12 +3,14 @@
 namespace App\Services\BlogVk;
 
 use App\Models\BlogPost;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class BlogVkMessageBuilder
 {
     public function __construct(
         private readonly BlogVkSettings $settings,
+        private readonly BlogVkAiMessageGenerator $aiGenerator,
     ) {
     }
 
@@ -17,6 +19,20 @@ class BlogVkMessageBuilder
         $custom = trim((string) ($post->vk_message ?? ''));
         if ($custom !== '') {
             return $this->truncate($custom);
+        }
+
+        if ($this->settings->aiEnabled()) {
+            $generated = $this->aiGenerator->generate($post->loadMissing('category'));
+            if ($generated !== null && $generated !== '') {
+                $post->update(['vk_message' => $generated]);
+                $post->vk_message = $generated;
+
+                return $this->truncate($generated);
+            }
+
+            Log::channel('queue')->info('VK message: AI skipped, using template fallback', [
+                'blog_post_id' => $post->id,
+            ]);
         }
 
         $excerpt = trim(strip_tags((string) ($post->excerpt ?? '')));

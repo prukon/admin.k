@@ -24,7 +24,7 @@ class PublishBlogPostToVkJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 120;
+    public int $timeout = 180;
 
     public function __construct(
         public readonly int $blogPostId,

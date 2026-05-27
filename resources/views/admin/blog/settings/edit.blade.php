@@ -317,16 +317,36 @@
                 @error('vk_enabled')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
 
+            <div class="col-12 col-lg-4">
+                <label class="form-label">Текст VK через ИИ</label>
+                <select name="vk_ai_enabled" class="form-select @error('vk_ai_enabled') is-invalid @enderror">
+                    @php($vkAiEnabled = old('vk_ai_enabled', $settings['vk_ai_enabled'] ?? '1'))
+                    <option value="1" @selected((string) $vkAiEnabled === '1')>Включено</option>
+                    <option value="0" @selected((string) $vkAiEnabled === '0')>Выключено</option>
+                </select>
+                @error('vk_ai_enabled')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <div class="text-muted small mt-1">Если поле «Текст для VK» в статье пустое — анонс генерируется по статье (friendly tone).</div>
+            </div>
+
             <div class="col-12 col-lg-8">
-                <label class="form-label">Шаблон текста для VK</label>
+                <label class="form-label">Шаблон текста для VK (fallback)</label>
                 <textarea name="vk_message_template"
                           rows="4"
                           class="form-control @error('vk_message_template') is-invalid @enderror">{{ old('vk_message_template', $settings['vk_message_template'] ?? "{title}\n\n{excerpt}\n\n{url}") }}</textarea>
                 @error('vk_message_template')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 <div class="text-muted small mt-1">
                     Переменные: <code>{title}</code>, <code>{excerpt}</code>, <code>{url}</code>, <code>{category}</code>.
-                    Лимит текста поста — 500 символов.
+                    Используется, если ИИ выключен или не сработал. Лимит поста — 500 символов.
                 </div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Промпт ИИ для анонса VK</label>
+                <textarea name="vk_ai_prompt_template"
+                          rows="8"
+                          class="form-control @error('vk_ai_prompt_template') is-invalid @enderror">{{ old('vk_ai_prompt_template', $settings['vk_ai_prompt_template'] ?? '') }}</textarea>
+                @error('vk_ai_prompt_template')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <div class="text-muted small mt-1">Модель и бюджет — в блоке «ИИ» выше. Ответ ИИ: JSON <code>{"message":"..."}</code>.</div>
             </div>
 
             <div class="col-12">

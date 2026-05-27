@@ -49,6 +49,24 @@ class BlogVkSettings
         ) ?: "{title}\n\n{excerpt}\n\n{url}";
     }
 
+    public function aiEnabled(): bool
+    {
+        if (!$this->adminEnabled()) {
+            return false;
+        }
+
+        $value = $this->getText('blog.vk.ai_enabled', '1');
+
+        return $value === null || $value === '' || $value === '1';
+    }
+
+    public function aiPromptTemplate(): string
+    {
+        $tpl = (string) $this->getText('blog.vk.ai_prompt_template', BlogVkDefaultPrompts::vkAiPromptTemplate());
+
+        return $tpl !== '' ? $tpl : BlogVkDefaultPrompts::vkAiPromptTemplate();
+    }
+
     public function groupId(): int
     {
         return (int) config('services.vk.group_id');

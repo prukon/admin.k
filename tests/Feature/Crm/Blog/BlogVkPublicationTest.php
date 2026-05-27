@@ -181,6 +181,56 @@ class BlogVkPublicationTest extends BlogAdminFeatureTestCase
         ]);
     }
 
+    public function test_job_generates_ai_message_when_vk_message_empty(): void
+    {
+        $this->configureBlogVkAiEnabled();
+        $this->fakeVkApiWithOpenAiMessage('Привет! Короткий дружелюбный анонс для VK.');
+
+        $post = BlogPost::withoutEvents(fn () => $this->makePublishedBlogPostForVk([
+            'vk_message' => null,
+        ]));
+
+        BlogPostSocialPublication::query()->create([
+            'blog_post_id' => $post->id,
+            'platform' => BlogPostSocialPublication::PLATFORM_VK,
+            'status' => BlogPostSocialPublication::STATUS_PENDING,
+        ]);
+
+        app()->call([new PublishBlogPostToVkJob($post->id), 'handle']);
+
+        $post->refresh();
+        $this->assertSame('Привет! Короткий дружелюбный анонс для VK.', $post->vk_message);
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'openai.com') && str_contains($request->url(), 'responses'));
+
+        $this->assertDatabaseHas('blog_post_social_publications', [
+            'blog_post_id' => $post->id,
+            'status' => BlogPostSocialPublication::STATUS_PUBLISHED,
+            'vk_message_snapshot' => 'Привет! Короткий дружелюбный анонс для VK.',
+        ]);
+    }
+
+    public function test_job_uses_manual_vk_message_without_ai(): void
+    {
+        $this->configureBlogVkAiEnabled();
+        $this->fakeVkApiSuccess();
+
+        $post = BlogPost::withoutEvents(fn () => $this->makePublishedBlogPostForVk([
+            'vk_message' => 'Ручной текст для VK',
+        ]));
+
+        BlogPostSocialPublication::query()->create([
+            'blog_post_id' => $post->id,
+            'platform' => BlogPostSocialPublication::PLATFORM_VK,
+            'status' => BlogPostSocialPublication::STATUS_PENDING,
+        ]);
+
+        app()->call([new PublishBlogPostToVkJob($post->id), 'handle']);
+
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'openai.com'));
+        $this->assertSame('Ручной текст для VK', $post->fresh()->vk_message);
+    }
+
     public function test_job_publishes_text_with_url_via_wall_post(): void
     {
         $this->fakeVkApiSuccess();

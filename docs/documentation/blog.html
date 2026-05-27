@@ -111,7 +111,7 @@
 
   <h3>5.2) Содержимое поста VK</h3>
   <ul>
-    <li><b>Текст</b>: поле «Текст для VK» на форме статьи; если пусто — шаблон из настроек (<code>blog.vk.message_template</code>), переменные: <code>{title}</code>, <code>{excerpt}</code>, <code>{url}</code>, <code>{category}</code>. Лимит — <b>500 символов</b>.</li>
+    <li><b>Текст</b>: поле «Текст для VK» на форме статьи (до 500 символов). Если пусто и включено «Текст VK через ИИ» (<code>blog.vk.ai_enabled</code>) — уникальный анонс генерируется через OpenAI по статье (friendly tone, промпт <code>blog.vk.ai_prompt_template</code>), сохраняется в <code>vk_message</code>. При ошибке ИИ или выключенном ИИ — fallback-шаблон (<code>blog.vk.message_template</code>): <code>{title}</code>, <code>{excerpt}</code>, <code>{url}</code>, <code>{category}</code>.</li>
     <li><b>Ссылка</b> на статью с UTM: <code>utm_source=vk</code>, <code>utm_medium=social</code>, <code>utm_campaign=blog</code> (в тексте поста).</li>
     <li><b>Фото</b>: обложка статьи (<code>cover_image_path</code>) загружается в VK и прикрепляется к посту, если задан <code>VK_USER_TOKEN</code>. Без него — только текст и ссылка.</li>
   </ul>

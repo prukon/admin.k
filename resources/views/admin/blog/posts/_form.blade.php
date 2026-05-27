@@ -78,7 +78,7 @@
         <label class="form-label">Текст для VK (до 500 символов)</label>
         <textarea name="vk_message" rows="4" maxlength="500"
                   class="form-control @error('vk_message') is-invalid @enderror"
-                  placeholder="Если пусто — будет сформирован из шаблона в настройках блога.">{{ old('vk_message', $post?->vk_message) }}</textarea>
+                  placeholder="Если пусто — при публикации в VK сгенерируется уникальный анонс через ИИ (friendly) или шаблон из настроек.">{{ old('vk_message', $post?->vk_message) }}</textarea>
         @error('vk_message')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
 

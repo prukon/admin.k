@@ -27,6 +27,65 @@ trait ConfiguresBlogVk
             ['name' => 'blog.vk.enabled', 'partner_id' => null],
             ['text' => '1']
         );
+
+        Setting::query()->updateOrCreate(
+            ['name' => 'blog.vk.ai_enabled', 'partner_id' => null],
+            ['text' => '0']
+        );
+    }
+
+    protected function configureBlogVkAiEnabled(): void
+    {
+        Setting::query()->updateOrCreate(
+            ['name' => 'blog.vk.ai_enabled', 'partner_id' => null],
+            ['text' => '1']
+        );
+
+        Setting::query()->updateOrCreate(
+            ['name' => 'blog.ai.price_input_per_1m', 'partner_id' => null],
+            ['text' => '2']
+        );
+        Setting::query()->updateOrCreate(
+            ['name' => 'blog.ai.price_output_per_1m', 'partner_id' => null],
+            ['text' => '8']
+        );
+        Setting::query()->updateOrCreate(
+            ['name' => 'blog.ai.daily_budget_usd', 'partner_id' => null],
+            ['text' => '10']
+        );
+    }
+
+    protected function fakeOpenAiVkMessage(string $message): void
+    {
+        config(['services.openai.api_key' => 'test-openai-key']);
+
+        $openAiResponse = Http::response([
+            'output_text' => json_encode(['message' => $message], JSON_UNESCAPED_UNICODE),
+            'usage' => ['input_tokens' => 100, 'output_tokens' => 80],
+        ]);
+
+        Http::fake([
+            'https://api.openai.com/v1/responses' => $openAiResponse,
+            'api.openai.com/v1/responses*' => $openAiResponse,
+        ]);
+    }
+
+    protected function fakeVkApiWithOpenAiMessage(string $aiMessage): void
+    {
+        $openAiResponse = Http::response([
+            'output_text' => json_encode(['message' => $aiMessage], JSON_UNESCAPED_UNICODE),
+            'usage' => ['input_tokens' => 100, 'output_tokens' => 80],
+        ]);
+
+        Http::fake([
+            'https://api.openai.com/v1/responses' => $openAiResponse,
+            'api.openai.com/v1/responses*' => $openAiResponse,
+            'api.vk.com/method/wall.post*' => Http::response([
+                'response' => ['post_id' => 999],
+            ]),
+        ]);
+
+        config(['services.openai.api_key' => 'test-openai-key']);
     }
 
     protected function configureBlogVkDisabledInAdmin(): void

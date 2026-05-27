@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\BlogAi\DefaultPrompts;
+use App\Services\BlogVk\BlogVkDefaultPrompts;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -53,6 +54,8 @@ class BlogSettingsController extends Controller
 
                 'vk_enabled' => $this->getText('blog.vk.enabled', '1'),
                 'vk_message_template' => $this->getText('blog.vk.message_template', "{title}\n\n{excerpt}\n\n{url}"),
+                'vk_ai_enabled' => $this->getText('blog.vk.ai_enabled', '1'),
+                'vk_ai_prompt_template' => $this->getText('blog.vk.ai_prompt_template', BlogVkDefaultPrompts::vkAiPromptTemplate()),
             ],
             'vk_configured' => (bool) config('services.vk.enabled')
                 && (string) config('services.vk.group_id', '') !== ''
@@ -100,6 +103,8 @@ class BlogSettingsController extends Controller
 
                 'vk_enabled' => ['nullable', 'in:0,1'],
                 'vk_message_template' => ['nullable', 'string', 'min:10', 'max:2000'],
+                'vk_ai_enabled' => ['nullable', 'in:0,1'],
+                'vk_ai_prompt_template' => ['nullable', 'string', 'min:50', 'max:8000'],
             ], [
                 'default_og_image.image' => 'Файл должен быть изображением.',
                 'default_og_image.mimes' => 'Изображение должно быть в формате JPG, PNG или WEBP.',
@@ -150,7 +155,9 @@ class BlogSettingsController extends Controller
                 'ai_images_palette' => 'Палитра (HEX)',
                 'ai_images_rules' => 'Правила/запреты для изображений',
                 'vk_enabled' => 'Публикация в VK: включено',
-                'vk_message_template' => 'Шаблон текста для VK',
+                'vk_message_template' => 'Шаблон текста для VK (fallback)',
+                'vk_ai_enabled' => 'Генерация текста VK через ИИ',
+                'vk_ai_prompt_template' => 'Промпт ИИ для анонса VK',
             ]);
         } catch (ValidationException $e) {
             return back()
@@ -194,6 +201,11 @@ class BlogSettingsController extends Controller
         $this->setText(
             'blog.vk.message_template',
             $validated['vk_message_template'] ?? "{title}\n\n{excerpt}\n\n{url}"
+        );
+        $this->setText('blog.vk.ai_enabled', isset($validated['vk_ai_enabled']) ? (string) $validated['vk_ai_enabled'] : '1');
+        $this->setText(
+            'blog.vk.ai_prompt_template',
+            $validated['vk_ai_prompt_template'] ?? BlogVkDefaultPrompts::vkAiPromptTemplate()
         );
 
         if ($request->hasFile('default_og_image')) {
