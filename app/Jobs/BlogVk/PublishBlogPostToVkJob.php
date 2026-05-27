@@ -11,7 +11,6 @@ use App\Services\BlogVk\BlogVkUrlBuilder;
 use App\Services\BlogVk\Exceptions\VkApiException;
 use App\Services\BlogVk\VkWallClient;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -19,11 +18,9 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class PublishBlogPostToVkJob implements ShouldQueue, ShouldBeUnique
+class PublishBlogPostToVkJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public int $uniqueFor = 3600;
 
     public int $tries = 5;
 
@@ -33,11 +30,6 @@ class PublishBlogPostToVkJob implements ShouldQueue, ShouldBeUnique
     public function __construct(
         public readonly int $blogPostId,
     ) {
-    }
-
-    public function uniqueId(): string
-    {
-        return 'blog-vk-publish-' . $this->blogPostId;
     }
 
     public function handle(

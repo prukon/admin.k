@@ -5,8 +5,13 @@ namespace App\Services\BlogVk;
 use App\Jobs\BlogVk\PublishBlogPostToVkJob;
 use App\Models\BlogPost;
 use App\Models\BlogPostSocialPublication;
+use Illuminate\Support\Facades\DB;
+
 class BlogVkPublicationCoordinator
 {
+    /** Минут в статусе publishing без прогресса — считаем зависшим. */
+    private const STALE_PUBLISHING_MINUTES = 10;
+
     public function __construct(
         private readonly BlogVkSettings $settings,
     ) {
@@ -65,13 +70,33 @@ class BlogVkPublicationCoordinator
         }
 
         if ($publication->status === BlogPostSocialPublication::STATUS_PUBLISHING) {
+            if (!$this->isStalePublishing($publication)) {
+                return;
+            }
+
+            $publication->update([
+                'status' => BlogPostSocialPublication::STATUS_PENDING,
+                'error_message' => 'Публикация прервалась (таймаут). Повторная постановка в очередь.',
+            ]);
+            $publication->refresh();
+        }
+
+        if ($publication->status === BlogPostSocialPublication::STATUS_FAILED) {
+            // Ошибки не сбрасываем автоматически — только кнопка «Повторить» в админке.
             return;
         }
 
-        $publication->update([
-            'status' => BlogPostSocialPublication::STATUS_PENDING,
-            'error_message' => null,
-        ]);
+        if ($publication->status !== BlogPostSocialPublication::STATUS_PENDING) {
+            $publication->update([
+                'status' => BlogPostSocialPublication::STATUS_PENDING,
+                'error_message' => null,
+            ]);
+            $publication->refresh();
+        }
+
+        if ($this->hasActiveJobInQueue($post->id)) {
+            return;
+        }
 
         dispatch(new PublishBlogPostToVkJob($post->id));
     }
@@ -119,7 +144,7 @@ class BlogVkPublicationCoordinator
                 BlogPostSocialPublication::STATUS_PENDING_COVER,
                 BlogPostSocialPublication::STATUS_PENDING_SCHEDULE,
                 BlogPostSocialPublication::STATUS_PENDING,
-                BlogPostSocialPublication::STATUS_FAILED,
+                BlogPostSocialPublication::STATUS_PUBLISHING,
             ])
             ->pluck('blog_post_id');
 
@@ -162,5 +187,62 @@ class BlogVkPublicationCoordinator
             'platform' => BlogPostSocialPublication::PLATFORM_VK,
             'status' => BlogPostSocialPublication::STATUS_PENDING_COVER,
         ]);
+    }
+
+    private function isStalePublishing(BlogPostSocialPublication $publication): bool
+    {
+        if ($publication->status !== BlogPostSocialPublication::STATUS_PUBLISHING) {
+            return false;
+        }
+
+        $updatedAt = $publication->updated_at;
+        if ($updatedAt === null) {
+            return true;
+        }
+
+        return $updatedAt->lte(now()->subMinutes(self::STALE_PUBLISHING_MINUTES));
+    }
+
+    /**
+     * Есть ли уже задача в таблице jobs (ожидает или отложена).
+     */
+    private function hasActiveJobInQueue(int $blogPostId): bool
+    {
+        if (!DB::getSchemaBuilder()->hasTable('jobs')) {
+            return false;
+        }
+
+        $payloads = DB::table('jobs')
+            ->where('payload', 'like', '%PublishBlogPostToVkJob%')
+            ->pluck('payload');
+
+        foreach ($payloads as $payload) {
+            if ($this->payloadBelongsToPost((string) $payload, $blogPostId)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function payloadBelongsToPost(string $payload, int $blogPostId): bool
+    {
+        $id = (string) $blogPostId;
+
+        if (str_contains($payload, '"blogPostId":' . $id)) {
+            return true;
+        }
+
+        // JSON payload: s:10:\"blogPostId\";i:16;
+        if (str_contains($payload, 'blogPostId\";i:' . $id . ';')) {
+            return true;
+        }
+
+        // PHP serialize (если payload без JSON-экранирования)
+        if (str_contains($payload, 'blogPostId";i:' . $id . ';')) {
+            return true;
+        }
+
+        return false;
     }
 }

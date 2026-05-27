@@ -53,9 +53,14 @@ final class BlogVkStatus
                 'badge' => 'bg-info',
                 'can_retry' => false,
             ],
-            BlogPostSocialPublication::STATUS_PENDING, BlogPostSocialPublication::STATUS_PUBLISHING => [
+            BlogPostSocialPublication::STATUS_PENDING => [
                 'label' => 'В очереди',
                 'badge' => 'bg-info',
+                'can_retry' => false,
+            ],
+            BlogPostSocialPublication::STATUS_PUBLISHING => [
+                'label' => 'Публикуется…',
+                'badge' => 'bg-primary',
                 'can_retry' => false,
             ],
             BlogPostSocialPublication::STATUS_FAILED => [

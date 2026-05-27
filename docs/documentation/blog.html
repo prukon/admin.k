@@ -151,7 +151,7 @@ VK_UTM_CAMPAIGN=blog</pre>
 
   <h3>5.5) Очередь, планировщик, код</h3>
   <ul>
-    <li>Job: <code>App\Jobs\BlogVk\PublishBlogPostToVkJob</code> (очередь database, до 5 попыток, <code>ShouldBeUnique</code> на <code>blog_post_id</code>).</li>
+    <li>Job: <code>App\Jobs\BlogVk\PublishBlogPostToVkJob</code> (очередь <code>database</code>, очередь <code>default</code>, до 5 попыток). Повторная отправка в VK блокируется проверкой статуса <code>published</code> в job, а не дублями в <code>jobs</code>.</li>
     <li>Клиент VK: <code>App\Services\BlogVk\VkWallClient</code>; координатор: <code>BlogVkPublicationCoordinator</code>; observer: <code>BlogPostObserver</code> (событие <code>saved</code>).</li>
     <li>Cron: каждую минуту <code>php artisan blog:process-vk-publications</code> (<code>App\Console\Kernel</code>, timezone <code>Europe/Moscow</code>) — отложенные статьи и ожидание обложки.</li>
     <li>На сервере должны работать <code>schedule:run</code> (cron) и <code>queue:work</code>. См. также <a href="/docs/documentation/queues-monitoring">мониторинг очередей</a>.</li>

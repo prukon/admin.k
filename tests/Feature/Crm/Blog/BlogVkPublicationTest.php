@@ -11,6 +11,7 @@ use App\Services\BlogVk\BlogVkPublicationCoordinator;
 use App\Services\BlogVk\BlogVkUrlBuilder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -253,6 +254,54 @@ class BlogVkPublicationTest extends BlogAdminFeatureTestCase
         Artisan::call('blog:process-vk-publications');
 
         Queue::assertPushed(PublishBlogPostToVkJob::class, fn ($job) => $job->blogPostId === $post->id);
+    }
+
+    public function test_cron_does_not_reset_failed_status_to_pending(): void
+    {
+        Queue::fake();
+
+        $post = BlogPost::withoutEvents(fn () => $this->makePublishedBlogPostForVk());
+
+        BlogPostSocialPublication::query()->create([
+            'blog_post_id' => $post->id,
+            'platform' => BlogPostSocialPublication::PLATFORM_VK,
+            'status' => BlogPostSocialPublication::STATUS_FAILED,
+            'error_message' => 'VK error',
+        ]);
+
+        Artisan::call('blog:process-vk-publications');
+
+        Queue::assertNotPushed(PublishBlogPostToVkJob::class);
+
+        $this->assertDatabaseHas('blog_post_social_publications', [
+            'blog_post_id' => $post->id,
+            'status' => BlogPostSocialPublication::STATUS_FAILED,
+        ]);
+    }
+
+    public function test_sync_does_not_dispatch_duplicate_when_job_already_in_queue(): void
+    {
+        $post = BlogPost::withoutEvents(fn () => $this->makePublishedBlogPostForVk());
+
+        BlogPostSocialPublication::query()->create([
+            'blog_post_id' => $post->id,
+            'platform' => BlogPostSocialPublication::PLATFORM_VK,
+            'status' => BlogPostSocialPublication::STATUS_PENDING,
+        ]);
+
+        dispatch(new PublishBlogPostToVkJob($post->id));
+
+        $jobsBefore = DB::table('jobs')
+            ->where('payload', 'like', '%PublishBlogPostToVkJob%')
+            ->count();
+
+        app(BlogVkPublicationCoordinator::class)->syncForPost($post->fresh(['category', 'socialPublications']));
+
+        $jobsAfter = DB::table('jobs')
+            ->where('payload', 'like', '%PublishBlogPostToVkJob%')
+            ->count();
+
+        $this->assertSame($jobsBefore, $jobsAfter);
     }
 
     public function test_publish_to_vk_disabled_skips_publication(): void
