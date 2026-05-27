@@ -303,6 +303,7 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
                 'filter_action' => '31',
                 'filter_author' => 'АвторЛогов',
                 'filter_target_label' => 'Альфа',
+                'hide_superadmin' => '0',
             ]
         )));
 
@@ -310,6 +311,129 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $descriptions = collect($resp->json('data'))->pluck('description')->all();
         $this->assertContains('match-all-filters', $descriptions);
         $this->assertNotContains('no-match-filters', $descriptions);
+    }
+
+    public function test_logs_data_hides_superadmin_author_when_hide_superadmin_enabled(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $superadmin = $this->createUserWithRole('superadmin', $this->partner);
+
+        $this->createPartnerLog($this->partner->id, 'regular-admin-log', null, 'HideSuperadminFilter');
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 70,
+            'author_id' => $superadmin->id,
+            'partner_id' => $this->partner->id,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $this->partner->id,
+            'target_label' => 'HideSuperadminFilter',
+            'description' => 'superadmin-author-log',
+            'created_at' => now(),
+        ]);
+
+        $hidden = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_target_label' => 'HideSuperadminFilter',
+                'hide_superadmin' => '1',
+            ]
+        )));
+        $hidden->assertOk();
+        $hiddenDescriptions = collect($hidden->json('data'))->pluck('description')->all();
+        $this->assertContains('regular-admin-log', $hiddenDescriptions);
+        $this->assertNotContains('superadmin-author-log', $hiddenDescriptions);
+
+        $visible = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_target_label' => 'HideSuperadminFilter',
+                'hide_superadmin' => '0',
+            ]
+        )));
+        $visible->assertOk();
+        $visibleDescriptions = collect($visible->json('data'))->pluck('description')->all();
+        $this->assertContains('regular-admin-log', $visibleDescriptions);
+        $this->assertContains('superadmin-author-log', $visibleDescriptions);
+    }
+
+    public function test_logs_data_hides_authorizations_when_hide_authorizations_enabled(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->createPartnerLog($this->partner->id, 'settings-change-log', null, 'HideAuthFilter');
+        MyLog::query()->create([
+            'type' => 4,
+            'action' => 40,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'target_type' => null,
+            'target_id' => null,
+            'target_label' => 'HideAuthFilter',
+            'description' => 'authorization-log',
+            'created_at' => now(),
+        ]);
+
+        $hidden = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_target_label' => 'HideAuthFilter',
+                'hide_superadmin' => '0',
+                'hide_authorizations' => '1',
+            ]
+        )));
+        $hidden->assertOk();
+        $hiddenDescriptions = collect($hidden->json('data'))->pluck('description')->all();
+        $this->assertContains('settings-change-log', $hiddenDescriptions);
+        $this->assertNotContains('authorization-log', $hiddenDescriptions);
+    }
+
+    public function test_logs_data_filters_by_unknown_action_type(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 99999,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $this->partner->id,
+            'target_label' => 'UnknownActionFilter',
+            'description' => 'unknown-action-log',
+            'created_at' => now(),
+        ]);
+
+        $this->createPartnerLog($this->partner->id, 'known-action-log', null, 'UnknownActionFilter');
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_action' => 'unknown',
+                'filter_target_label' => 'UnknownActionFilter',
+                'hide_superadmin' => '0',
+            ]
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('unknown-action-log', $descriptions);
+        $this->assertNotContains('known-action-log', $descriptions);
+    }
+
+    public function test_index_page_shows_new_log_filters(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->get(route('admin.setting.logs'))
+            ->assertOk()
+            ->assertSee('id="settings-logs-filter-hide-superadmin"', false)
+            ->assertSee('>Скрыть суперадмина</label>', false)
+            ->assertSee('id="settings-logs-filter-hide-authorizations"', false)
+            ->assertSee('>Скрыть авторизации</label>', false)
+            ->assertSee('value="unknown"', false)
+            ->assertSee('>Неизвестный тип</option>', false);
     }
 
     public function test_superadmin_logs_data_order_by_partner_title_asc(): void
@@ -349,26 +473,440 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->createPartnerLog($this->partner->id, 'variants-smoke');
 
-        $queries = [
-            array_merge($this->baseDataTableParams(), ['filter_partner_id' => 'all']),
-            array_merge($this->baseDataTableParams(), [
-                'filter_partner_id' => (string) $this->partner->id,
-                'created_from' => now()->subYear()->toDateString(),
-                'created_to' => now()->toDateString(),
-            ]),
-            array_merge($this->baseDataTableParams(), [
-                'filter_action' => '70',
-                'filter_author' => 'test',
-                'filter_target_label' => 'Test',
-            ]),
-            array_merge($this->baseDataTableParams(), [
-                'search' => ['value' => 'smoke'],
-            ]),
-        ];
-
-        foreach ($queries as $params) {
+        foreach ($this->allLogsDataFilterParamVariants(isSuperadmin: true) as $params) {
             $this->getJson(route('settings.logs.data', $params))->assertOk();
         }
+    }
+
+    public function test_authorized_admin_all_logs_endpoints_and_filter_variants_return_200(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->createPartnerLog($this->partner->id, 'access-smoke-admin');
+
+        $this->get(route('admin.setting.logs'))->assertOk();
+
+        $this->get(route('admin.setting.logs', [
+            'created_from' => now()->subMonth()->toDateString(),
+            'hide_superadmin' => '1',
+            'hide_authorizations' => '0',
+            'filter_action' => 'unknown',
+        ]))->assertOk();
+
+        foreach ($this->allLogsDataFilterParamVariants(isSuperadmin: false) as $params) {
+            $this->getJson(route('settings.logs.data', $params))
+                ->assertOk()
+                ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+        }
+    }
+
+    public function test_authorized_superadmin_all_logs_endpoints_and_filter_variants_return_200(): void
+    {
+        $this->asSuperadmin();
+        $this->user->unsetRelation('role');
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->createPartnerLog($this->partner->id, 'access-smoke-superadmin');
+
+        $this->get(route('admin.setting.logs'))->assertOk();
+
+        foreach ($this->allLogsDataFilterParamVariants(isSuperadmin: true) as $params) {
+            $this->getJson(route('settings.logs.data', $params))
+                ->assertOk()
+                ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+        }
+    }
+
+    public function test_user_without_settings_view_logs_data_all_filter_variants_return_200(): void
+    {
+        $actor = $this->createUserWithoutPermission('settings.view', $this->partner);
+        $this->grantViewingAllLogs((int) $actor->role_id);
+        $this->actingAs($actor);
+
+        $this->createPartnerLog($this->partner->id, 'data-only-access');
+
+        $this->get(route('admin.setting.logs'))->assertForbidden();
+
+        foreach ($this->allLogsDataFilterParamVariants(isSuperadmin: false) as $params) {
+            $this->getJson(route('settings.logs.data', $params))->assertOk();
+        }
+    }
+
+    public function test_index_page_hide_superadmin_checked_by_default(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $html = $this->get(route('admin.setting.logs'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/id="settings-logs-filter-hide-superadmin"[^>]*checked/',
+            $html
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/id="settings-logs-filter-hide-authorizations"[^>]*checked/',
+            $html
+        );
+    }
+
+    public function test_logs_data_shows_authorizations_when_hide_authorizations_disabled(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->createPartnerLog($this->partner->id, 'settings-change-visible', null, 'ShowAuthFilter');
+        MyLog::query()->create([
+            'type' => 4,
+            'action' => 40,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'target_type' => null,
+            'target_id' => null,
+            'target_label' => 'ShowAuthFilter',
+            'description' => 'authorization-visible-log',
+            'created_at' => now(),
+        ]);
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_target_label' => 'ShowAuthFilter',
+                'hide_superadmin' => '0',
+                'hide_authorizations' => '0',
+            ]
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('settings-change-visible', $descriptions);
+        $this->assertContains('authorization-visible-log', $descriptions);
+    }
+
+    public function test_logs_data_without_hide_superadmin_param_does_not_hide_superadmin_author(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $superadmin = $this->createUserWithRole('superadmin', $this->partner);
+
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 70,
+            'author_id' => $superadmin->id,
+            'partner_id' => $this->partner->id,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $this->partner->id,
+            'target_label' => 'NoHideParamFilter',
+            'description' => 'superadmin-visible-without-param',
+            'created_at' => now(),
+        ]);
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            ['filter_target_label' => 'NoHideParamFilter']
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('superadmin-visible-without-param', $descriptions);
+    }
+
+    public function test_logs_data_combined_new_filters_apply_together(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $superadmin = $this->createUserWithRole('superadmin', $this->partner);
+
+        $this->createPartnerLog($this->partner->id, 'combined-regular-log', null, 'CombinedNewFilters');
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 70,
+            'author_id' => $superadmin->id,
+            'partner_id' => $this->partner->id,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $this->partner->id,
+            'target_label' => 'CombinedNewFilters',
+            'description' => 'combined-superadmin-log',
+            'created_at' => now(),
+        ]);
+        MyLog::query()->create([
+            'type' => 4,
+            'action' => 40,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'target_type' => null,
+            'target_id' => null,
+            'target_label' => 'CombinedNewFilters',
+            'description' => 'combined-auth-log',
+            'created_at' => now(),
+        ]);
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_target_label' => 'CombinedNewFilters',
+                'hide_superadmin' => '1',
+                'hide_authorizations' => '1',
+            ]
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('combined-regular-log', $descriptions);
+        $this->assertNotContains('combined-superadmin-log', $descriptions);
+        $this->assertNotContains('combined-auth-log', $descriptions);
+    }
+
+    public function test_non_superadmin_cannot_see_foreign_partner_logs_with_foreign_filter_partner_id(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->createPartnerLog($this->partner->id, 'partner-scope-home');
+        $this->createPartnerLog($this->foreignPartner->id, 'partner-scope-foreign');
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_partner_id' => (string) $this->foreignPartner->id,
+                'hide_superadmin' => '0',
+            ]
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('partner-scope-home', $descriptions);
+        $this->assertNotContains('partner-scope-foreign', $descriptions);
+    }
+
+    public function test_foreign_session_admin_sees_only_foreign_partner_logs(): void
+    {
+        $this->createPartnerLog($this->partner->id, 'session-home-log');
+        $this->createPartnerLog($this->foreignPartner->id, 'session-foreign-log');
+
+        $this->asForeignUser();
+        $this->grantViewingAllLogsForPartner((int) $this->foreignUser->role_id, $this->foreignPartner->id);
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            ['hide_superadmin' => '0']
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('session-foreign-log', $descriptions);
+        $this->assertNotContains('session-home-log', $descriptions);
+    }
+
+    public function test_new_filters_do_not_bypass_partner_scope_for_non_superadmin(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $superadmin = $this->createUserWithRole('superadmin', $this->foreignPartner);
+
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 70,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $this->partner->id,
+            'target_label' => 'ScopeNewFilters',
+            'description' => 'scope-new-filters-home',
+            'created_at' => now(),
+        ]);
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 99999,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->foreignPartner->id,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $this->foreignPartner->id,
+            'target_label' => 'ScopeNewFilters',
+            'description' => 'scope-new-filters-foreign-unknown',
+            'created_at' => now(),
+        ]);
+        MyLog::query()->create([
+            'type' => 4,
+            'action' => 40,
+            'author_id' => $superadmin->id,
+            'partner_id' => $this->foreignPartner->id,
+            'target_type' => null,
+            'target_id' => null,
+            'target_label' => 'ScopeNewFilters',
+            'description' => 'scope-new-filters-foreign-auth',
+            'created_at' => now(),
+        ]);
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_partner_id' => 'all',
+                'filter_target_label' => 'ScopeNewFilters',
+                'hide_superadmin' => '0',
+                'hide_authorizations' => '0',
+            ]
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('scope-new-filters-home', $descriptions);
+        $this->assertNotContains('scope-new-filters-foreign-unknown', $descriptions);
+        $this->assertNotContains('scope-new-filters-foreign-auth', $descriptions);
+    }
+
+    public function test_superadmin_new_filters_work_across_partners(): void
+    {
+        $this->asSuperadmin();
+        $this->user->unsetRelation('role');
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $regularAdmin = $this->createUserWithRole('admin', $this->partner);
+        $foreignSuperadmin = $this->createUserWithRole('superadmin', $this->foreignPartner);
+
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 70,
+            'author_id' => $regularAdmin->id,
+            'partner_id' => $this->partner->id,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $this->partner->id,
+            'target_label' => 'CrossPartnerNewFilters',
+            'description' => 'cross-partner-home-regular',
+            'created_at' => now(),
+        ]);
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 70,
+            'author_id' => $foreignSuperadmin->id,
+            'partner_id' => $this->foreignPartner->id,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $this->foreignPartner->id,
+            'target_label' => 'CrossPartnerNewFilters',
+            'description' => 'cross-partner-foreign-superadmin',
+            'created_at' => now(),
+        ]);
+        MyLog::query()->create([
+            'type' => 4,
+            'action' => 40,
+            'author_id' => $regularAdmin->id,
+            'partner_id' => $this->foreignPartner->id,
+            'target_type' => null,
+            'target_id' => null,
+            'target_label' => 'CrossPartnerNewFilters',
+            'description' => 'cross-partner-foreign-auth',
+            'created_at' => now(),
+        ]);
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_partner_id' => 'all',
+                'filter_target_label' => 'CrossPartnerNewFilters',
+                'hide_superadmin' => '1',
+                'hide_authorizations' => '1',
+            ]
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('cross-partner-home-regular', $descriptions);
+        $this->assertNotContains('cross-partner-foreign-superadmin', $descriptions);
+        $this->assertNotContains('cross-partner-foreign-auth', $descriptions);
+    }
+
+    public function test_superadmin_with_null_partner_id_and_filter_all_sees_all_partners(): void
+    {
+        $this->asSuperadmin();
+        $this->user->partner_id = null;
+        $this->user->save();
+        $this->actingAs($this->user);
+        $this->user->unsetRelation('role');
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->createPartnerLog($this->partner->id, 'null-partner-home');
+        $this->createPartnerLog($this->foreignPartner->id, 'null-partner-foreign');
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_partner_id' => 'all',
+                'hide_superadmin' => '0',
+            ]
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('null-partner-home', $descriptions);
+        $this->assertContains('null-partner-foreign', $descriptions);
+    }
+
+    public function test_unknown_action_filter_respects_partner_isolation(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 99998,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $this->partner->id,
+            'target_label' => 'UnknownPartnerScope',
+            'description' => 'unknown-home-log',
+            'created_at' => now(),
+        ]);
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 99997,
+            'author_id' => $this->foreignUser->id,
+            'partner_id' => $this->foreignPartner->id,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $this->foreignPartner->id,
+            'target_label' => 'UnknownPartnerScope',
+            'description' => 'unknown-foreign-log',
+            'created_at' => now(),
+        ]);
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_action' => 'unknown',
+                'filter_target_label' => 'UnknownPartnerScope',
+                'hide_superadmin' => '0',
+            ]
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('unknown-home-log', $descriptions);
+        $this->assertNotContains('unknown-foreign-log', $descriptions);
+    }
+
+    public function test_guest_and_unauthorized_users_cannot_access_logs_with_new_filter_params(): void
+    {
+        $params = array_merge($this->baseDataTableParams(), [
+            'hide_superadmin' => '1',
+            'hide_authorizations' => '1',
+            'filter_action' => 'unknown',
+            'filter_partner_id' => 'all',
+        ]);
+
+        Auth::logout();
+
+        $this->get(route('admin.setting.logs', [
+            'hide_superadmin' => '1',
+            'filter_action' => 'unknown',
+        ]))->assertRedirect();
+
+        $this->getJson(route('settings.logs.data', $params))
+            ->assertStatus(401);
+
+        $denied = $this->createUserWithoutPermission('viewing.all.logs', $this->partner);
+        $this->grantSettingsView((int) $denied->role_id);
+        $this->actingAs($denied);
+
+        $this->get(route('admin.setting.logs', ['hide_superadmin' => '1']))->assertForbidden();
+        $this->getJson(route('settings.logs.data', $params))->assertForbidden();
     }
 
     private function assertAllSectionEndpointsSucceedForAuthorizedUser(bool $isSuperadmin = false): void
@@ -398,12 +936,93 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             'filter_action' => '70',
             'filter_author' => 'Иван',
             'filter_target_label' => 'Test',
+            'hide_superadmin' => '1',
+            'hide_authorizations' => '0',
         ]);
         if ($isSuperadmin) {
             $filterParams['filter_partner_id'] = (string) $this->partner->id;
         }
 
         $this->getJson(route('settings.logs.data', $filterParams))->assertOk();
+
+        $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_action' => 'unknown',
+                'hide_superadmin' => '0',
+                'hide_authorizations' => '1',
+                'filter_partner_id' => $isSuperadmin ? 'all' : null,
+            ]
+        )))->assertOk();
+    }
+
+    /**
+     * Все варианты query-параметров DataTables для smoke 200 (включая новые фильтры).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function allLogsDataFilterParamVariants(bool $isSuperadmin = false): array
+    {
+        $defaults = $this->defaultLogsFilterParams($isSuperadmin);
+
+        $variants = [
+            $defaults,
+            array_merge($defaults, ['hide_superadmin' => '0']),
+            array_merge($defaults, ['hide_authorizations' => '1']),
+            array_merge($defaults, [
+                'hide_superadmin' => '0',
+                'hide_authorizations' => '1',
+            ]),
+            array_merge($defaults, ['filter_action' => 'unknown']),
+            array_merge($defaults, [
+                'filter_action' => '70',
+                'filter_author' => 'test',
+                'filter_target_label' => 'Test',
+            ]),
+            array_merge($defaults, [
+                'created_from' => now()->subYear()->toDateString(),
+                'created_to' => now()->toDateString(),
+            ]),
+            array_merge($defaults, [
+                'search' => ['value' => 'smoke'],
+            ]),
+        ];
+
+        if ($isSuperadmin) {
+            $variants[] = array_merge($defaults, [
+                'filter_partner_id' => (string) $this->partner->id,
+            ]);
+            $variants[] = array_merge($defaults, [
+                'filter_partner_id' => (string) $this->foreignPartner->id,
+                'hide_superadmin' => '0',
+            ]);
+        } else {
+            $variants[] = array_merge($defaults, [
+                'filter_partner_id' => 'all',
+            ]);
+            $variants[] = array_merge($defaults, [
+                'filter_partner_id' => (string) $this->foreignPartner->id,
+            ]);
+        }
+
+        return $variants;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultLogsFilterParams(bool $isSuperadmin = false): array
+    {
+        $params = array_merge($this->baseDataTableParams(), [
+            'hide_superadmin' => '1',
+            'hide_authorizations' => '0',
+        ]);
+
+        if ($isSuperadmin) {
+            $params['filter_partner_id'] = 'all';
+        }
+
+        return $params;
     }
 
     /**
@@ -429,8 +1048,30 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
                         'filter_partner_id' => 'all',
                         'created_from' => now()->subYear()->toDateString(),
                         'filter_action' => '70',
+                        'hide_superadmin' => '1',
+                        'hide_authorizations' => '0',
                     ]
                 )),
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('settings.logs.data', array_merge(
+                    $this->baseDataTableParams(),
+                    [
+                        'filter_action' => 'unknown',
+                        'hide_superadmin' => '0',
+                        'hide_authorizations' => '1',
+                    ]
+                )),
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('admin.setting.logs', [
+                    'hide_superadmin' => '1',
+                    'hide_authorizations' => '1',
+                    'filter_action' => 'unknown',
+                ]),
+                'headers' => ['HTTP_ACCEPT' => 'text/html'],
             ],
         ];
     }
@@ -447,11 +1088,11 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         ];
     }
 
-    private function grantViewingAllLogs(int $roleId): void
+    private function grantViewingAllLogs(int $roleId, ?int $partnerId = null): void
     {
         DB::table('permission_role')->updateOrInsert(
             [
-                'partner_id' => $this->partner->id,
+                'partner_id' => $partnerId ?? $this->partner->id,
                 'role_id' => $roleId,
                 'permission_id' => $this->permissionId('viewing.all.logs'),
             ],
@@ -460,6 +1101,11 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
                 'updated_at' => now(),
             ]
         );
+    }
+
+    private function grantViewingAllLogsForPartner(int $roleId, int $partnerId): void
+    {
+        $this->grantViewingAllLogs($roleId, $partnerId);
     }
 
     private function grantSettingsView(int $roleId): void

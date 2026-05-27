@@ -218,7 +218,8 @@ public function data(Request $request)
     <li>В контроллере страницы: <code>'isSuperadmin' => $this->isSuperAdmin()</code>, список партнёров для select
       (<code>Partner::orderBy('title')->get()</code>) — только если superadmin.</li>
     <li>Фильтр: <code>&lt;select name="filter_partner_id"&gt;</code> с опцией <code>value="all"</code> «Все партнёры».</li>
-    <li>DataTables AJAX: всегда передавать <code>filter_partner_id</code> (для superadmin по умолчанию <code>all</code>).</li>
+    <li>DataTables AJAX: всегда передавать <code>filter_partner_id</code> (для superadmin по умолчанию <code>all</code>),
+      а на вкладке «Логи» также <code>hide_superadmin</code> и <code>hide_authorizations</code>.</li>
     <li>Колонка «Партнёр» / <code>partner_title</code> в таблице — только в разметке для superadmin.</li>
     <li>Для сортировки по партнёру: <code>leftJoin</code> + <code>orderColumn('partner_title', …)</code> (см. реализацию логов).</li>
   </ol>

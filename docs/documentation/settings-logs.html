@@ -104,20 +104,88 @@
   <h3>3.2 Фильтры</h3>
   <table>
     <thead>
-      <tr><th>Поле</th><th>Параметр запроса</th><th>Кто видит</th></tr>
+      <tr><th>Поле</th><th>Параметр запроса</th><th>Кто видит</th><th>По умолчанию</th></tr>
     </thead>
     <tbody>
       <tr>
         <td>Партнёр</td>
         <td><code>filter_partner_id</code>: <code>all</code> или id партнёра</td>
-        <td>только superadmin; по умолчанию «Все партнёры» (<code>all</code>)</td>
+        <td>только superadmin</td>
+        <td><code>all</code> («Все партнёры»)</td>
       </tr>
-      <tr><td>Дата: с / по</td><td><code>created_from</code>, <code>created_to</code> (date)</td><td>все с правом</td></tr>
-      <tr><td>Действие</td><td><code>filter_action</code> (код <code>action</code>)</td><td>все с правом</td></tr>
-      <tr><td>Автор</td><td><code>filter_author</code> (подстрока по имени/фамилии/ФИО)</td><td>все с правом</td></tr>
-      <tr><td>Что меняли</td><td><code>filter_target_label</code> (LIKE)</td><td>все с правом</td></tr>
+      <tr><td>Дата: с / по</td><td><code>created_from</code>, <code>created_to</code> (date)</td><td>все с правом</td><td>пусто</td></tr>
+      <tr>
+        <td>Действие</td>
+        <td><code>filter_action</code> — код <code>action</code>, либо <code>unknown</code></td>
+        <td>все с правом</td>
+        <td>пусто («Все действия»)</td>
+      </tr>
+      <tr><td>Автор</td><td><code>filter_author</code> (подстрока по имени/фамилии/ФИО)</td><td>все с правом</td><td>пусто</td></tr>
+      <tr><td>Что меняли</td><td><code>filter_target_label</code> (LIKE)</td><td>все с правом</td><td>пусто</td></tr>
+      <tr>
+        <td><b>Скрыть суперадмина</b> (чекбокс)</td>
+        <td><code>hide_superadmin</code>: <code>1</code> / <code>0</code></td>
+        <td>все с правом</td>
+        <td><b>включён</b> (<code>1</code>)</td>
+      </tr>
+      <tr>
+        <td><b>Скрыть авторизации</b> (чекбокс)</td>
+        <td><code>hide_authorizations</code>: <code>1</code> / <code>0</code></td>
+        <td>все с правом</td>
+        <td>выключен (<code>0</code>)</td>
+      </tr>
     </tbody>
   </table>
+
+  <h3>3.3 Логика новых фильтров (исключения и «Неизвестный тип»)</h3>
+  <div class="note">
+    Чекбоксы и пункт «Неизвестный тип» работают <b>внутри</b> уже применённого partner-scope (см. §4).
+    Они не расширяют доступ к чужим партнёрам.
+  </div>
+  <table>
+    <thead>
+      <tr><th>Фильтр</th><th>Поведение на сервере (<code>BuildsLogTable</code>)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Скрыть суперадмина</b></td>
+        <td>
+          Применяется только если в запросе <b>есть</b> параметр <code>hide_superadmin</code> и он истинный (<code>1</code>).
+          Исключаются записи, у которых <code>author_id</code> указывает на пользователя с ролью <code>roles.name = superadmin</code>
+          (<code>whereDoesntHave('author.role', …)</code>). Записи без автора или с автором другой роли остаются.
+        </td>
+      </tr>
+      <tr>
+        <td><b>Скрыть авторизации</b></td>
+        <td>
+          Применяется только если в запросе <b>есть</b> параметр <code>hide_authorizations</code> и он истинный.
+          Исключаются записи с <code>my_logs.action = 40</code> (подпись в UI: «Авторизация», см. <code>MyLog::actionLabels()</code>).
+        </td>
+      </tr>
+      <tr>
+        <td><b>Действие → «Неизвестный тип»</b></td>
+        <td>
+          При <code>filter_action=unknown</code> отбираются записи, у которых код <code>action</code> <b>не входит</b>
+          в ключи <code>MyLog::actionLabels()</code>. В ячейке таблицы такие строки по-прежнему отображаются как
+          «Неизвестный тип (setting)» — это fallback в <code>editColumn('action')</code>, а не отдельный код в словаре.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>Комбинация фильтров</b> — условия объединяются через AND (дата + действие + автор + partner-scope + исключения).</li>
+    <li><b>Кнопка «Сброс»</b> возвращает значения по умолчанию: «Скрыть суперадмина» — вкл., «Скрыть авторизации» — выкл., остальные поля — пусто; для superadmin партнёр снова <code>all</code>.</li>
+    <li><b>Панель «Фильтры»</b> автоматически раскрывается, если активен хотя бы один нестандартный фильтр (в т.ч. снят чекбокс «Скрыть суперадмина» или включён «Скрыть авторизации»).</li>
+    <li><b>DataTables AJAX</b> на вкладке «Логи» всегда передаёт <code>hide_superadmin</code> и <code>hide_authorizations</code> (<code>1</code> или <code>0</code>).</li>
+  </ul>
+
+  <h3>3.4 Отличие от модалок логов на других страницах</h3>
+  <p>
+    Параметры <code>hide_superadmin</code>, <code>hide_authorizations</code> и <code>filter_action=unknown</code>
+    обрабатываются в общем трейте <code>BuildsLogTable</code>, но <b>не отправляются</b> с других экранов
+    (пользователи, группы, расписание и т.д.). Без параметра в запросе исключения не срабатывают — поведение
+    модалок «История изменений» не менялось.
+  </p>
 
   <h2>4) Partner-scope: режим <code>SUPERADMIN_ALL_OR_FILTER</code></h2>
   <div class="note">
@@ -141,7 +209,9 @@
   <ul>
     <li><b>Таблица БД:</b> <code>my_logs</code> (<code>partner_id</code>, <code>type</code>, <code>action</code>, <code>author_id</code>, <code>target_*</code>, <code>description</code>, <code>created_at</code>).</li>
     <li><b>Билдер:</b> трейт <code>App\Support\BuildsLogTable</code> — единый DataTables для логов на разных страницах (пользователи, группы, расписание, партнёры, настройки цен, правила…). На вкладке «Логи» передаётся <code>type = null</code> (все типы).</li>
-    <li><b>Подписи действий:</b> <code>MyLog::actionLabels()</code> — общий словарь кодов <code>action</code>.</li>
+    <li><b>Подписи действий:</b> <code>MyLog::actionLabels()</code> — общий словарь кодов <code>action</code>.
+      Неизвестные коды в таблице показываются как «Неизвестный тип (setting)»; фильтр «Неизвестный тип» использует
+      <code>filter_action=unknown</code> (см. §3.3).</li>
     <li><b>Контроллер:</b> <code>App\Http\Controllers\Admin\Setting\SettingController</code> — <code>showLogs()</code>, <code>logsData()</code>.</li>
     <li><b>View:</b> <code>resources/views/admin/setting/logs.blade.php</code> (подключается из <code>admin/setting/index.blade.php</code>).</li>
   </ul>
@@ -168,9 +238,14 @@
 
   <h2>7) Автотесты</h2>
   <ul>
-    <li><code>tests/Feature/Crm/Settings/SettingsLogsPageFullAccessFeatureTest.php</code> — доступ (200/403), superadmin cross-partner, фильтры, сортировка по партнёру, UI.</li>
-    <li><code>tests/Feature/Crm/Settings/SettingsControllerTest.php</code> — базовые проверки прав на маршруты логов.</li>
+    <li><code>tests/Feature/Crm/Settings/SettingsLogsPageFullAccessFeatureTest.php</code> — полное покрытие раздела:
+      доступ (200/403/401), superadmin cross-partner (<code>SUPERADMIN_ALL_OR_FILTER</code>), изоляция партнёров,
+      все варианты query-параметров DataTables (в т.ч. <code>hide_superadmin</code>, <code>hide_authorizations</code>,
+      <code>filter_action=unknown</code>), сортировка по партнёру, UI (чекбоксы, селект «Неизвестный тип»).</li>
+    <li><code>tests/Feature/Crm/Settings/SettingsControllerTest.php</code> — базовые проверки прав на маршруты логов и partner-scope.</li>
   </ul>
+  <p class="small">Раздел только для чтения (GET): CRUD-операций над логами нет — тестируются два маршрута
+    <code>admin.setting.logs</code> и <code>settings.logs.data</code>.</p>
 
   <h2>8) Связанные разделы</h2>
   <ul>

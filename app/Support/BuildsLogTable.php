@@ -35,8 +35,22 @@ trait BuildsLogTable
             ->when($request->filled('created_to'), function ($q) use ($request) {
                 $q->whereDate('my_logs.created_at', '<=', (string) $request->input('created_to'));
             })
-            ->when($request->filled('filter_action'), function ($q) use ($request) {
-                $q->where('my_logs.action', (int) $request->input('filter_action'));
+            ->when($request->input('filter_action') === 'unknown', function ($q) {
+                $q->whereNotIn('my_logs.action', array_keys(MyLog::actionLabels()));
+            })
+            ->when(
+                $request->filled('filter_action') && $request->input('filter_action') !== 'unknown',
+                function ($q) use ($request) {
+                    $q->where('my_logs.action', (int) $request->input('filter_action'));
+                }
+            )
+            ->when($request->has('hide_superadmin') && $request->boolean('hide_superadmin'), function ($q) {
+                $q->whereDoesntHave('author', function ($authorQ) {
+                    $authorQ->whereHas('role', fn ($roleQ) => $roleQ->where('roles.name', 'superadmin'));
+                });
+            })
+            ->when($request->has('hide_authorizations') && $request->boolean('hide_authorizations'), function ($q) {
+                $q->where('my_logs.action', '!=', 40);
             })
             ->when($request->filled('filter_author'), function ($q) use ($request) {
                 $term = trim((string) $request->input('filter_author'));

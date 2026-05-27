@@ -18,6 +18,15 @@
             break;
         }
     }
+    $logsHideSuperadmin = filter_var(request('hide_superadmin', '1'), FILTER_VALIDATE_BOOLEAN);
+    $logsHideAuthorizations = filter_var(request('hide_authorizations', '0'), FILTER_VALIDATE_BOOLEAN);
+    if (!$logsHasActiveFilters) {
+        if (request()->has('hide_superadmin') && !$logsHideSuperadmin) {
+            $logsHasActiveFilters = true;
+        } elseif ($logsHideAuthorizations) {
+            $logsHasActiveFilters = true;
+        }
+    }
     $logsFilterPartner = request('filter_partner_id', 'all');
 @endphp
 
@@ -75,6 +84,7 @@
                 <label class="form-label" for="settings-logs-filter-action">Действие</label>
                 <select class="form-select" id="settings-logs-filter-action" name="filter_action">
                     <option value="">Все действия</option>
+                    <option value="unknown" @selected((string) request('filter_action') === 'unknown')>Неизвестный тип</option>
                     @foreach($logActionLabels as $code => $label)
                         <option value="{{ $code }}" @selected((string) request('filter_action') === (string) $code)>{{ $label }}</option>
                     @endforeach
@@ -93,6 +103,20 @@
             <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                 <button class="btn btn-primary payments-report-filters-submit" type="button" id="settingsLogsFiltersApply">Применить</button>
                 <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="settingsLogsFiltersReset">Сброс</button>
+            </div>
+            <div class="col-12 col-md-auto">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="settings-logs-filter-hide-superadmin"
+                           name="hide_superadmin" value="1" @checked($logsHideSuperadmin)>
+                    <label class="form-check-label" for="settings-logs-filter-hide-superadmin">Скрыть суперадмина</label>
+                </div>
+            </div>
+            <div class="col-12 col-md-auto">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="settings-logs-filter-hide-authorizations"
+                           name="hide_authorizations" value="1" @checked($logsHideAuthorizations)>
+                    <label class="form-check-label" for="settings-logs-filter-hide-authorizations">Скрыть авторизации</label>
+                </div>
             </div>
         </div>
     </form>
@@ -128,7 +152,9 @@
                     created_to: $('#settings-logs-filter-created-to').val() || '',
                     filter_action: $('#settings-logs-filter-action').val() || '',
                     filter_author: $('#settings-logs-filter-author').val() || '',
-                    filter_target_label: $('#settings-logs-filter-target').val() || ''
+                    filter_target_label: $('#settings-logs-filter-target').val() || '',
+                    hide_superadmin: $('#settings-logs-filter-hide-superadmin').is(':checked') ? '1' : '0',
+                    hide_authorizations: $('#settings-logs-filter-hide-authorizations').is(':checked') ? '1' : '0'
                 };
                 if (isLogsSuperadmin) {
                     params.filter_partner_id = $('#settings-logs-filter-partner').val() || 'all';
@@ -140,6 +166,9 @@
                 var p = settingsLogsFilterParams();
                 if (p.created_from !== '' || p.created_to !== '' || p.filter_action !== ''
                     || p.filter_author !== '' || p.filter_target_label !== '') {
+                    return true;
+                }
+                if (p.hide_authorizations === '1' || p.hide_superadmin === '0') {
                     return true;
                 }
                 if (isLogsSuperadmin && p.filter_partner_id && p.filter_partner_id !== 'all') {
@@ -200,6 +229,8 @@
                         d.filter_action = params.filter_action;
                         d.filter_author = params.filter_author;
                         d.filter_target_label = params.filter_target_label;
+                        d.hide_superadmin = params.hide_superadmin;
+                        d.hide_authorizations = params.hide_authorizations;
                         if (isLogsSuperadmin) {
                             d.filter_partner_id = params.filter_partner_id;
                         }
@@ -221,6 +252,8 @@
                 if (isLogsSuperadmin) {
                     $('#settings-logs-filter-partner').val('all');
                 }
+                $('#settings-logs-filter-hide-superadmin').prop('checked', true);
+                $('#settings-logs-filter-hide-authorizations').prop('checked', false);
                 table.ajax.reload();
                 syncSettingsLogsFiltersCollapseState();
             });
