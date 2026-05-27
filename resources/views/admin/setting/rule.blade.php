@@ -344,6 +344,8 @@
     </div>
 </div>
 
+@include('includes.logModal')
+
 @section('scripts')
     <script>
         $(function () {
