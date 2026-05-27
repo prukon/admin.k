@@ -100,11 +100,7 @@ class PublishBlogPostToVkJob implements ShouldQueue, ShouldBeUnique
             $publicUrl = $urlBuilder->build($post);
             $message = $messageBuilder->build($post, $publicUrl);
 
-            $result = $vkClient->publishPost(
-                $message,
-                $publicUrl,
-                (string) $post->cover_image_path,
-            );
+            $result = $vkClient->publishPost($message, $publicUrl);
 
             $externalId = sprintf('%d_%d', $result['owner_id'], $result['post_id']);
 

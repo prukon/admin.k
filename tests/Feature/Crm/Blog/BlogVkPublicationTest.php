@@ -146,6 +146,34 @@ class BlogVkPublicationTest extends BlogAdminFeatureTestCase
         Queue::assertPushed(PublishBlogPostToVkJob::class, fn ($job) => $job->blogPostId === $post->id);
     }
 
+    public function test_job_publishes_with_link_only_via_wall_post(): void
+    {
+        Http::fake([
+            'api.vk.com/method/wall.post*' => Http::response([
+                'response' => ['post_id' => 999],
+            ]),
+        ]);
+
+        $post = BlogPost::withoutEvents(fn () => $this->makePublishedBlogPostForVk([
+            'vk_message' => 'Текст поста',
+        ]));
+
+        app(BlogVkPublicationCoordinator::class)->syncForPost($post->fresh(['category', 'socialPublications']));
+
+        app()->call([new PublishBlogPostToVkJob($post->id), 'handle']);
+
+        Http::assertSent(function ($request) {
+            if (!str_contains($request->url(), 'api.vk.com/method/wall.post')) {
+                return false;
+            }
+
+            return str_contains((string) $request->body(), 'attachments=')
+                && !str_contains($request->url(), 'photos.');
+        });
+
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'photos.getWallUploadServer'));
+    }
+
     public function test_job_publishes_once_and_is_idempotent(): void
     {
         $this->fakeVkApiSuccess();

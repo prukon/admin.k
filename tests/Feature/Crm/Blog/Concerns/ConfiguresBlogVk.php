@@ -68,20 +68,6 @@ trait ConfiguresBlogVk
     protected function fakeVkApiSuccess(): void
     {
         Http::fake([
-            'api.vk.com/method/photos.getWallUploadServer*' => Http::response([
-                'response' => ['upload_url' => 'https://upload.test/up'],
-            ]),
-            'upload.test/*' => Http::response([
-                'server' => 1,
-                'photo' => '{"test":1}',
-                'hash' => 'abc',
-            ]),
-            'api.vk.com/method/photos.saveWallPhoto*' => Http::response([
-                'response' => [[
-                    'owner_id' => -123456,
-                    'id' => 555,
-                ]],
-            ]),
             'api.vk.com/method/wall.post*' => Http::response([
                 'response' => ['post_id' => 999],
             ]),
@@ -91,20 +77,6 @@ trait ConfiguresBlogVk
     protected function fakeVkApiWallPostError(): void
     {
         Http::fake([
-            'api.vk.com/method/photos.getWallUploadServer*' => Http::response([
-                'response' => ['upload_url' => 'https://upload.test/up'],
-            ]),
-            'upload.test/*' => Http::response([
-                'server' => 1,
-                'photo' => '{"test":1}',
-                'hash' => 'abc',
-            ]),
-            'api.vk.com/method/photos.saveWallPhoto*' => Http::response([
-                'response' => [[
-                    'owner_id' => -123456,
-                    'id' => 555,
-                ]],
-            ]),
             'api.vk.com/method/wall.post*' => Http::response([
                 'error' => [
                     'error_code' => 15,
