@@ -1,0 +1,191 @@
+@php
+    $logActionLabels = $logActionLabels ?? [];
+    $logsFilterKeys = ['created_from', 'created_to', 'filter_action', 'filter_author', 'filter_target_label'];
+    $logsHasActiveFilters = false;
+    foreach ($logsFilterKeys as $k) {
+        $v = request($k);
+        if ($v !== null && $v !== '') {
+            $logsHasActiveFilters = true;
+            break;
+        }
+    }
+@endphp
+
+@vite(['resources/css/admin-list-toolbar.css'])
+
+<div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+    <div class="card-body px-3 py-3">
+        <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Логи</h1>
+            <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#settingsLogsFiltersCollapse"
+                        aria-expanded="{{ $logsHasActiveFilters ? 'true' : 'false' }}"
+                        aria-controls="settingsLogsFiltersCollapse"
+                        id="settingsLogsFiltersToggle"
+                        title="Фильтры таблицы">
+                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                        <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                    </span>
+                    <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                    <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="collapse {{ $logsHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="settingsLogsFiltersCollapse">
+    <form id="settings-logs-filters" class="border rounded p-2 p-md-3 bg-light">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="settings-logs-filter-created-from">Дата: с</label>
+                <input class="form-control" id="settings-logs-filter-created-from" type="date" name="created_from"
+                       value="{{ request('created_from') }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="settings-logs-filter-created-to">Дата: по</label>
+                <input class="form-control" id="settings-logs-filter-created-to" type="date" name="created_to"
+                       value="{{ request('created_to') }}">
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="settings-logs-filter-action">Действие</label>
+                <select class="form-select" id="settings-logs-filter-action" name="filter_action">
+                    <option value="">Все действия</option>
+                    @foreach($logActionLabels as $code => $label)
+                        <option value="{{ $code }}" @selected((string) request('filter_action') === (string) $code)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="settings-logs-filter-author">Автор</label>
+                <input class="form-control" id="settings-logs-filter-author" type="text" name="filter_author"
+                       value="{{ request('filter_author') }}" placeholder="ФИО автора">
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="settings-logs-filter-target">Что меняли</label>
+                <input class="form-control" id="settings-logs-filter-target" type="text" name="filter_target_label"
+                       value="{{ request('filter_target_label') }}" placeholder="Название объекта">
+            </div>
+            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                <button class="btn btn-primary payments-report-filters-submit" type="button" id="settingsLogsFiltersApply">Применить</button>
+                <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="settingsLogsFiltersReset">Сброс</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="table-responsive">
+    <table id="settingsLogsTable" class="display table table-striped w-100">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Дата создания</th>
+            <th>Действие</th>
+            <th>Автор</th>
+            <th>Что меняли</th>
+            <th>Описание</th>
+        </tr>
+        </thead>
+    </table>
+</div>
+
+@push('scripts')
+    <script type="text/javascript">
+        $(function () {
+            var $filtersForm = $('#settings-logs-filters');
+
+            function settingsLogsFilterParams() {
+                return {
+                    created_from: $('#settings-logs-filter-created-from').val() || '',
+                    created_to: $('#settings-logs-filter-created-to').val() || '',
+                    filter_action: $('#settings-logs-filter-action').val() || '',
+                    filter_author: $('#settings-logs-filter-author').val() || '',
+                    filter_target_label: $('#settings-logs-filter-target').val() || ''
+                };
+            }
+
+            function settingsLogsHasActiveFilters() {
+                var p = settingsLogsFilterParams();
+                return p.created_from !== ''
+                    || p.created_to !== ''
+                    || p.filter_action !== ''
+                    || p.filter_author !== ''
+                    || p.filter_target_label !== '';
+            }
+
+            function syncSettingsLogsFiltersCollapseState() {
+                var hasActive = settingsLogsHasActiveFilters();
+                var collapseEl = document.getElementById('settingsLogsFiltersCollapse');
+                var $toggle = $('#settingsLogsFiltersToggle');
+
+                if (collapseEl && hasActive && !collapseEl.classList.contains('show')) {
+                    bootstrap.Collapse.getOrCreateInstance(collapseEl, {toggle: false}).show();
+                }
+
+                if ($toggle.length && collapseEl) {
+                    $toggle.attr('aria-expanded', collapseEl.classList.contains('show') ? 'true' : 'false');
+                }
+            }
+
+            var table = $('#settingsLogsTable').DataTable({
+                processing: true,
+                serverSide: true,
+                pageLength: 10,
+                lengthMenu: [10, 20, 50, 100],
+                ajax: {
+                    url: @json(route('settings.logs.data')),
+                    type: 'GET',
+                    data: function (d) {
+                        var params = settingsLogsFilterParams();
+                        d.created_from = params.created_from;
+                        d.created_to = params.created_to;
+                        d.filter_action = params.filter_action;
+                        d.filter_author = params.filter_author;
+                        d.filter_target_label = params.filter_target_label;
+                    }
+                },
+                columns: [
+                    {data: 'id', name: 'id'},
+                    {data: 'created_at', name: 'created_at'},
+                    {data: 'action', name: 'action'},
+                    {data: 'author', name: 'author'},
+                    {data: 'target_label', name: 'target_label'},
+                    {
+                        data: 'description',
+                        name: 'description',
+                        render: function (data) {
+                            if (!data) {
+                                return '';
+                            }
+                            return String(data).replace(/\n/g, '<br>');
+                        }
+                    }
+                ],
+                order: [[1, 'desc']],
+                scrollX: true,
+                language: @include('partials.datatables.ru')
+            });
+
+            $('#settingsLogsFiltersApply').on('click', function () {
+                table.ajax.reload();
+                syncSettingsLogsFiltersCollapseState();
+            });
+
+            $('#settingsLogsFiltersReset').on('click', function () {
+                $filtersForm[0].reset();
+                table.ajax.reload();
+                syncSettingsLogsFiltersCollapseState();
+            });
+
+            $filtersForm.on('keydown', 'input, select', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    $('#settingsLogsFiltersApply').trigger('click');
+                }
+            });
+        });
+    </script>
+@endpush

@@ -124,6 +124,17 @@ class SettingController extends AdminBaseController
         ]);
     }
 
+    public function showLogs()
+    {
+        $logActionLabels = MyLog::actionLabels();
+        asort($logActionLabels);
+
+        return view('admin.setting.index', [
+            'activeTab' => 'logs',
+            'logActionLabels' => $logActionLabels,
+        ]);
+    }
+
     public function queueStatus()
     {
         return response()->json([

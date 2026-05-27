@@ -110,14 +110,33 @@
   </ul>
 
   <h3>5.2) Содержимое поста VK</h3>
+  <p>На публичной странице статьи <b>нет</b> кнопки «Поделиться в VK» — автопостинг идёт только на <b>стену группы</b> kidscrm через API.</p>
+
+  <h4>Текст (приоритеты)</h4>
+  <ol>
+    <li>Если на форме статьи заполнено поле <b>«Текст для VK»</b> (<code>vk_message</code>, до 500 символов) — используется оно, ИИ не вызывается.</li>
+    <li>Если поле пустое и в настройках включено <b>«Текст VK через ИИ»</b> (<code>blog.vk.ai_enabled</code>) — вызывается OpenAI (<code>App\Services\BlogVk\BlogVkAiMessageGenerator</code>): по заголовку, excerpt и началу статьи генерируется <b>уникальный анонс</b> (friendly tone, промпт <code>blog.vk.ai_prompt_template</code>). Результат сохраняется в <code>blog_posts.vk_message</code> (можно отредактировать в админке до повторной отправки).</li>
+    <li>Если ИИ выключен, не настроен <code>OPENAI_API_KEY</code>, превышен дневной бюджет ИИ блога или запрос к OpenAI завершился ошибкой — используется <b>fallback-шаблон</b> (<code>blog.vk.message_template</code>): переменные <code>{title}</code>, <code>{excerpt}</code>, <code>{url}</code>, <code>{category}</code>.</li>
+  </ol>
+  <p>ИИ для VK использует ту же модель и лимит бюджета, что генерация статей блога (<code>blog.ai.model</code>, <code>blog.ai.daily_budget_usd</code>, <code>BlogAiLimiter</code>). Стоимость одного анонса учитывается в дневном лимите (~$0.03 резерва).</p>
+
+  <h4>Ссылка</h4>
+  <p>URL статьи с UTM добавляется в текст поста (<code>App\Services\BlogVk\BlogVkUrlBuilder</code>):</p>
   <ul>
-    <li><b>Текст</b>: поле «Текст для VK» на форме статьи (до 500 символов). Если пусто и включено «Текст VK через ИИ» (<code>blog.vk.ai_enabled</code>) — уникальный анонс генерируется через OpenAI по статье (friendly tone, промпт <code>blog.vk.ai_prompt_template</code>), сохраняется в <code>vk_message</code>. При ошибке ИИ или выключенном ИИ — fallback-шаблон (<code>blog.vk.message_template</code>): <code>{title}</code>, <code>{excerpt}</code>, <code>{url}</code>, <code>{category}</code>.</li>
-    <li><b>Ссылка</b> на статью с UTM: <code>utm_source=vk</code>, <code>utm_medium=social</code>, <code>utm_campaign=blog</code> (в тексте поста).</li>
-    <li><b>Фото</b>: обложка статьи (<code>cover_image_path</code>) загружается в VK и прикрепляется к посту, если задан <code>VK_USER_TOKEN</code>. Без него — только текст и ссылка.</li>
+    <li><code>utm_source=vk</code> (<code>VK_UTM_SOURCE</code>)</li>
+    <li><code>utm_medium=social</code> (<code>VK_UTM_MEDIUM</code>)</li>
+    <li><code>utm_campaign=blog</code> (<code>VK_UTM_CAMPAIGN</code>)</li>
   </ul>
 
-  <div class="note">
-    <code>VK_GROUP_TOKEN</code> — публикация на стену (<code>wall.post</code>). Загрузка фото (<code>photos.getWallUploadServer</code>) токеном группы недоступна (ошибка 27), поэтому нужен <code>VK_USER_TOKEN</code> пользователя с правами редактора группы.
+  <h4>Фото (обложка)</h4>
+  <ul>
+    <li>Если задан <code>VK_USER_TOKEN</code> в <code>.env</code>, обложка (<code>cover_image_path</code>) загружается через <code>photos.getWallUploadServer</code> → upload → <code>photos.saveWallPhoto</code> и прикрепляется к <code>wall.post</code> (<code>App\Services\BlogVk\VkWallPhotoUploader</code>).</li>
+    <li>Без <code>VK_USER_TOKEN</code> или при ошибке загрузки — пост уходит <b>только с текстом и ссылкой</b> (без картинки в VK).</li>
+    <li><code>VK_GROUP_TOKEN</code> (токен сообщества) достаточен для <code>wall.post</code>, но <b>не</b> для загрузки фото (ошибка API 27).</li>
+  </ul>
+
+  <div class="warn">
+    <b>Тип токена пользователя.</b> Для загрузки фото нужен классический user access token формата <code>vk1.a…</code> с правами <code>photos</code>, <code>wall</code>, <code>groups</code>. Токен из OAuth VK ID (<code>vk2.a…</code>, команда <code>blog:vk-user-token</code>) подходит для авторизации, но <b>часто не даёт</b> вызывать <code>photos.getWallUploadServer</code> (ошибки 15 / 1051). В этом случае посты публикуются без фото — смотрите <code>storage/logs/queue.log</code> (<code>VK: загрузка фото не удалась</code>).
   </div>
 
   <h3>5.3) Переменные окружения (.env)</h3>
@@ -148,14 +167,17 @@ VK_UTM_CAMPAIGN=blog</pre>
     <li>Скопируйте <b>ID приложения</b> (<code>client_id</code>).</li>
   </ol>
 
-  <h4>Шаг B — получить токен на сервере</h4>
+  <h4>Шаг B — получить токен на сервере (VK ID + PKCE)</h4>
   <pre>php artisan blog:vk-user-token --client-id=ВАШ_CLIENT_ID</pre>
-  <p>Команда выдаст ссылку для браузера, вы разрешите доступ, вставите URL из адресной строки — получите строку для <code>VK_USER_TOKEN</code> в <code>.env</code>.</p>
+  <p>Команда (<code>App\Console\Commands\BlogVkUserTokenCommand</code>) выдаст ссылку для браузера, вы разрешите доступ, вставите полный URL после редиректа — получите строку для <code>VK_USER_TOKEN</code> в <code>.env</code>, затем <code>php artisan config:clear</code>.</p>
   <p>Опционально в <code>.env</code>: <code>VK_OAUTH_CLIENT_ID=...</code> — тогда флаг <code>--client-id</code> не нужен.</p>
 
   <div class="warn">
-    Старый способ «<code>oauth.vk.com/authorize?...&amp;response_type=token</code>» для новых приложений VK ID <b>не работает</b> — нужен OAuth 2.1 с PKCE (команда выше делает это за вас).
+    Старый способ «<code>oauth.vk.com/authorize?...&amp;response_type=token</code>» для новых приложений VK ID <b>не работает</b> — нужен OAuth 2.1 с PKCE (команда выше).
   </div>
+
+  <h4>Шаг C — если нужно фото в постах (рекомендуется)</h4>
+  <p>Если после деплоя в <code>queue.log</code> при публикации видите <code>photos.getWallUploadServer: Access denied</code> при токене <code>vk2.a…</code>, получите <b>legacy user token</b> <code>vk1.a…</code> (Standalone-приложение в <code>dev.vk.com</code>, если доступно) с scope <code>wall,photos,groups,offline</code> и scope <code>response_type=token</code>, либо согласуйте расширенные права API с поддержкой VK. Без рабочего user token для photos посты всё равно уходят — текстом и ссылкой.</p>
 
   <div class="warn">
     <b>Токен сообщества</b> (<code>VK_GROUP_TOKEN</code>): Управление группой → Работа с API → Ключи доступа, право <b>запись на стене</b>.
@@ -177,10 +199,25 @@ VK_UTM_CAMPAIGN=blog</pre>
 
   <h3>5.5) Очередь, планировщик, код</h3>
   <ul>
-    <li>Job: <code>App\Jobs\BlogVk\PublishBlogPostToVkJob</code> (очередь <code>database</code>, очередь <code>default</code>, до 5 попыток). Повторная отправка в VK блокируется проверкой статуса <code>published</code> в job, а не дублями в <code>jobs</code>.</li>
-    <li>Клиент VK: <code>App\Services\BlogVk\VkWallClient</code>, загрузка фото: <code>App\Services\BlogVk\VkWallPhotoUploader</code>; координатор: <code>BlogVkPublicationCoordinator</code>; observer: <code>BlogPostObserver</code> (событие <code>saved</code>).</li>
-    <li>Cron: каждую минуту <code>php artisan blog:process-vk-publications</code> (<code>App\Console\Kernel</code>, timezone <code>Europe/Moscow</code>) — отложенные статьи и ожидание обложки.</li>
-    <li>На сервере должны работать <code>schedule:run</code> (cron) и <code>queue:work</code>. См. также <a href="/docs/documentation/queues-monitoring">мониторинг очередей</a>.</li>
+    <li><b>Job</b>: <code>App\Jobs\BlogVk\PublishBlogPostToVkJob</code> — очередь <code>database</code>, имя очереди <code>default</code>, <code>tries = 1</code>, <code>timeout = 180</code> с (запас на вызов OpenAI для текста VK).</li>
+    <li>Повторный пост в VK для той же статьи блокируется, если статус уже <code>published</code>. Статус <code>failed</code> job <b>не обрабатывает</b> автоматически — только кнопка «Повторить» в списке статей.</li>
+    <li><b>Координатор</b>: <code>App\Services\BlogVk\BlogVkPublicationCoordinator</code> — когда ставить задачу, дедупликация job в <code>jobs</code>, сброс зависшего <code>publishing</code> (&gt;10 мин), cron для отложенных и «ждёт обложку».</li>
+    <li><b>Observer</b>: <code>App\Observers\BlogPostObserver</code> (событие <code>saved</code>) — при изменении статьи.</li>
+    <li><b>Текст</b>: <code>App\Services\BlogVk\BlogVkMessageBuilder</code> (+ <code>BlogVkAiMessageGenerator</code> при пустом <code>vk_message</code>).</li>
+    <li><b>API VK</b>: <code>App\Services\BlogVk\VkWallClient</code> (<code>wall.post</code>), <code>App\Services\BlogVk\VkWallPhotoUploader</code>.</li>
+    <li><b>Cron</b>: каждую минуту <code>php artisan blog:process-vk-publications</code> (<code>App\Console\Commands\ProcessBlogVkPublicationsCommand</code>, timezone <code>Europe/Moscow</code>).</li>
+    <li><b>Инфраструктура</b>: на сервере — <code>schedule:run</code> (cron) и worker с <code>queue:work database --queue=default</code> (см. <a href="/docs/documentation/queues-monitoring">мониторинг очередей</a>). Виджет очередей группирует задачи VK как «Публикация блога в VK».</li>
+  </ul>
+
+  <h4>Логи (<code>storage/logs/queue.log</code>)</h4>
+  <p>При публикации в VK пишутся строки канала <code>queue</code>, например:</p>
+  <ul>
+    <li><code>PublishBlogPostToVkJob started</code></li>
+    <li><code>VK AI message generated</code> — успешная генерация текста</li>
+    <li><code>VK message: AI skipped, using template fallback</code> — использован шаблон</li>
+    <li><code>VK photos.getWallUploadServer</code>, <code>VK photo uploaded for wall</code>, <code>has_photo: true</code></li>
+    <li><code>VK: загрузка фото не удалась, пост без картинки</code> — fallback без фото</li>
+    <li><code>PublishBlogPostToVkJob published</code> / <code>PublishBlogPostToVkJob error</code></li>
   </ul>
 
   <h2>6) Таблицы БД (блог + VK)</h2>
@@ -195,22 +232,45 @@ VK_UTM_CAMPAIGN=blog</pre>
   </table>
 
   <h2>7) Настройки в админке (<code>/admin/blog/settings</code>)</h2>
+  <p>Доступ: право <code>blog.view</code> (как и остальные страницы <code>/admin/blog/*</code>). Сохранение — <code>POST admin.blog.settings.update</code>.</p>
   <ul>
     <li>SEO блога, OG по умолчанию, шаблон title статьи.</li>
-    <li>Блок «ИИ: генерация статей» — модель, бюджет, промпты, изображения.</li>
-    <li>Блок «ВКонтакте» — вкл/выкл (<code>blog.vk.enabled</code>), шаблон текста VK; индикатор «VK API настроен» смотрит на <code>.env</code>.</li>
+    <li>Блок «ИИ: генерация статей» — модель OpenAI, дневной бюджет, промпт статьи, настройки изображений (общий бюджет для VK-анонсов).</li>
+    <li>Блок «ВКонтакте: публикация статей» — см. таблицу ключей <code>settings</code> ниже.</li>
   </ul>
+  <p>Индикаторы на странице настроек:</p>
+  <ul>
+    <li><b>VK API настроен</b> — <code>VK_ENABLED</code>, <code>VK_GROUP_ID</code>, <code>VK_GROUP_TOKEN</code> в <code>.env</code>.</li>
+    <li><b>Фото в VK: VK_USER_TOKEN задан</b> / <b>без VK_USER_TOKEN (только текст + ссылка)</b> — наличие <code>VK_USER_TOKEN</code> в <code>.env</code> (не проверяет работоспособность API photos).</li>
+  </ul>
+
+  <h3>7.1) Ключи настроек VK в БД (<code>settings</code>, <code>partner_id = null</code>)</h3>
+  <table>
+    <thead><tr><th>Ключ</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td><code>blog.vk.enabled</code></td><td>Глобально включить публикацию в VK из CRM (при наличии <code>.env</code>)</td></tr>
+      <tr><td><code>blog.vk.ai_enabled</code></td><td>Генерировать текст анонса через OpenAI, если <code>vk_message</code> пустой (по умолчанию вкл.)</td></tr>
+      <tr><td><code>blog.vk.message_template</code></td><td>Fallback-шаблон текста: <code>{title}</code>, <code>{excerpt}</code>, <code>{url}</code>, <code>{category}</code></td></tr>
+      <tr><td><code>blog.vk.ai_prompt_template</code></td><td>Промпт для OpenAI (friendly, уникальный анонс; дефолт — <code>App\Services\BlogVk\BlogVkDefaultPrompts</code>)</td></tr>
+    </tbody>
+  </table>
 
   <h2>8) Feature-тесты</h2>
   <p>Папка <code>tests/Feature/Crm/Blog/</code>:</p>
-  <ul>
-    <li><code>BlogVkPublicationTest</code> — сценарии VK (очередь, обложка, отложенные, ошибки API, UTM, idempotent).</li>
-    <li><code>BlogVkSectionFullAccessFeatureTest</code> — доступ к VK UI и <code>vk/retry</code>.</li>
-    <li><code>BlogSectionFullAccessFeatureTest</code> — все GET/POST endpoint'ы блога с <code>blog.view</code> → 200/redirect.</li>
-    <li><code>BlogAuthorizationTest</code> — middleware <code>can:blog.view</code> на всех маршрутах, включая <code>admin.blog.posts.vk.retry</code>.</li>
-    <li><code>BlogPagesSmokeTest</code>, <code>BlogPostsCrudTest</code>, <code>Ai/BlogAiRequestsTest</code> — остальной функционал блога.</li>
-  </ul>
-  <p>Запуск: <code>php artisan test tests/Feature/Crm/Blog/</code></p>
+  <table>
+    <thead><tr><th>Класс</th><th>Что проверяет</th></tr></thead>
+    <tbody>
+      <tr><td><code>BlogVkPublicationTest</code></td><td>Очередь, обложка, отложенные публикации, ошибки VK API, UTM, idempotent, retry</td></tr>
+      <tr><td><code>BlogVkAiFeatureTest</code></td><td>ИИ-анонс VK: настройки, генератор, fallback, обрезка до 400 символов, бюджет</td></tr>
+      <tr><td><code>BlogVkSectionFullAccessFeatureTest</code></td><td>Доступ к VK UI, <code>vk/retry</code>, настройки VK/ИИ на странице settings</td></tr>
+      <tr><td><code>BlogSettingsFullAccessFeatureTest</code></td><td>Доступ к <code>/admin/blog/settings</code>: GET 200, POST сохранение, 403 без <code>blog.view</code></td></tr>
+      <tr><td><code>BlogSectionFullAccessFeatureTest</code></td><td>Все основные GET/POST блога с <code>blog.view</code></td></tr>
+      <tr><td><code>BlogAuthorizationTest</code></td><td>Middleware <code>can:blog.view</code> на маршрутах блога</td></tr>
+      <tr><td><code>BlogPagesSmokeTest</code>, <code>BlogPostsCrudTest</code>, <code>BlogSettingsFeatureTest</code>, <code>Ai/BlogAiRequestsTest</code></td><td>Остальной функционал блога и ИИ статей</td></tr>
+    </tbody>
+  </table>
+  <p>Запуск VK и настроек: <code>php artisan test tests/Feature/Crm/Blog/BlogVkPublicationTest.php tests/Feature/Crm/Blog/BlogVkAiFeatureTest.php tests/Feature/Crm/Blog/BlogVkSectionFullAccessFeatureTest.php tests/Feature/Crm/Blog/BlogSettingsFullAccessFeatureTest.php</code></p>
+  <p>Весь блог: <code>php artisan test tests/Feature/Crm/Blog/</code></p>
 </div>
 </body>
 </html>

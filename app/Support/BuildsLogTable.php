@@ -15,11 +15,35 @@ trait BuildsLogTable
     {
         $partnerId = app('current_partner')->id;
 
+        $request = request();
         $logs = MyLog::query()
             ->with(['author', 'user'])
             ->where('partner_id', $partnerId)
             ->when(!is_null($type), fn($q) => $q->where('type', $type))
+            ->when($request->filled('created_from'), function ($q) use ($request) {
+                $q->whereDate('my_logs.created_at', '>=', (string) $request->input('created_from'));
+            })
+            ->when($request->filled('created_to'), function ($q) use ($request) {
+                $q->whereDate('my_logs.created_at', '<=', (string) $request->input('created_to'));
+            })
+            ->when($request->filled('filter_action'), function ($q) use ($request) {
+                $q->where('my_logs.action', (int) $request->input('filter_action'));
+            })
+            ->when($request->filled('filter_author'), function ($q) use ($request) {
+                $term = trim((string) $request->input('filter_author'));
+                if ($term !== '') {
+                    $q->whereHas('author', fn($authorQ) => $authorQ->where('full_name', 'like', '%' . $term . '%'));
+                }
+            })
+            ->when($request->filled('filter_target_label'), function ($q) use ($request) {
+                $term = trim((string) $request->input('filter_target_label'));
+                if ($term !== '') {
+                    $q->where('my_logs.target_label', 'like', '%' . $term . '%');
+                }
+            })
             ->select('my_logs.*');
+
+        $actionLabels = MyLog::actionLabels();
 
         return DataTables::of($logs)
             // 👤 Имя автора вместо author_id
@@ -33,80 +57,8 @@ trait BuildsLogTable
                     ?? '—';
             })
             // 🏷 Человекочитаемый action
-            ->editColumn('action', function ($log) {
-                // Логика для преобразования типа
-                $typeLabels = [
-
-                    11 => 'Изм. цен во всех группах (Применить слева)', //Применить слева
-                    12 => 'Инд. изм. цен (Применить справа)', //Применить справа
-                    13 => 'Изм. цен в одной группе  (ок)', //Кнопка "ок"
-                    14 => 'Ручная отметка оплаты месяца (users_prices)',
-
-                    21 => 'Создание пользователя',
-                    22 => 'Обновление учетной записи в пользователях',
-                    23 => 'Обновление учетной записи',
-                    24 => 'Удаление пользователя в пользователях',
-                    25 => 'Изменение пароля (админ)',
-                    26 => 'Изменение пароля',
-                    27 => 'Изменение аватара (админ)',
-                    28 => 'Изменение аватара',
-                    29 => 'Удаление аватара',
-                    299 => 'Удаление аватара (админ)',
-
-                    210 => 'Изменение доп полей пользователя',
-                    211 => 'Изменение номера телефона',
-
-
-                    31 => 'Создание группы',
-                    32 => 'Изменение группы',
-                    33 => 'Удаление группы',
-
-                    40 => 'Авторизация',
-
-                    50 => 'Платежи',
-
-
-
-                    500 => 'Договор создан',
-
-                    510 => 'Создан запрос на подпись (create)',
-                    511 => 'Повторная отправка (успешно)',
-                    512 => 'Повторная отправка (ошибка)',
-                    513 => 'Первичная отправка (успешно)',
-                    514 => 'Первичная отправка (ошибка)',
-                    519 => 'Получатель открыл СМС',
-                    520 => 'Договор подписан',
-
-
-
-                    60 => 'Расписание',
-                    601 => 'Отмена пробного занятия в расписании',
-
-                    70 => 'Изменение настроек',
-
-                    710 => 'Создание роли',
-                    720 => 'Изменение роли',
-                    730 => 'Удаление роли',
-
-                    80 => 'Изменение партнера',
-                    81 => 'Создание партнера суперадмином',
-                    82 => 'Изменение партнера суперадмином',
-                    83 => 'Удаление партнера',
-
-
-                    90 => 'Создание статуса расписания',
-                    91 => 'Изменение статуса расписания',
-                    92 => 'Удаление статуса расписания',
-
-                    900 => 'Создание договора',
-                    901 => 'Изменение отправка договора в SMS',
-                    902 => 'Удаление договора',
-
-
-
-
-                ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип (setting)';
+            ->editColumn('action', function ($log) use ($actionLabels) {
+                return $actionLabels[$log->action] ?? 'Неизвестный тип (setting)';
             })
             ->editColumn('created_at', function ($log) {
                 return $log->created_at

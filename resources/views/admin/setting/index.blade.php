@@ -69,6 +69,19 @@
                             </a>
                         </li>
                     @endcan
+
+                    @can('viewing.all.logs')
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeTab == 'logs' ? 'active' : '' }}"
+                               href="{{ route('admin.setting.logs') }}"
+                               id="logs-tab"
+                               role="tab"
+                               aria-controls="logs"
+                               aria-selected="{{ $activeTab == 'logs' ? 'true' : 'false' }}">
+                                Логи
+                            </a>
+                        </li>
+                    @endcan
                 </ul>
                 <div class="tab-content">
                 @if($activeTab === 'setting')
@@ -105,10 +118,10 @@
                         ])
                     @elseif($activeTab === 'queues')
                         @include('admin.setting.queues')
+                    @elseif($activeTab === 'logs')
+                        @include('admin.setting.logs')
                     @endif
                 </div>
             </div>
     </div>
-    <!-- Модальное окно логов -->
-    @include('includes.logModal')
 @endsection

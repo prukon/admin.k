@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Tests\Feature\Crm\Blog\Concerns\ConfiguresBlogVk;
+use Tests\Feature\Crm\Blog\Concerns\ProvidesBlogSettingsPayload;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
@@ -19,6 +20,7 @@ use Tests\Feature\Crm\CrmTestCase;
 final class BlogVkSectionFullAccessFeatureTest extends CrmTestCase
 {
     use ConfiguresBlogVk;
+    use ProvidesBlogSettingsPayload;
 
     private BlogPost $blogPost;
 
@@ -164,7 +166,23 @@ final class BlogVkSectionFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.blog.settings.edit'))
             ->assertOk()
             ->assertSee('ВКонтакте: публикация статей', escape: false)
-            ->assertSee('Шаблон текста для VK', escape: false);
+            ->assertSee('Текст VK через ИИ', escape: false)
+            ->assertSee('Шаблон текста для VK (fallback)', escape: false)
+            ->assertSee('Промпт ИИ для анонса VK', escape: false);
+    }
+
+    public function test_admin_can_save_blog_settings_with_vk_ai_fields(): void
+    {
+        $this->asAdmin();
+        $this->grantBlogViewToCurrentUser();
+
+        $this->from(route('admin.blog.settings.edit'))
+            ->post(route('admin.blog.settings.update'), $this->validBlogSettingsPayload([
+                'vk_ai_enabled' => '1',
+            ]))
+            ->assertRedirect(route('admin.blog.settings.edit'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
     }
 
     /**
@@ -178,6 +196,11 @@ final class BlogVkSectionFullAccessFeatureTest extends CrmTestCase
                 [
                     'method' => 'POST',
                     'url' => route('admin.blog.posts.vk.retry', $this->blogPost),
+                ],
+                [
+                    'method' => 'POST',
+                    'url' => route('admin.blog.settings.update'),
+                    'data' => $this->validBlogSettingsPayload(),
                 ],
             ]
         );
@@ -223,6 +246,11 @@ final class BlogVkSectionFullAccessFeatureTest extends CrmTestCase
                 [
                     'method' => 'POST',
                     'url' => route('admin.blog.posts.vk.retry', $this->blogPost),
+                ],
+                [
+                    'method' => 'POST',
+                    'url' => route('admin.blog.settings.update'),
+                    'data' => $this->validBlogSettingsPayload(),
                 ],
             ]
         );

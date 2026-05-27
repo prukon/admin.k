@@ -453,6 +453,30 @@ class SettingsControllerTest extends CrmTestCase
             ->assertHeader('Content-Type', 'application/json');
     }
 
+    public function test_logs_page_requires_viewing_all_logs_permission(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+
+        $this->asUserWithoutPermission('viewing.all.logs');
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->get(route('admin.setting.logs'))->assertStatus(403);
+
+        $this->actingAs($this->user);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $html = $this->get(route('admin.setting.logs'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('id="settingsLogsTable"', $html);
+        $this->assertStringContainsString('payments-report-filters-toggle', $html);
+        $this->assertStringContainsString('id="settings-logs-filters"', $html);
+        $this->assertStringContainsString('Логи', $html);
+        $this->assertStringNotContainsString('data-bs-target="#historyModal"', $html);
+    }
+
     public function test_queues_page_requires_separate_permission(): void
     {
         // Есть доступ в "Настройки", но нет отдельного права "Очереди".

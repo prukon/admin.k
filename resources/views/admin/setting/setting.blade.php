@@ -102,16 +102,6 @@
 <div class="table-responsive mt-3">
     <table class="table ">
         <tbody>
-        @can('viewing.all.logs')
-            <tr>
-                <td>Журнал событий</td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-primary width-160" id="logs"
-                            data-bs-toggle="modal" data-bs-target="#historyModal">История изменений
-                    </button>
-                </td>
-            </tr>
-        @endcan
         <tr>
             <td>Меню в шапке</td>
             <td class="text-center">
@@ -376,10 +366,6 @@
                 });
             });
 
-
-            @can('viewing.all.logs')
-                showLogModal("{{ route('settings.logs.data') }}");
-            @endcan
 
             @can('settings.registration.manage')
             // Вызов модалки Активность регистрации

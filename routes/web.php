@@ -617,6 +617,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     // Логи текущего партнёра (все типы)
     Route::middleware('can:viewing.all.logs')->group(function () {
+        Route::get('admin/settings/logs', [SettingController::class, 'showLogs'])
+            ->middleware('can:settings.view')
+            ->name('admin.setting.logs');
         Route::get('admin/settings/logs-data', [SettingController::class, 'logsData'])->name('settings.logs.data');
     });
 

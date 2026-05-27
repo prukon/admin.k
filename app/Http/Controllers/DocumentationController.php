@@ -36,7 +36,7 @@ class DocumentationController extends Controller
         'contracts'                   => 'Договоры (клиентские): карточка, родитель, SMS/Подпислон, скачивание',
         'contract-templates'          => 'Шаблоны договоров DOCX: версии, поля, email, режим «форма клиенту»',
         'school-leads-widget'         => 'Заявки с сайта: виджет, CRM, лид→клиент→договор, toolbar, Telegram',
-        'blog'                        => 'Блог: /blog, админка (blog.view), ИИ, публикация в VK',
+        'blog'                        => 'Блог: /blog, админка (blog.view), ИИ, VK (kidscrm): анонс ИИ, очередь default',
     ];
 
     /**
