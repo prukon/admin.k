@@ -59,6 +59,16 @@ class BlogVkSettings
         return (string) config('services.vk.access_token');
     }
 
+    public function userAccessToken(): string
+    {
+        return (string) config('services.vk.user_access_token', '');
+    }
+
+    public function canUploadPhotos(): bool
+    {
+        return $this->userAccessToken() !== '';
+    }
+
     public function apiVersion(): string
     {
         return (string) config('services.vk.api_version', '5.199');

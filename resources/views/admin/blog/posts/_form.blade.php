@@ -70,7 +70,7 @@
         </div>
         @error('publish_to_vk')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
         <div class="text-muted small mt-1">
-            Пост уйдёт после публикации на сайте и появления обложки (VK подтянет превью по ссылке из OG страницы).
+            Пост уйдёт после публикации на сайте и появления обложки. С <code>VK_USER_TOKEN</code> в .env обложка прикрепится к посту как фото.
         </div>
     </div>
 

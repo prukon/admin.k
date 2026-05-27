@@ -105,34 +105,60 @@
     <li>В настройках блога (<code>/admin/blog/settings</code>): «Публикация в VK» = включено (<code>blog.vk.enabled</code> в <code>settings</code>).</li>
     <li>На форме статьи включена галочка <b>«Опубликовать в VK»</b> (<code>publish_to_vk</code>).</li>
     <li>Статья <b>впервые</b> стала видимой на сайте (<code>is_published</code> + <code>published_at &lt;= now()</code>).</li>
-    <li>Есть <code>cover_image_path</code> — без обложки статус VK: <b>«Ждёт обложку»</b> (превью ссылки в VK берётся из <code>og:image</code> страницы статьи).</li>
+    <li>Есть <code>cover_image_path</code> — без обложки статус VK: <b>«Ждёт обложку»</b>.</li>
     <li>Ещё нет успешной публикации VK (<code>status != published</code> в <code>blog_post_social_publications</code>).</li>
   </ul>
 
   <h3>5.2) Содержимое поста VK</h3>
   <ul>
     <li><b>Текст</b>: поле «Текст для VK» на форме статьи; если пусто — шаблон из настроек (<code>blog.vk.message_template</code>), переменные: <code>{title}</code>, <code>{excerpt}</code>, <code>{url}</code>, <code>{category}</code>. Лимит — <b>500 символов</b>.</li>
-    <li><b>Ссылка</b> на статью с UTM: <code>utm_source=vk</code>, <code>utm_medium=social</code>, <code>utm_campaign=blog</code> (значения из <code>config/services.php</code> / <code>.env</code>). Вложение в <code>wall.post</code> — только URL; картинка в посте VK — из OG-превью страницы (<code>og:image</code> = обложка статьи).</li>
+    <li><b>Ссылка</b> на статью с UTM: <code>utm_source=vk</code>, <code>utm_medium=social</code>, <code>utm_campaign=blog</code> (в тексте поста).</li>
+    <li><b>Фото</b>: обложка статьи (<code>cover_image_path</code>) загружается в VK и прикрепляется к посту, если задан <code>VK_USER_TOKEN</code>. Без него — только текст и ссылка.</li>
   </ul>
 
   <div class="note">
-    Загрузка обложки через <code>photos.getWallUploadServer</code> <b>не используется</b>: токен сообщества не поддерживает этот метод (ошибка 27 «method is unavailable with group auth»). Достаточно токена группы с правом <b>запись на стене</b>.
+    <code>VK_GROUP_TOKEN</code> — публикация на стену (<code>wall.post</code>). Загрузка фото (<code>photos.getWallUploadServer</code>) токеном группы недоступна (ошибка 27), поэтому нужен <code>VK_USER_TOKEN</code> пользователя с правами редактора группы.
   </div>
 
   <h3>5.3) Переменные окружения (.env)</h3>
   <pre>VK_ENABLED=true
 VK_GROUP_ID=123456789
 VK_GROUP_TOKEN=vk1.a....
+VK_USER_TOKEN=vk1.a....
 VK_API_VERSION=5.199
 VK_UTM_SOURCE=vk
 VK_UTM_MEDIUM=social
 VK_UTM_CAMPAIGN=blog</pre>
   <p><code>VK_GROUP_ID</code> — числовой ID сообщества (в API: <code>owner_id = -VK_GROUP_ID</code>). Short name <code>kidscrm</code> в URL группы — не подставлять вместо числового ID.</p>
 
+  <h3>5.3.1) Где взять VK_USER_TOKEN</h3>
+  <p>Нужен <b>токен пользователя</b> — аккаунт должен быть <b>редактором или администратором</b> группы <code>kidscrm</code>.</p>
+  <p><b>Важно:</b> старый кабинет <code>dev.vk.com</code> больше не настраивает Standalone-приложения. Приложение создаётся в <b>VK ID</b> (через VK Бизнес ID).</p>
+
+  <h4>Шаг A — приложение в VK ID</h4>
+  <ol>
+    <li>Откройте <a href="https://id.vk.com/about/business/go" target="_blank" rel="noopener">кабинет VK ID</a> (вход через VK Бизнес ID).</li>
+    <li>Создайте приложение → платформа <b>Web</b>.</li>
+    <li>При создании заполните:
+      <ul>
+        <li><b>Базовый домен</b>: <code>oauth.vk.com</code></li>
+        <li><b>Доверенный redirect URL</b> (это и есть бывший «redirect URI»): <code>https://oauth.vk.com/blank.html</code></li>
+      </ul>
+    </li>
+    <li>Скопируйте <b>ID приложения</b> (<code>client_id</code>).</li>
+  </ol>
+
+  <h4>Шаг B — получить токен на сервере</h4>
+  <pre>php artisan blog:vk-user-token --client-id=ВАШ_CLIENT_ID</pre>
+  <p>Команда выдаст ссылку для браузера, вы разрешите доступ, вставите URL из адресной строки — получите строку для <code>VK_USER_TOKEN</code> в <code>.env</code>.</p>
+  <p>Опционально в <code>.env</code>: <code>VK_OAUTH_CLIENT_ID=...</code> — тогда флаг <code>--client-id</code> не нужен.</p>
+
   <div class="warn">
-    <b>Токен сообщества</b> создаётся в VK: Управление группой → Работа с API → Ключи доступа.
-    Достаточно права <b>запись на стене</b> (и управление сообществом). Отдельный user token не нужен.
-    Токен хранится только в <code>.env</code>, не в таблице <code>settings</code>.
+    Старый способ «<code>oauth.vk.com/authorize?...&amp;response_type=token</code>» для новых приложений VK ID <b>не работает</b> — нужен OAuth 2.1 с PKCE (команда выше делает это за вас).
+  </div>
+
+  <div class="warn">
+    <b>Токен сообщества</b> (<code>VK_GROUP_TOKEN</code>): Управление группой → Работа с API → Ключи доступа, право <b>запись на стене</b>.
   </div>
 
   <h3>5.4) Статусы в списке статей (колонка VK)</h3>
@@ -152,7 +178,7 @@ VK_UTM_CAMPAIGN=blog</pre>
   <h3>5.5) Очередь, планировщик, код</h3>
   <ul>
     <li>Job: <code>App\Jobs\BlogVk\PublishBlogPostToVkJob</code> (очередь <code>database</code>, очередь <code>default</code>, до 5 попыток). Повторная отправка в VK блокируется проверкой статуса <code>published</code> в job, а не дублями в <code>jobs</code>.</li>
-    <li>Клиент VK: <code>App\Services\BlogVk\VkWallClient</code>; координатор: <code>BlogVkPublicationCoordinator</code>; observer: <code>BlogPostObserver</code> (событие <code>saved</code>).</li>
+    <li>Клиент VK: <code>App\Services\BlogVk\VkWallClient</code>, загрузка фото: <code>App\Services\BlogVk\VkWallPhotoUploader</code>; координатор: <code>BlogVkPublicationCoordinator</code>; observer: <code>BlogPostObserver</code> (событие <code>saved</code>).</li>
     <li>Cron: каждую минуту <code>php artisan blog:process-vk-publications</code> (<code>App\Console\Kernel</code>, timezone <code>Europe/Moscow</code>) — отложенные статьи и ожидание обложки.</li>
     <li>На сервере должны работать <code>schedule:run</code> (cron) и <code>queue:work</code>. См. также <a href="/docs/documentation/queues-monitoring">мониторинг очередей</a>.</li>
   </ul>

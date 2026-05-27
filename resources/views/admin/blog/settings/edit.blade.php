@@ -301,7 +301,8 @@
                 <hr class="my-4">
                 <div class="h5 mb-0">ВКонтакте: публикация статей</div>
                 <div class="text-muted small mt-1">
-                    Токен и ID группы задаются в <code>.env</code> (<code>VK_GROUP_TOKEN</code>, <code>VK_GROUP_ID</code>, <code>VK_ENABLED</code>).
+                    Токены и ID группы — в <code>.env</code>: <code>VK_GROUP_TOKEN</code>, <code>VK_GROUP_ID</code>, <code>VK_ENABLED</code>;
+                    для <b>фото в посте</b> дополнительно <code>VK_USER_TOKEN</code> (токен пользователя-редактора группы).
                     Группа: <a href="https://vk.com/kidscrm" target="_blank" rel="noopener">vk.com/kidscrm</a>.
                 </div>
             </div>
@@ -333,6 +334,11 @@
                     <span class="badge bg-success">VK API настроен (.env)</span>
                 @else
                     <span class="badge bg-warning text-dark">VK API не настроен — проверьте .env</span>
+                @endif
+                @if(!empty($vk_photo_configured))
+                    <span class="badge bg-success">Фото в VK: VK_USER_TOKEN задан</span>
+                @else
+                    <span class="badge bg-secondary">Фото в VK: без VK_USER_TOKEN (только текст + ссылка)</span>
                 @endif
             </div>
 

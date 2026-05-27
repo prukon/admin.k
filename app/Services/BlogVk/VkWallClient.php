@@ -6,6 +6,7 @@ use App\Services\BlogVk\Exceptions\VkApiException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class VkWallClient
 {
@@ -13,15 +14,16 @@ class VkWallClient
 
     public function __construct(
         private readonly BlogVkSettings $settings,
+        private readonly VkWallPhotoUploader $photoUploader,
     ) {
     }
 
     /**
-     * Публикация на стену группы: текст + ссылка в message (без attachments).
+     * Публикация на стену группы: текст + ссылка; при VK_USER_TOKEN и обложке — фото.
      *
      * @return array{post_id: int, owner_id: int}
      */
-    public function publishPost(string $message, string $articleUrl): array
+    public function publishPost(string $message, string $articleUrl, ?string $coverStoragePath = null): array
     {
         $groupId = $this->settings->groupId();
         if ($groupId <= 0) {
@@ -31,17 +33,25 @@ class VkWallClient
         $ownerId = -$groupId;
         $text = $this->messageWithUrl($message, $articleUrl);
 
-        Log::channel('queue')->info('VK wall.post', [
-            'owner_id' => $ownerId,
-            'url' => $articleUrl,
-            'message_length' => mb_strlen($text, 'UTF-8'),
-        ]);
-
-        $response = $this->call('wall.post', [
+        $postParams = [
             'owner_id' => $ownerId,
             'from_group' => 1,
             'message' => $text,
+        ];
+
+        $photoAttachment = $this->tryUploadCoverAttachment($coverStoragePath);
+        if ($photoAttachment !== null) {
+            $postParams['attachments'] = $photoAttachment;
+        }
+
+        Log::channel('queue')->info('VK wall.post', [
+            'owner_id' => $ownerId,
+            'url' => $articleUrl,
+            'has_photo' => $photoAttachment !== null,
+            'message_length' => mb_strlen($text, 'UTF-8'),
         ]);
+
+        $response = $this->call('wall.post', $postParams);
 
         $postId = (int) data_get($response, 'response.post_id', 0);
         if ($postId <= 0) {
@@ -51,12 +61,45 @@ class VkWallClient
         Log::channel('queue')->info('VK wall.post ok', [
             'owner_id' => $ownerId,
             'post_id' => $postId,
+            'has_photo' => $photoAttachment !== null,
         ]);
 
         return [
             'post_id' => $postId,
             'owner_id' => $ownerId,
         ];
+    }
+
+    private function tryUploadCoverAttachment(?string $coverStoragePath): ?string
+    {
+        if ($coverStoragePath === null || $coverStoragePath === '') {
+            return null;
+        }
+
+        if (!$this->settings->canUploadPhotos()) {
+            Log::channel('queue')->info('VK: фото пропущено (нет VK_USER_TOKEN)', []);
+
+            return null;
+        }
+
+        $absolute = Storage::disk('public')->path($coverStoragePath);
+        if (!is_file($absolute)) {
+            Log::channel('queue')->warning('VK: обложка не найдена на диске', [
+                'path' => $coverStoragePath,
+            ]);
+
+            return null;
+        }
+
+        try {
+            return $this->photoUploader->uploadWallPhoto($absolute);
+        } catch (VkApiException $e) {
+            Log::channel('queue')->warning('VK: загрузка фото не удалась, пост без картинки', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     private function messageWithUrl(string $message, string $articleUrl): string

@@ -70,6 +70,8 @@ return [
         'enabled' => filter_var(env('VK_ENABLED', false), FILTER_VALIDATE_BOOL),
         'group_id' => env('VK_GROUP_ID'),
         'access_token' => env('VK_GROUP_TOKEN'),
+        'user_access_token' => env('VK_USER_TOKEN'),
+        'oauth_client_id' => env('VK_OAUTH_CLIENT_ID'),
         'api_version' => env('VK_API_VERSION', '5.199'),
         'utm' => [
             'source' => env('VK_UTM_SOURCE', 'vk'),

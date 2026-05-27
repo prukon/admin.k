@@ -74,6 +74,37 @@ trait ConfiguresBlogVk
         ]);
     }
 
+    protected function configureBlogVkUserToken(): void
+    {
+        config(['services.vk.user_access_token' => 'test-user-token']);
+    }
+
+    protected function fakeVkApiWithPhotoUpload(): void
+    {
+        Http::fake([
+            'api.vk.com/method/photos.getWallUploadServer*' => Http::response([
+                'response' => [
+                    'upload_url' => 'https://pu.vk.com/upload/',
+                    'album_id' => 1,
+                ],
+            ]),
+            'https://pu.vk.com/*' => Http::response([
+                'server' => 123,
+                'photo' => 'photo_payload',
+                'hash' => 'hash_value',
+            ]),
+            'api.vk.com/method/photos.saveWallPhoto*' => Http::response([
+                'response' => [[
+                    'id' => 456,
+                    'owner_id' => -123456,
+                ]],
+            ]),
+            'api.vk.com/method/wall.post*' => Http::response([
+                'response' => ['post_id' => 999],
+            ]),
+        ]);
+    }
+
     protected function fakeVkApiWallPostError(): void
     {
         Http::fake([

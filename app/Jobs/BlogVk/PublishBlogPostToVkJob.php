@@ -124,7 +124,7 @@ class PublishBlogPostToVkJob implements ShouldQueue
             $publicUrl = $urlBuilder->build($post);
             $message = $messageBuilder->build($post, $publicUrl);
 
-            $result = $vkClient->publishPost($message, $publicUrl);
+            $result = $vkClient->publishPost($message, $publicUrl, $post->cover_image_path);
 
             $externalId = sprintf('%d_%d', $result['owner_id'], $result['post_id']);
 

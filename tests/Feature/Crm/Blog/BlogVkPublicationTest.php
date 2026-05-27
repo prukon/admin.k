@@ -147,6 +147,40 @@ class BlogVkPublicationTest extends BlogAdminFeatureTestCase
         Queue::assertPushed(PublishBlogPostToVkJob::class, fn ($job) => $job->blogPostId === $post->id);
     }
 
+    public function test_job_publishes_with_photo_when_user_token_configured(): void
+    {
+        $this->configureBlogVkUserToken();
+        $this->fakeVkApiWithPhotoUpload();
+
+        $post = BlogPost::withoutEvents(fn () => $this->makePublishedBlogPostForVk([
+            'vk_message' => 'Текст с фото',
+        ]));
+
+        BlogPostSocialPublication::query()->create([
+            'blog_post_id' => $post->id,
+            'platform' => BlogPostSocialPublication::PLATFORM_VK,
+            'status' => BlogPostSocialPublication::STATUS_PENDING,
+        ]);
+
+        app()->call([new PublishBlogPostToVkJob($post->id), 'handle']);
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'photos.getWallUploadServer'));
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'photos.saveWallPhoto'));
+
+        Http::assertSent(function ($request) {
+            if (!str_contains($request->url(), 'api.vk.com/method/wall.post')) {
+                return false;
+            }
+
+            return str_contains((string) $request->body(), 'attachments=photo-123456_456');
+        });
+
+        $this->assertDatabaseHas('blog_post_social_publications', [
+            'blog_post_id' => $post->id,
+            'status' => BlogPostSocialPublication::STATUS_PUBLISHED,
+        ]);
+    }
+
     public function test_job_publishes_text_with_url_via_wall_post(): void
     {
         $this->fakeVkApiSuccess();

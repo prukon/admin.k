@@ -57,6 +57,7 @@ class BlogSettingsController extends Controller
             'vk_configured' => (bool) config('services.vk.enabled')
                 && (string) config('services.vk.group_id', '') !== ''
                 && (string) config('services.vk.access_token', '') !== '',
+            'vk_photo_configured' => (string) config('services.vk.user_access_token', '') !== '',
         ]);
     }
 
