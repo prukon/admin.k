@@ -138,6 +138,7 @@ class BlogVkPublicationCoordinator
         }
 
         $ids = DB::table('jobs')
+            ->whereIn('queue', ['default', 'blog_vk'])
             ->where('payload', 'like', '%PublishBlogPostToVkJob%')
             ->pluck('id');
 

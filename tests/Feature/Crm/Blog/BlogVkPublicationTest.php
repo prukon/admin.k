@@ -147,7 +147,7 @@ class BlogVkPublicationTest extends BlogAdminFeatureTestCase
         Queue::assertPushed(PublishBlogPostToVkJob::class, fn ($job) => $job->blogPostId === $post->id);
     }
 
-    public function test_job_publishes_with_link_snippet_via_parse_attached_link(): void
+    public function test_job_publishes_text_with_url_via_wall_post(): void
     {
         $this->fakeVkApiSuccess();
 
@@ -159,8 +159,6 @@ class BlogVkPublicationTest extends BlogAdminFeatureTestCase
 
         app()->call([new PublishBlogPostToVkJob($post->id), 'handle']);
 
-        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.vk.com/method/wall.parseAttachedLink'));
-
         Http::assertSent(function ($request) {
             if (!str_contains($request->url(), 'api.vk.com/method/wall.post')) {
                 return false;
@@ -168,35 +166,20 @@ class BlogVkPublicationTest extends BlogAdminFeatureTestCase
 
             $body = (string) $request->body();
 
-            return str_contains($body, 'attachments=')
-                && str_contains($body, 'link_photo_id=')
-                && str_contains($body, 'link_title=')
+            return str_contains($body, 'message=')
+                && !str_contains($body, 'attachments=')
                 && !str_contains($request->url(), 'photos.');
         });
 
-        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'photos.getWallUploadServer'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'wall.parseAttachedLink'));
     }
 
-    public function test_job_publishes_without_attachment_when_parse_has_no_photo(): void
+    public function test_job_marks_failed_without_requeue_on_vk_error(): void
     {
-        Http::fake([
-            'api.vk.com/method/wall.parseAttachedLink*' => Http::response([
-                'response' => [
-                    'data' => [[
-                        'type' => 'link',
-                        'link' => [
-                            'title' => 'Без фото',
-                        ],
-                    ]],
-                ],
-            ]),
-            'api.vk.com/method/wall.post*' => Http::response([
-                'response' => ['post_id' => 888],
-            ]),
-        ]);
+        $this->fakeVkApiWallPostError();
 
         $post = BlogPost::withoutEvents(fn () => $this->makePublishedBlogPostForVk([
-            'vk_message' => 'Только текст',
+            'vk_message' => 'Текст',
         ]));
 
         BlogPostSocialPublication::query()->create([
@@ -207,65 +190,14 @@ class BlogVkPublicationTest extends BlogAdminFeatureTestCase
 
         app()->call([new PublishBlogPostToVkJob($post->id), 'handle']);
 
-        Http::assertSent(function ($request) {
-            if (!str_contains($request->url(), 'api.vk.com/method/wall.post')) {
-                return false;
-            }
-
-            $body = (string) $request->body();
-
-            return !str_contains($body, 'attachments=')
-                && str_contains($body, 'message=');
-        });
-
         $this->assertDatabaseHas('blog_post_social_publications', [
             'blog_post_id' => $post->id,
-            'status' => BlogPostSocialPublication::STATUS_PUBLISHED,
-            'external_post_id' => '-123456_888',
-        ]);
-    }
-
-    public function test_job_publishes_without_attachment_when_parse_fails(): void
-    {
-        Http::fake([
-            'api.vk.com/method/wall.parseAttachedLink*' => Http::response([
-                'error' => [
-                    'error_code' => 100,
-                    'error_msg' => 'Invalid link',
-                ],
-            ]),
-            'api.vk.com/method/wall.post*' => Http::response([
-                'response' => ['post_id' => 777],
-            ]),
+            'status' => BlogPostSocialPublication::STATUS_FAILED,
         ]);
 
-        $post = BlogPost::withoutEvents(fn () => $this->makePublishedBlogPostForVk([
-            'vk_message' => 'Текст без сниппета',
-        ]));
-
-        BlogPostSocialPublication::query()->create([
-            'blog_post_id' => $post->id,
-            'platform' => BlogPostSocialPublication::PLATFORM_VK,
-            'status' => BlogPostSocialPublication::STATUS_PENDING,
-        ]);
-
-        app()->call([new PublishBlogPostToVkJob($post->id), 'handle']);
-
-        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.vk.com/method/wall.parseAttachedLink'));
-
-        Http::assertSent(function ($request) {
-            if (!str_contains($request->url(), 'api.vk.com/method/wall.post')) {
-                return false;
-            }
-
-            return !str_contains((string) $request->body(), 'attachments=');
-        });
-
-        $this->assertDatabaseHas('blog_post_social_publications', [
-            'blog_post_id' => $post->id,
-            'status' => BlogPostSocialPublication::STATUS_PUBLISHED,
-            'external_post_id' => '-123456_777',
-        ]);
+        $this->assertSame(0, DB::table('jobs')
+            ->where('payload', 'like', '%PublishBlogPostToVkJob%')
+            ->count());
     }
 
     public function test_job_publishes_once_and_is_idempotent(): void
@@ -457,7 +389,7 @@ class BlogVkPublicationTest extends BlogAdminFeatureTestCase
         try {
             app()->call([new PublishBlogPostToVkJob($post->id), 'handle']);
         } catch (\Throwable) {
-            // Job rethrows for queue retries.
+            // Job больше не пробрасывает исключение после markFailed.
         }
 
         $this->assertDatabaseHas('blog_post_social_publications', [

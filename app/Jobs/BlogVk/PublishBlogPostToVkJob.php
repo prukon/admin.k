@@ -22,15 +22,13 @@ class PublishBlogPostToVkJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 5;
+    public int $tries = 1;
 
-    /** @var array<int, int> */
-    public array $backoff = [60, 300, 900, 1800, 3600];
+    public int $timeout = 120;
 
     public function __construct(
         public readonly int $blogPostId,
     ) {
-        $this->onQueue('blog_vk');
     }
 
     public function handle(
@@ -39,20 +37,12 @@ class PublishBlogPostToVkJob implements ShouldQueue
         BlogVkUrlBuilder $urlBuilder,
         VkWallClient $vkClient,
     ): void {
+        Log::channel('queue')->info('PublishBlogPostToVkJob started', [
+            'blog_post_id' => $this->blogPostId,
+        ]);
+
         if ($reason = $settings->disabledReason()) {
-            $publication = BlogPostSocialPublication::query()
-                ->where('blog_post_id', $this->blogPostId)
-                ->where('platform', BlogPostSocialPublication::PLATFORM_VK)
-                ->first();
-
-            if ($publication) {
-                $this->markFailed($publication, $reason, new \RuntimeException($reason));
-            }
-
-            Log::warning('PublishBlogPostToVkJob aborted: VK not configured', [
-                'blog_post_id' => $this->blogPostId,
-                'reason' => $reason,
-            ]);
+            $this->abortWithError($reason);
 
             return;
         }
@@ -63,7 +53,7 @@ class PublishBlogPostToVkJob implements ShouldQueue
             ->find($this->blogPostId);
 
         if (!$post) {
-            Log::warning('PublishBlogPostToVkJob: post not found', [
+            Log::channel('queue')->warning('PublishBlogPostToVkJob: post not found', [
                 'blog_post_id' => $this->blogPostId,
             ]);
 
@@ -82,6 +72,18 @@ class PublishBlogPostToVkJob implements ShouldQueue
         }
 
         if ($publication->status === BlogPostSocialPublication::STATUS_PUBLISHED) {
+            Log::channel('queue')->info('PublishBlogPostToVkJob: already published', [
+                'blog_post_id' => $post->id,
+            ]);
+
+            return;
+        }
+
+        if ($publication->status === BlogPostSocialPublication::STATUS_FAILED) {
+            Log::channel('queue')->info('PublishBlogPostToVkJob: skipped (status failed, use retry)', [
+                'blog_post_id' => $post->id,
+            ]);
+
             return;
         }
 
@@ -133,22 +135,51 @@ class PublishBlogPostToVkJob implements ShouldQueue
                 'error_message' => null,
                 'published_at' => now(),
             ]);
-        } catch (VkApiException $e) {
-            $this->markFailed($publication, $e->getMessage(), $e);
 
-            throw $e;
-        } catch (Throwable $e) {
+            Log::channel('queue')->info('PublishBlogPostToVkJob published', [
+                'blog_post_id' => $post->id,
+                'external_post_id' => $externalId,
+            ]);
+        } catch (VkApiException|Throwable $e) {
             $this->markFailed($publication, $e->getMessage(), $e);
-
-            throw $e;
         }
     }
 
     public function failed(?Throwable $exception): void
     {
-        Log::channel('stack')->warning('PublishBlogPostToVkJob failed permanently', [
+        Log::channel('queue')->error('PublishBlogPostToVkJob failed permanently', [
             'blog_post_id' => $this->blogPostId,
             'message' => $exception?->getMessage(),
+        ]);
+
+        $publication = BlogPostSocialPublication::query()
+            ->where('blog_post_id', $this->blogPostId)
+            ->where('platform', BlogPostSocialPublication::PLATFORM_VK)
+            ->first();
+
+        if ($publication && $publication->status !== BlogPostSocialPublication::STATUS_PUBLISHED) {
+            $this->markFailed(
+                $publication,
+                $exception?->getMessage() ?? 'Неизвестная ошибка job',
+                $exception ?? new \RuntimeException('Job failed'),
+            );
+        }
+    }
+
+    private function abortWithError(string $reason): void
+    {
+        $publication = BlogPostSocialPublication::query()
+            ->where('blog_post_id', $this->blogPostId)
+            ->where('platform', BlogPostSocialPublication::PLATFORM_VK)
+            ->first();
+
+        if ($publication) {
+            $this->markFailed($publication, $reason, new \RuntimeException($reason));
+        }
+
+        Log::channel('queue')->error('PublishBlogPostToVkJob aborted', [
+            'blog_post_id' => $this->blogPostId,
+            'reason' => $reason,
         ]);
     }
 
@@ -162,7 +193,7 @@ class PublishBlogPostToVkJob implements ShouldQueue
             'error_message' => mb_substr($message, 0, 2000, 'UTF-8'),
         ]);
 
-        Log::warning('VK publication failed', [
+        Log::channel('queue')->error('PublishBlogPostToVkJob error', [
             'blog_post_id' => $publication->blog_post_id,
             'attempts' => $publication->attempts,
             'error' => $e->getMessage(),
