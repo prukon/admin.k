@@ -1,199 +1,67 @@
 <?php
 
-
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Partner\UpdateRequest;
 use App\Models\Partner;
-use App\Models\Team;
 use App\Models\User;
+use App\Services\PartnerContext;
 use App\Services\UserService;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
-use Yajra\DataTables\DataTables;
-
 use App\Models\MyLog;
 
-
-//Контроллер для админа
-
-class PartnerSettingController extends Controller
+class PartnerSettingController extends AdminBaseController
 {
     protected UserService $service;
 
-    public function __construct(UserService $service)
+    public function __construct(UserService $service, PartnerContext $partnerContext)
     {
+        parent::__construct($partnerContext);
         $this->service = $service;
-    }
-
-    public function user()
-    {
-        $allTeams = Team::All();
-        $user = Auth::user();
-        $partners = $user->partner ? collect([$user->partner]) : collect();
-
-        return view('admin.editCurUser',  ['activeTab' => 'user'], compact(
-            'user',
-            'partners',
-            'allTeams'
-        ));
     }
 
     public function partner()
     {
-        $allTeams = Team::All();
-        $user = Auth::user();
-
-        // В проекте один user -> один partner (users.partner_id)
-        $partner = $user->partner;
-        if (!$partner) {
-            abort(404);
-        }
+        $partner = $this->requirePartner();
+        $user = $this->currentUser();
         $partners = collect([$partner]);
 
-        return view('account.index',  ['activeTab' => 'partner'], compact(
+        // Вкладка «Организация» не использует группы; переменная нужна шаблону account.index.
+        $allTeams = collect();
+
+        return view('account.index', ['activeTab' => 'partner'], compact(
             'user',
             'partners',
             'partner',
-            'allTeams'
+            'allTeams',
         ));
     }
 
-    public function updatePartner2(UpdateRequest $request, Partner $partner)
-    {
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $authorName = User::where('id', $authorId)->value('name');
-
-        // Сохраняем старые данные до обновления
-        $oldData = $partner->toArray();
-
-        // Данные, валидированные в Request
-        $data = $request->validated();
-
-        DB::transaction(function () use ($partner, $authorId, $authorName, $oldData, $data ) {
-
-
-            if (array_key_exists('organization_name', $data)) {
-                $data['organization_name'] = trim((string)$data['organization_name']);
-                $data['organization_name'] = $data['organization_name'] === '' ? null : $data['organization_name'];
-            }
-
-            // Определим, есть ли вообще изменения
-            $changedFields = [];
-//            foreach ($data as $key => $newValue) {
-//                // Проверяем, было ли поле в старых данных и отличается ли оно
-//                $oldValue = $oldData[$key] ?? null;
-//                if ($oldValue != $newValue) {
-//                    $changedFields[] = $key;
-//                }
-//            }
-
-            foreach ($data as $key => $newValue) {
-                $oldValue = $oldData[$key] ?? null;
-
-                // Приводим null и "" к одному виду для корректного сравнения
-                $oldValueNormalized = ($oldValue === '' ? null : $oldValue);
-                $newValueNormalized = ($newValue === '' ? null : $newValue);
-
-                if ($oldValueNormalized != $newValueNormalized) {
-                    $changedFields[] = $key;
-                }
-            }
-
-
-
-            $oldTitle = $oldData['title'] ?? null;
-        $oldId = $oldData['id'] ?? null;
-
-            // Если изменений нет, просто выходим из транзакции без записи лога
-            if (empty($changedFields)) {
-                return;
-            }
-
-            // Обновление партнёра
-            $partner->update($data);
-
-            // Словарь переводов для поля business_type
-            $businessTypeTranslate = [
-                'company'                     => 'ООО',
-                'individual_entrepreneur'     => 'ИП',
-                'physical_person'             => 'Физ. лицо',
-                'non_commercial_organization' => 'НКО',
-            ];
-
-            // Формируем строку старых значений (только изменяемых полей,
-            // но по требованию можно выводить абсолютно все поля $data)
-            $oldString = '(' . implode(', ', array_map(function ($key) use ($oldData) {
-                    return $oldData[$key] ?? '';
-                }, array_keys($data))) . ')';
-
-            // Формируем строку новых значений
-            $newString = '(' . implode(', ', array_map(function ($key) use ($data, $businessTypeTranslate) {
-                    $value = $data[$key] ?? '';
-                    if ($key === 'business_type' && isset($businessTypeTranslate[$value])) {
-                        $value = $businessTypeTranslate[$value];
-                    }
-                    return $value;
-                }, array_keys($data))) . ')';
-
-            $description = "Название: {$oldTitle}. ID: {$oldId}.\n"
-                . "Старые:\n{$oldString}.\n"
-                . "Новые:\n{$newString}.";
-
-            // Записываем лог
-            MyLog::create([
-                'type'       => 2,   // или ваш тип для обновления
-                'action'     => 80,  // или ваш action для обновления партнера
-                'author_id'  => $authorId,
-                'description'=> $description,
-                'created_at' => now(),
-            ]);
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Данные партнёра успешно обновлены.',
-        ]);
-
-    }
-
-
     public function updatePartner(UpdateRequest $request, Partner $partner)
     {
-        $currentPartner = app('current_partner');
-        if (!$currentPartner || (int)$currentPartner->id !== (int)$partner->id) {
-            abort(403);
+        if ((int) $partner->id !== $this->requirePartnerId()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Доступ запрещён.',
+            ], 403);
         }
 
-        $authorId = auth()->id(); // Авторизованный пользователь
-        $authorName = User::where('id', $authorId)->value('name');
+        $authorId = auth()->id();
 
-        // Сохраняем старые данные до обновления
         $oldData = $partner->toArray();
-
-        // Данные, валидированные в Request
         $data = $request->validated();
 
-        // Нормализуем пустые строки -> null (чтобы не ловить "ложные изменения" по organization_name)
         if (array_key_exists('organization_name', $data)) {
             $data['organization_name'] = trim((string) $data['organization_name']);
             $data['organization_name'] = $data['organization_name'] === '' ? null : $data['organization_name'];
         }
 
-        DB::transaction(function () use ($partner, $authorId, $authorName, $oldData, $data) {
-
-            // Определим, есть ли вообще изменения
+        DB::transaction(function () use ($partner, $authorId, $oldData, $data) {
             $changedFields = [];
             foreach ($data as $key => $newValue) {
-                // Проверяем, было ли поле в старых данных и отличается ли оно
                 $oldValue = $oldData[$key] ?? null;
 
-                // Приводим null и "" к одному виду для корректного сравнения
                 $oldValueNormalized = ($oldValue === '' ? null : $oldValue);
                 $newValueNormalized = ($newValue === '' ? null : $newValue);
 
@@ -205,15 +73,12 @@ class PartnerSettingController extends Controller
             $oldTitle = $oldData['title'] ?? null;
             $oldId = $oldData['id'] ?? null;
 
-            // Если изменений нет, просто выходим из транзакции без записи лога
             if (empty($changedFields)) {
                 return;
             }
 
-            // Обновление партнёра
             $partner->update($data);
 
-            // Словарь переводов для поля business_type
             $businessTypeTranslate = [
                 'company'                     => 'ООО',
                 'individual_entrepreneur'     => 'ИП',
@@ -221,39 +86,35 @@ class PartnerSettingController extends Controller
                 'non_commercial_organization' => 'НКО',
             ];
 
-            // Формируем строку старых значений (только изменяемых полей)
             $oldString = '(' . implode(', ', array_map(function ($key) use ($oldData) {
-                    return $oldData[$key] ?? '';
-                }, $changedFields)) . ')';
+                return $oldData[$key] ?? '';
+            }, $changedFields)) . ')';
 
-            // Формируем строку новых значений (только изменяемых полей)
             $newString = '(' . implode(', ', array_map(function ($key) use ($data, $businessTypeTranslate) {
-                    $value = $data[$key] ?? '';
-                    if ($key === 'business_type' && isset($businessTypeTranslate[$value])) {
-                        $value = $businessTypeTranslate[$value];
-                    }
-                    return $value;
-                }, $changedFields)) . ')';
+                $value = $data[$key] ?? '';
+                if ($key === 'business_type' && isset($businessTypeTranslate[$value])) {
+                    $value = $businessTypeTranslate[$value];
+                }
+
+                return $value;
+            }, $changedFields)) . ')';
 
             $description = "Название: {$oldTitle}. ID: {$oldId}.\n"
                 . "Старые:\n{$oldString}.\n"
                 . "Новые:\n{$newString}.";
 
-            // Записываем лог
             MyLog::create([
-                'type'       => 2,   // или ваш тип для обновления
-                'action'     => 80,  // или ваш action для обновления партнера
+                'type'       => 2,
+                'action'     => 80,
                 'author_id'  => $authorId,
                 'description'=> $description,
                 'created_at' => now(),
             ]);
         });
 
-
         return response()->json([
             'success' => true,
             'message' => 'Данные партнёра успешно обновлены.',
         ]);
     }
-
 }

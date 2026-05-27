@@ -489,8 +489,14 @@ class UserController extends AdminBaseController
 
     public function edit(User $user)
     {
-        // 1) Контекст через AdminBaseController
-        $partnerId   = $this->partnerId();
+        $partnerId = $this->requirePartnerId();
+        $user = $this->scopeByPartner(
+            User::query()->with(['fields', 'location', 'role', 'trainerProfile.teams']),
+            'users.partner_id'
+        )
+            ->whereKey($user->id)
+            ->firstOrFail();
+
         $currentUser = $this->currentUser();
         $isSuperadmin = $this->isSuperAdmin();
 
@@ -520,9 +526,6 @@ class UserController extends AdminBaseController
             'label'  => $r->label,
             'system' => (bool) $r->is_sistem,
         ])->all();
-
-        // 4) Загружаем связи user->fields (pivot value) и локацию
-        $user->load(['fields', 'location', 'role', 'trainerProfile.teams']);
 
         if (request()->ajax()) {
             // Преобразуем модель в массив
@@ -567,9 +570,12 @@ class UserController extends AdminBaseController
 
     public function update(UpdateRequest $request, User $user)
     {
-        // Актор (кто редактирует) через базовый контроллер
+        $partnerId = $this->requirePartnerId();
+        $user = $this->scopeByPartner(User::query(), 'users.partner_id')
+            ->whereKey($user->id)
+            ->firstOrFail();
+
         $actor = $this->currentUser();
-        $partnerId = $this->partnerId();
 
         $user->load(['team', 'role', 'location']);
 
@@ -763,13 +769,9 @@ class UserController extends AdminBaseController
 
     public function delete(User $user)
     {
-        // Проверяем, имеет ли актор право трогать этого юзера
-        $partnerId = $this->partnerId();
-        $isSuper   = $this->isSuperAdmin();
-
-        if ($partnerId && !$isSuper && (int) $user->partner_id !== (int) $partnerId) {
-            abort(403, 'Доступ запрещён.');
-        }
+        $user = $this->scopeByPartner(User::query(), 'users.partner_id')
+            ->whereKey($user->id)
+            ->firstOrFail();
 
         DB::transaction(function () use ($user) {
             $targetLabel = $user->full_name ?: "user#{$user->id}";
@@ -797,14 +799,11 @@ class UserController extends AdminBaseController
 
     public function updatePassword(UpdatePasswordRequest $request, User $user)
     {
-        $partnerId = $this->partnerId();
-        $actor     = $this->currentUser();
-        $isSuper   = $this->isSuperAdmin();
+        $user = $this->scopeByPartner(User::query(), 'users.partner_id')
+            ->whereKey($user->id)
+            ->firstOrFail();
 
-        // Ограничение по партнёру: не супер-админ → можно менять пароль только своим
-        if ($partnerId !== null && !$isSuper && (int) $user->partner_id !== (int) $partnerId) {
-            abort(403, 'Доступ запрещён.');
-        }
+        $actor = $this->currentUser();
 
         $newPassword = $request->validated()['password'];
 

@@ -22,6 +22,8 @@ use Illuminate\Support\Str;               // ← вот это
 use App\Models\PermissionGroup;
 use App\Services\PartnerContext;
 use App\Services\Roles\AssignPartnerRolePermissionsFromConfig;
+use App\Services\Roles\PartnerRoleDeletionService;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 
 class RuleController extends AdminBaseController
@@ -31,6 +33,7 @@ class RuleController extends AdminBaseController
     public function __construct(
         PartnerContext $partnerContext,
         private readonly AssignPartnerRolePermissionsFromConfig $assignPartnerRolePermissionsFromConfig,
+        private readonly PartnerRoleDeletionService $partnerRoleDeletionService,
     ) {
         parent::__construct($partnerContext);
     }
@@ -115,6 +118,13 @@ class RuleController extends AdminBaseController
         $permId    = (int) $data['permission_id'];
         $partnerId = $this->requirePartnerId();
         $authorId  = auth()->id();
+
+        if (! $this->roleIsManageableForPartner($roleId, $partnerId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Роль не найдена или недоступна для текущего партнёра.',
+            ], 403);
+        }
 
         DB::transaction(function () use ($roleId, $permId, $partnerId, $attach, $authorId) {
             // Заберём сущности для лога
@@ -262,49 +272,20 @@ class RuleController extends AdminBaseController
             'role_id' => 'required|integer|exists:roles,id',
         ]);
 
-        $role = Role::findOrFail($request->role_id);
-
-        if ($role->is_sistem == 1) {
+        try {
+            $this->partnerRoleDeletionService->deleteForPartner(
+                $partnerId,
+                (int) $request->role_id,
+                auth()->id(),
+            );
+        } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Нельзя удалять системную роль!',
             ], 400);
+        } catch (NotFoundHttpException) {
+            abort(404);
         }
-
-        $defaultRole = Role::firstOrCreate(
-            ['name' => 'user'],
-            [
-                'label' => 'Пользователь',
-                'is_sistem' => 1,
-                'order_by' => 0,
-            ]
-        );
-
-        DB::transaction(function () use ($role, $defaultRole, $partnerId) {
-            DB::table('permission_role')
-                ->where('role_id', $role->id)
-                ->delete();
-
-            User::where('role_id', $role->id)
-                ->update(['role_id' => $defaultRole->id]);
-
-            $role->delete();
-
-            $authorId = auth()->id(); // Авторизованный пользователь
-
-            // Логируем создание пользователя
-            MyLog::create([
-                'type' => 700,    // Лог для ролей
-                'action' => 730, // Лог для удаления роли
-                'author_id' => $authorId,
-                'partner_id'  => $partnerId,
-                'description' => sprintf(
-                    "Название: %s",
-                    $role->name
-                ),
-                'created_at' => now(),
-            ]);
-        });
 
         return response()->json([
             'success' => true,
@@ -339,5 +320,19 @@ class RuleController extends AdminBaseController
                 return $typeLabels[$log->action] ?? 'Неизвестный тип(user)';
             })
             ->make(true);
+    }
+
+    /**
+     * Роль доступна для управления правами: системная или привязана к партнёру через partner_role.
+     */
+    private function roleIsManageableForPartner(int $roleId, int $partnerId): bool
+    {
+        return Role::query()
+            ->whereKey($roleId)
+            ->where(function ($q) use ($partnerId) {
+                $q->where('is_sistem', 1)
+                    ->orWhereHas('partners', fn ($q2) => $q2->where('partner_role.partner_id', $partnerId));
+            })
+            ->exists();
     }
 }

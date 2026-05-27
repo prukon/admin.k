@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Support\PartnerScopeMode;
 
 abstract class AdminBaseController extends Controller
 {
@@ -70,5 +71,17 @@ abstract class AdminBaseController extends Controller
     protected function scopeByPartner($query, string $column = 'partner_id')
     {
         return $this->partnerContext->scopeByPartner($query, $column);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $query
+     */
+    protected function applyPartnerScope(
+        $query,
+        string $column = 'partner_id',
+        PartnerScopeMode $mode = PartnerScopeMode::STRICT_CURRENT,
+        ?string $filterPartnerId = null,
+    ) {
+        return $this->partnerContext->applyPartnerScope($query, $column, $mode, $filterPartnerId);
     }
 }

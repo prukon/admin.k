@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Настройки → Логи: журнал изменений (my_logs)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+    th, td { border: 1px solid #e5e7eb; padding: 10px; vertical-align: top; text-align: left; }
+    th { background: #f9fafb; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Настройки → Логи: журнал изменений (<code>my_logs</code>)</h1>
+  <div class="small">Файл: <code>/docs/documentation/settings-logs.html</code></div>
+
+  <div class="note">
+    <b>Назначение.</b> Отдельная вкладка <b>«Настройки → Логи»</b> (<code>/admin/settings/logs</code>) — единый журнал аудита
+    по таблице <code>my_logs</code> для текущего партнёра. Раньше тот же контент открывался модальным окном «История изменений»
+    на вкладке «Общие»; модалка убрана, просмотр только через вкладку.
+  </div>
+
+  <div class="warn">
+    Permission <code>viewing.all.logs</code> (в справочнике: «Просмотр всех логов») означает доступ к <b>журналу всех типов событий</b>
+    в рамках разрешённого partner-scope, а не «логи всех партнёров» для обычного админа.
+    Cross-partner (все школы сразу) — только у роли <code>superadmin</code> на этой вкладке.
+    На отчёте «Платежи» то же право даёт кнопку «История» T‑Bank — см.
+    <a href="/docs/documentation/reports-payments#tbank-history">отчёт «Платежи»</a>.
+  </div>
+
+  <h2>1) Доступ и права</h2>
+  <table>
+    <thead>
+      <tr><th>Что</th><th>Permission / роль</th><th>Примечание</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Страница вкладки <code>GET /admin/settings/logs</code></td>
+        <td><code>viewing.all.logs</code> + <code>settings.view</code></td>
+        <td>Оба middleware <code>can:…</code> на маршруте</td>
+      </tr>
+      <tr>
+        <td>DataTables API <code>GET /admin/settings/logs-data</code></td>
+        <td><code>viewing.all.logs</code></td>
+        <td>Без отдельного <code>settings.view</code></td>
+      </tr>
+      <tr>
+        <td>Просмотр логов всех партнёров</td>
+        <td>только <code>superadmin</code></td>
+        <td>Фильтр «Все партнёры» и колонка «Партнёр» в UI</td>
+      </tr>
+      <tr>
+        <td>Обычный админ партнёра</td>
+        <td><code>viewing.all.logs</code></td>
+        <td>Только записи с <code>my_logs.partner_id = current_partner</code>, даже если в AJAX передать <code>filter_partner_id=all</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Контекст CRM: <code>auth + 2fa + SetPartner</code>. См. также
+    <a href="/docs/documentation/partner-context">партнёр-контекст</a> и
+    <a href="/docs/documentation/partners-permissions">права в разрезе партнёра</a>.</p>
+
+  <h2>2) Маршруты</h2>
+  <ul>
+    <li><code>GET /admin/settings/logs</code> — HTML (вкладка внутри <code>admin.setting.index</code>, <code>activeTab = logs</code>).</li>
+    <li><code>GET /admin/settings/logs-data</code> — JSON для jQuery DataTables (server-side).</li>
+  </ul>
+  <p>Имена маршрутов: <code>admin.setting.logs</code>, <code>settings.logs.data</code> (<code>routes/web.php</code>).</p>
+
+  <h2>3) Интерфейс</h2>
+  <ul>
+    <li><b>Шапка</b> в стиле отчёта «Платежи» / «Комиссии Т‑Банк»: карточка <code>payments-report-*</code>, CSS
+      <code>resources/css/admin-list-toolbar.css</code> (подключается через Vite на вкладке).</li>
+    <li><b>Кнопка «Фильтры»</b> — сворачиваемая панель с полями фильтрации и кнопками «Применить» / «Сброс» (перезагрузка DataTables без перезагрузки страницы).</li>
+    <li><b>Таблица</b> — server-side DataTables, по умолчанию <b>10</b> строк на странице, сортировка по умолчанию: «Дата создания» по убыванию.</li>
+  </ul>
+
+  <h3>3.1 Колонки таблицы</h3>
+  <ol>
+    <li>ID</li>
+    <li>Дата создания (<code>created_at</code>, формат <code>d.m.Y / H:i:s</code>)</li>
+    <li><b>Партнёр</b> — только для <code>superadmin</code> (колонка <code>partner_title</code>)</li>
+    <li>Действие (человекочитаемая подпись из <code>MyLog::actionLabels()</code>)</li>
+    <li>Автор (<code>author</code> → ФИО пользователя)</li>
+    <li>Что меняли (<code>target_label</code>)</li>
+    <li>Описание (<code>description</code>, переносы строк → <code>&lt;br&gt;</code> в ячейке)</li>
+  </ol>
+
+  <h3>3.2 Фильтры</h3>
+  <table>
+    <thead>
+      <tr><th>Поле</th><th>Параметр запроса</th><th>Кто видит</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Партнёр</td>
+        <td><code>filter_partner_id</code>: <code>all</code> или id партнёра</td>
+        <td>только superadmin; по умолчанию «Все партнёры» (<code>all</code>)</td>
+      </tr>
+      <tr><td>Дата: с / по</td><td><code>created_from</code>, <code>created_to</code> (date)</td><td>все с правом</td></tr>
+      <tr><td>Действие</td><td><code>filter_action</code> (код <code>action</code>)</td><td>все с правом</td></tr>
+      <tr><td>Автор</td><td><code>filter_author</code> (подстрока по имени/фамилии/ФИО)</td><td>все с правом</td></tr>
+      <tr><td>Что меняли</td><td><code>filter_target_label</code> (LIKE)</td><td>все с правом</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4) Partner-scope: режим <code>SUPERADMIN_ALL_OR_FILTER</code></h2>
+  <div class="note">
+    На этой вкладке для API логов включён режим <code>App\Support\PartnerScopeMode::SUPERADMIN_ALL_OR_FILTER</code>
+    (реализация в <code>PartnerContext::applyPartnerScope()</code>, вызов из трейта <code>BuildsLogTable</code>
+    только из <code>SettingController::logsData</code>).
+  </div>
+  <ul>
+    <li><b>STRICT_CURRENT</b> (по умолчанию в остальных местах) — всегда <code>where partner_id = current_partner</code>, если партнёр в контексте задан.</li>
+    <li><b>SUPERADMIN_ALL_OR_FILTER</b> (только вкладка «Логи»):
+      <ul>
+        <li>superadmin + <code>filter_partner_id</code> пусто / <code>all</code> → без фильтра по <code>partner_id</code> (все партнёры);</li>
+        <li>superadmin + числовой <code>filter_partner_id</code> → один партнёр;</li>
+        <li>не superadmin → как STRICT_CURRENT (подмена <code>all</code> в AJAX игнорируется на сервере).</li>
+      </ul>
+    </li>
+  </ul>
+  <p>Подробнее о контексте и anti-leak: <a href="/docs/documentation/partner-context#partner-scope-modes">partner-context.html</a>.</p>
+
+  <h2>5) Данные и код</h2>
+  <ul>
+    <li><b>Таблица БД:</b> <code>my_logs</code> (<code>partner_id</code>, <code>type</code>, <code>action</code>, <code>author_id</code>, <code>target_*</code>, <code>description</code>, <code>created_at</code>).</li>
+    <li><b>Билдер:</b> трейт <code>App\Support\BuildsLogTable</code> — единый DataTables для логов на разных страницах (пользователи, группы, расписание, партнёры, настройки цен, правила…). На вкладке «Логи» передаётся <code>type = null</code> (все типы).</li>
+    <li><b>Подписи действий:</b> <code>MyLog::actionLabels()</code> — общий словарь кодов <code>action</code>.</li>
+    <li><b>Контроллер:</b> <code>App\Http\Controllers\Admin\Setting\SettingController</code> — <code>showLogs()</code>, <code>logsData()</code>.</li>
+    <li><b>View:</b> <code>resources/views/admin/setting/logs.blade.php</code> (подключается из <code>admin/setting/index.blade.php</code>).</li>
+  </ul>
+
+  <h3>5.1 Другие экраны с логами (без изменений)</h3>
+  <p>Модалки «История изменений» на других страницах по-прежнему используют <code>BuildsLogTable</code> с режимом по умолчанию
+    (<code>STRICT_CURRENT</code>) и фильтром по <code>type</code>:</p>
+  <ul>
+    <li>пользователи — <code>GET /admin/user/logs-data</code> (<code>type = 2</code>);</li>
+    <li>группы — <code>GET /admin/teams/logs-data</code> (<code>type = 3</code>);</li>
+    <li>расписание — <code>GET /schedule/logs-data</code> (<code>type = 9</code>);</li>
+    <li>права и роли — <code>GET /admin/setting/rules/logs-data</code>;</li>
+    <li>партнёры — <code>GET /admin/partner/logs-data</code> (<code>type = 80</code>);</li>
+    <li>цены — <code>GET /admin/setting-prices/logs-data</code> (<code>type = 1</code>).</li>
+  </ul>
+  <p>Не путать с вкладкой <b>«Настройки → Очереди»</b> и файлом <code>storage/logs/queue.log</code> — это операционный лог воркера, не <code>my_logs</code>
+    (<a href="/docs/documentation/queues-monitoring">очереди в админке</a>).</p>
+
+  <h2>6) Отличие от вкладки «Общие»</h2>
+  <ul>
+    <li>На вкладке «Общие» (<code>/admin/settings</code>) кнопка «История изменений» и модалка <code>#historyModal</code> <b>удалены</b>.</li>
+    <li>Журнал всех типов событий партнёра перенесён на вкладку «Логи» с расширенными фильтрами и (для superadmin) выбором партнёра.</li>
+  </ul>
+
+  <h2>7) Автотесты</h2>
+  <ul>
+    <li><code>tests/Feature/Crm/Settings/SettingsLogsPageFullAccessFeatureTest.php</code> — доступ (200/403), superadmin cross-partner, фильтры, сортировка по партнёру, UI.</li>
+    <li><code>tests/Feature/Crm/Settings/SettingsControllerTest.php</code> — базовые проверки прав на маршруты логов.</li>
+  </ul>
+
+  <h2>8) Связанные разделы</h2>
+  <ul>
+    <li><a href="/docs/documentation/partner-scope-guide">Руководство: partner_id для админа и superadmin</a></li>
+    <li><a href="/docs/documentation/partner-context">Партнёр-контекст и SetPartner</a></li>
+    <li><a href="/docs/documentation/settings-roles-custom">Настройки → Права и роли</a></li>
+    <li><a href="/docs/documentation/reports-payments">Отчёт «Платежи» (история T‑Bank и <code>viewing.all.logs</code>)</a></li>
+    <li><a href="/docs/documentation/queues-monitoring">Настройки → Очереди</a> (не <code>my_logs</code>)</li>
+  </ul>
+</div>
+</body>
+</html>

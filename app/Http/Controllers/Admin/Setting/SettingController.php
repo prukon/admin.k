@@ -20,7 +20,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use App\Support\BuildsLogTable;
+use App\Support\PartnerScopeMode;
 use App\Services\PartnerContext;
+use App\Models\Partner;
 
 class SettingController extends AdminBaseController
 {
@@ -129,9 +131,18 @@ class SettingController extends AdminBaseController
         $logActionLabels = MyLog::actionLabels();
         asort($logActionLabels);
 
+        $logPartners = collect();
+        if ($this->isSuperAdmin()) {
+            $logPartners = Partner::query()
+                ->orderBy('title')
+                ->get(['id', 'title']);
+        }
+
         return view('admin.setting.index', [
             'activeTab' => 'logs',
             'logActionLabels' => $logActionLabels,
+            'isLogsSuperadmin' => $this->isSuperAdmin(),
+            'logPartners' => $logPartners,
         ]);
     }
 
@@ -487,10 +498,10 @@ class SettingController extends AdminBaseController
         return response()->json(['success' => true]);
     }
 
-    //Журнал логов (все типы) текущего партнёра
+    // Журнал логов (все типы): partner-scope по режиму SUPERADMIN_ALL_OR_FILTER
     public function logsData(FilterRequest $request)
     {
-        return $this->buildLogDataTable(null);
+        return $this->buildLogDataTable(null, PartnerScopeMode::SUPERADMIN_ALL_OR_FILTER);
     }
 
 //    Смена 2 Fa для админов

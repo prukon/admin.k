@@ -477,6 +477,102 @@ class SettingsControllerTest extends CrmTestCase
         $this->assertStringNotContainsString('data-bs-target="#historyModal"', $html);
     }
 
+    public function test_logs_data_superadmin_sees_all_partners_when_filter_all(): void
+    {
+        $this->asSuperadmin();
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->createPartnerLog($this->partner->id, 'log-home-partner');
+        $this->createPartnerLog($this->foreignPartner->id, 'log-foreign-partner');
+
+        $resp = $this->getJson(route('settings.logs.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 100,
+            'filter_partner_id' => 'all',
+        ]));
+
+        $resp->assertOk();
+        $this->assertGreaterThanOrEqual(2, (int) $resp->json('recordsTotal'));
+
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('log-home-partner', $descriptions);
+        $this->assertContains('log-foreign-partner', $descriptions);
+    }
+
+    public function test_logs_data_superadmin_can_filter_single_partner(): void
+    {
+        $this->asSuperadmin();
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->createPartnerLog($this->partner->id, 'log-only-home');
+        $this->createPartnerLog($this->foreignPartner->id, 'log-only-foreign');
+
+        $resp = $this->getJson(route('settings.logs.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 100,
+            'filter_partner_id' => (string) $this->foreignPartner->id,
+        ]));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('log-only-foreign', $descriptions);
+        $this->assertNotContains('log-only-home', $descriptions);
+    }
+
+    public function test_logs_data_non_superadmin_cannot_see_foreign_partner_even_with_filter_all(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->createPartnerLog($this->partner->id, 'log-scoped-home');
+        $this->createPartnerLog($this->foreignPartner->id, 'log-scoped-foreign');
+
+        $resp = $this->getJson(route('settings.logs.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 100,
+            'filter_partner_id' => 'all',
+        ]));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('log-scoped-home', $descriptions);
+        $this->assertNotContains('log-scoped-foreign', $descriptions);
+    }
+
+    public function test_logs_page_shows_partner_filter_only_for_superadmin(): void
+    {
+        $this->grantPermissionToCurrentRole('settings.view');
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $htmlAdmin = $this->get(route('admin.setting.logs'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="settings-logs-filter-partner"', $htmlAdmin);
+
+        $this->asSuperadmin();
+        $this->user->unsetRelation('role');
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $htmlSuper = $this->get(route('admin.setting.logs'))->assertOk()->getContent();
+        $this->assertStringContainsString('id="settings-logs-filter-partner"', $htmlSuper);
+        $this->assertStringContainsString('value="all"', $htmlSuper);
+    }
+
+    private function createPartnerLog(int $partnerId, string $description): void
+    {
+        MyLog::query()->create([
+            'type' => 1,
+            'action' => 70,
+            'author_id' => $this->user->id,
+            'partner_id' => $partnerId,
+            'target_type' => 'App\Models\Setting',
+            'target_id' => $partnerId,
+            'target_label' => 'Test',
+            'description' => $description,
+            'created_at' => now(),
+        ]);
+    }
+
     public function test_queues_page_requires_separate_permission(): void
     {
         // Есть доступ в "Настройки", но нет отдельного права "Очереди".

@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Как работать с partner_id: обычный админ и superadmin</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+    th, td { border: 1px solid #e5e7eb; padding: 10px; vertical-align: top; text-align: left; }
+    th { background: #f9fafb; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Как правильно работать с партнёром в CRM</h1>
+  <div class="small">Файл: <code>/docs/documentation/partner-scope-guide.html</code> · руководство для рефакторинга страниц</div>
+
+  <div class="note">
+    <b>Для кого.</b> Эта страница — практическая инструкция: как получать «текущего партнёра» для обычных пользователей
+    и как делать экраны, где <b>superadmin</b> видит данные всех школ (с фильтром «Все партнёры»).
+    Эталон реализации: вкладка <a href="/docs/documentation/settings-logs">Настройки → Логи</a>.
+    Теория middleware и блокировок: <a href="/docs/documentation/partner-context">partner-context.html</a>.
+  </div>
+
+  <h2>1) Две задачи — не путать</h2>
+  <table>
+    <thead>
+      <tr><th>Задача</th><th>Кто</th><th>Что в SQL</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>A. Обычная CRM-страница</b></td>
+        <td>Админ школы, тренер с правами, любой не-superadmin</td>
+        <td>Всегда <code>WHERE partner_id = current_partner</code></td>
+      </tr>
+      <tr>
+        <td><b>B. Cross-partner страница</b></td>
+        <td>Только <code>superadmin</code></td>
+        <td>Все партнёры, или один выбранный в фильтре</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="warn">
+    Permission <code>viewing.all.logs</code> и похожие названия <b>не означают</b> «все партнёры».
+    Cross-partner — только явный режим <code>SUPERADMIN_ALL_OR_FILTER</code> + проверка роли на сервере.
+  </div>
+
+  <h2>2) Цепочка на каждый HTTP-запрос</h2>
+  <pre>Браузер
+  → middleware web (auth, 2fa, …)
+  → middleware SetPartner
+       · не-superadmin: session('current_partner') = user.partner_id  (нельзя подменить)
+       · superadmin: session('current_partner') = выбранная в UI школа (может быть пусто → редирект)
+       · app()->instance('current_partner', Partner)
+  → Controller extends AdminBaseController
+       · методы делегируют в PartnerContext
+  → SQL с partner-scope</pre>
+
+  <h2>3) Слои кода (куда смотреть)</h2>
+  <table>
+    <thead>
+      <tr><th>Слой</th><th>Файл</th><th>Роль</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Middleware</td>
+        <td><code>App\Http\Middleware\SetPartner</code></td>
+        <td>Сессия, объект <code>app('current_partner')</code>, logout/редиректы</td>
+      </tr>
+      <tr>
+        <td>Сервис</td>
+        <td><code>App\Services\PartnerContext</code></td>
+        <td><code>isSuperAdmin()</code>, <code>partnerId()</code>, <code>applyPartnerScope()</code></td>
+      </tr>
+      <tr>
+        <td>Режим</td>
+        <td><code>App\Support\PartnerScopeMode</code></td>
+        <td><code>STRICT_CURRENT</code> | <code>SUPERADMIN_ALL_OR_FILTER</code></td>
+      </tr>
+      <tr>
+        <td>Базовый контроллер</td>
+        <td><code>App\Http\Controllers\AdminBaseController</code></td>
+        <td>Удобные <code>protected</code> методы для наследников</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4) Задача A — обычная страница (99% экранов)</h2>
+
+  <h3>4.1 Наследование контроллера</h3>
+  <div class="ok">
+    Админ-контроллер <b>всегда</b> extends <code>AdminBaseController</code> и принимает <code>PartnerContext</code> в конструкторе
+    (через <code>parent::__construct($partnerContext)</code>).
+  </div>
+  <pre>class TeamController extends AdminBaseController
+{
+    public function __construct(TeamService $service, PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+        // …
+    }
+}</pre>
+
+  <h3>4.2 Какие методы вызывать</h3>
+  <table>
+    <thead>
+      <tr><th>Нужно</th><th>Метод</th><th>Не использовать в новом коде</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>ID текущего партнёра</td>
+        <td><code>$this->requirePartnerId()</code> или <code>$this->partnerId()</code></td>
+        <td><code>app('current_partner')->id</code> напрямую</td>
+      </tr>
+      <tr>
+        <td>Модель Partner</td>
+        <td><code>$this->requirePartner()</code></td>
+        <td><code>Partner::find(session(...))</code></td>
+      </tr>
+      <tr>
+        <td>Ограничить Eloquent-запрос</td>
+        <td><code>$this->scopeByPartner($query, 'teams.partner_id')</code></td>
+        <td>ручной <code>->where('partner_id', …)</code> с ID из request</td>
+      </tr>
+      <tr>
+        <td>Проверка superadmin для UI</td>
+        <td><code>$this->isSuperAdmin()</code></td>
+        <td>только <code>Gate</code> без partner-scope</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>4.3 Пример списка / DataTables</h3>
+  <pre>public function data(FilterRequest $request)
+{
+  $query = Team::query()->with([...]);
+
+  // Режим по умолчанию STRICT_CURRENT — только current_partner
+  $this->scopeByPartner($query, 'teams.partner_id');
+
+  // дальше фильтры, сортировка, DataTables::of($query)…
+}</pre>
+
+  <h3>4.4 Создание / изменение записи</h3>
+  <ul>
+    <li>При <code>create</code> всегда проставляй <code>partner_id</code> из <code>$this->requirePartnerId()</code>, не из формы.</li>
+    <li>При <code>update</code> / <code>delete</code> сначала найди модель через запрос с <code>scopeByPartner</code> или проверь
+      <code>(int) $model->partner_id === $this->requirePartnerId()</code> — иначе 403/404.</li>
+    <li>В Form Request для валидации «принадлежит партнёру» можно брать ID из <code>app('current_partner')?->id</code>
+      (как в существующих Request), но <b>scope в контроллере обязателен</b>.</li>
+  </ul>
+
+  <h3>4.5 Режим по умолчанию</h3>
+  <p><code>scopeByPartner()</code> = <code>applyPartnerScope(..., PartnerScopeMode::STRICT_CURRENT)</code>.
+  Если <code>partnerId()</code> в контексте есть — в запрос добавится <code>where partner_id = …</code>.
+  Для не-superadmin <code>partnerId()</code> всегда совпадает с его школой.</p>
+
+  <h2>5) Задача B — страница «все партнёры» (только superadmin)</h2>
+
+  <h3>5.1 Когда нужен отдельный режим</h3>
+  <ul>
+    <li>Superadmin должен видеть строки <b>всех</b> школ в одной таблице.</li>
+    <li>В фильтрах есть «Все партнёры» и выбор конкретной школы.</li>
+    <li>Обычный админ этой страницы либо не видит, либо видит только свою школу (как на Логах — через permission, но scope жёсткий).</li>
+  </ul>
+
+  <h3>5.2 Сервер: явно передать режим</h3>
+  <p>На <b>конкретном</b> action (обычно JSON для DataTables), не глобально:</p>
+  <pre>use App\Support\PartnerScopeMode;
+
+public function data(Request $request)
+{
+    $query = MyModel::query();
+
+    $this->applyPartnerScope(
+        $query,
+        'my_table.partner_id',
+        PartnerScopeMode::SUPERADMIN_ALL_OR_FILTER,
+        $request->input('filter_partner_id'),
+    );
+
+    return DataTables::of($query)->…;
+}</pre>
+  <p>Логика <code>applyPartnerScope</code> при <code>SUPERADMIN_ALL_OR_FILTER</code>:</p>
+  <ul>
+    <li><b>superadmin</b> + <code>filter_partner_id</code> пусто / <code>all</code> → без <code>where partner_id</code>;</li>
+    <li><b>superadmin</b> + числовой <code>filter_partner_id</code> → один партнёр;</li>
+    <li><b>не superadmin</b> → всегда как задача A (<code>current_partner</code>), даже если в AJAX прислали <code>all</code>.</li>
+  </ul>
+
+  <h3>5.3 Если контроллер не наследует AdminBaseController</h3>
+  <p>В трейте/сервисе:</p>
+  <pre>app(PartnerContext::class)->applyPartnerScope(
+    $query,
+    'my_logs.partner_id',
+    PartnerScopeMode::SUPERADMIN_ALL_OR_FILTER,
+    request()->input('filter_partner_id'),
+);</pre>
+  <p>Пример: трейт <code>BuildsLogTable</code> на вкладке логов.</p>
+
+  <h3>5.4 UI (Blade + JS)</h3>
+  <ol>
+    <li>В контроллере страницы: <code>'isSuperadmin' => $this->isSuperAdmin()</code>, список партнёров для select
+      (<code>Partner::orderBy('title')->get()</code>) — только если superadmin.</li>
+    <li>Фильтр: <code>&lt;select name="filter_partner_id"&gt;</code> с опцией <code>value="all"</code> «Все партнёры».</li>
+    <li>DataTables AJAX: всегда передавать <code>filter_partner_id</code> (для superadmin по умолчанию <code>all</code>).</li>
+    <li>Колонка «Партнёр» / <code>partner_title</code> в таблице — только в разметке для superadmin.</li>
+    <li>Для сортировки по партнёру: <code>leftJoin</code> + <code>orderColumn('partner_title', …)</code> (см. реализацию логов).</li>
+  </ol>
+
+  <h3>5.5 Эталон в проекте</h3>
+  <ul>
+    <li>Контроллер: <code>SettingController::showLogs</code>, <code>logsData</code></li>
+    <li>View: <code>resources/views/admin/setting/logs.blade.php</code></li>
+    <li>Документация раздела: <a href="/docs/documentation/settings-logs">settings-logs.html</a></li>
+    <li>Тесты: <code>SettingsLogsPageFullAccessFeatureTest</code></li>
+  </ul>
+  <p>Похожий паттерн без enum (ручной <code>if ($isSuperadmin)</code>): выплаты T‑Bank
+    <a href="/docs/documentation/tbank-admin-payouts">tbank-admin-payouts</a> — при рефакторинге лучше свести к <code>applyPartnerScope</code>.</p>
+
+  <h2>6) Чеклист рефакторинга страницы</h2>
+
+  <h3>6.1 Любая partner-scoped страница</h3>
+  <ol>
+    <li>Контроллер extends <code>AdminBaseController</code>.</li>
+    <li>Убрать прямой <code>app('current_partner')->id</code> → <code>requirePartnerId()</code> / <code>scopeByPartner</code>.</li>
+    <li>Убрать <code>partner_id</code> из входящих request как источник истины.</li>
+    <li>На write-операциях проверять принадлежность записи текущему партнёру.</li>
+    <li>Feature-тест: пользователь партнёра A не видит данные партнёра B.</li>
+  </ol>
+
+  <h3>6.2 Дополнительно для cross-partner (superadmin)</h3>
+  <ol>
+    <li>Только нужный action использует <code>SUPERADMIN_ALL_OR_FILTER</code>.</li>
+    <li>Параметр фильтра: <code>filter_partner_id</code>, значение <code>all</code> = все партнёры.</li>
+    <li>Тест: superadmin + <code>all</code> видит две школы; админ + <code>all</code> — только свою.</li>
+    <li>Тест: superadmin + конкретный id — только эта школа.</li>
+    <li>Тест: гость / без permission → 403.</li>
+  </ol>
+
+  <h2>7) Антипаттерны</h2>
+  <table>
+    <thead>
+      <tr><th>Нельзя</th><th>Почему</th><th>Вместо этого</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>where partner_id = $request->partner_id</code></td>
+        <td>подмена ID в запросе</td>
+        <td><code>scopeByPartner</code> / <code>applyPartnerScope</code></td>
+      </tr>
+      <tr>
+        <td>Убрать <code>where partner_id</code> «для superadmin» без режима</td>
+        <td>утечка на всех action контроллера</td>
+        <td>только один метод с <code>SUPERADMIN_ALL_OR_FILTER</code></td>
+      </tr>
+      <tr>
+        <td>Доверять <code>filter_partner_id=all</code> без проверки роли</td>
+        <td>админ увидит чужие данные</td>
+        <td>логика в <code>PartnerContext::applyPartnerScope</code></td>
+      </tr>
+      <tr>
+        <td>Глобально отключить partner filter для superadmin</td>
+        <td>сломает изоляцию на других страницах</td>
+        <td>режим per-endpoint</td>
+      </tr>
+      <tr>
+        <td>В тестах подменять <code>app('current_partner')</code> вручную</td>
+        <td>маскирует SetPartner</td>
+        <td><code>withSession(['current_partner' => $id])</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>8) Шпаргалка (копировать в голову)</h2>
+  <pre>// Обычная страница
+$query = Model::query();
+$this->scopeByPartner($query, 'models.partner_id');
+
+// Cross-partner (только этот endpoint!)
+$this->applyPartnerScope(
+    $query,
+    'models.partner_id',
+    PartnerScopeMode::SUPERADMIN_ALL_OR_FILTER,
+    $request->input('filter_partner_id'), // "all" | "123"
+);
+
+// Текущий партнёр
+$pid = $this->requirePartnerId();
+$partner = $this->requirePartner();
+
+// Superadmin?
+if ($this->isSuperAdmin()) { … }</pre>
+
+  <h2>9) Связанные разделы</h2>
+  <ul>
+    <li><a href="/docs/documentation/partner-context">SetPartner, сессия, блокировки, applyPartnerScope (детали)</a></li>
+    <li><a href="/docs/documentation/partners-permissions">Права в разрезе partner_id (permission_role)</a></li>
+    <li><a href="/docs/documentation/settings-logs">Эталон: Настройки → Логи</a></li>
+    <li><a href="/docs/documentation/tests-standards">Стандарты feature-тестов</a></li>
+  </ul>
+</div>
+</body>
+</html>

@@ -101,17 +101,26 @@
         });
     }
 
-    // утилита: если что-то открыто — спрятать и дождаться hidden, иначе сразу resolve
+    // утилита: закрыть все открытые модалки (цепочкой), затем resolve
     function closeAnyOpenModal() {
-        return new Promise(resolve => {
-            const opened = document.querySelector('.modal.show');
-            if (!opened) return resolve();
-            const inst = bootstrap.Modal.getInstance(opened) || bootstrap.Modal.getOrCreateInstance(opened);
-            opened.addEventListener('hidden.bs.modal', function handler(){
-                opened.removeEventListener('hidden.bs.modal', handler);
-                resolve();
-            }, { once:true });
-            inst.hide();
+        // showModalQueued при закрытии confirm возвращает предыдущую модалку — отменяем
+        if (typeof $ !== 'undefined') {
+            $('.modal').off('hidden.bs.modal.return hidden.bs.modal.openNext');
+        }
+
+        return new Promise(function (resolve) {
+            function closeNext() {
+                const opened = document.querySelector('.modal.show');
+                if (!opened) return resolve();
+
+                const inst = bootstrap.Modal.getInstance(opened) || bootstrap.Modal.getOrCreateInstance(opened);
+                opened.addEventListener('hidden.bs.modal', function handler() {
+                    opened.removeEventListener('hidden.bs.modal', handler);
+                    closeNext();
+                }, { once: true });
+                inst.hide();
+            }
+            closeNext();
         });
     }
 </script>

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin\Setting;
 
 use App\Http\Controllers\AdminBaseController;
-use App\Models\Partner;
 use App\Models\PaymentSystem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,10 +27,6 @@ class PaymentSystemController extends AdminBaseController
         // Все платёжные системы текущего партнёра
         $paymentSystems = PaymentSystem::where('partner_id', $partnerId)->get();
 
-        // Для выпадающего списка партнёров (если он вам нужен в интерфейсе)
-        $partners = Partner::all();
-
-        // Текущий пользователь (если в шаблоне используется)
         $curUser = Auth::user();
 
         // Выборки по имени для удобства
@@ -41,8 +36,7 @@ class PaymentSystemController extends AdminBaseController
         return view('admin.setting.index', [
             'activeTab' => 'paymentSystem',
             'paymentSystems' => $paymentSystems,
-            'partners' => $partners,      // ← передаём
-            'curUser' => $curUser,       // ← передаём, если нужно
+            'curUser' => $curUser,
             'robokassa' => $robokassa,
             'tbank' => $tbank,
         ]);

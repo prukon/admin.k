@@ -418,11 +418,123 @@ class RuleControllerTest extends CrmTestCase
         ])->assertOk()->assertJson(['success' => true]);
 
         $this->assertDatabaseMissing('roles', ['id' => $role->id]);
-        $this->assertDatabaseMissing('permission_role', ['role_id' => $role->id]);
+        $this->assertDatabaseMissing('permission_role', [
+            'role_id' => $role->id,
+            'partner_id' => $this->partner->id,
+        ]);
 
         $defaultRole = Role::where('name', 'user')->firstOrFail();
         $u->refresh();
         $this->assertSame($defaultRole->id, $u->role_id);
+    }
+
+    public function test_delete_role_returns_404_when_role_belongs_to_another_partner(): void
+    {
+        $this->makeSuperadmin();
+
+        $partnerB = Partner::factory()->create();
+
+        $role = Role::create([
+            'name'       => 'tmp_role_foreign_partner',
+            'label'      => 'Foreign partner role',
+            'is_sistem'  => 0,
+            'is_visible' => 1,
+            'order_by'   => (Role::max('order_by') ?? 0) + 10,
+        ]);
+
+        DB::table('partner_role')->insert([
+            'partner_id' => $partnerB->id,
+            'role_id'    => $role->id,
+        ]);
+
+        $this->deleteJson(route('admin.setting.role.delete'), [
+            'role_id' => $role->id,
+        ])->assertStatus(404);
+
+        $this->assertDatabaseHas('roles', ['id' => $role->id]);
+        $this->assertDatabaseHas('partner_role', [
+            'partner_id' => $partnerB->id,
+            'role_id'    => $role->id,
+        ]);
+    }
+
+    public function test_delete_role_does_not_reassign_users_of_other_partners(): void
+    {
+        $this->makeSuperadmin();
+
+        $partnerB = Partner::factory()->create();
+
+        $role = Role::create([
+            'name'       => 'tmp_role_shared_name',
+            'label'      => 'Shared label',
+            'is_sistem'  => 0,
+            'is_visible' => 1,
+            'order_by'   => (Role::max('order_by') ?? 0) + 10,
+        ]);
+
+        DB::table('partner_role')->insert([
+            ['partner_id' => $this->partner->id, 'role_id' => $role->id],
+            ['partner_id' => $partnerB->id, 'role_id' => $role->id],
+        ]);
+
+        $localUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $role->id,
+        ]);
+
+        $foreignUser = User::factory()->create([
+            'partner_id' => $partnerB->id,
+            'role_id'    => $role->id,
+        ]);
+
+        $perm = Permission::firstOrFail();
+
+        DB::table('permission_role')->insert([
+            [
+                'role_id'       => $role->id,
+                'permission_id' => $perm->id,
+                'partner_id'    => $this->partner->id,
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ],
+            [
+                'role_id'       => $role->id,
+                'permission_id' => $perm->id,
+                'partner_id'    => $partnerB->id,
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ],
+        ]);
+
+        $this->deleteJson(route('admin.setting.role.delete'), [
+            'role_id' => $role->id,
+        ])->assertOk()->assertJson(['success' => true]);
+
+        $defaultRole = Role::where('name', 'user')->firstOrFail();
+
+        $localUser->refresh();
+        $foreignUser->refresh();
+
+        $this->assertSame($defaultRole->id, $localUser->role_id);
+        $this->assertSame($role->id, $foreignUser->role_id);
+
+        $this->assertDatabaseMissing('permission_role', [
+            'role_id' => $role->id,
+            'partner_id' => $this->partner->id,
+        ]);
+        $this->assertDatabaseHas('permission_role', [
+            'role_id' => $role->id,
+            'partner_id' => $partnerB->id,
+        ]);
+        $this->assertDatabaseHas('roles', ['id' => $role->id]);
+        $this->assertDatabaseMissing('partner_role', [
+            'partner_id' => $this->partner->id,
+            'role_id' => $role->id,
+        ]);
+        $this->assertDatabaseHas('partner_role', [
+            'partner_id' => $partnerB->id,
+            'role_id' => $role->id,
+        ]);
     }
 
     public function test_log_rules_returns_only_current_partner_type_700(): void

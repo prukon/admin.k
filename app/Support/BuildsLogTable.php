@@ -3,23 +3,32 @@
 namespace App\Support;
 
 use App\Models\MyLog;
+use App\Services\PartnerContext;
 use Yajra\DataTables\Facades\DataTables;
 
 trait BuildsLogTable
 {
     /**
      * Единый билдер DataTables для логов.
-     * @param int|null $type Тип логов или null для всех.
+     *
+     * @param  int|null  $type  Тип логов или null для всех.
      */
-    protected function buildLogDataTable(?int $type)
-    {
-        $partnerId = app('current_partner')->id;
-
+    protected function buildLogDataTable(
+        ?int $type,
+        PartnerScopeMode $partnerScopeMode = PartnerScopeMode::STRICT_CURRENT,
+    ) {
+        $partnerContext = app(PartnerContext::class);
         $request = request();
+        $includePartnerColumn = $partnerScopeMode === PartnerScopeMode::SUPERADMIN_ALL_OR_FILTER
+            && $partnerContext->isSuperAdmin();
+
         $logs = MyLog::query()
-            ->with(['author', 'user'])
-            ->where('partner_id', $partnerId)
-            ->when(!is_null($type), fn($q) => $q->where('type', $type))
+            ->with(['author', 'user', 'partner'])
+            ->when($includePartnerColumn, function ($q) {
+                $q->leftJoin('partners as log_partners', 'log_partners.id', '=', 'my_logs.partner_id')
+                    ->select('my_logs.*');
+            })
+            ->when(!is_null($type), fn($q) => $q->where('my_logs.type', $type))
             ->when($request->filled('created_from'), function ($q) use ($request) {
                 $q->whereDate('my_logs.created_at', '>=', (string) $request->input('created_from'));
             })
@@ -32,7 +41,14 @@ trait BuildsLogTable
             ->when($request->filled('filter_author'), function ($q) use ($request) {
                 $term = trim((string) $request->input('filter_author'));
                 if ($term !== '') {
-                    $q->whereHas('author', fn($authorQ) => $authorQ->where('full_name', 'like', '%' . $term . '%'));
+                    $like = '%' . $term . '%';
+                    $q->whereHas('author', function ($authorQ) use ($like) {
+                        $authorQ->where(function ($w) use ($like) {
+                            $w->where('users.name', 'like', $like)
+                                ->orWhere('users.lastname', 'like', $like)
+                                ->orWhereRaw("TRIM(CONCAT_WS(' ', users.lastname, users.name)) LIKE ?", [$like]);
+                        });
+                    });
                 }
             })
             ->when($request->filled('filter_target_label'), function ($q) use ($request) {
@@ -40,23 +56,30 @@ trait BuildsLogTable
                 if ($term !== '') {
                     $q->where('my_logs.target_label', 'like', '%' . $term . '%');
                 }
-            })
-            ->select('my_logs.*');
+            });
+
+        $partnerContext->applyPartnerScope(
+            $logs,
+            'my_logs.partner_id',
+            $partnerScopeMode,
+            $request->input('filter_partner_id'),
+        );
+
+        if (!$includePartnerColumn) {
+            $logs->select('my_logs.*');
+        }
 
         $actionLabels = MyLog::actionLabels();
 
-        return DataTables::of($logs)
-            // 👤 Имя автора вместо author_id
+        $dataTable = DataTables::of($logs)
             ->addColumn('author', function ($log) {
                 return $log->author?->full_name ?? '—';
             })
-            // 👤 Целевой пользователь (если есть)
             ->addColumn('user', function ($log) {
                 return optional($log->user)->full_name
                     ?? optional($log->user)->name
                     ?? '—';
             })
-            // 🏷 Человекочитаемый action
             ->editColumn('action', function ($log) use ($actionLabels) {
                 return $actionLabels[$log->action] ?? 'Неизвестный тип (setting)';
             })
@@ -67,7 +90,28 @@ trait BuildsLogTable
             })
             ->editColumn('target_type', fn($log) => $log->target_type ?? '-')
             ->editColumn('target_id', fn($log) => $log->target_id ?? '-')
-            ->editColumn('target_label', fn($log) => $log->target_label ?? '-')
-            ->make(true);
+            ->editColumn('target_label', fn($log) => $log->target_label ?? '-');
+
+        if ($includePartnerColumn) {
+            $dataTable
+                ->addColumn('partner_title', function ($log) {
+                    return (string) ($log->partner?->title ?? '—');
+                })
+                ->orderColumn('partner_title', function ($query, $order) {
+                    $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                    $query->orderByRaw(
+                        "CASE WHEN log_partners.title IS NULL OR log_partners.title = '' THEN 1 ELSE 0 END asc"
+                    );
+                    $query->orderBy('log_partners.title', $dir);
+                })
+                ->filterColumn('partner_title', function ($query, $keyword) {
+                    $term = trim((string) $keyword);
+                    if ($term !== '') {
+                        $query->where('log_partners.title', 'like', '%' . $term . '%');
+                    }
+                });
+        }
+
+        return $dataTable->make(true);
     }
 }

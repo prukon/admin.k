@@ -122,6 +122,27 @@ class AccountPartnerOrganizationTest extends CrmTestCase
         $resp->assertStatus(403);
     }
 
+    public function test_superadmin_with_null_partner_id_sees_current_session_partner_on_edit_page(): void
+    {
+        $this->asSuperadmin();
+        $this->user->partner_id = null;
+        $this->user->save();
+
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => $this->partner->id,
+            'role_id'       => $this->user->role_id,
+            'permission_id' => $this->permissionId('account.partner.view'),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+
+        $this->actingAs($this->user)
+            ->withSession(['current_partner' => $this->partner->id])
+            ->get(route('admin.cur.company.edit'))
+            ->assertOk()
+            ->assertViewHas('partner', fn ($p) => (int) $p->id === (int) $this->partner->id);
+    }
+
     public function test_partner_update_returns_422_on_validation_error(): void
     {
         $payload = [

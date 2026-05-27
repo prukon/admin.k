@@ -7,7 +7,8 @@ use App\Events\MessageCreated;
 use App\Events\ThreadReadUpdated;
 use App\Events\ThreadUpdated;
 use App\Events\Typing;
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
+use App\Services\PartnerContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -18,8 +19,13 @@ use Cmgmyr\Messenger\Models\Message;
 use Cmgmyr\Messenger\Models\Participant;
 use App\Models\User;
 
-class ChatApiController extends Controller
+class ChatApiController extends AdminBaseController
 {
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     private function assertParticipant(Thread $thread): void
     {
         $uid = Auth::id();
@@ -319,6 +325,11 @@ class ChatApiController extends Controller
         ]);
 
         $uid = Auth::id();
+
+        if ($response = $this->rejectIfUsersOutsideCurrentPartner($data['members'])) {
+            return $response;
+        }
+
         $subject = $data['type'] === 'group'
             ? ($data['subject'] ?? 'Группа')
             : 'Диалог';
@@ -354,15 +365,8 @@ class ChatApiController extends Controller
         $uid = Auth::id();
         $q = trim((string)$request->get('q', ''));
 
-        $qb = User::query()->from('users')->where('users.id', '<>', $uid);
-
-        // ограничение по partner_id (если есть такая колонка)
-        if (Schema::hasColumn('users', 'partner_id')) {
-            $myPartnerId = User::where('id', $uid)->value('partner_id');
-            if ($myPartnerId !== null) {
-                $qb->where('users.partner_id', $myPartnerId);
-            }
-        }
+        $qb = $this->scopeByPartner(User::query(), 'users.partner_id')
+            ->where('users.id', '<>', $uid);
 
         // join роли, если в users есть внешний ключ и таблица roles существует
         $hasRoleId = Schema::hasColumn('users', 'role_id');
@@ -475,6 +479,10 @@ class ChatApiController extends Controller
             'members.*' => ['integer', 'exists:users,id'],
         ]);
 
+        if ($response = $this->rejectIfUsersOutsideCurrentPartner($data['members'])) {
+            return $response;
+        }
+
         $existingIds = $thread->participants()->pluck('user_id')->all();
         $toAdd = collect($data['members'])
             ->map(fn($i)=>(int)$i)
@@ -492,6 +500,32 @@ class ChatApiController extends Controller
         $thread->touch();
 
         return response()->json(['ok' => true, 'added' => $toAdd], 201);
+    }
+
+    /**
+     * Участники диалога должны принадлежать current_partner (STRICT_CURRENT).
+     */
+    private function rejectIfUsersOutsideCurrentPartner(array $userIds): ?\Illuminate\Http\JsonResponse
+    {
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+        if ($userIds === []) {
+            return null;
+        }
+
+        $partnerId = $this->requirePartnerId();
+        $validCount = User::query()
+            ->whereIn('id', $userIds)
+            ->where('partner_id', $partnerId)
+            ->count();
+
+        if ($validCount !== count($userIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Нельзя добавить пользователя другой организации.',
+            ], 403);
+        }
+
+        return null;
     }
 
     /** «Печатает…» */

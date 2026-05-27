@@ -2,31 +2,33 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\AdminBaseController;
 use App\Models\User;
 use App\Models\MyLog;
+use App\Services\PartnerContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManager;
 
-class UserAvatarController extends Controller
+class UserAvatarController extends AdminBaseController
 {
+    public function __construct(PartnerContext $partnerContext)
+    {
+        parent::__construct($partnerContext);
+    }
+
     /**
      * Удаление аватарки пользователя в разделе "Пользователи".
-     *
-     * URL и сигнатуру метода сохраняем такими же, как были в UserController:
-     * public function destroyUserAvatar($id)
      */
     public function destroyUserAvatar($id)
     {
-        $user = User::findOrFail($id);
+        $user = $this->userForCurrentPartner((int) $id);
 
         DB::transaction(function () use ($user) {
             $targetLabel = $user->full_name ?: "user#{$user->id}";
 
-            // Удаляем файлы, если есть
             if ($user->image) {
                 Storage::disk('public')->delete('avatars/' . $user->image);
             }
@@ -34,15 +36,14 @@ class UserAvatarController extends Controller
                 Storage::disk('public')->delete('avatars/' . $user->image_crop);
             }
 
-            // Чистим поля
             $user->update([
                 'image'      => null,
                 'image_crop' => null,
             ]);
 
             MyLog::create([
-                'type'        => 2, // Лог для обновления юзеров
-                'action'      => 299, // Лог для обновления учетной записи
+                'type'        => 2,
+                'action'      => 299,
                 'target_type' => \App\Models\User::class,
                 'user_id'     => $user->id,
                 'target_id'   => $user->id,
@@ -60,25 +61,19 @@ class UserAvatarController extends Controller
 
     /**
      * Загрузка/обновление аватарки пользователя в разделе "Пользователи".
-     *
-     * URL и сигнатуру метода сохраняем такими же, как были в UserController:
-     * public function uploadUserAvatar(Request $request, $id)
      */
     public function uploadUserAvatar(Request $request, $id)
     {
-        $user = User::findOrFail($id);
+        $user = $this->userForCurrentPartner((int) $id);
 
-        // Безопасная валидация: только реальные изображения (по MIME),
-        // без SVG/HTML/GIF, с лимитами размера
         $request->validate([
-            'image_big'  => ['required', 'file', 'max:5120', 'mimetypes:image/jpeg,image/png,image/webp'],  // 5MB
-            'image_crop' => ['required', 'file', 'max:4096', 'mimetypes:image/jpeg,image/png,image/webp'], // 4MB
+            'image_big'  => ['required', 'file', 'max:5120', 'mimetypes:image/jpeg,image/png,image/webp'],
+            'image_crop' => ['required', 'file', 'max:4096', 'mimetypes:image/jpeg,image/png,image/webp'],
         ]);
 
         $bigFile  = $request->file('image_big');
         $cropFile = $request->file('image_crop');
 
-        // Перекодируем в JPEG и ограничим размеры, чтобы не хранить "опасные" форматы и огромные картинки
         try {
             $manager   = ImageManager::gd();
             $bigImage  = $manager->read($bigFile->getRealPath())->scaleDown(1600, 1600);
@@ -99,7 +94,6 @@ class UserAvatarController extends Controller
         DB::transaction(function () use ($user, $bigName, $cropName, $bigBytes, $cropBytes) {
             $targetLabel = $user->full_name ?: "user#{$user->id}";
 
-            // удаляем старые файлы
             if ($user->image) {
                 Storage::disk('public')->delete('avatars/' . $user->image);
             }
@@ -107,19 +101,17 @@ class UserAvatarController extends Controller
                 Storage::disk('public')->delete('avatars/' . $user->image_crop);
             }
 
-            // сохраняем новые (только перекодированные байты)
             Storage::disk('public')->put('avatars/' . $bigName, $bigBytes);
             Storage::disk('public')->put('avatars/' . $cropName, $cropBytes);
 
-            // обновляем БД
             $user->update([
                 'image'      => $bigName,
                 'image_crop' => $cropName,
             ]);
 
             MyLog::create([
-                'type'        => 2, // Лог для обновления юзеров
-                'action'      => 27, // Лог для обновления учетной записи
+                'type'        => 2,
+                'action'      => 27,
                 'user_id'     => $user->id,
                 'target_type' => \App\Models\User::class,
                 'target_id'   => $user->id,
@@ -135,5 +127,15 @@ class UserAvatarController extends Controller
             'image_url'      => asset('storage/avatars/' . $bigName),
             'image_crop_url' => asset('storage/avatars/' . $cropName),
         ]);
+    }
+
+    private function userForCurrentPartner(int $userId): User
+    {
+        /** @var User $user */
+        $user = $this->scopeByPartner(User::query(), 'users.partner_id')
+            ->whereKey($userId)
+            ->firstOrFail();
+
+        return $user;
     }
 }

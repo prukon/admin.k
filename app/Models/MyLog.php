@@ -73,6 +73,11 @@ class MyLog extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function partner()
+    {
+        return $this->belongsTo(Partner::class, 'partner_id');
+    }
+
     /**
      * Человекочитаемые подписи кодов action для UI и логов.
      *

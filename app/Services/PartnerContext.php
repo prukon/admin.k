@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Partner;
 use App\Models\User;
+use App\Support\PartnerScopeMode;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
 //Класс для наследования в контроллерах
@@ -92,8 +94,37 @@ class PartnerContext
      */
     public function scopeByPartner($query, string $column = 'partner_id')
     {
-        $partnerId = $this->partnerId();
+        return $this->applyPartnerScope($query, $column, PartnerScopeMode::STRICT_CURRENT);
+    }
 
+    /**
+     * Ограничение выборки по partner_id с учётом роли и режима.
+     *
+     * @param  Builder|\Illuminate\Database\Query\Builder  $query
+     * @param  string|null  $filterPartnerIdRaw  Значение filter_partner_id (all — все партнёры для superadmin).
+     */
+    public function applyPartnerScope(
+        $query,
+        string $column = 'partner_id',
+        PartnerScopeMode $mode = PartnerScopeMode::STRICT_CURRENT,
+        ?string $filterPartnerIdRaw = null,
+    ) {
+        if ($mode === PartnerScopeMode::SUPERADMIN_ALL_OR_FILTER && $this->isSuperAdmin()) {
+            $raw = $filterPartnerIdRaw ?? request()->input('filter_partner_id');
+            if ($raw === null || $raw === '' || $raw === 'all') {
+                return $query;
+            }
+            if (ctype_digit((string) $raw)) {
+                $partnerId = (int) $raw;
+                if ($partnerId > 0) {
+                    $query->where($column, $partnerId);
+                }
+            }
+
+            return $query;
+        }
+
+        $partnerId = $this->partnerId();
         if ($partnerId) {
             $query->where($column, $partnerId);
         }

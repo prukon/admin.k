@@ -39,7 +39,8 @@
     <li>Создание роли: <code>POST /admin/setting/role/create</code> (AJAX, имя маршрута <code>admin.setting.role.create</code>).</li>
     <li>Переключение одного права у роли: <code>POST /admin/setting/rule/toggle</code>.</li>
     <li>Удаление кастомной роли: <code>DELETE /admin/setting/role/delete</code>.</li>
-    <li>Логи вкладки (DataTables): <code>GET /admin/setting/rules/logs-data</code>.</li>
+    <li>Логи вкладки «Права и роли» (DataTables, только изменения ролей): <code>GET /admin/setting/rules/logs-data</code>.</li>
+    <li>Общий журнал аудита всех типов — отдельная вкладка <a href="/docs/documentation/settings-logs">«Настройки → Логи»</a> (<code>GET /admin/settings/logs-data</code>, право <code>viewing.all.logs</code>).</li>
   </ul>
   <div class="warn">
     Системную роль через эту форму создать нельзя: в UI создаётся обычная роль с <code>is_sistem = 0</code>.

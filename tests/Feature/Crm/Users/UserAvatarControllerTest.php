@@ -253,8 +253,8 @@ class UserAvatarControllerTest extends CrmTestCase
         $this->assertDatabaseCount('my_logs', 1);
     }
 
-    /** [P1] Суперадмин может удалять аватар пользователя другого партнёра */
-    public function test_superadmin_can_delete_avatar_of_user_from_another_partner(): void
+    /** [P1] Суперадмин с current_partner текущей школы не может удалить аватар пользователя другого партнёра */
+    public function test_superadmin_cannot_delete_avatar_of_user_from_another_partner(): void
     {
         [$actor, $foreignUser] = $this->createUserOfAnotherPartner();
 
@@ -273,22 +273,18 @@ class UserAvatarControllerTest extends CrmTestCase
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
-        $response->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-                'message' => 'Аватар удалён',
-            ]);
+        $response->assertStatus(404);
 
         $this->assertDatabaseHas('users', [
             'id'         => $foreignUser->id,
-            'image'      => null,
-            'image_crop' => null,
+            'image'      => 'avatar.jpg',
+            'image_crop' => 'crop.jpg',
         ]);
 
-        Storage::disk('public')->assertMissing('avatars/avatar.jpg');
-        Storage::disk('public')->assertMissing('avatars/crop.jpg');
+        Storage::disk('public')->assertExists('avatars/avatar.jpg');
+        Storage::disk('public')->assertExists('avatars/crop.jpg');
 
-        $this->assertDatabaseCount('my_logs', 1);
+        $this->assertDatabaseCount('my_logs', 0);
     }
 
     /** [P2] Удаление аватарки для несуществующего пользователя */
@@ -570,8 +566,8 @@ class UserAvatarControllerTest extends CrmTestCase
         $this->assertDatabaseCount('my_logs', 1);
     }
 
-    /** [P1] Суперадмин может загружать аватар пользователю другого партнёра */
-    public function test_superadmin_can_upload_avatar_for_user_from_another_partner(): void
+    /** [P1] Суперадмин с current_partner текущей школы не может загрузить аватар пользователю другого партнёра */
+    public function test_superadmin_cannot_upload_avatar_for_user_from_another_partner(): void
     {
         [$actor, $foreignUser] = $this->createUserOfAnotherPartner();
 
@@ -588,21 +584,15 @@ class UserAvatarControllerTest extends CrmTestCase
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
 
-        $response->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-                'message' => 'Аватар обновлён',
-            ]);
+        $response->assertStatus(404);
 
         $foreignUser->refresh();
 
-        $this->assertNotNull($foreignUser->image);
-        $this->assertNotNull($foreignUser->image_crop);
+        $this->assertNull($foreignUser->image);
+        $this->assertNull($foreignUser->image_crop);
 
-        Storage::disk('public')->assertExists('avatars/' . $foreignUser->image);
-        Storage::disk('public')->assertExists('avatars/' . $foreignUser->image_crop);
-
-        $this->assertDatabaseCount('my_logs', 1);
+        Storage::disk('public')->assertDirectoryEmpty('avatars');
+        $this->assertDatabaseCount('my_logs', 0);
     }
 
     /** [P1] Загрузка аватара без авторизации */

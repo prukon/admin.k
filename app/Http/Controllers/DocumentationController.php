@@ -14,9 +14,11 @@ class DocumentationController extends Controller
      */
     private const PAGE_TITLES = [
         'payments'                    => 'Оплаты (payables/payment_intents/payments/users_prices)',
+        'partner-scope-guide'         => 'Как работать с partner_id: обычный админ и страницы superadmin',
         'partner-context'             => 'Партнёр‑контекст и SetPartner (current_partner/anti‑leak/блокировки)',
         'partners-permissions'        => 'Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)',
         'settings-roles-custom'       => 'Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)',
+        'settings-logs'               => 'Настройки → Логи: журнал my_logs, фильтры, SUPERADMIN_ALL_OR_FILTER',
         'reports-payments'            => 'Отчёт «Платежи» (админка): таблица, «Поля списка», права (доп. колонки, история T‑Bank)',
         'reports-admin'               => 'Отчёты (админка): фильтр по локации, AJAX/суммы (debt/ltv/monthly/payment-intents/fiscal-receipts)',
         'tbank'                       => 'T‑Bank (мультирасчёты): настройки/комиссии/flow, СБП (QR) в CRM',

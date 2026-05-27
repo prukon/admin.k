@@ -1535,7 +1535,7 @@ class UserControllerTest extends CrmTestCase
 
         // ⚠️ было /admin/users/{id}
         $response = $this->deleteJson('/admin/user/' . $foreignUser->id);
-        $response->assertStatus(403);
+        $response->assertStatus(404);
         $this->assertNotSoftDeleted('users', ['id' => $foreignUser->id]);
 
         $log = MyLog::where('target_type', User::class)
@@ -1603,7 +1603,7 @@ class UserControllerTest extends CrmTestCase
 
         // ⚠️ было putJson('/admin/users/{id}/password')
         $response = $this->postJson('/admin/user/' . $foreignUser->id . '/update-password', $payload);
-        $response->assertStatus(403);
+        $response->assertStatus(404);
 
         $foreignUser->refresh();
         $this->assertTrue(Hash::check('old-password', $foreignUser->password));

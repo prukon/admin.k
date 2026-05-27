@@ -188,12 +188,14 @@ net_to_partner   = gross - commission_total</pre>
       <code>GET/POST …/columns-settings</code>, создания возврата <code>POST /admin/reports/payments/{payment}/refund</code>.</li>
     <li><b><code>reports.additional.value.view</code></b> — управление видимостью «чувствительных» колонок и их чекбоксов в «Поля списка»
       (комиссии, «К выплате», «Статус возврата»; см. раздел 3). На тело ответа <code>getPayments</code> не влияет.</li>
-    <li><b><code>viewing.all.logs</code></b> (в справочнике: «Просмотр всех логов») — кнопка <b>«История»</b> для T‑Bank, модальное окно на странице отчёта
+    <li><b><code>viewing.all.logs</code></b> (в справочнике: «Просмотр всех логов») — на этой странице отчёта: кнопка <b>«История»</b> для T‑Bank
       и доступ к <code>GET /admin/reports/payments/{payment}/tbank-history</code> (middleware <code>can:viewing.all.logs</code>).
-      Без права кнопка не рендерится, эндпоинт отвечает <b>403</b>. Требуется также <code>reports.view</code> (маршрут внутри той же группы).</li>
+      Без права кнопка не рендерится, эндпоинт отвечает <b>403</b>. Требуется также <code>reports.view</code>.
+      <b>Не путать</b> с вкладкой <a href="/docs/documentation/settings-logs">«Настройки → Логи»</a> (<code>my_logs</code>): там то же permission,
+      но журнал аудита CRM; cross-partner по всем партнёрам — только <code>superadmin</code> на вкладке логов, а не на отчёте «Платежи».</li>
   </ul>
 
-  <h2>8) История платежа T‑Bank (кнопка «История»)</h2>
+  <h2 id="tbank-history">8) История платежа T‑Bank (кнопка «История»)</h2>
   <div class="note">
     Для строк с провайдером T‑Bank (наличие <code>deal_id</code> / банковского <code>payment_id</code> / <code>payment_status</code> в смысле отчёта)
     в колонке «Действия» может выводиться вторая кнопка — <b>«История»</b>. По нажатию открывается модальное окно и выполняется запрос

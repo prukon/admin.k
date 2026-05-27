@@ -1,14 +1,24 @@
 @php
     $logActionLabels = $logActionLabels ?? [];
-    $logsFilterKeys = ['created_from', 'created_to', 'filter_action', 'filter_author', 'filter_target_label'];
+    $isLogsSuperadmin = $isLogsSuperadmin ?? false;
+    $logPartners = $logPartners ?? collect();
+    $logsFilterKeys = ['created_from', 'created_to', 'filter_action', 'filter_author', 'filter_target_label', 'filter_partner_id'];
     $logsHasActiveFilters = false;
     foreach ($logsFilterKeys as $k) {
         $v = request($k);
+        if ($k === 'filter_partner_id') {
+            if ($v !== null && $v !== '' && $v !== 'all') {
+                $logsHasActiveFilters = true;
+                break;
+            }
+            continue;
+        }
         if ($v !== null && $v !== '') {
             $logsHasActiveFilters = true;
             break;
         }
     }
+    $logsFilterPartner = request('filter_partner_id', 'all');
 @endphp
 
 @vite(['resources/css/admin-list-toolbar.css'])
@@ -40,6 +50,17 @@
 <div class="collapse {{ $logsHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="settingsLogsFiltersCollapse">
     <form id="settings-logs-filters" class="border rounded p-2 p-md-3 bg-light">
         <div class="row g-2 align-items-end">
+            @if($isLogsSuperadmin)
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="settings-logs-filter-partner">Партнёр</label>
+                    <select class="form-select" id="settings-logs-filter-partner" name="filter_partner_id">
+                        <option value="all" @selected((string) $logsFilterPartner === 'all' || $logsFilterPartner === '')>Все партнёры</option>
+                        @foreach($logPartners as $p)
+                            <option value="{{ $p->id }}" @selected((string) $logsFilterPartner === (string) $p->id)>{{ $p->title }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div class="col-12 col-md-2">
                 <label class="form-label" for="settings-logs-filter-created-from">Дата: с</label>
                 <input class="form-control" id="settings-logs-filter-created-from" type="date" name="created_from"
@@ -83,6 +104,9 @@
         <tr>
             <th>ID</th>
             <th>Дата создания</th>
+            @if($isLogsSuperadmin)
+                <th>Партнёр</th>
+            @endif
             <th>Действие</th>
             <th>Автор</th>
             <th>Что меняли</th>
@@ -95,25 +119,33 @@
 @push('scripts')
     <script type="text/javascript">
         $(function () {
+            var isLogsSuperadmin = @json($isLogsSuperadmin);
             var $filtersForm = $('#settings-logs-filters');
 
             function settingsLogsFilterParams() {
-                return {
+                var params = {
                     created_from: $('#settings-logs-filter-created-from').val() || '',
                     created_to: $('#settings-logs-filter-created-to').val() || '',
                     filter_action: $('#settings-logs-filter-action').val() || '',
                     filter_author: $('#settings-logs-filter-author').val() || '',
                     filter_target_label: $('#settings-logs-filter-target').val() || ''
                 };
+                if (isLogsSuperadmin) {
+                    params.filter_partner_id = $('#settings-logs-filter-partner').val() || 'all';
+                }
+                return params;
             }
 
             function settingsLogsHasActiveFilters() {
                 var p = settingsLogsFilterParams();
-                return p.created_from !== ''
-                    || p.created_to !== ''
-                    || p.filter_action !== ''
-                    || p.filter_author !== ''
-                    || p.filter_target_label !== '';
+                if (p.created_from !== '' || p.created_to !== '' || p.filter_action !== ''
+                    || p.filter_author !== '' || p.filter_target_label !== '') {
+                    return true;
+                }
+                if (isLogsSuperadmin && p.filter_partner_id && p.filter_partner_id !== 'all') {
+                    return true;
+                }
+                return false;
             }
 
             function syncSettingsLogsFiltersCollapseState() {
@@ -130,6 +162,29 @@
                 }
             }
 
+            var columns = [
+                {data: 'id', name: 'id'},
+                {data: 'created_at', name: 'created_at'}
+            ];
+            if (isLogsSuperadmin) {
+                columns.push({data: 'partner_title', name: 'partner_title'});
+            }
+            columns = columns.concat([
+                {data: 'action', name: 'action'},
+                {data: 'author', name: 'author'},
+                {data: 'target_label', name: 'target_label'},
+                {
+                    data: 'description',
+                    name: 'description',
+                    render: function (data) {
+                        if (!data) {
+                            return '';
+                        }
+                        return String(data).replace(/\n/g, '<br>');
+                    }
+                }
+            ]);
+
             var table = $('#settingsLogsTable').DataTable({
                 processing: true,
                 serverSide: true,
@@ -145,25 +200,12 @@
                         d.filter_action = params.filter_action;
                         d.filter_author = params.filter_author;
                         d.filter_target_label = params.filter_target_label;
-                    }
-                },
-                columns: [
-                    {data: 'id', name: 'id'},
-                    {data: 'created_at', name: 'created_at'},
-                    {data: 'action', name: 'action'},
-                    {data: 'author', name: 'author'},
-                    {data: 'target_label', name: 'target_label'},
-                    {
-                        data: 'description',
-                        name: 'description',
-                        render: function (data) {
-                            if (!data) {
-                                return '';
-                            }
-                            return String(data).replace(/\n/g, '<br>');
+                        if (isLogsSuperadmin) {
+                            d.filter_partner_id = params.filter_partner_id;
                         }
                     }
-                ],
+                },
+                columns: columns,
                 order: [[1, 'desc']],
                 scrollX: true,
                 language: @include('partials.datatables.ru')
@@ -176,6 +218,9 @@
 
             $('#settingsLogsFiltersReset').on('click', function () {
                 $filtersForm[0].reset();
+                if (isLogsSuperadmin) {
+                    $('#settings-logs-filter-partner').val('all');
+                }
                 table.ajax.reload();
                 syncSettingsLogsFiltersCollapseState();
             });

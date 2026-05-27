@@ -104,7 +104,6 @@
                     <!-- Контент вкладки организаций -->
                         @include('admin.setting.paymentSystem',
                         ['paymentSystems' => $paymentSystems,
-                        'partners' => $partners,
                         'curUser' => $curUser,
                         'robokassa' => $robokassa,
                         'tbank' => $tbank,

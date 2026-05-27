@@ -31,6 +31,8 @@
   <div class="note">
     Эта страница описывает <b>каноническое</b> поведение партнёр‑контекста (школы/организации) в CRM,
     а также <b>ожидаемое поведение</b> middleware <code>App\Http\Middleware\SetPartner</code>.
+    Практическое руководство для разработчиков (какой метод в контроллере вызывать): 
+    <a href="/docs/documentation/partner-scope-guide">partner-scope-guide.html</a>.
   </div>
 
   <h2>1) Бизнес‑логика: зачем нужен партнёр‑контекст</h2>
@@ -144,10 +146,51 @@ $resp-&gt;assertSessionHasErrors(['email' =&gt; 'Ваша организация
     </li>
   </ul>
 
-  <h2>7) Связанные файлы</h2>
+  <h2 id="partner-scope-modes">7) Режимы ограничения выборки: <code>applyPartnerScope</code></h2>
+  <div class="note">
+    Помимо фиксации <code>current_partner</code> в middleware, в коде используется метод
+    <code>PartnerContext::applyPartnerScope($query, $column, $mode, $filterPartnerIdRaw)</code>
+    (обёртка в <code>AdminBaseController</code>). Enum: <code>App\Support\PartnerScopeMode</code>.
+  </div>
+  <table>
+    <thead>
+      <tr><th>Режим</th><th>Поведение</th><th>Где используется</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>STRICT_CURRENT</code> (по умолчанию)</td>
+        <td><code>where partner_id = current_partner</code>, если партнёр в контексте задан</td>
+        <td><code>scopeByPartner()</code>, модалки логов на users/teams/schedule и др., большинство CRM-списков</td>
+      </tr>
+      <tr>
+        <td><code>SUPERADMIN_ALL_OR_FILTER</code></td>
+        <td>
+          <ul>
+            <li>не superadmin — как <code>STRICT_CURRENT</code>;</li>
+            <li>superadmin + <code>filter_partner_id</code> = <code>all</code> или пусто — без <code>where partner_id</code>;</li>
+            <li>superadmin + числовой <code>filter_partner_id</code> — один партнёр.</li>
+          </ul>
+        </td>
+        <td>
+          Пока только вкладка <b>«Настройки → Логи»</b>
+          (<code>GET /admin/settings/logs-data</code>) — см.
+          <a href="/docs/documentation/settings-logs">settings-logs.html</a>.
+          Другие экраны при необходимости подключают тот же режим явно.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="warn">
+    <b>Anti-leak:</b> не superadmin не должен получать данные чужого партнёра даже при подмене
+    <code>filter_partner_id=all</code> в AJAX — сервер всегда режет по <code>current_partner</code>.
+  </div>
+
+  <h2>8) Связанные файлы</h2>
   <ul>
     <li><code>/app/Http/Middleware/SetPartner.php</code> — реализация middleware</li>
-    <li><code>/app/Services/PartnerContext.php</code> — определение superadmin и работа с контекстом</li>
+    <li><code>/app/Services/PartnerContext.php</code> — определение superadmin, <code>applyPartnerScope</code></li>
+    <li><code>/app/Support/PartnerScopeMode.php</code> — enum режимов scope</li>
+    <li><code>/app/Http/Controllers/AdminBaseController.php</code> — обёртки <code>scopeByPartner</code>, <code>applyPartnerScope</code></li>
     <li><code>/resources/views/auth/login.blade.php</code> — вывод ошибок по ключу <code>email</code></li>
     <li><code>/tests/Feature/Crm/*</code> — feature‑тесты, фиксирующие контракт</li>
   </ul>
