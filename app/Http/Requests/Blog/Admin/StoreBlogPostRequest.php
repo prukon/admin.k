@@ -16,6 +16,7 @@ class StoreBlogPostRequest extends FormRequest
     {
         $this->merge([
             'is_published' => (int) filter_var($this->input('is_published', false), FILTER_VALIDATE_BOOL),
+            'publish_to_vk' => (int) filter_var($this->input('publish_to_vk', true), FILTER_VALIDATE_BOOL),
         ]);
 
         if ($this->filled('slug')) {
@@ -47,6 +48,9 @@ class StoreBlogPostRequest extends FormRequest
 
             'is_published' => ['required', 'boolean'],
             'published_at' => ['nullable', 'date', 'required_if:is_published,1'],
+
+            'publish_to_vk' => ['required', 'boolean'],
+            'vk_message' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -64,6 +68,8 @@ class StoreBlogPostRequest extends FormRequest
             'canonical_url' => 'Canonical URL',
             'is_published' => 'Публикация',
             'published_at' => 'Дата публикации',
+            'publish_to_vk' => 'Опубликовать в VK',
+            'vk_message' => 'Текст для VK',
         ];
     }
 

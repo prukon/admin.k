@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BlogPost extends Model
@@ -25,11 +26,14 @@ class BlogPost extends Model
         'canonical_url',
         'is_published',
         'published_at',
+        'publish_to_vk',
+        'vk_message',
     ];
 
     protected $casts = [
         'is_published' => 'bool',
         'published_at' => 'datetime',
+        'publish_to_vk' => 'bool',
     ];
 
     public function getVisibleCharsCountAttribute(): int
@@ -51,6 +55,36 @@ class BlogPost extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(BlogCategory::class, 'blog_category_id');
+    }
+
+    public function socialPublications(): HasMany
+    {
+        return $this->hasMany(BlogPostSocialPublication::class, 'blog_post_id');
+    }
+
+    public function vkPublication(): ?BlogPostSocialPublication
+    {
+        return $this->socialPublications
+            ->firstWhere('platform', BlogPostSocialPublication::PLATFORM_VK);
+    }
+
+    public function isPubliclyVisible(): bool
+    {
+        return $this->is_published
+            && $this->published_at !== null
+            && $this->published_at->lte(now());
+    }
+
+    public function isScheduledForFuture(): bool
+    {
+        return $this->is_published
+            && $this->published_at !== null
+            && $this->published_at->isFuture();
+    }
+
+    public function publicUrl(): string
+    {
+        return route('blog.show', $this->slug);
     }
 
     public function scopePublished(Builder $query): Builder

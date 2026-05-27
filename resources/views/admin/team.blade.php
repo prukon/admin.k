@@ -180,7 +180,7 @@
             <table id="teams-table" class="table table-striped table-bordered align-middle w-100">
                 <thead>
                 <tr>
-                    <th>#</th>
+                    <th>№</th>
                     <th>Сортировка</th>
                     <th>Название</th>
                     @can('trainers.view')

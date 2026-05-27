@@ -68,7 +68,7 @@
                                            data-column-key="id"
                                            id="colLocationId"
                                            checked>
-                                    <label class="form-check-label" for="colLocationId">#</label>
+                                    <label class="form-check-label" for="colLocationId">№</label>
                                 </div>
 
                                 <div class="form-check">
@@ -147,7 +147,7 @@
             <table id="locations-table" class="table table-striped table-bordered align-middle w-100">
                 <thead>
                 <tr>
-                    <th>#</th>
+                    <th>№</th>
                     <th>Название</th>
                     <th>Адрес</th>
                     <th>Активна</th>

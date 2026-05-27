@@ -939,6 +939,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('blog/posts/{post}/edit', [\App\Http\Controllers\Admin\BlogPostController::class, 'edit'])->name('admin.blog.posts.edit');
         Route::put('blog/posts/{post}', [\App\Http\Controllers\Admin\BlogPostController::class, 'update'])->name('admin.blog.posts.update');
         Route::delete('blog/posts/{post}', [\App\Http\Controllers\Admin\BlogPostController::class, 'destroy'])->name('admin.blog.posts.destroy');
+        Route::post('blog/posts/{post}/vk/retry', [\App\Http\Controllers\Admin\BlogPostController::class, 'retryVk'])->name('admin.blog.posts.vk.retry');
 
         // Blog AI
         Route::post('blog/posts/ai', [\App\Http\Controllers\Admin\BlogPostAiController::class, 'start'])->name('admin.blog.posts.ai.start');

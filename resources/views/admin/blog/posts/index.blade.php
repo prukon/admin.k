@@ -66,6 +66,7 @@
                     <th>Категория</th>
                     <th>Кол-во символов</th>
                     <th>Статус</th>
+                    <th>VK</th>
                     <th>Дата</th>
                     <th class="text-end">Действия</th>
                 </tr>
@@ -87,6 +88,16 @@
                                 <span class="badge bg-secondary">Черновик</span>
                             @endif
                         </td>
+                        @php($vkStatus = \App\Support\BlogVkStatus::forPost($post, (bool) ($vkGloballyEnabled ?? false)))
+                        <td>
+                            <span class="badge {{ $vkStatus['badge'] }}">{{ $vkStatus['label'] }}</span>
+                            @if($vkStatus['can_retry'])
+                                <form action="{{ route('admin.blog.posts.vk.retry', $post) }}" method="POST" class="d-inline mt-1">
+                                    @csrf
+                                    <button type="submit" class="btn btn-link btn-sm p-0">Повторить</button>
+                                </form>
+                            @endif
+                        </td>
                         <td class="text-muted small">
                             {{ $post->published_at?->format('d.m.Y H:i') }}
                         </td>
@@ -104,7 +115,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="text-muted">Статей пока нет.</td>
+                        <td colspan="8" class="text-muted">Статей пока нет.</td>
                     </tr>
                 @endforelse
                 </tbody>

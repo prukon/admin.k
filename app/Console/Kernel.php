@@ -36,6 +36,10 @@ class Kernel extends ConsoleKernel
             ->timezone('Europe/Riga')
             ->cron($payoutCron);
 
+        $schedule->command('blog:process-vk-publications')
+            ->timezone('Europe/Moscow')
+            ->everyMinute()
+            ->withoutOverlapping(5);
 
     }
 

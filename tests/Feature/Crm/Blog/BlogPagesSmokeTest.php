@@ -6,9 +6,14 @@ use App\Models\BlogAiGeneration;
 use App\Models\BlogAiGeneratedImage;
 use App\Models\BlogCategory;
 use App\Models\BlogPost;
+use App\Models\BlogPostSocialPublication;
 use Illuminate\Support\Str;
+use Tests\Feature\Crm\Blog\Concerns\ConfiguresBlogVk;
+
 class BlogPagesSmokeTest extends BlogAdminFeatureTestCase
 {
+    use ConfiguresBlogVk;
+
     public function test_public_blog_pages_open_with_200_when_data_exists(): void
     {
         $category = BlogCategory::query()->create([
@@ -82,14 +87,30 @@ class BlogPagesSmokeTest extends BlogAdminFeatureTestCase
             'slug' => 'cat-' . Str::lower(Str::random(8)),
         ]);
 
-        $post = BlogPost::query()->create([
-            'blog_category_id' => $category->id,
-            'title' => 'Статья',
-            'slug' => 'post-' . Str::lower(Str::random(8)),
-            'content' => '<p>' . str_repeat('Текст ', 20) . '</p>',
-            'is_published' => false,
-            'published_at' => now(),
-        ]);
+        $this->configureBlogVkEnabled();
+
+        $post = BlogPost::withoutEvents(function () use ($category) {
+            return BlogPost::query()->create([
+                'blog_category_id' => $category->id,
+                'title' => 'Статья',
+                'slug' => 'post-' . Str::lower(Str::random(8)),
+                'content' => '<p>' . str_repeat('Текст ', 20) . '</p>',
+                'is_published' => false,
+                'published_at' => now(),
+                'publish_to_vk' => true,
+            ]);
+        });
+
+        BlogPostSocialPublication::query()->updateOrCreate(
+            [
+                'blog_post_id' => $post->id,
+                'platform' => BlogPostSocialPublication::PLATFORM_VK,
+            ],
+            [
+                'status' => BlogPostSocialPublication::STATUS_FAILED,
+                'error_message' => 'smoke',
+            ]
+        );
 
         $gen = BlogAiGeneration::query()->create([
             'user_id' => $this->user->id,
@@ -116,7 +137,9 @@ class BlogPagesSmokeTest extends BlogAdminFeatureTestCase
         $this->get(route('admin.blog.posts.index'))
             ->assertOk()
             ->assertViewIs('admin.blog.posts.index')
-            ->assertSee('Статьи', escape: false);
+            ->assertSee('Статьи', escape: false)
+            ->assertSee('VK', escape: false)
+            ->assertSee('Повторить', escape: false);
 
         $this->get(route('admin.blog.posts.create'))
             ->assertOk()
@@ -126,7 +149,9 @@ class BlogPagesSmokeTest extends BlogAdminFeatureTestCase
         $this->get(route('admin.blog.posts.edit', $post))
             ->assertOk()
             ->assertViewIs('admin.blog.posts.edit')
-            ->assertSee('Редактирование статьи', escape: false);
+            ->assertSee('Редактирование статьи', escape: false)
+            ->assertSee('Опубликовать в VK', escape: false)
+            ->assertSee('Текст для VK', escape: false);
 
         $this->get(route('admin.blog.categories.index'))
             ->assertOk()
@@ -146,7 +171,12 @@ class BlogPagesSmokeTest extends BlogAdminFeatureTestCase
         $this->get(route('admin.blog.settings.edit'))
             ->assertOk()
             ->assertViewIs('admin.blog.settings.edit')
-            ->assertSee('SEO-настройки', escape: false);
+            ->assertSee('SEO-настройки', escape: false)
+            ->assertSee('ВКонтакте: публикация статей', escape: false);
+
+        $this->post(route('admin.blog.posts.vk.retry', $post))
+            ->assertRedirect()
+            ->assertSessionHas('success');
 
         // status JSON endpoint
         $this->getJson(route('admin.blog.posts.ai.status', $gen))

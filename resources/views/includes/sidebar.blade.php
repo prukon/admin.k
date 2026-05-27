@@ -90,15 +90,7 @@
             </li>
         @endcan --}}
 
-        {{--Локации--}}
-        @can('locations.view')
-            <li class="nav-item">
-                <a href="/admin/locations" class="nav-link">
-                    <i class="nav-icon fa-solid fa-location-dot"></i>
-                    <p>Локации</p>
-                </a>
-            </li>
-        @endcan
+ 
 
         {{--Пользователи--}}
         @can('users.view')
@@ -120,6 +112,16 @@
             </li>
         @endcan
 
+       {{--Локации--}}
+        @can('locations.view')
+            <li class="nav-item">
+                <a href="/admin/locations" class="nav-link">
+                    <i class="nav-icon fa-solid fa-location-dot"></i>
+                    <p>Локации</p>
+                </a>
+            </li>
+        @endcan
+          
         {{--Договоры--}}
         @can('contracts.view')
             <li class="nav-item">

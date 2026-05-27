@@ -298,6 +298,45 @@
             </div>
 
             <div class="col-12">
+                <hr class="my-4">
+                <div class="h5 mb-0">ВКонтакте: публикация статей</div>
+                <div class="text-muted small mt-1">
+                    Токен и ID группы задаются в <code>.env</code> (<code>VK_GROUP_TOKEN</code>, <code>VK_GROUP_ID</code>, <code>VK_ENABLED</code>).
+                    Группа: <a href="https://vk.com/kidscrm" target="_blank" rel="noopener">vk.com/kidscrm</a>.
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <label class="form-label">Публикация в VK</label>
+                <select name="vk_enabled" class="form-select @error('vk_enabled') is-invalid @enderror">
+                    @php($vkEnabled = old('vk_enabled', $settings['vk_enabled'] ?? '1'))
+                    <option value="1" @selected((string) $vkEnabled === '1')>Включено</option>
+                    <option value="0" @selected((string) $vkEnabled === '0')>Выключено</option>
+                </select>
+                @error('vk_enabled')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+
+            <div class="col-12 col-lg-8">
+                <label class="form-label">Шаблон текста для VK</label>
+                <textarea name="vk_message_template"
+                          rows="4"
+                          class="form-control @error('vk_message_template') is-invalid @enderror">{{ old('vk_message_template', $settings['vk_message_template'] ?? "{title}\n\n{excerpt}\n\n{url}") }}</textarea>
+                @error('vk_message_template')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <div class="text-muted small mt-1">
+                    Переменные: <code>{title}</code>, <code>{excerpt}</code>, <code>{url}</code>, <code>{category}</code>.
+                    Лимит текста поста — 500 символов.
+                </div>
+            </div>
+
+            <div class="col-12">
+                @if(!empty($vk_configured))
+                    <span class="badge bg-success">VK API настроен (.env)</span>
+                @else
+                    <span class="badge bg-warning text-dark">VK API не настроен — проверьте .env</span>
+                @endif
+            </div>
+
+            <div class="col-12">
                 <button class="btn btn-primary" type="submit">Сохранить</button>
             </div>
         </form>

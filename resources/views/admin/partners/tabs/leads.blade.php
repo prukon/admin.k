@@ -153,7 +153,7 @@
 <table id="leads-table" class="table table-bordered table-striped align-middle w-100">
     <thead>
         <tr>
-            <th>#</th>
+            <th>№</th>
             <th>Имя</th>
             <th>Телефон</th>
             <th>Email</th>

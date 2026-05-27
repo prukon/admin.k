@@ -8,6 +8,7 @@ use App\Http\Requests\Blog\Admin\UpdateBlogPostRequest;
 use App\Models\BlogAiGeneratedImage;
 use App\Models\BlogCategory;
 use App\Models\BlogPost;
+use App\Services\BlogVk\BlogVkPublicationCoordinator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,7 +19,7 @@ class BlogPostController extends Controller
 {
     public function index(): View
     {
-        $query = BlogPost::query()->with('category');
+        $query = BlogPost::query()->with(['category', 'socialPublications']);
 
         $status = request('status', 'all');
         if ($status === 'published') {
@@ -61,6 +62,7 @@ class BlogPostController extends Controller
         return view('admin.blog.posts.index', [
             'posts' => $posts,
             'categories' => BlogCategory::query()->orderBy('name')->get(['id', 'name']),
+            'vkGloballyEnabled' => app(\App\Services\BlogVk\BlogVkSettings::class)->globallyEnabled(),
             'stats' => [
                 'published' => $publishedCount,
                 'drafts' => $draftCount,
@@ -165,6 +167,16 @@ class BlogPostController extends Controller
         return redirect()
             ->route('admin.blog.posts.index')
             ->with('success', 'Статья удалена.');
+    }
+
+    public function retryVk(BlogPost $post, BlogVkPublicationCoordinator $coordinator): RedirectResponse
+    {
+        $post->load(['category', 'socialPublications']);
+        $coordinator->retry($post);
+
+        return redirect()
+            ->back()
+            ->with('success', 'Публикация в VK поставлена в очередь.');
     }
 
     private function makeUniqueSlug(string $title, ?int $ignoreId = null): string

@@ -565,6 +565,10 @@ class SettingController extends AdminBaseController
                 'label' => 'AI-статьи блога',
                 'patterns' => ['RunBlogAiGenerationJob', 'RunBlogAiGeneratedImageJob', 'RunBlogAiImageRegenerationJob'],
             ],
+            'blog_vk' => [
+                'label' => 'Публикация блога в VK',
+                'patterns' => ['PublishBlogPostToVkJob'],
+            ],
             'payouts' => [
                 'label' => 'Выплаты T-Bank',
                 'patterns' => ['TinkoffRunScheduledPayoutsJob', 'TinkoffPollPayoutStatesJob'],

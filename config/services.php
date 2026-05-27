@@ -66,6 +66,18 @@ return [
         'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
     ],
 
+    'vk' => [
+        'enabled' => filter_var(env('VK_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'group_id' => env('VK_GROUP_ID'),
+        'access_token' => env('VK_GROUP_TOKEN'),
+        'api_version' => env('VK_API_VERSION', '5.199'),
+        'utm' => [
+            'source' => env('VK_UTM_SOURCE', 'vk'),
+            'medium' => env('VK_UTM_MEDIUM', 'social'),
+            'campaign' => env('VK_UTM_CAMPAIGN', 'blog'),
+        ],
+    ],
+
 
 
 

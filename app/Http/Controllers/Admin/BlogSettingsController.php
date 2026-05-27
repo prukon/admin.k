@@ -50,7 +50,13 @@ class BlogSettingsController extends Controller
                 'ai_images_style' => $this->getText('blog.ai.images.style', 'Плоская современная иллюстрация, чистые формы, мягкие тени, дружелюбный стиль, без текста.'),
                 'ai_images_palette' => $this->getText('blog.ai.images.palette', '#1F6FEB,#F97316,#111827,#FFFFFF'),
                 'ai_images_rules' => $this->getText('blog.ai.images.rules', "Запрещено: любой текст, буквы, цифры, логотипы, водяные знаки, надписи на вывесках.\nРазрешено: персонажи/люди в виде иллюстраций.\nСтиль: единый, аккуратный, без агрессии."),
+
+                'vk_enabled' => $this->getText('blog.vk.enabled', '1'),
+                'vk_message_template' => $this->getText('blog.vk.message_template', "{title}\n\n{excerpt}\n\n{url}"),
             ],
+            'vk_configured' => (bool) config('services.vk.enabled')
+                && (string) config('services.vk.group_id', '') !== ''
+                && (string) config('services.vk.access_token', '') !== '',
         ]);
     }
 
@@ -90,6 +96,9 @@ class BlogSettingsController extends Controller
                 'ai_images_style' => ['nullable', 'string', 'min:10', 'max:2000'],
                 'ai_images_palette' => ['nullable', 'string', 'max:200'],
                 'ai_images_rules' => ['nullable', 'string', 'max:4000'],
+
+                'vk_enabled' => ['nullable', 'in:0,1'],
+                'vk_message_template' => ['nullable', 'string', 'min:10', 'max:2000'],
             ], [
                 'default_og_image.image' => 'Файл должен быть изображением.',
                 'default_og_image.mimes' => 'Изображение должно быть в формате JPG, PNG или WEBP.',
@@ -139,6 +148,8 @@ class BlogSettingsController extends Controller
                 'ai_images_style' => 'Стиль изображений',
                 'ai_images_palette' => 'Палитра (HEX)',
                 'ai_images_rules' => 'Правила/запреты для изображений',
+                'vk_enabled' => 'Публикация в VK: включено',
+                'vk_message_template' => 'Шаблон текста для VK',
             ]);
         } catch (ValidationException $e) {
             return back()
@@ -177,6 +188,12 @@ class BlogSettingsController extends Controller
         $this->setText('blog.ai.images.style', $validated['ai_images_style'] ?? 'Плоская современная иллюстрация, чистые формы, мягкие тени, дружелюбный стиль, без текста.');
         $this->setText('blog.ai.images.palette', $validated['ai_images_palette'] ?? '#1F6FEB,#F97316,#111827,#FFFFFF');
         $this->setText('blog.ai.images.rules', $validated['ai_images_rules'] ?? "Запрещено: любой текст, буквы, цифры, логотипы, водяные знаки, надписи на вывесках.\nРазрешено: персонажи/люди в виде иллюстраций.\nСтиль: единый, аккуратный, без агрессии.");
+
+        $this->setText('blog.vk.enabled', isset($validated['vk_enabled']) ? (string) $validated['vk_enabled'] : '1');
+        $this->setText(
+            'blog.vk.message_template',
+            $validated['vk_message_template'] ?? "{title}\n\n{excerpt}\n\n{url}"
+        );
 
         if ($request->hasFile('default_og_image')) {
             $old = $this->getText('blog.default.og_image_path');

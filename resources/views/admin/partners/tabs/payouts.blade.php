@@ -317,7 +317,7 @@
             <table id="payouts-table" class="table table-striped table-bordered align-middle w-100">
                 <thead>
                 <tr>
-                    <th>#</th>
+                    <th>№</th>
                     <th>ID</th>
                     <th>Статус</th>
                     <th>Источник</th>

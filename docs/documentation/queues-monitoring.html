@@ -83,6 +83,7 @@
     <li>В <code>App\Console\Kernel</code> зарегистрировано событие <code>everyMinute</code>, которое пишет timestamp в cache-ключ <code>scheduler:last_tick_at</code> (класс <code>App\Support\SchedulerHeartbeat</code>).</li>
     <li>Если на сервере <b>нет</b> cron-строки вида <code>* * * * * php artisan schedule:run</code>, тик не обновляется — в UI будет <code>no_data</code> или статус «мертв».</li>
     <li>Пороги для <code>scheduler_status</code>: до 120 сек — ок; 121–600 сек — предупреждение; больше 600 сек — критично.</li>
+    <li>Также по расписанию (каждую минуту, <code>Europe/Moscow</code>) вызывается <code>blog:process-vk-publications</code> — отложенные публикации блога в VK и ожидание обложки (см. <a href="/docs/documentation/blog#vk">документацию блога</a>).</li>
   </ul>
 
   <h2>4.2) Просроченные отложенные выплаты (T‑Bank)</h2>
@@ -96,7 +97,7 @@
   <ul>
     <li><b>По очередям</b>: агрегируется по колонке <code>queue</code> в <code>jobs</code>/<code>failed_jobs</code>.</li>
     <li><b>По типам задач</b>: агрегируется по шаблонам class-name в <code>payload</code>:
-      возвраты, CloudKassir-чеки, AI-блог, выплаты T-Bank, smoke-test.
+      возвраты, CloudKassir-чеки, AI-блог, публикация блога в VK, выплаты T-Bank, smoke-test.
     </li>
   </ul>
 

@@ -54,6 +54,34 @@
         @error('is_published')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
     </div>
 
+    <div class="col-12">
+        <hr class="my-2">
+        <div class="h6 mb-2">ВКонтакте</div>
+    </div>
+
+    <div class="col-12">
+        <input type="hidden" name="publish_to_vk" value="0">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="1" id="publish_to_vk" name="publish_to_vk"
+                @checked((bool) old('publish_to_vk', $post?->publish_to_vk ?? true))>
+            <label class="form-check-label" for="publish_to_vk">
+                Опубликовать в VK (группа kidscrm)
+            </label>
+        </div>
+        @error('publish_to_vk')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+        <div class="text-muted small mt-1">
+            Пост уйдёт после публикации статьи на сайте, когда будет загружена обложка.
+        </div>
+    </div>
+
+    <div class="col-12">
+        <label class="form-label">Текст для VK (до 500 символов)</label>
+        <textarea name="vk_message" rows="4" maxlength="500"
+                  class="form-control @error('vk_message') is-invalid @enderror"
+                  placeholder="Если пусто — будет сформирован из шаблона в настройках блога.">{{ old('vk_message', $post?->vk_message) }}</textarea>
+        @error('vk_message')<div class="invalid-feedback">{{ $message }}</div>@enderror
+    </div>
+
     <div class="col-12 col-lg-6">
         <label class="form-label">Дата публикации</label>
         @php

@@ -33,6 +33,7 @@ class BlogAuthorizationTest extends CrmTestCase
             'admin.blog.posts.edit',
             'admin.blog.posts.update',
             'admin.blog.posts.destroy',
+            'admin.blog.posts.vk.retry',
 
             'admin.blog.posts.ai.start',
             'admin.blog.posts.ai.post.start',
@@ -64,6 +65,19 @@ class BlogAuthorizationTest extends CrmTestCase
         $this->get(route('admin.blog.categories.index'))->assertStatus(302);
         $this->get(route('admin.blog.settings.edit'))->assertStatus(302);
 
+        $post = \App\Models\BlogPost::query()->create([
+            'blog_category_id' => \App\Models\BlogCategory::query()->create([
+                'name' => 'Cat',
+                'slug' => 'cat-guest-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(6)),
+            ])->id,
+            'title' => 'Guest',
+            'slug' => 'guest-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(6)),
+            'content' => '<p>' . str_repeat('x ', 30) . '</p>',
+            'is_published' => false,
+            'published_at' => now(),
+        ]);
+        $this->post(route('admin.blog.posts.vk.retry', $post))->assertStatus(302);
+
         // JSON routes for guest usually return 401 (Sanctum/session guard)
         $this->postJson(route('admin.blog.posts.ai.start'), [])->assertStatus(401);
     }
@@ -80,6 +94,19 @@ class BlogAuthorizationTest extends CrmTestCase
         $this->get(route('admin.blog.posts.index'))->assertStatus(403);
         $this->get(route('admin.blog.categories.index'))->assertStatus(403);
         $this->get(route('admin.blog.settings.edit'))->assertStatus(403);
+
+        $post = \App\Models\BlogPost::query()->create([
+            'blog_category_id' => \App\Models\BlogCategory::query()->create([
+                'name' => 'Cat2',
+                'slug' => 'cat-403-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(6)),
+            ])->id,
+            'title' => 'Forbidden',
+            'slug' => 'forbidden-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(6)),
+            'content' => '<p>' . str_repeat('y ', 30) . '</p>',
+            'is_published' => false,
+            'published_at' => now(),
+        ]);
+        $this->post(route('admin.blog.posts.vk.retry', $post))->assertStatus(403);
 
         $this->postJson(route('admin.blog.posts.ai.start'), [])->assertStatus(403);
     }

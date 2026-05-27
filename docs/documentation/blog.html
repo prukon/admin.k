@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Блог: админка, ИИ, публикация в VK</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 16px; margin-top: 20px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Блог: админка, ИИ, публикация в VK</h1>
+  <div class="small">Файл: <code>/docs/documentation/blog.html</code> · в кабинете: <a href="/doc">/doc</a></div>
+
+  <div class="note">
+    Модуль блога включает публичные страницы на сайте, админку статей и категорий, генерацию контента через OpenAI
+    и автоматическую публикацию анонсов в группу ВКонтакте <a href="https://vk.com/kidscrm" target="_blank" rel="noopener">vk.com/kidscrm</a>.
+    Публикация на сайте и в VK — <b>разные шаги</b>: ИИ создаёт черновик; пост в VK уходит только после явной публикации статьи (и при выполнении условий ниже).
+  </div>
+
+  <h2>1) Публичная часть (без авторизации)</h2>
+  <table>
+    <thead><tr><th>URL</th><th>Маршрут</th><th>Описание</th></tr></thead>
+    <tbody>
+      <tr><td><code>/blog</code></td><td><code>blog.index</code></td><td>Список опубликованных статей</td></tr>
+      <tr><td><code>/blog/category/{slug}</code></td><td><code>blog.category</code></td><td>Статьи категории</td></tr>
+      <tr><td><code>/blog/{slug}</code></td><td><code>blog.show</code></td><td>Страница статьи (пример: <code>/blog/kak-oformit-dogovor-…</code>)</td></tr>
+    </tbody>
+  </table>
+  <p>Статья считается <b>видимой на сайте</b>, если одновременно:</p>
+  <ul>
+    <li><code>is_published = true</code></li>
+    <li><code>published_at</code> задан и <code>published_at &lt;= now()</code> (scope <code>BlogPost::published()</code>)</li>
+  </ul>
+  <p>Черновики и статьи с датой в будущем по прямой ссылке отдают <b>404</b>.</p>
+
+  <h2>2) Админка: доступ и навигация</h2>
+  <ul>
+    <li><b>Право</b>: <code>blog.view</code> (описание в permissions: «Страница "Блог"»).</li>
+    <li><b>Middleware</b>: все маршруты <code>/admin/blog/*</code> в группе <code>can:blog.view</code>.</li>
+    <li>Без права — <b>403</b>; гость — редирект на вход (как у остальных admin-маршрутов).</li>
+    <li>Раздел в админке: вкладки <b>Статьи</b>, <b>Категории</b>, <b>SEO-настройки</b> (<code>admin.blog._toolbar</code>).</li>
+  </ul>
+
+  <h3>2.1) Маршруты админки</h3>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Имя</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/blog/posts</code></td><td><code>admin.blog.posts.index</code></td></tr>
+      <tr><td>GET/POST</td><td><code>/admin/blog/posts/create</code>, <code>store</code></td><td><code>admin.blog.posts.create/store</code></td></tr>
+      <tr><td>GET/PUT/DELETE</td><td><code>/admin/blog/posts/{post}/edit</code> …</td><td><code>admin.blog.posts.edit/update/destroy</code></td></tr>
+      <tr><td>POST</td><td><code>/admin/blog/posts/{post}/vk/retry</code></td><td><code>admin.blog.posts.vk.retry</code> — повтор публикации в VK</td></tr>
+      <tr><td>POST</td><td><code>/admin/blog/posts/ai</code></td><td><code>admin.blog.posts.ai.start</code> — новая статья (ИИ)</td></tr>
+      <tr><td>POST</td><td><code>/admin/blog/posts/{post}/ai</code></td><td><code>admin.blog.posts.ai.post.start</code></td></tr>
+      <tr><td>GET</td><td><code>/admin/blog/posts/ai/{generation}</code></td><td><code>admin.blog.posts.ai.status</code> (JSON)</td></tr>
+      <tr><td>POST</td><td><code>/admin/blog/posts/{post}/ai/images/{image}/regenerate</code></td><td><code>admin.blog.posts.ai.images.regenerate</code></td></tr>
+      <tr><td>GET/POST</td><td><code>/admin/blog/categories</code> …</td><td><code>admin.blog.categories.*</code></td></tr>
+      <tr><td>GET/POST</td><td><code>/admin/blog/settings</code></td><td><code>admin.blog.settings.edit/update</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>3) Статьи: поля и публикация на сайте</h2>
+  <p>Основная модель: <code>App\Models\BlogPost</code>, таблица <code>blog_posts</code>.</p>
+  <ul>
+    <li><code>title</code>, <code>slug</code> (уникальный, латиница и дефисы), <code>excerpt</code>, <code>content</code> (HTML, Purifier в админке).</li>
+    <li><code>cover_image_path</code> — обложка в <code>storage/app/public/blog/covers/</code> (публично: <code>/storage/blog/covers/…</code>).</li>
+    <li>SEO: <code>meta_title</code>, <code>meta_description</code>, <code>canonical_url</code>; на странице статьи — OG-теги (<code>og:image</code> = обложка или дефолт из настроек).</li>
+    <li><code>is_published</code>, <code>published_at</code> — для черновика дата может проставляться автоматически при сохранении.</li>
+    <li><b>VK</b>: <code>publish_to_vk</code> (bool, по умолчанию <code>true</code>), <code>vk_message</code> (до 500 символов, опционально).</li>
+  </ul>
+
+  <h2>4) ИИ: генерация статей и изображений</h2>
+  <ul>
+    <li>Кнопка «+ Статья (ИИ)» на списке статей; для существующей статьи — действия улучшения/SEO в модалке.</li>
+    <li>Настройки промптов, бюджета и моделей — <code>/admin/blog/settings</code> (ключи <code>blog.ai.*</code> в <code>settings</code>).</li>
+    <li>Фоновые задачи: <code>RunBlogAiGenerationJob</code>, <code>RunBlogAiGeneratedImageJob</code>, <code>RunBlogAiImageRegenerationJob</code>.</li>
+    <li>Новая статья от ИИ создаётся как <b>черновик</b> (<code>is_published = false</code>); в VK при этом <b>ничего не уходит</b>.</li>
+    <li>Обложка от ИИ записывается в <code>cover_image_path</code> после генерации изображения — это может запустить публикацию в VK, если статья уже опубликована на сайте и включена галочка VK.</li>
+  </ul>
+
+  <h2 id="vk">5) Публикация в ВКонтакте</h2>
+
+  <h3>5.1) Условия отправки поста на стену</h3>
+  <p>Пост в VK создаётся <b>один раз</b> на статью (запись в <code>blog_post_social_publications</code>). Повторная публикация на сайте после снятия с публикации <b>не создаёт</b> новый пост в VK.</p>
+  <p>Задача ставится в очередь, когда выполнены все условия:</p>
+  <ul>
+    <li>В <code>.env</code>: <code>VK_ENABLED=true</code>, заданы <code>VK_GROUP_ID</code> и <code>VK_GROUP_TOKEN</code>.</li>
+    <li>В настройках блога (<code>/admin/blog/settings</code>): «Публикация в VK» = включено (<code>blog.vk.enabled</code> в <code>settings</code>).</li>
+    <li>На форме статьи включена галочка <b>«Опубликовать в VK»</b> (<code>publish_to_vk</code>).</li>
+    <li>Статья <b>впервые</b> стала видимой на сайте (<code>is_published</code> + <code>published_at &lt;= now()</code>).</li>
+    <li>Есть <code>cover_image_path</code> — без обложки статус VK: <b>«Ждёт обложку»</b>, job не отправляется до появления файла.</li>
+    <li>Ещё нет успешной публикации VK (<code>status != published</code> в <code>blog_post_social_publications</code>).</li>
+  </ul>
+
+  <h3>5.2) Содержимое поста VK</h3>
+  <ul>
+    <li><b>Текст</b>: поле «Текст для VK» на форме статьи; если пусто — шаблон из настроек (<code>blog.vk.message_template</code>), переменные: <code>{title}</code>, <code>{excerpt}</code>, <code>{url}</code>, <code>{category}</code>. Лимит — <b>500 символов</b>.</li>
+    <li><b>Ссылка</b> на статью с UTM: <code>utm_source=vk</code>, <code>utm_medium=social</code>, <code>utm_campaign=blog</code> (значения из <code>config/services.php</code> / <code>.env</code>).</li>
+    <li><b>Фото</b>: обложка загружается на стену группы через VK API (<code>photos.getWallUploadServer</code> → <code>photos.saveWallPhoto</code>), затем <code>wall.post</code> с вложениями «фото + ссылка».</li>
+  </ul>
+
+  <h3>5.3) Переменные окружения (.env)</h3>
+  <pre>VK_ENABLED=true
+VK_GROUP_ID=123456789
+VK_GROUP_TOKEN=vk1.a....
+VK_API_VERSION=5.199
+VK_UTM_SOURCE=vk
+VK_UTM_MEDIUM=social
+VK_UTM_CAMPAIGN=blog</pre>
+  <p><code>VK_GROUP_ID</code> — числовой ID сообщества (в API: <code>owner_id = -VK_GROUP_ID</code>). Short name <code>kidscrm</code> в URL группы — не подставлять вместо числового ID.</p>
+
+  <div class="warn">
+    <b>Токен сообщества</b> создаётся в VK: Управление группой → Работа с API → Ключи доступа.
+    Нужны права: управление сообществом, <b>фотографии</b>, <b>запись на стене</b>.
+    Токен хранится только в <code>.env</code>, не в таблице <code>settings</code>.
+  </div>
+
+  <h3>5.4) Статусы в списке статей (колонка VK)</h3>
+  <table>
+    <thead><tr><th>Статус в UI</th><th><code>blog_post_social_publications.status</code></th></tr></thead>
+    <tbody>
+      <tr><td>— / Выкл</td><td>VK выключен глобально или галочка на статье снята</td></tr>
+      <tr><td>Запланировано</td><td><code>pending_schedule</code> — <code>published_at</code> в будущем</td></tr>
+      <tr><td>Ждёт обложку</td><td><code>pending_cover</code></td></tr>
+      <tr><td>В очереди</td><td><code>pending</code> / <code>publishing</code></td></tr>
+      <tr><td>Опубликовано</td><td><code>published</code> (+ <code>external_post_id</code>)</td></tr>
+      <tr><td>Ошибка</td><td><code>failed</code> — кнопка «Повторить» → <code>POST …/vk/retry</code></td></tr>
+      <tr><td>Пропущено</td><td><code>skipped</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.5) Очередь, планировщик, код</h3>
+  <ul>
+    <li>Job: <code>App\Jobs\BlogVk\PublishBlogPostToVkJob</code> (очередь database, до 5 попыток, <code>ShouldBeUnique</code> на <code>blog_post_id</code>).</li>
+    <li>Клиент VK: <code>App\Services\BlogVk\VkWallClient</code>; координатор: <code>BlogVkPublicationCoordinator</code>; observer: <code>BlogPostObserver</code> (событие <code>saved</code>).</li>
+    <li>Cron: каждую минуту <code>php artisan blog:process-vk-publications</code> (<code>App\Console\Kernel</code>, timezone <code>Europe/Moscow</code>) — отложенные статьи и ожидание обложки.</li>
+    <li>На сервере должны работать <code>schedule:run</code> (cron) и <code>queue:work</code>. См. также <a href="/docs/documentation/queues-monitoring">мониторинг очередей</a>.</li>
+  </ul>
+
+  <h2>6) Таблицы БД (блог + VK)</h2>
+  <table>
+    <thead><tr><th>Таблица</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td><code>blog_categories</code></td><td>Категории</td></tr>
+      <tr><td><code>blog_posts</code></td><td>Статьи (+ <code>publish_to_vk</code>, <code>vk_message</code>)</td></tr>
+      <tr><td><code>blog_post_social_publications</code></td><td>Учёт публикаций в соцсетях; уникальный ключ <code>(blog_post_id, platform)</code>, <code>platform = vk</code></td></tr>
+      <tr><td><code>blog_ai_generations</code>, <code>blog_ai_generated_images</code>, <code>blog_ai_daily_usages</code></td><td>ИИ-генерации</td></tr>
+    </tbody>
+  </table>
+
+  <h2>7) Настройки в админке (<code>/admin/blog/settings</code>)</h2>
+  <ul>
+    <li>SEO блога, OG по умолчанию, шаблон title статьи.</li>
+    <li>Блок «ИИ: генерация статей» — модель, бюджет, промпты, изображения.</li>
+    <li>Блок «ВКонтакте» — вкл/выкл (<code>blog.vk.enabled</code>), шаблон текста VK; индикатор «VK API настроен» смотрит на <code>.env</code>.</li>
+  </ul>
+
+  <h2>8) Feature-тесты</h2>
+  <p>Папка <code>tests/Feature/Crm/Blog/</code>:</p>
+  <ul>
+    <li><code>BlogVkPublicationTest</code> — сценарии VK (очередь, обложка, отложенные, ошибки API, UTM, idempotent).</li>
+    <li><code>BlogVkSectionFullAccessFeatureTest</code> — доступ к VK UI и <code>vk/retry</code>.</li>
+    <li><code>BlogSectionFullAccessFeatureTest</code> — все GET/POST endpoint'ы блога с <code>blog.view</code> → 200/redirect.</li>
+    <li><code>BlogAuthorizationTest</code> — middleware <code>can:blog.view</code> на всех маршрутах, включая <code>admin.blog.posts.vk.retry</code>.</li>
+    <li><code>BlogPagesSmokeTest</code>, <code>BlogPostsCrudTest</code>, <code>Ai/BlogAiRequestsTest</code> — остальной функционал блога.</li>
+  </ul>
+  <p>Запуск: <code>php artisan test tests/Feature/Crm/Blog/</code></p>
+</div>
+</body>
+</html>

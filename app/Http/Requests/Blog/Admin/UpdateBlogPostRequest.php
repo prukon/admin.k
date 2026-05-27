@@ -14,8 +14,17 @@ class UpdateBlogPostRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $post = $this->route('post');
+        $defaultPublishToVk = $post instanceof \App\Models\BlogPost
+            ? $post->publish_to_vk
+            : true;
+
         $this->merge([
             'is_published' => (int) filter_var($this->input('is_published', false), FILTER_VALIDATE_BOOL),
+            'publish_to_vk' => (int) filter_var(
+                $this->input('publish_to_vk', $defaultPublishToVk),
+                FILTER_VALIDATE_BOOL
+            ),
         ]);
 
         if ($this->filled('slug')) {
@@ -52,6 +61,9 @@ class UpdateBlogPostRequest extends FormRequest
 
             'is_published' => ['required', 'boolean'],
             'published_at' => ['nullable', 'date', 'required_if:is_published,1'],
+
+            'publish_to_vk' => ['required', 'boolean'],
+            'vk_message' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -69,6 +81,8 @@ class UpdateBlogPostRequest extends FormRequest
             'canonical_url' => 'Canonical URL',
             'is_published' => 'Публикация',
             'published_at' => 'Дата публикации',
+            'publish_to_vk' => 'Опубликовать в VK',
+            'vk_message' => 'Текст для VK',
         ];
     }
 

@@ -239,7 +239,7 @@
                     <table id="users-table" class="table table-striped table-bordered align-middle w-100">
                         <thead>
                         <tr>
-                            <th>#</th>
+                            <th>№</th>
                             <th>Аватар</th>
                             <th>Имя</th>
                             <th>Родитель</th>
