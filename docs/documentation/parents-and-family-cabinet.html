@@ -126,6 +126,7 @@ users (role=user) — ученик, вход в CRM
     </tbody>
   </table>
   <ul>
+    <li>В модалках create/edit: блок родителя только для роли <code>user</code>; переключатель «Из справочника» / «Новый родитель» (если в справочнике есть записи), иначе сразу поля ФИО — см. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1.2</a>.</li>
     <li>В списке DataTables колонка «Родитель» — склейка ФИО из <code>parents</code> (через <code>parentProfile</code>).</li>
     <li>Поиск по <code>name</code> ищет также по ФИО в <code>parents</code> (<code>whereHas parentProfile</code>).</li>
     <li>Сортировка col=3: <code>parents.lastname</code>, <code>parents.firstname</code> (left join).</li>

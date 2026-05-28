@@ -152,6 +152,50 @@ final class AdminUsersParentPartnerIsolationTest extends CrmTestCase
         ])->assertStatus(404);
     }
 
+    public function test_admin_cannot_update_foreign_partner_student(): void
+    {
+        $foreignStudent = User::factory()->create([
+            'partner_id' => $this->foreignPartner->id,
+            'role_id'    => $this->userRoleId(),
+            'name'       => 'Чужой',
+            'lastname'   => 'Ученик',
+        ]);
+
+        $this->patchJson(route('admin.user.update', $foreignStudent->id), [
+            'name'              => $foreignStudent->name,
+            'lastname'          => $foreignStudent->lastname,
+            'role_id'           => $foreignStudent->role_id,
+            'parent_lastname'   => 'Взлом',
+            'parent_firstname'  => 'Родитель',
+            'is_enabled'        => 1,
+        ], ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertNotFound();
+    }
+
+    public function test_parents_search_empty_term_returns_only_current_partner_subset(): void
+    {
+        ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'СвойБезЗапроса',
+            'firstname'  => 'А',
+        ]);
+
+        ParentProfile::factory()->create([
+            'partner_id' => $this->foreignPartner->id,
+            'lastname'   => 'СвойБезЗапроса',
+            'firstname'  => 'Чужой',
+        ]);
+
+        $json = $this->getJson(route('admin.users.parents.search', ['q' => '', 'limit' => 50]))
+            ->assertOk()
+            ->json();
+
+        $texts = collect($json['results'] ?? [])->pluck('text')->all();
+
+        $this->assertContains('СвойБезЗапроса А', $texts);
+        $this->assertNotContains('СвойБезЗапроса Чужой', $texts);
+    }
+
     public function test_admin_store_creates_parent_profile_in_current_partner(): void
     {
         $this->postJson(route('admin.user.store'), [

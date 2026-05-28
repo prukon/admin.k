@@ -64,6 +64,29 @@ final class StudentParentSyncServiceTest extends CrmTestCase
         $this->assertNull($student->fresh()->parent_id);
     }
 
+    public function test_non_student_role_clears_parent_link(): void
+    {
+        $trainerRoleId = (int) Role::query()->where('name', 'trainer')->value('id');
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $trainerRoleId,
+            'parent_id'  => $parent->id,
+        ]);
+
+        app(StudentParentSyncService::class)->syncForStudent($user, (int) $this->partner->id, [
+            'parent_id'        => $parent->id,
+            'parent_lastname'  => 'Игнор',
+            'parent_firstname' => 'Игнор',
+        ]);
+
+        $this->assertNull($user->fresh()->parent_id);
+    }
+
     public function test_explicit_empty_parent_id_clears_link(): void
     {
         $roleId = (int) Role::query()->where('name', 'user')->value('id');

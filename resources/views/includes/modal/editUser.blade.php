@@ -225,29 +225,6 @@
                             </div>
                         </div>
 
-
-                        <!-- Поле "Активность" -->
-                        <div class="col-12 col-md-6">
-
-                            <div class="mb-3">
-                                <label for="edit-activity" class="form-label">Активность</label>
-                                <select
-                                        id="edit-activity"
-                                        name="is_enabled"
-                                        class="form-select"
-                                        @cannot('users.activity.update') disabled aria-disabled="true" @endcannot
-                                >
-                                    <option value="0">Неактивен</option>
-                                    <option value="1">Активен</option>
-                                </select>
-                                @cannot('users.activity.update')
-                                    <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
-                                        изменение
-                                        активности
-                                    </div>
-                                @endcannot
-                            </div>
-                        </div>
                         <!-- Поле "Роль" -->
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
@@ -269,6 +246,28 @@
                                     <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
                                         изменение
                                         роли
+                                    </div>
+                                @endcannot
+                            </div>
+                        </div>
+
+                        <!-- Поле "Активность" -->
+                        <div class="col-12 col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-activity" class="form-label">Активность</label>
+                                <select
+                                        id="edit-activity"
+                                        name="is_enabled"
+                                        class="form-select"
+                                        @cannot('users.activity.update') disabled aria-disabled="true" @endcannot
+                                >
+                                    <option value="0">Неактивен</option>
+                                    <option value="1">Активен</option>
+                                </select>
+                                @cannot('users.activity.update')
+                                    <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
+                                        изменение
+                                        активности
                                     </div>
                                 @endcannot
                             </div>
@@ -311,6 +310,7 @@
 
                             <!-- Поле "Email" -->
                         </div>
+
                         <!-- Блок изменения пароля -->
                         <div class="buttons-wrap change-pass-wrap" id="change-pass-wrap" style="display: none;">
                             <div class="d-flex align-items-center mt-3">

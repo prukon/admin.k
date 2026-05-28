@@ -108,24 +108,48 @@
   Сортировка col=3: join <code>parents</code>, <code>orderBy parents.lastname, parents.firstname</code>.</p>
 
   <h3>2.1.2) UI и поиск (модалки create / edit)</h3>
+  <p>Partial: <code>resources/views/admin/users/_parent_form.blade.php</code> (подключается в <code>createUser</code> / <code>editUser</code>).</p>
+  <div class="note">
+    <b>Видимость блока.</b> Секция «Данные родителя» показывается только если в модалке выбрана роль <code>user</code> (ученик).
+    При другой роли блок скрывается, поля <code>parent_*</code> отключаются и не уходят в сохранение.
+    На сервере <code>StudentParentSyncService</code> для не-<code>user</code> сбрасывает <code>users.parent_id</code> в <code>null</code>.
+  </div>
   <ul>
-    <li>Partial: <code>resources/views/admin/users/_parent_form.blade.php</code> — Select2 <code>parent_id</code> + три поля ФИО.</li>
-    <li><code>GET /admin/users/parents/search?q=...</code> — AJAX, только родители текущего партнёра.</li>
-    <li>Можно выбрать существующего родителя (для второго ребёнка) или оставить пустым <code>parent_id</code> и ввести ФИО — создастся новая запись <code>parents</code>.</li>
+    <li><b>Если у партнёра есть хотя бы один родитель в <code>parents</code></b> — переключатель режима (две кнопки: «Из справочника» / «Новый родитель»), затем либо Select2 <code>parent_id</code>, либо три поля ФИО (взаимоисключающие панели).</li>
+    <li><b>Если справочник пуст</b> — переключатель и Select2 не рендерятся; сразу только поля ФИО нового родителя.</li>
+    <li><code>GET /admin/users/parents/search?q=...</code> (и опционально <code>id=</code>) — JSON для Select2; только <code>parents.partner_id = current</code>.</li>
+    <li>Выбор из справочника подставляет ФИО в скрытые поля формы (для PATCH/POST); режим «Новый родитель» очищает <code>parent_id</code> и показывает пустые поля ФИО.</li>
+    <li>Отвязка: очистка Select2 + пустые <code>parent_*</code> в запросе → <code>parent_id = null</code> (см. <code>isAdminParentBlockCleared</code> в сервисе).</li>
     <li>В «Поля списка» — колонка «Родитель» (<code>data-column-key="parent"</code>).</li>
-    <li>Право: <code>users.view</code> + store/update пользователя (отдельного permission на родителя в админке нет).</li>
+    <li>Право на раздел: <code>users.view</code> (отдельного permission на справочник родителей нет).</li>
   </ul>
 
-  <h3>2.1.3) Валидация, сервис, логи</h3>
+  <h3>2.1.3) Изоляция партнёра (parents / users)</h3>
+  <p>См. также <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a> и <a href="/docs/documentation/parents-and-family-cabinet">parents-and-family-cabinet</a>.</p>
+  <table>
+    <thead>
+      <tr><th>Операция</th><th>Ожидаемое поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>GET /admin/users/parents/search</code></td><td>Только <code>parents</code> с <code>partner_id = current</code>; чужой <code>id</code> → пустой <code>results</code></td></tr>
+      <tr><td><code>POST /admin/users</code> с <code>parent_id</code></td><td>422, если родитель другого партнёра</td></tr>
+      <tr><td><code>PATCH /admin/users/{user}</code></td><td>404, если ученик другого партнёра; 422 на чужой <code>parent_id</code></td></tr>
+      <tr><td><code>GET .../edit</code>, <code>GET .../data</code></td><td>Чужие пользователи / родители не попадают в выборку текущего партнёра</td></tr>
+      <tr><td>Создание родителя по ФИО</td><td>Новая строка <code>parents</code> всегда с <code>partner_id = current</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.1.4) Валидация, сервис, логи</h3>
   <p>Trait <code>ValidatesStudentParent</code> в <code>StoreRequest</code> / <code>UpdateRequest</code>:</p>
   <ul>
     <li><code>parent_id</code> — nullable, exists в <code>parents</code> с <code>partner_id = current</code>.</li>
     <li><code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code> — ключи HTTP-формы (не колонки <code>users</code>), <code>nullable|string|max:100</code>.</li>
   </ul>
-  <p>Сохранение: <code>StudentParentSyncService::syncForStudent</code> из <code>UserService::update/store</code>.</p>
+  <p>Сохранение: <code>StudentParentSyncService::syncForStudent</code> из <code>UserService::update/store</code>.
+  При обновлении вызывается, если в теле есть ключи <code>parent_*</code> <b>или</b> у пользователя после сохранения роль не <code>user</code> (сброс <code>parent_id</code>).</p>
   <p>JSON edit: <code>user.parent_lastname</code> и т.д. — из <code>User::parentFormFields()</code> (значения из <code>parents</code>).</p>
 
-  <h3>2.1.4) Связь с договорами и личным кабинетом</h3>
+  <h3>2.1.5) Связь с договорами и личным кабинетом</h3>
   <div class="note">
     Договоры: <code>parent_full_name</code> и предзаполнение подписанта — см. <a href="/docs/documentation/contracts#contract-parent">contracts §2–3</a>.<br>
     Личный кабинет ученика: блок «Данные родителя» (общая карточка <code>parents</code> для всех детей с тем же <code>parent_id</code>), право <code>account.user.parent.update</code> — см. <a href="/docs/documentation/parents-and-family-cabinet#account-parent">parents-and-family-cabinet §4</a>.
@@ -308,8 +332,12 @@
   <h2>7) Тесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, columns-settings</li>
-      <li><code>tests/Feature/Crm/Users/AdminUsersParentPartnerIsolationTest.php</code> — изоляция партнёра, CRUD, parents/search</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, store/update, columns-settings</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentCrudFeatureTest.php</code> — создание по ФИО, смена ФИО, отвязка, роль не <code>user</code></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentUiFeatureTest.php</code> — разметка: справочник пуст / не пуст, переключатель режима</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentAccessFeatureTest.php</code> — гость 401, без <code>users.view</code> 403, smoke 200 всех endpoint’ов родителя</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentPartnerIsolationTest.php</code> — изоляция партнёра: search, store/update, data, edit 404</li>
+      <li><code>tests/Feature/Crm/Parents/StudentParentSyncServiceTest.php</code> — логика <code>syncForStudent</code>, отвязка, не-ученик</li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code> — smoke 200 семейного кабинета и админки</li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code> — изоляция switch / account / search</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersAccessTest.php</code> — гость / без <code>users.view</code> → 403; smoke 200 раздела</li>
@@ -320,7 +348,8 @@
       <li><code>tests/Feature/Crm/Users/UserTableSettingsControllerTest.php</code> — columns-settings</li>
       <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code>, <code>TrainerSyncAndTeamsFeatureTest.php</code> — роль trainer</li>
     </ul>
-    Запуск: <code>php artisan test --filter=AdminUsersParentFeatureTest</code> или <code>AdminUsersAccessTest</code>.
+    Запуск родителя и доступа: <code>php artisan test --filter=AdminUsersParent</code>.
+    Полный раздел пользователей: <code>php artisan test tests/Feature/Crm/Users/</code>.
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·

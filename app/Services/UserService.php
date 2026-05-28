@@ -275,7 +275,9 @@ class UserService
             }
 
             $partnerId = (int) ($user->partner_id ?? 0);
-            if ($partnerId > 0 && $this->hasParentPayloadKeys($parentPayload)) {
+            $shouldSyncParent = $this->hasParentPayloadKeys($parentPayload)
+                || $user->role?->name !== 'user';
+            if ($partnerId > 0 && $shouldSyncParent) {
                 $this->studentParentSync->syncForStudent($user, $partnerId, $parentPayload);
             }
 
