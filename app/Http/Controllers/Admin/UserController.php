@@ -597,6 +597,9 @@ class UserController extends AdminBaseController
             'role'       => (string) ($user->role?->label ?: '-'),
             'phone'      => (string) ($user->phone ?? ''),
             'parent'     => $user->parent_full_name ?: '-',
+            'is_individual_traits' => $user->is_individual_traits,
+            'is_on_medical_register' => $user->is_on_medical_register,
+            'is_with_disability' => $user->is_with_disability,
         ];
 
         // Валидные входные данные
@@ -693,6 +696,9 @@ class UserController extends AdminBaseController
                 'role'       => (string) ($user->role?->label ?: '-'),
                 'phone'      => (string) ($user->phone ?? ''),
                 'parent'     => $user->parent_full_name ?: '-',
+                'is_individual_traits' => $user->is_individual_traits,
+                'is_on_medical_register' => $user->is_on_medical_register,
+                'is_with_disability' => $user->is_with_disability,
             ];
 
             $changes = [];
@@ -740,6 +746,23 @@ class UserController extends AdminBaseController
 
             if ($old['parent'] !== $new['parent']) {
                 $changes[] = "Родитель: {$old['parent']} → {$new['parent']}";
+            }
+
+            if ($actor && $actor->can('users.other.update')) {
+                $healthLabels = [
+                    'is_individual_traits' => 'Индивидуальные особенности',
+                    'is_on_medical_register' => 'Учёт у медспециалистов',
+                    'is_with_disability' => 'Инвалидность',
+                ];
+
+                foreach ($healthLabels as $field => $label) {
+                    if ($old[$field] !== $new[$field]) {
+                        $changes[] = $label . ': '
+                            . $this->formatTriStateBool($old[$field])
+                            . ' → '
+                            . $this->formatTriStateBool($new[$field]);
+                    }
+                }
             }
 
             // Приклеиваем изменения по кастом-полям
@@ -904,6 +927,15 @@ class UserController extends AdminBaseController
                 ];
             })->values(),
         ]);
+    }
+
+    private function formatTriStateBool(?bool $value): string
+    {
+        if ($value === null) {
+            return 'Не указано';
+        }
+
+        return $value ? 'Да' : 'Нет';
     }
 
 }

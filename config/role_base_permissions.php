@@ -75,6 +75,7 @@ return [
             'users.role.update',
             'users.password.update',
             'users.phone.update',
+            'users.other.update',
             // 'payment.clubfee',
             // 'payment.method.robokassa',
             'payment.method.tbankCard',

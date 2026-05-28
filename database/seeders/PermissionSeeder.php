@@ -92,6 +92,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'users.role.update',              'description' => 'Изменение роли (прав)',                          'group_slug' => 'users',    'is_visible' => 0, 'sort_order' => 0],
             ['name' => 'users.password.update',          'description' => 'Изменение пароля',                               'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],
             ['name' => 'users.phone.update',             'description' => 'Изменение телефона',                             'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],
+            ['name' => 'users.other.update',            'description' => 'Прочие сведения об ученике (мед./особенности)',  'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],
 
             // misc
             ['name' => 'paying.classes',                 'description' => 'Оплата учебных занятий',                         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 100],

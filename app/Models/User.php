@@ -32,6 +32,9 @@ class User extends Authenticatable
         'birthday' => 'date',  // преобразует в Carbon\Carbon
         'location_id' => 'integer',
         'parent_id' => 'integer',
+        'is_individual_traits' => 'boolean',
+        'is_on_medical_register' => 'boolean',
+        'is_with_disability' => 'boolean',
 
         //2FA
         'two_factor_enabled' => 'boolean',

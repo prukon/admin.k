@@ -155,6 +155,104 @@
     Личный кабинет ученика: блок «Данные родителя» (общая карточка <code>parents</code> для всех детей с тем же <code>parent_id</code>), право <code>account.user.parent.update</code> — см. <a href="/docs/documentation/parents-and-family-cabinet#account-parent">parents-and-family-cabinet §4</a>.
   </div>
 
+  <h2 id="user-health">2.2) Сведения об ученике (мед./особенности)</h2>
+  <div class="note">
+    Три необязательных флага на учётной записи <b>ученика</b> (<code>roles.name = user</code>): индивидуальные особенности, учёт у медспециалистов, наличие инвалидности.
+    Хранятся в таблице <code>users</code> (не отдельная таблица, не <code>user_fields</code>).<br>
+    Миграция: <code>database/migrations/2026_05_28_140000_add_student_health_flags_to_users_table.php</code>.<br>
+    Право на чтение и запись в админке: <code>users.other.update</code> (отдельного права «только просмотр» нет — без него блок в UI не рендерится).
+    Доступ к странице раздела по-прежнему только через <code>users.view</code> (§1).
+  </div>
+
+  <h3>2.2.1) Поля в БД</h3>
+  <table>
+    <thead>
+      <tr><th>Колонка <code>users.*</code></th><th>Смысл в UI</th><th>Тип</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>is_individual_traits</code></td><td>Индивидуальные особенности воспитанника (физические, психологические)</td><td><code>boolean NULL</code></td></tr>
+      <tr><td><code>is_on_medical_register</code></td><td>Состоит на учёте у медицинских специалистов</td><td><code>boolean NULL</code></td></tr>
+      <tr><td><code>is_with_disability</code></td><td>Наличие инвалидности</td><td><code>boolean NULL</code></td></tr>
+    </tbody>
+  </table>
+  <p class="small">
+    Семантика значений: <code>NULL</code> — «не указано», <code>1</code> — да, <code>0</code> — нет.
+    В модели <code>User</code> поля в <code>$casts</code> как <code>boolean</code>.
+    Префикс <code>is_</code> — единый стиль для булевых флагов в <code>users</code> (аналогично <code>is_enabled</code>).
+  </p>
+
+  <h3>2.2.2) UI (только модалка edit)</h3>
+  <p>Partial: <code>resources/views/includes/modal/_student_health_fields.blade.php</code> (подключается в <code>editUser.blade.php</code> внутри <code>@can('users.other.update')</code>).</p>
+  <div class="note">
+    <b>Где есть / где нет.</b>
+    Блок «Сведения об ученике» — <b>только при редактировании</b> существующего пользователя.
+    В модалке <b>создания</b> (<code>createUser</code>) полей нет — при создании все три флага остаются <code>NULL</code> до первого edit.<br>
+    Блок виден только если у актора есть <code>users.other.update</code> и в форме выбрана роль <code>user</code> (ученик); для тренера, админа и др. — скрыт (<code>js-user-health-wrap</code>, JS <code>syncEditUserHealthFields</code>).
+  </div>
+  <ul>
+    <li>Три поля — <code>&lt;select&gt;</code> с вариантами: «Не указано» (<code>value=""</code> → <code>NULL</code>), «Да» (<code>1</code>), «Нет» (<code>0</code>).</li>
+    <li>Имена полей формы: <code>is_individual_traits</code>, <code>is_on_medical_register</code>, <code>is_with_disability</code>.</li>
+    <li>В списке DataTables (<code>/admin/users/data</code>) и в «Поля списка» колонок для этих флагов <b>нет</b> (редкое использование, только карточка ученика).</li>
+  </ul>
+
+  <h3>2.2.3) Права</h3>
+  <table>
+    <thead>
+      <tr><th>Право</th><th>Что даёт</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>users.view</code></td>
+        <td>Доступ к разделу и endpoint’ам (§1). <b>Не даёт</b> видеть или менять мед./особенности — без <code>users.other.update</code> блок не показывается.</td>
+      </tr>
+      <tr>
+        <td><code>users.other.update</code></td>
+        <td>
+          Рендер блока в edit, приём и сохранение трёх флагов в <code>PATCH /admin/users/{user}</code>.
+          Gate: <code>users.other.update</code> в <code>AuthServiceProvider</code>.
+          В <code>config/role_base_permissions.php</code> для роли <code>admin</code> включено по умолчанию;
+          миграция <code>2026_05_28_140001_add_users_other_update_permission.php</code> выдаёт право существующим admin по всем партнёрам.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>2.2.4) Валидация и сохранение</h3>
+  <p>Только <code>UpdateRequest</code> (не <code>StoreRequest</code>).</p>
+  <ul>
+    <li>Правила добавляются, если у актора <code>users.other.update</code> <b>и</b> эффективная роль редактируемого пользователя — <code>user</code> (учитывается входящий <code>role_id</code> в том же запросе).</li>
+    <li>Каждое поле: <code>nullable|boolean</code>. В <code>prepareForValidation</code>: пустая строка → <code>null</code>; <code>0</code>/<code>1</code> → <code>false</code>/<code>true</code>; прочие значения не нормализуются → 422.</li>
+    <li>Без <code>users.other.update</code> ключи <code>is_*</code> удаляются из запроса (<code>offsetUnset</code>) — значения в БД не меняются.</li>
+    <li>Для роли не <code>user</code> ключи также снимаются; при смене роли с ученика на другую сохранённые флаги в БД <b>не обнуляются</b> автоматически (остаются в строке <code>users</code>, но в UI не редактируются).</li>
+    <li>Сохранение: через <code>UserService::update()</code> в общем массиве полей <code>User</code> (не <code>user_field_values</code>).</li>
+  </ul>
+
+  <h3>2.2.5) API: edit и update</h3>
+  <ul>
+    <li><code>GET /admin/users/{id}/edit</code> (AJAX) — в объекте <code>user</code>: <code>is_individual_traits</code>, <code>is_on_medical_register</code>, <code>is_with_disability</code> (<code>true</code> / <code>false</code> / <code>null</code> в JSON).</li>
+    <li><code>PATCH /admin/users/{user}</code> — тело с теми же ключами (строки <code>""</code>, <code>"0"</code>, <code>"1"</code> до нормализации).</li>
+    <li>Изменения пишутся в пользовательский лог (action 22), если у актора есть <code>users.other.update</code>: строки «Индивидуальные особенности», «Учёт у медспециалистов», «Инвалидность» в формате «Не указано / Да / Нет».</li>
+  </ul>
+
+  <h3>2.2.6) Изоляция партнёра</h3>
+  <p>Те же правила scope, что для ученика в §2.1.3: <code>users.partner_id = current_partner</code> в <code>UserController</code>.</p>
+  <table>
+    <thead>
+      <tr><th>Операция</th><th>Ожидаемое поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>GET .../edit</code> чужого ученика</td><td><b>404</b></td></tr>
+      <tr><td><code>PATCH ...</code> с флагами чужого ученика</td><td><b>404</b>, флаги в БД не меняются</td></tr>
+      <tr><td><code>GET /admin/users/data</code></td><td>Чужие <code>user.id</code> не в выборке; фильтр <code>id=</code> чужого — пустой набор</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.2.7) Договоры и отчёты</h3>
+  <div class="warn">
+    <b>Пока не реализовано:</b> предзаполнение полей договора (<code>ContractTemplatePrefillSources</code> / <code>ContractPrefillResolver</code>) для этих флагов не подключено.
+    При необходимости добавляются отдельные <code>prefill_source</code> (например, «Да»/«Нет»/«—» для шаблона DOCX).
+  </div>
+
   <h2 id="user-location">3) Локация пользователя (<code>users.location_id</code>)</h2>
   <div class="note">
     Необязательная привязка учётной записи к справочнику <code>locations</code> текущего партнёра.
@@ -194,6 +292,10 @@
       <tr>
         <td><code>users.group.update</code></td>
         <td>Только поле «Группа» при редактировании (аналогия: для локации отдельного <code>users.location.update</code> нет).</td>
+      </tr>
+      <tr>
+        <td><code>users.other.update</code></td>
+        <td>Три флага мед./особенностей ученика в edit (§<a href="#user-health">2.2</a>). Не даёт доступ к разделу без <code>users.view</code>.</td>
       </tr>
     </tbody>
   </table>
@@ -254,6 +356,7 @@
   <div class="note">
     Маршрут <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
     Создание через <code>UserService::store()</code> в <code>DB::transaction</code> с логом (action 21) и опциональными <code>user_field_values</code>.
+    Флаги мед./особенностей (§<a href="#user-health">2.2</a>) при создании <b>не задаются</b> — только в edit после появления ученика.
   </div>
 
   <h3>Пароль</h3>
@@ -300,7 +403,8 @@
   <div class="note">
     Валидация: <code>UpdateRequest</code>. Поля с отдельными правами: имя (<code>users.name.update</code>), группа (<code>users.group.update</code>),
     email, телефон, роль, активность, дата рождения, дата начала — см. правила в Request.
-    Доп. поля: <code>custom[{slug}]</code> с той же логикой партнёра и <code>editable</code>, что при создании.
+    Сведения об ученике (три флага <code>is_*</code>) — §<a href="#user-health">2.2</a> (<code>users.other.update</code>, только роль <code>user</code>).
+    Доп. поля: <code>custom[{slug}]</code> с той же логикой партнёра и <code>editable</code>, что при создании (это <code>user_fields</code>, не путать с §2.2).
     Локация — §3 (<code>locations.view</code>).
   </div>
 
@@ -323,7 +427,11 @@
     <li><code>app/Http/Requests/User/StoreRequest.php</code>, <code>UpdateRequest.php</code></li>
     <li><code>app/Models/User.php</code>, <code>ParentProfile.php</code>, <code>Location.php</code></li>
     <li><code>app/Services/Users/StudentParentSyncService.php</code></li>
+    <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>users.other.update</code></li>
+    <li><code>database/migrations/2026_05_28_140000_add_student_health_flags_to_users_table.php</code></li>
+    <li><code>database/migrations/2026_05_28_140001_add_users_other_update_permission.php</code></li>
     <li><code>resources/views/admin/users/_parent_form.blade.php</code></li>
+    <li><code>resources/views/includes/modal/_student_health_fields.blade.php</code></li>
     <li><code>app/Http/Controllers/Admin/UserTableSettingsController.php</code></li>
     <li><code>resources/views/admin/user.blade.php</code></li>
     <li><code>resources/views/includes/modal/createUser.blade.php</code>, <code>editUser.blade.php</code></li>
@@ -337,6 +445,9 @@
       <li><code>tests/Feature/Crm/Users/AdminUsersParentUiFeatureTest.php</code> — разметка: справочник пуст / не пуст, переключатель режима</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentAccessFeatureTest.php</code> — гость 401, без <code>users.view</code> 403, smoke 200 всех endpoint’ов родителя</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentPartnerIsolationTest.php</code> — изоляция партнёра: search, store/update, data, edit 404</li>
+      <li><code>tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php</code> — флаги §2.2: edit/update, права <code>users.other.update</code>, UI, валидация, лог, доступ 200/403</li>
+      <li><code>tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code> — изоляция партнёра для edit/update/data и флагов</li>
+      <li><code>tests/Feature/Crm/Users/UsersPartnerScopeFullAccessFeatureTest.php</code> — smoke 200 всех endpoint’ов раздела, изоляция CRUD</li>
       <li><code>tests/Feature/Crm/Parents/StudentParentSyncServiceTest.php</code> — логика <code>syncForStudent</code>, отвязка, не-ученик</li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code> — smoke 200 семейного кабинета и админки</li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code> — изоляция switch / account / search</li>
@@ -349,11 +460,13 @@
       <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code>, <code>TrainerSyncAndTeamsFeatureTest.php</code> — роль trainer</li>
     </ul>
     Запуск родителя и доступа: <code>php artisan test --filter=AdminUsersParent</code>.
+    Мед./особенности: <code>php artisan test --env=testing tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code>.
     Полный раздел пользователей: <code>php artisan test tests/Feature/Crm/Users/</code>.
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> ·
+    <a href="#user-health">Мед./особенности ученика</a> ·
     <a href="/docs/documentation/contracts#contract-parent">Договоры: родитель и подписант</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
     <a href="/docs/documentation/reports-admin#location-filter">Отчёты: фильтр по локации</a></p>

@@ -571,6 +571,9 @@ class UserAvatarControllerTest extends CrmTestCase
     {
         [$actor, $foreignUser] = $this->createUserOfAnotherPartner();
 
+        $originalImage     = $foreignUser->image;
+        $originalImageCrop = $foreignUser->image_crop;
+
         $this->actingAs($actor);
         session(['current_partner' => $this->partner->id]);
 
@@ -588,8 +591,8 @@ class UserAvatarControllerTest extends CrmTestCase
 
         $foreignUser->refresh();
 
-        $this->assertNull($foreignUser->image);
-        $this->assertNull($foreignUser->image_crop);
+        $this->assertSame($originalImage, $foreignUser->image);
+        $this->assertSame($originalImageCrop, $foreignUser->image_crop);
 
         Storage::disk('public')->assertDirectoryEmpty('avatars');
         $this->assertDatabaseCount('my_logs', 0);

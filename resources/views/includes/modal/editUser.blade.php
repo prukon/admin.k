@@ -251,6 +251,8 @@
                             </div>
                         </div>
 
+                        @include('includes.modal._student_health_fields')
+
                         <!-- Поле "Активность" -->
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
@@ -426,6 +428,42 @@
             return found ? parseInt(found.id, 10) : null;
         }
 
+        function studentRoleIdFromRoles(roles) {
+            const found = (roles || []).find(function (r) {
+                return r.name === 'user';
+            });
+            return found ? parseInt(found.id, 10) : null;
+        }
+
+        function triStateSelectValue(val) {
+            if (val === true || val === 1 || val === '1') {
+                return '1';
+            }
+            if (val === false || val === 0 || val === '0') {
+                return '0';
+            }
+            return '';
+        }
+
+        function setEditUserHealthFields(user) {
+            $('#edit-is_individual_traits').val(triStateSelectValue(user.is_individual_traits));
+            $('#edit-is_on_medical_register').val(triStateSelectValue(user.is_on_medical_register));
+            $('#edit-is_with_disability').val(triStateSelectValue(user.is_with_disability));
+        }
+
+        function syncEditUserHealthFields(roleId, roles) {
+            const $wrap = $('.js-user-health-wrap');
+            if (!$wrap.length) {
+                return;
+            }
+
+            const studentRoleId = studentRoleIdFromRoles(roles);
+            const isStudent = studentRoleId && parseInt(roleId, 10) === studentRoleId;
+
+            $wrap.toggleClass('d-none', !isStudent);
+            $wrap.find('.js-user-health-field').prop('disabled', !isStudent);
+        }
+
         function setEditUserTrainerTeamIds(teamIds) {
             const ids = (teamIds || []).map(function (id) {
                 return parseInt(id, 10);
@@ -461,6 +499,8 @@
                     $trainerWrap.find('input[name="team_ids[]"]').prop('disabled', true).prop('checked', false);
                 }
             }
+
+            syncEditUserHealthFields(roleId, roles);
         }
 
         $(document).on('change', '#edit-user-form #role_id', function () {
@@ -666,6 +706,8 @@
                         roleSelect.val(response.user.role_id);
                         editUserRolesCache = response.roles || [];
                         syncEditUserTeamFields(response.user.role_id, editUserRolesCache, response.user.trainer_team_ids || []);
+                        setEditUserHealthFields(response.user);
+                        syncEditUserHealthFields(response.user.role_id, editUserRolesCache);
 
                         // 3) Устанавливаем action формы
                         $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);
@@ -783,6 +825,8 @@
                         roleSelect.val(response.user.role_id);
                         editUserRolesCache = response.roles || [];
                         syncEditUserTeamFields(response.user.role_id, editUserRolesCache, response.user.trainer_team_ids || []);
+                        setEditUserHealthFields(response.user);
+                        syncEditUserHealthFields(response.user.role_id, editUserRolesCache);
 
                         // 3) Устанавливаем action формы (используется в обновлении и смене пароля/удалении)
                         $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);

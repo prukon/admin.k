@@ -401,6 +401,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('users.password.update');
         });
 
+        // Прочие сведения об ученике (мед./особенности)
+        Gate::define('users.other.update', function (User $user) {
+            return $user->hasPermission('users.other.update');
+        });
+
 //////////////////////// Разное  //////////////////////
 
         // Пример: Gate для доступа в админку
