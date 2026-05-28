@@ -13,6 +13,7 @@ return [
             'account.user.birthdate.update',
             'account.user.email.update',
             'account.user.phone.update',
+            'account.user.parent.update',
             'paying.classes',
             // 'payment.clubfee',
             // 'payment.method.robokassa',

@@ -44,6 +44,7 @@
     <tbody>
       <tr><td>GET</td><td><code>/admin/users</code></td><td>HTML страницы, модалки create/edit</td></tr>
       <tr><td>GET</td><td><code>/admin/users/data</code></td><td>JSON DataTables (фильтры, сортировка)</td></tr>
+      <tr><td>GET</td><td><code>/admin/users/parents/search</code></td><td>Поиск родителей Select2 (только текущий партнёр)</td></tr>
       <tr><td>GET/POST</td><td><code>/admin/users/columns-settings</code></td><td>Настройки видимости колонок (<code>table_key = users_index</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/users</code></td><td>Создание (<code>admin.user.store</code>)</td></tr>
       <tr><td>GET</td><td><code>/admin/users/{user}/edit</code></td><td>JSON для модалки редактирования (нужен AJAX)</td></tr>
@@ -56,7 +57,7 @@
 
   <h2>2) Список пользователей (DataTables)</h2>
   <ul>
-    <li><b>Фильтры</b> (кнопка «Найти»): <code>name</code> — ищет также по ФИО родителя (<code>parent_*</code>), email, телефону, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>).</li>
+    <li><b>Фильтры</b> (кнопка «Найти»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code>), email, телефону, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>).</li>
     <li><b>Фильтр «Локация»</b> — только при <code>locations.view</code> (см. §3). Параметр: <code>location_id</code> (<code>none</code> = без локации, id = активная локация партнёра). Без права параметр в запросе <b>игнорируется</b>.</li>
     <li><b>Колонки</b> настраиваются через «Поля списка»; настройки per user в <code>user_table_settings</code> (ключ <code>parent</code> для колонки «Родитель»).</li>
   </ul>
@@ -83,60 +84,51 @@
   </table>
   <p class="small">Сортировка по локации: <code>order[0][column]=5</code> → join <code>locations</code>, <code>orderBy locations.name</code>.</p>
 
-  <h2 id="user-parent">2.1) Данные родителя на карточке ученика</h2>
+  <h2 id="user-parent">2.1) Данные родителя (справочник <code>parents</code>)</h2>
   <div class="note">
-    Отдельной сущности «Родители» и связи many-to-many <b>нет</b>: ФИО хранится в той же записи <code>users</code>, что и ученик (роль <code>user</code>).
-    Миграция: <code>database/migrations/2026_05_21_120000_add_parent_name_fields_to_users_table.php</code>.
+    ФИО родителя / подписанта договора хранится в таблице <code>parents</code> (модель <code>ParentProfile</code>).
+    Ученик связывается через <code>users.parent_id</code>. Один родитель — несколько детей (1:N).
+    Полный обзор (семейный кабинет, личный кабинет, изоляция): <a href="/docs/documentation/parents-and-family-cabinet">parents-and-family-cabinet</a>.
   </div>
 
-  <h3>2.1.1) Поля в БД и API</h3>
+  <h3>2.1.1) Поля в БД</h3>
   <table>
     <thead>
-      <tr><th>Поле</th><th>Описание</th></tr>
+      <tr><th>Таблица / поле</th><th>Описание</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>parent_lastname</code></td><td>Фамилия родителя / подписанта (nullable, max 100)</td></tr>
-      <tr><td><code>parent_firstname</code></td><td>Имя (nullable, max 100)</td></tr>
-      <tr><td><code>parent_middlename</code></td><td>Отчество (nullable, max 100)</td></tr>
-      <tr><td><code>parent_full_name</code></td><td>Аксессор: склейка трёх полей для списка и логов</td></tr>
-      <tr><td><code>email</code>, <code>phone</code></td><td>Контакт родителя (оплаты, напоминания, SMS при подписании договора) — как и раньше, не дублируются в <code>parent_*</code></td></tr>
+      <tr><td><code>parents.lastname</code>, <code>firstname</code>, <code>middlename</code></td><td>ФИО (nullable, max 100)</td></tr>
+      <tr><td><code>parents.partner_id</code></td><td>Организация (обязательно)</td></tr>
+      <tr><td><code>users.parent_id</code></td><td>FK на родителя ученика; общий <code>parent_id</code> у детей — переключатель в кабинете</td></tr>
+      <tr><td><code>parent_full_name</code> (аксессор <code>User</code>)</td><td>ФИО из <code>parentProfile</code> для списков и договоров</td></tr>
+      <tr><td><code>users.phone</code>, <code>users.email</code></td><td>Контакты для SMS/оплат на учётке ученика, не дублируются в <code>parents</code></td></tr>
     </tbody>
   </table>
-  <p class="small">В <code>GET /admin/users/data</code> в каждой строке: <code>"parent": "Фамилия Имя Отчество"</code> или пустая строка. Сортировка по родителю: <code>order[0][column]=3</code> → <code>parent_lastname</code>, <code>parent_firstname</code>.</p>
+  <p class="small">В <code>GET /admin/users/data</code>: <code>"parent": "Фамилия Имя Отчество"</code> из связи <code>parentProfile</code>.
+  Сортировка col=3: join <code>parents</code>, <code>orderBy parents.lastname, parents.firstname</code>.</p>
 
-  <h3>2.1.2) UI (модалки create / edit)</h3>
+  <h3>2.1.2) UI и поиск (модалки create / edit)</h3>
   <ul>
-    <li>Блок «Данные родителя (подписант договора)» после ФИО ученика: <code>#create-parent-lastname</code>, <code>#create-parent-firstname</code>, <code>#create-parent-middlename</code> (и аналоги <code>#edit-parent-*</code>).</li>
-    <li>Все три поля <b>необязательны</b>; отдельного права на родителя нет — редактирует любой, у кого есть доступ к store/update пользователя.</li>
-    <li>В «Поля списка» — чекбокс колонки «Родитель» (<code>data-column-key="parent"</code>).</li>
+    <li>Partial: <code>resources/views/admin/users/_parent_form.blade.php</code> — Select2 <code>parent_id</code> + три поля ФИО.</li>
+    <li><code>GET /admin/users/parents/search?q=...</code> — AJAX, только родители текущего партнёра.</li>
+    <li>Можно выбрать существующего родителя (для второго ребёнка) или оставить пустым <code>parent_id</code> и ввести ФИО — создастся новая запись <code>parents</code>.</li>
+    <li>В «Поля списка» — колонка «Родитель» (<code>data-column-key="parent"</code>).</li>
+    <li>Право: <code>users.view</code> + store/update пользователя (отдельного permission на родителя в админке нет).</li>
   </ul>
 
-  <h3>2.1.3) Валидация и логи</h3>
-  <table>
-    <thead>
-      <tr><th>Операция</th><th>Request</th><th>Правила</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Создание</td>
-        <td><code>StoreRequest</code></td>
-        <td><code>parent_*</code> — <code>nullable|string|max:100</code>; trim; пустая строка → <code>null</code>. Ошибки — под соответствующим полем в модалке.</td>
-      </tr>
-      <tr>
-        <td>Обновление</td>
-        <td><code>UpdateRequest</code></td>
-        <td>Те же правила для <code>parent_*</code> (всегда в rules, без отдельного permission).</td>
-      </tr>
-    </tbody>
-  </table>
-  <p>При изменении ФИО родителя в лог пользователя (action 22) добавляется строка «Родитель: … → …».</p>
+  <h3>2.1.3) Валидация, сервис, логи</h3>
+  <p>Trait <code>ValidatesStudentParent</code> в <code>StoreRequest</code> / <code>UpdateRequest</code>:</p>
+  <ul>
+    <li><code>parent_id</code> — nullable, exists в <code>parents</code> с <code>partner_id = current</code>.</li>
+    <li><code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code> — ключи HTTP-формы (не колонки <code>users</code>), <code>nullable|string|max:100</code>.</li>
+  </ul>
+  <p>Сохранение: <code>StudentParentSyncService::syncForStudent</code> из <code>UserService::update/store</code>.</p>
+  <p>JSON edit: <code>user.parent_lastname</code> и т.д. — из <code>User::parentFormFields()</code> (значения из <code>parents</code>).</p>
 
-  <h3>2.1.4) Связь с договорами</h3>
+  <h3>2.1.4) Связь с договорами и личным кабинетом</h3>
   <div class="note">
-    На карточке договора <code>GET /client-contracts/{id}</code> в блоке основной информации выводится строка «Родитель» (<code>parent_full_name</code>), перед «Ученик» (<code>full_name</code> ученика).
-    В модалке «Отправка на подпись» поля подписанта предзаполняются из <code>parent_*</code> и <code>phone</code>.
-    В Подпислон уходят значения из формы отправки; в <code>contract_sign_requests</code> сохраняется снимок (<code>signer_lastname</code>, <code>signer_firstname</code>, <code>signer_middlename</code>, <code>signer_phone</code>) — см. <a href="/docs/documentation/contracts#contract-parent">договоры §2–3</a>.
-    В <code>ContractsController@show</code> при загрузке <code>$student</code> поля <code>parent_*</code> обязательно должны быть в <code>select()</code>, иначе предзаполнение в UI будет пустым.
+    Договоры: <code>parent_full_name</code> и предзаполнение подписанта — см. <a href="/docs/documentation/contracts#contract-parent">contracts §2–3</a>.<br>
+    Личный кабинет ученика: блок «Данные родителя» (общая карточка <code>parents</code> для всех детей с тем же <code>parent_id</code>), право <code>account.user.parent.update</code> — см. <a href="/docs/documentation/parents-and-family-cabinet#account-parent">parents-and-family-cabinet §4</a>.
   </div>
 
   <h2 id="user-location">3) Локация пользователя (<code>users.location_id</code>)</h2>
@@ -305,7 +297,9 @@
   <ul class="small">
     <li><code>app/Http/Controllers/Admin/UserController.php</code></li>
     <li><code>app/Http/Requests/User/StoreRequest.php</code>, <code>UpdateRequest.php</code></li>
-    <li><code>app/Models/User.php</code>, <code>Location.php</code></li>
+    <li><code>app/Models/User.php</code>, <code>ParentProfile.php</code>, <code>Location.php</code></li>
+    <li><code>app/Services/Users/StudentParentSyncService.php</code></li>
+    <li><code>resources/views/admin/users/_parent_form.blade.php</code></li>
     <li><code>app/Http/Controllers/Admin/UserTableSettingsController.php</code></li>
     <li><code>resources/views/admin/user.blade.php</code></li>
     <li><code>resources/views/includes/modal/createUser.blade.php</code>, <code>editUser.blade.php</code></li>
@@ -314,8 +308,11 @@
   <h2>7) Тесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, валидация max, columns-settings</li>
-      <li><code>tests/Feature/Crm/Users/AdminUsersAccessTest.php</code> — гость / без <code>users.view</code> → 403; smoke 200 раздела (в т.ч. store/update с <code>parent_*</code>)</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, columns-settings</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentPartnerIsolationTest.php</code> — изоляция партнёра, CRUD, parents/search</li>
+      <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code> — smoke 200 семейного кабинета и админки</li>
+      <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code> — изоляция switch / account / search</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersAccessTest.php</code> — гость / без <code>users.view</code> → 403; smoke 200 раздела</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersLocationFeatureTest.php</code> — локация: CRUD, фильтр, сортировка (<code>column=5</code>), columns-settings, UI</li>
       <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data, сортировка (индексы с колонкой «Родитель»), <code>test_store_and_update_persist_parent_name_fields</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> — доп. поля (<code>UserField</code>, не путать с <code>parent_*</code>)</li>
@@ -327,6 +324,7 @@
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> ·
     <a href="/docs/documentation/contracts#contract-parent">Договоры: родитель и подписант</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
     <a href="/docs/documentation/reports-admin#location-filter">Отчёты: фильтр по локации</a></p>

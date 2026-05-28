@@ -249,6 +249,60 @@
                 @endcannot
             </div>
 
+            @if(!empty($showAccountParentSection))
+                <hr class="my-4">
+                <h5 class="mb-3">Данные родителя</h5>
+                <p class="text-muted small mb-3">Подписант договора. Изменения применяются ко всем связанным ученикам.</p>
+
+                <div class="mb-3">
+                    <label for="parent_lastname" class="form-label">Фамилия родителя</label>
+                    <input type="text"
+                           id="parent_lastname"
+                           name="parent_lastname"
+                           class="form-control @error('parent_lastname') is-invalid @enderror"
+                           maxlength="100"
+                           value="{{ old('parent_lastname', $accountParentFields['parent_lastname'] ?? '') }}"
+                           @unless($canEditAccountParent) disabled aria-disabled="true" @endunless>
+                    @error('parent_lastname')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="parent_firstname" class="form-label">Имя родителя</label>
+                    <input type="text"
+                           id="parent_firstname"
+                           name="parent_firstname"
+                           class="form-control @error('parent_firstname') is-invalid @enderror"
+                           maxlength="100"
+                           value="{{ old('parent_firstname', $accountParentFields['parent_firstname'] ?? '') }}"
+                           @unless($canEditAccountParent) disabled aria-disabled="true" @endunless>
+                    @error('parent_firstname')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="parent_middlename" class="form-label">Отчество родителя</label>
+                    <input type="text"
+                           id="parent_middlename"
+                           name="parent_middlename"
+                           class="form-control @error('parent_middlename') is-invalid @enderror"
+                           maxlength="100"
+                           value="{{ old('parent_middlename', $accountParentFields['parent_middlename'] ?? '') }}"
+                           @unless($canEditAccountParent) disabled aria-disabled="true" @endunless>
+                    @error('parent_middlename')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                @unless($canEditAccountParent)
+                    <div class="form-text text-muted mt-1">
+                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение данных родителя
+                    </div>
+                @endunless
+            @endif
+
             {{-- Поле "Дата начала занятий" --}}
             <div class="mb-3">
                 <label for="start_date" class="form-label">Дата начала занятий</label>

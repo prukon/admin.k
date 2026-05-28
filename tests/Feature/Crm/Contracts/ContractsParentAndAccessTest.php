@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\Contracts;
 
 use App\Models\Contract;
+use App\Models\ParentProfile;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -52,15 +53,19 @@ class ContractsParentAndAccessTest extends ContractsFeatureTestCase
         Storage::fake();
 
         $team = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Группа-A']);
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Петров',
+            'firstname'  => 'Пётр',
+            'middlename' => 'Петрович',
+        ]);
         $student = User::factory()->create([
-            'partner_id'        => $this->partner->id,
-            'team_id'           => $team->id,
-            'is_enabled'        => 1,
-            'parent_lastname'   => 'Петров',
-            'parent_firstname'  => 'Пётр',
-            'parent_middlename' => 'Петрович',
-            'phone'             => '+79991112233',
-            'email'             => 'parent@example.com',
+            'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
+            'parent_id'  => $parent->id,
+            'is_enabled' => 1,
+            'phone'      => '+79991112233',
+            'email'      => 'parent@example.com',
         ]);
 
         $contract = $this->createDraftContract($student);
@@ -94,14 +99,18 @@ class ContractsParentAndAccessTest extends ContractsFeatureTestCase
     /** @test */
     public function show_displays_parent_full_name_in_main_info_block(): void
     {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Сидоров',
+            'firstname'  => 'Сидор',
+            'middlename' => 'Сидорович',
+        ]);
         $student = User::factory()->create([
-            'partner_id'        => $this->partner->id,
-            'lastname'          => 'Учеников',
-            'name'              => 'Артём',
-            'parent_lastname'   => 'Сидоров',
-            'parent_firstname'  => 'Сидор',
-            'parent_middlename' => 'Сидорович',
-            'is_enabled'        => 1,
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Учеников',
+            'name'       => 'Артём',
+            'parent_id'  => $parent->id,
+            'is_enabled' => 1,
         ]);
 
         $contract = $this->createDraftContract($student);
@@ -116,13 +125,17 @@ class ContractsParentAndAccessTest extends ContractsFeatureTestCase
     /** @test */
     public function show_prefills_signer_modal_from_parent_fields_and_phone(): void
     {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Козлов',
+            'firstname'  => 'Козма',
+            'middlename' => 'Козьмич',
+        ]);
         $student = User::factory()->create([
-            'partner_id'       => $this->partner->id,
-            'parent_lastname'  => 'Козлов',
-            'parent_firstname' => 'Козма',
-            'parent_middlename'=> 'Козьмич',
-            'phone'            => '+79990001122',
-            'is_enabled'       => 1,
+            'partner_id' => $this->partner->id,
+            'parent_id'  => $parent->id,
+            'phone'      => '+79990001122',
+            'is_enabled' => 1,
         ]);
 
         $contract = $this->createDraftContract($student);
@@ -138,6 +151,29 @@ class ContractsParentAndAccessTest extends ContractsFeatureTestCase
         $this->assertStringContainsString('id="signerPhone"', $html);
         // В value — 10 цифр без ведущей 7 (для inputmask +7 ...)
         $this->assertStringContainsString('value="9990001122"', $html);
+    }
+
+    /** @test */
+    public function show_uses_parent_profile_when_linked(): void
+    {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Профильный',
+            'firstname'  => 'Родитель',
+            'middlename' => 'Тестович',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'parent_id'  => $parent->id,
+            'is_enabled' => 1,
+        ]);
+
+        $contract = $this->createDraftContract($student);
+
+        $this->get('/client-contracts/' . $contract->id)
+            ->assertOk()
+            ->assertSee('Профильный Родитель Тестович', false);
     }
 
     /** @test */

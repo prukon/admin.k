@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable
@@ -30,6 +31,7 @@ class User extends Authenticatable
         'password' => 'hashed',
         'birthday' => 'date',  // преобразует в Carbon\Carbon
         'location_id' => 'integer',
+        'parent_id' => 'integer',
 
         //2FA
         'two_factor_enabled' => 'boolean',
@@ -57,6 +59,14 @@ class User extends Authenticatable
     public function location()
     {
         return $this->belongsTo(Location::class, 'location_id');
+    }
+
+    /**
+     * Родитель ученика (справочник parents). Только для role = user.
+     */
+    public function parentProfile(): BelongsTo
+    {
+        return $this->belongsTo(ParentProfile::class, 'parent_id');
     }
 
     public function schoolLead()
@@ -168,11 +178,82 @@ class User extends Authenticatable
 
     public function getParentFullNameAttribute(): string
     {
-        return trim(collect([
-            $this->parent_lastname,
-            $this->parent_firstname,
-            $this->parent_middlename,
-        ])->filter()->implode(' '));
+        if ($this->parent_id) {
+            $profile = $this->relationLoaded('parentProfile')
+                ? $this->parentProfile
+                : $this->parentProfile()->first();
+
+            if ($profile) {
+                $fromProfile = trim($profile->full_name);
+                if ($fromProfile !== '') {
+                    return $fromProfile;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Поля родителя для формы личного кабинета.
+     *
+     * @return array{
+     *     parent_lastname: ?string,
+     *     parent_firstname: ?string,
+     *     parent_middlename: ?string
+     * }
+     */
+    public function accountParentFormFields(): array
+    {
+        $this->loadMissing('parentProfile');
+        $profile = $this->parentProfile;
+
+        if ($profile) {
+            return [
+                'parent_lastname'   => $profile->lastname,
+                'parent_firstname'  => $profile->firstname,
+                'parent_middlename' => $profile->middlename,
+            ];
+        }
+
+        return [
+            'parent_lastname'   => null,
+            'parent_firstname'  => null,
+            'parent_middlename' => null,
+        ];
+    }
+
+    /**
+     * Поля родителя для форм админки (из таблицы parents).
+     *
+     * @return array{
+     *     parent_id: ?int,
+     *     parent_lastname: ?string,
+     *     parent_firstname: ?string,
+     *     parent_middlename: ?string
+     * }
+     */
+    public function parentFormFields(): array
+    {
+        $profile = $this->relationLoaded('parentProfile')
+            ? $this->parentProfile
+            : ($this->parent_id ? $this->parentProfile()->first() : null);
+
+        if ($profile) {
+            return [
+                'parent_id'         => (int) $profile->id,
+                'parent_lastname'   => $profile->lastname,
+                'parent_firstname'  => $profile->firstname,
+                'parent_middlename' => $profile->middlename,
+            ];
+        }
+
+        return [
+            'parent_id'         => $this->parent_id ? (int) $this->parent_id : null,
+            'parent_lastname'   => null,
+            'parent_firstname'  => null,
+            'parent_middlename' => null,
+        ];
     }
 
 

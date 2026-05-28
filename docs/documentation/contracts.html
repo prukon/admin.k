@@ -71,7 +71,8 @@
 
   <h2 id="contract-parent">2) Родитель и ученик на карточке договора</h2>
   <div class="note">
-    Договор привязан к ученику (<code>contracts.user_id</code> → <code>users</code>). ФИО родителя хранится в полях ученика — см. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a> (<code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>).
+    Договор привязан к ученику (<code>contracts.user_id</code> → <code>users</code>). ФИО родителя берётся из справочника <code>parents</code> (связь <code>users.parent_id</code> → <code>parentProfile</code>).
+    См. <a href="/docs/documentation/parents-and-family-cabinet">родители и семейный кабинет</a> и <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>.
   </div>
 
   <h3>2.1) Блок основной информации</h3>
@@ -81,7 +82,7 @@
       <tr><th>Подпись</th><th>Источник</th></tr>
     </thead>
     <tbody>
-      <tr><td>Родитель</td><td><code>$student->parent_full_name</code> или «—», если пусто</td></tr>
+      <tr><td>Родитель</td><td><code>$student->parent_full_name</code> (из <code>parents</code> через <code>parentProfile</code>) или «—»</td></tr>
       <tr><td>Ученик</td><td><code>$student->full_name</code> (фамилия + имя ученика)</td></tr>
       <tr><td>Группа</td><td><code>teams.title</code> по <code>user.team_id</code></td></tr>
       <tr><td>Статус</td><td><code>contracts.status</code> (бейдж)</td></tr>
@@ -91,9 +92,9 @@
   </table>
 
   <h3>2.2) Загрузка ученика в контроллере</h3>
-  <div class="warn">
-    В <code>ContractsController@show</code> ученик выбирается явным <code>select()</code>. В выборку обязательно входят <code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code> (плюс <code>name</code>, <code>lastname</code>, <code>phone</code>, <code>email</code>, <code>team_id</code>).
-    Если их не включить, в UI родитель и предзаполнение подписанта будут пустыми при заполненной карточке ученика.
+  <div class="note">
+    В <code>ContractsController@show</code> (и legacy <code>ContractsController</code>) ученик загружается с <code>->with('parentProfile')</code> и полями <code>id</code>, <code>name</code>, <code>lastname</code>, <code>phone</code>, <code>email</code>, <code>team_id</code>, <code>parent_id</code>.
+    ФИО для UI — через <code>$student->parentFormFields()</code> / <code>parent_full_name</code>, не из колонок <code>users</code> (legacy <code>parent_*</code> на users удалены).
   </div>
 
   <h2>3) Предзаполнение подписанта (модалка «Отправка на подпись»)</h2>
@@ -103,9 +104,9 @@
       <tr><th>Поле в модалке</th><th>Источник в БД</th><th>Отправка в API</th></tr>
     </thead>
     <tbody>
-      <tr><td>Фамилия (<code>#signerLastname</code>)</td><td><code>parent_lastname</code></td><td><code>signer_lastname</code> (<code>ContractSendRequest</code>)</td></tr>
-      <tr><td>Имя (<code>#signerFirstname</code>)</td><td><code>parent_firstname</code></td><td><code>signer_firstname</code></td></tr>
-      <tr><td>Отчество (<code>#signerMiddlename</code>)</td><td><code>parent_middlename</code></td><td><code>signer_middlename</code> (nullable)</td></tr>
+      <tr><td>Фамилия (<code>#signerLastname</code>)</td><td><code>parentFormFields()['parent_lastname']</code> ← <code>parents.lastname</code></td><td><code>signer_lastname</code> (<code>ContractSendRequest</code>)</td></tr>
+      <tr><td>Имя (<code>#signerFirstname</code>)</td><td><code>parentFormFields()['parent_firstname']</code></td><td><code>signer_firstname</code></td></tr>
+      <tr><td>Отчество (<code>#signerMiddlename</code>)</td><td><code>parentFormFields()['parent_middlename']</code></td><td><code>signer_middlename</code> (nullable)</td></tr>
       <tr><td>Телефон (<code>#signerPhone</code>)</td><td><code>phone</code> (10 цифр без +7 для маски)</td><td><code>signer_phone</code> → канон <code>7XXXXXXXXXX</code></td></tr>
     </tbody>
   </table>
@@ -113,7 +114,7 @@
   <h3>3.1) Подпислон</h3>
   <div class="note">
     Провайдер: <code>App\Services\Signatures\Providers\PodpislonProvider</code>.
-    В <code>PUT /add-document</code> передаются <code>name</code> (имя), <code>last_name</code> (фамилия), <code>second_name</code> (отчество), <code>phone</code> — из данных формы отправки, не напрямую из <code>users.parent_*</code> после сохранения договора.<br>
+    В <code>PUT /add-document</code> передаются <code>name</code> (имя), <code>last_name</code> (фамилия), <code>second_name</code> (отчество), <code>phone</code> — из данных формы отправки (оператор может изменить перед SMS), не напрямую из БД после отправки.<br>
     После отправки в <code>contract_sign_requests</code> фиксируется снимок подписанта; сменить подписанта у уже созданного договора нельзя — только новый договор или новая отправка с новыми данными в форме.
   </div>
 
@@ -148,7 +149,9 @@
     Запуск: <code>php artisan test --filter=ContractsParentAndAccessTest</code>.
   </div>
 
-  <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/admin-users#user-parent">Пользователи: данные родителя</a></p>
+  <p class="small"><a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> ·
+    <a href="/docs/documentation/admin-users#user-parent">Пользователи: данные родителя</a></p>
 </div>
 </body>
 </html>

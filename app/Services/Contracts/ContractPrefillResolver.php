@@ -60,9 +60,11 @@ class ContractPrefillResolver
      */
     public function resolveSignerParts(User $student, array $filledData): array
     {
-        $lastname = trim((string) ($filledData['signer_lastname'] ?? $student->parent_lastname ?? ''));
-        $firstname = trim((string) ($filledData['signer_firstname'] ?? $student->parent_firstname ?? ''));
-        $middlename = trim((string) ($filledData['signer_middlename'] ?? $student->parent_middlename ?? ''));
+        $parentFields = $student->parentFormFields();
+
+        $lastname = trim((string) ($filledData['signer_lastname'] ?? $parentFields['parent_lastname'] ?? ''));
+        $firstname = trim((string) ($filledData['signer_firstname'] ?? $parentFields['parent_firstname'] ?? ''));
+        $middlename = trim((string) ($filledData['signer_middlename'] ?? $parentFields['parent_middlename'] ?? ''));
         $phone = preg_replace('/\D+/', '', (string) ($filledData['signer_phone'] ?? $student->phone ?? '')) ?: '';
 
         if (strlen($phone) === 10 && str_starts_with($phone, '9')) {
@@ -92,14 +94,16 @@ class ContractPrefillResolver
             return '';
         }
 
+        $parentFields = $student->parentFormFields();
+
         return match ($source) {
             ContractTemplatePrefillSources::STUDENT_FULL_NAME => trim(($student->lastname ?? '') . ' ' . ($student->name ?? '')),
             ContractTemplatePrefillSources::STUDENT_PHONE      => (string) ($student->phone ?? ''),
             ContractTemplatePrefillSources::STUDENT_EMAIL     => (string) ($student->email ?? ''),
             ContractTemplatePrefillSources::PARENT_FULL_NAME  => (string) ($student->parent_full_name ?? ''),
-            ContractTemplatePrefillSources::PARENT_LASTNAME   => (string) ($student->parent_lastname ?? ''),
-            ContractTemplatePrefillSources::PARENT_FIRSTNAME  => (string) ($student->parent_firstname ?? ''),
-            ContractTemplatePrefillSources::PARENT_MIDDLENAME  => (string) ($student->parent_middlename ?? ''),
+            ContractTemplatePrefillSources::PARENT_LASTNAME   => (string) ($parentFields['parent_lastname'] ?? ''),
+            ContractTemplatePrefillSources::PARENT_FIRSTNAME  => (string) ($parentFields['parent_firstname'] ?? ''),
+            ContractTemplatePrefillSources::PARENT_MIDDLENAME  => (string) ($parentFields['parent_middlename'] ?? ''),
             ContractTemplatePrefillSources::TEAM_TITLE          => (string) ($team?->title ?? ''),
             default => '',
         };

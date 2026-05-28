@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User;
 
+use App\Http\Requests\User\Concerns\ValidatesStudentParent;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -10,6 +11,8 @@ use App\Models\Setting;
 
 class AccountUpdateRequest extends FormRequest
 {
+    use ValidatesStudentParent;
+
     /**
      * Разрешаем запрос.
      */
@@ -53,6 +56,8 @@ class AccountUpdateRequest extends FormRequest
                 'email' => $email !== '' ? $email : null,
             ]);
         }
+
+        $this->prepareStudentParentForValidation();
     }
 
     /**
@@ -100,7 +105,9 @@ class AccountUpdateRequest extends FormRequest
             $rules['phone'] = ['sometimes','nullable','string','max:32'];
         }
 
-
+        if ($this->user()->can('account.user.parent.update')) {
+            $rules = array_merge($rules, $this->studentParentRules());
+        }
 
         return $rules;
     }
@@ -170,8 +177,7 @@ class AccountUpdateRequest extends FormRequest
             'email'              => 'Email',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
             'phone'              => 'Телефон',
-
-        ];
+        ] + $this->studentParentAttributes();
     }
 
     /**
@@ -207,6 +213,6 @@ class AccountUpdateRequest extends FormRequest
 
             // 2FA
             'two_factor_enabled.boolean' => 'Некорректное значение поля 2FA.',
-        ];
+        ] + $this->studentParentMessages();
     }
 }

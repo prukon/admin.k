@@ -465,17 +465,18 @@ class ContractsController extends Controller
         $requests = $contract->signRequests()->orderBy('id', 'desc')->get();
 
         // Подтягиваем данные ученика + название группы (teams.title)
-        $student = \App\Models\User::select(
-            'id',
-            'name',
-            'lastname',
-            'phone',
-            'email',
-            'team_id',
-            'parent_lastname',
-            'parent_firstname',
-            'parent_middlename',
-        )->find($contract->user_id);
+        $student = \App\Models\User::query()
+            ->with('parentProfile')
+            ->select(
+                'id',
+                'name',
+                'lastname',
+                'phone',
+                'email',
+                'team_id',
+                'parent_id',
+            )
+            ->find($contract->user_id);
 
         $teamTitle = null;
         if ($student && $student->team_id) {

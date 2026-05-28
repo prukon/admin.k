@@ -189,6 +189,9 @@ Route::middleware('auth')->group(function () {
 // -----------auth', '2fa-----------
 Route::middleware(['auth', '2fa'])->group(function () {
 
+    Route::post('/cabinet/active-student', [\App\Http\Controllers\User\FamilyStudentContextController::class, 'switch'])
+        ->name('cabinet.active-student.switch');
+
     //Консоль (feature test +)
     Route::middleware(['can:dashboard.view'])->group(function () {
         Route::match(['get', 'post'], '/cabinet', [DashboardController::class, 'index'])->name('dashboard');
@@ -477,6 +480,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users.password.update', 'throttle:5,1'])->whereNumber('user');
         //Данные для datatables
         Route::get('/admin/users/data', [UserController::class, 'data'])->name('admin.users.data');
+        Route::get('admin/users/parents/search', [UserController::class, 'searchParents'])->name('admin.users.parents.search');
 
         //Удаление аватарки админом
         Route::delete('/admin/users/{id}/avatar', [UserAvatarController::class, 'destroyUserAvatar']);

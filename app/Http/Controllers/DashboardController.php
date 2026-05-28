@@ -16,6 +16,7 @@ use App\Models\UserCustomPayment;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Models\Weekday;
+use App\Services\Users\FamilyStudentContextService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -48,8 +49,10 @@ class DashboardController extends Controller
         $allTeams = $teamsQuery->get();
 
         $weekdays = Weekday::all();
-        $curUser = auth()->user();
-        $curTeam = Team::where('id', auth()->user()->team_id)->first();
+        $curUser = app(FamilyStudentContextService::class)->activeStudent(auth()->user());
+        $curTeam = $curUser->team_id
+            ? Team::where('id', $curUser->team_id)->where('partner_id', $partnerId)->first()
+            : null;
 
         $scheduleUser = ScheduleUser::where('user_id', $curUser->id)->get();
         $scheduleUserArray = ScheduleUser::where('user_id', $curUser->id)->get()->toArray();

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\Users;
 
 use App\Models\MyLog;
+use App\Models\ParentProfile;
 use App\Models\Partner;
 use App\Models\Role;
 use App\Models\Team;
@@ -416,13 +417,23 @@ class UserControllerTest extends CrmTestCase
         ]);
 
         // Два пользователя с разными данными
+        $parentU1 = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Яковлев',
+            'firstname'  => 'Яков',
+        ]);
+        $parentU2 = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Антонов',
+            'firstname'  => 'Антон',
+        ]);
+
         $u1 = User::factory()->create([
             'partner_id' => $this->partner->id,
             'team_id' => $teamBeta->id,
             'lastname' => 'Бета',
             'name' => 'Сергей',
-            'parent_lastname' => 'Яковлев',
-            'parent_firstname' => 'Яков',
+            'parent_id' => $parentU1->id,
             'email' => 'b@example.com',
             'phone' => '+70000000001',
             'is_enabled' => 0,
@@ -433,8 +444,7 @@ class UserControllerTest extends CrmTestCase
             'team_id' => $teamAlpha->id,
             'lastname' => 'Альфа',
             'name' => 'Иван',
-            'parent_lastname' => 'Антонов',
-            'parent_firstname' => 'Антон',
+            'parent_id' => $parentU2->id,
             'email' => 'a@example.com',
             'phone' => '+70000000002',
             'is_enabled' => 1,
@@ -693,14 +703,20 @@ class UserControllerTest extends CrmTestCase
         ]);
 
         $storeResponse->assertStatus(200);
-        $userId = (int) ($storeResponse->json('user.id') ?? 0);
-        $this->assertGreaterThan(0, $userId);
 
-        $created = User::findOrFail($userId);
-        $this->assertSame('Иванов', $created->parent_lastname);
-        $this->assertSame('Иван', $created->parent_firstname);
-        $this->assertSame('Иванович', $created->parent_middlename);
+        $created = User::query()->where('partner_id', $this->partner->id)->where('name', 'Петя')->latest('id')->firstOrFail();
+        $userId = (int) $created->id;
+        $this->assertNotNull($created->parent_id);
+        $created->load('parentProfile');
+        $this->assertSame('Иванов', $created->parentProfile?->lastname);
+        $this->assertSame('Иван', $created->parentProfile?->firstname);
+        $this->assertSame('Иванович', $created->parentProfile?->middlename);
         $this->assertSame('Иванов Иван Иванович', $created->parent_full_name);
+        $this->assertDatabaseHas('parents', [
+            'id'        => $created->parent_id,
+            'lastname'  => 'Иванов',
+            'firstname' => 'Иван',
+        ]);
 
         $updateResponse = $this->patchJson("/admin/users/{$userId}", [
             'name' => 'Петя',
@@ -715,10 +731,18 @@ class UserControllerTest extends CrmTestCase
         $updateResponse->assertStatus(200);
 
         $created->refresh();
-        $this->assertSame('Сидоров', $created->parent_lastname);
-        $this->assertSame('Сидор', $created->parent_firstname);
-        $this->assertNull($created->parent_middlename);
+        $created->load('parentProfile');
+        $parentId = $created->parent_id;
+        $this->assertNotNull($parentId);
+        $this->assertSame('Сидоров', $created->parentProfile?->lastname);
+        $this->assertSame('Сидор', $created->parentProfile?->firstname);
+        $this->assertNull($created->parentProfile?->middlename);
         $this->assertSame('Сидоров Сидор', $created->parent_full_name);
+        $this->assertDatabaseHas('parents', [
+            'id'        => $parentId,
+            'lastname'  => 'Сидоров',
+            'firstname' => 'Сидор',
+        ]);
     }
 
     /**

@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: родители и семейный кабинет</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    ul { margin: 8px 0 8px 20px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Родители и семейный кабинет</h1>
+  <div class="small">Файл: <code>/docs/documentation/parents-and-family-cabinet.html</code> · URL: <code>/docs/documentation/parents-and-family-cabinet</code> · оглавление: <a href="/doc">/doc</a></div>
+
+  <div class="note">
+    <b>Назначение.</b> Справочник родителей (<code>parents</code>) для ФИО подписанта договора и семейного кабинета (несколько детей с одним <code>users.parent_id</code>).
+    Вход в CRM — <b>только</b> под учёткой ученика (<code>users</code>, роль <code>user</code>). Отдельной учётки «мама/папа» нет.
+    Контакты для SMS и оплат — <code>users.phone</code> / <code>users.email</code> учётки ученика, под которой выполнен вход.
+  </div>
+
+  <h2>0) Как это работает (сценарий)</h2>
+  <div class="ok">
+    <b>Пример.</b> Брат 1 и брат 2 — две записи <code>users</code> с одним <code>parent_id</code> (одна строка в <code>parents</code>).
+    Вход под любым из них даёт доступ к данным обоих через переключатель «Просмотр данных ученика» в левом сайдбаре (layout <code>admin2</code>).
+  </div>
+  <ul>
+    <li>Права (роли, permissions) остаются у <b>залогиненного</b> ученика; переключатель меняет только <b>контекст просмотра</b> (платежи, консоль и т.д.) — session <code>active_student_user_id</code>.</li>
+    <li>Если у ученика нет <code>parent_id</code> или нет второго активного ребёнка с тем же <code>parent_id</code> — переключателя нет.</li>
+    <li>При семейном режиме (переключатель виден) в сайдбаре над селектом «Имя» и «Почта» показываются <code>parents.full_name</code> и <code>parents.email</code> (см. <code>FamilyStudentContextService::sidebarPanelIdentity</code>).</li>
+    <li>Редактирование ФИО родителя в личном кабинете меняет общую запись <code>parents</code> — изменения видны всем детям с этим <code>parent_id</code>.</li>
+  </ul>
+
+  <h2>1) Модель данных</h2>
+
+  <h3>1.1) Таблица <code>parents</code></h3>
+  <p>Миграция: <code>database/migrations/2026_05_28_120000_create_parents_table.php</code>. Модель: <code>App\Models\ParentProfile</code> (имя <code>Parent</code> зарезервировано в PHP).</p>
+  <table>
+    <thead>
+      <tr><th>Поле</th><th>Описание</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>id</code></td><td>PK</td></tr>
+      <tr><td><code>partner_id</code></td><td>Организация (обязательно, FK → <code>partners</code>, cascade)</td></tr>
+      <tr><td><code>lastname</code>, <code>firstname</code>, <code>middlename</code></td><td>ФИО родителя / подписанта (nullable, max 100)</td></tr>
+      <tr><td><code>phone</code>, <code>email</code></td><td>Опциональные контакты; <code>email</code> используется в сайдбаре при семейном режиме (редактирование в формах пока только ФИО)</td></tr>
+      <tr><td><code>deleted_at</code></td><td>Soft delete</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.2) Связь с учеником</h3>
+  <p>Миграция: <code>database/migrations/2026_05_28_120001_add_parent_id_to_users_table.php</code></p>
+  <ul>
+    <li><code>users.parent_id</code> → FK <code>parents.id</code> (nullable) — «родитель этого ученика».</li>
+    <li>Один родитель (<code>parents</code>) → много учеников (<code>users</code> с одним <code>parent_id</code>).</li>
+    <li>Переключение детей в кабинете: у залогиненного ученика тот же <code>parent_id</code>, что и у брата/сестры (тот же партнёр, <code>is_enabled</code>).</li>
+  </ul>
+
+  <div class="warn">
+    <b>Legacy удалён.</b> Колонки <code>users.parent_lastname</code>, <code>users.parent_firstname</code>, <code>users.parent_middlename</code> удалены миграцией
+    <code>2026_05_28_130000_drop_legacy_parent_name_columns_from_users_table.php</code>;
+    колонка <code>parents.user_id</code> (родительский логин) — миграцией <code>2026_05_28_140000_drop_user_id_from_parents_table.php</code>.
+    В HTTP-формах по-прежнему используются имена полей <code>parent_lastname</code> / <code>parent_firstname</code> / <code>parent_middlename</code> — это <b>ключи запроса</b>, значения пишутся в <code>parents</code>.
+  </div>
+
+  <h3>1.3) Миграции</h3>
+  <table>
+    <thead>
+      <tr><th>Файл</th><th>Действие</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>2026_05_28_120000_create_parents_table.php</code></td><td>Создание <code>parents</code></td></tr>
+      <tr><td><code>2026_05_28_120001_add_parent_id_to_users_table.php</code></td><td><code>users.parent_id</code> → FK <code>parents</code></td></tr>
+      <tr><td><code>2026_05_28_130000_drop_legacy_parent_name_columns_from_users_table.php</code></td><td>Удаление <code>users.parent_*</code> (ФИО только в <code>parents</code>)</td></tr>
+      <tr><td><code>2026_05_28_140000_drop_user_id_from_parents_table.php</code></td><td>Удаление <code>parents.user_id</code> (отказ от отдельного логина родителя)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.4) Схема связей</h3>
+  <pre>partners
+   └── parents (partner_id)
+         └── students → users.parent_id (много учеников)
+
+users (role=user) — ученик, вход в CRM
+   └── parent_id → parents (общий родитель у братьев/сестёр)</pre>
+
+  <h2>2) Код: модели и сервисы</h2>
+  <table>
+    <thead>
+      <tr><th>Компонент</th><th>Файл</th><th>Роль</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>ParentProfile</code></td><td><code>app/Models/ParentProfile.php</code></td><td><code>students()</code>, <code>full_name</code>, route binding по <code>partner_id</code></td></tr>
+      <tr><td><code>User</code></td><td><code>app/Models/User.php</code></td><td><code>parentProfile()</code>, <code>parentFormFields()</code>, <code>accountParentFormFields()</code>, аксессор <code>parent_full_name</code></td></tr>
+      <tr><td><code>StudentParentSyncService</code></td><td><code>app/Services/Users/StudentParentSyncService.php</code></td><td>Создание/обновление родителя из админки и личного кабинета</td></tr>
+      <tr><td><code>FamilyStudentContextService</code></td><td><code>app/Services/Users/FamilyStudentContextService.php</code></td><td><code>accessibleStudents()</code>, <code>activeStudent()</code>, <code>sidebarPanelIdentity()</code>, switch; кэш списка на request</td></tr>
+      <tr><td>Валидация</td><td><code>app/Http/Requests/User/Concerns/ValidatesStudentParent.php</code></td><td>Trait для Store/Update/AccountUpdate Request</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3) Админка: пользователи (<code>/admin/users</code>)</h2>
+  <p>Подробно: <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>. Кратко:</p>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/users/parents/search</code></td><td>Select2: поиск родителей текущего партнёра (<code>q</code>, <code>id</code>, <code>limit</code>)</td></tr>
+      <tr><td>POST / PATCH</td><td><code>/admin/users</code>, <code>/admin/users/{user}</code></td><td><code>parent_id</code> и/или <code>parent_*</code> в теле → <code>StudentParentSyncService::syncForStudent</code></td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>В списке DataTables колонка «Родитель» — склейка ФИО из <code>parents</code> (через <code>parentProfile</code>).</li>
+    <li>Поиск по <code>name</code> ищет также по ФИО в <code>parents</code> (<code>whereHas parentProfile</code>).</li>
+    <li>Сортировка col=3: <code>parents.lastname</code>, <code>parents.firstname</code> (left join).</li>
+    <li>Право: достаточно <code>users.view</code> + store/update пользователя; отдельного permission на родителя в админке нет.</li>
+  </ul>
+
+  <h2 id="account-parent">4) Личный кабинет: учётная запись</h2>
+  <div class="note">
+    Страница: <code>GET /account-settings/user/edit</code> (<code>account.user.edit</code>), middleware <code>can:account.user.view</code>.<br>
+    Блок «Данные родителя» на вкладке «Личные данные» (<code>resources/views/account/users.blade.php</code>).
+  </div>
+
+  <h3>4.1) Права</h3>
+  <table>
+    <thead>
+      <tr><th>Permission</th><th>Gate</th><th>Поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>account.user.view</code></td><td><code>account.user.view</code></td><td>Доступ к странице и маршрутам группы <code>account.user.*</code></td></tr>
+      <tr><td><code>account.user.parent.update</code></td><td><code>account.user.parent.update</code></td><td>Редактирование ФИО родителя; без права — поля disabled (readonly)</td></tr>
+    </tbody>
+  </table>
+  <p>Базовая роль <code>user</code> получает <code>account.user.parent.update</code> из <code>config/role_base_permissions.php</code> (сидер <code>PermissionSeeder</code>).</p>
+
+  <h3>4.2) Сохранение</h3>
+  <ul>
+    <li><code>PATCH /account-settings/user</code> — <code>AccountUpdateRequest</code> + <code>AccountController@update</code>.</li>
+    <li>Поля родителя валидируются только при <code>account.user.parent.update</code>.</li>
+    <li>Сервис: <code>StudentParentSyncService::updateFromAccount</code> — обновляет <code>parentProfile</code> ученика; при отсутствии создаёт запись в <code>parents</code> и выставляет <code>users.parent_id</code>.</li>
+    <li>Ошибки валидации — JSON 422, ключи <code>parent_lastname</code> и т.д. (вывод под полями на фронте).</li>
+  </ul>
+
+  <h3>4.3) Endpoint’ы учётной записи (smoke доступа)</h3>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Ожидание</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/account-settings/user/edit</code></td><td>200 при <code>account.user.view</code></td></tr>
+      <tr><td>PATCH</td><td><code>/account-settings/user</code></td><td>200 JSON <code>success</code></td></tr>
+      <tr><td>PUT</td><td><code>/account-settings/user/password</code></td><td>200</td></tr>
+      <tr><td>POST / DELETE</td><td><code>/account-settings/user/avatar</code></td><td>200 / 422</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="family-cabinet">5) Семейный кабинет (переключение детей)</h2>
+
+  <h3>5.1) UI и условия показа</h3>
+  <ul>
+    <li>Partial: <code>resources/views/includes/family_student_switcher.blade.php</code>, подключается в <code>layouts/admin2.blade.php</code> (блок user-panel, под строкой «Роль»).</li>
+    <li>Переключатель виден, если <code>FamilyStudentContextService::accessibleStudents()</code> содержит <b>больше одного</b> ученика.</li>
+    <li>В селект попадают: активные (<code>is_enabled</code>) ученики с тем же <code>parent_id</code> и <code>partner_id</code>; залогиненный ученик всегда в списке, даже если отключён.</li>
+    <li>Отключённый брат/сестра в селект <b>не</b> попадает; прямой <code>POST</code> switch на него → <b>403</b>.</li>
+  </ul>
+
+  <h3>5.2) API переключения</h3>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Имя маршрута</th><th>Тело</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>POST</td><td><code>/cabinet/active-student</code></td><td><code>cabinet.active-student.switch</code></td><td><code>student_user_id</code> (required, integer)</td></tr>
+    </tbody>
+  </table>
+  <p>Middleware: <code>auth</code>, <code>2fa</code>. Ответ: redirect back. Session key: <code>active_student_user_id</code>.</p>
+
+  <h3>5.3) Права и доступность страниц (HTTP 200)</h3>
+  <table>
+    <thead>
+      <tr><th>Страница / endpoint</th><th>Permission</th><th>Контекст ученика</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>GET /cabinet</code> (консоль)</td><td><code>dashboard.view</code></td><td><code>activeStudent()</code></td></tr>
+      <tr><td><code>GET /reports/payments</code>, <code>GET /getUserPayments</code></td><td><code>myPayments.view</code></td><td><code>activeStudent()</code></td></tr>
+      <tr><td><code>GET /account-settings/user/edit</code></td><td><code>account.user.view</code></td><td>залогиненный <code>auth()->user()</code> (свой пароль, телефон)</td></tr>
+      <tr><td><code>POST /cabinet/active-student</code></td><td>достаточно <code>auth</code> + 2fa (отдельного permission нет)</td><td>проверка sibling через <code>parent_id</code></td></tr>
+    </tbody>
+  </table>
+  <p>Без нужного permission — <b>403</b>. Гость — redirect на login или 401/403 на JSON.</p>
+
+  <h3>5.4) Где используется <code>activeStudent()</code></h3>
+  <table>
+    <thead>
+      <tr><th>Компонент</th><th>Поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>DashboardController::index</code></td><td>Расписание, абонементы, поля — данные выбранного ребёнка</td></tr>
+      <tr><td><code>ReportController</code> («Мои платежи»)</td><td>Платежи выбранного ребёнка</td></tr>
+      <tr><td><code>AppServiceProvider</code> (view composer <code>admin2</code>)</td><td><code>familyStudents</code>, <code>activeStudent</code>, переключатель, <code>sidebarPanelIdentity</code></td></tr>
+    </tbody>
+  </table>
+  <div class="warn">
+    <b>Нюанс консоли.</b> На <code>/cabinet</code> имя/ДР/почта в блоке «личные данные» — из <code>activeStudent</code>; аватар в шаблоне — из <code>auth()->user()</code> (учётка входа).
+  </div>
+
+  <h3>5.5) <code>FamilyStudentContextService</code> (кратко)</h3>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>accessibleStudents(User $actor)</code></td><td>Список учеников семьи; результат кэшируется на один HTTP-request</td></tr>
+      <tr><td><code>activeStudent(?User $actor)</code></td><td>Ученик для данных: session или сам <code>$actor</code></td></tr>
+      <tr><td><code>sidebarPanelIdentity(User $actor)</code></td><td>Имя и почта для сайдбара (родитель при семейном режиме)</td></tr>
+      <tr><td><code>setActiveStudent</code> / <code>canAccessStudent</code></td><td>Switch и проверка доступа</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6) Договоры</h2>
+  <p>На карточке договора и в предзаполнении подписанта ФИО берётся из <code>User::parentFormFields()</code> → таблица <code>parents</code>. См. <a href="/docs/documentation/contracts#contract-parent">contracts §2–3</a>.</p>
+  <ul>
+    <li><code>ContractsController@show</code> — <code>User::with('parentProfile')</code>, без legacy-колонок на <code>users</code>.</li>
+    <li><code>ContractPrefillResolver</code> — плейсхолдеры PARENT_* из профиля родителя.</li>
+  </ul>
+
+  <h2>7) Изоляция по партнёру</h2>
+  <div class="ok">
+    Режим <b>STRICT_CURRENT</b> (<a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a>): все запросы к <code>parents</code> и привязкам учеников фильтруются по <code>PartnerContext::partnerId()</code>.
+  </div>
+  <table>
+    <thead>
+      <tr><th>Сценарий</th><th>Ожидание</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>GET /admin/users/parents/search</code></td><td>Только <code>parents.partner_id = current</code></td></tr>
+      <tr><td>store/update с чужим <code>parent_id</code></td><td>422 validation <code>parent_id.exists</code></td></tr>
+      <tr><td><code>GET /admin/users/{id}/edit</code> чужого ученика</td><td>404 (scope по партнёру)</td></tr>
+      <tr><td>account update с привязкой к чужому <code>parents</code></td><td>422 на <code>parent_lastname</code></td></tr>
+      <tr><td><code>GET parents/search?id=</code> чужого <code>parents.id</code></td><td>Пустой <code>results</code> (свой id — находится)</td></tr>
+      <tr><td>switch на ученика другого партнёра</td><td>403</td></tr>
+      <tr><td>switch на отключённого (<code>is_enabled=0</code>) брата</td><td>403</td></tr>
+      <tr><td>switch на постороннего с тем же партнёром</td><td>403</td></tr>
+      <tr><td>устаревший <code>active_student_user_id</code> в session (другая семья)</td><td>Игнорируется; fallback на залогиненного</td></tr>
+      <tr><td>session <code>current_partner</code> чужой у обычного user</td><td>Игнорируется; контекст = <code>users.partner_id</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>8) Тесты (Feature)</h2>
+  <div class="note">
+    <ul>
+      <li><code>tests/Feature/Crm/Parents/ParentProfileRelationshipsTest.php</code></li>
+      <li><code>tests/Feature/Crm/Parents/StudentParentSyncServiceTest.php</code></li>
+      <li><code>tests/Feature/Crm/Parents/FamilyStudentContextTest.php</code></li>
+      <li><code>tests/Feature/Crm/Parents/FamilyStudentContextPartnerIsolationTest.php</code></li>
+      <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentPartnerIsolationTest.php</code></li>
+      <li><code>tests/Feature/Crm/Account/AccountParentProfileUpdateTest.php</code></li>
+      <li><code>tests/Feature/Crm/Account/AccountParentFullAccessFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Contracts/ContractsParentAndAccessTest.php</code></li>
+    </ul>
+    Запуск: <code>php artisan test --filter='Parent|FamilyStudent|ParentsAndFamily'</code>
+  </div>
+
+  <h2>9) Что не поддерживается</h2>
+  <ul>
+    <li>Отдельная учётная запись родителя для входа (<code>parents.user_id</code> удалён).</li>
+    <li>Переключение между детьми при разных <code>parent_id</code> (разные записи в <code>parents</code>).</li>
+    <li>Редактирование <code>parents.phone</code> / <code>parents.email</code> в UI личного кабинета (поля есть в БД; в форме — только ФИО).</li>
+    <li>Семейный контекст на страницах договоров у роли <code>user</code> (договоры — право <code>contracts.view</code>, админка).</li>
+  </ul>
+
+  <h2>10) Связанные файлы</h2>
+  <ul class="small">
+    <li><code>app/Http/Controllers/Admin/UserController.php</code> — <code>searchParents</code>, data, store/update</li>
+    <li><code>app/Http/Controllers/Admin/AccountController.php</code> — личный кабинет</li>
+    <li><code>app/Http/Controllers/User/FamilyStudentContextController.php</code></li>
+    <li><code>resources/views/admin/users/_parent_form.blade.php</code></li>
+    <li><code>database/factories/ParentProfileFactory.php</code></li>
+  </ul>
+
+  <p class="small"><a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-users#user-parent">Пользователи (админка)</a> ·
+    <a href="/docs/documentation/contracts#contract-parent">Договоры</a> ·
+    <a href="/docs/documentation/partner-scope-guide">Изоляция партнёра</a></p>
+</div>
+</body>
+</html>

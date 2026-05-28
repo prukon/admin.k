@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Services\Users\FamilyStudentContextService;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -50,6 +51,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PartnerContext::class, function () {
             return new PartnerContext();
         });
+
+        $this->app->singleton(FamilyStudentContextService::class);
 
         // Чтобы не ломать существующий app('current_partner')->id
         $this->app->singleton('current_partner', function () {
@@ -106,10 +109,29 @@ class AppServiceProvider extends ServiceProvider
                 $partnerSwitchActiveCount = $partnerSwitchOptions->count();
             }
 
+            $familyContext = app(FamilyStudentContextService::class);
+            $familyStudents = collect();
+            $activeStudent = null;
+            $showFamilyStudentSwitcher = false;
+            $sidebarPanelIdentity = ['name' => '', 'email' => ''];
+
+            if (Auth::check()) {
+                $actor = Auth::user();
+                $actor->loadMissing('parentProfile');
+                $familyStudents = $familyContext->accessibleStudents($actor);
+                $showFamilyStudentSwitcher = $familyStudents->count() > 1;
+                $activeStudent = $familyContext->activeStudent($actor);
+                $sidebarPanelIdentity = $familyContext->sidebarPanelIdentity($actor);
+            }
+
             $view->with([
                 'partnerWalletBalance' => $balance,
                 'partnerSwitchOptions' => $partnerSwitchOptions,
                 'partnerSwitchActiveCount' => $partnerSwitchActiveCount,
+                'familyStudents' => $familyStudents,
+                'activeStudent' => $activeStudent,
+                'showFamilyStudentSwitcher' => $showFamilyStudentSwitcher,
+                'sidebarPanelIdentity' => $sidebarPanelIdentity,
             ]);
         });
 

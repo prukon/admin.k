@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Location;
+use App\Models\ParentProfile;
 use App\Models\Partner;
 use App\Models\Role;
 use App\Models\Team;
@@ -36,8 +37,6 @@ class DevUsersSeeder extends Seeder
 
         $userRoleId = Role::query()->where('name', 'user')->value('id');
 
-        $this->fillParentNamesForStudentsWithoutParent($userRoleId);
-
         $this->assignPartnerTeamAndLocation(
             User::query()
                 ->whereNull('location_id')
@@ -70,25 +69,118 @@ class DevUsersSeeder extends Seeder
                     $user->team_id = (int) $teamId;
                 }
 
-                $user->fill($this->randomParentNameFields());
                 $user->save();
             });
-    }
 
-    private function fillParentNamesForStudentsWithoutParent(?int $userRoleId): void
-    {
-        User::query()
-            ->when($userRoleId, fn ($q) => $q->where('role_id', $userRoleId))
-            ->whereNull('parent_lastname')
-            ->orderBy('id')
-            ->each(function (User $user) {
-                $user->fill($this->randomParentNameFields());
-                $user->save();
-            });
+        $this->seedParentsForStudentsWithoutParent($userRoleId);
     }
 
     /**
-     * @return array{parent_lastname: string, parent_firstname: string, parent_middlename: ?string}
+     * Родитель у ~50% учеников без parent_id; среди них часть — братья (2–3 ребёнка на одного parents).
+     */
+    private function seedParentsForStudentsWithoutParent(?int $userRoleId): void
+    {
+        $students = User::query()
+            ->when($userRoleId, fn ($q) => $q->where('role_id', $userRoleId))
+            ->whereNotNull('partner_id')
+            ->whereNull('parent_id')
+            ->get();
+
+        if ($students->isEmpty()) {
+            return;
+        }
+
+        foreach ($students->groupBy('partner_id') as $partnerStudents) {
+            $this->seedParentsForPartnerStudents($partnerStudents->values());
+        }
+    }
+
+    /**
+     * @param  Collection<int, User>  $students
+     */
+    private function seedParentsForPartnerStudents(Collection $students): void
+    {
+        $shuffled = $students->shuffle()->values();
+        $withParentCount = (int) ceil($shuffled->count() / 2);
+
+        if ($withParentCount === 0) {
+            return;
+        }
+
+        $withParent = $shuffled->take($withParentCount);
+
+        $familyTarget = (int) round($withParent->count() * 0.5);
+        $familyPool = $withParent->take($familyTarget);
+        $soloPool = $withParent->slice($familyPool->count())->values();
+
+        $index = 0;
+        while ($index < $familyPool->count()) {
+            $remaining = $familyPool->count() - $index;
+
+            if ($remaining < 2) {
+                $soloPool = $soloPool->merge($familyPool->slice($index));
+                break;
+            }
+
+            $familySize = random_int(2, min(3, $remaining));
+
+            $siblings = $familyPool->slice($index, $familySize);
+            $this->attachSharedParentToUsers($siblings);
+            $index += $familySize;
+        }
+
+        foreach ($soloPool as $user) {
+            $this->attachRandomParentProfile($user);
+            $user->save();
+        }
+    }
+
+    /**
+     * @param  Collection<int, User>  $users
+     */
+    private function attachSharedParentToUsers(Collection $users): void
+    {
+        if ($users->isEmpty()) {
+            return;
+        }
+
+        $partnerId = (int) $users->first()->partner_id;
+        $names = $this->randomParentNameFields();
+
+        $parent = ParentProfile::query()->create([
+            'partner_id' => $partnerId,
+            'lastname'   => $names['lastname'],
+            'firstname'  => $names['firstname'],
+            'middlename' => $names['middlename'],
+            'email'      => fake()->boolean(70) ? fake()->safeEmail() : null,
+        ]);
+
+        foreach ($users as $user) {
+            $user->parent_id = $parent->id;
+            $user->save();
+        }
+    }
+
+    private function attachRandomParentProfile(User $user): void
+    {
+        if (!$user->partner_id || $user->parent_id) {
+            return;
+        }
+
+        $names = $this->randomParentNameFields();
+        $parent = ParentProfile::query()->create([
+            'partner_id' => (int) $user->partner_id,
+            'lastname'   => $names['lastname'],
+            'firstname'  => $names['firstname'],
+            'middlename' => $names['middlename'],
+            'email'      => fake()->boolean(70) ? fake()->safeEmail() : null,
+        ]);
+
+        $user->parent_id = $parent->id;
+    }
+
+    /**
+     * @return array{lastname: string, firstname: string, middlename: ?string}
      */
     private function randomParentNameFields(): array
     {
@@ -101,9 +193,9 @@ class DevUsersSeeder extends Seeder
             : null;
 
         return [
-            'parent_lastname' => $faker->lastName(),
-            'parent_firstname' => $faker->firstName(),
-            'parent_middlename' => $middlename,
+            'lastname'   => $faker->lastName(),
+            'firstname'  => $faker->firstName(),
+            'middlename' => $middlename,
         ];
     }
 

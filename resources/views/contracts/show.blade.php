@@ -314,9 +314,10 @@
                     <input type="hidden" id="contractId" value="{{ $contract->id }}">
 
                     @php
-                        $defaultLast   = trim($student->parent_lastname ?? '');
-                        $defaultFirst  = trim($student->parent_firstname ?? '');
-                        $defaultMiddle = trim($student->parent_middlename ?? '');
+                        $parentFields = $student?->parentFormFields() ?? [];
+                        $defaultLast   = trim($parentFields['parent_lastname'] ?? '');
+                        $defaultFirst  = trim($parentFields['parent_firstname'] ?? '');
+                        $defaultMiddle = trim($parentFields['parent_middlename'] ?? '');
                     @endphp
 
                     <div class="mb-3">

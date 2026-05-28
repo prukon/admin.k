@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserFieldValue;
 use App\Services\UserService;
+use App\Services\Users\StudentParentSyncService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\Event;
@@ -39,10 +40,16 @@ class AccountController extends AdminBaseController
 {
     protected UserService $service;
 
-    public function __construct(UserService $service, PartnerContext $partnerContext)
-    {
+    protected StudentParentSyncService $studentParentSync;
+
+    public function __construct(
+        UserService $service,
+        StudentParentSyncService $studentParentSync,
+        PartnerContext $partnerContext
+    ) {
         parent::__construct($partnerContext);
         $this->service = $service;
+        $this->studentParentSync = $studentParentSync;
     }
 
 
@@ -60,8 +67,14 @@ class AccountController extends AdminBaseController
     
         // Лучше для консистентности брать текущего юзера через currentUser()
         $user = $this->currentUser();
+        $user->loadMissing('parentProfile');
         $partners = $user->partner ? collect([$user->partner]) : collect();
         $currentUser = $user;
+
+        $canEditAccountParent = Gate::allows('account.user.parent.update');
+        $accountParentFields = $user->accountParentFormFields();
+        $showAccountParentSection = $canEditAccountParent
+            || collect($accountParentFields)->filter(fn ($value) => filled($value))->isNotEmpty();
     
         // Загружаем поля текущего партнёра вместе с ролями (pivot user_field_role)
         $fields = UserField::where('partner_id', $partnerId)
@@ -84,7 +97,10 @@ class AccountController extends AdminBaseController
             'fields',
             'userFieldValues',
             'editableFields',
-            'currentUser'
+            'currentUser',
+            'canEditAccountParent',
+            'accountParentFields',
+            'showAccountParentSection'
         ));
     }
 
@@ -108,6 +124,10 @@ class AccountController extends AdminBaseController
         $original   = $user->getOriginal();
         $oldData    = $user->replicate();
         $validated  = $request->validated();
+        $parentPayload = $this->studentParentSync->extractParentPayload($validated);
+        $validatedForUser = $this->studentParentSync->stripParentPayload($validated);
+        $canUpdateAccountParent = $user->can('account.user.parent.update')
+            && $this->studentParentSync->hasAccountParentNamePayload($parentPayload);
 
         // --- локализованные подписи полей для человекочитаемых логов
         $fieldLabel = function (string $key): string {
@@ -121,6 +141,9 @@ class AccountController extends AdminBaseController
                 'birthday'            => 'Дата рождения',
                 'phone'               => 'Телефон',
                 'two_factor_enabled'  => 'Двухфакторная аутентификация (SMS)',
+                'parent_lastname'     => 'Фамилия родителя',
+                'parent_firstname'    => 'Имя родителя',
+                'parent_middlename'   => 'Отчество родителя',
             ];
             return $map[$key] ?? $key;
         };
@@ -138,8 +161,8 @@ class AccountController extends AdminBaseController
 
         // ✅ FIX: различаем "phone не пришёл" и "phone пришёл = null"
         $currentPhone  = $normalize($user->phone);
-        $hasPhoneKey   = array_key_exists('phone', $validated);
-        $incomingPhone = $hasPhoneKey ? $normalize($validated['phone']) : $currentPhone;
+        $hasPhoneKey   = array_key_exists('phone', $validatedForUser);
+        $incomingPhone = $hasPhoneKey ? $normalize($validatedForUser['phone']) : $currentPhone;
 
         $isDeletePhone = $hasPhoneKey && $incomingPhone === null;
 
@@ -160,7 +183,7 @@ class AccountController extends AdminBaseController
         };
 
         // --- 2FA: глобалка force_2fa_admins
-        $targetRoleId   = (int)($validated['role_id'] ?? $user->role_id);
+        $targetRoleId   = (int)($validatedForUser['role_id'] ?? $user->role_id);
         $targetRoleName = $roleNameById($targetRoleId);
 
         $isAdminRole    = ($targetRoleName === 'admin');
@@ -171,12 +194,12 @@ class AccountController extends AdminBaseController
 
         // Итоговое состояние 2FA
         $twoFaEnabled = $forcedForThisUser ? 1 : $requestedTwoFa;
-        $validated['two_factor_enabled'] = $twoFaEnabled;
+        $validatedForUser['two_factor_enabled'] = $twoFaEnabled;
 
         // Если 2FA была включена и мы её выключаем (не админ под глобалкой) — чистим служебные поля
         if (!$forcedForThisUser && $user->two_factor_enabled && $twoFaEnabled === 0) {
-            $validated['two_factor_code']       = null;
-            $validated['two_factor_expires_at'] = null;
+            $validatedForUser['two_factor_code']       = null;
+            $validatedForUser['two_factor_expires_at'] = null;
         }
 
         // --- правила по телефону
@@ -204,22 +227,22 @@ class AccountController extends AdminBaseController
             // при этом выключаем 2FA, иначе ниже сработает "телефон обязателен для 2FA".
             if ($twoFaEnabled === 1 && !$isPhoneVerified) {
                 $twoFaEnabled = 0;
-                $validated['two_factor_enabled']    = 0;
-                $validated['two_factor_code']       = null;
-                $validated['two_factor_expires_at'] = null;
+                $validatedForUser['two_factor_enabled']    = 0;
+                $validatedForUser['two_factor_code']       = null;
+                $validatedForUser['two_factor_expires_at'] = null;
 
                 Log::info('User update: phone cleared (2FA ON but phone unverified -> 2FA forced OFF)', [
                     'user_id' => $user->id,
                 ]);
             }
 
-            $validated['phone']                       = null;
-            $validated['phone_verified_at']           = null;
-            $validated['two_factor_phone_pending']    = null;
-            $validated['phone_change_new_code']       = null;
-            $validated['phone_change_new_expires_at'] = null;
-            $validated['phone_change_old_code']       = null;
-            $validated['phone_change_old_expires_at'] = null;
+            $validatedForUser['phone']                       = null;
+            $validatedForUser['phone_verified_at']           = null;
+            $validatedForUser['two_factor_phone_pending']    = null;
+            $validatedForUser['phone_change_new_code']       = null;
+            $validatedForUser['phone_change_new_expires_at'] = null;
+            $validatedForUser['phone_change_old_code']       = null;
+            $validatedForUser['phone_change_old_expires_at'] = null;
 
             Log::info('User update: phone cleared by request', ['user_id' => $user->id]);
         }
@@ -237,13 +260,13 @@ class AccountController extends AdminBaseController
                     'errors'  => ['phone' => ['Номер подтверждён. Смена запрещена.']],
                 ], 422);
             } else {
-                $validated['phone']                       = $incomingPhone;
-                $validated['phone_verified_at']           = null;
-                $validated['two_factor_phone_pending']    = null;
-                $validated['phone_change_new_code']       = null;
-                $validated['phone_change_new_expires_at'] = null;
-                $validated['phone_change_old_code']       = null;
-                $validated['phone_change_old_expires_at'] = null;
+                $validatedForUser['phone']                       = $incomingPhone;
+                $validatedForUser['phone_verified_at']           = null;
+                $validatedForUser['two_factor_phone_pending']    = null;
+                $validatedForUser['phone_change_new_code']       = null;
+                $validatedForUser['phone_change_new_expires_at'] = null;
+                $validatedForUser['phone_change_old_code']       = null;
+                $validatedForUser['phone_change_old_expires_at'] = null;
 
                 Log::info('User update: phone changed (unverified -> new value saved)', [
                     'user_id' => $user->id,
@@ -255,7 +278,7 @@ class AccountController extends AdminBaseController
 
         // Требуем телефон только если 2FA включена итогово
         if ($twoFaEnabled === 1) {
-            $phoneFor2fa = $normalize($validated['phone'] ?? $user->phone);
+            $phoneFor2fa = $normalize($validatedForUser['phone'] ?? $user->phone);
             if (!$phoneFor2fa || !preg_match('/^7\d{10}$/', $phoneFor2fa)) {
                 Log::info('User update: phone required because 2FA ON', [
                     'user_id' => $user->id,
@@ -281,13 +304,21 @@ class AccountController extends AdminBaseController
 
         $fieldNameById = [];
 
-        DB::transaction(function () use (
-            $user, $authorId, $validated, $original,
-            $custom, $editorRoleId, &$fieldNameById, $oldFieldValuesById, $fieldLabel, $normalize, $originalPhone
-        ) {
-            $this->service->update($user, $validated);
+        $originalParentFields = $user->accountParentFormFields();
 
-            if (array_key_exists('phone', $validated) && $validated['phone'] === null) {
+        DB::transaction(function () use (
+            $user, $authorId, $validatedForUser, $original,
+            $custom, $editorRoleId, &$fieldNameById, $oldFieldValuesById, $fieldLabel, $normalize, $originalPhone,
+            $canUpdateAccountParent, $parentPayload, $currentPartnerId, $originalParentFields
+        ) {
+            $this->service->update($user, $validatedForUser);
+
+            if ($canUpdateAccountParent) {
+                $this->studentParentSync->updateFromAccount($user, $currentPartnerId, $parentPayload);
+                $user->refresh();
+            }
+
+            if (array_key_exists('phone', $validatedForUser) && $validatedForUser['phone'] === null) {
                 $user->forceFill([
                     'phone'                       => null,
                     'phone_verified_at'           => null,
@@ -399,6 +430,19 @@ class AccountController extends AdminBaseController
             }
             if ($old2fa === 1 && $new2fa === 0) {
                 $changes[] = '— очищены служебные поля 2FA (код/срок)';
+            }
+
+            if ($canUpdateAccountParent) {
+                $newParentFields = $user->accountParentFormFields();
+                foreach (['parent_lastname', 'parent_firstname', 'parent_middlename'] as $parentField) {
+                    $old = $originalParentFields[$parentField] ?? null;
+                    $new = $newParentFields[$parentField] ?? null;
+                    if ($old != $new) {
+                        $changes[] = $fieldLabel($parentField) . ': ' .
+                            (($old === null || $old === '') ? 'null' : $old) . ' → ' .
+                            (($new === null || $new === '') ? 'null' : $new);
+                    }
+                }
             }
 
             $desc = $changes ? implode("\n", $changes) : "Изменения: отсутствуют.";

@@ -7,6 +7,7 @@ use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserFieldValue;
+use App\Services\Users\StudentParentSyncService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
@@ -15,17 +16,26 @@ class UserService
     public function __construct(
         private readonly TrainerProfileSyncService $trainerProfileSync,
         private readonly TeamTrainerSyncService $teamTrainerSync,
+        private readonly StudentParentSyncService $studentParentSync,
     ) {
     }
 
     //  - Создание учетной записи юзера
     public function store($data)
     {
-        $user = User::create($data);
+        $parentPayload = $this->studentParentSync->extractParentPayload($data);
+        $userData = $this->studentParentSync->stripParentPayload($data);
+
+        $user = User::create($userData);
         $user->load('role');
         $this->trainerProfileSync->syncForUser($user);
 
-        return $user;
+        $partnerId = (int) ($user->partner_id ?? 0);
+        if ($partnerId > 0) {
+            $this->studentParentSync->syncForStudent($user, $partnerId, $parentPayload);
+        }
+
+        return $user->refresh();
     }
 
 //    обновление данных пользователя
@@ -150,9 +160,13 @@ class UserService
                 Log::warning('Данные custom отсутствуют или не являются массивом.');
             }
 
-            // Исключаем 'custom' и группы тренера из основного массива
+            // Исключаем 'custom', родителя и группы тренера из основного массива
             $teamIds = array_key_exists('team_ids', $data) ? (array) $data['team_ids'] : null;
-            $userData = array_diff_key($data, ['custom' => '', 'team_ids' => '']);
+            $parentPayload = $this->studentParentSync->extractParentPayload($data);
+            $userData = array_diff_key(
+                $this->studentParentSync->stripParentPayload($data),
+                ['custom' => '', 'team_ids' => '']
+            );
 
             /**
              * ✅ role_id -> roles.name (кеш в пределах запроса)
@@ -260,6 +274,11 @@ class UserService
                 Log::warning('Поле custom отсутствует или не является массивом.');
             }
 
+            $partnerId = (int) ($user->partner_id ?? 0);
+            if ($partnerId > 0 && $this->hasParentPayloadKeys($parentPayload)) {
+                $this->studentParentSync->syncForStudent($user, $partnerId, $parentPayload);
+            }
+
         } catch (\Exception $e) {
             Log::error('Ошибка при обновлении пользователя:', [
                 'message' => $e->getMessage(),
@@ -267,6 +286,17 @@ class UserService
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function hasParentPayloadKeys(array $payload): bool
+    {
+        return array_key_exists('parent_id', $payload)
+            || array_key_exists('parent_lastname', $payload)
+            || array_key_exists('parent_firstname', $payload)
+            || array_key_exists('parent_middlename', $payload);
     }
 
     public function delete($user)

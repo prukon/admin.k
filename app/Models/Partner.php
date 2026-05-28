@@ -212,6 +212,11 @@ class Partner extends Model
         return $this->hasMany(SchoolLead::class);
     }
 
+    public function parentProfiles()
+    {
+        return $this->hasMany(ParentProfile::class, 'partner_id');
+    }
+
     // На случай, если где-то ещё хочется использовать геттер без поля в БД
     public function getIsRegisteredAttribute($value)
     {

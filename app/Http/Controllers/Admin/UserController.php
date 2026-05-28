@@ -7,6 +7,7 @@ use App\Http\Requests\User\FilterRequest;
 use App\Http\Requests\User\StoreRequest;
 use App\Http\Requests\User\UpdatePasswordRequest;
 use App\Models\Location;
+use App\Models\ParentProfile;
 use App\Models\Role;
 use App\Models\SchoolLead;
 use App\Models\Team;
@@ -141,12 +142,14 @@ class UserController extends AdminBaseController
             $baseQuery->where(function ($q) use ($like) {
                 $q->where('users.name', 'like', $like)
                     ->orWhere('users.lastname', 'like', $like)
-                    ->orWhere('users.parent_lastname', 'like', $like)
-                    ->orWhere('users.parent_firstname', 'like', $like)
-                    ->orWhere('users.parent_middlename', 'like', $like)
                     ->orWhere('users.email', 'like', $like)
                     ->orWhere('users.phone', 'like', $like)
-                    ->orWhere('users.birthday', 'like', $like);
+                    ->orWhere('users.birthday', 'like', $like)
+                    ->orWhereHas('parentProfile', function ($parentQuery) use ($like) {
+                        $parentQuery->where('lastname', 'like', $like)
+                            ->orWhere('firstname', 'like', $like)
+                            ->orWhere('middlename', 'like', $like);
+                    });
             });
         }
 
@@ -208,10 +211,12 @@ class UserController extends AdminBaseController
                         ->orderBy('users.name', $orderDir);
                     break;
 
-                case 3: // parent FIO
+                case 3: // parent FIO (parents)
                     $baseQuery
-                        ->orderBy('users.parent_lastname', $orderDir)
-                        ->orderBy('users.parent_firstname', $orderDir);
+                        ->leftJoin('parents', 'parents.id', '=', 'users.parent_id')
+                        ->select('users.*')
+                        ->orderBy('parents.lastname', $orderDir)
+                        ->orderBy('parents.firstname', $orderDir);
                     break;
 
                 case 4: // teams.title
@@ -263,7 +268,7 @@ class UserController extends AdminBaseController
 
         // Подтягиваем команду и локацию
         $users = $baseQuery
-            ->with(['team', 'location'])
+            ->with(['team', 'location', 'parentProfile'])
             ->skip($start)
             ->take($length)
             ->get();
@@ -491,7 +496,7 @@ class UserController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerId();
         $user = $this->scopeByPartner(
-            User::query()->with(['fields', 'location', 'role', 'trainerProfile.teams']),
+            User::query()->with(['fields', 'location', 'role', 'trainerProfile.teams', 'parentProfile']),
             'users.partner_id'
         )
             ->whereKey($user->id)
@@ -553,6 +558,7 @@ class UserController extends AdminBaseController
                     ->all();
             }
             $userArray['trainer_team_ids'] = $trainerTeamIds;
+            $userArray = array_merge($userArray, $user->parentFormFields());
 
             return response()->json([
                 'user' => $userArray,
@@ -577,7 +583,7 @@ class UserController extends AdminBaseController
 
         $actor = $this->currentUser();
 
-        $user->load(['team', 'role', 'location']);
+        $user->load(['team', 'role', 'location', 'parentProfile']);
 
         // Снимок старых значений (только то, что потенциально логируем)
         $old = [
@@ -674,7 +680,7 @@ class UserController extends AdminBaseController
                 }
             };
 
-            $user->load(['team', 'role', 'location']);
+            $user->load(['team', 'role', 'location', 'parentProfile']);
 
             $new = [
                 'name'       => (string) ($user->name ?? ''),
@@ -846,6 +852,58 @@ class UserController extends AdminBaseController
     public function log(FilterRequest $request)
     {
         return $this->buildLogDataTable(2);
+    }
+
+    /**
+     * Поиск родителей текущего партнёра (Select2 AJAX).
+     */
+    public function searchParents(Request $request)
+    {
+        $validated = $request->validate([
+            'q'     => 'nullable|string|max:100',
+            'id'    => 'nullable|integer|min:1',
+            'limit' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        $partnerId = $this->requirePartnerId();
+        $limit = (int) ($validated['limit'] ?? 20);
+
+        $query = ParentProfile::query()
+            ->where('partner_id', $partnerId);
+
+        if (!empty($validated['id'])) {
+            $query->whereKey((int) $validated['id']);
+        } else {
+            $term = trim((string) ($validated['q'] ?? ''));
+            if ($term !== '') {
+                $like = '%' . $term . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->where('lastname', 'like', $like)
+                        ->orWhere('firstname', 'like', $like)
+                        ->orWhere('middlename', 'like', $like);
+                });
+            }
+        }
+
+        $parents = $query
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->limit($limit)
+            ->get();
+
+        return response()->json([
+            'results' => $parents->map(static function (ParentProfile $parent) {
+                $label = trim($parent->full_name);
+
+                return [
+                    'id'                => $parent->id,
+                    'text'              => $label !== '' ? $label : ('Родитель #' . $parent->id),
+                    'parent_lastname'   => $parent->lastname,
+                    'parent_firstname'  => $parent->firstname,
+                    'parent_middlename' => $parent->middlename,
+                ];
+            })->values(),
+        ]);
     }
 
 }

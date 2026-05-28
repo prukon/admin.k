@@ -79,6 +79,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'account.user.startDate.update',  'description' => 'Изменение даты своего начала занятий',           'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 40],
             ['name' => 'account.user.email.update',      'description' => 'Изменение своего email',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 50],
             ['name' => 'account.user.phone.update',      'description' => 'Изменение своего телефона',                      'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 60],
+            ['name' => 'account.user.parent.update',   'description' => 'Изменение данных родителя в личном кабинете',      'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 65],
             ['name' => 'account.partner.update',         'description' => 'Изменение данных организации',                   'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 70],
 
             // users

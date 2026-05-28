@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\Users\FamilyStudentContextService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -61,7 +62,7 @@ class ReportController extends Controller
 
     public function showUserPayments()
     {
-        $this->curUser  = auth()->user();
+        $this->curUser = app(FamilyStudentContextService::class)->activeStudent(auth()->user());
 //        dd($this->curUser->id); // Отладка текущего пользователя
 
 
@@ -82,7 +83,7 @@ class ReportController extends Controller
 
     public function getUserPayments(Request $request)
     {
-        $this->curUser  = auth()->user();
+        $this->curUser = app(FamilyStudentContextService::class)->activeStudent(auth()->user());
 
 
         if ($request->ajax()) {

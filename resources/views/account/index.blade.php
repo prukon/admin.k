@@ -51,6 +51,9 @@
                     'fields' => $fields,
                     'userFieldValues' => $userFieldValues,
                     'editableFields' => $editableFields,
+                    'canEditAccountParent' => $canEditAccountParent ?? false,
+                    'accountParentFields' => $accountParentFields ?? [],
+                    'showAccountParentSection' => $showAccountParentSection ?? false,
                     ])
                 @elseif($activeTab === 'partner')
                     <!-- Контент вкладки организаций -->

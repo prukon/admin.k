@@ -349,6 +349,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('account.user.phone.update');
         });
 
+        // Изменение данных родителя в личном кабинете
+        Gate::define('account.user.parent.update', function (User $user) {
+            return $user->hasPermission('account.user.parent.update');
+        });
+
 //////////////////////// Управление пользователями //////////////////////
 
         // Изменение имени
