@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Reports;
 
 use App\Models\Location;
 use App\Models\Payment;
+use App\Models\Team;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -130,7 +131,6 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
 
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,
-            'location_id' => $locB->id,
         ]);
 
         Payment::factory()->forUser($student)->create([
@@ -171,10 +171,7 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
         ]);
 
         $withLoc = User::factory()->create(['partner_id' => $this->partner->id]);
-        $withoutLoc = User::factory()->create([
-            'partner_id' => $this->partner->id,
-            'location_id' => null,
-        ]);
+        $withoutLoc = User::factory()->create(['partner_id' => $this->partner->id]);
 
         Payment::factory()->forUser($withLoc)->create([
             'location_id' => $loc->id,
@@ -353,7 +350,6 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
 
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,
-            'location_id' => $locB->id,
         ]);
 
         Payment::factory()->forUser($student)->create([
@@ -391,10 +387,7 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
         ]);
 
         $u1 = User::factory()->create(['partner_id' => $this->partner->id]);
-        $u2 = User::factory()->create([
-            'partner_id' => $this->partner->id,
-            'location_id' => null,
-        ]);
+        $u2 = User::factory()->create(['partner_id' => $this->partner->id]);
 
         Payment::factory()->forUser($u1)->create([
             'location_id' => $loc->id,
@@ -550,7 +543,7 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
             ->assertDontSee('id="pay-debt-filter-location"', false);
     }
 
-    public function test_debts_get_debts_filters_by_current_user_location(): void
+    public function test_debts_get_debts_filters_by_team_location(): void
     {
         Carbon::setTestNow('2026-02-15');
         $this->grantPermission('locations.view');
@@ -564,15 +557,20 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
             'is_enabled' => true,
         ]);
 
+        $teamA = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $teamB = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $this->attachTeamToLocation($teamA, $locA);
+        $this->attachTeamToLocation($teamB, $locB);
+
         $userA = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
-            'location_id' => $locA->id,
+            'team_id' => $teamA->id,
         ]);
         $userB = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
-            'location_id' => $locB->id,
+            'team_id' => $teamB->id,
         ]);
 
         DB::table('users_prices')->insert([
@@ -617,15 +615,18 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
             'is_enabled' => true,
         ]);
 
+        $teamBound = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $this->attachTeamToLocation($teamBound, $loc);
+
         $withLoc = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
-            'location_id' => $loc->id,
+            'team_id' => $teamBound->id,
         ]);
         $withoutLoc = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
-            'location_id' => null,
+            'team_id' => null,
         ]);
 
         DB::table('users_prices')->insert([
@@ -674,15 +675,18 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
             'is_enabled' => true,
         ]);
 
+        $teamA = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $this->attachTeamToLocation($teamA, $locA);
+
         $userA = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
-            'location_id' => $locA->id,
+            'team_id' => $teamA->id,
         ]);
         $userB = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
-            'location_id' => null,
+            'team_id' => null,
         ]);
 
         DB::table('users_prices')->insert([
@@ -715,6 +719,17 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
         $userIds = collect($json['data'] ?? [])->pluck('user_id')->unique()->values()->all();
         $this->assertContains($userA->id, $userIds);
         $this->assertContains($userB->id, $userIds);
+    }
+
+    private function attachTeamToLocation(Team $team, Location $location): void
+    {
+        DB::table('location_team')->insert([
+            'partner_id' => $this->partner->id,
+            'location_id' => $location->id,
+            'team_id' => $team->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     protected function tearDown(): void

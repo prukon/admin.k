@@ -472,7 +472,6 @@ class LtvReportTest extends CrmTestCase
 
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,
-            'location_id' => $locB->id,
         ]);
 
         Payment::factory()->forUser($student)->create([

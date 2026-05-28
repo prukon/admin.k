@@ -30,7 +30,6 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'birthday' => 'date',  // преобразует в Carbon\Carbon
-        'location_id' => 'integer',
         'parent_id' => 'integer',
         'is_individual_traits' => 'boolean',
         'is_on_medical_register' => 'boolean',
@@ -57,11 +56,6 @@ class User extends Authenticatable
     {
         // если поле в таблице users называется team_id
         return $this->belongsTo(Team::class, 'team_id');
-    }
-
-    public function location()
-    {
-        return $this->belongsTo(Location::class, 'location_id');
     }
 
     /**

@@ -14,12 +14,15 @@ use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Carbon\Carbon;
 use App\Services\PartnerContext;
+use App\Services\TeamLocationAvailabilityService;
 use App\Models\UserCustomPayment;
 
 class DeptReportController extends AdminBaseController
 {
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly TeamLocationAvailabilityService $teamLocationAvailability,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -218,7 +221,7 @@ class DeptReportController extends AdminBaseController
         }
 
         $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
-        $this->applyDebtReportLocationFilter($query, $request);
+        $this->applyDebtReportLocationFilter($query, $request, $partnerId);
 
         if ($request->filled('debt_month')) {
             $ym = trim((string) $request->query('debt_month'));
@@ -258,7 +261,7 @@ class DeptReportController extends AdminBaseController
         }
 
         $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
-        $this->applyDebtReportLocationFilter($query, $request);
+        $this->applyDebtReportLocationFilter($query, $request, $partnerId);
 
         // debt_month применяем по start/end месяцу
         if ($request->filled('debt_month')) {
@@ -306,7 +309,7 @@ class DeptReportController extends AdminBaseController
     /**
      * @param  \Illuminate\Database\Query\Builder  $query
      */
-    private function applyDebtReportLocationFilter($query, Request $request): void
+    private function applyDebtReportLocationFilter($query, Request $request, int $partnerId): void
     {
         /** @var \App\Models\User|null $filterActor */
         $filterActor = Auth::user();
@@ -314,23 +317,11 @@ class DeptReportController extends AdminBaseController
             return;
         }
 
-        $filterLocationId = $request->query('filter_location_id');
-        if ($filterLocationId === null || $filterLocationId === '') {
-            return;
-        }
-
-        if ($filterLocationId === 'none') {
-            $query->whereNull('users.location_id');
-
-            return;
-        }
-
-        if (ctype_digit((string) $filterLocationId)) {
-            $lid = (int) $filterLocationId;
-            if ($lid > 0) {
-                $query->where('users.location_id', $lid);
-            }
-        }
+        $this->teamLocationAvailability->applyDebtUserTeamLocationFilter(
+            $query,
+            $partnerId,
+            $request->query('filter_location_id')
+        );
     }
 
     /**

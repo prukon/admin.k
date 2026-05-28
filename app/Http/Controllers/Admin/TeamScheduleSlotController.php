@@ -10,6 +10,7 @@ use App\Models\Location;
 use App\Models\Team;
 use App\Models\TeamScheduleSlot;
 use App\Services\PartnerContext;
+use App\Services\TeamLocationAvailabilityService;
 use App\Services\TeamScheduleSlotMutationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
@@ -18,8 +19,10 @@ use Illuminate\Support\Carbon;
 
 class TeamScheduleSlotController extends AdminBaseController
 {
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly TeamLocationAvailabilityService $teamLocationAvailability,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -48,8 +51,9 @@ class TeamScheduleSlotController extends AdminBaseController
 
         $teams = Team::query()
             ->where('partner_id', $partnerId)
+            ->with('locations:id')
             ->orderBy('title')
-            ->get();
+            ->get(['id', 'title']);
 
         $locations = Location::query()
             ->where('partner_id', $partnerId)
@@ -86,6 +90,9 @@ class TeamScheduleSlotController extends AdminBaseController
         }
 
         $locationId = isset($data['location_id']) ? (int) $data['location_id'] : null;
+        if ($locationId === 0) {
+            $locationId = null;
+        }
         if ($locationId) {
             $location = Location::query()
                 ->where('partner_id', $partnerId)
@@ -95,6 +102,16 @@ class TeamScheduleSlotController extends AdminBaseController
             if (!$location) {
                 return response()->json(['message' => 'Локация не найдена'], 422);
             }
+        }
+
+        $teamLocationError = $this->teamLocationAvailability->assertTeamAllowedAtLocation($team, $locationId);
+        if ($teamLocationError !== null) {
+            return response()->json([
+                'message' => 'Ошибка сохранения',
+                'errors' => [
+                    'team_id' => [$teamLocationError],
+                ],
+            ], 422);
         }
 
         $data['partner_id'] = $partnerId;
@@ -180,6 +197,9 @@ class TeamScheduleSlotController extends AdminBaseController
         }
 
         $locationId = isset($data['location_id']) ? (int) $data['location_id'] : null;
+        if ($locationId === 0) {
+            $locationId = null;
+        }
         if ($locationId) {
             $location = Location::query()
                 ->where('partner_id', $partnerId)
@@ -189,6 +209,16 @@ class TeamScheduleSlotController extends AdminBaseController
             if (!$location) {
                 return response()->json(['message' => 'Локация не найдена'], 422);
             }
+        }
+
+        $teamLocationError = $this->teamLocationAvailability->assertTeamAllowedAtLocation($team, $locationId);
+        if ($teamLocationError !== null) {
+            return response()->json([
+                'message' => 'Ошибка сохранения',
+                'errors' => [
+                    'team_id' => [$teamLocationError],
+                ],
+            ], 422);
         }
 
         $data['is_enabled'] = (bool) ($data['is_enabled'] ?? false);

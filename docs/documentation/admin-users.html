@@ -58,12 +58,10 @@
   <h2>2) Список пользователей (DataTables)</h2>
   <ul>
     <li><b>Фильтры</b> (кнопка «Найти»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code>), email, телефону, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>).</li>
-    <li><b>Фильтр «Локация»</b> — только при <code>locations.view</code> (см. §3). Параметр: <code>location_id</code> (<code>none</code> = без локации, id = активная локация партнёра). Без права параметр в запросе <b>игнорируется</b>.</li>
     <li><b>Колонки</b> настраиваются через «Поля списка»; настройки per user в <code>user_table_settings</code> (ключ <code>parent</code> для колонки «Родитель»).</li>
   </ul>
 
   <h3>Индексы колонок DataTables (фиксированные)</h3>
-  <p class="small">Колонка «Локация» всегда присутствует в разметке таблицы (стабильные индексы); без <code>locations.view</code> она принудительно скрыта и не попадает в UI настроек.</p>
   <table>
     <thead>
       <tr><th>Индекс</th><th>Ключ настроек</th><th>Заголовок</th></tr>
@@ -74,15 +72,13 @@
       <tr><td>2</td><td><code>name</code></td><td>Имя (ученик)</td></tr>
       <tr><td>3</td><td><code>parent</code></td><td>Родитель (склейка ФИО)</td></tr>
       <tr><td>4</td><td><code>teams</code></td><td>Группа</td></tr>
-      <tr><td>5</td><td><code>location</code></td><td>Локация (<code>locations.view</code>)</td></tr>
-      <tr><td>6</td><td><code>birthday</code></td><td>Дата рождения</td></tr>
-      <tr><td>7</td><td><code>email</code></td><td>Email</td></tr>
-      <tr><td>8</td><td><code>phone</code></td><td>Телефон</td></tr>
-      <tr><td>9</td><td><code>status_label</code></td><td>Статус</td></tr>
-      <tr><td>10</td><td><code>actions</code></td><td>Действия</td></tr>
+      <tr><td>5</td><td><code>birthday</code></td><td>Дата рождения</td></tr>
+      <tr><td>6</td><td><code>email</code></td><td>Email</td></tr>
+      <tr><td>7</td><td><code>phone</code></td><td>Телефон</td></tr>
+      <tr><td>8</td><td><code>status_label</code></td><td>Статус</td></tr>
+      <tr><td>9</td><td><code>actions</code></td><td>Действия</td></tr>
     </tbody>
   </table>
-  <p class="small">Сортировка по локации: <code>order[0][column]=5</code> → join <code>locations</code>, <code>orderBy locations.name</code>.</p>
 
   <h2 id="user-parent">2.1) Данные родителя (справочник <code>parents</code>)</h2>
   <div class="note">
@@ -253,104 +249,21 @@
     При необходимости добавляются отдельные <code>prefill_source</code> (например, «Да»/«Нет»/«—» для шаблона DOCX).
   </div>
 
-  <h2 id="user-location">3) Локация пользователя (<code>users.location_id</code>)</h2>
+  <h2 id="user-location">3) Локация ученика</h2>
   <div class="note">
-    Необязательная привязка учётной записи к справочнику <code>locations</code> текущего партнёра.
-    Миграция: <code>database/migrations/2026_05_19_120000_add_location_id_to_users_table.php</code>.<br>
-    Поле: <code>users.location_id</code> (nullable, FK → <code>locations.id</code>, <code>ON DELETE SET NULL</code>).
-    Модели: <code>User::location()</code>, <code>Location::users()</code>.<br>
-    Один пользователь — не более одной локации (в отличие от many-to-many).
-    Справочник локаций ведётся на <code>GET /admin/locations</code> (права <code>locations.view</code> / <code>locations.manage</code>) — отдельно от привязки к ученику.
+    Поле <code>users.location_id</code> удалено (миграция <code>2026_05_28_110000_drop_location_id_from_users_table</code>).
+    Локация ученика в CRM определяется через группу (<code>users.team_id</code>) и привязки группы к локациям
+    (<code>location_team</code> на <code>/admin/teams</code> и <code>/admin/locations</code>).
+    В расписании школы локация задаётся в слоте (<code>team_schedule_slots.location_id</code>).
   </div>
-
-  <div class="warn">
-    <b>Не путать с расписанием:</b> слоты <code>team_schedule_slots</code> имеют свой <code>location_id</code>.
-    Поле <code>users.location_id</code> — справочная привязка ученика в карточке; автоматической синхронизации со слотами расписания нет.
-  </div>
-
-  <h3>3.1) Права</h3>
-  <table>
-    <thead>
-      <tr><th>Право</th><th>Что даёт в разделе «Пользователи»</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>users.view</code></td>
-        <td>Доступ к странице и всем endpoint’ам раздела (обязательно). Без него — 403.</td>
-      </tr>
-      <tr>
-        <td><code>locations.view</code></td>
-        <td>
-          Селект локации в модалках create/edit; фильтр «Локация»; столбец и ключ <code>location</code> в columns-settings;
-          чтение/запись <code>location_id</code> в store/update; поле <code>location</code> в JSON <code>/admin/users/data</code>.
-        </td>
-      </tr>
-      <tr>
-        <td><code>locations.manage</code></td>
-        <td><b>Не требуется</b> для привязки ученика к локации — только для CRUD справочника на <code>/admin/locations</code>.</td>
-      </tr>
-      <tr>
-        <td><code>users.group.update</code></td>
-        <td>Только поле «Группа» при редактировании (аналогия: для локации отдельного <code>users.location.update</code> нет).</td>
-      </tr>
-      <tr>
-        <td><code>users.other.update</code></td>
-        <td>Три флага мед./особенностей ученика в edit (§<a href="#user-health">2.2</a>). Не даёт доступ к разделу без <code>users.view</code>.</td>
-      </tr>
-    </tbody>
-  </table>
-  <p>Без <code>locations.view</code>: входящий <code>location_id</code> удаляется в <code>StoreRequest</code> / <code>UpdateRequest</code>; в ответе data поле <code>location</code> — пустая строка; фильтр по локации на сервере не применяется.</p>
-
-  <h3>3.2) UI</h3>
-  <ul>
-    <li><b>Create</b> — <code>#create-location</code>, опции: «Без локации» + активные локации партнёра (<code>is_enabled = true</code>).</li>
-    <li><b>Edit</b> — <code>#edit-location</code>: те же активные + текущая локация, если она отключена (в JS подпись «(отключена)», опция добавляется динамически).</li>
-    <li><b>Фильтр</b> — <code>#filter-location</code>: пусто / <code>none</code> / id активной локации.</li>
-    <li><b>Столбец «Локация»</b> — после «Группа»; по умолчанию виден при первом заходе, если есть <code>locations.view</code>.</li>
-  </ul>
-  <p>В <code>index</code> во view всегда передаётся <code>$activeLocations</code> (активные локации партнёра) — для фильтра и селектов; без права блоки в Blade не рендерятся (<code>@can('locations.view')</code>).</p>
-
-  <h3>3.3) Валидация и сохранение</h3>
-  <table>
-    <thead>
-      <tr><th>Операция</th><th>Request</th><th>Правила</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Создание</td>
-        <td><code>StoreRequest</code></td>
-        <td>
-          При <code>locations.view</code>: <code>location_id</code> nullable, <code>exists:locations,id</code> с <code>partner_id</code> текущего партнёра и <code>is_enabled = true</code>.
-          Пустая строка → <code>null</code>. Ошибки — ключ <code>location_id</code> (вывод под полем в модалке).
-        </td>
-      </tr>
-      <tr>
-        <td>Обновление</td>
-        <td><code>UpdateRequest</code></td>
-        <td>
-          При <code>locations.view</code>: <code>location_id</code> nullable integer.
-          В <code>withValidator</code>: локация того же партнёра; если <code>is_enabled = false</code> — разрешена только если уже назначена этому пользователю.
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h3>3.4) API: data и edit</h3>
-  <ul>
-    <li><code>GET /admin/users/data</code> — в каждой строке при <code>locations.view</code>: <code>"location": "Название"</code> (из связи <code>user.location</code>), иначе <code>""</code>.</li>
-    <li><code>GET /admin/users/{id}/edit</code> (AJAX) — в <code>user</code>: <code>location_id</code>; объект <code>location</code>: <code>{ id, name, is_enabled }</code> или <code>null</code>.</li>
-    <li>Изменение локации пишется в пользовательский лог (action 22) строкой «Локация: … → …», если у актора есть <code>locations.view</code>.</li>
-  </ul>
-
-  <h3>3.5) Использование в отчётах</h3>
-  <div class="note">
-    Поле <code>users.location_id</code> задаётся в этом разделе и используется, в частности, в отчёте
-    <a href="/docs/documentation/reports-admin#location-filter">«Задолженности»</a> (фильтр по текущей привязке ученика).
-    В отчётах по оплатам используется снимок <code>payments.location_id</code> на момент платежа — см.
-    <a href="/docs/documentation/reports-payments">reports-payments.html</a> и
-    <a href="/docs/documentation/payments">payments.html</a>.
-    Смена <code>users.location_id</code> <b>не пересчитывает</b> старые строки <code>payments</code>.
-  </div>
+  <p>
+    Подробная схема привязок и отчётов: <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>.
+    Фильтр локации в отчёте
+    <a href="/docs/documentation/reports-admin#location-filter">«Задолженности»</a>
+    использует группу ученика, не карточку пользователя.
+    В отчётах по оплатам — снимок <code>payments.location_id</code> (если передан при создании платежа), см.
+    <a href="/docs/documentation/reports-payments">reports-payments.html</a>.
+  </p>
 
   <h2>4) Создание пользователя (<code>POST /admin/users</code>)</h2>
   <div class="note">
@@ -390,8 +303,8 @@
   <h3>Создание из заявки с сайта (<code>school_lead_id</code>)</h3>
   <div class="note">
     На странице <a href="/docs/documentation/school-leads-widget">«Заявки с сайта»</a> (<code>/admin/school-leads</code>) при <code>schoolLeads.view</code> + <code>users.view</code>
-    в колонке «Договор» открывается та же модалка <code>createUser.blade.php</code> с предзаполнением имени, телефона и локации из лида
-    и скрытым полем <code>school_lead_id</code>.
+    в колонке «Договор» открывается та же модалка <code>createUser.blade.php</code> с предзаполнением имени и телефона из лида
+    и скрытым полем <code>school_lead_id</code> (локация заявки в ученика не копируется).
   </div>
   <ul>
     <li>Опциональное поле <code>school_lead_id</code> в <code>StoreRequest</code>: заявка текущего партнёра, не удалена, <code>school_leads.user_id</code> ещё <code>null</code>.</li>
@@ -405,7 +318,7 @@
     email, телефон, роль, активность, дата рождения, дата начала — см. правила в Request.
     Сведения об ученике (три флага <code>is_*</code>) — §<a href="#user-health">2.2</a> (<code>users.other.update</code>, только роль <code>user</code>).
     Доп. поля: <code>custom[{slug}]</code> с той же логикой партнёра и <code>editable</code>, что при создании (это <code>user_fields</code>, не путать с §2.2).
-    Локация — §3 (<code>locations.view</code>).
+    Поле <code>location_id</code> в запросе не используется (см. §3).
   </div>
 
   <h3 id="user-trainer-teams">5.1) Роль «Тренер» и группы (<code>team_ids</code>)</h3>
@@ -452,7 +365,6 @@
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code> — smoke 200 семейного кабинета и админки</li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code> — изоляция switch / account / search</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersAccessTest.php</code> — гость / без <code>users.view</code> → 403; smoke 200 раздела</li>
-      <li><code>tests/Feature/Crm/Users/AdminUsersLocationFeatureTest.php</code> — локация: CRUD, фильтр, сортировка (<code>column=5</code>), columns-settings, UI</li>
       <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data, сортировка (индексы с колонкой «Родитель»), <code>test_store_and_update_persist_parent_name_fields</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> — доп. поля (<code>UserField</code>, не путать с <code>parent_*</code>)</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPhoneOnCreateFeatureTest.php</code> — телефон при создании</li>
@@ -469,6 +381,7 @@
     <a href="#user-health">Мед./особенности ученика</a> ·
     <a href="/docs/documentation/contracts#contract-parent">Договоры: родитель и подписант</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
+    <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a> ·
     <a href="/docs/documentation/reports-admin#location-filter">Отчёты: фильтр по локации</a></p>
 </div>
 </body>

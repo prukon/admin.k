@@ -56,20 +56,6 @@
                             </div>
                         </div>
 
-                        @can('locations.view')
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="create-location" class="form-label">Локация</label>
-                                <select name="location_id" id="create-location" class="form-select">
-                                    <option value="" selected>Без локации</option>
-                                    @foreach($activeLocations as $location)
-                                        <option value="{{ $location->id }}">{{ $location->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        @endcan
-
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
                                 <label for="create-email" class="form-label">Email</label>

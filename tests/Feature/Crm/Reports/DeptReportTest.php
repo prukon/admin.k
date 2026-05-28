@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Reports;
 
 use App\Http\Controllers\Admin\Report\DeptReportController;
 use App\Models\Location;
+use App\Models\Team;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -454,15 +455,34 @@ class DeptReportTest extends CrmTestCase
             'is_enabled' => true,
         ]);
 
+        $teamA = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $teamB = Team::factory()->create(['partner_id' => $this->partner->id]);
+        DB::table('location_team')->insert([
+            [
+                'partner_id' => $this->partner->id,
+                'location_id' => $locA->id,
+                'team_id' => $teamA->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'partner_id' => $this->partner->id,
+                'location_id' => $locB->id,
+                'team_id' => $teamB->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
         $userA = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
-            'location_id' => $locA->id,
+            'team_id' => $teamA->id,
         ]);
         $userB = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
-            'location_id' => $locB->id,
+            'team_id' => $teamB->id,
         ]);
 
         DB::table('users_prices')->insert([

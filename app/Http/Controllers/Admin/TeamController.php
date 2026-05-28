@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Team\FilterRequest;
+use App\Models\Location;
 use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
@@ -43,8 +44,9 @@ class TeamController extends AdminBaseController
 
         $weekdays = Weekday::all();
         $trainerOptions = $this->trainerOptionsForPartner($partnerId);
+        $locationOptions = $this->locationOptionsForPartner($partnerId);
 
-        return view('admin.team', compact('weekdays', 'trainerOptions'));
+        return view('admin.team', compact('weekdays', 'trainerOptions', 'locationOptions'));
     }
 
     /**
@@ -60,6 +62,7 @@ class TeamController extends AdminBaseController
             'title'                => 'nullable|string',
             'status'               => 'nullable|string', // active / inactive
             'trainer_profile_id'   => 'nullable|string', // id или 'none'
+            'location_id'          => 'nullable|string', // id или 'none'
 
             'draw'   => 'nullable|integer',
             'start'  => 'nullable|integer',
@@ -101,6 +104,30 @@ class TeamController extends AdminBaseController
                 $baseQuery->where('teams.is_enabled', 1);
             } elseif ($validated['status'] === 'inactive') {
                 $baseQuery->where('teams.is_enabled', 0);
+            }
+        }
+
+        /** @var \App\Models\User|null $filterActor */
+        $filterActor = auth()->user();
+        $canViewLocations = $filterActor?->can('locations.view') ?? false;
+
+        // фильтр: локация
+        $locationFilter = $validated['location_id'] ?? null;
+        if ($canViewLocations && $locationFilter !== null && $locationFilter !== '') {
+            if ($locationFilter === 'none') {
+                $baseQuery->whereDoesntHave('locations', function ($q) use ($partnerId) {
+                    $q->where('location_team.partner_id', $partnerId);
+                });
+            } elseif (ctype_digit((string) $locationFilter)) {
+                $locId = (int) $locationFilter;
+                $baseQuery->where(function ($q) use ($partnerId, $locId) {
+                    $q->whereDoesntHave('locations', function ($lq) use ($partnerId) {
+                        $lq->where('location_team.partner_id', $partnerId);
+                    })->orWhereHas('locations', function ($lq) use ($partnerId, $locId) {
+                        $lq->where('location_team.partner_id', $partnerId)
+                            ->where('locations.id', $locId);
+                    });
+                });
             }
         }
 
@@ -151,6 +178,18 @@ class TeamController extends AdminBaseController
                     $baseQuery->orderBy('teams.title', $orderDir);
                     break;
 
+                case 'locations_label':
+                    $baseQuery
+                        ->leftJoin('location_team', function ($join) use ($partnerId) {
+                            $join->on('location_team.team_id', '=', 'teams.id')
+                                ->where('location_team.partner_id', '=', $partnerId);
+                        })
+                        ->leftJoin('locations', 'locations.id', '=', 'location_team.location_id')
+                        ->select('teams.*')
+                        ->orderBy('locations.name', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
                 case 'trainer_label':
                     $baseQuery
                         ->leftJoin('team_trainer', function ($join) use ($partnerId) {
@@ -186,13 +225,18 @@ class TeamController extends AdminBaseController
         $start  = $validated['start'] ?? 0;
         $length = $validated['length'] ?? 20;
 
+        $with = ['weekdays', 'trainerProfiles.user'];
+        if ($canViewLocations) {
+            $with[] = 'locations';
+        }
+
         $teams = $baseQuery
-            ->with(['weekdays', 'trainerProfiles.user'])
+            ->with($with)
             ->skip($start)
             ->take($length)
             ->get();
 
-        $data = $teams->map(function (Team $team) {
+        $data = $teams->map(function (Team $team) use ($canViewLocations) {
             // Собираем список дней недели (title)
             $weekdaysLabel = '';
             if ($team->relationLoaded('weekdays')) {
@@ -207,11 +251,17 @@ class TeamController extends AdminBaseController
                 $trainerLabel = $trainerProfile?->user?->full_name ?? '';
             }
 
+            $locationsLabel = '';
+            if ($canViewLocations && $team->relationLoaded('locations')) {
+                $locationsLabel = $team->locations->pluck('name')->implode(', ');
+            }
+
             return [
                 'id'             => $team->id,
                 'order_by'       => $team->order_by,
                 'title'          => $team->title,
                 'trainer_label'  => $trainerLabel,
+                'locations_label' => $locationsLabel,
                 'weekdays_label' => $weekdaysLabel,
                 'status_label'   => $team->is_enabled ? 'Активна' : 'Неактивна',
                 'is_enabled'     => (int) $team->is_enabled,
@@ -235,6 +285,10 @@ class TeamController extends AdminBaseController
             unset($data['trainer_profile_id']);
         }
 
+        if (! $request->user()->can('locations.view')) {
+            unset($data['location_ids']);
+        }
+
         $team = $this->service->storeWithLogging($data, $authorId);
 
         if ($request->ajax()) {
@@ -255,7 +309,12 @@ class TeamController extends AdminBaseController
         // ✅ НОВОЕ: проверка партнёра и ограничение выборки по partner_id
         $partnerId = $this->requirePartnerId();
 
-        $team = Team::with(['weekdays', 'trainerProfiles.user'])
+        $with = ['weekdays', 'trainerProfiles.user'];
+        if (auth()->user()?->can('locations.view')) {
+            $with[] = 'locations';
+        }
+
+        $team = Team::with($with)
             ->where('partner_id', $partnerId)
             ->where('id', $id)
             ->firstOrFail();
@@ -263,7 +322,7 @@ class TeamController extends AdminBaseController
         $weekdays = Weekday::all(); // Получаем все дни недели
         $trainerProfile = $team->trainerProfiles->first();
 
-        return response()->json([
+        $payload = [
             'id'            => $team->id,
             'title'         => $team->title,
             'type'          => $team->type,
@@ -273,7 +332,13 @@ class TeamController extends AdminBaseController
             'trainer_profile_id' => $trainerProfile?->id,
             'team_weekdays' => $team->weekdays, // Дни недели, связанные с командой
             'weekdays'      => $weekdays,       // Все дни недели
-        ]);
+        ];
+
+        if (auth()->user()?->can('locations.view')) {
+            $payload['location_ids'] = $team->locations->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+        }
+
+        return response()->json($payload);
     }
 
     /**
@@ -296,6 +361,10 @@ class TeamController extends AdminBaseController
 
         if (! $request->user()->can('trainers.view')) {
             unset($data['trainer_profile_id']);
+        }
+
+        if (! $request->user()->can('locations.view')) {
+            unset($data['location_ids']);
         }
 
         // Попытка загрузить команду по ID и партнёру
@@ -447,6 +516,19 @@ class TeamController extends AdminBaseController
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+    }
+
+    private function locationOptionsForPartner(int $partnerId)
+    {
+        if (! auth()->user()?->can('locations.view')) {
+            return collect();
+        }
+
+        return Location::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     public function log(FilterRequest $request)

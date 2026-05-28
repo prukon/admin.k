@@ -1897,7 +1897,15 @@
                 weekMonday = startOfWeekMonday(new Date());
                 loadWeek();
             });
-            document.getElementById('schoolCalLocation')?.addEventListener('change', loadWeek);
+            document.getElementById('schoolCalLocation')?.addEventListener('change', function () {
+                loadWeek();
+                const createForm = document.getElementById('slotCreateForm');
+                const editForm = document.getElementById('slotEditForm');
+                if (typeof window.applySlotFormTeamFilter === 'function') {
+                    window.applySlotFormTeamFilter(createForm);
+                    window.applySlotFormTeamFilter(editForm);
+                }
+            });
 
             function clearSchoolCalViewSettingsErrors() {
                 const modalEl = document.getElementById('schoolCalViewSettingsModal');
@@ -2033,8 +2041,14 @@
                         }
                     }
                 }
+                if (typeof window.applySlotFormTeamFilter === 'function') {
+                    window.applySlotFormTeamFilter(form);
+                }
                 const teamSel = form.querySelector('[name="team_id"]');
                 if (teamSel) teamSel.value = '';
+                if (typeof window.applySlotFormTeamFilter === 'function') {
+                    window.applySlotFormTeamFilter(form);
+                }
                 form.querySelector('[name="date_start"]')?.dispatchEvent(new Event('change', { bubbles: true }));
                 bootstrap.Modal.getOrCreateInstance(modalEl).show();
             }

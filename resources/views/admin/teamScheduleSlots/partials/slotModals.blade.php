@@ -37,10 +37,11 @@
                     @csrf
                     <div class="mb-2">
                         <label class="form-label mb-1 small">Группа*</label>
-                        <select class="form-control form-control-sm" name="team_id" required>
+                        <select class="form-control form-control-sm js-slot-team-select" name="team_id" required>
                             <option value="">—</option>
                             @foreach($teams as $t)
-                                <option value="{{ $t->id }}">{{ $t->title }}</option>
+                                <option value="{{ $t->id }}"
+                                        data-location-ids="{{ $t->relationLoaded('locations') ? $t->locations->pluck('id')->implode(',') : '' }}">{{ $t->title }}</option>
                             @endforeach
                         </select>
                         <div class="invalid-feedback d-block" data-error-for="team_id"></div>
@@ -49,7 +50,7 @@
                     @can('locations.view')
                         <div class="mb-2">
                             <label class="form-label mb-1 small">Локация</label>
-                            <select class="form-control form-control-sm" name="location_id">
+                            <select class="form-control form-control-sm js-slot-location-select" name="location_id">
                                 @forelse($locations as $l)
                                     <option value="{{ $l->id }}" @if($loop->first) selected @endif>{{ $l->name }}</option>
                                 @empty
@@ -124,10 +125,11 @@
 
                     <div class="mb-2">
                         <label class="form-label mb-1 small">Группа*</label>
-                        <select class="form-control form-control-sm" name="team_id" required>
+                        <select class="form-control form-control-sm js-slot-team-select" name="team_id" required>
                             <option value="">—</option>
                             @foreach($teams as $t)
-                                <option value="{{ $t->id }}">{{ $t->title }}</option>
+                                <option value="{{ $t->id }}"
+                                        data-location-ids="{{ $t->relationLoaded('locations') ? $t->locations->pluck('id')->implode(',') : '' }}">{{ $t->title }}</option>
                             @endforeach
                         </select>
                         <div class="invalid-feedback d-block" data-error-for="team_id"></div>
@@ -136,7 +138,7 @@
                     @can('locations.view')
                         <div class="mb-2">
                             <label class="form-label mb-1 small">Локация</label>
-                            <select class="form-control form-control-sm" name="location_id">
+                            <select class="form-control form-control-sm js-slot-location-select" name="location_id">
                                 <option value="">—</option>
                                 @foreach($locations as $l)
                                     <option value="{{ $l->id }}">{{ $l->name }}</option>
@@ -229,6 +231,53 @@
                 function getEditForm() {
                     return document.getElementById('slotEditForm');
                 }
+
+                function filterTeamSelectForLocation(teamSelect, locationId) {
+                    if (!teamSelect) return;
+                    const locId = locationId ? String(locationId) : '';
+                    const current = teamSelect.value;
+                    let hasCurrent = false;
+                    Array.from(teamSelect.options).forEach(function (opt) {
+                        if (!opt.value) {
+                            opt.hidden = false;
+                            opt.disabled = false;
+                            return;
+                        }
+                        const ids = (opt.getAttribute('data-location-ids') || '').trim();
+                        const allowed = ids === '' || locId === '' || ids.split(',').filter(Boolean).includes(locId);
+                        opt.hidden = !allowed;
+                        opt.disabled = !allowed;
+                        if (allowed && opt.value === current) {
+                            hasCurrent = true;
+                        }
+                    });
+                    if (!hasCurrent) {
+                        teamSelect.value = '';
+                    }
+                }
+
+                function applySlotFormTeamFilter(form) {
+                    if (!form) return;
+                    const teamSel = form.querySelector('.js-slot-team-select');
+                    const locSel = form.querySelector('.js-slot-location-select');
+                    const locId = locSel ? locSel.value : '';
+                    filterTeamSelectForLocation(teamSel, locId);
+                }
+
+                function bindSlotFormLocationTeamFilter(form) {
+                    if (!form) return;
+                    const locSel = form.querySelector('.js-slot-location-select');
+                    if (!locSel) return;
+                    locSel.addEventListener('change', function () {
+                        applySlotFormTeamFilter(form);
+                    });
+                    applySlotFormTeamFilter(form);
+                }
+
+                window.filterTeamSelectForLocation = filterTeamSelectForLocation;
+                window.applySlotFormTeamFilter = applySlotFormTeamFilter;
+
+                [getCreateForm(), getEditForm()].forEach(bindSlotFormLocationTeamFilter);
 
                 function clearErrors(form) {
                     form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
@@ -440,9 +489,11 @@
                         const res = await fetch(`/admin/team-schedule-slots/${slotId}`, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
                         const data = await res.json().catch(() => ({}));
                         editForm.querySelector('[name="id"]').value = data.id;
-                        editForm.querySelector('[name="team_id"]').value = String(data.team_id ?? '');
                         const locSel = editForm.querySelector('[name="location_id"]');
                         if (locSel) locSel.value = data.location_id ? String(data.location_id) : '';
+                        applySlotFormTeamFilter(editForm);
+                        editForm.querySelector('[name="team_id"]').value = String(data.team_id ?? '');
+                        applySlotFormTeamFilter(editForm);
                         editForm.querySelector('[name="weekday"]').value = String(data.weekday ?? '');
                         syncEditWeekday(data.weekday);
                         editForm.querySelector('[name="time_start"]').value = data.time_start || '';

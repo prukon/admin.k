@@ -824,10 +824,6 @@
                         }
                     }
 
-                    if (canViewLocations) {
-                        $('#create-location').val(rowData.location_id || '');
-                    }
-
                     $createUserForm.data('success-handler', 'school-leads-table');
 
                     if (createUserModal) {

@@ -38,6 +38,15 @@
   <h2>Фильтр «Локация» в тулбаре</h2>
   <p>Блок с выбором локации (<code>id="schoolCalLocation"</code>) рендерится только при наличии права <code>locations.view</code> (директива Blade <code>@can('locations.view')</code>).
     У базовой роли admin в конфиге <code>config/role_base_permissions.php</code> это право включено; у кастомных ролей его можно отозвать — тогда фильтр не показывается, но календарь по-прежнему доступен при <code>lessonPackages.view</code> (все слоты партнёра без фильтра по локации).</p>
+  <p class="small">Привязка групп к локациям (<code>location_team</code>) и правила «универсальной» группы — <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>.</p>
+
+  <h2 id="schedule-slot-modals">Модалки создания/редактирования слота расписания</h2>
+  <p>На вкладке «Расписание школы» (и в таблице слотов групп) подключается <code>admin.teamScheduleSlots.partials.slotModals</code>. Право на изменение слотов — <code>scheduleSlots.manage</code>.</p>
+  <ul>
+    <li>В селекте группы (<code>team_id</code>) у каждой <code>&lt;option&gt;</code> атрибут <code>data-location-ids</code> — JSON id локаций из <code>location_team</code>; пустой массив = группа доступна во всех локациях.</li>
+    <li>При смене локации слота (<code>location_id</code>) клиент вызывает <code>filterTeamSelectForLocation</code>: скрываются группы, не подходящие к выбранной локации; если текущая группа стала недоступна — сброс выбора.</li>
+    <li>Сервер: <code>POST/PUT /admin/team-schedule-slots</code> — <code>TeamScheduleSlotController::assertTeamAllowedAtLocation</code>; несовместимая пара группа+локация → <b>422</b>, текст ошибки на поле <code>team_id</code>.</li>
+  </ul>
 
   <h2>Модалка сведений о слоте</h2>
   <p>Контейнер: <code>#schoolCalSlotModal</code>. При открытии слота данные подставляются из выбранного occurrence на клиенте.</p>
@@ -205,8 +214,11 @@
   <p>Период назначения <code>starts_at</code>/<code>ends_at</code>, лимит строк календаря по <code>lessons_total</code>, разовое занятие (<code>no_schedule</code>) и отсутствие списания <code>lessons_remaining</code> при самой привязке описаны в
     <a href="/docs/documentation/lesson-packages">«Абонементы: назначение и период с календаря школы»</a>. Текущая страница дополняет это правилами статусов, пробного баланса, разовой записи из модалки слота и полей JSON недели; разметка модалки и право <code>locations.view</code> — только отображение.</p>
 
+  <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a></p>
+
   <h2>Тесты</h2>
   <p>Разметка модалки и фильтра локации, <code>team_title</code> в JSON недели, ответы <code>200</code>/<code>403</code> — <code>LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleAccessAndMutationsFeatureTest.php</code>.
+    Фильтр групп в модалке слота и валидация пары группа+локация — <code>tests/Feature/Crm/Teams/LocationTeamPivotFeatureTest.php</code>, <code>tests/Feature/Crm/LocationTeam/</code>.
     Доступ к поверхности календаря и основным эндпоинтам — <code>tests/Feature/Crm/Schedule/SchoolScheduleCalendarAccessFeatureTest.php</code>.
     Интеграция привязок и пробных — <code>LessonPackageSchoolScheduleIntegrationFeatureTest.php</code>; фиксированные шаблоны — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
     статусы и баланс в JSON — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>; пробные сценарии — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>;

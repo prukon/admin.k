@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Локации и группы: привязка location_team</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Локации ↔ группы (<code>location_team</code>)</h1>
+  <div class="small">Файл: <code>/docs/documentation/location-team-bindings.html</code> · миграция pivot: <code>2026_05_28_100000_create_location_team_table.php</code></div>
+
+  <div class="note">
+    <strong>Суть:</strong> справочник локаций (<code>/admin/locations</code>) и групп (<code>/admin/teams</code>) связываются many-to-many через таблицу <code>location_team</code>.
+    У ученика <b>нет</b> поля <code>users.location_id</code> (удалено миграцией <code>2026_05_28_110000_drop_location_id_from_users_table</code>) — «география» ученика в отчётах и фильтрах идёт через <code>users.team_id</code> и привязки группы к локациям.
+    Локация занятия в календаре — отдельно: <code>team_schedule_slots.location_id</code>.
+  </div>
+
+  <h2>1) Правила доступности группы в локации</h2>
+  <table>
+    <thead>
+      <tr><th>Состояние группы</th><th>Доступна в локации L</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Нет ни одной строки в <code>location_team</code> для этой группы</td>
+        <td><b>Да, во всех</b> локациях партнёра («универсальная» группа)</td>
+      </tr>
+      <tr>
+        <td>Есть привязки только к L1, L2, …</td>
+        <td>Только в перечисленных локациях</td>
+      </tr>
+      <tr>
+        <td>Ученик без <code>team_id</code></td>
+        <td>В отчёте «Задолженности» при фильтре по конкретной локации <b>не попадает</b> (кроме режима «Без локации»)</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Реализация на сервере: <code>App\Services\TeamLocationAvailabilityService</code> (<code>isTeamAllowedAtLocation</code>, <code>scopeAvailableForLocation</code>, <code>applyDebtUserTeamLocationFilter</code>).</p>
+
+  <h2>2) Таблица <code>location_team</code></h2>
+  <ul>
+    <li>Колонки: <code>partner_id</code>, <code>location_id</code>, <code>team_id</code>, timestamps.</li>
+    <li>Уникальность: пара (<code>location_id</code>, <code>team_id</code>).</li>
+    <li>FK на <code>partners</code>, <code>locations</code>, <code>teams</code> — <code>cascadeOnDelete</code> (при hard delete родителя pivot удаляется; soft delete группы pivot <b>сохраняется</b>).</li>
+    <li>Синхронизация: <code>App\Services\LocationTeamSyncService</code> — полная замена списка id с обеих сторон.</li>
+  </ul>
+
+  <h2>3) UI и API: группы (<code>/admin/teams</code>)</h2>
+  <p>Доступ к разделу — <code>groups.view</code>. Редактирование привязок к локациям — дополнительно <code>locations.view</code>.</p>
+  <ul>
+    <li>Модалки create/edit: чекбоксы <code>location_ids[]</code> (активные локации партнёра).</li>
+    <li><code>POST /admin/teams</code>, <code>PATCH /admin/team/{id}</code> — при <code>locations.view</code> ключ <code>location_ids</code> уходит в sync; без права ключ отбрасывается в <code>TeamController</code>.</li>
+    <li><code>GET /admin/team/{id}/edit</code> — JSON <code>location_ids</code> (только при <code>locations.view</code>).</li>
+    <li>Фильтр таблицы: параметр <code>location_id</code> — id локации или <code>none</code> (только группы без привязок к локациям). Без <code>locations.view</code> параметр в запросе игнорируется.</li>
+    <li>Колонка «Локации» (<code>locations_label</code>) в data и сортировка по <code>locations_label</code> — при <code>locations.view</code>.</li>
+  </ul>
+  <p>Подробнее: <a href="/docs/documentation/admin-teams#locations-view">Группы (админка) — § про locations.view</a>.</p>
+
+  <h2>4) UI и API: локации (<code>/admin/locations</code>)</h2>
+  <p>Доступ — <code>locations.view</code>; создание/изменение/удаление справочника — <code>locations.manage</code>.</p>
+  <ul>
+    <li>Модалки create/edit: Select2 multiselect <code>team_ids[]</code> (группы партнёра), partial <code>partials.select2.teams-multiselect</code> — только при <code>locations.manage</code> и наличии групп.</li>
+    <li><code>POST /admin/locations</code>, <code>PUT /admin/locations/{location}</code> — sync <code>team_ids</code> при <code>locations.view</code>.</li>
+    <li><code>GET /admin/locations/{location}</code> — JSON с <code>team_ids</code>.</li>
+    <li>В <code>GET /admin/locations/data</code> при <code>locations.view</code> — поля <code>teams_label</code>, <code>teams_label_full</code>, <code>teams_titles</code> (tooltip через <code>partials.ui.hover-list-dropdown</code>).</li>
+  </ul>
+  <p>Подробнее: <a href="/docs/documentation/admin-locations">Локации (админка)</a>, UI-блоки: <a href="/docs/documentation/reusable-ui-partials">переиспользуемые partial'ы</a>.</p>
+
+  <h2>5) Расписание школы и слоты</h2>
+  <ul>
+    <li>Календарь: фильтр <code>location_id</code> в <code>GET …/school-schedule/week</code> — см. <a href="/docs/documentation/school-schedule-calendar">Расписание школы</a>.</li>
+    <li>Модалки слота: в селекте группы опции с <code>data-location-ids</code>; при выборе локации клиент скрывает недоступные группы (<code>filterTeamSelectForLocation</code> в <code>slotModals.blade.php</code>).</li>
+    <li>Сервер: <code>POST/PUT admin/team-schedule-slots</code> — <code>TeamScheduleSlotController</code> + <code>assertTeamAllowedAtLocation</code> → 422 на <code>team_id</code>, если группа не подходит к <code>location_id</code> слота.</li>
+  </ul>
+
+  <h2>6) Пользователи — без локации в карточке</h2>
+  <div class="warn">
+    В разделе <code>/admin/users</code> нет поля, фильтра и колонки «Локация ученика».
+    Входящий <code>location_id</code> в <code>POST/PATCH /admin/users</code> не сохраняется (колонки в БД нет).
+    При создании клиента из заявки с сайта в ученика <b>не копируется</b> <code>school_leads.location_id</code> — локация остаётся только у заявки.
+  </div>
+  <p>См. <a href="/docs/documentation/admin-users#user-location">Пользователи §3</a>.</p>
+
+  <h2>7) Отчёты и платежи</h2>
+  <table>
+    <thead>
+      <tr><th>Отчёт</th><th>Источник локации для фильтра</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Платежи, LTV, платежи по месяцам</td>
+        <td><code>payments.location_id</code> — снимок при <b>первом</b> создании строки платежа, только если <code>location_id</code> явно передан в атрибуты <code>PaymentLedgerRecorder</code> (webhook T‑Bank сам локацию не ставит)</td>
+      </tr>
+      <tr>
+        <td>Задолженности</td>
+        <td>Группа ученика: <code>users.team_id</code> + <code>location_team</code>. <code>filter_location_id=none</code> — <code>team_id IS NULL</code> или универсальная группа</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Единый параметр UI: <code>filter_location_id</code> (пусто / <code>none</code> / id). Право: <code>locations.view</code>. См. <a href="/docs/documentation/reports-admin#location-filter">Отчёты §2.1</a>.</p>
+
+  <h2>8) Права (кратко)</h2>
+  <table>
+    <thead>
+      <tr><th>Право</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>groups.view</code></td><td>Страница и CRUD групп; без <code>locations.view</code> — без чекбоксов и sync <code>location_ids</code></td></tr>
+      <tr><td><code>locations.view</code></td><td>Справочник локаций (чтение), привязки pivot с обеих сторон, фильтры в группах/отчётах/календаре</td></tr>
+      <tr><td><code>locations.manage</code></td><td>Создание, изменение, удаление записей <code>locations</code></td></tr>
+      <tr><td><code>scheduleSlots.manage</code></td><td>Создание/изменение слотов с проверкой пары группа+локация</td></tr>
+    </tbody>
+  </table>
+
+  <h2>9) Код и тесты</h2>
+  <ul>
+    <li>Модели: <code>Team::locations()</code>, <code>Location::teams()</code>.</li>
+    <li>Сервисы: <code>LocationTeamSyncService</code>, <code>TeamLocationAvailabilityService</code>.</li>
+    <li>Контроллеры: <code>TeamController</code>, <code>LocationController</code>, <code>TeamScheduleSlotController</code>, <code>DeptReportController</code> (фильтр долгов).</li>
+  </ul>
+  <div class="note">
+    <strong>Feature-тесты:</strong>
+    <ul>
+      <li><code>tests/Feature/Crm/Teams/LocationTeamPivotFeatureTest.php</code> — sync, слоты, фильтр data групп</li>
+      <li><code>tests/Feature/Crm/LocationTeam/LocationTeamIntegrationFeatureTest.php</code> — сценарии pivot, долги, users без location_id</li>
+      <li><code>tests/Feature/Crm/LocationTeam/LocationTeamPagesAccessFeatureTest.php</code> — smoke 200 разделов teams/locations/расписание</li>
+      <li><code>tests/Feature/Crm/Users/UsersLocationRemovedFeatureTest.php</code> — UI/API пользователей</li>
+      <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code>, <code>PaymentLedgerLocationTest.php</code></li>
+      <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code>, <code>TeamsPageFullAccessFeatureTest.php</code></li>
+    </ul>
+    <pre><code>php artisan test --env=testing tests/Feature/Crm/LocationTeam tests/Feature/Crm/Teams/LocationTeamPivotFeatureTest.php</code></pre>
+  </div>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-teams">Группы</a> ·
+    <a href="/docs/documentation/admin-locations">Локации</a> ·
+    <a href="/docs/documentation/admin-users">Пользователи</a> ·
+    <a href="/docs/documentation/reports-admin#location-filter">Отчёты</a> ·
+    <a href="/docs/documentation/school-schedule-calendar">Расписание школы</a>
+  </p>
+</div>
+</body>
+</html>

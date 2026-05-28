@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Crm\Users;
 
-use App\Models\Location;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
@@ -36,7 +35,6 @@ class AdminUsersAccessFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewHas('fields')
             ->assertViewHas('userFieldsPayload')
-            ->assertViewHas('activeLocations')
             ->assertViewHas('activeTab', 'users')
             ->assertSee('Все пользователи', false);
     }
@@ -50,12 +48,6 @@ class AdminUsersAccessFeatureTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
         ]);
-        $location = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Smoke-локация',
-            'is_enabled' => true,
-        ]);
-
         $this->get('/admin/users')->assertOk();
 
         $dataResponse = $this->getJson('/admin/users/data?draw=1&start=0&length=10', [
@@ -69,16 +61,12 @@ class AdminUsersAccessFeatureTest extends CrmTestCase
             'data',
         ]);
 
-        $this->getJson('/admin/users/data?draw=1&start=0&length=10&location_id=' . $location->id, [
-            'X-Requested-With' => 'XMLHttpRequest',
-        ])->assertOk();
-
         $this->getJson(route('admin.users.table-settings.get'))->assertOk();
 
         $this->postJson(route('admin.users.table-settings.save'), [
             'columns' => [
-                'avatar'   => true,
-                'location' => true,
+                'avatar' => true,
+                'name'   => true,
             ],
         ])->assertOk();
 
@@ -91,9 +79,8 @@ class AdminUsersAccessFeatureTest extends CrmTestCase
             // телефон: новый функционал (в UI вводится с маской)
             'phone'      => '+7 (999) 111-22-33',
             'role_id'    => $role->id,
-            'team_id'     => $team->id,
-            'location_id' => $location->id,
-            'birthday'    => '2015-01-01',
+            'team_id'    => $team->id,
+            'birthday'   => '2015-01-01',
             'is_enabled'  => 1,
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
@@ -105,8 +92,6 @@ class AdminUsersAccessFeatureTest extends CrmTestCase
 
         $created = User::findOrFail($newId);
         $this->assertSame('+79991112233', $created->phone);
-        $this->assertSame($location->id, (int) $created->location_id);
-
         $editResponse = $this->getJson('/admin/users/' . $newId . '/edit', [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
@@ -117,16 +102,10 @@ class AdminUsersAccessFeatureTest extends CrmTestCase
             'fields',
             'roles',
         ]);
-        $editResponse->assertJsonPath('user.location_id', $location->id);
-        $editResponse->assertJsonPath('user.location.id', $location->id);
-
         $this->patchJson('/admin/users/' . $newId, [
-            'name'        => $created->name,
-            'lastname'    => $created->lastname,
-            'location_id' => null,
+            'name'     => $created->name,
+            'lastname' => $created->lastname,
         ])->assertOk();
-
-        $this->assertNull(User::findOrFail($newId)->location_id);
 
         $this->getJson(route('logs.data.user', [
             'draw'   => 1,
@@ -259,45 +238,35 @@ class AdminUsersAccessFeatureTest extends CrmTestCase
 
         $role = Role::where('name', 'user')->firstOrFail();
         $team = Team::factory()->create(['partner_id' => $this->partner->id]);
-        $location = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'is_enabled' => true,
-        ]);
-
         $this->get('/admin/users')
             ->assertOk()
-            ->assertViewHas('activeLocations')
             ->assertDontSee('id="filter-location"', false)
             ->assertDontSee('id="create-location"', false);
 
         $this->getJson('/admin/users/data?draw=1&start=0&length=10')->assertOk();
-        $this->getJson('/admin/users/data?location_id=' . $location->id)->assertOk();
 
         $storeResp = $this->postJson('/admin/users', [
-            'name'        => 'Без',
-            'lastname'    => 'Локации',
-            'role_id'     => $role->id,
-            'team_id'     => $team->id,
-            'location_id' => $location->id,
-            'is_enabled'  => 1,
+            'name'       => 'Без',
+            'lastname'   => 'Локации',
+            'role_id'    => $role->id,
+            'team_id'    => $team->id,
+            'is_enabled' => 1,
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ])->assertOk();
 
         $newId = $storeResp->json('user.id');
-        $this->assertNull(User::findOrFail($newId)->location_id);
+        $this->assertNotNull($newId);
 
         $this->getJson('/admin/users/' . $newId . '/edit', [
             'X-Requested-With' => 'XMLHttpRequest',
         ])->assertOk();
         $this->patchJson('/admin/users/' . $newId, [
-            'name'        => 'Без',
-            'lastname'    => 'Локации',
-            'location_id' => $location->id,
+            'name'     => 'Без',
+            'lastname' => 'Локации',
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ])->assertOk();
-        $this->assertNull(User::findOrFail($newId)->location_id);
 
         $this->getJson(route('admin.users.table-settings.get'))->assertOk();
         $this->postJson(route('admin.users.table-settings.save'), [

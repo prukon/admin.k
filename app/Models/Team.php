@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Traits\Filterable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 
@@ -57,6 +58,16 @@ class Team extends Model
             'team_trainer',
             'team_id',
             'trainer_profile_id',
+        )->withTimestamps()->withPivot('partner_id');
+    }
+
+    public function locations(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Location::class,
+            'location_team',
+            'team_id',
+            'location_id',
         )->withTimestamps()->withPivot('partner_id');
     }
 }

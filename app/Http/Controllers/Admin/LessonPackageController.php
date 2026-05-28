@@ -80,6 +80,7 @@ final class LessonPackageController extends AdminBaseController
 
         $teams = Team::query()
             ->where('partner_id', $partnerId)
+            ->with('locations:id')
             ->orderBy('title')
             ->get(['id', 'title']);
 

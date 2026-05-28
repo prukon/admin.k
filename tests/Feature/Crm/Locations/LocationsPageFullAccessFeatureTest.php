@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\Locations;
 
 use App\Models\Location;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -86,10 +87,16 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertJsonPath('id', $this->location->id);
 
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Full access team',
+        ]);
+
         $this->postJson(route('admin.locations.store'), [
             'name' => 'Created via full access test',
             'address' => 'Адрес',
             'is_enabled' => 1,
+            'team_ids' => [$team->id],
         ])->assertOk();
 
         $this->putJson(route('admin.locations.update', $this->location->id), [
@@ -97,6 +104,7 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             'address' => 'ул. Обновлённая',
             'description' => 'Описание',
             'is_enabled' => 1,
+            'team_ids' => [$team->id],
         ])->assertOk();
 
         $disposable = Location::factory()->create([
@@ -159,12 +167,19 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             'name' => 'Manage smoke location',
         ]);
 
+        Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Manage smoke team',
+        ]);
+
         $this->get(route('admin.locations.index'))
             ->assertOk()
             ->assertSee('id="new-location"', false)
             ->assertSee('locationEditModal', false)
-            ->assertSee('deleteLocation', false)
-            ->assertSee('showConfirmDeleteModal', false);
+            ->assertSee('id="locationDeleteBtn"', false)
+            ->assertSee('showConfirmDeleteModal', false)
+            ->assertSee('KidsCrmTeamsMultiselectSelect2', false)
+            ->assertSee('KidsCrmHoverListDropdown.renderCell', false);
 
         $this->getJson(route('admin.locations.data', [
             'draw' => 1,
@@ -176,14 +191,21 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.locations.show', $loc->id))->assertOk();
 
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Manage pivot team',
+        ]);
+
         $this->postJson(route('admin.locations.store'), [
             'name' => 'Created with manage',
             'is_enabled' => 1,
+            'team_ids' => [$team->id],
         ])->assertOk();
 
         $this->putJson(route('admin.locations.update', $loc->id), [
             'name' => 'Manage smoke updated',
             'is_enabled' => 0,
+            'team_ids' => [$team->id],
         ])->assertOk();
 
         $toDelete = Location::factory()->create([
@@ -234,6 +256,71 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
         $this->getJson(route('admin.locations.show', $this->location->id))->assertStatus(403);
+    }
+
+    public function test_all_locations_endpoints_return_200_with_teams_ui_and_pivot_payloads(): void
+    {
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Pivot full stack',
+        ]);
+
+        $this->get(route('admin.locations.index'))
+            ->assertOk()
+            ->assertSee('id="colLocationTeams"', false)
+            ->assertSee('id="locationCreateTeamIds"', false)
+            ->assertSee('id="locationEditTeamIds"', false);
+
+        $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure([
+                'draw',
+                'recordsTotal',
+                'recordsFiltered',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'name',
+                        'address',
+                        'teams_label',
+                        'teams_label_full',
+                        'teams_titles',
+                        'is_enabled',
+                        'is_enabled_label',
+                    ],
+                ],
+            ]);
+
+        $create = $this->postJson(route('admin.locations.store'), [
+            'name' => 'Full stack with teams',
+            'is_enabled' => 1,
+            'team_ids' => [$team->id],
+        ])->assertOk();
+
+        $createdId = (int) ($create->json('location.id') ?? 0);
+        $this->assertGreaterThan(0, $createdId);
+
+        $this->getJson(route('admin.locations.show', $createdId))
+            ->assertOk()
+            ->assertJsonPath('team_ids', [$team->id]);
+
+        $this->putJson(route('admin.locations.update', $createdId), [
+            'name' => 'Full stack updated',
+            'is_enabled' => 1,
+            'team_ids' => [],
+        ])->assertOk();
+
+        $this->getJson(route('admin.locations.show', $createdId))
+            ->assertOk()
+            ->assertJsonPath('team_ids', []);
+
+        $this->deleteJson(route('admin.locations.destroy', $createdId))
+            ->assertOk()
+            ->assertJsonPath('success', true);
     }
 
     public function test_guest_cannot_access_any_locations_endpoint(): void

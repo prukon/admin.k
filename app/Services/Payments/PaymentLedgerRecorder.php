@@ -3,11 +3,10 @@
 namespace App\Services\Payments;
 
 use App\Models\Payment;
-use App\Models\User;
 
 /**
  * Запись успешной оплаты в журнал payments (отчёт «Платежи»).
- * location_id фиксируется только при первом создании строки.
+ * location_id — снимок в момент оплаты; задаётся только при первом создании, если передан в $attributes.
  */
 final class PaymentLedgerRecorder
 {
@@ -21,12 +20,17 @@ final class PaymentLedgerRecorder
             'partner_id' => $partnerId,
         ]);
 
-        if (! $payment->exists) {
-            $user = User::query()->find($userId);
-            $payment->location_id = $user?->location_id;
+        if (! $payment->exists && array_key_exists('location_id', $attributes)) {
+            $rawLocationId = $attributes['location_id'];
+            $payment->location_id = ($rawLocationId !== null && $rawLocationId !== '')
+                ? (int) $rawLocationId
+                : null;
         }
 
-        $payment->fill($attributes);
+        $fillAttributes = $attributes;
+        unset($fillAttributes['location_id']);
+
+        $payment->fill($fillAttributes);
         $payment->save();
 
         return $payment;

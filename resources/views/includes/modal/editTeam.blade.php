@@ -43,6 +43,30 @@
                     </div>
                     @endcan
 
+                    @can('locations.view')
+                    @if($locationOptions->isNotEmpty())
+                    <div class="mb-3">
+                        <label class="form-label">Локации</label>
+                        <div id="edit-locations" class="border rounded p-2" style="max-height: 10rem; overflow-y: auto;">
+                            @foreach($locationOptions as $location)
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           name="location_ids[]"
+                                           id="edit-location-{{ $location->id }}"
+                                           value="{{ $location->id }}">
+                                    <label class="form-check-label" for="edit-location-{{ $location->id }}">
+                                        {{ $location->name }}
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="form-text">Если не выбрано ни одной локации, группа доступна во всех локациях.</div>
+                        <div class="invalid-feedback d-block" id="edit-location_ids-error"></div>
+                    </div>
+                    @endif
+                    @endcan
+
                     @can('trainers.view')
                     <div class="mb-3">
                         <label for="edit-trainer-profile-id" class="form-label">Тренер</label>
@@ -125,6 +149,13 @@
                     if ($('#edit-trainer-profile-id').length) {
                         $('#edit-trainer-profile-id').val(response.trainer_profile_id ?? '');
                     }
+
+                    const locationIds = response.location_ids || [];
+                    $('#edit-locations input[name="location_ids[]"]').each(function () {
+                        const id = parseInt($(this).val(), 10);
+                        $(this).prop('checked', locationIds.includes(id));
+                    });
+                    $('#edit-location_ids-error').text('');
 
                     // Расписание: чекбоксы дней недели
                     if (canViewTeamSchedule && $('#edit-weekdays').length) {
@@ -211,6 +242,9 @@
                         if (errors.trainer_profile_id && errors.trainer_profile_id.length) {
                             $('#edit-trainer-profile-id').addClass('is-invalid');
                             $('#edit-trainer-profile-id-error').text(errors.trainer_profile_id[0]);
+                        }
+                        if (errors.location_ids && errors.location_ids.length) {
+                            $('#edit-location_ids-error').text(errors.location_ids[0]);
                         }
                         return;
                     }

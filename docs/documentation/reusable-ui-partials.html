@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Переиспользование UI-блоков (partial / include)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.45; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Переиспользование UI-блоков (partial / include)</h1>
+  <div class="small">Файл: <code>/docs/documentation/reusable-ui-partials.html</code> · Blade: <code>resources/views/partials/</code></div>
+
+  <div class="note">
+    Общие фрагменты интерфейса вынесены в partial'ы с директивой <code>@once</code> (стили/скрипты подключаются один раз на страницу через <code>@push('styles')</code> / <code>@push('scripts')</code>).
+    На новой странице достаточно <code>@include('…')</code> и вызова JS-API из inline-скрипта страницы.
+  </div>
+
+  <h2>1) Шапка списка: toolbar + фильтры + «Поля списка»</h2>
+  <p>Единый паттерн карточки над таблицей: заголовок слева, справа кнопки «Добавить» (по праву), «Фильтры» (collapse), «Колонки» (dropdown с чекбоксами <code>data-column-key</code>).</p>
+
+  <h3>CSS</h3>
+  <ul>
+    <li><code>resources/css/admin-list-toolbar.css</code> — классы <code>payments-report-toolbar</code>, <code>payments-report-surface</code>, <code>payments-report-filters-toggle</code>, <code>payments-report-columns-menu</code> и др.</li>
+    <li>Подключение на странице: <code>@vite(['resources/css/admin-list-toolbar.css'])</code>.</li>
+  </ul>
+
+  <h3>Разметка (скелет)</h3>
+  <pre><code>@vite(['resources/css/admin-list-toolbar.css'])
+
+&lt;div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3"&gt;
+  &lt;div class="card-body px-3 py-3"&gt;
+    &lt;div class="payments-report-toolbar d-flex …"&gt;
+      &lt;h1 class="h5 … payments-report-title"&gt;Заголовок&lt;/h1&gt;
+      &lt;div class="payments-report-toolbar-actions …"&gt;
+        {{-- @can: кнопка «Добавить» --}}
+        &lt;button class="payments-report-toolbar-action payments-report-filters-toggle" …&gt;Фильтры&lt;/button&gt;
+        &lt;div class="dropdown payments-report-toolbar-dropdown"&gt;
+          &lt;button class="payments-report-toolbar-action payments-report-columns-toggle" …&gt;Колонки&lt;/button&gt;
+          &lt;div class="dropdown-menu payments-report-columns-menu"&gt;
+            &lt;input class="column-toggle" data-column-key="name" …&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;div class="collapse" id="…FiltersCollapse"&gt;
+  &lt;form id="…-report-filters" class="border rounded p-2 p-md-3 bg-light"&gt;…&lt;/form&gt;
+&lt;/div&gt;</code></pre>
+
+  <h3>Где уже используется</h3>
+  <table>
+    <thead>
+      <tr><th>Страница</th><th>View</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>/admin/locations</code></td><td><code>admin/locations/index.blade.php</code></td></tr>
+      <tr><td><code>/admin/users</code></td><td><code>admin/user.blade.php</code></td></tr>
+      <tr><td><code>/admin/teams</code></td><td><code>admin/team.blade.php</code></td></tr>
+      <tr><td><code>/admin/trainers</code></td><td><code>admin/trainers/index.blade.php</code></td></tr>
+      <tr><td><code>/admin/school-leads</code></td><td><code>admin/school-leads.blade.php</code></td></tr>
+      <tr><td>Отчёты «Платежи», «Задолженности», LTV и др.</td><td><code>admin/report/*.blade.php</code></td></tr>
+    </tbody>
+  </table>
+  <p class="small">Исторически классы называются <code>payments-report-*</code> (первый эталон — отчёт «Платежи»), но CSS общий для всех списков.</p>
+
+  <h2>2) Hover-список в ячейке таблицы</h2>
+  <p>Partial: <code>resources/views/partials/ui/hover-list-dropdown.blade.php</code></p>
+  <p>Краткая подпись в ячейке + полный список пунктов в Bootstrap Tooltip при наведении. Стиль совпадает с подсказками «Установка цен → По месяцам» (<code>ulp-assignment-paid-tooltip</code>).</p>
+
+  <h3>Подключение</h3>
+  <pre><code>@include('partials.ui.hover-list-dropdown')</code></pre>
+
+  <h3>JS API (<code>window.KidsCrmHoverListDropdown</code>)</h3>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>renderCell(shortLabel, itemsArray)</code></td>
+        <td>HTML ячейки DataTables: <code>shortLabel</code> — текст в таблице; <code>itemsArray</code> — массив строк для списка в tooltip (если 0–1 пункт, tooltip не показывается).</td>
+      </tr>
+      <tr>
+        <td><code>init(rootElement)</code></td>
+        <td>Инициализация tooltip'ов внутри контейнера (обычно <code>#…-table</code> или <code>document</code>). Вызывать после <code>draw.dt</code>.</td>
+      </tr>
+      <tr>
+        <td><code>dispose(rootElement)</code></td>
+        <td>Снять tooltip'ы перед перерисовкой (опционально).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Пример в колонке DataTables</h3>
+  <pre><code>columns: [{
+  data: 'teams_label',
+  render: function (data, type, row) {
+    if (window.KidsCrmHoverListDropdown) {
+      return KidsCrmHoverListDropdown.renderCell(data, row.teams_titles || []);
+    }
+    return data || '';
+  }
+}],
+…
+table.on('draw.dt', function () {
+  if (window.KidsCrmHoverListDropdown) {
+    KidsCrmHoverListDropdown.init(document.getElementById('locations-table'));
+  }
+});</code></pre>
+
+  <h3>Где используется</h3>
+  <ul>
+    <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — колонка «Группы» (<code>teams_label</code> + <code>teams_titles</code> из JSON <code>/admin/locations/data</code>).</li>
+  </ul>
+  <p class="small">Прямой аналог tooltip без partial — inline в <code>admin/SettingPrices/users.blade.php</code> (<code>ulp-assignment-paid-tooltip</code>); для таблиц предпочтителен переиспользуемый partial.</p>
+
+  <h2>3) Select2 multiselect групп</h2>
+  <p>Partial: <code>resources/views/partials/select2/teams-multiselect.blade.php</code></p>
+  <p>Multiselect на Select2 (theme bootstrap-5): чекбоксы в dropdown, сводка «первая группа, ещё N шт.» при 3+ выбранных, dropdown не закрывается при клике в поиск.</p>
+
+  <h3>Подключение</h3>
+  <pre><code>@include('partials.select2.teams-multiselect')
+
+&lt;select name="team_ids[]"
+        class="form-select js-teams-multiselect-select"
+        multiple
+        data-placeholder="Выберите группы"&gt;
+  @foreach($teamOptions as $team)
+    &lt;option value="{{ $team->id }}"&gt;{{ $team->title }}&lt;/option&gt;
+  @endforeach
+&lt;/select&gt;</code></pre>
+  <p>Select2 подключается в layout <code>layouts/admin2.blade.php</code> (<code>select2.full.min.js</code> + bootstrap-5 theme).</p>
+
+  <h3>JS API (<code>window.KidsCrmTeamsMultiselectSelect2</code>)</h3>
+  <ul>
+    <li><code>init($select, { dropdownParent })</code> — инициализация; для модалок задавать <code>dropdownParent: $('#…Modal')</code>.</li>
+    <li><code>setValues($select, ids)</code> — заполнить при открытии edit.</li>
+    <li><code>reset($select)</code> — очистить create-модалку.</li>
+    <li><code>markInvalid($select)</code> / <code>clearInvalid($select)</code> — подсветка ошибок валидации (<code>team_ids</code>).</li>
+  </ul>
+
+  <h3>Где используется</h3>
+  <ul>
+    <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — поля <code>locationCreateTeamIds</code>, <code>locationEditTeamIds</code> (только при <code>locations.manage</code> и непустом списке групп партнёра).</li>
+  </ul>
+
+  <h2>4) Русификация Select2</h2>
+  <p>Partial: <code>resources/views/partials/select2/ru.blade.php</code></p>
+  <p>Возвращает объект локализации (не JSON-строку) для опции <code>language</code> при вызове <code>.select2({ … })</code>.</p>
+
+  <pre><code>$('.my-select').select2({
+  theme: 'bootstrap-5',
+  language: @include('partials.select2.ru')
+});</code></pre>
+
+  <p>Тексты: «Ничего не найдено», «Поиск…», «Введите ещё N символ(а/ов).», «Можно выбрать не более …» и т.д.</p>
+  <p>Partial <code>teams-multiselect</code> подключает эту локализацию автоматически. На других страницах — явный <code>@include('partials.select2.ru')</code> (отчёты, dashboard, договоры, абонементы, custom-payments и др.).</p>
+
+  <h2>5) Русификация DataTables</h2>
+  <p>Partial: <code>resources/views/partials/datatables/ru.blade.php</code></p>
+  <p>Возвращает JSON-объект для опции <code>language</code> jQuery DataTables.</p>
+
+  <pre><code>$('#my-table').DataTable({
+  serverSide: true,
+  language: @include('partials.datatables.ru'),
+  …
+});</code></pre>
+
+  <p>Строки: «Обработка…», «Поиск…» (placeholder), «С _START_ до _END_ из _TOTAL_ записей», «Записи отсутствуют.», «В таблице отсутствуют данные», aria-подписи сортировки. Кнопки paginate (<code>first</code>/<code>previous</code>/…) — пустые строки (иконки/разметка задаются темой таблицы).</p>
+
+  <h3>Где используется</h3>
+  <ul>
+    <li><code>/admin/locations</code>, <code>/admin/trainers</code>, <code>/admin/setting/logs</code>, <code>contract-templates/index</code></li>
+    <li>вкладка назначений абонементов (<code>lessonPackages/tabs/assignments.blade.php</code>)</li>
+    <li>и другие server-side таблицы с тем же паттерном</li>
+  </ul>
+
+  <h2>6) Чек-лист при добавлении новой страницы</h2>
+  <ol>
+    <li>Подключить <code>admin-list-toolbar.css</code>, если нужна шапка как у отчётов/списков.</li>
+    <li>Для server-side таблицы — <code>language: @include('partials.datatables.ru')</code>.</li>
+    <li>Для Select2 — <code>language: @include('partials.select2.ru')</code> (layout admin2 уже грузит JS/CSS Select2).</li>
+    <li>Для колонки «много значений, коротко в ячейке» — <code>@include('partials.ui.hover-list-dropdown')</code> + <code>renderCell</code> / <code>init</code> на <code>draw.dt</code>.</li>
+    <li>Для multiselect групп в модалке — <code>@include('partials.select2.teams-multiselect')</code> + класс <code>js-teams-multiselect-select</code>.</li>
+  </ol>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-locations">Локации (пример всех блоков)</a> ·
+    <a href="/docs/documentation/admin-users">Пользователи (toolbar)</a> ·
+    <a href="/docs/documentation/reports-payments">Отчёт «Платежи» (эталон toolbar)</a>
+  </p>
+</div>
+</body>
+</html>

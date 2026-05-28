@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Location;
 use App\Models\ParentProfile;
 use App\Models\Partner;
 use App\Models\Role;
@@ -28,22 +27,13 @@ class DevUsersSeeder extends Seeder
             return;
         }
 
-        /** @var Collection<int, Collection<int, Location>> $locationsByPartner */
-        $locationsByPartner = Location::query()
-            ->whereIn('partner_id', $partnerIds)
-            ->where('is_enabled', true)
-            ->get()
-            ->groupBy('partner_id');
-
         $userRoleId = Role::query()->where('name', 'user')->value('id');
 
-        $this->assignPartnerTeamAndLocation(
+        $this->assignPartnerTeam(
             User::query()
-                ->whereNull('location_id')
                 ->whereNotNull('partner_id')
                 ->when($userRoleId, fn ($q) => $q->where('role_id', $userRoleId))
                 ->get(),
-            $locationsByPartner,
         );
 
         User::factory()
@@ -51,14 +41,9 @@ class DevUsersSeeder extends Seeder
             ->create([
                 'is_enabled' => 1,
             ])
-            ->each(function (User $user) use ($partnerIds, $locationsByPartner) {
+            ->each(function (User $user) use ($partnerIds) {
                 $partnerId = (int) $partnerIds[array_rand($partnerIds)];
                 $user->partner_id = $partnerId;
-
-                $partnerLocations = $locationsByPartner->get($partnerId);
-                if ($partnerLocations !== null && $partnerLocations->isNotEmpty()) {
-                    $user->location_id = (int) $partnerLocations->random()->id;
-                }
 
                 $teamId = Team::query()
                     ->where('partner_id', $partnerId)
@@ -199,20 +184,10 @@ class DevUsersSeeder extends Seeder
         ];
     }
 
-    /**
-     * @param  Collection<int, Collection<int, Location>>  $locationsByPartner
-     */
-    private function assignPartnerTeamAndLocation(
-        iterable $users,
-        Collection $locationsByPartner,
-    ): void {
+    private function assignPartnerTeam(iterable $users): void
+    {
         foreach ($users as $user) {
             $partnerId = (int) $user->partner_id;
-
-            $partnerLocations = $locationsByPartner->get($partnerId);
-            if ($partnerLocations !== null && $partnerLocations->isNotEmpty()) {
-                $user->location_id = (int) $partnerLocations->random()->id;
-            }
 
             if (! $user->team_id) {
                 $teamId = Team::query()

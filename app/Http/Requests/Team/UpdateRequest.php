@@ -18,6 +18,14 @@ class UpdateRequest extends FormRequest
         if ($this->has('trainer_profile_id') && $this->input('trainer_profile_id') === '') {
             $this->merge(['trainer_profile_id' => null]);
         }
+
+        if ($this->user()?->can('locations.view')) {
+            if (! $this->has('location_ids')) {
+                $this->merge(['location_ids' => []]);
+            } elseif (! is_array($this->input('location_ids'))) {
+                $this->merge(['location_ids' => []]);
+            }
+        }
     }
 
     public function rules(): array
@@ -44,6 +52,20 @@ class UpdateRequest extends FormRequest
             ];
         }
 
+        if ($this->user()?->can('locations.view')) {
+            $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
+            $rules['location_ids'] = ['nullable', 'array'];
+            $rules['location_ids.*'] = [
+                'integer',
+                'min:1',
+                Rule::exists('locations', 'id')->where(function ($query) use ($partnerId) {
+                    if ($partnerId > 0) {
+                        $query->where('partner_id', $partnerId);
+                    }
+                }),
+            ];
+        }
+
         return $rules;
     }
 
@@ -53,6 +75,8 @@ class UpdateRequest extends FormRequest
             'title' => 'название группы',
             'type' => 'тип',
             'trainer_profile_id' => 'тренер',
+            'location_ids' => 'локации',
+            'location_ids.*' => 'локация',
         ];
     }
 
@@ -67,6 +91,8 @@ class UpdateRequest extends FormRequest
             'default_duration_minutes.min' => 'Длительность должна быть больше 0 минут',
             'default_duration_minutes.max' => 'Длительность слишком большая',
             'trainer_profile_id.exists' => 'Выберите тренера из списка',
+            'location_ids.array' => 'Некорректный список локаций',
+            'location_ids.*.exists' => 'Выберите локацию из списка текущего партнёра',
         ];
     }
 }

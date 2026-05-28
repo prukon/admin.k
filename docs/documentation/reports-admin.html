@@ -73,7 +73,7 @@
         <td>Платежи</td>
         <td><code>/admin/reports/payments</code></td>
         <td><code>payments.location_id</code></td>
-        <td>Снимок локации ученика на момент оплаты; есть колонка «Локация»</td>
+        <td>Опциональный снимок <code>payments.location_id</code> (если был передан при первом create); колонка «Локация»</td>
         <td><code>pay-filter-location</code></td>
       </tr>
       <tr>
@@ -93,8 +93,8 @@
       <tr>
         <td>Задолженности</td>
         <td><code>/admin/reports/debts</code></td>
-        <td><code>users.location_id</code></td>
-        <td>Текущая привязка ученика (долги из <code>users_prices</code> и доп. платежей, не журнал оплат)</td>
+        <td>Группа ученика + <code>location_team</code></td>
+        <td>Локация через <code>users.team_id</code>: группа привязана к локации или без привязок (доступна везде)</td>
         <td><code>pay-debt-filter-location</code></td>
       </tr>
     </tbody>
@@ -102,8 +102,10 @@
   <ul>
     <li>Запись <code>payments.location_id</code> при первой фиксации оплаты — <a href="/docs/documentation/payments">payments.html</a>, колонка и фильтр — <a href="/docs/documentation/reports-payments">reports-payments.html</a>.</li>
     <li>Старые строки <code>payments</code> без локации: <code>location_id IS NULL</code> попадают в «Без локации».</li>
-    <li>Смена <code>users.location_id</code> после оплаты <b>не меняет</b> уже записанный <code>payments.location_id</code>.</li>
-    <li>Привязка ученика к локации в CRM: раздел <a href="/docs/documentation/admin-users#user-location">«Пользователи»</a> (<code>users.location_id</code>).</li>
+    <li>Снимок <code>payments.location_id</code> задаётся только при первом создании платежа (если передан явно), см. <a href="/docs/documentation/payments">payments.html</a>.</li>
+    <li>Привязка группы к локациям: <code>/admin/teams</code>, <code>/admin/locations</code> (pivot <code>location_team</code>). Обзор: <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>.</li>
+    <li><b>Задолженности — различие <code>none</code> и платежных отчётов:</b> для долгов <code>filter_location_id=none</code> — ученики с <code>users.team_id IS NULL</code> <i>или</i> с «универсальной» группой (нет строк в <code>location_team</code> для этой группы). Для платежей/LTV/monthly <code>none</code> — только строки с <code>payments.location_id IS NULL</code>.</li>
+    <li><b>Задолженности — конкретная локация L:</b> ученик попадает, если его группа привязана к L в <code>location_team</code> или универсальна; ученик без группы в выборку по L <b>не</b> входит.</li>
   </ul>
 
   <h2 id="trainer-filter">2.2) Фильтр по тренеру в отчётах</h2>
@@ -158,7 +160,7 @@
     <li><b>Общая сумма</b>: <code>GET /admin/reports/debts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
   </ul>
   <div class="note">
-    Фильтр локации — §2.1: <code>users.location_id</code> ученика на момент просмотра отчёта.
+    Фильтр локации — §2.1: через группу ученика (<code>users.team_id</code> и <code>location_team</code>).
     Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>.
   </div>
 
@@ -171,7 +173,7 @@
   </ul>
   <div class="note">
     “Общая сумма” в LTV — это <code>sum(payments.summ)</code> по тем же фильтрам (и по текущему партнёру), что и таблица.
-    Фильтр локации — §2.1: <code>payments.location_id</code> (снимок на момент оплаты); тот же параметр в <code>ltv/data</code>, <code>ltv/total</code> и <code>ltv/{user}/payments</code>.
+    Фильтр локации — §2.1: <code>payments.location_id</code> (опциональный снимок при create); тот же параметр в <code>ltv/data</code>, <code>ltv/total</code> и <code>ltv/{user}/payments</code>.
   </div>
 
   <h2>5) Отчёт “Платежи по месяцам”</h2>
@@ -228,7 +230,7 @@
     работу <code>…/total</code>, columns-settings, Select2 search, фильтр по локации (§2.1).
   </div>
   <ul>
-    <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code> — фильтр <code>filter_location_id</code> и доступ (monthly, LTV, debts): smoke всех эндпоинтов, <code>none</code>, игнор без <code>locations.view</code>, различие <code>payments.location_id</code> / <code>users.location_id</code></li>
+    <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code> — фильтр <code>filter_location_id</code> и доступ (monthly, LTV, debts): smoke всех эндпоинтов, <code>none</code>, игнор без <code>locations.view</code>; monthly/LTV по <code>payments.location_id</code>, debts — по группе и <code>location_team</code></li>
     <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code> и фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code> и фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code> (включая фильтр локации)</li>

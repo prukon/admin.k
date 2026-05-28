@@ -140,7 +140,44 @@
     </tbody>
   </table>
 
-  <h2>5) Привязка тренера к группе (<code>trainer_profile_id</code>)</h2>
+  <h2 id="locations-view">5) Право <code>locations.view</code> — локации группы</h2>
+  <p>Permission справочника <a href="/docs/documentation/admin-locations">локаций</a>. На странице групп управляет привязкой к локациям (pivot <code>location_team</code>) и фильтром таблицы. Общая логика: <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Элемент UI</th>
+        <th>Без <code>locations.view</code></th>
+        <th>С <code>locations.view</code></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Модалки create/edit</td>
+        <td>Блок чекбоксов <code>location_ids[]</code> скрыт; ключ удаляется в <code>TeamController</code> до сохранения.</td>
+        <td>Чекбоксы активных локаций партнёра; пустой список при update снимает все привязки.</td>
+      </tr>
+      <tr>
+        <td>Фильтр таблицы</td>
+        <td>Селект «Локация» скрыт (<code>#filter-location</code>).</td>
+        <td>Пусто — все группы; <code>none</code> — только без привязок к локациям; id — группы, доступные в этой локации (привязанные + универсальные).</td>
+      </tr>
+      <tr>
+        <td>Колонка «Локации»</td>
+        <td>Нет в таблице и в «Поля списка».</td>
+        <td><code>locations_label</code> в JSON data; ключ <code>locations_label</code> в columns-settings.</td>
+      </tr>
+      <tr>
+        <td><code>GET /admin/team/{id}/edit</code></td>
+        <td>Без ключа <code>location_ids</code>.</td>
+        <td>Массив <code>location_ids</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>location_ids</code>, <code>location_ids.*</code> exists у <code>locations</code> текущего партнёра (только при <code>locations.view</code> в rules).</p>
+
+  <h2>6) Привязка тренера к группе (<code>trainer_profile_id</code>)</h2>
   <div class="note">
     Связь many-to-many <code>team_trainer</code>; в UI на группу — <strong>не более одного</strong> тренера (<code>TeamTrainerSyncService::syncTrainerForTeam</code>).<br>
     Сохранение: <code>POST /admin/teams</code>, <code>PATCH /admin/team/{id}</code> — поле <code>trainer_profile_id</code> (id из <code>trainer_profiles</code> текущего партнёра). Пустое значение снимает тренера с группы.<br>
@@ -148,16 +185,16 @@
     Обратная привязка из карточки тренера — <code>team_ids[]</code> на <code>/admin/trainers</code>. Подробнее: <a href="/docs/documentation/admin-trainers#team-link">Тренеры: привязка к группам</a>.
   </div>
 
-  <h2>6) Серверное поведение <code>GET /admin/teams/data</code></h2>
+  <h2>7) Серверное поведение <code>GET /admin/teams/data</code></h2>
   <ul>
-    <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), параметры DataTables (<code>draw</code>, <code>start</code>, <code>length</code>, <code>order</code>, <code>columns</code>).</li>
+    <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), <code>location_id</code> (id или <code>none</code>, только при <code>locations.view</code>), параметры DataTables.</li>
     <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>.</li>
     <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>weekdays_label</code>, <code>status_label</code>, <code>is_enabled</code>.</li>
-    <li><strong>Сортировка</strong> определяется по <code>columns[order.0.column].name</code>, а не только по индексу — чтобы работать при скрытых колонках «Тренер» / «Расписание». Поддерживаются: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>status_label</code>; <code>weekdays_label</code> и <code>actions</code> — сортировка по умолчанию (<code>order_by</code>, <code>title</code>).</li>
+    <li><strong>Сортировка</strong> по <code>columns[order.0.column].name</code>: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code> (join <code>location_team</code> → <code>locations</code>), <code>status_label</code>.</li>
     <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–4).</li>
   </ul>
 
-  <h2>7) Базовые роли и конфиг</h2>
+  <h2>8) Базовые роли и конфиг</h2>
   <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code>:</p>
   <ul>
     <li><code>groups.view</code> — есть (доступ к разделу групп);</li>
@@ -166,7 +203,7 @@
   </ul>
   <p>Общая модель прав: <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
 
-  <h2>8) Представления и код</h2>
+  <h2>9) Представления и код</h2>
   <ul>
     <li><code>resources/views/admin/team.blade.php</code> — таблица, «Поля списка», DataTables, настройки колонок.</li>
     <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки.</li>
@@ -175,7 +212,7 @@
     <li><code>app/Services/TeamService.php</code>, <code>TeamTrainerSyncService.php</code>.</li>
   </ul>
 
-  <h2>9) Автотесты</h2>
+  <h2>10) Автотесты</h2>
   <div class="note">
     <ul>
       <li><code>tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php</code> — колонка «Тренер»: UI, <code>trainer_label</code>, сортировка, «Поля списка».</li>
@@ -186,6 +223,7 @@
       <li><code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code> — <code>trainer_profile_id</code>, sync <code>team_trainer</code>.</li>
       <li><code>tests/Feature/Crm/Teams/TeamControllerTest.php</code> — CRUD, фильтры, изоляция партнёра.</li>
       <li><code>tests/Feature/Crm/Teams/TeamColumnsSettingsTest.php</code> — API настроек колонок.</li>
+      <li><code>tests/Feature/Crm/Teams/LocationTeamPivotFeatureTest.php</code>, <code>tests/Feature/Crm/LocationTeam/</code> — pivot локаций.</li>
     </ul>
   </div>
   <pre><code>php artisan test --env=testing \
@@ -195,6 +233,8 @@
 
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a> ·
+    <a href="/docs/documentation/admin-locations">Локации (админка)</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a> ·
     <a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> ·
     <a href="/docs/documentation/partners-permissions">Права партнёра</a>

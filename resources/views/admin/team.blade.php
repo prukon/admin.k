@@ -100,6 +100,19 @@
                                 </div>
                                 @endcan
 
+                                @can('locations.view')
+                                @if($locationOptions->isNotEmpty())
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="locations_label"
+                                           id="colLocations"
+                                           checked>
+                                    <label class="form-check-label" for="colLocations">Локации</label>
+                                </div>
+                                @endif
+                                @endcan
+
                                 @can('schedule.view')
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
@@ -159,6 +172,21 @@
                     </div>
                     @endcan
 
+                    @can('locations.view')
+                    @if($locationOptions->isNotEmpty())
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-location">Локация</label>
+                        <select id="filter-location" class="form-select">
+                            <option value="">Все локации</option>
+                            <option value="none">Без привязки к локациям</option>
+                            @foreach($locationOptions as $location)
+                                <option value="{{ $location->id }}">{{ $location->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
+                    @endcan
+
                     <div class="col-12 col-md-3">
                         <label class="form-label" for="filter-status">Статус</label>
                         <select id="filter-status" class="form-select">
@@ -186,6 +214,11 @@
                     @can('trainers.view')
                     <th>Тренер</th>
                     @endcan
+                    @can('locations.view')
+                    @if($locationOptions->isNotEmpty())
+                    <th>Локации</th>
+                    @endif
+                    @endcan
                     @can('schedule.view')
                     <th>Расписание</th>
                     @endcan
@@ -209,12 +242,14 @@
 
             const canViewSchedule = @json(auth()->user()->can('schedule.view'));
             const canViewTrainers = @json(auth()->user()->can('trainers.view'));
+            const canViewLocations = @json(auth()->user()->can('locations.view') && $locationOptions->isNotEmpty());
             const defaultFilterStatus = 'active';
 
             const defaultColumnsVisibility = {
                 order_by: true,
                 title: true,
                 ...(canViewTrainers ? { trainer_label: true } : {}),
+                ...(canViewLocations ? { locations_label: true } : {}),
                 ...(canViewSchedule ? { weekdays_label: true } : {}),
                 status_label: true,
                 actions: true
@@ -227,6 +262,9 @@
                 let idx = 3;
                 if (canViewTrainers) {
                     map.trainer_label = idx++;
+                }
+                if (canViewLocations) {
+                    map.locations_label = idx++;
                 }
                 if (canViewSchedule) {
                     map.weekdays_label = idx++;
@@ -297,7 +335,8 @@
                 return {
                     title: $('#filter-title').val() || '',
                     status: $('#filter-status').val() || '',
-                    trainer_profile_id: canViewTrainers ? ($('#filter-trainer').val() || '') : ''
+                    trainer_profile_id: canViewTrainers ? ($('#filter-trainer').val() || '') : '',
+                    location_id: canViewLocations ? ($('#filter-location').val() || '') : ''
                 };
             }
 
@@ -305,6 +344,7 @@
                 const params = teamsFilterParams();
                 return params.title !== ''
                     || params.trainer_profile_id !== ''
+                    || params.location_id !== ''
                     || params.status !== defaultFilterStatus;
             }
 
@@ -348,6 +388,19 @@
                 }
             };
 
+            const locationsColumn = {
+                data: 'locations_label',
+                name: 'locations_label',
+                orderable: true,
+                searchable: false,
+                render: function (data) {
+                    if (!data) {
+                        return '<span class="text-muted">Все</span>';
+                    }
+                    return '<span title="' + data + '">' + data + '</span>';
+                }
+            };
+
             const dataTableColumns = [
                 {
                     data: null,
@@ -382,6 +435,7 @@
                     }
                 },
                 ...(canViewTrainers ? [trainerColumn] : []),
+                ...(canViewLocations ? [locationsColumn] : []),
                 ...(canViewSchedule ? [scheduleColumn] : []),
                 {
                     data: 'status_label',
@@ -423,6 +477,9 @@
                         d.status = params.status;
                         if (canViewTrainers) {
                             d.trainer_profile_id = params.trainer_profile_id;
+                        }
+                        if (canViewLocations) {
+                            d.location_id = params.location_id;
                         }
                     }
                 },
@@ -477,6 +534,9 @@
                 $('#filter-status').val(defaultFilterStatus);
                 if (canViewTrainers) {
                     $('#filter-trainer').val('');
+                }
+                if (canViewLocations) {
+                    $('#filter-location').val('');
                 }
                 reloadTeamsTable();
             });

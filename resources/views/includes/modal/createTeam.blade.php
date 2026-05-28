@@ -66,6 +66,30 @@
                     </div>
                     @endcan
 
+                    @can('locations.view')
+                    @if($locationOptions->isNotEmpty())
+                    <div class="mb-3">
+                        <label class="form-label">Локации</label>
+                        <div class="border rounded p-2" style="max-height: 10rem; overflow-y: auto;">
+                            @foreach($locationOptions as $location)
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           name="location_ids[]"
+                                           id="create-location-{{ $location->id }}"
+                                           value="{{ $location->id }}">
+                                    <label class="form-check-label" for="create-location-{{ $location->id }}">
+                                        {{ $location->name }}
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="form-text">Если не выбрано ни одной локации, группа доступна во всех локациях.</div>
+                        <div id="location_ids-error" class="invalid-feedback d-block"></div>
+                    </div>
+                    @endif
+                    @endcan
+
                     @can('trainers.view')
                     <div class="mb-3">
                         <label for="trainer_profile_id" class="form-label">Тренер</label>
@@ -169,6 +193,14 @@
                             if (errors.trainer_profile_id?.length) {
                                 if (trainerInput) trainerInput.classList.add('is-invalid');
                                 if (trainerError) trainerError.textContent = errors.trainer_profile_id[0];
+                            }
+                            const locationIdsError = document.getElementById('location_ids-error');
+                            if (locationIdsError) locationIdsError.textContent = '';
+                            if (errors.location_ids?.length && locationIdsError) {
+                                locationIdsError.textContent = errors.location_ids[0];
+                            }
+                            if (errors['location_ids.0']?.length && locationIdsError) {
+                                locationIdsError.textContent = errors['location_ids.0'][0];
                             }
                             return;
                         }

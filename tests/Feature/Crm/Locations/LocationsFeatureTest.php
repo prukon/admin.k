@@ -184,9 +184,15 @@ final class LocationsFeatureTest extends CrmTestCase
             'id',
             'name',
             'address',
+            'teams_label',
+            'teams_label_full',
+            'teams_titles',
             'is_enabled',
             'is_enabled_label',
         ], array_keys($row));
+        $this->assertSame('', $row['teams_label']);
+        $this->assertSame('', $row['teams_label_full']);
+        $this->assertSame([], $row['teams_titles']);
         $this->assertSame('Нет', $row['is_enabled_label']);
         $this->assertSame(0, $row['is_enabled']);
     }

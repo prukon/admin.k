@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Crm\Users;
 
-use App\Models\Location;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
@@ -101,36 +100,6 @@ final class AdminUsersPageFeatureTest extends CrmTestCase
         $this->assertLessThan($columnsPos, $filtersPos);
     }
 
-    public function test_users_page_hides_location_filter_without_locations_view(): void
-    {
-        $actor = $this->createUserWithoutPermission('locations.view', $this->partner);
-        $this->actingAs($actor);
-        $this->grantUsersView($actor);
-
-        $this->get(route('admin.user1'))
-            ->assertOk()
-            ->assertDontSee('id="filter-location"', false)
-            ->assertDontSee('data-column-key="location"', false);
-    }
-
-    public function test_users_page_shows_location_filter_with_locations_view(): void
-    {
-        $this->asAdmin();
-        $this->grantUsersView($this->user);
-
-        Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Страница-локация-тест',
-            'is_enabled' => true,
-        ]);
-
-        $this->get(route('admin.user1'))
-            ->assertOk()
-            ->assertSee('id="filter-location"', false)
-            ->assertSee('Страница-локация-тест', false)
-            ->assertSee('data-column-key="location"', false);
-    }
-
   // --- DataTables: фильтры панели и стандартный поиск ---
 
     public function test_users_data_filters_by_panel_name_parameter(): void
@@ -215,16 +184,11 @@ final class AdminUsersPageFeatureTest extends CrmTestCase
         $this->grantUsersView($this->user);
 
         $team = Team::factory()->create(['partner_id' => $this->partner->id]);
-        $location = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'is_enabled' => true,
-        ]);
 
         User::factory()->create([
-            'partner_id'  => $this->partner->id,
-            'team_id'     => $team->id,
-            'location_id' => $location->id,
-            'is_enabled'  => 1,
+            'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
+            'is_enabled' => 1,
         ]);
 
         $queries = [
@@ -232,9 +196,7 @@ final class AdminUsersPageFeatureTest extends CrmTestCase
             '/admin/users/data?draw=1&start=0&length=10&status=inactive',
             '/admin/users/data?draw=1&start=0&length=10&team_id=' . $team->id,
             '/admin/users/data?draw=1&start=0&length=10&team_id=none',
-            '/admin/users/data?draw=1&start=0&length=10&location_id=' . $location->id,
-            '/admin/users/data?draw=1&start=0&length=10&location_id=none',
-            '/admin/users/data?draw=1&start=0&length=10&status=active&team_id=' . $team->id . '&location_id=' . $location->id,
+            '/admin/users/data?draw=1&start=0&length=10&status=active&team_id=' . $team->id,
         ];
 
         foreach ($queries as $url) {
@@ -286,10 +248,6 @@ final class AdminUsersPageFeatureTest extends CrmTestCase
 
         $roleId = $this->studentRoleId();
         $team = Team::factory()->create(['partner_id' => $this->partner->id]);
-        $location = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'is_enabled' => true,
-        ]);
 
         $existingField = UserField::factory()
             ->forPartner($this->partner->id)
@@ -302,7 +260,7 @@ final class AdminUsersPageFeatureTest extends CrmTestCase
 
         $this->getJson('/admin/users/data?draw=1&start=0&length=10')->assertOk();
         $this->getJson('/admin/users/data?draw=1&status=active&search[value]=test')->assertOk();
-        $this->getJson('/admin/users/data?draw=1&team_id=' . $team->id . '&location_id=' . $location->id)->assertOk();
+        $this->getJson('/admin/users/data?draw=1&team_id=' . $team->id)->assertOk();
 
         $this->getJson(route('admin.users.table-settings.get'))->assertOk();
         $this->postJson(route('admin.users.table-settings.save'), [

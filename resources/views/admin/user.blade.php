@@ -121,17 +121,6 @@
                                             <label class="form-check-label" for="colTeams">Группа</label>
                                         </div>
 
-                                        @can('locations.view')
-                                        <div class="form-check">
-                                            <input class="form-check-input column-toggle"
-                                                   type="checkbox"
-                                                   data-column-key="location"
-                                                   id="colLocation"
-                                                   checked>
-                                            <label class="form-check-label" for="colLocation">Локация</label>
-                                        </div>
-                                        @endcan
-
                                         <div class="form-check">
                                             <input class="form-check-input column-toggle"
                                                    type="checkbox"
@@ -205,19 +194,6 @@
                                 </select>
                             </div>
 
-                            @can('locations.view')
-                            <div class="col-12 col-md-3">
-                                <label class="form-label" for="filter-location">Локация</label>
-                                <select id="filter-location" class="form-select">
-                                    <option value="">Все локации</option>
-                                    <option value="none">Без локации</option>
-                                    @foreach($activeLocations as $location)
-                                        <option value="{{ $location->id }}">{{ $location->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            @endcan
-
                             <div class="col-12 col-md-3">
                                 <label class="form-label" for="filter-status">Статус</label>
                                 <select id="filter-status" class="form-select">
@@ -244,7 +220,6 @@
                             <th>Имя</th>
                             <th>Родитель</th>
                             <th>Группа</th>
-                            <th>Локация</th>
                             <th>Дата рождения</th>
                             <th>Email</th>
                             <th>Телефон</th>
@@ -270,7 +245,6 @@
     <script>
         $(document).ready(function () {
 
-            const canViewLocations = @json(auth()->user()->can('locations.view'));
             const defaultFilterStatus = 'active';
 
             const defaultColumnsVisibility = {
@@ -278,7 +252,6 @@
                 name: true,
                 parent: true,
                 teams: true,
-                location: canViewLocations,
                 birthday: true,
                 email: true,
                 phone: true,
@@ -293,12 +266,11 @@
                 name: 2,
                 parent: 3,
                 teams: 4,
-                location: 5,
-                birthday: 6,
-                email: 7,
-                phone: 8,
-                status_label: 9,
-                actions: 10
+                birthday: 5,
+                email: 6,
+                phone: 7,
+                status_label: 8,
+                actions: 9
             };
 
             function toBool(val, fallback = true) {
@@ -322,11 +294,6 @@
                     const colIndex = columnsMap[key];
                     const column = table.column(colIndex);
 
-                    if (key === 'location' && !canViewLocations) {
-                        column.visible(false);
-                        return;
-                    }
-
                     const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
 
                     column.visible(isVisible);
@@ -345,10 +312,6 @@
                         const merged = {};
 
                         Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            if (key === 'location' && !canViewLocations) {
-                                merged[key] = false;
-                                return;
-                            }
                             merged[key] = toBool(
                                 response.hasOwnProperty(key) ? response[key] : defaultColumnsVisibility[key],
                                 defaultColumnsVisibility[key]
@@ -369,7 +332,6 @@
                 return {
                     name: $('#filter-name').val() || '',
                     team_id: $('#filter-team').val() || '',
-                    location_id: canViewLocations ? ($('#filter-location').val() || '') : '',
                     status: $('#filter-status').val() || ''
                 };
             }
@@ -378,7 +340,6 @@
                 const params = usersFilterParams();
                 return params.name !== ''
                     || params.team_id !== ''
-                    || params.location_id !== ''
                     || params.status !== defaultFilterStatus;
             }
 
@@ -408,9 +369,6 @@
                         const params = usersFilterParams();
                         d.name = params.name;
                         d.team_id = params.team_id;
-                        if (canViewLocations) {
-                            d.location_id = params.location_id;
-                        }
                         d.status = params.status;
                     }
                 },
@@ -452,7 +410,6 @@
                     },
                     {data: 'parent', name: 'parent', defaultContent: ''},
                     {data: 'teams', name: 'teams', defaultContent: ''},
-                    {data: 'location', name: 'location', defaultContent: ''},
                     {data: 'birthday', name: 'birthday', defaultContent: ''},
                     {data: 'email', name: 'email', defaultContent: ''},
                     {data: 'phone', name: 'phone', defaultContent: ''},
@@ -528,9 +485,6 @@
             $('#filter-reset').on('click', function () {
                 $('#filter-name').val('');
                 $('#filter-team').val('');
-                if (canViewLocations) {
-                    $('#filter-location').val('');
-                }
                 $('#filter-status').val(defaultFilterStatus);
                 reloadUsersTable();
             });

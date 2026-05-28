@@ -16,7 +16,7 @@ use Tests\Feature\Crm\CrmTestCase;
 
 final class PaymentLedgerLocationTest extends CrmTestCase
 {
-    public function test_payment_ledger_recorder_sets_location_only_on_first_create(): void
+    public function test_payment_ledger_recorder_sets_location_only_on_first_create_when_passed(): void
     {
         $location = Location::factory()->create([
             'partner_id' => $this->partner->id,
@@ -25,7 +25,6 @@ final class PaymentLedgerLocationTest extends CrmTestCase
 
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,
-            'location_id' => $location->id,
         ]);
 
         $recorder = app(PaymentLedgerRecorder::class);
@@ -37,11 +36,10 @@ final class PaymentLedgerLocationTest extends CrmTestCase
             'operation_date' => now()->format('Y-m-d H:i:s'),
             'payment_month' => '2026-05-01',
             'summ' => '1000',
+            'location_id' => $location->id,
         ]);
 
         $this->assertSame($location->id, (int) $payment->location_id);
-
-        $student->update(['location_id' => null]);
 
         $paymentAgain = $recorder->record('999001', $this->partner->id, $student->id, [
             'user_id' => $student->id,
@@ -56,7 +54,25 @@ final class PaymentLedgerLocationTest extends CrmTestCase
         $this->assertSame('Test User Updated', $paymentAgain->fresh()->user_name);
     }
 
-    public function test_tbank_webhook_stores_user_location_on_payment_create(): void
+    public function test_payment_ledger_recorder_leaves_location_null_without_explicit_attribute(): void
+    {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        $payment = app(PaymentLedgerRecorder::class)->record('999002', $this->partner->id, $student->id, [
+            'user_id' => $student->id,
+            'user_name' => 'Test User',
+            'team_title' => 'Группа',
+            'operation_date' => now()->format('Y-m-d H:i:s'),
+            'payment_month' => '2026-05-01',
+            'summ' => '500',
+        ]);
+
+        $this->assertNull($payment->location_id);
+    }
+
+    public function test_tbank_webhook_does_not_set_payment_location_from_user(): void
     {
         Queue::fake();
 
@@ -72,13 +88,6 @@ final class PaymentLedgerLocationTest extends CrmTestCase
             'test_mode' => true,
             'is_enabled' => true,
         ]);
-
-        $location = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'is_enabled' => true,
-        ]);
-
-        $this->user->update(['location_id' => $location->id]);
 
         $payable = Payable::query()->create([
             'partner_id' => $this->partner->id,
@@ -132,6 +141,6 @@ final class PaymentLedgerLocationTest extends CrmTestCase
 
         $payment = Payment::query()->where('payment_number', '777222')->first();
         $this->assertNotNull($payment);
-        $this->assertSame($location->id, (int) $payment->location_id);
+        $this->assertNull($payment->location_id);
     }
 }

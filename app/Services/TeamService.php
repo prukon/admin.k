@@ -18,6 +18,7 @@ class TeamService
     public function __construct(
         PartnerContext $partnerContext,
         private readonly TeamTrainerSyncService $teamTrainerSync,
+        private readonly LocationTeamSyncService $locationTeamSync,
     ) {
         $this->partnerContext = $partnerContext;
     }
@@ -46,6 +47,10 @@ class TeamService
             : null;
         unset($data['trainer_profile_id']);
 
+        $locationsProvided = array_key_exists('location_ids', $data);
+        $locationIds = $locationsProvided ? (array) ($data['location_ids'] ?? []) : [];
+        unset($data['location_ids']);
+
         $team = Team::create($data);
 
         if (!empty($weekdays) && $team->id) {
@@ -54,6 +59,10 @@ class TeamService
 
         if ($trainerProvided) {
             $this->teamTrainerSync->syncTrainerForTeam($team, $trainerProfileId);
+        }
+
+        if ($locationsProvided) {
+            $this->locationTeamSync->syncLocationsForTeam($team, $locationIds);
         }
 
         return $team; // Возвращаем созданную команду
@@ -73,6 +82,10 @@ class TeamService
             : null;
         unset($data['trainer_profile_id']);
 
+        $locationsProvided = array_key_exists('location_ids', $data);
+        $locationIds = $locationsProvided ? (array) ($data['location_ids'] ?? []) : [];
+        unset($data['location_ids']);
+
         // Обновляем данные команды, проверяем, что команда действительно сохранена
         if ($team->update($data) && $team->exists && $team->id) {
             if ($weekdaysProvided) {
@@ -80,6 +93,9 @@ class TeamService
             }
             if ($trainerProvided) {
                 $this->teamTrainerSync->syncTrainerForTeam($team, $trainerProfileId);
+            }
+            if ($locationsProvided) {
+                $this->locationTeamSync->syncLocationsForTeam($team, $locationIds);
             }
         } else {
             throw new \Exception("Ошибка: команда не обновлена или team_id не существует.");

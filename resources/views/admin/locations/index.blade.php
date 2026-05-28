@@ -89,6 +89,17 @@
                                     <label class="form-check-label" for="colLocationAddress">Адрес</label>
                                 </div>
 
+                                @if($teamOptions->isNotEmpty())
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="teams_label"
+                                           id="colLocationTeams"
+                                           checked>
+                                    <label class="form-check-label" for="colLocationTeams">Группы</label>
+                                </div>
+                                @endif
+
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
                                            type="checkbox"
@@ -150,6 +161,9 @@
                     <th>№</th>
                     <th>Название</th>
                     <th>Адрес</th>
+                    @if($teamOptions->isNotEmpty())
+                    <th>Группы</th>
+                    @endif
                     <th>Активна</th>
                     @can('locations.manage')
                         <th>Действия</th>
@@ -196,6 +210,21 @@
                                 </select>
                                 <div class="invalid-feedback" data-error-for="is_enabled"></div>
                             </div>
+                            @if($teamOptions->isNotEmpty())
+                            <div class="mb-3 teams-multiselect-field">
+                                <label class="form-label" for="locationCreateTeamIds">Группы</label>
+                                <select id="locationCreateTeamIds"
+                                        name="team_ids[]"
+                                        class="form-select js-teams-multiselect-select"
+                                        multiple
+                                        data-placeholder="Выберите группы">
+                                    @foreach($teamOptions as $team)
+                                        <option value="{{ $team->id }}">{{ $team->title }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback d-block" data-error-for="team_ids"></div>
+                            </div>
+                            @endif
                         </form>
                     </div>
                     <div class="modal-footer">
@@ -242,6 +271,21 @@
                                 </select>
                                 <div class="invalid-feedback" data-error-for="is_enabled"></div>
                             </div>
+                            @if($teamOptions->isNotEmpty())
+                            <div class="mb-3 teams-multiselect-field">
+                                <label class="form-label" for="locationEditTeamIds">Группы</label>
+                                <select id="locationEditTeamIds"
+                                        name="team_ids[]"
+                                        class="form-select js-teams-multiselect-select"
+                                        multiple
+                                        data-placeholder="Выберите группы">
+                                    @foreach($teamOptions as $team)
+                                        <option value="{{ $team->id }}">{{ $team->title }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback d-block" data-error-for="team_ids"></div>
+                            </div>
+                            @endif
                         </form>
                     </div>
                     <div class="modal-footer">
@@ -255,16 +299,23 @@
     @endcan
 @endsection
 
+@if($teamOptions->isNotEmpty())
+    @include('partials.ui.hover-list-dropdown')
+    @include('partials.select2.teams-multiselect')
+@endif
+
 @push('scripts')
     <script>
         $(document).ready(function () {
             const canManageLocations = @json(auth()->user()->can('locations.manage'));
+            const hasTeamOptions = @json($teamOptions->isNotEmpty());
             const defaultFilterStatus = 'active';
 
             const defaultColumnsVisibility = {
                 id: true,
                 name: true,
                 address: true,
+                ...(hasTeamOptions ? { teams_label: true } : {}),
                 is_enabled_label: true,
                 ...(canManageLocations ? { actions: true } : {})
             };
@@ -272,9 +323,14 @@
             let currentColumnsConfig = {...defaultColumnsVisibility};
 
             const columnsMap = (function () {
-                const map = { id: 0, name: 1, address: 2, is_enabled_label: 3 };
+                const map = { id: 0, name: 1, address: 2 };
+                let idx = 3;
+                if (hasTeamOptions) {
+                    map.teams_label = idx++;
+                }
+                map.is_enabled_label = idx++;
                 if (canManageLocations) {
-                    map.actions = 4;
+                    map.actions = idx;
                 }
                 return map;
             })();
@@ -379,6 +435,26 @@
                         return data ? data : '<span class="text-muted">—</span>';
                     }
                 },
+                ...(hasTeamOptions ? [{
+                    data: 'teams_label',
+                    name: 'teams_label',
+                    defaultContent: '',
+                    render: function (data, type, row) {
+                        if (type !== 'display') {
+                            return data || '';
+                        }
+
+                        if (!data) {
+                            return '<span class="text-muted">—</span>';
+                        }
+
+                        if (window.KidsCrmHoverListDropdown) {
+                            return KidsCrmHoverListDropdown.renderCell(data, row.teams_titles || []);
+                        }
+
+                        return data;
+                    }
+                }] : []),
                 {
                     data: 'is_enabled_label',
                     name: 'is_enabled_label',
@@ -424,6 +500,12 @@
                 scrollX: true,
                 language: @include('partials.datatables.ru')
             });
+
+            if (hasTeamOptions && window.KidsCrmHoverListDropdown) {
+                table.on('draw.dt', function () {
+                    KidsCrmHoverListDropdown.init(document.getElementById('locations-table'));
+                });
+            }
 
             loadColumnsConfigFromServer();
             table.columns.adjust();
@@ -490,14 +572,32 @@
             function clearErrors(form) {
                 form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
                 form.querySelectorAll('[data-error-for]').forEach(el => el.textContent = '');
+                form.querySelectorAll('.js-teams-multiselect-select').forEach(function (select) {
+                    if (window.KidsCrmTeamsMultiselectSelect2) {
+                        KidsCrmTeamsMultiselectSelect2.clearInvalid($(select));
+                    }
+                });
             }
 
             function applyErrors(form, errors) {
                 Object.entries(errors || {}).forEach(([key, messages]) => {
-                    const input = form.querySelector(`[name="${key}"]`);
+                    const message = (messages && messages[0]) ? messages[0] : 'Ошибка';
+                    let input = form.querySelector(`[name="${key}"]`);
+
+                    if (!input && key === 'team_ids') {
+                        input = form.querySelector('[name="team_ids[]"]');
+                    }
+
                     const err = form.querySelector(`[data-error-for="${key}"]`);
-                    if (input) input.classList.add('is-invalid');
-                    if (err) err.textContent = (messages && messages[0]) ? messages[0] : 'Ошибка';
+                    if (input) {
+                        input.classList.add('is-invalid');
+                        if (window.KidsCrmTeamsMultiselectSelect2 && input.classList.contains('js-teams-multiselect-select')) {
+                            KidsCrmTeamsMultiselectSelect2.markInvalid($(input));
+                        }
+                    }
+                    if (err) {
+                        err.textContent = message;
+                    }
                 });
             }
 
@@ -520,6 +620,17 @@
 
             const createForm = document.getElementById('locationCreateForm');
             const editForm = document.getElementById('locationEditForm');
+            const $createTeamsSelect = $('#locationCreateTeamIds');
+            const $editTeamsSelect = $('#locationEditTeamIds');
+
+            if (hasTeamOptions && window.KidsCrmTeamsMultiselectSelect2) {
+                KidsCrmTeamsMultiselectSelect2.init($createTeamsSelect, {
+                    dropdownParent: $('#locationCreateModal')
+                });
+                KidsCrmTeamsMultiselectSelect2.init($editTeamsSelect, {
+                    dropdownParent: $('#locationEditModal')
+                });
+            }
 
             document.getElementById('locationCreateSubmit')?.addEventListener('click', async () => {
                 clearErrors(createForm);
@@ -530,6 +641,9 @@
                 }
                 if (ok) {
                     createForm.reset();
+                    if (window.KidsCrmTeamsMultiselectSelect2) {
+                        KidsCrmTeamsMultiselectSelect2.reset($createTeamsSelect);
+                    }
                     bootstrap.Modal.getInstance(document.getElementById('locationCreateModal'))?.hide();
                     reloadLocationsTable();
                 }
@@ -547,6 +661,9 @@
                 editForm.querySelector('[name="address"]').value = data.address || '';
                 editForm.querySelector('[name="description"]').value = data.description || '';
                 editForm.querySelector('[name="is_enabled"]').value = String(data.is_enabled ?? 1);
+                if (window.KidsCrmTeamsMultiselectSelect2) {
+                    KidsCrmTeamsMultiselectSelect2.setValues($editTeamsSelect, data.team_ids || []);
+                }
                 const modal = new bootstrap.Modal(document.getElementById('locationEditModal'));
                 modal.show();
             });

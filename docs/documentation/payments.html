@@ -63,9 +63,9 @@
   <h3><code>payments</code> (финансовый журнал)</h3>
   <ul>
     <li><b>Смысл</b>: фиксирует факт поступления денег.</li>
-    <li><b>Типично храним</b>: <code>partner_id</code>, <code>user_id</code>, <code>location_id</code> (снимок локации ученика на момент оплаты), <code>summ</code>, <code>operation_date</code>, <code>payment_number</code> (обычно = <code>provider_inv_id</code> / InvId).</li>
+    <li><b>Типично храним</b>: <code>partner_id</code>, <code>user_id</code>, <code>location_id</code> (опциональный снимок при первом create, только если передан явно), <code>summ</code>, <code>operation_date</code>, <code>payment_number</code> (обычно = <code>provider_inv_id</code> / InvId).</li>
     <li><b>Важно</b>: запись в <code>payments</code> появляется <b>только после успешного webhook</b>.</li>
-    <li><b>Локация в отчётах</b>: при первом создании строки в <code>payments</code> копируется <code>users.location_id</code> ученика в <code>payments.location_id</code> и дальше не обновляется при смене локации ученика. Используется в отчётах «Платежи», «Платежи по месяцам», LTV — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1). Отчёт «Задолженности» смотрит текущую <code>users.location_id</code>, не снимок в <code>payments</code>.</li>
+    <li><b>Локация в отчётах</b>: <code>payments.location_id</code> — опциональный снимок при первом создании строки (только если <code>location_id</code> передан в атрибутах записи); дальше не перезаписывается. Используется в отчётах «Платежи», «Платежи по месяцам», LTV — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1). Отчёт «Задолженности» фильтрует по группе ученика и <code>location_team</code>, не по <code>payments.location_id</code>.</li>
   </ul>
 
   <h3><code>users_prices</code> (состояние оплат по месяцам)</h3>
@@ -177,7 +177,7 @@
         <li><code>payment_intents.status=paid</code></li>
         <li><code>payables.status=paid</code></li>
         <li><code>user_custom_payment.is_paid=1</code> по <code>meta.user_period_price_id</code></li>
-        <li>создаём запись в <code>payments</code> для отчётов (в т.ч. <code>location_id</code> — локация ученика на момент оплаты)</li>
+        <li>создаём запись в <code>payments</code> для отчётов (<code>location_id</code> в снимке — только если явно передан в <code>PaymentLedgerRecorder</code>, см. блок «<code>payments</code> (финансовый журнал)» выше)</li>
       </ul>
     </li>
   </ol>
@@ -194,7 +194,7 @@
     <li>С кабинета в <code>POST /payment</code> передаются <code>payment_kind=lesson_package</code> и <code>user_lesson_package_id</code>. На шаблоне оплаты те же поля уходят в формы Робокассы и T‑Bank (включая СБП).</li>
     <li>На витрине (<code>TransactionController@index</code>) запись проверяется через <code>App\Services\Payments\UserLessonPackageFeePaymentResolver</code>: пользователь и партнёр, не оплачено, сумма &gt; 0. Если уже оплачено или сумма некорректна — <b>422</b> / <b>404</b>.</li>
     <li>При старте оплаты создаются <code>payables.type=lesson_package_fee</code>, <code>payment_intents</code> с <code>payable_id</code>.</li>
-    <li>При успешном webhook (Robokassa ResultURL, T‑Bank уведомление) в транзакции: <code>payables</code> и intent переводятся в оплаченные, создаётся <code>payments</code> (с <code>location_id</code> на момент оплаты), для строки <code>user_lesson_packages</code> выставляется <code>is_paid=true</code>.</li>
+    <li>При успешном webhook (Robokassa ResultURL, T‑Bank уведомление) в транзакции: <code>payables</code> и intent переводятся в оплаченные, создаётся <code>payments</code> (без автоматического <code>location_id</code> из карточки ученика), для строки <code>user_lesson_packages</code> выставляется <code>is_paid=true</code>.</li>
     <li>При успешном возврате (джобы <code>RobokassaProcessRefundJob</code>, <code>TinkoffProcessRefundJob</code> для соответствующего payable) для этой же строки <code>user_lesson_packages</code> сбрасывается <code>is_paid=false</code>.</li>
   </ol>
 

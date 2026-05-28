@@ -53,16 +53,8 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
         $this->assertSame('Мария Иванова', User::findOrFail($userId)->name);
     }
 
-    public function test_store_prefills_location_from_lead_via_validation(): void
+    public function test_store_ignores_location_id_and_links_lead(): void
     {
-        DB::table('permission_role')->insertOrIgnore([
-            'partner_id'    => $this->partner->id,
-            'role_id'       => $this->user->role_id,
-            'permission_id' => $this->permissionId('locations.view'),
-            'created_at'    => now(),
-            'updated_at'    => now(),
-        ]);
-
         $location = Location::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => true,
@@ -90,8 +82,8 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
         $response->assertOk();
 
         $user = User::findOrFail((int) $response->json('user.id'));
-        $this->assertSame($location->id, (int) $user->location_id);
         $this->assertSame($user->id, (int) $lead->fresh()->user_id);
+        $this->assertSame($location->id, (int) $lead->fresh()->location_id);
     }
 
     public function test_store_rejects_already_linked_school_lead(): void

@@ -123,7 +123,7 @@
     См. <a href="/docs/documentation/partner-context">партнёр-контекст</a>.
   </div>
   <h3>5.1) Интерфейс страницы списка</h3>
-  <p>View: <code>resources/views/admin/school-leads.blade.php</code>, стили toolbar — <code>resources/css/admin-list-toolbar.css</code> (как у отчёта <a href="/docs/documentation/reports-payments">«Платежи»</a>).</p>
+  <p>View: <code>resources/views/admin/school-leads.blade.php</code>, стили toolbar — <code>resources/css/admin-list-toolbar.css</code> (см. <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a> и отчёт <a href="/docs/documentation/reports-payments">«Платежи»</a>).</p>
   <ul>
     <li><b>Toolbar</b> — заголовок «Заявки с сайта», счётчики по всему партнёру (не зависят от фильтров таблицы):
       <ul>
@@ -201,7 +201,7 @@
     <li>При <code>locations.view</code>: столбец «Локация», обычный <code>&lt;select&gt;</code> в фильтре («Все локации» / «Без локации» / активные локации партнёра), поле в модалке. Отключённые и чужие локации недоступны; назначить их через API → 422.</li>
     <li>Без <code>locations.view</code>: UI локации скрыт; <code>location_id</code> в data и update игнорируется.</li>
   </ul>
-  <p class="small">Поведение как у <a href="/docs/documentation/admin-users">пользователей</a> (<code>filter-location</code>).</p>
+  <p class="small">Локация в заявках — отдельное поле <code>school_leads.location_id</code>; в карточке ученика локации нет (см. <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>).</p>
 
   <h3>5.4) Статусы и редактирование</h3>
   <p>Статусы: enum <code>App\Enums\SchoolLeadStatus</code> — <code>new</code>, <code>processing</code>, <code>sale</code>, <code>rejected</code>, <code>spam</code>.</p>
@@ -255,7 +255,7 @@
   </div>
   <ul>
     <li>Модалка — общий partial <code>resources/views/includes/modal/createUser.blade.php</code> (как на <a href="/docs/documentation/admin-users">/admin/users</a>), подключается на странице заявок при <code>users.view</code>.</li>
-    <li>При открытии из строки лида подставляются: <b>имя</b> (всё поле <code>name</code> заявки в «Имя ученика»), <b>телефон</b> (контакт в <code>users.phone</code>), <b>локация</b> (если <code>locations.view</code>). Фамилию ученика и блок «Данные родителя» (создание записи в <code>parents</code>) оператор заполняет вручную — см. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a> и <a href="/docs/documentation/parents-and-family-cabinet">parents-and-family-cabinet</a>.</li>
+    <li>При открытии из строки лида подставляются: <b>имя</b> (всё поле <code>name</code> заявки в «Имя ученика») и <b>телефон</b> (контакт в <code>users.phone</code>). Локация заявки (<code>school_leads.location_id</code>) в ученика <b>не переносится</b>. Фамилию и блок «Данные родителя» оператор заполняет вручную — см. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>.</li>
     <li>Скрытое поле формы: <code>school_lead_id</code>. Submit → <code>POST /admin/users</code> (<code>admin.user.store</code>, middleware <code>can:users.view</code>), не отдельный маршрут заявок.</li>
     <li>Валидация: опциональный <code>school_lead_id</code> в <code>App\Http\Requests\User\StoreRequest</code> — заявка того же партнёра, без <code>user_id</code>, не удалена. Иначе 422 (<code>school_lead_id.exists</code>).</li>
     <li>После успешного <code>store</code> в транзакции: <code>school_leads.user_id = {новый user id}</code>. Таблица заявок перезагружается без полной перезагрузки страницы.</li>
