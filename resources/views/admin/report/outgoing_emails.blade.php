@@ -228,6 +228,7 @@ $(function () {
             theme: 'bootstrap-5',
             width: '100%',
             placeholder: $mailable.data('placeholder') || '',
+            language: @include('partials.select2.ru'),
             allowClear: true,
             ajax: {
                 url: $mailable.data('search-url'),
@@ -246,6 +247,7 @@ $(function () {
             theme: 'bootstrap-5',
             width: '100%',
             placeholder: 'Все статусы',
+            language: @include('partials.select2.ru'),
             allowClear: true,
             multiple: true
         });

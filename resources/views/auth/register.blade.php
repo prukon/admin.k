@@ -208,7 +208,8 @@
             // Инициализация select2 с плейсхолдером
             $select.select2({
                 placeholder: '— Выберите партнёра —',
-                width: '100%'
+                width: '100%',
+                language: @include('partials.select2.ru')
             });
 
             // Повесили обработчик изменения

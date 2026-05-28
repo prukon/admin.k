@@ -355,6 +355,7 @@
                     theme: 'bootstrap-5',
                     width: '100%',
                     placeholder: $el.data('placeholder') || '',
+                    language: @include('partials.select2.ru'),
                     allowClear: true,
                     ajax: {
                         url: searchUrl,

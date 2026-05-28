@@ -53,9 +53,9 @@
                         data-search-url="{{ $parentSearchUrl }}">
                     <option value=""></option>
                 </select>
-                <div class="form-text">
+                {{-- <div class="form-text">
                     Начните вводить ФИО, чтобы найти существующего родителя (удобно, если у вас несколько детей).
-                </div>
+                </div> --}}
             </div>
         </div>
     @endif
@@ -294,6 +294,7 @@
                         width: '100%',
                         allowClear: true,
                         placeholder: 'ФИО родителя',
+                        language: @include('partials.select2.ru'),
                         minimumInputLength: 0,
                         ajax: {
                             url: searchUrl,

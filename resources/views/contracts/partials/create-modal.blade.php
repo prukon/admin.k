@@ -260,24 +260,11 @@
 
                 destroyContractUserSelect2();
 
-                $.fn.select2.defaults.set('language', {
-                    errorLoading: () => 'Не удалось загрузить результаты.',
-                    inputTooLong: args => `Сократите ввод на ${args.input.length - args.maximum} символ(а/ов).`,
-                    inputTooShort: args => {
-                        const n = Math.max(args.minimum - (args.input ? args.input.length : 0), 1);
-                        return `Введите ещё ${n} символ(а/ов).`;
-                    },
-                    loadingMore: () => 'Загрузка данных…',
-                    maximumSelected: args => `Можно выбрать не более ${args.maximum} элемент(а/ов).`,
-                    noResults: () => 'Ничего не найдено',
-                    searching: () => 'Поиск…',
-                    removeAllItems: () => 'Удалить все элементы'
-                });
-
                 $userSelect.select2({
                     theme: 'bootstrap-5',
                     width: '100%',
                     placeholder: $userSelect.data('placeholder') || '',
+                    language: @include('partials.select2.ru'),
                     allowClear: true,
                     minimumInputLength: 0,
                     dropdownParent: $('#createContractModal'),

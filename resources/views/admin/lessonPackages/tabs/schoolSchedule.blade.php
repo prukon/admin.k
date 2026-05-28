@@ -2163,6 +2163,7 @@
                         theme: 'bootstrap-5',
                         width: '100%',
                         placeholder: 'Поиск ученика',
+                        language: @include('partials.select2.ru'),
                         allowClear: true,
                         ajax: {
                             url: searchUrl,
@@ -2186,6 +2187,7 @@
                         theme: 'bootstrap-5',
                         width: '100%',
                         placeholder: 'Имя, фамилия или телефон',
+                        language: @include('partials.select2.ru'),
                         allowClear: false,
                         minimumInputLength: 0,
                         dropdownParent: $('#schoolCalSlotModal'),

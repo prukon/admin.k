@@ -46,14 +46,8 @@
                 <form id="custom-payment-create-form" novalidate>
                     <div class="mb-3">
                         <label class="form-label" for="custom-payment-user-id">Ученик</label>
-                        <select class="form-select" id="custom-payment-user-id" name="user_id" required>
-                            <option value="">Выберите ученика</option>
-                            @foreach(($users ?? []) as $u)
-                                @php
-                                    $fullName = trim(($u->lastname ?? '') . ' ' . ($u->name ?? ''));
-                                @endphp
-                                <option value="{{ $u->id }}">{{ $fullName !== '' ? $fullName : ('#' . $u->id) }}</option>
-                            @endforeach
+                        <select class="form-select" id="custom-payment-user-id" name="user_id" required data-placeholder="Выберите ученика">
+                            <option value=""></option>
                         </select>
                         <div class="invalid-feedback d-block custom-payment-field-error" data-field="user_id" style="display:none;"></div>
                     </div>
@@ -97,5 +91,43 @@
 </div>
 
 @push('scripts')
+    <script>
+        (function ($) {
+            function initCustomPaymentUserSelect2() {
+                var $userSelect = $('#custom-payment-user-id');
+                if (!$userSelect.length || !$.fn.select2) {
+                    return;
+                }
+
+                if ($userSelect.data('select2')) {
+                    $userSelect.select2('destroy');
+                }
+
+                $userSelect.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $userSelect.data('placeholder') || 'Выберите ученика',
+                    language: @include('partials.select2.ru'),
+                    allowClear: true,
+                    dropdownParent: $('#customPaymentCreateModal'),
+                    ajax: {
+                        url: @json(route('admin.settingPrices.customPayments.users-search')),
+                        delay: 250,
+                        data: function (params) {
+                            return { q: params.term || '' };
+                        },
+                        processResults: function (data) {
+                            return data;
+                        }
+                    },
+                    minimumInputLength: 0
+                });
+            }
+
+            $(function () {
+                initCustomPaymentUserSelect2();
+            });
+        })(window.jQuery);
+    </script>
     @vite(['resources/js/setting-prices-custom-payments.js', 'resources/js/setting-prices-manual-paid-modal.js'])
 @endpush

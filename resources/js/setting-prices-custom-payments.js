@@ -56,30 +56,6 @@
             });
         }
 
-        if (window.$ && $.fn && $.fn.select2) {
-            var $userSelect = $('#custom-payment-user-id');
-            if ($userSelect.length) {
-                $userSelect.select2({
-                    theme: 'bootstrap-5',
-                    width: '100%',
-                    placeholder: $userSelect.find('option:first').text() || 'Выберите ученика',
-                    allowClear: true,
-                    dropdownParent: $('#customPaymentCreateModal'),
-                    ajax: {
-                        url: '/admin/setting-prices/custom-payments/users-search',
-                        delay: 250,
-                        data: function (params) {
-                            return { q: params.term || '' };
-                        },
-                        processResults: function (data) {
-                            return data;
-                        }
-                    },
-                    minimumInputLength: 0
-                });
-            }
-        }
-
         var table = null;
         if (window.$ && $.fn && $.fn.DataTable) {
             table = $('#custom-payments-table').DataTable({

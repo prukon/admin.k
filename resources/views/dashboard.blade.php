@@ -747,6 +747,7 @@
                         theme: "bootstrap-5",
                         width: '100%',
                         placeholder: $('#single-select-user').data('placeholder'),
+                        language: @include('partials.select2.ru'),
                         templateResult: formatUserOption,
                         templateSelection: formatUserOption // Применяем кастомный шаблон для отображения выбранного элемента
                     });
@@ -973,6 +974,7 @@
                     theme: "bootstrap-5",
                     width: $(this).data('width') ? $(this).data('width') : $(this).hasClass('w-100') ? '100%' : 'style',
                     placeholder: $(this).data('placeholder'),
+                    language: @include('partials.select2.ru'),
                 });
             }
 
@@ -982,6 +984,7 @@
                     theme: "bootstrap-5",
                     width: $(this).data('width') ? $(this).data('width') : $(this).hasClass('w-100') ? '100%' : 'style',
                     placeholder: $(this).data('placeholder'),
+                    language: @include('partials.select2.ru'),
                 });
             }
 

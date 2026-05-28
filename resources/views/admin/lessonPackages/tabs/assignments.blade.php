@@ -246,6 +246,7 @@
                 theme: 'bootstrap-5',
                 width: '100%',
                 placeholder: 'Выберите ученика',
+                language: @include('partials.select2.ru'),
                 allowClear: true,
                 ajax: {
                     url: @json(route('admin.lesson-packages.assignments.users-search')),
