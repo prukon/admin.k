@@ -62,7 +62,6 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->postJson(route('admin.team.store'), [
             'title'                    => 'Created via full access test',
-            'type'                     => 'group',
             'default_duration_minutes' => 60,
             'order_by'                 => 99,
             'is_enabled'               => 1,
@@ -72,7 +71,6 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->patchJson(route('admin.team.update', $team->id), [
             'title'                    => 'Full access smoke updated',
-            'type'                     => 'group',
             'default_duration_minutes' => 60,
             'order_by'                 => $team->order_by,
             'is_enabled'               => (int) $team->is_enabled,
@@ -117,7 +115,6 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->postJson(route('admin.team.store'), [
             'title'                    => 'Created with groups.view only',
-            'type'                     => 'group',
             'default_duration_minutes' => 60,
             'order_by'                 => 7,
             'is_enabled'               => 1,
@@ -127,7 +124,6 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->patchJson(route('admin.team.update', $team->id), [
             'title'                    => 'Updated with groups.view only',
-            'type'                     => 'group',
             'default_duration_minutes' => 60,
             'order_by'                 => $team->order_by,
             'is_enabled'               => (int) $team->is_enabled,
@@ -255,7 +251,6 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->postJson(route('admin.team.store'), [
             'title'                    => 'Forbidden create',
-            'type'                     => 'group',
             'default_duration_minutes' => 60,
             'order_by'                 => 1,
             'is_enabled'               => 1,
@@ -273,7 +268,6 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->patchJson(route('admin.team.update', $team->id), [
             'title'                    => 'Forbidden update',
-            'type'                     => 'group',
             'default_duration_minutes' => 60,
             'order_by'                 => $team->order_by,
             'is_enabled'               => 1,
@@ -304,11 +298,11 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
             fn () => $this->get(route('logs.data.team')),
             fn () => $this->getJson(route('admin.team.edit', $team->id)),
             fn () => $this->postJson(route('admin.team.store'), [
-                'title' => 'x', 'type' => 'group', 'default_duration_minutes' => 60,
+                'title' => 'x', 'default_duration_minutes' => 60,
                 'order_by' => 1, 'is_enabled' => 1,
             ]),
             fn () => $this->patchJson(route('admin.team.update', $team->id), [
-                'title' => 'x', 'type' => 'group', 'default_duration_minutes' => 60,
+                'title' => 'x', 'default_duration_minutes' => 60,
                 'order_by' => 1, 'is_enabled' => 1,
             ]),
             fn () => $this->deleteJson(route('admin.team.delete', $team->id)),

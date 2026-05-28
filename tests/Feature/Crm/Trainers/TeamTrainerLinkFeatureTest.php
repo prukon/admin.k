@@ -48,7 +48,6 @@ final class TeamTrainerLinkFeatureTest extends CrmTestCase
 
         $this->patchJson("/admin/team/{$team->id}", [
             'title' => $team->title,
-            'type' => 'group',
             'is_enabled' => 1,
             'trainer_profile_id' => $profile->id,
         ])->assertOk();
@@ -71,7 +70,6 @@ final class TeamTrainerLinkFeatureTest extends CrmTestCase
 
         $this->patchJson("/admin/team/{$team->id}", [
             'title' => $team->title,
-            'type' => 'group',
             'is_enabled' => 1,
             'trainer_profile_id' => $profile->id,
         ])->assertOk();
@@ -94,14 +92,12 @@ final class TeamTrainerLinkFeatureTest extends CrmTestCase
 
         $this->patchJson("/admin/team/{$team->id}", [
             'title' => $team->title,
-            'type' => 'group',
             'is_enabled' => 1,
             'trainer_profile_id' => $trainerA->id,
         ])->assertOk();
 
         $this->patchJson("/admin/team/{$team->id}", [
             'title' => $team->title,
-            'type' => 'group',
             'is_enabled' => 1,
             'trainer_profile_id' => $trainerB->id,
         ])->assertOk();

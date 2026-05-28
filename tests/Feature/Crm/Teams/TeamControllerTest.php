@@ -344,7 +344,6 @@ class TeamControllerTest extends CrmTestCase
     {
         $payload = [
             'title'      => 'Новая группа',
-            'type'       => 'group',
             'default_duration_minutes' => 60,
             'order_by'   => 15,
             'is_enabled' => 1,
@@ -362,7 +361,6 @@ class TeamControllerTest extends CrmTestCase
         $team = Team::where('title', 'Новая группа')->first();
         $this->assertNotNull($team);
         $this->assertEquals($this->partner->id, $team->partner_id);
-        $this->assertEquals('group', $team->type);
         $this->assertEquals(60, $team->default_duration_minutes);
         $this->assertEquals(15, $team->order_by);
 
@@ -384,7 +382,6 @@ class TeamControllerTest extends CrmTestCase
         $this->assertEquals($this->partner->id, $log->partner_id);
         $this->assertEquals($team->title, $log->target_label);
         $this->assertStringContainsString('Название:', $log->description);
-        $this->assertStringContainsString('Тип:', $log->description);
         $this->assertStringContainsString('Длительность по умолчанию (мин):', $log->description);
         $this->assertStringContainsString('Дни недели:', $log->description);
         $this->assertStringContainsString('Сортировка:', $log->description);
@@ -395,7 +392,6 @@ class TeamControllerTest extends CrmTestCase
     {
         $payload = [
             'title'      => 'Группа без ajax',
-            'type'       => 'individual',
             'default_duration_minutes' => 45,
             'order_by'   => 20,
             'is_enabled' => 0,
@@ -410,7 +406,6 @@ class TeamControllerTest extends CrmTestCase
         $team = Team::where('title', 'Группа без ajax')->first();
         $this->assertNotNull($team);
         $this->assertEquals($this->partner->id, $team->partner_id);
-        $this->assertEquals('individual', $team->type);
         $this->assertEquals(45, $team->default_duration_minutes);
     }
 
@@ -424,7 +419,6 @@ class TeamControllerTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
             'title'      => 'Редактируемая группа',
-            'type'       => 'individual',
             'default_duration_minutes' => 50,
         ]);
 
@@ -438,7 +432,6 @@ class TeamControllerTest extends CrmTestCase
 
         $this->assertEquals($team->id, $json['id']);
         $this->assertEquals($team->title, $json['title']);
-        $this->assertEquals($team->type, $json['type']);
         $this->assertEquals($team->default_duration_minutes, $json['default_duration_minutes']);
         $this->assertEquals($team->order_by, $json['order_by']);
         $this->assertEquals($team->is_enabled, $json['is_enabled']);
@@ -482,7 +475,6 @@ class TeamControllerTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
             'title'      => 'Старая группа',
-            'type'       => 'group',
             'default_duration_minutes' => 60,
             'order_by'   => 10,
             'is_enabled' => 1,
@@ -495,7 +487,6 @@ class TeamControllerTest extends CrmTestCase
 
         $payload = [
             'title'      => 'Новая группа',
-            'type'       => 'individual',
             'default_duration_minutes' => 55,
             'order_by'   => 25,
             'is_enabled' => 0,
@@ -509,7 +500,6 @@ class TeamControllerTest extends CrmTestCase
 
         $team->refresh();
         $this->assertEquals('Новая группа', $team->title);
-        $this->assertEquals('individual', $team->type);
         $this->assertEquals(55, $team->default_duration_minutes);
         $this->assertEquals(25, $team->order_by);
         $this->assertEquals(0, $team->is_enabled);
@@ -526,48 +516,10 @@ class TeamControllerTest extends CrmTestCase
 
         $this->assertNotNull($log);
         $this->assertStringContainsString('Название:', $log->description);
-        $this->assertStringContainsString('Тип:', $log->description);
         $this->assertStringContainsString('Длительность по умолчанию (мин):', $log->description);
         $this->assertStringContainsString('Дни недели:', $log->description);
         $this->assertStringContainsString('Сортировка:', $log->description);
         $this->assertStringContainsString('Активность:', $log->description);
-    }
-
-    public function test_store_returns_422_when_type_missing(): void
-    {
-        $payload = [
-            'title' => 'Без типа',
-            'order_by' => 10,
-            'is_enabled' => 1,
-            'weekdays' => [],
-        ];
-
-        $this->postJson('/admin/teams', $payload, [
-            'X-Requested-With' => 'XMLHttpRequest',
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['type']);
-    }
-
-    public function test_update_returns_422_when_type_invalid(): void
-    {
-        $team = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'type' => 'group',
-            'default_duration_minutes' => 60,
-        ]);
-
-        $payload = [
-            'title' => $team->title,
-            'type' => 'wrong',
-            'default_duration_minutes' => 60,
-            'order_by' => $team->order_by,
-            'is_enabled' => (int) $team->is_enabled,
-            'weekdays' => [],
-        ];
-
-        $this->patchJson("/admin/team/{$team->id}", $payload)
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['type']);
     }
 
     public function test_update_returns_404_for_team_of_another_partner()
@@ -580,7 +532,6 @@ class TeamControllerTest extends CrmTestCase
 
         $payload = [
             'title'      => 'Попытка взлома',
-            'type'       => 'group',
             'default_duration_minutes' => 60,
             'order_by'   => 99,
             'is_enabled' => 0,
@@ -603,7 +554,6 @@ class TeamControllerTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
             'title'      => 'Без изменений',
-            'type'       => 'group',
             'default_duration_minutes' => 60,
             'order_by'   => 5,
             'is_enabled' => 1,
@@ -619,7 +569,6 @@ class TeamControllerTest extends CrmTestCase
 
         $payload = [
             'title'      => $team->title,
-            'type'       => $team->type,
             'default_duration_minutes' => $team->default_duration_minutes,
             'order_by'   => $team->order_by,
             'is_enabled' => $team->is_enabled,

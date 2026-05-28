@@ -41,7 +41,6 @@ final class LocationTeamPivotFeatureTest extends CrmTestCase
         $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->postJson(route('admin.team.store'), [
             'title' => 'Группа с локациями',
-            'type' => 'group',
             'is_enabled' => 1,
             'location_ids' => [$locA->id, $locB->id],
             ]);
@@ -79,7 +78,6 @@ final class LocationTeamPivotFeatureTest extends CrmTestCase
 
         $this->patchJson(route('admin.team.update', ['id' => $team->id]), [
             'title' => $team->title,
-            'type' => 'group',
             'is_enabled' => 1,
             'location_ids' => [],
         ])->assertOk();

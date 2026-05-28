@@ -193,7 +193,6 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
 
         $response = $this->postJson(route('admin.team.store'), [
             'title' => 'Без права локаций',
-            'type' => 'group',
             'is_enabled' => 1,
             'location_ids' => [$loc->id],
         ], ['X-Requested-With' => 'XMLHttpRequest']);

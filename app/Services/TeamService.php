@@ -138,9 +138,8 @@ class TeamService
             }
 
             $description = sprintf(
-                "Название: %s\nТип: %s\nДлительность по умолчанию (мин): %s\nДни недели: %s\nСортировка: %s\nАктивность: %s",
+                "Название: %s\nДлительность по умолчанию (мин): %s\nДни недели: %s\nСортировка: %s\nАктивность: %s",
                 $team->title ?? '-',
-                ($data['type'] ?? 'group') === 'individual' ? 'индивидуально' : 'группа',
                 $data['default_duration_minutes'] ?? '-',
                 implode(', ', $weekdaysFormatted) ?: '-',
                 $data['order_by'] ?? '-',

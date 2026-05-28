@@ -28,7 +28,6 @@ class StoreRequest extends FormRequest
     {
         $rules = [
             'title' => 'required|string',
-            'type' => 'required|string|in:group,individual',
             'default_duration_minutes' => 'nullable|integer|min:1|max:600',
             'weekdays' => 'nullable|array',
             'is_enabled' => 'boolean',
@@ -69,7 +68,6 @@ class StoreRequest extends FormRequest
     {
         return [
             'title' => 'название группы',
-            'type' => 'тип',
             'trainer_profile_id' => 'тренер',
             'location_ids' => 'локации',
             'location_ids.*' => 'локация',
@@ -81,8 +79,6 @@ class StoreRequest extends FormRequest
         return [
             'title.required' => 'Введите название',
             'title.string' => 'Введите название',
-            'type.required' => 'Укажите тип',
-            'type.in' => 'Некорректный тип',
             'default_duration_minutes.integer' => 'Длительность должна быть числом (в минутах)',
             'default_duration_minutes.min' => 'Длительность должна быть больше 0 минут',
             'default_duration_minutes.max' => 'Длительность слишком большая',

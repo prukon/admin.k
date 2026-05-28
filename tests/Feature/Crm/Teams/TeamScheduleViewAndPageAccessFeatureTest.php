@@ -62,7 +62,6 @@ class TeamScheduleViewAndPageAccessFeatureTest extends CrmTestCase
 
         $this->patchJson("/admin/team/{$team->id}", [
             'title'                    => 'Endpoint smoke group updated',
-            'type'                     => 'group',
             'default_duration_minutes' => 60,
             'order_by'                 => $team->order_by,
             'is_enabled'               => (int) $team->is_enabled,
@@ -148,7 +147,6 @@ class TeamScheduleViewAndPageAccessFeatureTest extends CrmTestCase
 
         $this->patchJson("/admin/team/{$team->id}", [
             'title'                    => 'Weekday lock renamed',
-            'type'                     => 'group',
             'default_duration_minutes' => 60,
             'order_by'                 => $team->order_by,
             'is_enabled'               => (int) $team->is_enabled,
@@ -178,7 +176,6 @@ class TeamScheduleViewAndPageAccessFeatureTest extends CrmTestCase
 
         $this->patchJson("/admin/team/{$team->id}", [
             'title'                    => $team->title,
-            'type'                     => 'group',
             'default_duration_minutes' => 60,
             'order_by'                 => $team->order_by,
             'is_enabled'               => (int) $team->is_enabled,
@@ -195,7 +192,6 @@ class TeamScheduleViewAndPageAccessFeatureTest extends CrmTestCase
     {
         $this->postJson('/admin/teams', [
             'title'                    => 'No weekdays in form',
-            'type'                     => 'group',
             'default_duration_minutes' => 60,
             'order_by'                 => 10,
             'is_enabled'               => 1,

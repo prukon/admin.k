@@ -20,15 +20,6 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="edit-type" class="form-label">Тип*</label>
-                        <select name="type" class="form-control" id="edit-type">
-                            <option value="group">Группа</option>
-                            <option value="individual">Индивидуально (1 на 1)</option>
-                        </select>
-                        <div class="invalid-feedback" id="edit-type-error"></div>
-                    </div>
-
-                    <div class="mb-3">
                         <label for="edit-default_duration_minutes" class="form-label">Длительность по умолчанию (мин)</label>
                         <input type="number" min="1" max="600" name="default_duration_minutes" class="form-control" id="edit-default_duration_minutes">
                         <div class="invalid-feedback" id="edit-default_duration_minutes-error"></div>
@@ -141,7 +132,6 @@
                     // Основные поля
                     $('#edit-team-id').val(response.id);
                     $('#edit-title').val(response.title);
-                    $('#edit-type').val(response.type ?? 'group');
                     $('#edit-default_duration_minutes').val(response.default_duration_minutes ?? '');
                     $('#edit-order_by').val(response.order_by ?? '');
                     $('#edit-activity').val(response.is_enabled);
@@ -205,8 +195,6 @@
             // Сброс ошибок
             $('#edit-title').removeClass('is-invalid');
             $('#edit-title-error').text('');
-            $('#edit-type').removeClass('is-invalid');
-            $('#edit-type-error').text('');
             $('#edit-default_duration_minutes').removeClass('is-invalid');
             $('#edit-default_duration_minutes-error').text('');
             $('#edit-trainer-profile-id').removeClass('is-invalid');
@@ -230,10 +218,6 @@
                         if (errors.title && errors.title.length) {
                             $('#edit-title').addClass('is-invalid');
                             $('#edit-title-error').text(errors.title[0]);
-                        }
-                        if (errors.type && errors.type.length) {
-                            $('#edit-type').addClass('is-invalid');
-                            $('#edit-type-error').text(errors.type[0]);
                         }
                         if (errors.default_duration_minutes && errors.default_duration_minutes.length) {
                             $('#edit-default_duration_minutes').addClass('is-invalid');

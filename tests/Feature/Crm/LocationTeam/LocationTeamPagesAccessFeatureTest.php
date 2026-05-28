@@ -110,7 +110,6 @@ final class LocationTeamPagesAccessFeatureTest extends CrmTestCase
 
         $store = $this->postJson(route('admin.team.store'), [
             'title' => 'Pivot access team',
-            'type' => 'group',
             'default_duration_minutes' => 60,
             'order_by' => 1,
             'is_enabled' => 1,
@@ -125,7 +124,6 @@ final class LocationTeamPagesAccessFeatureTest extends CrmTestCase
 
         $this->patchJson(route('admin.team.update', ['id' => $teamId]), [
             'title' => 'Pivot access team updated',
-            'type' => 'group',
             'default_duration_minutes' => 60,
             'order_by' => 1,
             'is_enabled' => 1,
@@ -263,7 +261,7 @@ final class LocationTeamPagesAccessFeatureTest extends CrmTestCase
             fn () => $this->get(route('admin.locations.index')),
             fn () => $this->getJson(route('admin.locations.data', ['draw' => 1])),
             fn () => $this->postJson(route('admin.team.store'), [
-                'title' => 'x', 'type' => 'group', 'is_enabled' => 1, 'location_ids' => [$location->id],
+                'title' => 'x', 'is_enabled' => 1, 'location_ids' => [$location->id],
             ]),
             fn () => $this->postJson(route('admin.locations.store'), [
                 'name' => 'x', 'is_enabled' => 1, 'team_ids' => [$team->id],

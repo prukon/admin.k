@@ -25,15 +25,6 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="type" class="form-label">Тип*</label>
-                        <select name="type" class="form-control" id="type">
-                            <option value="group" selected>Группа</option>
-                            <option value="individual">Индивидуально (1 на 1)</option>
-                        </select>
-                        <div id="type-error" class="invalid-feedback"></div>
-                    </div>
-
-                    <div class="mb-3">
                         <label for="default_duration_minutes" class="form-label">Длительность по умолчанию (мин)</label>
                         <input type="number"
                                min="1"
@@ -163,10 +154,6 @@
                         const titleError = document.getElementById('title-error');
                         titleInput.classList.remove('is-invalid');
                         if (titleError) titleError.textContent = '';
-                        const typeInput = document.getElementById('type');
-                        const typeError = document.getElementById('type-error');
-                        typeInput.classList.remove('is-invalid');
-                        if (typeError) typeError.textContent = '';
                         const durationInput = document.getElementById('default_duration_minutes');
                         const durationError = document.getElementById('default_duration_minutes-error');
                         durationInput.classList.remove('is-invalid');
@@ -177,10 +164,6 @@
                             if (errors.title?.length) {
                                 titleInput.classList.add('is-invalid');
                                 if (titleError) titleError.textContent = errors.title[0];
-                            }
-                            if (errors.type?.length) {
-                                typeInput.classList.add('is-invalid');
-                                if (typeError) typeError.textContent = errors.type[0];
                             }
                             if (errors.default_duration_minutes?.length) {
                                 durationInput.classList.add('is-invalid');
