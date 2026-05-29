@@ -566,15 +566,14 @@
                 console.log('Применение нового пароля для пользователя с ID:', userId);
                 var newPassword = $('#new-password').val();
                 var token = $('input[name="_token"]').val();
-                var errorMessage = $('#error-modal-message');
+                var $passwordError = $('#error-message');
 
                 // Проверка длины пароля
                 if (newPassword.length < 8) {
-                    errorMessage.show(); // Показываем сообщение об ошибке
-                    return; // Прерываем выполнение, если пароль слишком короткий
-                } else {
-                    errorMessage.hide(); // Скрываем сообщение об ошибке
+                    $passwordError.show();
+                    return;
                 }
+                $passwordError.hide();
 
                 $.ajax({
                     url: `/admin/user/${userId}/update-password`,
@@ -594,17 +593,19 @@
                             showSuccessModal("Обновление пароля", "Пароль успешно обновлен.");
                         }
                     },
-                    // error: function () {
-                    //     $('#errorModal').modal('show');
-                    // }
-
                     error: function (response) {
-                        let errorMessage = 'Произошла ошибка при сохранении данных.';
-                        if (response.responseJSON && response.responseJSON.message) {
-                            errorMessage = response.responseJSON.message; // Используем сообщение с сервера, если оно есть
+                        if (typeof eroorRespone === 'function') {
+                            eroorRespone(response);
+                        } else {
+                            let msg = 'Произошла ошибка при сохранении данных.';
+                            if (response.responseJSON?.errors) {
+                                msg = Object.values(response.responseJSON.errors).flat().join('\n');
+                            } else if (response.responseJSON?.message) {
+                                msg = response.responseJSON.message;
+                            }
+                            $('#error-modal-message').text(msg).show();
+                            $('#errorModal').modal('show');
                         }
-                        $('#error-modal-message').text(errorMessage); // Устанавливаем сообщение ошибки
-                        $('#errorModal').modal('show');    // Показываем модалку ошибки
                     }
                 });
             });
