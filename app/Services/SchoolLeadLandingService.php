@@ -21,11 +21,11 @@ final class SchoolLeadLandingService
     ) {
     }
 
-    public function resolveActiveWidget(string $landingKey): PartnerWidget
+    public function resolveActiveWidget(string $landingSlug): PartnerWidget
     {
         return PartnerWidget::query()
             ->with('partner')
-            ->where('landing_key', $landingKey)
+            ->where('landing_slug', $landingSlug)
             ->where('is_landing_active', true)
             ->firstOrFail();
     }

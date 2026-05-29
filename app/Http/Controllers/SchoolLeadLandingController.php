@@ -19,9 +19,9 @@ class SchoolLeadLandingController extends Controller
     ) {
     }
 
-    public function show(string $landingKey): View
+    public function show(string $landingSlug): View
     {
-        $widget = $this->landing->resolveActiveWidget($landingKey);
+        $widget = $this->landing->resolveActiveWidget($landingSlug);
         $partner = $widget->partner;
 
         if ($partner === null) {
@@ -34,15 +34,15 @@ class SchoolLeadLandingController extends Controller
             'partner'          => $partner,
             'locations'        => $locations,
             'recaptchaSiteKey' => config('services.recaptcha.site_key'),
-            'submitUrl'        => route('lead.submit', ['landingKey' => $landingKey]),
-            'teamsUrl'         => route('lead.teams', ['landingKey' => $landingKey]),
-            'teamInfoUrl'      => route('lead.team-info', ['landingKey' => $landingKey]),
+            'submitUrl'        => route('lead.submit', ['landingSlug' => $landingSlug]),
+            'teamsUrl'         => route('lead.teams', ['landingSlug' => $landingSlug]),
+            'teamInfoUrl'      => route('lead.team-info', ['landingSlug' => $landingSlug]),
         ]);
     }
 
-    public function teamInfo(Request $request, string $landingKey): JsonResponse
+    public function teamInfo(Request $request, string $landingSlug): JsonResponse
     {
-        $widget = $this->landing->resolveActiveWidget($landingKey);
+        $widget = $this->landing->resolveActiveWidget($landingSlug);
 
         $locationId = (int) $request->query('location_id', 0);
         $teamId = (int) $request->query('team_id', 0);
@@ -71,9 +71,9 @@ class SchoolLeadLandingController extends Controller
         ]);
     }
 
-    public function teams(Request $request, string $landingKey): JsonResponse
+    public function teams(Request $request, string $landingSlug): JsonResponse
     {
-        $widget = $this->landing->resolveActiveWidget($landingKey);
+        $widget = $this->landing->resolveActiveWidget($landingSlug);
 
         $locationId = (int) $request->query('location_id', 0);
         if ($locationId <= 0) {
@@ -90,7 +90,7 @@ class SchoolLeadLandingController extends Controller
         ]);
     }
 
-    public function submit(SubmitSchoolLeadLandingRequest $request, string $landingKey): JsonResponse
+    public function submit(SubmitSchoolLeadLandingRequest $request, string $landingSlug): JsonResponse
     {
         $recaptchaResult = $this->recaptcha->verifyRequest($request);
         if (!$recaptchaResult['ok']) {
@@ -99,7 +99,7 @@ class SchoolLeadLandingController extends Controller
             ], $recaptchaResult['status']);
         }
 
-        $widget = $this->landing->resolveActiveWidget($landingKey);
+        $widget = $this->landing->resolveActiveWidget($landingSlug);
 
         try {
             $schoolLead = $this->landing->createFromRequest($request, $widget);

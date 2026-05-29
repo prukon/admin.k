@@ -117,7 +117,8 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
         $this->actingAs($actor);
 
         $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
-        $landingUrl = route('lead.show', ['landingKey' => $widget->landing_key]);
+        $widget->update(['landing_slug' => 'crm-test-school']);
+        $landingUrl = route('lead.show', ['landingSlug' => 'crm-test-school']);
 
         $this->get(route('admin.school-leads.landing'))
             ->assertOk()
@@ -129,6 +130,8 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('>Страница заявки</a>', false)
             ->assertSee('nav-link active', false)
             ->assertSee('>Заявки</a>', false)
+            ->assertSee('id="landingSlugForm"', false)
+            ->assertSee('id="landingSlugInput"', false)
             ->assertSee('id="landingUrl"', false)
             ->assertSee('id="copyLandingUrlBtn"', false)
             ->assertSee('id="copyLandingSuccess"', false)
@@ -138,24 +141,108 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('Брендированная страница с полной формой заявки', false);
     }
 
-    public function test_landing_url_in_view_matches_partner_widget_landing_key(): void
+    public function test_landing_url_in_view_matches_partner_widget_landing_slug(): void
     {
         $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
         $this->grantPermission($actor, 'schoolLeadLanding.view');
         $this->actingAs($actor);
 
         $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
-
-        $this->assertSame(48, strlen($widget->landing_key));
+        $widget->update(['landing_slug' => 'shkola-rossi']);
 
         $response = $this->get(route('admin.school-leads.landing'))->assertOk();
 
         $landingUrl = $response->viewData('landingUrl');
         $this->assertSame(
-            route('lead.show', ['landingKey' => $widget->landing_key]),
+            route('lead.show', ['landingSlug' => 'shkola-rossi']),
             $landingUrl
         );
-        $this->assertStringContainsString($widget->landing_key, (string) $landingUrl);
+        $this->assertStringContainsString('/lead/shkola-rossi', (string) $landingUrl);
+    }
+
+    public function test_landing_url_null_when_slug_not_set(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+        $widget->update(['landing_slug' => null]);
+
+        $this->get(route('admin.school-leads.landing'))
+            ->assertOk()
+            ->assertViewHas('landingUrl', null)
+            ->assertSee('Сохраните адрес страницы', false);
+    }
+
+    public function test_update_landing_slug_saves_and_returns_url(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+
+        $this->putJson(route('admin.school-leads.landing-slug.update'), [
+            'landing_slug' => 'fk-dinamo',
+        ])
+            ->assertOk()
+            ->assertJsonPath('landing_slug', 'fk-dinamo')
+            ->assertJsonPath('landing_url', route('lead.show', ['landingSlug' => 'fk-dinamo']));
+
+        $this->assertDatabaseHas('partner_widgets', [
+            'partner_id'   => $this->partner->id,
+            'landing_slug' => 'fk-dinamo',
+        ]);
+    }
+
+    public function test_update_landing_slug_rejects_reserved_slug(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+
+        $this->putJson(route('admin.school-leads.landing-slug.update'), [
+            'landing_slug' => 'admin',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['landing_slug']);
+    }
+
+    public function test_user_with_only_landing_permission_can_update_slug(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeads.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+
+        $this->putJson(route('admin.school-leads.landing-slug.update'), [
+            'landing_slug' => 'only-landing-perm',
+        ])
+            ->assertOk()
+            ->assertJsonPath('landing_slug', 'only-landing-perm');
+    }
+
+    public function test_update_landing_slug_rejects_duplicate(): void
+    {
+        $otherPartner = \App\Models\Partner::factory()->create();
+        $otherWidget = app(PartnerWidgetService::class)->ensureForPartner((int) $otherPartner->id);
+        $otherWidget->update(['landing_slug' => 'taken-slug']);
+
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+
+        $this->putJson(route('admin.school-leads.landing-slug.update'), [
+            'landing_slug' => 'taken-slug',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['landing_slug']);
     }
 
     public function test_inactive_landing_shows_warning_on_crm_page(): void
@@ -266,7 +353,7 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
 
         $widget = PartnerWidget::query()->where('partner_id', $this->partner->id)->first();
         $this->assertNotNull($widget);
-        $this->assertSame(48, strlen($widget->landing_key));
+        $this->assertNull($widget->landing_slug);
         $this->assertSame(48, strlen($widget->widget_key));
         $this->assertTrue($widget->is_landing_active);
     }

@@ -35,7 +35,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
 
     public function test_landing_page_shows_partner_and_form_sections(): void
     {
-        $response = $this->get(route('lead.show', ['landingKey' => $this->landingWidget->landing_key]));
+        $response = $this->get(route('lead.show', ['landingSlug' => $this->landingWidget->landing_slug]));
 
         $response->assertOk()
             ->assertSee('Записаться', false)
@@ -45,7 +45,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertSee('Ребёнок', false)
             ->assertSee('Район и услуга', false)
             ->assertSee('Центральный', false)
-            ->assertSee($this->landingWidget->landing_key, false)
+            ->assertSee('raduga-test', false)
             ->assertSee('id="leadForm"', false)
             ->assertSee('id="location_id"', false)
             ->assertSee('id="team_id"', false);
@@ -58,14 +58,14 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             'organization_name' => 'ООО Спорт Кids',
         ]);
 
-        $this->get(route('lead.show', ['landingKey' => $this->landingWidget->landing_key]))
+        $this->get(route('lead.show', ['landingSlug' => $this->landingWidget->landing_slug]))
             ->assertOk()
             ->assertSee('ООО Спорт Кids', false);
     }
 
-    public function test_show_returns_404_for_unknown_landing_key(): void
+    public function test_show_returns_404_for_unknown_landing_slug(): void
     {
-        $this->get(route('lead.show', ['landingKey' => str_repeat('a', 48)]))
+        $this->get(route('lead.show', ['landingSlug' => 'unknown-landing-page']))
             ->assertNotFound();
     }
 
@@ -73,25 +73,25 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
     {
         $this->landingWidget->update(['is_landing_active' => false]);
 
-        $this->get(route('lead.show', ['landingKey' => $this->landingWidget->landing_key]))
+        $this->get(route('lead.show', ['landingSlug' => $this->landingWidget->landing_slug]))
             ->assertNotFound();
     }
 
-    public function test_teams_returns_404_for_unknown_landing_key(): void
+    public function test_teams_returns_404_for_unknown_landing_slug(): void
     {
         $this->getJson(route('lead.teams', [
-            'landingKey'  => str_repeat('b', 48),
+            'landingSlug'  => 'unknown-landing-page',
             'location_id' => $this->landingLocation->id,
         ]))
             ->assertNotFound();
     }
 
-    public function test_submit_returns_404_for_unknown_landing_key(): void
+    public function test_submit_returns_404_for_unknown_landing_slug(): void
     {
         $this->fakeRecaptchaSuccess();
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => str_repeat('c', 48)]),
+            route('lead.submit', ['landingSlug' => 'unknown-landing-page']),
             $this->validLandingPayload()
         )
             ->assertNotFound();
@@ -99,7 +99,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
 
     public function test_teams_returns_422_without_location_id(): void
     {
-        $this->getJson(route('lead.teams', ['landingKey' => $this->landingWidget->landing_key]))
+        $this->getJson(route('lead.teams', ['landingSlug' => $this->landingWidget->landing_slug]))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['location_id']);
     }
@@ -114,7 +114,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         ]);
 
         $this->getJson(route('lead.teams', [
-            'landingKey'  => $this->landingWidget->landing_key,
+            'landingSlug'  => $this->landingWidget->landing_slug,
             'location_id' => $foreignLocation->id,
         ]))
             ->assertOk()
@@ -129,7 +129,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             'is_enabled' => false,
         ]);
 
-        $html = $this->get(route('lead.show', ['landingKey' => $this->landingWidget->landing_key]))
+        $html = $this->get(route('lead.show', ['landingSlug' => $this->landingWidget->landing_slug]))
             ->assertOk()
             ->getContent();
 
@@ -140,7 +140,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
     public function test_teams_endpoint_returns_teams_for_location(): void
     {
         $this->getJson(route('lead.teams', [
-            'landingKey'  => $this->landingWidget->landing_key,
+            'landingSlug'  => $this->landingWidget->landing_slug,
             'location_id' => $this->landingLocation->id,
         ]))
             ->assertOk()
@@ -171,7 +171,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 3, 15));
 
         $response = $this->getJson(route('lead.team-info', [
-            'landingKey'  => $this->landingWidget->landing_key,
+            'landingSlug'  => $this->landingWidget->landing_slug,
             'location_id' => $this->landingLocation->id,
             'team_id'     => $this->landingTeam->id,
         ]));
@@ -199,7 +199,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 10, 1));
 
         $this->getJson(route('lead.team-info', [
-            'landingKey'  => $this->landingWidget->landing_key,
+            'landingSlug'  => $this->landingWidget->landing_slug,
             'location_id' => $this->landingLocation->id,
             'team_id'     => $this->landingTeam->id,
         ]))
@@ -218,7 +218,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         ]);
 
         $this->getJson(route('lead.team-info', [
-            'landingKey'  => $this->landingWidget->landing_key,
+            'landingSlug'  => $this->landingWidget->landing_slug,
             'location_id' => $this->landingLocation->id,
             'team_id'     => $foreignTeam->id,
         ]))
@@ -228,7 +228,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
     public function test_team_info_returns_422_without_team_id(): void
     {
         $this->getJson(route('lead.team-info', [
-            'landingKey'  => $this->landingWidget->landing_key,
+            'landingSlug'  => $this->landingWidget->landing_slug,
             'location_id' => $this->landingLocation->id,
         ]))
             ->assertStatus(422)
@@ -240,7 +240,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         $this->fakeRecaptchaSuccess();
 
         $response = $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $this->validLandingPayload([
                 'comment'                => 'Удобно по вторникам',
                 'is_individual_traits'   => '1',
@@ -293,7 +293,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         unset($payload['team_id']);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )
             ->assertOk();
@@ -313,7 +313,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         unset($payload['team_id']);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )
             ->assertOk();
@@ -332,7 +332,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         unset($payload['location_id']);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )
             ->assertStatus(422)
@@ -355,7 +355,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         ]);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )
             ->assertStatus(422)
@@ -389,7 +389,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         ]);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )
             ->assertStatus(422)
@@ -411,7 +411,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         ]);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )
             ->assertStatus(422)
@@ -426,7 +426,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         unset($payload['parent_lastname'], $payload['parent_email']);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )
             ->assertStatus(422)
@@ -443,7 +443,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         unset($payload['child_firstname']);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )
             ->assertStatus(422)
@@ -458,7 +458,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         unset($payload['consent_accepted']);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )
             ->assertStatus(422)
@@ -470,7 +470,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         $this->fakeRecaptchaSuccess();
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $this->validLandingPayload(['parent_phone' => '12'])
         )
             ->assertStatus(422)
@@ -483,7 +483,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         unset($payload['recaptcha_token']);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )
             ->assertStatus(422)
@@ -495,25 +495,32 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         $this->fakeRecaptchaLowScore();
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $this->validLandingPayload()
         )
             ->assertStatus(422);
     }
 
-    public function test_partner_widget_has_landing_key_after_provisioning(): void
+    public function test_partner_widget_has_landing_slug_null_until_partner_sets_it(): void
     {
         $partner = Partner::factory()->create();
 
         $widget = app(PartnerWidgetService::class)->ensureForPartner((int) $partner->id);
 
-        $this->assertNotNull($widget->landing_key);
-        $this->assertSame(48, strlen((string) $widget->landing_key));
+        $this->assertNull($widget->landing_slug);
         $this->assertTrue($widget->is_landing_active);
         $this->assertDatabaseHas('partner_widgets', [
-            'partner_id'  => $partner->id,
-            'landing_key' => $widget->landing_key,
+            'partner_id'   => $partner->id,
+            'landing_slug' => null,
         ]);
+    }
+
+    public function test_show_returns_404_when_landing_slug_not_set(): void
+    {
+        $this->landingWidget->update(['landing_slug' => null]);
+
+        $this->get(route('lead.show', ['landingSlug' => 'raduga-test']))
+            ->assertNotFound();
     }
 
     public function test_submit_returns_404_when_landing_inactive(): void
@@ -522,7 +529,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         $this->landingWidget->update(['is_landing_active' => false]);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $this->validLandingPayload()
         )
             ->assertNotFound();

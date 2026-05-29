@@ -53,7 +53,8 @@ final class SchoolLeadLandingAdminAccessFeatureTest extends CrmTestCase
             ->assertViewHas('activeTab', 'landing')
             ->assertViewHas('landingUrl')
             ->assertSee('>Страница заявки</a>', false)
-            ->assertSee(route('lead.show', ['landingKey' => $widget->landing_key]), false);
+            ->assertSee('id="landingSlugInput"', false)
+            ->assertSee('id="landingSlugForm"', false);
     }
 
     private function grantPermission(\App\Models\User $actor, string $permissionName): void

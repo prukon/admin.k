@@ -205,10 +205,10 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
             return $this->resolvedWidget;
         }
 
-        $landingKey = (string) $this->route('landingKey');
+        $landingSlug = (string) $this->route('landingSlug');
 
         $this->resolvedWidget = PartnerWidget::query()
-            ->where('landing_key', $landingKey)
+            ->where('landing_slug', $landingSlug)
             ->where('is_landing_active', true)
             ->first();
 

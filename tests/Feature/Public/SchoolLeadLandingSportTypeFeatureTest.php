@@ -34,7 +34,7 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
 
     public function test_landing_does_not_show_sport_type_select(): void
     {
-        $html = $this->get(route('lead.show', ['landingKey' => $this->landingWidget->landing_key]))
+        $html = $this->get(route('lead.show', ['landingSlug' => $this->landingWidget->landing_slug]))
             ->assertOk()
             ->assertSee('Район и услуга', false)
             ->getContent();
@@ -63,7 +63,7 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
         );
 
         $this->getJson(route('lead.teams', [
-            'landingKey' => $this->landingWidget->landing_key,
+            'landingSlug' => $this->landingWidget->landing_slug,
             'location_id' => $this->landingLocation->id,
         ]))
             ->assertOk()
@@ -73,7 +73,7 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
     public function test_team_info_shows_sport_type(): void
     {
         $this->getJson(route('lead.team-info', [
-            'landingKey' => $this->landingWidget->landing_key,
+            'landingSlug' => $this->landingWidget->landing_slug,
             'location_id' => $this->landingLocation->id,
             'team_id' => $this->landingTeam->id,
         ]))
@@ -87,7 +87,7 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
         $this->fakeRecaptchaSuccess();
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $this->validLandingPayload()
         )->assertOk();
 
@@ -108,7 +108,7 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
         ]);
 
         $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
             $payload
         )->assertOk();
 

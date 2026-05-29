@@ -15,6 +15,13 @@ use Illuminate\Support\Facades\Http;
 
 trait ProvidesSchoolLeadLandingFixtures
 {
+    protected function setUpProvidesSchoolLeadLandingFixtures(): void
+    {
+        $this->withoutMiddleware([
+            \Illuminate\Routing\Middleware\ThrottleRequests::class,
+        ]);
+    }
+
     protected Partner $landingPartner;
 
     protected PartnerWidget $landingWidget;
@@ -36,6 +43,9 @@ trait ProvidesSchoolLeadLandingFixtures
 
         $this->landingWidget = app(PartnerWidgetService::class)
             ->ensureForPartner((int) $this->landingPartner->id);
+
+        $this->landingWidget->update(['landing_slug' => 'raduga-test']);
+        $this->landingWidget->refresh();
 
         $this->landingLocation = Location::query()->create([
             'partner_id' => $this->landingPartner->id,

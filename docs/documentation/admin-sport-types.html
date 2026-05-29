@@ -27,7 +27,7 @@
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
   <h1>Виды спорта (админка): <code>/admin/sport-types</code></h1>
-  <div class="small">Файл: <code>/docs/documentation/admin-sport-types.html</code> · страница CRM: <code>GET /admin/sport-types</code> · связь с группами: <a href="/docs/documentation/admin-teams#sport-types-view">/admin/teams</a> · лендинг заявки: <a href="/docs/documentation/school-leads-landing#4-4">school-leads-landing §4.4</a></div>
+  <div class="small">Файл: <code>/docs/documentation/admin-sport-types.html</code> · страница CRM: <code>GET /admin/sport-types</code> · связь с группами: <a href="/docs/documentation/admin-teams#sport-types-view">/admin/teams</a> · лендинг заявки: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a></div>
 
   <div class="note">
     Справочник <strong>«Вид спорта»</strong> на уровне партнёра. Один вид спорта может быть привязан к <strong>нескольким группам</strong> (<code>teams</code>); у группы поле <code>sport_type_id</code> <b>необязательно</b> (nullable).<br>
@@ -126,11 +126,11 @@
     Вид спорта группы и локация группы — <b>независимые</b> измерения. Локации по-прежнему управляются через <code>location_team</code> (<a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>). Вид спорта не заменяет район/локацию на лендинге.
   </div>
 
-  <h2>6) Лендинг заявки (<code>/lead/{landingKey}</code>)</h2>
-  <p>Если у партнёра есть хотя бы один активный вид спорта, на форме появляется необязательный селект «Вид спорта». Подробно: <a href="/docs/documentation/school-leads-landing#4-4">school-leads-landing §4.4</a>.</p>
+  <h2>6) Лендинг заявки (<code>/lead/{landingSlug}</code>)</h2>
+  <p>Если у партнёра есть хотя бы один активный вид спорта, на форме появляется необязательный селект «Вид спорта». Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</p>
   <ul>
-    <li><code>GET /lead/{landingKey}/teams?location_id=&amp;sport_type_id=</code> — фильтрует услуги (группы) по району и опционально по виду спорта.</li>
-    <li><code>POST /lead/{landingKey}/submit</code> — сохраняет <code>sport_type_id</code> в <code>school_leads</code>; валидация отклоняет чужой/disabled вид спорта и несовпадение <code>team_id</code> с выбранным видом спорта.</li>
+    <li><code>GET /lead/{landingSlug}/teams?location_id=&amp;sport_type_id=</code> — фильтрует услуги (группы) по району и опционально по виду спорта.</li>
+    <li><code>POST /lead/{landingSlug}/submit</code> — сохраняет <code>sport_type_id</code> в <code>school_leads</code>; валидация отклоняет чужой/disabled вид спорта и несовпадение <code>team_id</code> с выбранным видом спорта.</li>
     <li>Если справочник видов спорта пуст — блок на форме не рендерится, поведение как раньше (только район и услуга).</li>
   </ul>
 

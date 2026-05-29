@@ -87,10 +87,12 @@ final class TrainersFeatureTest extends CrmTestCase
     {
         $this->grantPermission('trainers.view');
 
+        $email = 'trainer-' . uniqid() . '@example.test';
+
         $this->postJson(route('admin.trainers.store'), [
             'lastname' => 'Иванов',
             'name' => 'Иван',
-            'email' => 'trainer-' . uniqid() . '@example.test',
+            'email' => $email,
             'password' => 'password123',
             'description' => 'Опытный тренер',
             'is_enabled' => 1,
@@ -102,11 +104,12 @@ final class TrainersFeatureTest extends CrmTestCase
             'role_id' => $this->trainerRoleId,
             'lastname' => 'Иванов',
             'name' => 'Иван',
+            'email' => $email,
         ]);
 
         $userId = (int) DB::table('users')
             ->where('partner_id', $this->partner->id)
-            ->where('lastname', 'Иванов')
+            ->where('email', $email)
             ->value('id');
 
         $this->assertDatabaseHas('trainer_profiles', [

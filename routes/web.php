@@ -161,18 +161,20 @@ Route::middleware(['widget.embed', 'throttle:60,1'])->group(function () {
 
 // Страница заявки партнёра (брендированный лендинг, публичный)
 Route::middleware(['throttle:60,1'])->group(function () {
-    Route::get('/lead/{landingKey}', [\App\Http\Controllers\SchoolLeadLandingController::class, 'show'])
+    $landingSlugPattern = \App\Support\PartnerLandingSlug::ROUTE_PATTERN;
+
+    Route::get('/lead/{landingSlug}', [\App\Http\Controllers\SchoolLeadLandingController::class, 'show'])
         ->name('lead.show')
-        ->where('landingKey', '[A-Za-z0-9]{48}');
-    Route::get('/lead/{landingKey}/teams', [\App\Http\Controllers\SchoolLeadLandingController::class, 'teams'])
+        ->where('landingSlug', $landingSlugPattern);
+    Route::get('/lead/{landingSlug}/teams', [\App\Http\Controllers\SchoolLeadLandingController::class, 'teams'])
         ->name('lead.teams')
-        ->where('landingKey', '[A-Za-z0-9]{48}');
-    Route::get('/lead/{landingKey}/team-info', [\App\Http\Controllers\SchoolLeadLandingController::class, 'teamInfo'])
+        ->where('landingSlug', $landingSlugPattern);
+    Route::get('/lead/{landingSlug}/team-info', [\App\Http\Controllers\SchoolLeadLandingController::class, 'teamInfo'])
         ->name('lead.team-info')
-        ->where('landingKey', '[A-Za-z0-9]{48}');
-    Route::post('/lead/{landingKey}/submit', [\App\Http\Controllers\SchoolLeadLandingController::class, 'submit'])
+        ->where('landingSlug', $landingSlugPattern);
+    Route::post('/lead/{landingSlug}/submit', [\App\Http\Controllers\SchoolLeadLandingController::class, 'submit'])
         ->name('lead.submit')
-        ->where('landingKey', '[A-Za-z0-9]{48}');
+        ->where('landingSlug', $landingSlugPattern);
 });
 
 //Страница Публичная оферта
@@ -752,6 +754,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/admin/partner-leads/{partnerLead}', [LandingPageController::class, 'destroyPartnerLead'])->name('admin.partner-leads.destroy');
     });
 
+    Route::middleware('can:schoolLeadLanding.view')->group(function () {
+        Route::get('/admin/school-leads/landing', [\App\Http\Controllers\Admin\SchoolLeadLandingController::class, 'landingTab'])->name('admin.school-leads.landing');
+        Route::put('/admin/school-leads/landing-slug', [\App\Http\Controllers\Admin\SchoolLeadLandingController::class, 'updateSlug'])->name('admin.school-leads.landing-slug.update');
+    });
+
     // Заявки с сайта школы (виджет iframe)
     Route::middleware('can:schoolLeads.view')->group(function () {
         Route::get('/admin/school-leads', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'index'])->name('admin.school-leads');
@@ -760,10 +767,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'destroy'])->name('admin.school-leads.destroy');
         Route::get('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.school-leads.columns-settings.get');
         Route::post('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.school-leads.columns-settings.save');
-    });
-
-    Route::middleware('can:schoolLeadLanding.view')->group(function () {
-        Route::get('/admin/school-leads/landing', [\App\Http\Controllers\Admin\SchoolLeadLandingController::class, 'landingTab'])->name('admin.school-leads.landing');
     });
 
     Route::middleware('can:schoolWidget.view')->group(function () {
