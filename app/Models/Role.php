@@ -103,6 +103,30 @@ class Role extends Model
         )->withTimestamps();
     }
 
+    public function scopeExceptSuperadmin($query)
+    {
+        return $query->where('name', '!=', 'superadmin');
+    }
+
+    public static function superadminRoleId(): ?int
+    {
+        static $id = null;
+
+        if ($id === null) {
+            $resolved = (int) static::query()->where('name', 'superadmin')->value('id');
+            $id = $resolved > 0 ? $resolved : 0;
+        }
+
+        return $id > 0 ? $id : null;
+    }
+
+    public static function isSuperadminRoleId(?int $roleId): bool
+    {
+        $superadminId = static::superadminRoleId();
+
+        return $superadminId !== null && (int) $roleId === $superadminId;
+    }
+
     public function scopeForPartner(Builder $query, int $partnerId, bool $isSupervisor, bool $isSuperadmin): Builder
     {
         return $query->whereHas('partners', function (Builder $q) use ($partnerId) {

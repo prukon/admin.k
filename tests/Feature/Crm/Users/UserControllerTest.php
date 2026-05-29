@@ -203,18 +203,15 @@ class UserControllerTest extends CrmTestCase
         $response->assertStatus(200);
         $response->assertViewIs('admin.user');
 
-        // 6) Проверяем, что:
-        //    - в roles есть супер-админ (скрытая системная роль)
-        //    - в roles есть скрытая партнёрская роль
+        // 6) Проверяем, что superadmin нельзя назначить через CRM,
+        //    но скрытая партнёрская роль видна супер-админу
         $response->assertViewHas('roles', function ($roles) use ($superRole, $hiddenPartnerRole) {
             $ids = $roles->pluck('id')->all();
 
-            // superadmin должен быть виден, несмотря на is_visible=0
-            if (!in_array($superRole->id, $ids, true)) {
+            if (in_array($superRole->id, $ids, true)) {
                 return false;
             }
 
-            // скрытая партнёрская роль тоже должна быть видна супер-админу
             if (!in_array($hiddenPartnerRole->id, $ids, true)) {
                 return false;
             }
@@ -684,6 +681,55 @@ class UserControllerTest extends CrmTestCase
         $this->assertEquals(1, $created->is_enabled);
 
         $this->assertEquals('Пользователь создан успешно', $json['message']);
+    }
+
+    public function test_store_rejects_superadmin_role_assignment(): void
+    {
+        $superRole = Role::where('name', 'superadmin')->firstOrFail();
+        $userRole = Role::where('name', 'user')->firstOrFail();
+
+        $this->postJson('/admin/users', [
+            'name' => 'Хакер',
+            'lastname' => 'Тест',
+            'role_id' => $superRole->id,
+            'is_enabled' => 1,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['role_id']);
+
+        $this->assertDatabaseMissing('users', [
+            'name' => 'Хакер',
+            'role_id' => $superRole->id,
+        ]);
+
+        $this->postJson('/admin/users', [
+            'name' => 'Нормальный',
+            'lastname' => 'Клиент',
+            'role_id' => $userRole->id,
+            'is_enabled' => 1,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])->assertOk();
+    }
+
+    public function test_store_rejects_superadmin_role_even_for_superadmin_actor(): void
+    {
+        $this->asSuperadmin();
+
+        $superRole = Role::where('name', 'superadmin')->firstOrFail();
+
+        $this->postJson('/admin/users', [
+            'name' => 'Ещё один',
+            'lastname' => 'Супер',
+            'role_id' => $superRole->id,
+            'is_enabled' => 1,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['role_id']);
     }
 
     /**
@@ -1197,9 +1243,71 @@ class UserControllerTest extends CrmTestCase
         }
     }
 
-    /**
-     * [P1] Базовое обновление основных полей + лог только по изменённым полям
-     */
+    public function test_edit_marks_superadmin_target_and_omits_superadmin_from_roles(): void
+    {
+        $superRole = Role::where('name', 'superadmin')->firstOrFail();
+        $target = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $superRole->id,
+        ]);
+
+        $response = $this->getJson('/admin/users/' . $target->id . '/edit', [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $response->assertOk();
+        $json = $response->json();
+
+        $this->assertTrue($json['targetIsSuperadmin']);
+        $this->assertNotContains($superRole->id, collect($json['roles'])->pluck('id')->all());
+    }
+
+    public function test_update_rejects_superadmin_role_assignment(): void
+    {
+        $superRole = Role::where('name', 'superadmin')->firstOrFail();
+        $userRole = Role::where('name', 'user')->firstOrFail();
+
+        $target = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $userRole->id,
+        ]);
+
+        $this->patchJson('/admin/users/' . $target->id, [
+            'name' => $target->name,
+            'lastname' => $target->lastname,
+            'role_id' => $superRole->id,
+            'is_enabled' => 1,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['role_id']);
+
+        $this->assertSame($userRole->id, (int) $target->fresh()->role_id);
+    }
+
+    public function test_update_keeps_superadmin_role_when_editing_superadmin_user(): void
+    {
+        $superRole = Role::where('name', 'superadmin')->firstOrFail();
+        $adminRole = Role::where('name', 'admin')->firstOrFail();
+
+        $target = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Root',
+            'lastname' => 'Admin',
+            'role_id' => $superRole->id,
+        ]);
+
+        $this->patchJson('/admin/users/' . $target->id, [
+            'name' => 'Root Updated',
+            'lastname' => 'Admin',
+            'role_id' => $adminRole->id,
+            'is_enabled' => 1,
+        ])->assertOk();
+
+        $target->refresh();
+        $this->assertSame('Root Updated', $target->name);
+        $this->assertSame($superRole->id, (int) $target->role_id);
+    }
+
     /**
      * [P1] Базовое обновление основных полей + лог только по изменённым полям
      */

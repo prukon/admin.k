@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\User;
 
+use App\Http\Requests\User\Concerns\ForbidsSuperadminRole;
+use App\Http\Requests\User\Concerns\ValidatesStudentHealthFields;
 use App\Http\Requests\User\Concerns\ValidatesStudentParent;
+use App\Models\User;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Services\PartnerContext;
@@ -13,13 +16,9 @@ use Illuminate\Validation\Rule;
 
 class UpdateRequest extends FormRequest
 {
+    use ForbidsSuperadminRole;
+    use ValidatesStudentHealthFields;
     use ValidatesStudentParent;
-
-    private const STUDENT_HEALTH_FIELDS = [
-        'is_individual_traits',
-        'is_on_medical_register',
-        'is_with_disability',
-    ];
 
     /**
      * Разрешаем запрос.
@@ -90,6 +89,7 @@ class UpdateRequest extends FormRequest
 
         $this->prepareStudentParentForValidation();
         $this->prepareStudentHealthFieldsForValidation();
+        $this->stripRoleIdForSuperadminTarget($targetUser);
     }
 
     /**
@@ -160,13 +160,17 @@ class UpdateRequest extends FormRequest
             ];
         }
 
-        if ($this->user()->can('users.other.update') && $this->isStudentTargetEffective()) {
-            foreach (self::STUDENT_HEALTH_FIELDS as $field) {
-                $rules[$field] = ['nullable', 'boolean'];
-            }
-        }
+        return array_merge($rules, $this->studentHealthFieldRules());
+    }
 
-        return $rules;
+    protected function effectiveRoleIdForStudentHealthCheck(): ?int
+    {
+        $targetUser = $this->route('user');
+        $roleId = $this->has('role_id')
+            ? (int) $this->input('role_id')
+            : (int) ($targetUser?->role_id ?? 0);
+
+        return $roleId > 0 ? $roleId : null;
     }
 
     private function isTrainerRoleEffective(): bool
@@ -192,6 +196,8 @@ class UpdateRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($afterValidator) {
+            $this->forbidSuperadminRoleAssignment($afterValidator);
+
             $targetUser = $this->route('user');
             if (!$targetUser) {
                 return;
@@ -253,10 +259,7 @@ class UpdateRequest extends FormRequest
             'team_ids' => 'группы тренера',
             'team_ids.*' => 'группа',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
-            'is_individual_traits' => 'Индивидуальные особенности воспитанника',
-            'is_on_medical_register' => 'Учёт у медицинских специалистов',
-            'is_with_disability' => 'Наличие инвалидности',
-        ] + $this->studentParentAttributes();
+        ] + $this->studentParentAttributes() + $this->studentHealthFieldAttributes();
     }
 
     /**
@@ -311,60 +314,21 @@ class UpdateRequest extends FormRequest
 
             // 2FA
             'two_factor_enabled.boolean' => 'Некорректное значение поля 2FA.',
-
-            'is_individual_traits.boolean' => 'Некорректное значение поля «Индивидуальные особенности воспитанника».',
-            'is_on_medical_register.boolean' => 'Некорректное значение поля «Учёт у медицинских специалистов».',
-            'is_with_disability.boolean' => 'Некорректное значение поля «Наличие инвалидности».',
-        ];
-    }
-
-    private function prepareStudentHealthFieldsForValidation(): void
-    {
-        if (!$this->user()?->can('users.other.update') || !$this->isStudentTargetEffective()) {
-            foreach (self::STUDENT_HEALTH_FIELDS as $field) {
-                $this->offsetUnset($field);
-            }
-
-            return;
-        }
-
-        foreach (self::STUDENT_HEALTH_FIELDS as $field) {
-            if (!$this->has($field)) {
-                continue;
-            }
-
-            $value = $this->input($field);
-            if ($value === '' || $value === null) {
-                $this->merge([$field => null]);
-
-                continue;
-            }
-
-            if (!in_array((string) $value, ['0', '1'], true)) {
-                continue;
-            }
-
-            $this->merge([$field => $value === '1' || $value === 1 || $value === true]);
-        }
-    }
-
-    private function isStudentTargetEffective(): bool
-    {
-        $targetUser = $this->route('user');
-        $roleId = $this->has('role_id')
-            ? (int) $this->input('role_id')
-            : (int) ($targetUser?->role_id ?? 0);
-
-        if ($roleId <= 0) {
-            return false;
-        }
-
-        return Role::query()->whereKey($roleId)->value('name') === 'user';
+        ] + $this->studentHealthFieldMessages();
     }
 
     /**
      * Приводит российский номер к канону: +7XXXXXXXXXX (или null, если не удаётся привести).
      */
+    private function stripRoleIdForSuperadminTarget(?User $targetUser): void
+    {
+        if (!$targetUser || !Role::isSuperadminRoleId((int) $targetUser->role_id)) {
+            return;
+        }
+
+        $this->offsetUnset('role_id');
+    }
+
     private function normalizeRuPhone(?string $input): ?string
     {
         $digits = preg_replace('/\D+/', '', (string)$input);

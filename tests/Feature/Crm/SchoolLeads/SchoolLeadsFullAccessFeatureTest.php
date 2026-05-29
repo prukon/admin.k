@@ -284,10 +284,13 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
         $this->asAdmin();
 
         $leadForUser = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Лид для клиента',
-            'phone'      => '+7 900 801-01-01',
-            'status'     => 'new',
+            'partner_id'             => $this->partner->id,
+            'name'                   => 'Лид для клиента',
+            'phone'                  => '+7 900 801-01-01',
+            'status'                 => 'new',
+            'is_individual_traits'   => true,
+            'is_on_medical_register' => false,
+            'is_with_disability'     => true,
         ]);
 
         $student = User::factory()->create([
@@ -340,10 +343,13 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
         $this->grantContractsView($actor);
 
         $lead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Полный доступ лид',
-            'phone'      => '+7 900 803-03-03',
-            'status'     => 'new',
+            'partner_id'             => $this->partner->id,
+            'name'                   => 'Полный доступ лид',
+            'phone'                  => '+7 900 803-03-03',
+            'status'                 => 'new',
+            'is_individual_traits'   => true,
+            'is_on_medical_register' => true,
+            'is_with_disability'     => false,
         ]);
 
         $student = User::factory()->create([
@@ -375,7 +381,58 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'X-Requested-With' => 'XMLHttpRequest',
         ])->assertOk();
 
+        $createdUserId = (int) $lead->fresh()->user_id;
+        $this->assertGreaterThan(0, $createdUserId);
+
+        $createdUser = User::findOrFail($createdUserId);
+        $this->assertTrue($createdUser->is_individual_traits);
+        $this->assertTrue($createdUser->is_on_medical_register);
+        $this->assertFalse($createdUser->is_with_disability);
+
         $this->get(route('contracts.index', ['user_id' => $student->id]))->assertOk();
+    }
+
+    public function test_admin_create_client_from_lead_with_health_flags_workflow_returns_200(): void
+    {
+        $this->asAdmin();
+
+        $lead = SchoolLead::create([
+            'partner_id'             => $this->partner->id,
+            'name'                   => 'Health workflow',
+            'phone'                  => '+7 900 806-06-06',
+            'status'                 => 'new',
+            'is_individual_traits'   => false,
+            'is_on_medical_register' => true,
+            'is_with_disability'     => false,
+        ]);
+
+        $this->get(route('admin.school-leads'))
+            ->assertOk()
+            ->assertSee('create-user-from-lead', false);
+
+        $this->getJson(route('admin.school-leads.data', [
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 10,
+        ]))->assertOk();
+
+        $response = $this->postJson(route('admin.user.store'), [
+            'name'           => 'Health',
+            'lastname'       => 'Workflow',
+            'role_id'        => $this->defaultRoleId(),
+            'is_enabled'     => 1,
+            'school_lead_id' => $lead->id,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $response->assertOk();
+
+        $user = User::findOrFail((int) $response->json('user.id'));
+        $this->assertFalse($user->is_individual_traits);
+        $this->assertTrue($user->is_on_medical_register);
+        $this->assertFalse($user->is_with_disability);
+        $this->assertSame($user->id, (int) $lead->fresh()->user_id);
     }
 
     public function test_viewer_with_users_view_but_without_contracts_view_datatable_omits_contract_fields(): void
@@ -539,8 +596,8 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
                     'school_lead_id' => $leadForUser->id,
                 ],
                 'headers' => [
-                    'HTTP_ACCEPT'          => 'application/json',
-                    'X-Requested-With'     => 'XMLHttpRequest',
+                    'HTTP_ACCEPT'      => 'application/json',
+                    'X-Requested-With' => 'XMLHttpRequest',
                 ],
             ],
             [

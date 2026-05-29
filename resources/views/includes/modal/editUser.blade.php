@@ -217,12 +217,16 @@
                                         @cannot('users.role.update') disabled aria-disabled="true" @endcannot
                                 >
                                     @foreach($roles as $role)
+                                        @continue($role->name === 'superadmin')
                                         <option value="{{ $role->id }}"
                                                 @if(($editingUser->role_id ?? $user->role_id ?? null) === $role->id) selected @endif>
                                             {{ $role->label }}
                                         </option>
                                     @endforeach
                                 </select>
+                                <div id="edit-role-superadmin-lock" class="form-text text-muted d-none">
+                                    <i class="fa-solid fa-lock me-1"></i>Роль «Суперадмин» нельзя изменить через CRM
+                                </div>
                                 @cannot('users.role.update')
                                     <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
                                         изменение
@@ -454,6 +458,33 @@
             });
         }
 
+        function applyEditUserRoleSelect(response) {
+            const roleSelect = $('#edit-user-form #role_id');
+            const $lockHint = $('#edit-role-superadmin-lock');
+
+            roleSelect.empty().prop('disabled', false).removeAttr('aria-disabled');
+            $lockHint.addClass('d-none');
+
+            if (response.targetIsSuperadmin) {
+                roleSelect.append(
+                    $('<option>', {value: response.user.role_id, text: 'Суперадмин'})
+                );
+                roleSelect.val(String(response.user.role_id));
+                roleSelect.prop('disabled', true).attr('aria-disabled', 'true');
+                $lockHint.removeClass('d-none');
+                editUserRolesCache = [];
+                return;
+            }
+
+            (response.roles || []).forEach(function (role) {
+                roleSelect.append(
+                    $('<option>', {value: role.id, text: role.label})
+                );
+            });
+            roleSelect.val(response.user.role_id);
+            editUserRolesCache = response.roles || [];
+        }
+
         function syncEditUserTeamFields(roleId, roles, trainerTeamIds) {
             const trainerRoleId = trainerRoleIdFromRoles(roles);
             const isTrainer = trainerRoleId && parseInt(roleId, 10) === trainerRoleId;
@@ -651,16 +682,8 @@
                         $('#edit-user-form #edit-phone').val(response.user.phone);
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
-                        // 2) Рисуем <option> для ролей из response.roles
-                        const roleSelect = $('#edit-user-form #role_id');
-                        roleSelect.empty();
-                        response.roles.forEach(function (role) {
-                            roleSelect.append(
-                                $('<option>', {value: role.id, text: role.label})
-                            );
-                        });
-                        roleSelect.val(response.user.role_id);
-                        editUserRolesCache = response.roles || [];
+                        // 2) Роли
+                        applyEditUserRoleSelect(response);
                         syncEditUserTeamFields(response.user.role_id, editUserRolesCache, response.user.trainer_team_ids || []);
                         setEditUserHealthFields(response.user);
                         syncEditUserHealthFields(response.user.role_id, editUserRolesCache);
@@ -770,15 +793,7 @@
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
                         // 2) Роли
-                        const roleSelect = $('#edit-user-form #role_id');
-                        roleSelect.empty();
-                        response.roles.forEach(function (role) {
-                            roleSelect.append(
-                                $('<option>', {value: role.id, text: role.label})
-                            );
-                        });
-                        roleSelect.val(response.user.role_id);
-                        editUserRolesCache = response.roles || [];
+                        applyEditUserRoleSelect(response);
                         syncEditUserTeamFields(response.user.role_id, editUserRolesCache, response.user.trainer_team_ids || []);
                         setEditUserHealthFields(response.user);
                         syncEditUserHealthFields(response.user.role_id, editUserRolesCache);

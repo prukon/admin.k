@@ -115,11 +115,14 @@
                                 <label for="create_role_id" class="form-label">Роль</label>
                                 <select name="role_id" class="form-select" id="create_role_id">
                                     @foreach($roles as $role)
+                                        @continue($role->name === 'superadmin')
                                         <option value="{{ $role->id }}">{{ $role->label }}</option>
                                     @endforeach
                                 </select>
                             </div>
                         </div>
+
+                        @include('includes.modal._student_health_fields', ['prefix' => 'create'])
                     </div>
 
                     @if(!empty($userFieldsPayload))
@@ -173,6 +176,58 @@
         if ($phone.length && $phone.inputmask) {
             $phone.inputmask("+7 (999) 999-99-99");
         }
+
+        function createStudentRoleId() {
+            const studentRoleId = $('.js-student-parent-fields[data-parent-prefix="create"]').data('student-role-id');
+            return studentRoleId ? parseInt(studentRoleId, 10) : null;
+        }
+
+        function boolToTriState(value) {
+            if (value === true || value === 1 || value === '1') {
+                return '1';
+            }
+            if (value === false || value === 0 || value === '0') {
+                return '0';
+            }
+            return '';
+        }
+
+        function setCreateUserHealthFields(values) {
+            $('#create-is_individual_traits').val(boolToTriState(values.is_individual_traits));
+            $('#create-is_on_medical_register').val(boolToTriState(values.is_on_medical_register));
+            $('#create-is_with_disability').val(boolToTriState(values.is_with_disability));
+        }
+
+        function resetCreateUserHealthFields() {
+            setCreateUserHealthFields({
+                is_individual_traits: '',
+                is_on_medical_register: '',
+                is_with_disability: '',
+            });
+        }
+
+        function syncCreateUserHealthFields(roleId) {
+            const $wrap = $('#create-user-form .js-user-health-wrap');
+            if (!$wrap.length) {
+                return;
+            }
+
+            const studentRoleId = createStudentRoleId();
+            const isStudent = studentRoleId && parseInt(roleId, 10) === studentRoleId;
+
+            $wrap.toggleClass('d-none', !isStudent);
+            $wrap.find('.js-user-health-field').prop('disabled', !isStudent);
+        }
+
+        window.setCreateUserHealthFieldsFromLead = setCreateUserHealthFields;
+        window.resetCreateUserHealthFields = resetCreateUserHealthFields;
+        window.syncCreateUserHealthFields = syncCreateUserHealthFields;
+
+        $('#create_role_id').on('change', function () {
+            syncCreateUserHealthFields($(this).val());
+        });
+
+        syncCreateUserHealthFields($('#create_role_id').val());
 
         $('#create-user-form').on('submit', function (e) {
             e.preventDefault();

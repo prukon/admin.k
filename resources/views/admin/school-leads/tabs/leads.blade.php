@@ -937,6 +937,12 @@
                     if (typeof window.resetStudentParentForm === 'function') {
                         window.resetStudentParentForm('create');
                     }
+                    if (typeof window.resetCreateUserHealthFields === 'function') {
+                        window.resetCreateUserHealthFields();
+                    }
+                    if (typeof window.syncCreateUserHealthFields === 'function') {
+                        window.syncCreateUserHealthFields($('#create_role_id').val());
+                    }
                 }
 
                 function prefillCreateUserFromLead(rowData) {
@@ -973,6 +979,17 @@
                         parent_firstname: rowData.parent_firstname || '',
                         parent_middlename: rowData.parent_middlename || '',
                     });
+
+                    if (typeof window.setCreateUserHealthFieldsFromLead === 'function') {
+                        window.setCreateUserHealthFieldsFromLead({
+                            is_individual_traits: rowData.is_individual_traits,
+                            is_on_medical_register: rowData.is_on_medical_register,
+                            is_with_disability: rowData.is_with_disability,
+                        });
+                    }
+                    if (typeof window.syncCreateUserHealthFields === 'function') {
+                        window.syncCreateUserHealthFields($('#create_role_id').val());
+                    }
 
                     $createUserForm.data('success-handler', 'school-leads-table');
                 }

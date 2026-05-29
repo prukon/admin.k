@@ -122,20 +122,23 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
         ]);
 
         SchoolLead::create([
-            'partner_id'        => $this->partner->id,
-            'name'              => 'Иванова Мария Петровна',
-            'phone'             => '+7 900 111-22-33',
-            'parent_lastname'   => 'Иванова',
-            'parent_firstname'  => 'Мария',
-            'parent_middlename' => 'Петровна',
-            'parent_phone'      => '+7 900 444-44-44',
-            'parent_email'      => 'parent@example.com',
-            'child_lastname'    => 'Иванов',
-            'child_firstname'   => 'Пётр',
-            'child_middlename'  => 'Сергеевич',
-            'child_birthday'    => '2018-05-10',
-            'team_id'           => $team->id,
-            'status'            => 'new',
+            'partner_id'             => $this->partner->id,
+            'name'                   => 'Иванова Мария Петровна',
+            'phone'                  => '+7 900 111-22-33',
+            'parent_lastname'        => 'Иванова',
+            'parent_firstname'       => 'Мария',
+            'parent_middlename'      => 'Петровна',
+            'parent_phone'           => '+7 900 444-44-44',
+            'parent_email'           => 'parent@example.com',
+            'child_lastname'         => 'Иванов',
+            'child_firstname'        => 'Пётр',
+            'child_middlename'       => 'Сергеевич',
+            'child_birthday'         => '2018-05-10',
+            'team_id'                => $team->id,
+            'status'                 => 'new',
+            'is_individual_traits'   => true,
+            'is_on_medical_register' => false,
+            'is_with_disability'     => true,
         ]);
 
         $row = $this->getJson(route('admin.school-leads.data', [
@@ -154,6 +157,9 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
         $this->assertSame($team->id, (int) $row['team_id']);
         $this->assertSame('parent@example.com', $row['parent_email']);
         $this->assertSame('+7 900 444-44-44', $row['parent_phone']);
+        $this->assertTrue($row['is_individual_traits']);
+        $this->assertFalse($row['is_on_medical_register']);
+        $this->assertTrue($row['is_with_disability']);
     }
 
     public function test_datatable_includes_user_id(): void
@@ -196,6 +202,102 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
         $this->assertNull($free['user_id']);
     }
 
+    public function test_store_rejects_superadmin_role_from_school_lead_flow(): void
+    {
+        $lead = SchoolLead::create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Лид',
+            'phone'      => '+7 900 111-22-33',
+            'status'     => 'new',
+        ]);
+
+        $superRole = Role::query()->where('name', 'superadmin')->firstOrFail();
+
+        $this->postJson(route('admin.user.store'), [
+            'name'           => 'Лид',
+            'lastname'       => 'Клиент',
+            'role_id'        => $superRole->id,
+            'is_enabled'     => 1,
+            'school_lead_id' => $lead->id,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['role_id']);
+
+        $this->assertNull($lead->fresh()->user_id);
+    }
+
+    public function test_store_copies_health_flags_from_school_lead(): void
+    {
+        $lead = SchoolLead::create([
+            'partner_id'             => $this->partner->id,
+            'name'                   => 'Особенный ученик',
+            'phone'                  => '+7 900 111-22-33',
+            'status'                 => 'new',
+            'child_lastname'         => 'Иванов',
+            'child_firstname'        => 'Пётр',
+            'is_individual_traits'   => true,
+            'is_on_medical_register' => true,
+            'is_with_disability'     => false,
+        ]);
+
+        $response = $this->postJson(route('admin.user.store'), [
+            'name'           => 'Пётр',
+            'lastname'       => 'Иванов',
+            'role_id'        => $this->defaultRoleId(),
+            'is_enabled'     => 1,
+            'school_lead_id' => $lead->id,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $response->assertOk();
+
+        $user = User::findOrFail((int) $response->json('user.id'));
+
+        $this->assertTrue($user->is_individual_traits);
+        $this->assertTrue($user->is_on_medical_register);
+        $this->assertFalse($user->is_with_disability);
+        $this->assertSame($user->id, (int) $lead->fresh()->user_id);
+    }
+
+    public function test_store_uses_submitted_health_flags_when_provided(): void
+    {
+        $this->grantUsersOtherUpdatePermission();
+
+        $lead = SchoolLead::create([
+            'partner_id'             => $this->partner->id,
+            'name'                   => 'С заявкой',
+            'phone'                  => '+7 900 222-33-44',
+            'status'                 => 'new',
+            'is_individual_traits'   => true,
+            'is_on_medical_register' => true,
+            'is_with_disability'     => true,
+        ]);
+
+        $response = $this->postJson(route('admin.user.store'), [
+            'name'                   => 'С заявкой',
+            'lastname'               => 'Клиент',
+            'role_id'                => $this->defaultRoleId(),
+            'is_enabled'             => 1,
+            'school_lead_id'         => $lead->id,
+            'is_individual_traits'   => '0',
+            'is_on_medical_register' => '',
+            'is_with_disability'     => '1',
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $response->assertOk();
+
+        $user = User::findOrFail((int) $response->json('user.id'));
+
+        $this->assertFalse($user->is_individual_traits);
+        $this->assertNull($user->is_on_medical_register);
+        $this->assertTrue($user->is_with_disability);
+    }
+
     public function test_school_leads_page_includes_create_user_modal_when_users_view_granted(): void
     {
         $this->get(route('admin.school-leads'))
@@ -203,7 +305,8 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             ->assertSee('id="createUserModal"', false)
             ->assertSee('create-user-from-lead', false)
             ->assertSee('prefillCreateUserFromLead', false)
-            ->assertSee('forceNewParent', false);
+            ->assertSee('forceNewParent', false)
+            ->assertDontSee('>Суперадмин</option>', false);
     }
 
     public function test_school_leads_page_hides_create_user_modal_without_users_view(): void
@@ -223,5 +326,16 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             ->get(route('admin.school-leads'))
             ->assertOk()
             ->assertDontSee('id="createUserModal"', false);
+    }
+
+    private function grantUsersOtherUpdatePermission(): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => $this->partner->id,
+            'role_id'       => $this->user->role_id,
+            'permission_id' => $this->permissionId('users.other.update'),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
     }
 }

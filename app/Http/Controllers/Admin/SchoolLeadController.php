@@ -60,7 +60,7 @@ class SchoolLeadController extends AdminBaseController
         if ($canCreateUserFromLead) {
             $isSuperadmin = $this->isSuperAdmin();
 
-            $rolesQuery = Role::query();
+            $rolesQuery = Role::query()->exceptSuperadmin();
             if (!$isSuperadmin) {
                 $rolesQuery->where('is_visible', 1);
             }

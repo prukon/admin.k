@@ -53,8 +53,8 @@ class UserController extends AdminBaseController
         // 2) Валидация фильтров (пока не используем, но оставляем на будущее)
         $data = $request->validated();
 
-        // 3) Роли
-        $rolesQuery = Role::query();
+        // 3) Роли (superadmin нельзя назначать через CRM)
+        $rolesQuery = Role::query()->exceptSuperadmin();
 
         if (!$isSuperadmin) {
             $rolesQuery->where('is_visible', 1);
@@ -337,6 +337,8 @@ class UserController extends AdminBaseController
             'team_id'     => $teamId, // может быть null
         ]);
 
+        $data = $this->applySchoolLeadHealthFlags($data, $schoolLeadId, $partnerId);
+
         $fieldsPayload = $this->buildUserFieldsPayloadForCurrentPartner();
         $editableSlugSet = collect($fieldsPayload)
             ->filter(fn (array $row) => !empty($row['editable']))
@@ -473,12 +475,16 @@ class UserController extends AdminBaseController
         // 2) Доп. поля (тот же состав, что на странице списка / в модалке создания)
         $fieldsPayload = $this->buildUserFieldsPayloadForCurrentPartner();
 
-        // 3) Системные + партнёрские роли
-        $systemRoles = Role::where('is_sistem', 1)
+        // 3) Системные + партнёрские роли (superadmin нельзя назначать через CRM)
+        $systemRoles = Role::query()
+            ->exceptSuperadmin()
+            ->where('is_sistem', 1)
             ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
             ->get();
 
-        $partnerRoles = Role::whereHas('partners', fn($q) =>
+        $partnerRoles = Role::query()
+            ->exceptSuperadmin()
+            ->whereHas('partners', fn($q) =>
         $q->where('partner_role.partner_id', $partnerId)
         )
             ->when(!$isSuperadmin, fn($q) => $q->where('is_visible', 1))
@@ -523,6 +529,7 @@ class UserController extends AdminBaseController
                     'role_id'      => $currentUser?->role_id,
                     'isSuperadmin' => $isSuperadmin,
                 ],
+                'targetIsSuperadmin' => $user->role?->name === 'superadmin',
                 'fields' => $fieldsPayload,
                 'roles'  => $rolesPayload,
             ]);
@@ -884,6 +891,40 @@ class UserController extends AdminBaseController
         }
 
         return $value ? 'Да' : 'Нет';
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function applySchoolLeadHealthFlags(array $data, ?int $schoolLeadId, int $partnerId): array
+    {
+        if (!$schoolLeadId) {
+            return $data;
+        }
+
+        $studentRoleId = Role::query()->where('name', 'user')->value('id');
+        if (!$studentRoleId || (int) ($data['role_id'] ?? 0) !== (int) $studentRoleId) {
+            return $data;
+        }
+
+        $lead = SchoolLead::query()
+            ->where('id', $schoolLeadId)
+            ->where('partner_id', $partnerId)
+            ->whereNull('user_id')
+            ->first();
+
+        if (!$lead) {
+            return $data;
+        }
+
+        foreach (['is_individual_traits', 'is_on_medical_register', 'is_with_disability'] as $field) {
+            if (!array_key_exists($field, $data)) {
+                $data[$field] = $lead->{$field};
+            }
+        }
+
+        return $data;
     }
 
 }
