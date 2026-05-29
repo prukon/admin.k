@@ -118,14 +118,26 @@
   </ul>
   <pre><code>php artisan test --env=testing --filter PartnerBasePermissionsTest</code></pre>
 
-  <h2>7) Роль <code>trainer</code> и право <code>trainers.view</code></h2>
+  <h2>7) Права, которые не входят в базовый набор <code>admin</code></h2>
+  <div class="note">
+    В <code>config/role_base_permissions.php</code> для роли <code>admin</code> при создании партнёра <strong>не проставляются</strong> (нужно включить вручную в «Права и роли»):
+    <ul>
+      <li><code>sport_types.view</code>, <code>sport_types.manage</code> — <a href="/docs/documentation/admin-sport-types">Виды спорта</a>;</li>
+      <li><code>groups.training_base.view</code>, <code>groups.address.view</code> — поля группы на <a href="/docs/documentation/admin-teams#groups-training-base-address">/admin/teams</a>;</li>
+      <li><code>schedule.view</code> — журнал <code>/schedule</code> и расписание в модалках групп (в конфиге закомментировано);</li>
+      <li>многие отчётные и узкие права (см. <code>reports.payments.*</code>, <code>schedule.trainerSalary.*</code> и т.д.).</li>
+    </ul>
+    Тест: <code>PartnerBasePermissionsTest::test_new_partner_admin_does_not_receive_optional_groups_and_sport_types_permissions</code>.
+  </div>
+
+  <h2>8) Роль <code>trainer</code> и право <code>trainers.view</code></h2>
   <div class="note">
     Роль <code>trainer</code> в конфиге получает ограниченный набор (личный кабинет, профиль, просмотр партнёра) — без доступа к админским отчётам и CRUD пользователей.
     Роль <code>admin</code> по умолчанию включает <code>trainers.view</code> (раздел «Тренеры», фильтр в отчётах, привязка к группам).
     Подробно: <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.
   </div>
 
-  <h2>8) Заявки с сайта (виджет)</h2>
+  <h2>9) Заявки с сайта (виджет)</h2>
   <div class="note">
     Для роли <code>admin</code> в конфиге также заданы <code>schoolLeads.view</code> и <code>schoolWidget.view</code>
     (список заявок клиентов школы и страница embed-кода / Telegram).
@@ -133,7 +145,7 @@
     Подробно: <a href="/docs/documentation/school-leads-widget">Заявки с сайта (виджет и CRM)</a>, <a href="/docs/documentation/school-leads-landing">страница заявки партнёра</a>.
   </div>
 
-  <h2>9) Кастомные роли в админке</h2>
+  <h2>10) Кастомные роли в админке</h2>
   <div class="note">
     Отдельный сценарий: администратор создаёт <b>новую</b> (несистемную) роль на вкладке «Права и роли».
     Стартовый набор прав для такой роли берётся из того же конфига, ключ <code>roles.admin</code>, но логика и ограничения отличаются от сидеров и от автопроставления при создании партнёра — см.

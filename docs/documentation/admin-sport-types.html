@@ -83,7 +83,7 @@
     </tbody>
   </table>
   <p>Без <code>sport_types.view</code> — <b>403</b> на все эндпоинты раздела; для гостя — редирект/401. При только <code>sport_types.view</code> страница и чтение доступны, мутации возвращают <b>403</b>.</p>
-  <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code> оба права включены по умолчанию. Общая модель: <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
+  <p>Права <code>sport_types.view</code> и <code>sport_types.manage</code> <strong>не входят</strong> в базовый набор для новых партнёров (<code>config/role_base_permissions.php</code>, роль <code>admin</code>) — включаются вручную в матрице прав. Миграция <code>2026_05_29_120003</code> только добавляет записи в <code>permissions</code>, без автоназначения <code>permission_role</code>. Общая модель: <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
 
   <h2>3) Эндпоинты раздела</h2>
   <table>

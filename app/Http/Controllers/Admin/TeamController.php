@@ -114,6 +114,8 @@ class TeamController extends AdminBaseController
         $filterActor = auth()->user();
         $canViewLocations = $filterActor?->can('locations.view') ?? false;
         $canViewSportTypes = $filterActor?->can('sport_types.view') ?? false;
+        $canViewTrainingBase = $filterActor?->can('groups.training_base.view') ?? false;
+        $canViewAddress = $filterActor?->can('groups.address.view') ?? false;
 
         // фильтр: локация
         $locationFilter = $validated['location_id'] ?? null;
@@ -192,6 +194,16 @@ class TeamController extends AdminBaseController
                     $baseQuery->orderBy('teams.title', $orderDir);
                     break;
 
+                case 'training_base':
+                    $baseQuery->orderBy('teams.training_base', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
+                case 'address':
+                    $baseQuery->orderBy('teams.address', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
                 case 'locations_label':
                     $baseQuery
                         ->leftJoin('location_team', function ($join) use ($partnerId) {
@@ -266,7 +278,7 @@ class TeamController extends AdminBaseController
             ->take($length)
             ->get();
 
-        $data = $teams->map(function (Team $team) use ($canViewLocations, $canViewSportTypes) {
+        $data = $teams->map(function (Team $team) use ($canViewLocations, $canViewSportTypes, $canViewTrainingBase, $canViewAddress) {
             // Собираем список дней недели (title)
             $weekdaysLabel = '';
             $weekdaysItems = [];
@@ -304,6 +316,8 @@ class TeamController extends AdminBaseController
                 'id'             => $team->id,
                 'order_by'       => $team->order_by,
                 'title'          => $team->title,
+                'training_base'  => $canViewTrainingBase ? ($team->training_base ?? '') : '',
+                'address'        => $canViewAddress ? ($team->address ?? '') : '',
                 'sport_type_label' => ($canViewSportTypes && $team->relationLoaded('sportType'))
                     ? ($team->sportType?->name ?? '')
                     : '',
@@ -342,6 +356,14 @@ class TeamController extends AdminBaseController
 
         if (! $request->user()->can('sport_types.view')) {
             unset($data['sport_type_id']);
+        }
+
+        if (! $request->user()->can('groups.training_base.view')) {
+            unset($data['training_base']);
+        }
+
+        if (! $request->user()->can('groups.address.view')) {
+            unset($data['address']);
         }
 
         $team = $this->service->storeWithLogging($data, $authorId);
@@ -400,6 +422,14 @@ class TeamController extends AdminBaseController
             $payload['sport_type_id'] = $team->sport_type_id ? (int) $team->sport_type_id : null;
         }
 
+        if (auth()->user()?->can('groups.training_base.view')) {
+            $payload['training_base'] = $team->training_base;
+        }
+
+        if (auth()->user()?->can('groups.address.view')) {
+            $payload['address'] = $team->address;
+        }
+
         return response()->json($payload);
     }
 
@@ -431,6 +461,14 @@ class TeamController extends AdminBaseController
 
         if (! $request->user()->can('sport_types.view')) {
             unset($data['sport_type_id']);
+        }
+
+        if (! $request->user()->can('groups.training_base.view')) {
+            unset($data['training_base']);
+        }
+
+        if (! $request->user()->can('groups.address.view')) {
+            unset($data['address']);
         }
 
         // Попытка загрузить команду по ID и партнёру

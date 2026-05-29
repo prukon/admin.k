@@ -117,6 +117,28 @@
                                     <label class="form-check-label" for="colTitle">Название</label>
                                 </div>
 
+                                @can('groups.training_base.view')
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="training_base"
+                                           id="colTrainingBase"
+                                           checked>
+                                    <label class="form-check-label" for="colTrainingBase">Тренировочная база</label>
+                                </div>
+                                @endcan
+
+                                @can('groups.address.view')
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="address"
+                                           id="colAddress"
+                                           checked>
+                                    <label class="form-check-label" for="colAddress">Адрес</label>
+                                </div>
+                                @endcan
+
                                 @can('trainers.view')
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
@@ -276,6 +298,12 @@
                     <th>№</th>
                     <th>Сортировка</th>
                     <th>Название</th>
+                    @can('groups.training_base.view')
+                    <th>Тренировочная база</th>
+                    @endcan
+                    @can('groups.address.view')
+                    <th>Адрес</th>
+                    @endcan
                     @can('trainers.view')
                     <th>Тренер</th>
                     @endcan
@@ -321,11 +349,15 @@
             const canViewTrainers = @json(auth()->user()->can('trainers.view'));
             const canViewLocations = @json(auth()->user()->can('locations.view') && $locationOptions->isNotEmpty());
             const canViewSportTypes = @json(auth()->user()->can('sport_types.view') && $sportTypeOptions->isNotEmpty());
+            const canViewTrainingBase = @json(auth()->user()->can('groups.training_base.view'));
+            const canViewAddress = @json(auth()->user()->can('groups.address.view'));
             const defaultFilterStatus = 'active';
 
             const defaultColumnsVisibility = {
                 order_by: true,
                 title: true,
+                ...(canViewTrainingBase ? { training_base: true } : {}),
+                ...(canViewAddress ? { address: true } : {}),
                 ...(canViewTrainers ? { trainer_label: true } : {}),
                 ...(canViewLocations ? { locations_label: true } : {}),
                 ...(canViewSportTypes ? { sport_type_label: true } : {}),
@@ -340,6 +372,12 @@
             const columnsMap = (function () {
                 const map = { order_by: 1, title: 2 };
                 let idx = 3;
+                if (canViewTrainingBase) {
+                    map.training_base = idx++;
+                }
+                if (canViewAddress) {
+                    map.address = idx++;
+                }
                 if (canViewTrainers) {
                     map.trainer_label = idx++;
                 }
@@ -534,6 +572,32 @@
                 }
             };
 
+            const trainingBaseColumn = {
+                data: 'training_base',
+                name: 'training_base',
+                orderable: true,
+                searchable: false,
+                render: function (data) {
+                    if (!data) {
+                        return '<span class="text-muted">—</span>';
+                    }
+                    return '<span title="' + escapeHtml(data) + '">' + escapeHtml(data) + '</span>';
+                }
+            };
+
+            const addressColumn = {
+                data: 'address',
+                name: 'address',
+                orderable: true,
+                searchable: false,
+                render: function (data) {
+                    if (!data) {
+                        return '<span class="text-muted">—</span>';
+                    }
+                    return '<span title="' + escapeHtml(data) + '">' + escapeHtml(data) + '</span>';
+                }
+            };
+
             const monthPriceColumn = {
                 data: 'month_price',
                 name: 'month_price',
@@ -594,6 +658,8 @@
                             '</a>';
                     }
                 },
+                ...(canViewTrainingBase ? [trainingBaseColumn] : []),
+                ...(canViewAddress ? [addressColumn] : []),
                 ...(canViewTrainers ? [trainerColumn] : []),
                 ...(canViewLocations ? [locationsColumn] : []),
                 ...(canViewSportTypes ? [sportTypeColumn] : []),

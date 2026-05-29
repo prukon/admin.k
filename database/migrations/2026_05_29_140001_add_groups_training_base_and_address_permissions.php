@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+
 return new class extends Migration
 {
     public function up(): void
@@ -13,20 +14,20 @@ return new class extends Migration
         DB::table('permissions')->upsert(
             [
                 [
-                    'name' => 'sport_types.view',
-                    'description' => 'Страница "Виды спорта"',
+                    'name' => 'groups.training_base.view',
+                    'description' => 'Группы: поле «Тренировочная база»',
                     'permission_group_id' => $groupId,
                     'is_visible' => 0,
-                    'sort_order' => 36,
+                    'sort_order' => 51,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ],
                 [
-                    'name' => 'sport_types.manage',
-                    'description' => 'Виды спорта: создание/редактирование',
+                    'name' => 'groups.address.view',
+                    'description' => 'Группы: поле «Адрес»',
                     'permission_group_id' => $groupId,
                     'is_visible' => 0,
-                    'sort_order' => 37,
+                    'sort_order' => 52,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ],
@@ -39,7 +40,7 @@ return new class extends Migration
     public function down(): void
     {
         $permissionIds = DB::table('permissions')
-            ->whereIn('name', ['sport_types.view', 'sport_types.manage'])
+            ->whereIn('name', ['groups.training_base.view', 'groups.address.view'])
             ->pluck('id');
 
         if ($permissionIds->isNotEmpty()) {

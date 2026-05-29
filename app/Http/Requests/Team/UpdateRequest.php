@@ -35,6 +35,14 @@ class UpdateRequest extends FormRequest
         if ($this->has('month_price') && $this->input('month_price') === '') {
             $this->merge(['month_price' => null]);
         }
+
+        if ($this->has('training_base') && $this->input('training_base') === '') {
+            $this->merge(['training_base' => null]);
+        }
+
+        if ($this->has('address') && $this->input('address') === '') {
+            $this->merge(['address' => null]);
+        }
     }
 
     public function rules(): array
@@ -84,6 +92,14 @@ class UpdateRequest extends FormRequest
             ];
         }
 
+        if ($this->user()?->can('groups.training_base.view')) {
+            $rules['training_base'] = 'nullable|string|max:255';
+        }
+
+        if ($this->user()?->can('groups.address.view')) {
+            $rules['address'] = 'nullable|string|max:255';
+        }
+
         return $rules;
     }
 
@@ -96,6 +112,8 @@ class UpdateRequest extends FormRequest
             'location_ids.*' => 'локация',
             'sport_type_id' => 'вид спорта',
             'month_price' => 'стоимость в месяц',
+            'training_base' => 'тренировочная база',
+            'address' => 'адрес',
         ];
     }
 
@@ -113,6 +131,10 @@ class UpdateRequest extends FormRequest
             'location_ids.array' => 'Некорректный список локаций',
             'location_ids.*.exists' => 'Выберите локацию из списка текущего партнёра',
             'sport_type_id.exists' => 'Выберите активный вид спорта из списка текущего партнёра',
+            'training_base.string' => 'Тренировочная база должна быть текстом',
+            'training_base.max' => 'Тренировочная база не длиннее 255 символов',
+            'address.string' => 'Адрес должен быть текстом',
+            'address.max' => 'Адрес не длиннее 255 символов',
         ];
     }
 }

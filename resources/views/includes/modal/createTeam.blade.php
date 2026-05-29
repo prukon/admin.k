@@ -24,6 +24,30 @@
                         </div>
                     </div>
 
+                    @can('groups.training_base.view')
+                    <div class="mb-3">
+                        <label for="training_base" class="form-label">Тренировочная база</label>
+                        <input type="text"
+                               name="training_base"
+                               class="form-control"
+                               id="training_base"
+                               value="{{ old('training_base') }}">
+                        <div id="training_base-error" class="invalid-feedback"></div>
+                    </div>
+                    @endcan
+
+                    @can('groups.address.view')
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Адрес</label>
+                        <input type="text"
+                               name="address"
+                               class="form-control"
+                               id="address"
+                               value="{{ old('address') }}">
+                        <div id="address-error" class="invalid-feedback"></div>
+                    </div>
+                    @endcan
+
                     @can('sport_types.view')
                     @if($sportTypeOptions->isNotEmpty())
                     <div class="mb-3">
@@ -221,6 +245,22 @@
                             if (errors.month_price?.length) {
                                 if (monthPriceInput) monthPriceInput.classList.add('is-invalid');
                                 if (monthPriceError) monthPriceError.textContent = errors.month_price[0];
+                            }
+                            const trainingBaseInput = document.getElementById('training_base');
+                            const trainingBaseError = document.getElementById('training_base-error');
+                            if (trainingBaseInput) trainingBaseInput.classList.remove('is-invalid');
+                            if (trainingBaseError) trainingBaseError.textContent = '';
+                            if (errors.training_base?.length) {
+                                if (trainingBaseInput) trainingBaseInput.classList.add('is-invalid');
+                                if (trainingBaseError) trainingBaseError.textContent = errors.training_base[0];
+                            }
+                            const addressInput = document.getElementById('address');
+                            const addressError = document.getElementById('address-error');
+                            if (addressInput) addressInput.classList.remove('is-invalid');
+                            if (addressError) addressError.textContent = '';
+                            if (errors.address?.length) {
+                                if (addressInput) addressInput.classList.add('is-invalid');
+                                if (addressError) addressError.textContent = errors.address[0];
                             }
                             const trainerInput = document.getElementById('trainer_profile_id');
                             const trainerError = document.getElementById('trainer_profile_id-error');

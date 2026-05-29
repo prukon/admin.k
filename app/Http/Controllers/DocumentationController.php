@@ -32,7 +32,7 @@ class DocumentationController extends Controller
         'location-team-bindings'      => 'Локации ↔ группы (location_team): привязки, расписание, отчёты; users.location_id удалён',
         'admin-locations'             => 'Локации (админка): /admin/locations — view/manage, team_ids, hover-list, Select2',
         'admin-sport-types'           => 'Виды спорта (админка): /admin/sport-types — sport_types.view/manage, teams.sport_type_id, лендинг',
-        'admin-teams'                 => 'Группы (админка): /admin/teams — groups.view, стоимость (month_price), локации, тренер, расписание, вид спорта',
+        'admin-teams'                 => 'Группы (админка): /admin/teams — groups.view, month_price, training_base/address, локации, тренер, расписание, вид спорта',
         'schedule-journal'            => 'Журнал расписания: /schedule, statuses, schedule_users, тренер при «Посетил»',
         'schedule-trainer-workload'   => 'Нагрузка тренеров: вкладка /schedule/trainer-workload, матрица, быстрый выбор месяца, AJAX data',
         'schedule-trainer-salary'     => 'ЗП тренеров: черновик, формула, autosave, слепки vN/batch, schedule.trainerSalary.*',

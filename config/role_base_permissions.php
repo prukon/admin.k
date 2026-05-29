@@ -43,8 +43,6 @@ return [
             'lessonPackages.manualPaid.manage',
             'locations.view',
             'locations.manage',
-            'sport_types.view',
-            'sport_types.manage',
             'trainers.view',
             'users.view',
             'groups.view',

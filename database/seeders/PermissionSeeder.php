@@ -54,6 +54,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'trainers.view',                  'description' => 'Страница "Тренеры"',                            'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 41],
             ['name' => 'users.view',                     'description' => 'Страница "Пользователи"',                       'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 40],
             ['name' => 'groups.view',                    'description' => 'Страница "Группы"',                             'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 50],
+            ['name' => 'groups.training_base.view',      'description' => 'Группы: поле «Тренировочная база»',             'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 51],
+            ['name' => 'groups.address.view',            'description' => 'Группы: поле «Адрес»',                          'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 52],
             ['name' => 'contracts.view',                 'description' => 'Страница "Договоры"',                           'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 51],
             ['name' => 'contracts.sync',                 'description' => 'Договоры: синхронизация статуса с Подпислон',   'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 52],
             ['name' => 'partner.view',                   'description' => 'Страница "Партнеры"',                           'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 55],

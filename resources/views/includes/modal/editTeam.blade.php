@@ -19,6 +19,22 @@
                         <div class="invalid-feedback" id="edit-title-error"></div>
                     </div>
 
+                    @can('groups.training_base.view')
+                    <div class="mb-3">
+                        <label for="edit-training-base" class="form-label">Тренировочная база</label>
+                        <input type="text" name="training_base" class="form-control" id="edit-training-base">
+                        <div class="invalid-feedback" id="edit-training-base-error"></div>
+                    </div>
+                    @endcan
+
+                    @can('groups.address.view')
+                    <div class="mb-3">
+                        <label for="edit-address" class="form-label">Адрес</label>
+                        <input type="text" name="address" class="form-control" id="edit-address">
+                        <div class="invalid-feedback" id="edit-address-error"></div>
+                    </div>
+                    @endcan
+
                     @can('sport_types.view')
                     @if($sportTypeOptions->isNotEmpty())
                     <div class="mb-3">
@@ -155,6 +171,12 @@
                     // Основные поля
                     $('#edit-team-id').val(response.id);
                     $('#edit-title').val(response.title);
+                    if ($('#edit-training-base').length) {
+                        $('#edit-training-base').val(response.training_base ?? '');
+                    }
+                    if ($('#edit-address').length) {
+                        $('#edit-address').val(response.address ?? '');
+                    }
                     $('#edit-default_duration_minutes').val(response.default_duration_minutes ?? '');
                     $('#edit-month_price').val(response.month_price ?? '');
                     $('#edit-order_by').val(response.order_by ?? '');
@@ -222,6 +244,10 @@
             // Сброс ошибок
             $('#edit-title').removeClass('is-invalid');
             $('#edit-title-error').text('');
+            $('#edit-training-base').removeClass('is-invalid');
+            $('#edit-training-base-error').text('');
+            $('#edit-address').removeClass('is-invalid');
+            $('#edit-address-error').text('');
             $('#edit-default_duration_minutes').removeClass('is-invalid');
             $('#edit-default_duration_minutes-error').text('');
             $('#edit-month_price').removeClass('is-invalid');
@@ -253,6 +279,14 @@
                         if (errors.title && errors.title.length) {
                             $('#edit-title').addClass('is-invalid');
                             $('#edit-title-error').text(errors.title[0]);
+                        }
+                        if (errors.training_base && errors.training_base.length) {
+                            $('#edit-training-base').addClass('is-invalid');
+                            $('#edit-training-base-error').text(errors.training_base[0]);
+                        }
+                        if (errors.address && errors.address.length) {
+                            $('#edit-address').addClass('is-invalid');
+                            $('#edit-address-error').text(errors.address[0]);
                         }
                         if (errors.default_duration_minutes && errors.default_duration_minutes.length) {
                             $('#edit-default_duration_minutes').addClass('is-invalid');
