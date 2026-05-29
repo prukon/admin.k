@@ -58,10 +58,6 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
         if ($this->has('location_id') && $this->input('location_id') === '') {
             $this->merge(['location_id' => null]);
         }
-
-        if ($this->has('sport_type_id') && $this->input('sport_type_id') === '') {
-            $this->merge(['sport_type_id' => null]);
-        }
     }
 
     public function rules(): array
@@ -69,15 +65,10 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
         $partnerId = $this->partnerId();
 
         $locationRule = ['required', 'integer'];
-        $sportTypeRule = ['nullable', 'integer'];
         $teamRule = ['nullable', 'integer'];
 
         if ($partnerId) {
             $locationRule[] = Rule::exists('locations', 'id')->where(function ($query) use ($partnerId) {
-                $query->where('partner_id', $partnerId)
-                    ->where('is_enabled', true);
-            });
-            $sportTypeRule[] = Rule::exists('sport_types', 'id')->where(function ($query) use ($partnerId) {
                 $query->where('partner_id', $partnerId)
                     ->where('is_enabled', true);
             });
@@ -104,7 +95,6 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
             'is_with_disability'     => ['boolean'],
 
             'location_id'            => $locationRule,
-            'sport_type_id'          => $sportTypeRule,
             'team_id'                => $teamRule,
             'needs_contact_help'     => ['boolean'],
 
@@ -138,7 +128,6 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
             'is_on_medical_register' => 'Учёт у медицинских специалистов',
             'is_with_disability'     => 'Наличие инвалидности',
             'location_id'            => 'Район',
-            'sport_type_id'          => 'Вид спорта',
             'team_id'                => 'Услуга',
             'needs_contact_help'     => 'Связаться для выбора секции',
             'comment'                => 'Комментарий',
@@ -165,7 +154,6 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
             'child_birthday.before'      => 'Дата рождения ребёнка должна быть в прошлом.',
             'location_id.required'       => 'Выберите район.',
             'location_id.exists'         => 'Выбранный район недоступен.',
-            'sport_type_id.exists'       => 'Выбранный вид спорта недоступен.',
             'team_id.exists'             => 'Выбранная услуга недоступна.',
             'consent_accepted.required'  => 'Необходимо согласие на обработку персональных данных.',
             'consent_accepted.accepted'  => 'Необходимо согласие на обработку персональных данных.',
@@ -202,23 +190,6 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
 
             if ($message !== null) {
                 $v->errors()->add('team_id', $message);
-            }
-
-            if (!$this->filled('team_id') || !$this->filled('sport_type_id')) {
-                return;
-            }
-
-            $teamForSportType = Team::query()
-                ->where('partner_id', $partnerId)
-                ->whereKey((int) $this->input('team_id'))
-                ->first();
-
-            if (!$teamForSportType || $teamForSportType->sport_type_id === null) {
-                return;
-            }
-
-            if ((int) $teamForSportType->sport_type_id !== (int) $this->input('sport_type_id')) {
-                $v->errors()->add('team_id', 'Выбранная услуга не относится к указанному виду спорта.');
             }
         });
     }

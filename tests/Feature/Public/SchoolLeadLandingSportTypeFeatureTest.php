@@ -2,8 +2,6 @@
 
 namespace Tests\Feature\Public;
 
-use App\Models\Location;
-use App\Models\Partner;
 use App\Models\SchoolLead;
 use App\Models\SportType;
 use App\Models\Team;
@@ -34,27 +32,18 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
         $this->landingTeam->update(['sport_type_id' => $this->landingSportType->id]);
     }
 
-    public function test_landing_shows_sport_type_select_when_sport_types_exist(): void
+    public function test_landing_does_not_show_sport_type_select(): void
     {
-        $this->get(route('lead.show', ['landingKey' => $this->landingWidget->landing_key]))
-            ->assertOk()
-            ->assertSee('Район, вид спорта и услуга', false)
-            ->assertSee('id="sport_type_id"', false)
-            ->assertSee('Плавание вид', false);
-    }
-
-    public function test_landing_hides_sport_type_select_when_no_sport_types(): void
-    {
-        SportType::query()->where('partner_id', $this->landingPartner->id)->delete();
-
         $html = $this->get(route('lead.show', ['landingKey' => $this->landingWidget->landing_key]))
             ->assertOk()
+            ->assertSee('Район и услуга', false)
             ->getContent();
 
         $this->assertStringNotContainsString('id="sport_type_id"', $html);
+        $this->assertStringNotContainsString('Плавание вид', $html);
     }
 
-    public function test_teams_endpoint_filters_by_sport_type_id(): void
+    public function test_teams_endpoint_returns_all_teams_for_location(): void
     {
         $otherSport = SportType::factory()->create([
             'partner_id' => $this->landingPartner->id,
@@ -76,31 +65,30 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
         $this->getJson(route('lead.teams', [
             'landingKey' => $this->landingWidget->landing_key,
             'location_id' => $this->landingLocation->id,
-            'sport_type_id' => $this->landingSportType->id,
         ]))
             ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $this->landingTeam->id);
-
-        $this->getJson(route('lead.teams', [
-            'landingKey' => $this->landingWidget->landing_key,
-            'location_id' => $this->landingLocation->id,
-            'sport_type_id' => $otherSport->id,
-        ]))
-            ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $otherTeam->id);
+            ->assertJsonCount(2, 'data');
     }
 
-    public function test_submit_stores_sport_type_id_on_school_lead(): void
+    public function test_team_info_shows_sport_type(): void
+    {
+        $this->getJson(route('lead.team-info', [
+            'landingKey' => $this->landingWidget->landing_key,
+            'location_id' => $this->landingLocation->id,
+            'team_id' => $this->landingTeam->id,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.rows.2.label', 'Вид спорта')
+            ->assertJsonPath('data.rows.2.value', 'Плавание вид');
+    }
+
+    public function test_submit_stores_sport_type_id_from_selected_team(): void
     {
         $this->fakeRecaptchaSuccess();
 
         $this->postJson(
             route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
-            $this->validLandingPayload([
-                'sport_type_id' => $this->landingSportType->id,
-            ])
+            $this->validLandingPayload()
         )->assertOk();
 
         $this->assertDatabaseHas('school_leads', [
@@ -110,68 +98,14 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
         ]);
     }
 
-    public function test_submit_rejects_foreign_partner_sport_type(): void
+    public function test_submit_without_team_has_null_sport_type_id(): void
     {
         $this->fakeRecaptchaSuccess();
 
-        $foreignSport = SportType::factory()->create([
-            'partner_id' => Partner::factory()->create()->id,
+        $payload = $this->validLandingPayload([
+            'team_id' => null,
+            'needs_contact_help' => '1',
         ]);
-
-        $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
-            $this->validLandingPayload([
-                'sport_type_id' => $foreignSport->id,
-            ])
-        )
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['sport_type_id']);
-    }
-
-    public function test_submit_rejects_disabled_sport_type(): void
-    {
-        $this->fakeRecaptchaSuccess();
-
-        $disabled = SportType::factory()->disabled()->create([
-            'partner_id' => $this->landingPartner->id,
-        ]);
-
-        $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
-            $this->validLandingPayload([
-                'sport_type_id' => $disabled->id,
-            ])
-        )
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['sport_type_id']);
-    }
-
-    public function test_submit_rejects_team_not_matching_selected_sport_type(): void
-    {
-        $this->fakeRecaptchaSuccess();
-
-        $otherSport = SportType::factory()->create([
-            'partner_id' => $this->landingPartner->id,
-            'name' => 'Другой вид',
-        ]);
-
-        $this->postJson(
-            route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),
-            $this->validLandingPayload([
-                'sport_type_id' => $otherSport->id,
-                'team_id' => $this->landingTeam->id,
-            ])
-        )
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['team_id']);
-    }
-
-    public function test_submit_without_sport_type_id_is_allowed(): void
-    {
-        $this->fakeRecaptchaSuccess();
-
-        $payload = $this->validLandingPayload();
-        unset($payload['sport_type_id']);
 
         $this->postJson(
             route('lead.submit', ['landingKey' => $this->landingWidget->landing_key]),

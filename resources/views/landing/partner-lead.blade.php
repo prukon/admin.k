@@ -140,6 +140,56 @@
         #teamSelect:disabled {
             background-color: #f8f9fa;
         }
+        .team-info-block {
+            display: none;
+            margin-top: 1.25rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f8fafc;
+        }
+        .team-info-block.is-visible {
+            display: block;
+        }
+        .team-info-block__header {
+            padding: 0.75rem 1rem;
+            background: #e8f0eb;
+            font-weight: 600;
+            color: var(--brand-primary-dark);
+            font-size: 0.95rem;
+        }
+        .team-info-table {
+            width: 100%;
+            margin: 0;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .team-info-table th,
+        .team-info-table td {
+            padding: 0.65rem 1rem;
+            border-top: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+        .team-info-table th {
+            width: 42%;
+            font-weight: 500;
+            color: #475569;
+            background: #fff;
+        }
+        .team-info-table td {
+            color: #1a1a1a;
+            background: #fff;
+        }
+        .team-info-table tr:first-child th,
+        .team-info-table tr:first-child td {
+            border-top: none;
+        }
+        .team-info-loading {
+            padding: 1rem;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -244,7 +294,7 @@
                 </div>
             </div>
 
-            <h2 class="section-title">Район, вид спорта и услуга</h2>
+            <h2 class="section-title">Район и услуга</h2>
             <div class="row g-3">
                 <div class="col-md-6">
                     <label for="location_id" class="form-label">Район <span class="required-mark">*</span></label>
@@ -256,18 +306,6 @@
                     </select>
                     <div class="field-error" data-error-for="location_id" style="display:none;"></div>
                 </div>
-                @if ($sportTypes->isNotEmpty())
-                <div class="col-md-6">
-                    <label for="sport_type_id" class="form-label">Вид спорта</label>
-                    <select name="sport_type_id" id="sport_type_id" class="form-select" disabled>
-                        <option value="">— Сначала выберите район —</option>
-                        @foreach ($sportTypes as $sportType)
-                            <option value="{{ $sportType['id'] }}">{{ $sportType['name'] }}</option>
-                        @endforeach
-                    </select>
-                    <div class="field-error" data-error-for="sport_type_id" style="display:none;"></div>
-                </div>
-                @endif
                 <div class="col-md-6">
                     <label for="team_id" class="form-label">Услуга</label>
                     <select name="team_id" id="team_id" class="form-select" disabled>
@@ -275,6 +313,11 @@
                     </select>
                     <div class="field-error" data-error-for="team_id" style="display:none;"></div>
                 </div>
+            </div>
+
+            <div id="teamInfoBlock" class="team-info-block" aria-live="polite">
+                <div class="team-info-block__header" id="teamInfoTitle">Об услуге</div>
+                <div id="teamInfoContent"></div>
             </div>
 
             <div class="form-check mt-3">
@@ -324,13 +367,15 @@
     var successMessage = document.getElementById('successMessage');
     var successBackBtn = document.getElementById('successBackBtn');
     var locationSelect = document.getElementById('location_id');
-    var sportTypeSelect = document.getElementById('sport_type_id');
     var teamSelect = document.getElementById('team_id');
-    var hasSportTypes = @json($sportTypes->isNotEmpty());
     var needsContactHelp = document.getElementById('needs_contact_help');
     var submitUrl = @json($submitUrl);
     var teamsUrl = @json($teamsUrl);
+    var teamInfoUrl = @json($teamInfoUrl);
     var recaptchaSiteKey = @json($recaptchaSiteKey);
+    var teamInfoBlock = document.getElementById('teamInfoBlock');
+    var teamInfoTitle = document.getElementById('teamInfoTitle');
+    var teamInfoContent = document.getElementById('teamInfoContent');
 
     function fillTrackingFields() {
         var params = new URLSearchParams(window.location.search);
@@ -368,21 +413,77 @@
         opt.value = '';
         opt.textContent = message || '— Выберите услугу —';
         teamSelect.appendChild(opt);
+        hideTeamInfo();
     }
 
-    function updateSportTypeSelectState() {
-        if (!hasSportTypes || !sportTypeSelect) {
+    function hideTeamInfo() {
+        if (!teamInfoBlock) {
+            return;
+        }
+        teamInfoBlock.classList.remove('is-visible');
+        if (teamInfoContent) {
+            teamInfoContent.innerHTML = '';
+        }
+    }
+
+    function renderTeamInfoTable(rows) {
+        if (!teamInfoContent) {
             return;
         }
 
-        var hasLocation = locationSelect.value !== '';
-        if (!hasLocation) {
-            sportTypeSelect.disabled = true;
-            sportTypeSelect.value = '';
+        var html = '<table class="team-info-table"><tbody>';
+        rows.forEach(function (row) {
+            html += '<tr><th scope="row">' + escapeHtml(row.label) + '</th><td>' + escapeHtml(row.value) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        teamInfoContent.innerHTML = html;
+    }
+
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function loadTeamInfo() {
+        if (!teamInfoBlock || needsContactHelp.checked) {
+            hideTeamInfo();
             return;
         }
 
-        sportTypeSelect.disabled = false;
+        var locationId = locationSelect.value;
+        var teamId = teamSelect.value;
+
+        if (!locationId || !teamId) {
+            hideTeamInfo();
+            return;
+        }
+
+        teamInfoBlock.classList.add('is-visible');
+        teamInfoContent.innerHTML = '<div class="team-info-loading">Загрузка…</div>';
+
+        fetch(teamInfoUrl + '?location_id=' + encodeURIComponent(locationId) + '&team_id=' + encodeURIComponent(teamId), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+            .then(function (result) {
+                if (!result.ok || !result.json.data) {
+                    hideTeamInfo();
+                    return;
+                }
+
+                if (teamInfoTitle && result.json.data.title) {
+                    teamInfoTitle.textContent = result.json.data.title;
+                }
+
+                renderTeamInfoTable(result.json.data.rows || []);
+                teamInfoBlock.classList.add('is-visible');
+            })
+            .catch(function () {
+                hideTeamInfo();
+            });
     }
 
     function updateTeamSelectState() {
@@ -392,11 +493,8 @@
         if (!hasLocation) {
             teamSelect.disabled = true;
             resetTeamSelect('— Сначала выберите район —');
-            updateSportTypeSelectState();
             return;
         }
-
-        updateSportTypeSelectState();
 
         if (helpChecked) {
             teamSelect.disabled = true;
@@ -419,12 +517,7 @@
         resetTeamSelect('Загрузка…');
         teamSelect.disabled = true;
 
-        var url = teamsUrl + '?location_id=' + encodeURIComponent(locationId);
-        if (hasSportTypes && sportTypeSelect && sportTypeSelect.value) {
-            url += '&sport_type_id=' + encodeURIComponent(sportTypeSelect.value);
-        }
-
-        fetch(url, {
+        fetch(teamsUrl + '?location_id=' + encodeURIComponent(locationId), {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
             .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
@@ -439,6 +532,7 @@
                     });
                 }
                 updateTeamSelectState();
+                hideTeamInfo();
             })
             .catch(function () {
                 resetTeamSelect('Не удалось загрузить услуги');
@@ -509,12 +603,12 @@
     }
 
     locationSelect.addEventListener('change', loadTeams);
-    if (hasSportTypes && sportTypeSelect) {
-        sportTypeSelect.addEventListener('change', loadTeams);
-    }
     needsContactHelp.addEventListener('change', function () {
         loadTeams();
+        hideTeamInfo();
     });
+
+    teamSelect.addEventListener('change', loadTeamInfo);
 
     form.addEventListener('submit', function (e) {
         e.preventDefault();

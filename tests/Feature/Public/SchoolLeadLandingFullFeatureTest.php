@@ -7,10 +7,13 @@ use App\Models\Location;
 use App\Models\Partner;
 use App\Models\PartnerWidget;
 use App\Models\SchoolLead;
+use App\Models\SportType;
 use App\Models\Team;
 use App\Services\LocationTeamSyncService;
 use App\Services\PartnerWidgetService;
+use Database\Seeders\WeekdaysSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Tests\Feature\Public\Concerns\ProvidesSchoolLeadLandingFixtures;
 use Tests\TestCase;
@@ -40,7 +43,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertSee('Детская школа «Радуга»', false)
             ->assertSee('Законный представитель', false)
             ->assertSee('Ребёнок', false)
-            ->assertSee('Район, вид спорта и услуга', false)
+            ->assertSee('Район и услуга', false)
             ->assertSee('Центральный', false)
             ->assertSee($this->landingWidget->landing_key, false)
             ->assertSee('id="leadForm"', false)
@@ -143,6 +146,93 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.id', $this->landingTeam->id)
             ->assertJsonPath('data.0.title', 'Плавание');
+    }
+
+    public function test_team_info_returns_service_details(): void
+    {
+        $this->seed(WeekdaysSeeder::class);
+
+        $sportType = SportType::query()->create([
+            'partner_id' => $this->landingPartner->id,
+            'name'       => 'Плавание',
+            'sort'       => 1,
+            'is_enabled' => true,
+        ]);
+
+        $this->landingTeam->update([
+            'training_base'            => 'СК Олимп',
+            'address'                  => 'ул. Спортивная, 5',
+            'sport_type_id'            => $sportType->id,
+            'month_price'              => 4500,
+            'default_duration_minutes' => 90,
+        ]);
+        $this->landingTeam->weekdays()->sync([1, 3, 5]);
+
+        Carbon::setTestNow(Carbon::create(2026, 3, 15));
+
+        $response = $this->getJson(route('lead.team-info', [
+            'landingKey'  => $this->landingWidget->landing_key,
+            'location_id' => $this->landingLocation->id,
+            'team_id'     => $this->landingTeam->id,
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('data.title', 'Плавание')
+            ->assertJsonPath('data.rows.0.label', 'Тренировочная база')
+            ->assertJsonPath('data.rows.0.value', 'СК Олимп')
+            ->assertJsonPath('data.rows.1.value', 'ул. Спортивная, 5')
+            ->assertJsonPath('data.rows.2.value', 'Плавание')
+            ->assertJsonPath('data.rows.3.value', '4 500 ₽')
+            ->assertJsonPath('data.rows.4.value', '3')
+            ->assertJsonPath('data.rows.5.value', '12')
+            ->assertJsonPath('data.rows.6.value', '1 ч 30 мин')
+            ->assertJsonPath('data.rows.7.value', '12.01.2026 — 30.06.2026')
+            ->assertJsonPath('data.rows.8.value', 'Понедельник, Среда, Пятница');
+
+        Carbon::setTestNow();
+    }
+
+    public function test_team_info_uses_september_period_in_second_half_of_year(): void
+    {
+        $this->seed(WeekdaysSeeder::class);
+
+        Carbon::setTestNow(Carbon::create(2026, 10, 1));
+
+        $this->getJson(route('lead.team-info', [
+            'landingKey'  => $this->landingWidget->landing_key,
+            'location_id' => $this->landingLocation->id,
+            'team_id'     => $this->landingTeam->id,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.rows.7.value', '01.09.2026 — 30.06.2027');
+
+        Carbon::setTestNow();
+    }
+
+    public function test_team_info_returns_404_for_foreign_team(): void
+    {
+        $foreignPartner = Partner::factory()->create();
+        $foreignTeam = Team::factory()->create([
+            'partner_id' => $foreignPartner->id,
+            'is_enabled' => true,
+        ]);
+
+        $this->getJson(route('lead.team-info', [
+            'landingKey'  => $this->landingWidget->landing_key,
+            'location_id' => $this->landingLocation->id,
+            'team_id'     => $foreignTeam->id,
+        ]))
+            ->assertNotFound();
+    }
+
+    public function test_team_info_returns_422_without_team_id(): void
+    {
+        $this->getJson(route('lead.team-info', [
+            'landingKey'  => $this->landingWidget->landing_key,
+            'location_id' => $this->landingLocation->id,
+        ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['team_id']);
     }
 
     public function test_submit_creates_landing_school_lead_with_all_core_fields(): void

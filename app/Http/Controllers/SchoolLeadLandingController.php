@@ -29,15 +29,45 @@ class SchoolLeadLandingController extends Controller
         }
 
         $locations = $this->landing->locationsForWidget($widget);
-        $sportTypes = $this->landing->sportTypesForWidget($widget);
 
         return view('landing.partner-lead', [
             'partner'          => $partner,
             'locations'        => $locations,
-            'sportTypes'       => $sportTypes,
             'recaptchaSiteKey' => config('services.recaptcha.site_key'),
             'submitUrl'        => route('lead.submit', ['landingKey' => $landingKey]),
             'teamsUrl'         => route('lead.teams', ['landingKey' => $landingKey]),
+            'teamInfoUrl'      => route('lead.team-info', ['landingKey' => $landingKey]),
+        ]);
+    }
+
+    public function teamInfo(Request $request, string $landingKey): JsonResponse
+    {
+        $widget = $this->landing->resolveActiveWidget($landingKey);
+
+        $locationId = (int) $request->query('location_id', 0);
+        $teamId = (int) $request->query('team_id', 0);
+
+        if ($locationId <= 0) {
+            return response()->json([
+                'message' => 'Укажите район.',
+                'errors'  => ['location_id' => ['Укажите район.']],
+            ], 422);
+        }
+
+        if ($teamId <= 0) {
+            return response()->json([
+                'message' => 'Укажите услугу.',
+                'errors'  => ['team_id' => ['Укажите услугу.']],
+            ], 422);
+        }
+
+        $info = $this->landing->teamInfoForLanding($widget, $locationId, $teamId);
+        if ($info === null) {
+            abort(404);
+        }
+
+        return response()->json([
+            'data' => $info,
         ]);
     }
 
@@ -53,12 +83,7 @@ class SchoolLeadLandingController extends Controller
             ], 422);
         }
 
-        $sportTypeId = $request->query('sport_type_id');
-        $sportTypeId = ($sportTypeId !== null && $sportTypeId !== '' && ctype_digit((string) $sportTypeId))
-            ? (int) $sportTypeId
-            : null;
-
-        $teams = $this->landing->teamsForLocation($widget, $locationId, $sportTypeId);
+        $teams = $this->landing->teamsForLocation($widget, $locationId);
 
         return response()->json([
             'data' => $teams->values(),

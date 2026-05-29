@@ -80,11 +80,18 @@ final class SchoolLeadLandingPublicAccessFeatureTest extends TestCase
             ])
         )
             ->assertOk();
+
+        $this->getJson(route('lead.team-info', [
+            'landingKey'  => $this->landingWidget->landing_key,
+            'location_id' => $this->landingLocation->id,
+            'team_id'     => $this->landingTeam->id,
+        ]))
+            ->assertOk();
     }
 
     public function test_all_public_landing_routes_are_registered_without_auth_middleware(): void
     {
-        $routeNames = ['lead.show', 'lead.teams', 'lead.submit'];
+        $routeNames = ['lead.show', 'lead.teams', 'lead.team-info', 'lead.submit'];
 
         foreach ($routeNames as $routeName) {
             $route = \Illuminate\Support\Facades\Route::getRoutes()->getByName($routeName);

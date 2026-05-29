@@ -128,6 +128,15 @@
                 line-height: 1.3;
                 color: #495057;
             }
+
+            .modal-content > .select2-container.select2-container--open {
+                position: absolute !important;
+                z-index: 1060;
+            }
+
+            .modal .select2-dropdown.kids-crm-generic-ms-dropdown {
+                z-index: 1060;
+            }
         </style>
     @endpush
 
@@ -319,6 +328,83 @@
                     window.requestAnimationFrame(runSync);
                 }
 
+                function normalizeDropdownParent($select, dropdownParent) {
+                    let $parent;
+
+                    if (dropdownParent) {
+                        $parent = dropdownParent.jquery ? dropdownParent : $(dropdownParent);
+                    } else {
+                        $parent = $select.closest('.modal');
+                    }
+
+                    if (!$parent || !$parent.length) {
+                        return null;
+                    }
+
+                    if ($parent.hasClass('modal')) {
+                        const $content = $parent.find('.modal-content').first();
+                        return $content.length ? $content : $parent;
+                    }
+
+                    return $parent;
+                }
+
+                function repositionDropdown($select) {
+                    const instance = $select.data('select2');
+                    if (!instance || !instance.dropdown) {
+                        return;
+                    }
+
+                    const dropdown = instance.dropdown;
+
+                    if (typeof dropdown._positionDropdown === 'function') {
+                        dropdown._positionDropdown();
+                    }
+
+                    if (typeof dropdown._resizeDropdown === 'function') {
+                        dropdown._resizeDropdown();
+                    }
+                }
+
+                function scheduleDropdownReposition($select) {
+                    window.requestAnimationFrame(function () {
+                        repositionDropdown($select);
+                    });
+                }
+
+                function unbindModalReposition($select) {
+                    const modalNs = $select.data('kidsCrmGenericMsModalNs');
+                    if (!modalNs) {
+                        return;
+                    }
+
+                    $select.closest('.modal').off('shown.bs.modal' + modalNs);
+                    $select.removeData('kidsCrmGenericMsModalNs');
+                }
+
+                function bindModalReposition($select, $dropdownParent) {
+                    unbindModalReposition($select);
+
+                    if (!$dropdownParent || !$dropdownParent.length) {
+                        return;
+                    }
+
+                    const $modal = $dropdownParent.closest('.modal');
+                    if (!$modal.length) {
+                        return;
+                    }
+
+                    const modalNs = namespace + '-modal-' + ($select.attr('id') || 'generic-ms');
+                    $select.data('kidsCrmGenericMsModalNs', modalNs);
+
+                    $modal.on('shown.bs.modal' + modalNs, function () {
+                        const instance = $select.data('select2');
+                        if (instance && instance.isOpen()) {
+                            scheduleDropdownReposition($select);
+                        }
+                    });
+                }
+
                 function bindSearchFieldKeepOpen($select) {
                     const $container = $select.next('.select2-container');
                     if (!$container.length) {
@@ -354,6 +440,21 @@
                         }
 
                         const $container = $select.next('.select2-container');
+                        const instance = $select.data('select2');
+                        const $dropdown = instance && instance.dropdown && instance.dropdown.$dropdown
+                            ? instance.dropdown.$dropdown
+                            : $();
+
+                        if (originalEvent && originalEvent.target) {
+                            const $target = $(originalEvent.target);
+                            const clickedInsideControl = $target.closest($container).length > 0;
+                            const clickedInsideDropdown = $target.closest($dropdown).length > 0;
+
+                            if (!clickedInsideControl && !clickedInsideDropdown) {
+                                return;
+                            }
+                        }
+
                         const active = document.activeElement;
 
                         if ($container.length && active && $.contains($container[0], active)) {
@@ -398,6 +499,7 @@
                     $select.on('select2:open' + namespace, function () {
                         bindSearchFieldKeepOpen($select);
                         scheduleSyncDropdownCheckboxes($select);
+                        scheduleDropdownReposition($select);
 
                         window.setTimeout(function () {
                             $select.next('.select2-container').find('.select2-search__field').trigger('focus');
@@ -414,9 +516,12 @@
                         }
 
                         if ($select.data('select2')) {
+                            unbindModalReposition($select);
                             $select.off(namespace);
                             $select.select2('destroy');
                         }
+
+                        const $dropdownParent = normalizeDropdownParent($select, options.dropdownParent);
 
                         $select.select2({
                             theme: 'bootstrap-5',
@@ -426,7 +531,7 @@
                             allowClear: options.allowClear !== false,
                             multiple: true,
                             closeOnSelect: false,
-                            dropdownParent: options.dropdownParent || undefined,
+                            dropdownParent: $dropdownParent && $dropdownParent.length ? $dropdownParent : undefined,
                             containerCssClass: 'kids-crm-generic-ms-select2',
                             selectionCssClass: 'kids-crm-ms-selection',
                             dropdownCssClass: 'kids-crm-generic-ms-dropdown',
@@ -437,6 +542,7 @@
 
                         bindEvents($select);
                         bindSearchFieldKeepOpen($select);
+                        bindModalReposition($select, $dropdownParent);
                         syncSelectionSummary($select);
                     },
 

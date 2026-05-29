@@ -167,6 +167,9 @@ Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/lead/{landingKey}/teams', [\App\Http\Controllers\SchoolLeadLandingController::class, 'teams'])
         ->name('lead.teams')
         ->where('landingKey', '[A-Za-z0-9]{48}');
+    Route::get('/lead/{landingKey}/team-info', [\App\Http\Controllers\SchoolLeadLandingController::class, 'teamInfo'])
+        ->name('lead.team-info')
+        ->where('landingKey', '[A-Za-z0-9]{48}');
     Route::post('/lead/{landingKey}/submit', [\App\Http\Controllers\SchoolLeadLandingController::class, 'submit'])
         ->name('lead.submit')
         ->where('landingKey', '[A-Za-z0-9]{48}');

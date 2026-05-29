@@ -10,8 +10,8 @@ use App\Http\Requests\SubmitSchoolLeadLandingRequest;
 use App\Models\Location;
 use App\Models\PartnerWidget;
 use App\Models\SchoolLead;
-use App\Models\SportType;
 use App\Models\Team;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 final class SchoolLeadLandingService
@@ -47,26 +47,9 @@ final class SchoolLeadLandingService
     }
 
     /**
-     * @return Collection<int, array{id: int, name: string}>
-     */
-    public function sportTypesForWidget(PartnerWidget $widget): Collection
-    {
-        return SportType::query()
-            ->where('partner_id', $widget->partner_id)
-            ->where('is_enabled', true)
-            ->orderBy('sort')
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn (SportType $sportType) => [
-                'id'   => (int) $sportType->id,
-                'name' => (string) $sportType->name,
-            ]);
-    }
-
-    /**
      * @return Collection<int, array{id: int, title: string}>
      */
-    public function teamsForLocation(PartnerWidget $widget, int $locationId, ?int $sportTypeId = null): Collection
+    public function teamsForLocation(PartnerWidget $widget, int $locationId): Collection
     {
         $partnerId = (int) $widget->partner_id;
 
@@ -87,16 +70,132 @@ final class SchoolLeadLandingService
 
         $this->teamLocationAvailability->scopeAvailableForLocation($query, $locationId);
 
-        if ($sportTypeId !== null && $sportTypeId > 0) {
-            $query->where('sport_type_id', $sportTypeId);
-        }
-
         return $query
             ->get(['id', 'title'])
             ->map(fn (Team $team) => [
                 'id'    => (int) $team->id,
                 'title' => (string) $team->title,
             ]);
+    }
+
+    /**
+     * @return array{title: string, rows: list<array{label: string, value: string}>}|null
+     */
+    public function teamInfoForLanding(PartnerWidget $widget, int $locationId, int $teamId): ?array
+    {
+        $partnerId = (int) $widget->partner_id;
+
+        $locationExists = Location::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->whereKey($locationId)
+            ->exists();
+
+        if (!$locationExists) {
+            return null;
+        }
+
+        $team = Team::query()
+            ->with([
+                'sportType:id,name',
+                'weekdays' => fn ($query) => $query->orderBy('weekdays.id'),
+            ])
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->whereKey($teamId)
+            ->first();
+
+        if ($team === null) {
+            return null;
+        }
+
+        if (!$this->teamLocationAvailability->isTeamAllowedAtLocation($team, $locationId)) {
+            return null;
+        }
+
+        $weekdaysCount = $team->weekdays->count();
+        $scheduleLabel = $team->weekdays
+            ->pluck('title')
+            ->filter(fn ($title) => trim((string) $title) !== '')
+            ->implode(', ');
+
+        return [
+            'title' => (string) $team->title,
+            'rows'  => [
+                ['label' => 'Тренировочная база', 'value' => $this->displayValue($team->training_base)],
+                ['label' => 'Адрес', 'value' => $this->displayValue($team->address)],
+                ['label' => 'Вид спорта', 'value' => $this->displayValue($team->sportType?->name)],
+                ['label' => 'Стоимость в месяц', 'value' => $this->formatMonthPrice($team->month_price)],
+                ['label' => 'Занятий в неделю', 'value' => $weekdaysCount > 0 ? (string) $weekdaysCount : '—'],
+                ['label' => 'Занятий в месяц', 'value' => $weekdaysCount > 0 ? (string) ($weekdaysCount * 4) : '—'],
+                ['label' => 'Продолжительность занятия', 'value' => $this->formatDuration($team->default_duration_minutes)],
+                ['label' => 'Период занятий', 'value' => $this->formatTrainingPeriod()],
+                ['label' => 'Расписание занятий', 'value' => $scheduleLabel !== '' ? $scheduleLabel : '—'],
+            ],
+        ];
+    }
+
+    private function displayValue(mixed $value): string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value !== '' ? $value : '—';
+    }
+
+    private function formatMonthPrice(mixed $price): string
+    {
+        if ($price === null || $price === '') {
+            return '—';
+        }
+
+        $amount = (int) $price;
+        if ($amount < 0) {
+            return '—';
+        }
+
+        return number_format($amount, 0, ',', ' ') . ' ₽';
+    }
+
+    private function formatDuration(mixed $minutes): string
+    {
+        $minutes = (int) $minutes;
+        if ($minutes <= 0) {
+            return '—';
+        }
+
+        if ($minutes % 60 === 0) {
+            $hours = (int) ($minutes / 60);
+
+            return $hours === 1 ? '1 час' : $hours . ' ч';
+        }
+
+        if ($minutes > 60) {
+            $hours = intdiv($minutes, 60);
+            $rest = $minutes % 60;
+
+            return $hours . ' ч ' . $rest . ' мин';
+        }
+
+        return $minutes . ' мин';
+    }
+
+    private function formatTrainingPeriod(?Carbon $today = null): string
+    {
+        $today ??= Carbon::today();
+        $year = (int) $today->year;
+
+        if ($today->betweenIncluded(
+            Carbon::create($year, 1, 1)->startOfDay(),
+            Carbon::create($year, 6, 30)->endOfDay()
+        )) {
+            $start = Carbon::create($year, 1, 12);
+            $end = Carbon::create($year, 6, 30);
+        } else {
+            $start = Carbon::create($year, 9, 1);
+            $end = Carbon::create($year + 1, 6, 30);
+        }
+
+        return $start->format('d.m.Y') . ' — ' . $end->format('d.m.Y');
     }
 
     public function createFromRequest(SubmitSchoolLeadLandingRequest $request, PartnerWidget $widget): SchoolLead
@@ -106,6 +205,20 @@ final class SchoolLeadLandingService
             $request->string('parent_firstname')->toString(),
             $request->string('parent_middlename')->toString(),
         ])));
+
+        $teamId = $request->filled('team_id') ? (int) $request->input('team_id') : null;
+        $sportTypeId = null;
+
+        if ($teamId !== null) {
+            $team = Team::query()
+                ->where('partner_id', $widget->partner_id)
+                ->whereKey($teamId)
+                ->first(['sport_type_id']);
+
+            if ($team?->sport_type_id !== null) {
+                $sportTypeId = (int) $team->sport_type_id;
+            }
+        }
 
         return SchoolLead::create([
             'partner_id'             => $widget->partner_id,
@@ -126,8 +239,8 @@ final class SchoolLeadLandingService
             'is_on_medical_register' => $request->boolean('is_on_medical_register'),
             'is_with_disability'     => $request->boolean('is_with_disability'),
             'location_id'            => (int) $request->input('location_id'),
-            'sport_type_id'          => $request->filled('sport_type_id') ? (int) $request->input('sport_type_id') : null,
-            'team_id'                => $request->filled('team_id') ? (int) $request->input('team_id') : null,
+            'sport_type_id'          => $sportTypeId,
+            'team_id'                => $teamId,
             'needs_contact_help'     => $request->boolean('needs_contact_help'),
             'comment'                => $request->input('comment'),
             'status'                 => SchoolLeadStatus::New->value,
