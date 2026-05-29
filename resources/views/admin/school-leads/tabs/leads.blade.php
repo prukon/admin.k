@@ -5,9 +5,14 @@
     $canShowLeadClientColumn = $canViewContracts || $canCreateUserFromLead;
     $leadStats = $leadStats ?? ['total' => 0, 'new' => 0, 'processing' => 0];
     $leadsHasActiveFilters = false;
+    $schoolLeadStatusOptions = $schoolLeadStatusOptions ?? [];
+    $filterTeams = $filterTeams ?? collect();
 @endphp
 
 @vite(['resources/css/admin-list-toolbar.css'])
+
+@include('partials.ui.hover-list-dropdown')
+@include('partials.select2.generic-multiselect')
 
 <div class="main-content text-start">
 
@@ -81,11 +86,23 @@
 
                                 <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="name" id="slColName" checked>
-                                    <label class="form-check-label" for="slColName">Имя</label>
+                                    <label class="form-check-label" for="slColName">ФИО родителя</label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="phone" id="slColPhone" checked>
-                                    <label class="form-check-label" for="slColPhone">Телефон</label>
+                                    <label class="form-check-label" for="slColPhone">Телефон родителя</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="parent_email" id="slColParentEmail" checked>
+                                    <label class="form-check-label" for="slColParentEmail">Email родителя</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="child_full_name" id="slColChildName" checked>
+                                    <label class="form-check-label" for="slColChildName">ФИО ребенка</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="child_birthday" id="slColChildBirthday" checked>
+                                    <label class="form-check-label" for="slColChildBirthday">Дата рождения</label>
                                 </div>
                                 @if ($canViewLocations)
                                     <div class="form-check">
@@ -93,6 +110,14 @@
                                         <label class="form-check-label" for="slColLocation">Локация</label>
                                     </div>
                                 @endif
+                                <div class="form-check">
+                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="team_title" id="slColTeam" checked>
+                                    <label class="form-check-label" for="slColTeam">Секция</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="child_flags" id="slColChildFlags" checked>
+                                    <label class="form-check-label" for="slColChildFlags">Особые условия</label>
+                                </div>
                                 <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="utm" id="slColUtm" checked>
                                     <label class="form-check-label" for="slColUtm">UTM / источник</label>
@@ -130,34 +155,19 @@
     <div class="collapse {{ $leadsHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="schoolLeadsFiltersCollapse">
         <form id="school-leads-filters" class="border rounded p-2 p-md-3 bg-light" action="#" method="get">
             <div class="row g-3 align-items-end">
-                <div class="col-12">
-                    <label class="form-label d-block mb-2">Статусы</label>
-                    <div class="d-flex flex-wrap gap-3">
-                        <div class="form-check mb-0">
-                            <input class="form-check-input status-filter-checkbox" type="checkbox" value="new" id="slFilterStatusNew" checked>
-                            <label class="form-check-label" for="slFilterStatusNew">Новый</label>
-                        </div>
-                        <div class="form-check mb-0">
-                            <input class="form-check-input status-filter-checkbox" type="checkbox" value="processing" id="slFilterStatusProcessing" checked>
-                            <label class="form-check-label" for="slFilterStatusProcessing">Обработка</label>
-                        </div>
-                        <div class="form-check mb-0">
-                            <input class="form-check-input status-filter-checkbox" type="checkbox" value="sale" id="slFilterStatusSale">
-                            <label class="form-check-label" for="slFilterStatusSale">Продажа</label>
-                        </div>
-                        <div class="form-check mb-0">
-                            <input class="form-check-input status-filter-checkbox" type="checkbox" value="rejected" id="slFilterStatusRejected">
-                            <label class="form-check-label" for="slFilterStatusRejected">Отказ</label>
-                        </div>
-                        <div class="form-check mb-0">
-                            <input class="form-check-input status-filter-checkbox" type="checkbox" value="spam" id="slFilterStatusSpam">
-                            <label class="form-check-label" for="slFilterStatusSpam">Спам</label>
-                        </div>
+                <div class="col-12 col-md-4">
+                    <div class="mb-0 generic-multiselect-field">
+                        <label class="form-label" for="sl-filter-status">Статус</label>
+                        <select class="form-select js-generic-multiselect-select" id="sl-filter-status" name="statuses[]" multiple data-placeholder="Все статусы">
+                        @foreach ($schoolLeadStatusOptions as $option)
+                            <option value="{{ $option['value'] }}" @selected(in_array($option['value'], ['new', 'processing'], true))>{{ $option['label'] }}</option>
+                        @endforeach
+                        </select>
                     </div>
                 </div>
 
                 @if ($canViewLocations)
-                    <div class="col-12 col-md-4">
+                    <div class="col-12 col-md-3">
                         <label class="form-label" for="sl-filter-location">Локация</label>
                         <select class="form-select" id="sl-filter-location" name="location_id">
                             <option value="">Все локации</option>
@@ -168,6 +178,24 @@
                         </select>
                     </div>
                 @endif
+
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="sl-filter-team">Секция</label>
+                    <select class="form-select" id="sl-filter-team" name="team_id">
+                        <option value="">Все секции</option>
+                        <option value="none">Без секции</option>
+                        @foreach ($filterTeams as $team)
+                            <option value="{{ $team->id }}">{{ $team->title }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-auto">
+                    <div class="form-check mb-0 pb-md-1">
+                        <input class="form-check-input" type="checkbox" value="1" id="sl-filter-special-conditions" name="has_special_conditions">
+                        <label class="form-check-label text-nowrap" for="sl-filter-special-conditions">Есть особые условия</label>
+                    </div>
+                </div>
 
                 <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                     <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
@@ -181,11 +209,16 @@
         <thead>
             <tr>
                 <th>№</th>
-                <th>Имя</th>
-                <th>Телефон</th>
+                <th>ФИО родителя</th>
+                <th>Телефон родителя</th>
+                <th>Email родителя</th>
+                <th>ФИО ребенка</th>
+                <th>Дата рождения</th>
                 @if ($canViewLocations)
                     <th>Локация</th>
                 @endif
+                <th>Секция</th>
+                <th>Особые условия</th>
                 <th>UTM / источник</th>
                 <th>Страница</th>
                 <th>Статус</th>
@@ -305,18 +338,33 @@
             var toastInstance = new bootstrap.Toast(toastEl, { delay: 2500 });
 
             var defaultStatusFilters = ['new', 'processing'];
+            var $statusFilter = $('#sl-filter-status');
             var $locationFilter = $('#sl-filter-location');
+            var $teamFilter = $('#sl-filter-team');
+            var $specialConditionsFilter = $('#sl-filter-special-conditions');
+
+            if ($statusFilter.length && window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.init($statusFilter, {
+                    placeholder: $statusFilter.data('placeholder') || 'Все статусы',
+                    allowClear: true
+                });
+            }
 
             function readFiltersFromForm() {
-                var statuses = [];
-                $filtersForm.find('.status-filter-checkbox:checked').each(function() {
-                    statuses.push($(this).val());
-                });
+                var statuses = $statusFilter.length ? ($statusFilter.val() || []) : [];
                 var locationId = '';
                 if (canViewLocations && $locationFilter.length) {
                     locationId = $locationFilter.val() || '';
                 }
-                return { statuses: statuses, location_id: locationId };
+                var teamId = $teamFilter.length ? ($teamFilter.val() || '') : '';
+                var hasSpecialConditions = $specialConditionsFilter.length && $specialConditionsFilter.is(':checked');
+
+                return {
+                    statuses: statuses,
+                    location_id: locationId,
+                    team_id: teamId,
+                    has_special_conditions: hasSpecialConditions ? 1 : 0
+                };
             }
 
             var appliedFilters = readFiltersFromForm();
@@ -351,12 +399,19 @@
             }
 
             function resetFiltersFormToDefault() {
-                $filtersForm.find('.status-filter-checkbox').each(function() {
-                    var val = $(this).val();
-                    $(this).prop('checked', defaultStatusFilters.indexOf(val) !== -1);
-                });
+                if ($statusFilter.length && window.KidsCrmGenericMultiselectSelect2) {
+                    KidsCrmGenericMultiselectSelect2.setValues($statusFilter, defaultStatusFilters);
+                } else if ($statusFilter.length) {
+                    $statusFilter.val(defaultStatusFilters).trigger('change');
+                }
                 if (canViewLocations && $locationFilter.length) {
                     $locationFilter.val('');
+                }
+                if ($teamFilter.length) {
+                    $teamFilter.val('');
+                }
+                if ($specialConditionsFilter.length) {
+                    $specialConditionsFilter.prop('checked', false);
                 }
             }
 
@@ -411,6 +466,11 @@
             var defaultColumnsVisibility = {
                 name: true,
                 phone: true,
+                parent_email: true,
+                child_full_name: true,
+                child_birthday: true,
+                team_title: true,
+                child_flags: true,
                 location: canViewLocations,
                 utm: true,
                 page_url: true,
@@ -423,11 +483,19 @@
             var currentColumnsConfig = Object.assign({}, defaultColumnsVisibility);
 
             var columnsMap = (function buildSchoolLeadsColumnsMap() {
-                var map = { name: 1, phone: 2 };
-                var idx = 3;
+                var map = {
+                    name: 1,
+                    phone: 2,
+                    parent_email: 3,
+                    child_full_name: 4,
+                    child_birthday: 5
+                };
+                var idx = 6;
                 if (canViewLocations) {
                     map.location = idx++;
                 }
+                map.team_title = idx++;
+                map.child_flags = idx++;
                 map.utm = idx++;
                 map.page_url = idx++;
                 map.status = idx++;
@@ -502,6 +570,27 @@
                 });
             }
 
+            function renderChildFlags(row) {
+                var badges = [];
+                if (row.is_individual_traits) {
+                    badges.push('<span class="badge bg-info text-dark me-1 mb-1">Особенности</span>');
+                }
+                if (row.is_on_medical_register) {
+                    badges.push('<span class="badge bg-warning text-dark me-1 mb-1">Мед. учёт</span>');
+                }
+                if (row.is_with_disability) {
+                    badges.push('<span class="badge bg-secondary me-1 mb-1">Инвалидность</span>');
+                }
+                if (!badges.length) {
+                    return '—';
+                }
+                return '<div class="d-flex flex-wrap gap-1">' + badges.join('') + '</div>';
+            }
+
+            function renderOptionalText(data) {
+                return data ? $('<div/>').text(data).html() : '—';
+            }
+
             var locationColumn = {
                 data: 'location_name',
                 name: 'location_name',
@@ -512,13 +601,51 @@
 
             var dataTableColumns = [
                 { data: 'id', name: 'id' },
-                { data: 'name', name: 'name' },
-                { data: 'phone', name: 'phone' }
+                {
+                    data: 'parent_full_name',
+                    name: 'name',
+                    render: function(data) { return renderOptionalText(data); }
+                },
+                {
+                    data: 'parent_phone',
+                    name: 'phone',
+                    render: function(data) { return renderOptionalText(data); }
+                },
+                {
+                    data: 'parent_email',
+                    name: 'parent_email',
+                    render: function(data) { return renderOptionalText(data); }
+                },
+                {
+                    data: 'child_full_name',
+                    name: 'child_full_name',
+                    render: function(data) { return renderOptionalText(data); }
+                },
+                {
+                    data: 'child_birthday',
+                    name: 'child_birthday',
+                    render: function(data) { return renderOptionalText(data); }
+                }
             ];
 
             if (canViewLocations) {
                 dataTableColumns.push(locationColumn);
             }
+
+            dataTableColumns.push(
+                {
+                    data: 'team_title',
+                    name: 'team_title',
+                    render: function(data) { return renderOptionalText(data); }
+                },
+                {
+                    data: null,
+                    name: 'child_flags',
+                    orderable: false,
+                    searchable: false,
+                    render: function(data, type, row) { return renderChildFlags(row); }
+                }
+            );
 
             dataTableColumns.push(
                 {
@@ -607,6 +734,10 @@
                         d.statuses = appliedFilters.statuses;
                         if (canViewLocations) {
                             d.location_id = appliedFilters.location_id;
+                        }
+                        d.team_id = appliedFilters.team_id;
+                        if (appliedFilters.has_special_conditions) {
+                            d.has_special_conditions = appliedFilters.has_special_conditions;
                         }
                     },
                     dataSrc: function(json) {
@@ -801,7 +932,49 @@
                     $createUserForm[0].reset();
                     $('#create-school-lead-id').val('');
                     $createUserForm.removeData('success-handler');
+                    $createUserForm.removeData('school-lead-prefill');
                     resetCreateUserFormErrors();
+                    if (typeof window.resetStudentParentForm === 'function') {
+                        window.resetStudentParentForm('create');
+                    }
+                }
+
+                function prefillCreateUserFromLead(rowData) {
+                    resetCreateUserFormFields();
+
+                    var studentRoleId = $('.js-student-parent-fields[data-parent-prefix="create"]').data('student-role-id');
+                    if (studentRoleId) {
+                        $('#create_role_id').val(String(studentRoleId)).trigger('change');
+                    }
+
+                    $('#create-name').val(rowData.child_firstname || '');
+                    $('#create-lastname').val(rowData.child_lastname || '');
+                    $('#create-birthday').val(rowData.child_birthday_iso || '');
+
+                    if (rowData.team_id) {
+                        $('#create-team').val(String(rowData.team_id));
+                    } else {
+                        $('#create-team').val('');
+                    }
+
+                    $('#create-email').val(rowData.parent_email || '');
+                    $('#create-school-lead-id').val(rowData.id);
+
+                    var $phone = $('#create-phone');
+                    if ($phone.length && !$phone.prop('disabled')) {
+                        $phone.val(rowData.parent_phone || rowData.phone || '');
+                        if ($phone.inputmask) {
+                            $phone.trigger('input');
+                        }
+                    }
+
+                    $createUserForm.data('school-lead-prefill', {
+                        parent_lastname: rowData.parent_lastname || '',
+                        parent_firstname: rowData.parent_firstname || '',
+                        parent_middlename: rowData.parent_middlename || '',
+                    });
+
+                    $createUserForm.data('success-handler', 'school-leads-table');
                 }
 
                 $('#leads-table').on('click', '.create-user-from-lead', function() {
@@ -810,21 +983,7 @@
                         return;
                     }
 
-                    resetCreateUserFormFields();
-
-                    $('#create-name').val(rowData.name || '');
-                    $('#create-lastname').val('');
-                    $('#create-school-lead-id').val(rowData.id);
-
-                    var $phone = $('#create-phone');
-                    if ($phone.length && !$phone.prop('disabled')) {
-                        $phone.val(rowData.phone || '');
-                        if ($phone.inputmask) {
-                            $phone.trigger('input');
-                        }
-                    }
-
-                    $createUserForm.data('success-handler', 'school-leads-table');
+                    prefillCreateUserFromLead(rowData);
 
                     if (createUserModal) {
                         createUserModal.show();

@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\SchoolLeads;
 
 use App\Models\Location;
 use App\Models\SchoolLead;
+use App\Models\Team;
 use App\Services\PartnerWidgetService;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
@@ -74,8 +75,11 @@ final class SchoolLeadsPageFeatureTest extends CrmTestCase
             ->assertSee('school-leads-stat-processing', false)
             ->assertSee('school-leads-stat-total', false)
             ->assertSee('id="school-leads-filters"', false)
-            ->assertSee('id="slFilterStatusNew"', false)
-            ->assertSee('id="slFilterStatusProcessing"', false)
+            ->assertSee('id="sl-filter-status"', false)
+            ->assertSee('js-generic-multiselect-select', false)
+            ->assertSee('KidsCrmGenericMultiselectSelect2', false)
+            ->assertSee('id="sl-filter-team"', false)
+            ->assertSee('id="sl-filter-special-conditions"', false)
             ->assertSee('id="leads-table"', false);
     }
 
@@ -294,6 +298,98 @@ final class SchoolLeadsPageFeatureTest extends CrmTestCase
         $response->assertOk();
         $this->assertEquals(5, $response->json('recordsTotal'));
         $this->assertCount(2, $response->json('data'));
+    }
+
+    public function test_datatable_filters_by_team(): void
+    {
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Футбол',
+            'is_enabled' => true,
+        ]);
+
+        SchoolLead::create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'С секцией',
+            'phone'      => '+7 900 111-11-11',
+            'status'     => 'new',
+            'team_id'    => $team->id,
+        ]);
+        SchoolLead::create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Без секции',
+            'phone'      => '+7 900 222-22-22',
+            'status'     => 'new',
+        ]);
+
+        $response = $this->getJson(route('admin.school-leads.data', [
+            'draw'     => 1,
+            'start'    => 0,
+            'length'   => 10,
+            'statuses' => ['new'],
+            'team_id'  => (string) $team->id,
+        ]));
+
+        $response->assertOk();
+        $this->assertEquals(1, $response->json('recordsFiltered'));
+        $this->assertSame('С секцией', $response->json('data.0.name'));
+    }
+
+    public function test_datatable_filters_by_special_conditions(): void
+    {
+        SchoolLead::create([
+            'partner_id'             => $this->partner->id,
+            'name'                   => 'С особенностями',
+            'phone'                  => '+7 900 111-11-11',
+            'status'                 => 'new',
+            'is_individual_traits'   => true,
+        ]);
+        SchoolLead::create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Обычный',
+            'phone'      => '+7 900 222-22-22',
+            'status'     => 'new',
+        ]);
+
+        $response = $this->getJson(route('admin.school-leads.data', [
+            'draw'                     => 1,
+            'start'                    => 0,
+            'length'                   => 10,
+            'statuses'                 => ['new'],
+            'has_special_conditions'   => '1',
+        ]));
+
+        $response->assertOk();
+        $this->assertEquals(1, $response->json('recordsFiltered'));
+        $this->assertSame('С особенностями', $response->json('data.0.name'));
+    }
+
+    public function test_index_team_filter_lists_only_enabled_partner_teams(): void
+    {
+        $enabled = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'АктивнаяСекция',
+            'is_enabled' => true,
+        ]);
+        Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'ОтключённаяСекция',
+            'is_enabled' => false,
+        ]);
+        Team::factory()->create([
+            'partner_id' => $this->foreignPartner->id,
+            'title'      => 'ЧужаяСекция',
+            'is_enabled' => true,
+        ]);
+
+        $this->get(route('admin.school-leads'))
+            ->assertOk()
+            ->assertSee('id="sl-filter-team"', false)
+            ->assertSee('Все секции', false)
+            ->assertSee('Без секции', false)
+            ->assertSee('>АктивнаяСекция</option>', false)
+            ->assertDontSee('>ЧужаяСекция</option>', false)
+            ->assertSee('value="' . $enabled->id . '"', false);
     }
 
     public function test_columns_settings_rejects_invalid_payload(): void

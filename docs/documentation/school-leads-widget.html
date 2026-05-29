@@ -26,12 +26,16 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Заявки с сайта: виджет (iframe) для партнёра</h1>
-  <div class="small">Файл: <code>/docs/documentation/school-leads-widget.html</code> · оглавление: <a href="/doc">/doc</a></div>
+  <h1>Заявки с сайта: виджет (iframe) и CRM</h1>
+  <div class="small">Файл: <code>/docs/documentation/school-leads-widget.html</code> · оглавление: <a href="/doc">/doc</a> · см. также <a href="/docs/documentation/school-leads-landing">страница заявки партнёра (лендинг)</a></div>
 
   <div class="note">
-    <b>Назначение:</b> партнёр (школа) встраивает на свой лендинг iframe-форму сбора заявок.
-    Заявки клиентов школы сохраняются в CRM в разрезе <code>partner_id</code> и отображаются в кабинете этой школы.<br>
+    <b>Назначение:</b> сбор заявок клиентов школы в CRM (<code>school_leads</code>) двумя публичными каналами:
+    <ul>
+      <li><b>Виджет iframe</b> (<code>/widget/{widgetKey}</code>) — короткая форма для встраивания на сайт партнёра (§4).</li>
+      <li><b>Страница заявки</b> (<code>/lead/{landingKey}</code>) — брендированный лендинг с полной формой; подробно в <a href="/docs/documentation/school-leads-landing">school-leads-landing.html</a>.</li>
+    </ul>
+    Заявки изолированы по <code>partner_id</code> и отображаются в кабинете школы (<code>/admin/school-leads</code>).<br>
     <b>Не путать</b> с разделом «Лиды партнёров» (<code>/admin/partner-leads</code>, таблица <code>partner_leads</code>) — там B2B-заявки с лендинга kidscrm «подключить школу к платформе».
   </div>
 
@@ -60,18 +64,19 @@
 
   <h2>2) Модель данных</h2>
   <ul>
-    <li><code>partner_widgets</code> — один активный виджет на партнёра: <code>widget_key</code> (48 символов), <code>is_active</code>. Создаётся при создании партнёра (<code>Partner::created</code> → <code>PartnerWidgetService::ensureForPartner</code>).</li>
-    <li><code>school_leads</code> — заявки: <code>partner_id</code>, <code>name</code>, <code>phone</code>, <code>location_id</code> (nullable, назначается в CRM), <code>user_id</code> (nullable — связанный ученик после конвертации в CRM), статус, UTM, <code>page_url</code>, <code>referrer</code>, согласие ПДн (<code>consent_accepted_at</code>, <code>policy_url</code>), soft delete.</li>
+    <li><code>partner_widgets</code> — одна запись на партнёра: <code>widget_key</code> (iframe, 48 символов), <code>landing_key</code> (страница заявки, 48 символов), <code>is_active</code>, <code>is_landing_active</code>. Создаётся при создании партнёра (<code>Partner::created</code> → <code>PartnerWidgetService::ensureForPartner</code>).</li>
+    <li><code>school_leads</code> — заявки: <code>partner_id</code>, <code>source</code> (<code>widget</code> | <code>landing</code>), <code>name</code>, <code>phone</code>, поля родителя/ребёнка (лендинг), <code>location_id</code>, <code>team_id</code> (лендинг), флаги особенностей, <code>needs_contact_help</code>, <code>user_id</code> (nullable — ученик после конвертации), статус, UTM, <code>page_url</code>, <code>referrer</code>, согласие ПДн (<code>consent_accepted_at</code>, <code>policy_url</code> — у лендинга null), soft delete. Миграции расширения: <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>.</li>
     <li><code>partner_telegram_link_tokens</code> — одноразовые токены для привязки Telegram через <code>/start</code> (срок жизни ~30 мин).</li>
     <li><code>partners.school_leads_telegram_chat_id</code> — Chat ID для уведомлений партнёра в Telegram.</li>
   </ul>
+  <p class="small">Поля лендинга и публичные маршруты <code>/lead/…</code> — <a href="/docs/documentation/school-leads-landing">school-leads-landing.html</a>.</p>
 
   <h2>3) Права и меню</h2>
   <div class="note">
     В <code>/config/role_base_permissions.php</code> для роли <code>admin</code> (в разрезе партнёра):
     <ul>
       <li><code>schoolLeads.view</code> — страница «Заявки с сайта», datatable, update/delete.</li>
-      <li><code>schoolWidget.view</code> — страница «Виджет заявок», код iframe, подключение Telegram.</li>
+      <li><code>schoolWidget.view</code> — вкладки «Страница заявки» и «Виджет для сайта», код iframe, подключение Telegram.</li>
       <li>Для колонки «Договор» и конвертации в ученика дополнительно нужны <code>users.view</code> и/или <code>contracts.view</code> (§5.8) — в базовый набор роли <code>admin</code> партнёра обычно уже входят.</li>
     </ul>
     Роль <code>user</code> этих прав <b>не получает</b> по умолчанию. Назначение — через «Права и роли» или сидеры (см. <a href="/docs/documentation/partners-permissions">партнёры: базовые права</a>).
@@ -79,6 +84,7 @@
   <p class="small">Меню: <code>resources/views/includes/sidebar.blade.php</code> — пункты под <code>@can('schoolLeads.view')</code> и <code>@can('schoolWidget.view')</code>.</p>
 
   <h2>4) Публичный виджет (iframe)</h2>
+  <p class="small">Отдельная полная форма на <code>/lead/{landingKey}</code> — не этот раздел; см. <a href="/docs/documentation/school-leads-landing">school-leads-landing.html</a>.</p>
   <table>
     <thead>
       <tr><th>Метод</th><th>URL</th><th>Назначение</th></tr>
@@ -123,7 +129,7 @@
     См. <a href="/docs/documentation/partner-context">партнёр-контекст</a>.
   </div>
   <h3>5.1) Интерфейс страницы списка</h3>
-  <p>View: <code>resources/views/admin/school-leads.blade.php</code>, стили toolbar — <code>resources/css/admin-list-toolbar.css</code> (см. <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a> и отчёт <a href="/docs/documentation/reports-payments">«Платежи»</a>).</p>
+  <p class="small">View списка заявок: <code>resources/views/admin/school-leads/index.blade.php</code> (вкладка «Заявки» → <code>tabs/leads.blade.php</code>), стили toolbar — <code>resources/css/admin-list-toolbar.css</code> (см. <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a> и отчёт <a href="/docs/documentation/reports-payments">«Платежи»</a>).</p>
   <ul>
     <li><b>Toolbar</b> — заголовок «Заявки с сайта», счётчики по всему партнёру (не зависят от фильтров таблицы):
       <ul>
@@ -197,7 +203,8 @@
   <h3>5.3) Локации</h3>
   <ul>
     <li>Миграция <code>2026_05_19_160000_add_location_id_to_school_leads_table.php</code> — nullable FK на <code>locations</code>.</li>
-    <li>Заявки из виджета — <code>location_id = null</code>; назначение в CRM (модалка редактирования).</li>
+    <li>Заявки из <b>виджета</b> — <code>location_id = null</code>, <code>source = widget</code>; локацию назначают в CRM (модалка редактирования).</li>
+    <li>Заявки со <b>страницы заявки</b> — <code>location_id</code> и опционально <code>team_id</code> приходят из формы; см. <a href="/docs/documentation/school-leads-landing#4">school-leads-landing §4</a>.</li>
     <li>При <code>locations.view</code>: столбец «Локация», обычный <code>&lt;select&gt;</code> в фильтре («Все локации» / «Без локации» / активные локации партнёра), поле в модалке. Отключённые и чужие локации недоступны; назначить их через API → 422.</li>
     <li>Без <code>locations.view</code>: UI локации скрыт; <code>location_id</code> в data и update игнорируется.</li>
   </ul>
@@ -222,7 +229,7 @@
       <tr>
         <td>Есть <code>user_id</code>, у ученика нет договоров</td>
         <td><code>contracts.view</code></td>
-        <td>Ссылка-кнопка <b>«Создать договор»</b> → <code>GET /client-contracts/create?user_id={id}</code> (без списания на этом шаге)</td>
+        <td>Ссылка-кнопка <b>«Создать договор»</b> → <code>GET /client-contracts/create?user_id={id}</code> (redirect на список, модалка с предзаполнением; без списания на этом шаге)</td>
       </tr>
       <tr>
         <td>Есть <code>user_id</code>, есть договор(ы)</td>
@@ -264,9 +271,9 @@
 
   <h3>5.7) Переход к созданию договора</h3>
   <ul>
-    <li>Из колонки «Договор» — прямой переход на <code>/client-contracts/create?user_id=…</code> (middleware <code>can:contracts.view</code>).</li>
-    <li>На странице создания договора ученик предзаполняется в Select2, если передан валидный <code>user_id</code> своего партнёра (<code>ContractsController@create</code>, view-data <code>preselectedUser</code>).</li>
-    <li><b>Списание с баланса</b> за создание договора происходит только при сохранении PDF на форме создания (<code>POST /client-contracts</code>), как и при обычном сценарии — не при клике «Создать договор» в таблице заявок. Подтверждение оплаты — модалка на странице <code>/client-contracts/create</code> (см. реализацию договоров в CRM).</li>
+    <li>Из колонки «Договор» — ссылка <code>/client-contracts/create?user_id=…</code> (middleware <code>can:contracts.view</code>) → redirect на <code>/client-contracts?create=1&amp;user_id=…</code>, открывается модалка «Создать договор» на странице списка.</li>
+    <li>В модалке ученик предзаполняется в Select2 (<code>preselectedUser</code>), группа — из <code>team_id</code>, ФИО родителя — read-only из <code>parents</code> (или «—»). См. <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a>.</li>
+    <li><b>Списание с баланса</b> за создание договора происходит только при <code>POST /client-contracts</code> из модалки, не при клике «Создать договор» в таблице заявок. Подтверждение оплаты — в той же модалке на <code>/client-contracts</code>.</li>
     <li>Связь «заявка ↔ договор» в БД <b>не дублируется</b> в <code>contracts</code>: договор находится по <code>user_id</code> ученика, привязанного к лиду.</li>
   </ul>
 
@@ -281,7 +288,7 @@
       <tr><td>С <code>schoolLeads.view</code></td><td><b>200</b>: страница, data, columns-settings, update, delete (в пределах своего партнёра)</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>locations.view</code></td><td>Дополнительно: фильтр/столбец/поле локации в UI и API</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>users.view</code></td><td>Дополнительно: модалка «Создать клиента», <code>POST /admin/users</code> с <code>school_lead_id</code> → 200</td></tr>
-      <tr><td>С <code>schoolLeads.view</code> + <code>contracts.view</code></td><td>Дополнительно: в data — <code>create_contract_url</code> / <code>latest_contract</code>; <code>GET /client-contracts/create?user_id=</code> → 200</td></tr>
+      <tr><td>С <code>schoolLeads.view</code> + <code>contracts.view</code></td><td>Дополнительно: в data — <code>create_contract_url</code> / <code>latest_contract</code>; переход <code>GET /client-contracts/create?user_id=</code> → redirect, index с модалкой → <b>200</b></td></tr>
       <tr><td>Только <code>users.view</code> без <code>contracts.view</code></td><td>Колонка «Договор» видна (для «Создать клиента»), но полей договора в JSON нет</td></tr>
       <tr><td><code>POST /admin/users</code> без <code>users.view</code></td><td><b>403</b> (даже с <code>schoolLeads.view</code>)</td></tr>
     </tbody>
@@ -293,13 +300,16 @@
     Виджет (<code>/admin/school-widget</code>) — отдельное право <code>schoolWidget.view</code> (§6).
   </p>
 
-  <h2>6) CRM: виджет и Telegram</h2>
+  <h2>6) CRM: страница заявки, виджет и Telegram</h2>
+  <p>Раздел «Заявки с сайта» (<code>/admin/school-leads</code>) — вкладки: <b>Заявки</b> · <b>Страница заявки</b> · <b>Виджет для сайта</b>. Вкладка «Страница заявки» — см. <a href="/docs/documentation/school-leads-landing#7">school-leads-landing §7</a>.</p>
   <table>
     <thead>
       <tr><th>Метод</th><th>URL</th><th>Middleware</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/admin/school-widget</code></td><td><code>can:schoolWidget.view</code></td><td>Код iframe, статус Telegram, кнопка подключения</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/landing</code></td><td><code>can:schoolWidget.view</code></td><td>Ссылка на публичную страницу <code>/lead/{landingKey}</code></td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/widget</code></td><td><code>can:schoolWidget.view</code></td><td>Код iframe, статус Telegram (алиас: <code>/admin/school-widget</code>)</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-widget</code></td><td><code>can:schoolWidget.view</code></td><td>То же, вкладка «Виджет для сайта»</td></tr>
       <tr><td>POST</td><td><code>/admin/school-widget/telegram-link</code></td><td><code>can:schoolWidget.view</code></td><td>Создать ссылку <code>t.me/bot?start=pl_…</code></td></tr>
       <tr><td>DELETE</td><td><code>/admin/school-widget/telegram</code></td><td><code>can:schoolWidget.view</code></td><td>Отключить Telegram (очистить chat_id)</td></tr>
     </tbody>
@@ -321,10 +331,10 @@
   </div>
 
   <h2>7) Уведомления о новой заявке</h2>
-  <p>После успешного <code>POST /widget/…/submit</code> вызывается <code>SchoolLeadNotificationService</code>:</p>
+  <p>После успешного submit (<code>POST /widget/…/submit</code> или <code>POST /lead/…/submit</code>) вызывается <code>SchoolLeadNotificationService</code>:</p>
   <ul>
     <li><b>Email</b> — всем пользователям с ролью <code>admin</code> текущего партнёра (с email) + email организации из <code>partners.email</code>. Mailable: <code>App\Mail\NewSchoolLeadSubmission</code>.</li>
-    <li><b>Telegram</b> — в <code>partners.school_leads_telegram_chat_id</code>, если заполнен. Бот: <code>TELEGRAM_BOT_TOKEN</code>.</li>
+    <li><b>Telegram</b> — в <code>partners.school_leads_telegram_chat_id</code>, если заполнен. Бот: <code>TELEGRAM_BOT_TOKEN</code>. Для <code>source = landing</code> сообщение дополнено данными ребёнка, района и услуги.</li>
   </ul>
   <p class="small">B2B-лиды по-прежнему используют глобальный <code>TELEGRAM_CHAT_ID</code> в <code>LandingPageController</code> — это другой канал.</p>
 
@@ -334,7 +344,7 @@
       <tr><th>Переменная</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>RECAPTCHA_SITE_KEY</code>, <code>RECAPTCHA_SECRET_KEY</code>, <code>RECAPTCHA_MIN_SCORE</code></td><td>Защита формы виджета</td></tr>
+      <tr><td><code>RECAPTCHA_SITE_KEY</code>, <code>RECAPTCHA_SECRET_KEY</code>, <code>RECAPTCHA_MIN_SCORE</code></td><td>Защита форм виджета и страницы заявки</td></tr>
       <tr><td><code>TELEGRAM_BOT_TOKEN</code></td><td>Бот платформы (виджет + привязка + уведомления школам)</td></tr>
       <tr><td><code>TELEGRAM_BOT_USERNAME</code></td><td>Имя бота для ссылок в CRM (напр. <code>kidscrmLeadFormBot</code>)</td></tr>
       <tr><td><code>TELEGRAM_BOT_NAME</code></td><td>Отображаемое имя в UI (напр. <code>kidscrmLeadForm</code>)</td></tr>
@@ -345,21 +355,23 @@
 
   <h2>9) Ключевые файлы</h2>
   <ul>
-    <li>Модели: <code>App\Models\SchoolLead</code> (<code>user()</code>), <code>User</code> (<code>schoolLead()</code>), <code>PartnerWidget</code>, <code>PartnerTelegramLinkToken</code></li>
-    <li>Сервисы: <code>PartnerWidgetService</code>, <code>PartnerTelegramLinkService</code>, <code>SchoolLeadNotificationService</code>, <code>TelegramBotClient</code>, <code>SchoolLeads\LatestUserContractLookup</code></li>
-    <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolLeadColumnsSettingsController</code>, <code>Admin\SchoolWidgetController</code>, <code>Admin\UserController</code> (привязка <code>user_id</code> к лиду), <code>Contracts\ContractsController</code> (<code>create</code> с <code>user_id</code>), <code>TelegramSchoolLeadWebhookController</code></li>
-    <li>Request: <code>UpdateSchoolLeadRequest</code>, <code>User\StoreRequest</code> (<code>school_lead_id</code>)</li>
-    <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code></li>
-    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>admin/school-leads.blade.php</code>, <code>admin/school-widget.blade.php</code>, <code>includes/modal/createUser.blade.php</code>, <code>contracts/create.blade.php</code></li>
+    <li>Модели: <code>App\Models\SchoolLead</code> (<code>user()</code>, <code>team()</code>, <code>source</code>), <code>User</code> (<code>schoolLead()</code>), <code>PartnerWidget</code>, <code>PartnerTelegramLinkToken</code></li>
+    <li>Сервисы: <code>PartnerWidgetService</code>, <code>PartnerTelegramLinkService</code>, <code>SchoolLeadNotificationService</code>, <code>SchoolLeadLandingService</code>, <code>TelegramBotClient</code>, <code>SchoolLeads\LatestUserContractLookup</code></li>
+    <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolLeadColumnsSettingsController</code>, <code>Admin\SchoolWidgetController</code>, <code>Admin\SchoolLeadLandingController</code>, <code>Admin\UserController</code> (привязка <code>user_id</code> к лиду), <code>Contracts\ContractsController</code> (<code>create</code> с <code>user_id</code>), <code>TelegramSchoolLeadWebhookController</code></li>
+    <li>Request: <code>SubmitSchoolLeadRequest</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code>, <code>User\StoreRequest</code> (<code>school_lead_id</code>)</li>
+    <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code>, <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code></li>
+    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ tabs), <code>includes/modal/createUser.blade.php</code>, <code>contracts/create.blade.php</code></li>
   </ul>
 
   <h2>10) Автотесты</h2>
   <pre><code>php artisan test --env=testing --filter=SchoolLead
 php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
-  <p><b>Публичный виджет</b></p>
+  <p><b>Публичный виджет и страница заявки</b></p>
   <ul>
-    <li><code>tests/Feature/Public/SchoolLeadWidgetSubmitTest.php</code> — форма, submit, consent, inactive widget</li>
-    <li><code>tests/Feature/Public/SchoolLeadWidgetFullFeatureTest.php</code> — валидация, reCAPTCHA, provisioning виджета</li>
+    <li><code>tests/Feature/Public/SchoolLeadWidgetSubmitTest.php</code> — форма виджета, submit, consent, inactive widget</li>
+    <li><code>tests/Feature/Public/SchoolLeadWidgetFullFeatureTest.php</code> — валидация виджета, reCAPTCHA, provisioning</li>
+    <li><code>tests/Feature/Public/SchoolLeadLandingPublicAccessFeatureTest.php</code> — публичный доступ лендинга (200 без auth)</li>
+    <li><code>tests/Feature/Public/SchoolLeadLandingFullFeatureTest.php</code> — полный функционал лендинга</li>
     <li><code>tests/Feature/Public/SchoolLeadNotificationTest.php</code> — email / Telegram при submit</li>
     <li><code>tests/Feature/Public/SchoolLeadTelegramWebhookFeatureTest.php</code> — webhook, токены</li>
   </ul>
@@ -373,14 +385,18 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
     <li><code>SchoolLeadsPageFeatureTest.php</code> — toolbar, stats, фильтры, колонки, пагинация</li>
     <li><code>SchoolLeadLocationFeatureTest.php</code> — локации: UI, фильтр, сортировка, update, columns-settings</li>
     <li><code>SchoolLeadCrudFeatureTest.php</code>, <code>SchoolLeadManagementTest.php</code> — CRUD, статусы, anti-leak</li>
-    <li><code>SchoolWidgetAccessFeatureTest.php</code>, <code>SchoolWidgetTelegramAutoLinkTest.php</code> — страница виджета и Telegram</li>
+    <li><code>SchoolWidgetAccessFeatureTest.php</code>, <code>SchoolWidgetTelegramAutoLinkTest.php</code> — вкладка виджета и Telegram</li>
+    <li><code>SchoolLeadLandingAdminAccessFeatureTest.php</code> — вкладка «Страница заявки»</li>
+    <li><code>SchoolLeadsTabsFeatureTest.php</code> — вкладки раздела «Заявки с сайта»</li>
   </ul>
 
   <h2>11) Запланировано позже (не в текущей версии)</h2>
   <ul>
-    <li>Кастомизация внешнего вида формы (цвета, тексты) в CRM.</li>
-    <li>Allowlist доменов для embed.</li>
-    <li>Отдельный документ «Согласие на обработку ПДн» (сейчас ссылка на <code>/policy</code>).</li>
+    <li>Кастомизация внешнего вида iframe-виджета (цвета, тексты) в CRM.</li>
+    <li>Кастомные цвета / логотип на странице заявки (<code>/lead/…</code>).</li>
+    <li>Allowlist доменов для embed виджета.</li>
+    <li>Отдельный документ «Согласие на обработку ПДн» для лендинга (виджет — ссылка на <code>/policy</code>).</li>
+    <li>Колонки расширенных полей лендинга в DataTables CRM.</li>
   </ul>
 </div>
 </body>

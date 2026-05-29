@@ -202,9 +202,9 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
             ->assertViewHas('locationOptions')
             ->assertSee('id="createTeamLocationIds"', false)
             ->assertSee('id="editTeamLocationIds"', false)
-            ->assertSee('js-locations-multiselect-select', false)
-            ->assertSee('locations-multiselect-field', false)
-            ->assertSee('KidsCrmLocationsMultiselectSelect2', false)
+            ->assertSee('js-generic-multiselect-select', false)
+            ->assertSee('generic-multiselect-field', false)
+            ->assertSee('KidsCrmGenericMultiselectSelect2', false)
             ->assertSee('KidsCrmMultiselectChipStyles', false)
             ->assertSee('kids-crm-ms-chip', false);
     }

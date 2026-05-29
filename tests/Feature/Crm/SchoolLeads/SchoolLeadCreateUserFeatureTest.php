@@ -5,6 +5,7 @@ namespace Tests\Feature\Crm\SchoolLeads;
 use App\Models\Location;
 use App\Models\Role;
 use App\Models\SchoolLead;
+use App\Models\Team;
 use App\Models\User;
 use App\Services\PartnerWidgetService;
 use Illuminate\Support\Facades\DB;
@@ -112,6 +113,49 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             ->assertJsonValidationErrors(['school_lead_id']);
     }
 
+    public function test_datatable_includes_create_user_prefill_fields(): void
+    {
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Футбол',
+            'is_enabled' => true,
+        ]);
+
+        SchoolLead::create([
+            'partner_id'        => $this->partner->id,
+            'name'              => 'Иванова Мария Петровна',
+            'phone'             => '+7 900 111-22-33',
+            'parent_lastname'   => 'Иванова',
+            'parent_firstname'  => 'Мария',
+            'parent_middlename' => 'Петровна',
+            'parent_phone'      => '+7 900 444-44-44',
+            'parent_email'      => 'parent@example.com',
+            'child_lastname'    => 'Иванов',
+            'child_firstname'   => 'Пётр',
+            'child_middlename'  => 'Сергеевич',
+            'child_birthday'    => '2018-05-10',
+            'team_id'           => $team->id,
+            'status'            => 'new',
+        ]);
+
+        $row = $this->getJson(route('admin.school-leads.data', [
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 10,
+        ]))->json('data.0');
+
+        $this->assertSame('Иванова', $row['parent_lastname']);
+        $this->assertSame('Мария', $row['parent_firstname']);
+        $this->assertSame('Петровна', $row['parent_middlename']);
+        $this->assertSame('Иванов', $row['child_lastname']);
+        $this->assertSame('Пётр', $row['child_firstname']);
+        $this->assertSame('Сергеевич', $row['child_middlename']);
+        $this->assertSame('2018-05-10', $row['child_birthday_iso']);
+        $this->assertSame($team->id, (int) $row['team_id']);
+        $this->assertSame('parent@example.com', $row['parent_email']);
+        $this->assertSame('+7 900 444-44-44', $row['parent_phone']);
+    }
+
     public function test_datatable_includes_user_id(): void
     {
         $linkedUser = User::factory()->create([
@@ -157,7 +201,9 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
         $this->get(route('admin.school-leads'))
             ->assertOk()
             ->assertSee('id="createUserModal"', false)
-            ->assertSee('create-user-from-lead', false);
+            ->assertSee('create-user-from-lead', false)
+            ->assertSee('prefillCreateUserFromLead', false)
+            ->assertSee('forceNewParent', false);
     }
 
     public function test_school_leads_page_hides_create_user_modal_without_users_view(): void

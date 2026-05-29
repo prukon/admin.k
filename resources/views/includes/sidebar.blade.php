@@ -121,6 +121,16 @@
                 </a>
             </li>
         @endcan
+
+        {{--Виды спорта--}}
+        @can('sport_types.view')
+            <li class="nav-item">
+                <a href="/admin/sport-types" class="nav-link">
+                    <i class="nav-icon fa-solid fa-medal"></i>
+                    <p>Виды спорта</p>
+                </a>
+            </li>
+        @endcan
           
         {{--Договоры--}}
         @can('contracts.view')

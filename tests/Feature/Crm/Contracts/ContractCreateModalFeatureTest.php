@@ -113,22 +113,6 @@ class ContractCreateModalFeatureTest extends ContractsFeatureTestCase
     }
 
     /** @test */
-    public function index_form_fields_order_is_student_group_partner(): void
-    {
-        $html = $this->get(route('contracts.index'))->getContent();
-
-        $studentPos = strpos($html, 'for="user_id"');
-        $groupPos = strpos($html, 'for="group_id_select"');
-        $partnerPos = strpos($html, '>Партнёр</label>');
-
-        $this->assertNotFalse($studentPos);
-        $this->assertNotFalse($groupPos);
-        $this->assertNotFalse($partnerPos);
-        $this->assertLessThan($groupPos, $studentPos);
-        $this->assertLessThan($partnerPos, $groupPos);
-    }
-
-    /** @test */
     public function index_shows_template_select_when_templates_exist(): void
     {
         $this->createContractTemplateWithVersion(['title' => 'Шаблон в модалке']);

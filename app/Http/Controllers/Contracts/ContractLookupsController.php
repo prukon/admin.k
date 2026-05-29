@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Contracts\ContractUserGroupRequest;
 use App\Http\Requests\Contracts\ContractUsersSearchRequest;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ContractLookupsController extends Controller
@@ -33,6 +34,10 @@ class ContractLookupsController extends Controller
             ->when($partnerId, fn($qq) => $qq->where('users.partner_id', $partnerId))
             ->where('users.is_enabled', 1)
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->leftJoin('parents', function ($join) {
+                $join->on('parents.id', '=', 'users.parent_id')
+                    ->whereNull('parents.deleted_at');
+            })
             ->when($q !== '', function ($qq) use ($q) {
                 $qq->where(function ($w) use ($q) {
                     $w->where('users.name', 'like', "%{$q}%")
@@ -50,18 +55,21 @@ class ContractLookupsController extends Controller
                 'users.lastname',
                 'users.team_id',
                 'teams.title as team_title',
+                DB::raw("TRIM(CONCAT_WS(' ', parents.lastname, parents.firstname, parents.middlename)) as parent_full_name_from_join"),
             ]);
 
         $results = $users->map(function ($u) {
             $fullname = trim(($u->lastname ?? '') . ' ' . $u->name);
+            $parentFullName = trim((string) ($u->getAttributes()['parent_full_name_from_join'] ?? ''));
 
             return [
-                'id'         => $u->id,
-                'text'       => $fullname,
-                'name'       => $u->name,
-                'lastname'   => $u->lastname,
-                'team_id'    => $u->team_id,
-                'team_title' => $u->team_title,
+                'id'               => $u->id,
+                'text'             => $fullname,
+                'name'             => $u->name,
+                'lastname'         => $u->lastname,
+                'team_id'          => $u->team_id,
+                'team_title'       => $u->team_title,
+                'parent_full_name' => $parentFullName !== '' ? $parentFullName : null,
             ];
         });
 

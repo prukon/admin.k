@@ -13,6 +13,11 @@
 
             @can('schoolWidget.view')
                 <li class="nav-item" role="presentation">
+                    <a class="nav-link {{ ($activeTab ?? '') === 'landing' ? 'active' : '' }}"
+                       href="{{ route('admin.school-leads.landing') }}"
+                       role="tab">Страница заявки</a>
+                </li>
+                <li class="nav-item" role="presentation">
                     <a class="nav-link {{ ($activeTab ?? '') === 'widget' ? 'active' : '' }}"
                        href="{{ route('admin.school-leads.widget') }}"
                        role="tab">Виджет для сайта</a>
@@ -23,6 +28,8 @@
         <div class="tab-content">
             @if (($activeTab ?? 'leads') === 'leads')
                 @include('admin.school-leads.tabs.leads')
+            @elseif(($activeTab ?? '') === 'landing')
+                @include('admin.school-leads.tabs.landing')
             @elseif(($activeTab ?? '') === 'widget')
                 @include('admin.school-leads.tabs.widget')
             @endif

@@ -41,7 +41,8 @@ class DocumentationController extends Controller
         'admin-users'                 => 'Пользователи (админка): /admin/users, parents, группа ученика (без users.location_id)',
         'contracts'                   => 'Договоры (клиентские): карточка, родитель (parents), SMS/Подпислон, скачивание',
         'contract-templates'          => 'Шаблоны договоров DOCX: версии, поля, email, режим «форма клиенту»',
-        'school-leads-widget'         => 'Заявки с сайта: виджет, CRM, лид→клиент→договор, toolbar, Telegram',
+        'school-leads-widget'         => 'Заявки с сайта: виджет iframe, CRM, лид→клиент→договор, Telegram',
+        'school-leads-landing'        => 'Страница заявки партнёра: /lead/{landingKey}, полная форма, source=landing',
         'blog'                        => 'Блог: /blog, админка (blog.view), ИИ, VK (kidscrm): анонс ИИ, очередь default',
     ];
 

@@ -19,6 +19,21 @@
                         <div class="invalid-feedback" id="edit-title-error"></div>
                     </div>
 
+                    @can('sport_types.view')
+                    @if($sportTypeOptions->isNotEmpty())
+                    <div class="mb-3">
+                        <label for="edit-sport-type-id" class="form-label">Вид спорта</label>
+                        <select name="sport_type_id" class="form-select" id="edit-sport-type-id">
+                            <option value="">— Не выбран —</option>
+                            @foreach($sportTypeOptions as $sportType)
+                                <option value="{{ $sportType->id }}">{{ $sportType->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="invalid-feedback" id="edit-sport-type-id-error"></div>
+                    </div>
+                    @endif
+                    @endcan
+
                     <div class="mb-3">
                         <label for="edit-default_duration_minutes" class="form-label">Длительность по умолчанию (мин)</label>
                         <input type="number" min="1" max="600" name="default_duration_minutes" class="form-control" id="edit-default_duration_minutes">
@@ -36,11 +51,11 @@
 
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
-                    <div class="mb-3 locations-multiselect-field">
+                    <div class="mb-3 generic-multiselect-field">
                         <label class="form-label" for="editTeamLocationIds">Локации</label>
                         <select id="editTeamLocationIds"
                                 name="location_ids[]"
-                                class="form-select js-locations-multiselect-select"
+                                class="form-select js-generic-multiselect-select"
                                 multiple
                                 data-placeholder="Выберите локации">
                             @foreach($locationOptions as $location)
@@ -113,8 +128,8 @@
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
         const $editTeamLocationsSelect = $('#editTeamLocationIds');
 
-        if ($editTeamLocationsSelect.length && window.KidsCrmLocationsMultiselectSelect2) {
-            KidsCrmLocationsMultiselectSelect2.init($editTeamLocationsSelect, {
+        if ($editTeamLocationsSelect.length && window.KidsCrmGenericMultiselectSelect2) {
+            KidsCrmGenericMultiselectSelect2.init($editTeamLocationsSelect, {
                 dropdownParent: $('#editTeamModal')
             });
         }
@@ -142,9 +157,13 @@
                         $('#edit-trainer-profile-id').val(response.trainer_profile_id ?? '');
                     }
 
-                    if ($editTeamLocationsSelect.length && window.KidsCrmLocationsMultiselectSelect2) {
-                        KidsCrmLocationsMultiselectSelect2.setValues($editTeamLocationsSelect, response.location_ids || []);
-                        KidsCrmLocationsMultiselectSelect2.clearInvalid($editTeamLocationsSelect);
+                    if ($('#edit-sport-type-id').length) {
+                        $('#edit-sport-type-id').val(response.sport_type_id ?? '');
+                    }
+
+                    if ($editTeamLocationsSelect.length && window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.setValues($editTeamLocationsSelect, response.location_ids || []);
+                        KidsCrmGenericMultiselectSelect2.clearInvalid($editTeamLocationsSelect);
                     }
                     $('#edit-location_ids-error').text('');
 
@@ -200,9 +219,11 @@
             $('#edit-default_duration_minutes-error').text('');
             $('#edit-trainer-profile-id').removeClass('is-invalid');
             $('#edit-trainer-profile-id-error').text('');
+            $('#edit-sport-type-id').removeClass('is-invalid');
+            $('#edit-sport-type-id-error').text('');
             $('#edit-location_ids-error').text('');
-            if ($editTeamLocationsSelect.length && window.KidsCrmLocationsMultiselectSelect2) {
-                KidsCrmLocationsMultiselectSelect2.clearInvalid($editTeamLocationsSelect);
+            if ($editTeamLocationsSelect.length && window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.clearInvalid($editTeamLocationsSelect);
             }
 
             $.ajax({
@@ -232,10 +253,14 @@
                             $('#edit-trainer-profile-id').addClass('is-invalid');
                             $('#edit-trainer-profile-id-error').text(errors.trainer_profile_id[0]);
                         }
+                        if (errors.sport_type_id && errors.sport_type_id.length) {
+                            $('#edit-sport-type-id').addClass('is-invalid');
+                            $('#edit-sport-type-id-error').text(errors.sport_type_id[0]);
+                        }
                         if (errors.location_ids && errors.location_ids.length) {
                             $('#edit-location_ids-error').text(errors.location_ids[0]);
-                            if ($editTeamLocationsSelect.length && window.KidsCrmLocationsMultiselectSelect2) {
-                                KidsCrmLocationsMultiselectSelect2.markInvalid($editTeamLocationsSelect);
+                            if ($editTeamLocationsSelect.length && window.KidsCrmGenericMultiselectSelect2) {
+                                KidsCrmGenericMultiselectSelect2.markInvalid($editTeamLocationsSelect);
                             }
                         }
                         return;

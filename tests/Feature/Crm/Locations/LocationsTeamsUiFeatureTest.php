@@ -61,12 +61,12 @@ final class LocationsTeamsUiFeatureTest extends CrmTestCase
         $this->get(route('admin.locations.index'))
             ->assertOk()
             ->assertSee('id="colLocationTeams"', false)
-            ->assertSee('teams-multiselect-field', false)
+            ->assertSee('generic-multiselect-field', false)
             ->assertSee('id="locationCreateTeamIds"', false)
             ->assertSee('id="locationEditTeamIds"', false)
-            ->assertSee('js-teams-multiselect-select', false)
-            ->assertSee('KidsCrmTeamsMultiselectSelect2', false)
-            ->assertSee('KidsCrmTeamsMultiselectSelect2.init', false);
+            ->assertSee('js-generic-multiselect-select', false)
+            ->assertSee('KidsCrmGenericMultiselectSelect2', false)
+            ->assertSee('KidsCrmGenericMultiselectSelect2.init', false);
     }
 
     public function test_index_renders_hover_list_dropdown_assets_when_teams_exist(): void
@@ -93,9 +93,9 @@ final class LocationsTeamsUiFeatureTest extends CrmTestCase
         $this->get(route('admin.locations.index'))
             ->assertOk()
             ->assertDontSee('id="colLocationTeams"', false)
-            ->assertDontSee('teams-multiselect-field', false)
+            ->assertDontSee('generic-multiselect-field', false)
             ->assertDontSee('id="locationCreateTeamIds"', false)
-            ->assertDontSee('window.KidsCrmTeamsMultiselectSelect2 = {', false)
+            ->assertDontSee('window.KidsCrmGenericMultiselectSelect2 = {', false)
             ->assertDontSee('window.KidsCrmHoverListDropdown = {', false);
     }
 

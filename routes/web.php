@@ -159,6 +159,19 @@ Route::middleware(['widget.embed', 'throttle:60,1'])->group(function () {
         ->where('widgetKey', '[A-Za-z0-9]{48}');
 });
 
+// Страница заявки партнёра (брендированный лендинг, публичный)
+Route::middleware(['throttle:60,1'])->group(function () {
+    Route::get('/lead/{landingKey}', [\App\Http\Controllers\SchoolLeadLandingController::class, 'show'])
+        ->name('lead.show')
+        ->where('landingKey', '[A-Za-z0-9]{48}');
+    Route::get('/lead/{landingKey}/teams', [\App\Http\Controllers\SchoolLeadLandingController::class, 'teams'])
+        ->name('lead.teams')
+        ->where('landingKey', '[A-Za-z0-9]{48}');
+    Route::post('/lead/{landingKey}/submit', [\App\Http\Controllers\SchoolLeadLandingController::class, 'submit'])
+        ->name('lead.submit')
+        ->where('landingKey', '[A-Za-z0-9]{48}');
+});
+
 //Страница Публичная оферта
 Route::view('/public-offerta', 'landing.agreements.public-offerta')->name('public-offerta');
 //Страница Политика конфиденциальности
@@ -543,6 +556,26 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.locations.destroy');
     });
 
+    // Виды спорта
+    Route::middleware('can:sport_types.view')->group(function () {
+        Route::get('admin/sport-types', [\App\Http\Controllers\Admin\SportTypeController::class, 'index'])->name('admin.sport-types.index');
+        Route::get('admin/sport-types/data', [\App\Http\Controllers\Admin\SportTypeController::class, 'data'])->name('admin.sport-types.data');
+        Route::get('admin/sport-types/columns-settings', [\App\Http\Controllers\Admin\SportTypeColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.sport-types.columns-settings.get');
+        Route::post('admin/sport-types/columns-settings', [\App\Http\Controllers\Admin\SportTypeColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.sport-types.columns-settings.save');
+        Route::get('admin/sport-types/{sportType}', [\App\Http\Controllers\Admin\SportTypeController::class, 'show'])->whereNumber('sportType')->name('admin.sport-types.show');
+        Route::post('admin/sport-types', [\App\Http\Controllers\Admin\SportTypeController::class, 'store'])
+            ->middleware('can:sport_types.manage')
+            ->name('admin.sport-types.store');
+        Route::put('admin/sport-types/{sportType}', [\App\Http\Controllers\Admin\SportTypeController::class, 'update'])
+            ->middleware('can:sport_types.manage')
+            ->whereNumber('sportType')
+            ->name('admin.sport-types.update');
+        Route::delete('admin/sport-types/{sportType}', [\App\Http\Controllers\Admin\SportTypeController::class, 'destroy'])
+            ->middleware('can:sport_types.manage')
+            ->whereNumber('sportType')
+            ->name('admin.sport-types.destroy');
+    });
+
     // Расписание школы (слоты)
     Route::middleware('can:scheduleSlots.table')->group(function () {
         Route::get('admin/team-schedule-slots', function () {
@@ -728,6 +761,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
     Route::middleware('can:schoolWidget.view')->group(function () {
         Route::get('/admin/school-leads/widget', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'widgetTab'])->name('admin.school-leads.widget');
+        Route::get('/admin/school-leads/landing', [\App\Http\Controllers\Admin\SchoolLeadLandingController::class, 'landingTab'])->name('admin.school-leads.landing');
         Route::get('/admin/school-widget', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'index'])->name('admin.school-widget');
         Route::post('/admin/school-widget/telegram-link', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'createTelegramLink'])->name('admin.school-widget.telegram-link');
         Route::delete('/admin/school-widget/telegram', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'disconnectTelegram'])->name('admin.school-widget.telegram-disconnect');

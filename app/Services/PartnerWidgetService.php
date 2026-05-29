@@ -16,13 +16,20 @@ class PartnerWidgetService
             ->first();
 
         if ($existing) {
-            return $existing;
+            if ($existing->landing_key === null || $existing->landing_key === '') {
+                $existing->landing_key = $this->generateUniqueLandingKey();
+                $existing->save();
+            }
+
+            return $existing->fresh();
         }
 
         return PartnerWidget::create([
-            'partner_id' => $partnerId,
-            'widget_key' => $this->generateUniqueWidgetKey(),
-            'is_active'  => true,
+            'partner_id'        => $partnerId,
+            'widget_key'        => $this->generateUniqueWidgetKey(),
+            'landing_key'       => $this->generateUniqueLandingKey(),
+            'is_active'         => true,
+            'is_landing_active' => true,
         ]);
     }
 
@@ -46,6 +53,15 @@ class PartnerWidgetService
         do {
             $key = Str::random(48);
         } while (PartnerWidget::query()->where('widget_key', $key)->exists());
+
+        return $key;
+    }
+
+    private function generateUniqueLandingKey(): string
+    {
+        do {
+            $key = Str::random(48);
+        } while (PartnerWidget::query()->where('landing_key', $key)->exists());
 
         return $key;
     }

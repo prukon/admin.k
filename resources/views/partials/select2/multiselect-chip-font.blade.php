@@ -122,6 +122,7 @@
                         $choice.addClass('kids-crm-ms-chip');
 
                         if ($choice.hasClass(summaryClass)
+                            || $choice.hasClass('kids-crm-generic-ms-summary')
                             || $choice.hasClass('teams-multiselect-summary')
                             || $choice.hasClass('locations-multiselect-summary')) {
                             $choice.addClass('kids-crm-ms-summary');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\Location;
+use App\Models\SportType;
 use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
@@ -45,8 +46,9 @@ class TeamController extends AdminBaseController
         $weekdays = Weekday::all();
         $trainerOptions = $this->trainerOptionsForPartner($partnerId);
         $locationOptions = $this->locationOptionsForPartner($partnerId);
+        $sportTypeOptions = $this->sportTypeOptionsForPartner($partnerId);
 
-        return view('admin.team', compact('weekdays', 'trainerOptions', 'locationOptions'));
+        return view('admin.team', compact('weekdays', 'trainerOptions', 'locationOptions', 'sportTypeOptions'));
     }
 
     /**
@@ -63,6 +65,7 @@ class TeamController extends AdminBaseController
             'status'               => 'nullable|string', // active / inactive
             'trainer_profile_id'   => 'nullable|string', // id или 'none'
             'location_id'          => 'nullable|string', // id или 'none'
+            'sport_type_id'        => 'nullable|string', // id или 'none'
 
             'draw'   => 'nullable|integer',
             'start'  => 'nullable|integer',
@@ -110,6 +113,7 @@ class TeamController extends AdminBaseController
         /** @var \App\Models\User|null $filterActor */
         $filterActor = auth()->user();
         $canViewLocations = $filterActor?->can('locations.view') ?? false;
+        $canViewSportTypes = $filterActor?->can('sport_types.view') ?? false;
 
         // фильтр: локация
         $locationFilter = $validated['location_id'] ?? null;
@@ -144,6 +148,16 @@ class TeamController extends AdminBaseController
                     $q->where('team_trainer.partner_id', $partnerId)
                         ->where('trainer_profiles.id', $profileId);
                 });
+            }
+        }
+
+        // фильтр: вид спорта
+        $sportTypeFilter = $validated['sport_type_id'] ?? null;
+        if ($canViewSportTypes && $sportTypeFilter !== null && $sportTypeFilter !== '') {
+            if ($sportTypeFilter === 'none') {
+                $baseQuery->whereNull('teams.sport_type_id');
+            } elseif (ctype_digit((string) $sportTypeFilter)) {
+                $baseQuery->where('teams.sport_type_id', (int) $sportTypeFilter);
             }
         }
 
@@ -190,6 +204,14 @@ class TeamController extends AdminBaseController
                         ->orderBy('teams.title', 'asc');
                     break;
 
+                case 'sport_type_label':
+                    $baseQuery
+                        ->leftJoin('sport_types', 'sport_types.id', '=', 'teams.sport_type_id')
+                        ->select('teams.*')
+                        ->orderBy('sport_types.name', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
                 case 'trainer_label':
                     $baseQuery
                         ->leftJoin('team_trainer', function ($join) use ($partnerId) {
@@ -229,6 +251,9 @@ class TeamController extends AdminBaseController
         if ($canViewLocations) {
             $with[] = 'locations';
         }
+        if ($canViewSportTypes) {
+            $with[] = 'sportType';
+        }
 
         $teams = $baseQuery
             ->with($with)
@@ -236,7 +261,7 @@ class TeamController extends AdminBaseController
             ->take($length)
             ->get();
 
-        $data = $teams->map(function (Team $team) use ($canViewLocations) {
+        $data = $teams->map(function (Team $team) use ($canViewLocations, $canViewSportTypes) {
             // Собираем список дней недели (title)
             $weekdaysLabel = '';
             $weekdaysItems = [];
@@ -274,6 +299,9 @@ class TeamController extends AdminBaseController
                 'id'             => $team->id,
                 'order_by'       => $team->order_by,
                 'title'          => $team->title,
+                'sport_type_label' => ($canViewSportTypes && $team->relationLoaded('sportType'))
+                    ? ($team->sportType?->name ?? '')
+                    : '',
                 'trainer_label'  => $trainerLabel,
                 'locations_label'      => $locationsLabels['locations_label'],
                 'locations_label_full' => $locationsLabels['locations_label_full'],
@@ -306,6 +334,10 @@ class TeamController extends AdminBaseController
             unset($data['location_ids']);
         }
 
+        if (! $request->user()->can('sport_types.view')) {
+            unset($data['sport_type_id']);
+        }
+
         $team = $this->service->storeWithLogging($data, $authorId);
 
         if ($request->ajax()) {
@@ -330,6 +362,9 @@ class TeamController extends AdminBaseController
         if (auth()->user()?->can('locations.view')) {
             $with[] = 'locations';
         }
+        if (auth()->user()?->can('sport_types.view')) {
+            $with[] = 'sportType';
+        }
 
         $team = Team::with($with)
             ->where('partner_id', $partnerId)
@@ -352,6 +387,10 @@ class TeamController extends AdminBaseController
 
         if (auth()->user()?->can('locations.view')) {
             $payload['location_ids'] = $team->locations->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+        }
+
+        if (auth()->user()?->can('sport_types.view')) {
+            $payload['sport_type_id'] = $team->sport_type_id ? (int) $team->sport_type_id : null;
         }
 
         return response()->json($payload);
@@ -383,6 +422,10 @@ class TeamController extends AdminBaseController
             unset($data['location_ids']);
         }
 
+        if (! $request->user()->can('sport_types.view')) {
+            unset($data['sport_type_id']);
+        }
+
         // Попытка загрузить команду по ID и партнёру
         $team = Team::with('weekdays')
             ->where('partner_id', $partnerId)
@@ -394,7 +437,7 @@ class TeamController extends AdminBaseController
             return response()->json(['error' => 'Команда не найдена или принадлежит другому партнёру'], 404);
         }
 
-        DB::transaction(function () use ($data, $authorId, $team, $canEditSchedule) {
+        DB::transaction(function () use ($data, $authorId, $team, $canEditSchedule, $partnerId) {
             // Создаём копию данных с подгруженными днями недели
             $oldData = $team->replicate();
             $oldData->setRelation('weekdays', $team->weekdays); // Подгружаем связанные данные в копию
@@ -461,6 +504,24 @@ class TeamController extends AdminBaseController
                 $newEnabled = $data['is_enabled'] ? 'Да' : 'Нет';
                 if ($newEnabled !== $oldEnabled) {
                     $changes[] = "Активность: {$oldEnabled} → {$newEnabled}";
+                }
+            }
+
+            if (array_key_exists('sport_type_id', $data)) {
+                $oldSportTypeId = $oldData->sport_type_id;
+                $newSportTypeId = $data['sport_type_id'] !== null && $data['sport_type_id'] !== ''
+                    ? (int) $data['sport_type_id']
+                    : null;
+
+                if ((string) ($oldSportTypeId ?? '') !== (string) ($newSportTypeId ?? '')) {
+                    $sportTypeNames = SportType::query()
+                        ->where('partner_id', $partnerId)
+                        ->whereIn('id', array_filter([$oldSportTypeId, $newSportTypeId]))
+                        ->pluck('name', 'id');
+
+                    $oldLabel = $oldSportTypeId ? ($sportTypeNames[$oldSportTypeId] ?? "ID {$oldSportTypeId}") : 'не указан';
+                    $newLabel = $newSportTypeId ? ($sportTypeNames[$newSportTypeId] ?? "ID {$newSportTypeId}") : 'не указан';
+                    $changes[] = "Вид спорта: {$oldLabel} → {$newLabel}";
                 }
             }
 
@@ -536,6 +597,20 @@ class TeamController extends AdminBaseController
         return Location::query()
             ->where('partner_id', $partnerId)
             ->where('is_enabled', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    private function sportTypeOptionsForPartner(int $partnerId)
+    {
+        if (! auth()->user()?->can('sport_types.view')) {
+            return collect();
+        }
+
+        return SportType::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->orderBy('sort')
             ->orderBy('name')
             ->get(['id', 'name']);
     }

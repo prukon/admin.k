@@ -42,9 +42,14 @@
       <tr><th>Метод</th><th>URL</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/client-contracts</code></td><td>Список (DataTables)</td></tr>
-      <tr><td>GET</td><td><code>/client-contracts/create</code></td><td>Форма создания (PDF + ученик)</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts</code></td><td>Список (DataTables) и модалка «Создать договор» (<code>#createContractModal</code>)</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/create</code></td><td>Redirect на <code>/client-contracts?create=1</code> (опционально <code>&amp;user_id=</code>)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts</code></td><td>Сохранение договора, списание с баланса партнёра</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/check-balance</code></td><td>Предпроверка баланса перед submit модалки создания</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/users-search</code></td><td>AJAX Select2: поиск учеников (в т.ч. <code>parent_full_name</code> для модалки)</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров</td></tr>
+      <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/send</code></td><td>Первая отправка на подпись (SMS)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/resend</code></td><td>Повторная отправка</td></tr>
@@ -64,7 +69,7 @@
     <tbody>
       <tr><td>Гость</td><td><code>/client-contracts</code> → 302; JSON без сессии → 401</td></tr>
       <tr><td>Авторизован, нет <code>contracts.view</code></td><td>403</td></tr>
-      <tr><td>Авторизован, есть <code>contracts.view</code></td><td>200 на index, create, data, columns-settings, show (свой партнёр), check-balance, download при наличии файла, send-email (с валидным телом)</td></tr>
+      <tr><td>Авторизован, есть <code>contracts.view</code></td><td>200 на index (в т.ч. <code>?create=1</code>, <code>?user_id=</code>), data, columns-settings, users-search, user-group, check-balance, show (свой партнёр), download при наличии файла, send-email (с валидным телом)</td></tr>
       <tr><td>Чужой партнёр (<code>{contract}</code>)</td><td>403 (middleware <code>contract.partner</code>)</td></tr>
     </tbody>
   </table>
@@ -129,24 +134,85 @@
     <li>Файлы: диск <code>local</code>, <code>storage/app/</code> + относительный путь из БД.</li>
   </ul>
 
-  <h2>5) Создание договора и заявки с сайта</h2>
+  <h2 id="contract-create-modal">5) Модалка «Создать договор»</h2>
+  <div class="note">
+    Отдельной страницы создания нет: форма в модалке <code>#createContractModal</code> на <code>GET /client-contracts</code>
+    (<code>resources/views/contracts/partials/create-modal.blade.php</code>).<br>
+    Кнопка «Создать договор» на списке и ссылка из заявок открывают ту же модалку.
+    <code>GET /client-contracts/create</code> — только redirect на index с query-параметрами (<code>create=1</code>, опционально <code>user_id</code>).
+  </div>
+
+  <h3>5.1) Поля формы (порядок сверху вниз)</h3>
+  <table>
+    <thead>
+      <tr><th>Поле</th><th>Элемент</th><th>Поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Ученик</td><td><code>#user_id</code> (Select2, AJAX)</td><td>Обязательное. Поиск по имени/фамилии/телефону/email ученика. Отправляется в <code>POST /client-contracts</code> как <code>user_id</code>.</td></tr>
+      <tr><td>ФИО родителя</td><td><code>#parent_full_name_display</code></td><td>Только просмотр (<code>disabled</code>, <code>readonly</code>). В форму <b>не отправляется</b>. По умолчанию «—»; после выбора ученика — <code>parent_full_name</code> из справочника <code>parents</code> или «—», если родитель не указан.</td></tr>
+      <tr><td>Группа</td><td><code>#group_id_select</code> + hidden <code>group_id</code></td><td>Read-only: подставляется из <code>users.team_id</code> выбранного ученика.</td></tr>
+      <tr><td>Партнёр</td><td>disabled input</td><td>Текущий <code>current_partner</code>.</td></tr>
+      <tr><td>Способ создания</td><td><code>creation_mode</code></td><td><code>pdf</code> — прикрепить PDF; <code>template</code> — форма клиенту (DOCX-шаблон).</td></tr>
+      <tr><td>PDF / шаблон</td><td><code>#input_pdf</code> или <code>#contract_template_id</code></td><td>В зависимости от режима; см. <a href="/docs/documentation/contract-templates">contract-templates</a>.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.2) Источник ФИО родителя в модалке</h3>
+  <div class="note">
+    Тот же источник, что на карточке договора (§<a href="#contract-parent">2</a>): <code>User::parent_full_name</code> через <code>parentProfile</code> (<code>parents</code>).
+    Legacy-колонки <code>parent_*</code> в <code>users</code> не используются.
+  </div>
+  <table>
+    <thead>
+      <tr><th>Сценарий</th><th>Откуда берётся значение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Выбор ученика в Select2</td><td>AJAX <code>GET /client-contracts/users-search</code> → поле <code>parent_full_name</code> в каждом элементе <code>results[]</code> (<code>ContractLookupsController::usersSearch</code>, join <code>parents</code>)</td></tr>
+      <tr><td>Предзаполнение по <code>?user_id=</code></td><td>View-data <code>preselectedUser.parent_full_name</code> (<code>ContractsController::createFormContext</code>, eager <code>parentProfile</code>)</td></tr>
+      <tr><td>Очистка выбора ученика / сброс модалки</td><td>Снова «—» (<code>setParentFullNameDisplay</code> в JS)</td></tr>
+    </tbody>
+  </table>
+  <p class="small">
+    Поиск ученика в Select2 <b>не</b> ищет по ФИО родителя — родитель только отображается после выбора ученика.
+    Редактировать ФИО родителя в модалке нельзя; изменение — в карточке ученика (<a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>).
+  </p>
+
+  <h3>5.3) Предзаполнение и открытие модалки</h3>
   <ul>
-    <li>После привязки ученика к заявке — ссылка «Создать договор» → <code>GET /client-contracts/create?user_id={id}</code>.</li>
-    <li>Ученик предвыбирается на форме (<code>preselectedUser</code>); ФИО родителя на форме создания <b>не</b> показывается — заполняется в карточке ученика до отправки SMS.</li>
-    <li>Списание с баланса партнёра — только при <code>POST /client-contracts</code> (загрузка PDF).</li>
+    <li><code>?create=1</code>, <code>?user_id={id}</code> или ошибки валидации после <code>POST</code> — флаг <code>shouldOpenCreateModal</code>, модалка открывается при загрузке страницы.</li>
+    <li>Валидный <code>user_id</code> своего партнёра (<code>is_enabled = 1</code>) → <code>preselectedUser</code>: <code>id</code>, <code>text</code>, <code>team_id</code>, <code>team_title</code>, <code>parent_full_name</code> (или <code>null</code>).</li>
+    <li>Чужой партнёр / несуществующий id — <code>preselectedUser = null</code>, модалка всё равно может открыться по query.</li>
+    <li>Переход из заявок: <code>GET /client-contracts/create?user_id=…</code> → redirect на index с теми же параметрами (§<a href="/docs/documentation/school-leads-widget">school-leads-widget §5.7</a>).</li>
+  </ul>
+
+  <h3>5.4) Сохранение и оплата</h3>
+  <ul>
+    <li>Submit модалки → подтверждение «Создать договор?» → <code>POST /client-contracts/check-balance</code> → <code>POST /client-contracts</code>.</li>
+    <li>Списание с баланса партнёра — только при успешном <code>POST /client-contracts</code>, не при открытии модалки.</li>
+    <li>После создания ученика и группы изменить нельзя — только новый договор.</li>
+  </ul>
+
+  <h2>6) Заявки с сайта и создание договора</h2>
+  <ul>
+    <li>После привязки ученика к заявке — ссылка «Создать договор» → <code>GET /client-contracts/create?user_id={id}</code> (redirect на список с открытой модалкой).</li>
+    <li>Ученик и ФИО родителя предзаполняются в модалке, если у ученика есть запись в <code>parents</code>.</li>
     <li>Полный сценарий лид → клиент → договор: <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5–5.7).</li>
   </ul>
 
-  <h2>6) Тесты (Feature)</h2>
+  <h2>7) Тесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>tests/Feature/Crm/Contracts/ContractsParentAndAccessTest.php</code> — доступ <code>contracts.view</code>, smoke endpoint’ов 200, родитель на show, предзаполнение подписанта</li>
+      <li><code>tests/Feature/Crm/Contracts/ContractCreateModalFeatureTest.php</code> — модалка на index, redirect <code>/create</code>, store, шаблоны</li>
+      <li><code>tests/Feature/Crm/Contracts/ContractCreateModalParentFeatureTest.php</code> — поле «ФИО родителя», <code>preselectedUser.parent_full_name</code>, <code>users-search</code>, изоляция партнёра, soft-delete родителя</li>
+      <li><code>tests/Feature/Crm/Contracts/ContractsIndexAccessFeatureTest.php</code> — доступ к index и AJAX модалки (200 / 401 / 403), в т.ч. с данными родителя</li>
+      <li><code>tests/Feature/Crm/Contracts/ContractsParentAndAccessTest.php</code> — родитель на show, предзаполнение подписанта</li>
       <li><code>tests/Feature/Crm/Contracts/ContractsAccessTest.php</code> — гость, 403 без права, 200 show</li>
       <li><code>tests/Feature/Crm/Contracts/ContractsSigningTest.php</code> — отправка / resend, <code>ContractSendRequest</code></li>
       <li><code>tests/Feature/Crm/Contracts/ContractsSyncFeatureTest.php</code> — <code>/status</code>, <code>contracts.sync</code></li>
       <li><code>tests/Feature/Crm/Contracts/ContractsCrudAndFilesTest.php</code> — create, store, download</li>
     </ul>
-    Запуск: <code>php artisan test --filter=ContractsParentAndAccessTest</code>.
+    Запуск (модалка и родитель): <code>php artisan test --filter=ContractCreateModalParentFeatureTest</code>,
+    доступ: <code>php artisan test --filter=ContractsIndexAccessFeatureTest</code>.
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·

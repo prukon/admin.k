@@ -211,11 +211,11 @@
                                 <div class="invalid-feedback" data-error-for="is_enabled"></div>
                             </div>
                             @if($teamOptions->isNotEmpty())
-                            <div class="mb-3 teams-multiselect-field">
+                            <div class="mb-3 generic-multiselect-field">
                                 <label class="form-label" for="locationCreateTeamIds">Группы</label>
                                 <select id="locationCreateTeamIds"
                                         name="team_ids[]"
-                                        class="form-select js-teams-multiselect-select"
+                                        class="form-select js-generic-multiselect-select"
                                         multiple
                                         data-placeholder="Выберите группы">
                                     @foreach($teamOptions as $team)
@@ -272,11 +272,11 @@
                                 <div class="invalid-feedback" data-error-for="is_enabled"></div>
                             </div>
                             @if($teamOptions->isNotEmpty())
-                            <div class="mb-3 teams-multiselect-field">
+                            <div class="mb-3 generic-multiselect-field">
                                 <label class="form-label" for="locationEditTeamIds">Группы</label>
                                 <select id="locationEditTeamIds"
                                         name="team_ids[]"
-                                        class="form-select js-teams-multiselect-select"
+                                        class="form-select js-generic-multiselect-select"
                                         multiple
                                         data-placeholder="Выберите группы">
                                     @foreach($teamOptions as $team)
@@ -301,7 +301,7 @@
 
 @if($teamOptions->isNotEmpty())
     @include('partials.ui.hover-list-dropdown')
-    @include('partials.select2.teams-multiselect')
+    @include('partials.select2.generic-multiselect')
 @endif
 
 @push('scripts')
@@ -572,9 +572,9 @@
             function clearErrors(form) {
                 form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
                 form.querySelectorAll('[data-error-for]').forEach(el => el.textContent = '');
-                form.querySelectorAll('.js-teams-multiselect-select').forEach(function (select) {
-                    if (window.KidsCrmTeamsMultiselectSelect2) {
-                        KidsCrmTeamsMultiselectSelect2.clearInvalid($(select));
+                form.querySelectorAll('.js-generic-multiselect-select').forEach(function (select) {
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.clearInvalid($(select));
                     }
                 });
             }
@@ -591,8 +591,8 @@
                     const err = form.querySelector(`[data-error-for="${key}"]`);
                     if (input) {
                         input.classList.add('is-invalid');
-                        if (window.KidsCrmTeamsMultiselectSelect2 && input.classList.contains('js-teams-multiselect-select')) {
-                            KidsCrmTeamsMultiselectSelect2.markInvalid($(input));
+                        if (window.KidsCrmGenericMultiselectSelect2 && input.classList.contains('js-generic-multiselect-select')) {
+                            KidsCrmGenericMultiselectSelect2.markInvalid($(input));
                         }
                     }
                     if (err) {
@@ -623,11 +623,11 @@
             const $createTeamsSelect = $('#locationCreateTeamIds');
             const $editTeamsSelect = $('#locationEditTeamIds');
 
-            if (hasTeamOptions && window.KidsCrmTeamsMultiselectSelect2) {
-                KidsCrmTeamsMultiselectSelect2.init($createTeamsSelect, {
+            if (hasTeamOptions && window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.init($createTeamsSelect, {
                     dropdownParent: $('#locationCreateModal')
                 });
-                KidsCrmTeamsMultiselectSelect2.init($editTeamsSelect, {
+                KidsCrmGenericMultiselectSelect2.init($editTeamsSelect, {
                     dropdownParent: $('#locationEditModal')
                 });
             }
@@ -641,8 +641,8 @@
                 }
                 if (ok) {
                     createForm.reset();
-                    if (window.KidsCrmTeamsMultiselectSelect2) {
-                        KidsCrmTeamsMultiselectSelect2.reset($createTeamsSelect);
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.reset($createTeamsSelect);
                     }
                     bootstrap.Modal.getInstance(document.getElementById('locationCreateModal'))?.hide();
                     reloadLocationsTable();
@@ -661,8 +661,8 @@
                 editForm.querySelector('[name="address"]').value = data.address || '';
                 editForm.querySelector('[name="description"]').value = data.description || '';
                 editForm.querySelector('[name="is_enabled"]').value = String(data.is_enabled ?? 1);
-                if (window.KidsCrmTeamsMultiselectSelect2) {
-                    KidsCrmTeamsMultiselectSelect2.setValues($editTeamsSelect, data.team_ids || []);
+                if (window.KidsCrmGenericMultiselectSelect2) {
+                    KidsCrmGenericMultiselectSelect2.setValues($editTeamsSelect, data.team_ids || []);
                 }
                 const modal = new bootstrap.Modal(document.getElementById('locationEditModal'));
                 modal.show();

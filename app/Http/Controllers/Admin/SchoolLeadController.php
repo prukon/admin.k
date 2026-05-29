@@ -34,6 +34,12 @@ class SchoolLeadController extends AdminBaseController
                 ->get();
         }
 
+        $filterTeams = Team::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->orderBy('title')
+            ->get(['id', 'title']);
+
         $stats = $this->buildPartnerLeadStats($partnerId);
 
         $viewData = [
@@ -41,6 +47,13 @@ class SchoolLeadController extends AdminBaseController
             'canCreateUserFromLead'   => $canCreateUserFromLead,
             'canViewContracts'        => $canViewContracts,
             'activeLocations'         => $activeLocations,
+            'filterTeams'             => $filterTeams,
+            'schoolLeadStatusOptions' => collect(SchoolLeadStatus::cases())
+                ->map(fn (SchoolLeadStatus $status) => [
+                    'value' => $status->value,
+                    'label' => SchoolLeadStatus::label($status->value),
+                ])
+                ->all(),
             'leadStats'               => $stats,
         ];
 
@@ -79,11 +92,14 @@ class SchoolLeadController extends AdminBaseController
 
         $baseQuery = SchoolLead::query()
             ->where('school_leads.partner_id', $partnerId)
-            ->whereNull('school_leads.deleted_at');
+            ->whereNull('school_leads.deleted_at')
+            ->leftJoin('teams', 'teams.id', '=', 'school_leads.team_id')
+            ->select('school_leads.*', 'teams.title as team_title');
 
         if ($canViewLocations) {
-            $baseQuery->leftJoin('locations', 'locations.id', '=', 'school_leads.location_id')
-                ->select('school_leads.*', 'locations.name as location_name');
+            $baseQuery
+                ->leftJoin('locations', 'locations.id', '=', 'school_leads.location_id')
+                ->addSelect('locations.name as location_name');
         }
 
         $recordsTotal = (clone $baseQuery)->count();
@@ -105,12 +121,37 @@ class SchoolLeadController extends AdminBaseController
             }
         }
 
+        if ($request->filled('team_id')) {
+            $teamFilter = $request->input('team_id');
+            if ($teamFilter === 'none') {
+                $query->whereNull('school_leads.team_id');
+            } else {
+                $query->where('school_leads.team_id', $teamFilter);
+            }
+        }
+
+        if ($request->boolean('has_special_conditions')) {
+            $query->where(function ($q) {
+                $q->where('school_leads.is_individual_traits', true)
+                    ->orWhere('school_leads.is_on_medical_register', true)
+                    ->orWhere('school_leads.is_with_disability', true);
+            });
+        }
+
         if ($request->filled('search.value')) {
             $search = $request->input('search.value');
 
             $query->where(function ($q) use ($search, $canViewLocations) {
                 $q->where('school_leads.name', 'like', "%{$search}%")
                     ->orWhere('school_leads.phone', 'like', "%{$search}%")
+                    ->orWhere('school_leads.parent_lastname', 'like', "%{$search}%")
+                    ->orWhere('school_leads.parent_firstname', 'like', "%{$search}%")
+                    ->orWhere('school_leads.parent_middlename', 'like', "%{$search}%")
+                    ->orWhere('school_leads.parent_phone', 'like', "%{$search}%")
+                    ->orWhere('school_leads.parent_email', 'like', "%{$search}%")
+                    ->orWhere('school_leads.child_lastname', 'like', "%{$search}%")
+                    ->orWhere('school_leads.child_firstname', 'like', "%{$search}%")
+                    ->orWhere('school_leads.child_middlename', 'like', "%{$search}%")
                     ->orWhere('school_leads.comment', 'like', "%{$search}%")
                     ->orWhere('school_leads.status', 'like', "%{$search}%")
                     ->orWhere('school_leads.utm_source', 'like', "%{$search}%")
@@ -118,7 +159,9 @@ class SchoolLeadController extends AdminBaseController
                     ->orWhere('school_leads.utm_campaign', 'like', "%{$search}%")
                     ->orWhere('school_leads.page_url', 'like', "%{$search}%")
                     ->orWhere('school_leads.referrer', 'like', "%{$search}%")
-                    ->orWhereRaw('DATE_FORMAT(school_leads.created_at, "%d.%m.%Y %H:%i") like ?', ["%{$search}%"]);
+                    ->orWhere('teams.title', 'like', "%{$search}%")
+                    ->orWhereRaw('DATE_FORMAT(school_leads.created_at, "%d.%m.%Y %H:%i") like ?', ["%{$search}%"])
+                    ->orWhereRaw('DATE_FORMAT(school_leads.child_birthday, "%d.%m.%Y") like ?', ["%{$search}%"]);
 
                 if ($canViewLocations) {
                     $q->orWhere('locations.name', 'like', "%{$search}%");
@@ -141,6 +184,8 @@ class SchoolLeadController extends AdminBaseController
                     'id',
                     'name',
                     'phone',
+                    'parent_email',
+                    'child_birthday',
                     'status',
                     'comment',
                     'utm_source',
@@ -150,6 +195,8 @@ class SchoolLeadController extends AdminBaseController
 
                 if (in_array($columnName, $sortable, true)) {
                     $query->orderBy('school_leads.' . $columnName, $dir);
+                } elseif ($columnName === 'team_title') {
+                    $query->orderBy('teams.title', $dir);
                 } elseif ($canViewLocations && $columnName === 'location_name') {
                     $query->orderBy('locations.name', $dir);
                 }
@@ -193,20 +240,47 @@ class SchoolLeadController extends AdminBaseController
                     $item->utm_campaign ? 'campaign: ' . $item->utm_campaign : null,
                 ]);
 
+                $parentFullName = $item->parent_full_name !== ''
+                    ? $item->parent_full_name
+                    : $item->name;
+                $parentPhone = $item->parent_phone ?: $item->phone;
+                $childFullName = $item->child_full_name !== ''
+                    ? $item->child_full_name
+                    : null;
+                $parentNameParts = $item->resolvedParentNameParts();
+                $childNameParts = $item->resolvedChildNameParts();
+
                 $row = [
-                    'id'           => $item->id,
-                    'name'         => $item->name,
-                    'phone'        => $item->phone,
-                    'user_id'      => $item->user_id,
-                    'status'       => $item->status?->value,
-                    'status_label' => $item->status
+                    'id'                     => $item->id,
+                    'name'                   => $item->name,
+                    'phone'                  => $item->phone,
+                    'parent_full_name'       => $parentFullName,
+                    'parent_phone'           => $parentPhone,
+                    'parent_email'           => $item->parent_email,
+                    'parent_lastname'        => $parentNameParts['lastname'] ?: null,
+                    'parent_firstname'       => $parentNameParts['firstname'] ?: null,
+                    'parent_middlename'      => $parentNameParts['middlename'] ?: null,
+                    'child_full_name'        => $childFullName,
+                    'child_lastname'         => $childNameParts['lastname'] ?: null,
+                    'child_firstname'        => $childNameParts['firstname'] ?: null,
+                    'child_middlename'       => $childNameParts['middlename'] ?: null,
+                    'child_birthday'         => $item->child_birthday?->format('d.m.Y'),
+                    'child_birthday_iso'     => $item->child_birthday?->format('Y-m-d'),
+                    'team_id'                => $item->team_id,
+                    'team_title'             => $item->team_title,
+                    'is_individual_traits'   => (bool) $item->is_individual_traits,
+                    'is_on_medical_register' => (bool) $item->is_on_medical_register,
+                    'is_with_disability'     => (bool) $item->is_with_disability,
+                    'user_id'                => $item->user_id,
+                    'status'                 => $item->status?->value,
+                    'status_label'           => $item->status
                         ? SchoolLeadStatus::label($item->status->value)
                         : null,
-                    'comment'      => $item->comment,
-                    'utm_summary'  => implode('; ', $utmParts),
-                    'page_url'     => $item->page_url,
-                    'referrer'     => $item->referrer,
-                    'created_at'   => $item->created_at?->format('d.m.Y H:i'),
+                    'comment'                => $item->comment,
+                    'utm_summary'            => implode('; ', $utmParts),
+                    'page_url'               => $item->page_url,
+                    'referrer'               => $item->referrer,
+                    'created_at'             => $item->created_at?->format('d.m.Y H:i'),
                 ];
 
                 if ($canViewLocations) {

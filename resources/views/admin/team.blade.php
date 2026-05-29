@@ -141,6 +141,19 @@
                                 @endif
                                 @endcan
 
+                                @can('sport_types.view')
+                                @if($sportTypeOptions->isNotEmpty())
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="sport_type_label"
+                                           id="colSportType"
+                                           checked>
+                                    <label class="form-check-label" for="colSportType">Вид спорта</label>
+                                </div>
+                                @endif
+                                @endcan
+
                                 @can('schedule.view')
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
@@ -215,6 +228,21 @@
                     @endif
                     @endcan
 
+                    @can('sport_types.view')
+                    @if($sportTypeOptions->isNotEmpty())
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-sport-type">Вид спорта</label>
+                        <select id="filter-sport-type" class="form-select">
+                            <option value="">Все виды спорта</option>
+                            <option value="none">Без вида спорта</option>
+                            @foreach($sportTypeOptions as $sportType)
+                                <option value="{{ $sportType->id }}">{{ $sportType->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
+                    @endcan
+
                     <div class="col-12 col-md-3">
                         <label class="form-label" for="filter-status">Статус</label>
                         <select id="filter-status" class="form-select">
@@ -247,6 +275,11 @@
                     <th>Локации</th>
                     @endif
                     @endcan
+                    @can('sport_types.view')
+                    @if($sportTypeOptions->isNotEmpty())
+                    <th>Вид спорта</th>
+                    @endif
+                    @endcan
                     @can('schedule.view')
                     <th>Расписание</th>
                     @endcan
@@ -265,7 +298,7 @@
     @include('partials.ui.hover-list-dropdown')
     @can('locations.view')
         @if($locationOptions->isNotEmpty())
-            @include('partials.select2.locations-multiselect')
+            @include('partials.select2.generic-multiselect')
         @endif
     @endcan
 @endsection
@@ -277,6 +310,7 @@
             const canViewSchedule = @json(auth()->user()->can('schedule.view'));
             const canViewTrainers = @json(auth()->user()->can('trainers.view'));
             const canViewLocations = @json(auth()->user()->can('locations.view') && $locationOptions->isNotEmpty());
+            const canViewSportTypes = @json(auth()->user()->can('sport_types.view') && $sportTypeOptions->isNotEmpty());
             const defaultFilterStatus = 'active';
 
             const defaultColumnsVisibility = {
@@ -284,6 +318,7 @@
                 title: true,
                 ...(canViewTrainers ? { trainer_label: true } : {}),
                 ...(canViewLocations ? { locations_label: true } : {}),
+                ...(canViewSportTypes ? { sport_type_label: true } : {}),
                 ...(canViewSchedule ? { weekdays_label: true } : {}),
                 status_label: true,
                 actions: true
@@ -299,6 +334,9 @@
                 }
                 if (canViewLocations) {
                     map.locations_label = idx++;
+                }
+                if (canViewSportTypes) {
+                    map.sport_type_label = idx++;
                 }
                 if (canViewSchedule) {
                     map.weekdays_label = idx++;
@@ -370,7 +408,8 @@
                     title: $('#filter-title').val() || '',
                     status: $('#filter-status').val() || '',
                     trainer_profile_id: canViewTrainers ? ($('#filter-trainer').val() || '') : '',
-                    location_id: canViewLocations ? ($('#filter-location').val() || '') : ''
+                    location_id: canViewLocations ? ($('#filter-location').val() || '') : '',
+                    sport_type_id: canViewSportTypes ? ($('#filter-sport-type').val() || '') : ''
                 };
             }
 
@@ -379,6 +418,7 @@
                 return params.title !== ''
                     || params.trainer_profile_id !== ''
                     || params.location_id !== ''
+                    || params.sport_type_id !== ''
                     || params.status !== defaultFilterStatus;
             }
 
@@ -469,6 +509,19 @@
                 }
             };
 
+            const sportTypeColumn = {
+                data: 'sport_type_label',
+                name: 'sport_type_label',
+                orderable: true,
+                searchable: false,
+                render: function (data) {
+                    if (!data) {
+                        return '<span class="text-muted">—</span>';
+                    }
+                    return data;
+                }
+            };
+
             const dataTableColumns = [
                 {
                     data: null,
@@ -504,6 +557,7 @@
                 },
                 ...(canViewTrainers ? [trainerColumn] : []),
                 ...(canViewLocations ? [locationsColumn] : []),
+                ...(canViewSportTypes ? [sportTypeColumn] : []),
                 ...(canViewSchedule ? [scheduleColumn] : []),
                 {
                     data: 'status_label',
@@ -548,6 +602,9 @@
                         }
                         if (canViewLocations) {
                             d.location_id = params.location_id;
+                        }
+                        if (canViewSportTypes) {
+                            d.sport_type_id = params.sport_type_id;
                         }
                     }
                 },
@@ -611,6 +668,9 @@
                 }
                 if (canViewLocations) {
                     $('#filter-location').val('');
+                }
+                if (canViewSportTypes) {
+                    $('#filter-sport-type').val('');
                 }
                 reloadTeamsTable();
             });

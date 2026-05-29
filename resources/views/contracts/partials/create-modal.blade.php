@@ -34,6 +34,16 @@
                         </div>
 
                         <div class="col-12">
+                            <label class="form-label" for="parent_full_name_display">ФИО родителя</label>
+                            <input type="text"
+                                   id="parent_full_name_display"
+                                   class="form-control"
+                                   value="—"
+                                   disabled
+                                   readonly>
+                        </div>
+
+                        <div class="col-12">
                             <label class="form-label" for="group_id_select">Группа</label>
                             <select id="group_id_select" class="form-select" disabled>
                                 <option value="">—</option>
@@ -234,6 +244,16 @@
         #createContractModal .contract-create-how-it-works-panel .alert li:last-child {
             margin-bottom: 0;
         }
+
+        /* disabled «Сохранить»: без белого текста на белом фоне из глобального .btn-primary */
+        #createContractModal #btn-save:disabled,
+        #createContractModal #btn-save.disabled {
+            opacity: 1;
+            pointer-events: none;
+            color: #6c757d !important;
+            background-color: #e9ecef !important;
+            border-color: #ced4da !important;
+        }
     </style>
 @endpush
 
@@ -250,6 +270,11 @@
                 if ($userSelect.data('select2')) {
                     $userSelect.select2('destroy');
                 }
+            }
+
+            function setParentFullNameDisplay(value) {
+                const display = (value && String(value).trim() !== '') ? String(value).trim() : '—';
+                $('#parent_full_name_display').val(display);
             }
 
             function initContractUserSelect2() {
@@ -287,6 +312,8 @@
                     const $g = $('#group_id_select');
                     const $h = $('#group_id_hidden');
 
+                    setParentFullNameDisplay(d.parent_full_name);
+
                     $g.empty();
                     $h.val('');
 
@@ -299,6 +326,7 @@
                 });
 
                 $userSelect.on('select2:clear.contractCreate', function () {
+                    setParentFullNameDisplay('');
                     $('#group_id_select').empty().append(new Option('—', '', true, true));
                     $('#group_id_hidden').val('');
                 });
@@ -317,6 +345,8 @@
                     $userSelect.append(new Option(preselectedUser.text, preselectedUser.id, true, true));
                 }
                 $userSelect.val(String(preselectedUser.id)).trigger('change');
+
+                setParentFullNameDisplay(preselectedUser.parent_full_name);
 
                 $g.empty();
                 $h.val('');
@@ -423,6 +453,7 @@
 
                 $('#group_id_select').empty().append(new Option('—', '', true, true));
                 $('#group_id_hidden').val('');
+                setParentFullNameDisplay('');
                 $('#block-template').hide();
                 $('#block-pdf').show();
                 $('#btn-save').prop('disabled', false);

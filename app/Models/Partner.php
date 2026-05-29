@@ -243,4 +243,17 @@ class Partner extends Model
         return $query->where('is_enabled', true);
     }
 
+    /**
+     * Название для публичной страницы заявки (наименование организации в CRM).
+     */
+    public function landingDisplayName(): string
+    {
+        $title = trim((string) $this->title);
+        if ($title !== '') {
+            return $title;
+        }
+
+        return trim((string) $this->organization_name);
+    }
+
 }

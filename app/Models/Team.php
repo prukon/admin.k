@@ -21,6 +21,7 @@ class Team extends Model
     protected $casts = [
         'is_enabled' => 'bool',
         'partner_id' => 'int',
+        'sport_type_id' => 'int',
         'default_duration_minutes' => 'int',
     ];
 
@@ -44,6 +45,11 @@ class Team extends Model
     public function partner()
     {
         return $this->belongsTo(Partner::class, 'partner_id');
+    }
+
+    public function sportType()
+    {
+        return $this->belongsTo(SportType::class, 'sport_type_id');
     }
 
     public function scheduleSlots()

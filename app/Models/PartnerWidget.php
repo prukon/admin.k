@@ -13,7 +13,8 @@ class PartnerWidget extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active'         => 'boolean',
+        'is_landing_active' => 'boolean',
     ];
 
     public function partner(): BelongsTo

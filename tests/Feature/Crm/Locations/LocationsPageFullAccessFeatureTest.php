@@ -178,7 +178,7 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('locationEditModal', false)
             ->assertSee('id="locationDeleteBtn"', false)
             ->assertSee('showConfirmDeleteModal', false)
-            ->assertSee('KidsCrmTeamsMultiselectSelect2', false)
+            ->assertSee('KidsCrmGenericMultiselectSelect2', false)
             ->assertSee('KidsCrmHoverListDropdown.renderCell', false);
 
         $this->getJson(route('admin.locations.data', [

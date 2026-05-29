@@ -85,7 +85,8 @@ class ContractsController extends Controller
                 ->where('id', $userId)
                 ->where('partner_id', $partnerId)
                 ->where('is_enabled', 1)
-                ->first(['id', 'name', 'lastname', 'team_id']);
+                ->with('parentProfile')
+                ->first(['id', 'name', 'lastname', 'team_id', 'parent_id']);
 
             if ($student) {
                 $teamTitle = null;
@@ -96,11 +97,14 @@ class ContractsController extends Controller
                         ->value('title');
                 }
 
+                $parentFullName = trim((string) $student->parent_full_name);
+
                 $preselectedUser = [
-                    'id'         => $student->id,
-                    'text'       => trim(($student->lastname ?? '') . ' ' . ($student->name ?? '')),
-                    'team_id'    => $student->team_id,
-                    'team_title' => $teamTitle,
+                    'id'               => $student->id,
+                    'text'             => trim(($student->lastname ?? '') . ' ' . ($student->name ?? '')),
+                    'team_id'          => $student->team_id,
+                    'team_title'       => $teamTitle,
+                    'parent_full_name' => $parentFullName !== '' ? $parentFullName : null,
                 ];
             }
         }

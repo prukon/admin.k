@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: страница заявки партнёра (брендированный лендинг)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Страница заявки партнёра (брендированный лендинг)</h1>
+  <div class="small">Файл: <code>/docs/documentation/school-leads-landing.html</code> · оглавление: <a href="/doc">/doc</a> · см. также <a href="/docs/documentation/school-leads-widget">заявки с сайта (виджет iframe и CRM)</a></div>
+
+  <div class="note">
+    <b>Назначение:</b> отдельная публичная страница с полной формой записи для конкретного партнёра (школы).
+    Партнёр раздаёт ссылку в рекламе, соцсетях или QR-коде. Заявки сохраняются в ту же таблицу <code>school_leads</code>, что и заявки из iframe-виджета, с пометкой <code>source = landing</code>.<br>
+    <b>Не путать</b> с iframe-виджетом (<code>/widget/{widgetKey}</code>) — это короткая форма для встраивания на сайт партнёра; см. <a href="/docs/documentation/school-leads-widget#4">school-leads-widget §4</a>.
+  </div>
+
+  <h2>1) Два канала сбора заявок школы</h2>
+  <table>
+    <thead>
+      <tr><th>Канал</th><th>Публичный URL</th><th>Ключ</th><th>Форма</th><th><code>school_leads.source</code></th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Страница заявки</b> (этот документ)</td>
+        <td><code>/lead/{landingKey}</code></td>
+        <td><code>partner_widgets.landing_key</code></td>
+        <td>Полная форма: родитель, ребёнок, район, услуга, особенности</td>
+        <td><code>landing</code></td>
+      </tr>
+      <tr>
+        <td><b>Виджет iframe</b></td>
+        <td><code>/widget/{widgetKey}</code></td>
+        <td><code>partner_widgets.widget_key</code></td>
+        <td>Короткая форма: имя, телефон, согласие</td>
+        <td><code>widget</code> (по умолчанию)</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Оба канала используют одну запись <code>partner_widgets</code> на партнёра и одни и те же уведомления (email / Telegram). CRM — раздел <code>/admin/school-leads</code>.</p>
+
+  <h2>2) Привязка к партнёру (безопасность)</h2>
+  <ul>
+    <li><b>Не передавать</b> <code>partner_id</code> с фронта — только сервер определяет партнёра по <code>landing_key</code> в URL.</li>
+    <li>Ключ — 48 символов (<code>[A-Za-z0-9]{48}</code>), уникален в <code>partner_widgets.landing_key</code>.</li>
+    <li>Создаётся вместе с виджетом: <code>PartnerWidgetService::ensureForPartner</code> (при создании партнёра и при первом обращении в CRM).</li>
+    <li>Страница доступна, если <code>is_landing_active = true</code>. Иначе — <b>404</b> на все endpoint'ы лендинга.</li>
+    <li>Все справочники (районы, услуги) фильтруются по <code>partner_id</code> виджета; чужие <code>location_id</code> / <code>team_id</code> отклоняются валидацией (422).</li>
+  </ul>
+
+  <h2>3) Публичные маршруты</h2>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Auth</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/lead/{landingKey}</code></td><td>нет</td><td>HTML страницы с формой</td></tr>
+      <tr><td>GET</td><td><code>/lead/{landingKey}/teams?location_id=</code></td><td>нет</td><td>JSON: услуги (группы) для выбранного района</td></tr>
+      <tr><td>POST</td><td><code>/lead/{landingKey}/submit</code></td><td>нет</td><td>Приём заявки, JSON-ответ</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Middleware: только <code>throttle:60,1</code> (без <code>auth</code>, без CRM-прав).</li>
+    <li>Контроллер: <code>App\Http\Controllers\SchoolLeadLandingController</code>.</li>
+    <li>Сервис: <code>App\Services\SchoolLeadLandingService</code>.</li>
+    <li>Валидация submit: <code>App\Http\Requests\SubmitSchoolLeadLandingRequest</code> — ошибки по полям в JSON, 422.</li>
+    <li>reCAPTCHA v3: <code>App\Services\RecaptchaVerificationService</code>.</li>
+    <li>View: <code>resources/views/landing/partner-lead.blade.php</code>.</li>
+  </ul>
+
+  <h3>3.1) Доступ без авторизации</h3>
+  <p>Страница и API лендинга публичные: гость и авторизованный пользователь CRM получают <b>200</b> при валидном запросе. Middleware <code>auth</code> на маршруты не навешен.</p>
+  <p class="small">Покрытие: <code>tests/Feature/Public/SchoolLeadLandingPublicAccessFeatureTest.php</code>.</p>
+
+  <h2>4) Поля формы</h2>
+  <h3>4.1) Законный представитель (обязательные)</h3>
+  <ul>
+    <li>Фамилия, имя, отчество</li>
+    <li>Телефон, email</li>
+  </ul>
+
+  <h3>4.2) Ребёнок (обязательные)</h3>
+  <ul>
+    <li>Фамилия, имя, отчество</li>
+    <li>Дата рождения (должна быть в прошлом)</li>
+  </ul>
+
+  <h3>4.3) Особенности (чекбоксы да/нет)</h3>
+  <ul>
+    <li><code>is_individual_traits</code> — индивидуальные особенности воспитанника</li>
+    <li><code>is_on_medical_register</code> — состоит на учёте у медицинских специалистов</li>
+    <li><code>is_with_disability</code> — наличие инвалидности</li>
+  </ul>
+
+  <h3>4.4) Район и услуга</h3>
+  <ul>
+    <li><b>Район</b> (<code>location_id</code>) — обязателен. Справочник: активные <code>locations</code> партнёра (<code>is_enabled = true</code>).</li>
+    <li><b>Услуга</b> (<code>team_id</code>) — необязательна. Список подгружается AJAX после выбора района; фильтр через <code>TeamLocationAvailabilityService</code> (см. <a href="/docs/documentation/location-team-bindings">локации ↔ группы</a>).</li>
+    <li>Чекбокс <code>needs_contact_help</code> — «Не могу определиться с секцией, прошу со мной связаться»: при включении <code>team_id</code> сбрасывается и не обязателен.</li>
+  </ul>
+
+  <h3>4.5) Прочее</h3>
+  <ul>
+    <li>Комментарий (<code>comment</code>) — необязателен</li>
+    <li>Согласие на обработку ПДн (<code>consent_accepted</code>) — обязательный чекбокс; <code>policy_url</code> для лендинга = <code>null</code> (без ссылки на политику)</li>
+    <li>UTM и tracking: <code>utm_*</code>, <code>page_url</code>, <code>referrer</code> — скрытые поля, заполняются JS</li>
+  </ul>
+
+  <h2>5) Сохранение в БД (<code>school_leads</code>)</h2>
+  <p>Миграция: <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>.</p>
+  <table>
+    <thead>
+      <tr><th>Поле</th><th>Лендинг</th><th>Примечание</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>source</code></td><td><code>landing</code></td><td>Enum <code>App\Enums\SchoolLeadSource</code></td></tr>
+      <tr><td><code>name</code>, <code>phone</code></td><td>ФИО и телефон представителя</td><td>Для совместимости со списком CRM и уведомлениями</td></tr>
+      <tr><td><code>parent_*</code>, <code>parent_email</code></td><td>Из формы</td><td>Отдельные колонки родителя</td></tr>
+      <tr><td><code>child_*</code>, <code>child_birthday</code></td><td>Из формы</td><td>Данные ребёнка</td></tr>
+      <tr><td><code>is_individual_traits</code>, …</td><td>boolean</td><td>Как у ученика в <code>users</code></td></tr>
+      <tr><td><code>location_id</code></td><td>Из формы</td><td>У виджета обычно <code>null</code>, назначается в CRM</td></tr>
+      <tr><td><code>team_id</code></td><td>nullable</td><td>FK на <code>teams</code></td></tr>
+      <tr><td><code>needs_contact_help</code></td><td>boolean</td><td>Флаг «помочь с выбором секции»</td></tr>
+      <tr><td><code>consent_accepted_at</code></td><td><code>now()</code></td><td><code>policy_url</code> = null</td></tr>
+    </tbody>
+  </table>
+  <p class="small">В таблице CRM по-прежнему отображаются колонки <code>name</code> и <code>phone</code>; расширенные поля доступны в БД для дальнейшей доработки UI и конвертации в ученика.</p>
+
+  <h2>6) Отображение на странице</h2>
+  <ul>
+    <li>Заголовок: «Записаться / на регулярные тренировочные занятия».</li>
+    <li>Название партнёра — <code>partners.title</code> (поле «Наименование» в настройках организации); если пусто — <code>organization_name</code> (<code>Partner::landingDisplayName()</code>).</li>
+    <li>Цвета шапки — фиксированная зелёная тема в CSS view (кастомизация бренда в CRM — запланирована).</li>
+  </ul>
+
+  <h2>7) CRM: вкладка «Страница заявки»</h2>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Middleware</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/school-leads/landing</code></td><td><code>can:schoolWidget.view</code></td><td>Ссылка на публичную страницу, копирование URL</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Контроллер: <code>App\Http\Controllers\Admin\SchoolLeadLandingController</code>.</li>
+    <li>View: вкладка в <code>resources/views/admin/school-leads/index.blade.php</code> → <code>admin/school-leads/tabs/landing.blade.php</code>.</li>
+    <li>Право то же, что у «Виджет для сайта»: <code>schoolWidget.view</code>.</li>
+    <li>Раздел «Заявки с сайта» — три вкладки: <b>Заявки</b> · <b>Страница заявки</b> · <b>Виджет для сайта</b>.</li>
+  </ul>
+
+  <h2>8) Уведомления</h2>
+  <p>После успешного <code>POST /lead/…/submit</code> вызывается <code>SchoolLeadNotificationService::notify</code> — те же каналы, что у виджета:</p>
+  <ul>
+    <li><b>Email</b> — admin'ы партнёра + <code>partners.email</code></li>
+    <li><b>Telegram</b> — в <code>partners.school_leads_telegram_chat_id</code>; для лендинга текст дополнен (ребёнок, район, услуга, флаг «помочь с секцией»)</li>
+  </ul>
+
+  <h2>9) Модель <code>partner_widgets</code></h2>
+  <p>Миграция: <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>.</p>
+  <ul>
+    <li><code>widget_key</code> — для iframe-виджета (<code>/widget/…</code>)</li>
+    <li><code>landing_key</code> — для страницы заявки (<code>/lead/…</code>)</li>
+    <li><code>is_active</code> — виджет iframe</li>
+    <li><code>is_landing_active</code> — страница заявки</li>
+  </ul>
+
+  <h2>10) Ключевые файлы</h2>
+  <ul>
+    <li>Контроллеры: <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadLandingController</code></li>
+    <li>Request: <code>SubmitSchoolLeadLandingRequest</code></li>
+    <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>TeamLocationAvailabilityService</code>, <code>PartnerWidgetService</code></li>
+    <li>Enum: <code>App\Enums\SchoolLeadSource</code></li>
+    <li>Модели: <code>SchoolLead</code> (расширенные поля, <code>team()</code>), <code>Partner</code> (<code>landingDisplayName()</code>)</li>
+    <li>Маршруты: <code>routes/web.php</code> — группа <code>/lead/{landingKey}</code></li>
+  </ul>
+
+  <h2>11) Автотесты</h2>
+  <pre><code>php artisan test --env=testing --filter=SchoolLeadLanding</code></pre>
+  <table>
+    <thead>
+      <tr><th>Файл</th><th>Что проверяет</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>SchoolLeadLandingPublicAccessFeatureTest.php</code></td>
+        <td>Гость и авторизованный пользователь: show, teams, submit → 200; маршруты без <code>auth</code></td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingFullFeatureTest.php</code></td>
+        <td>Форма, валидация, изоляция partner_id, район/услуга, reCAPTCHA, source=landing, 404 неактивного ключа</td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingAdminAccessFeatureTest.php</code></td>
+        <td>CRM-вкладка: гость → redirect, без права → 403, admin → 200</td>
+      </tr>
+      <tr>
+        <td><code>Concerns/ProvidesSchoolLeadLandingFixtures.php</code></td>
+        <td>Общие фикстуры для публичных тестов</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Общие сценарии CRM (лид → клиент → договор, toolbar, Telegram) — в <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a>.</p>
+
+  <h2>12) Запланировано позже</h2>
+  <ul>
+    <li>Кастомные цвета / логотип партнёра на странице заявки.</li>
+    <li>Отдельная ссылка на политику ПДн в чекбоксе согласия.</li>
+    <li>Колонки расширенных полей лендинга в DataTables CRM.</li>
+    <li>Автозаполнение «Создать клиента» из полей родителя/ребёнка лендинга.</li>
+  </ul>
+</div>
+</body>
+</html>

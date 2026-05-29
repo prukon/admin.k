@@ -24,6 +24,21 @@
                         </div>
                     </div>
 
+                    @can('sport_types.view')
+                    @if($sportTypeOptions->isNotEmpty())
+                    <div class="mb-3">
+                        <label for="sport_type_id" class="form-label">Вид спорта</label>
+                        <select name="sport_type_id" class="form-select" id="sport_type_id">
+                            <option value="">— Не выбран —</option>
+                            @foreach($sportTypeOptions as $sportType)
+                                <option value="{{ $sportType->id }}">{{ $sportType->name }}</option>
+                            @endforeach
+                        </select>
+                        <div id="sport_type_id-error" class="invalid-feedback"></div>
+                    </div>
+                    @endif
+                    @endcan
+
                     <div class="mb-3">
                         <label for="default_duration_minutes" class="form-label">Длительность по умолчанию (мин)</label>
                         <input type="number"
@@ -59,11 +74,11 @@
 
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
-                    <div class="mb-3 locations-multiselect-field">
+                    <div class="mb-3 generic-multiselect-field">
                         <label class="form-label" for="createTeamLocationIds">Локации</label>
                         <select id="createTeamLocationIds"
                                 name="location_ids[]"
-                                class="form-select js-locations-multiselect-select"
+                                class="form-select js-generic-multiselect-select"
                                 multiple
                                 data-placeholder="Выберите локации">
                             @foreach($locationOptions as $location)
@@ -128,8 +143,8 @@
             ? window.jQuery(createTeamLocationsEl)
             : null;
 
-        if ($createTeamLocationsSelect && $createTeamLocationsSelect.length && window.KidsCrmLocationsMultiselectSelect2) {
-            KidsCrmLocationsMultiselectSelect2.init($createTeamLocationsSelect, {
+        if ($createTeamLocationsSelect && $createTeamLocationsSelect.length && window.KidsCrmGenericMultiselectSelect2) {
+            KidsCrmGenericMultiselectSelect2.init($createTeamLocationsSelect, {
                 dropdownParent: window.jQuery('#createTeamModal')
             });
         }
@@ -139,8 +154,8 @@
             if (locationIdsError) {
                 locationIdsError.textContent = '';
             }
-            if ($createTeamLocationsSelect && window.KidsCrmLocationsMultiselectSelect2) {
-                KidsCrmLocationsMultiselectSelect2.clearInvalid($createTeamLocationsSelect);
+            if ($createTeamLocationsSelect && window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.clearInvalid($createTeamLocationsSelect);
             }
         }
 
@@ -195,14 +210,22 @@
                                 if (trainerInput) trainerInput.classList.add('is-invalid');
                                 if (trainerError) trainerError.textContent = errors.trainer_profile_id[0];
                             }
+                            const sportTypeInput = document.getElementById('sport_type_id');
+                            const sportTypeError = document.getElementById('sport_type_id-error');
+                            if (sportTypeInput) sportTypeInput.classList.remove('is-invalid');
+                            if (sportTypeError) sportTypeError.textContent = '';
+                            if (errors.sport_type_id?.length) {
+                                if (sportTypeInput) sportTypeInput.classList.add('is-invalid');
+                                if (sportTypeError) sportTypeError.textContent = errors.sport_type_id[0];
+                            }
                             const locationIdsError = document.getElementById('location_ids-error');
                             const locationMessage = errors.location_ids?.[0]
                                 || errors['location_ids.0']?.[0]
                                 || null;
                             if (locationMessage && locationIdsError) {
                                 locationIdsError.textContent = locationMessage;
-                                if ($createTeamLocationsSelect && window.KidsCrmLocationsMultiselectSelect2) {
-                                    KidsCrmLocationsMultiselectSelect2.markInvalid($createTeamLocationsSelect);
+                                if ($createTeamLocationsSelect && window.KidsCrmGenericMultiselectSelect2) {
+                                    KidsCrmGenericMultiselectSelect2.markInvalid($createTeamLocationsSelect);
                                 }
                             }
                             return;
@@ -214,8 +237,8 @@
 
                         if (data.message) {
                             teamForm.reset();
-                            if ($createTeamLocationsSelect && window.KidsCrmLocationsMultiselectSelect2) {
-                                KidsCrmLocationsMultiselectSelect2.reset($createTeamLocationsSelect);
+                            if ($createTeamLocationsSelect && window.KidsCrmGenericMultiselectSelect2) {
+                                KidsCrmGenericMultiselectSelect2.reset($createTeamLocationsSelect);
                             }
                             showSuccessModal("Создание группы", "Группа успешно создана.", 1);
                         } else {

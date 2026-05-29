@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\Contracts;
 
 use App\Models\Contract;
+use App\Models\ParentProfile;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -86,6 +87,37 @@ class ContractsIndexAccessFeatureTest extends ContractsFeatureTestCase
     }
 
     /** @test */
+    public function user_with_contracts_view_gets_200_on_index_with_parent_prefill(): void
+    {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Access',
+            'firstname'  => 'Parent',
+            'middlename' => 'Index',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'parent_id'  => $parent->id,
+            'is_enabled' => 1,
+            'name'       => 'AccessChild',
+            'lastname'   => 'IndexStudent',
+        ]);
+
+        $this->get(route('contracts.index', [
+            'create'  => 1,
+            'user_id' => $student->id,
+        ]))
+            ->assertOk()
+            ->assertViewHas('shouldOpenCreateModal', true)
+            ->assertSee('id="parent_full_name_display"', false)
+            ->assertViewHas('preselectedUser', function ($pre) {
+                return is_array($pre)
+                    && ($pre['parent_full_name'] ?? null) === 'Access Parent Index';
+            });
+    }
+
+    /** @test */
     public function user_with_contracts_view_gets_200_on_all_index_ajax_endpoints(): void
     {
         Storage::fake();
@@ -131,7 +163,21 @@ class ContractsIndexAccessFeatureTest extends ContractsFeatureTestCase
             ],
         ])->assertOk();
 
-        $this->getJson(route('contracts.users.search', ['q' => 'Index']))->assertOk();
+        $this->getJson(route('contracts.users.search', ['q' => 'Index']))
+            ->assertOk()
+            ->assertJsonStructure([
+                'results' => [
+                    [
+                        'id',
+                        'text',
+                        'parent_full_name',
+                    ],
+                ],
+            ]);
+
+        $this->getJson(route('contracts.users.search', ['q' => '']))
+            ->assertOk()
+            ->assertJsonStructure(['results']);
 
         $this->getJson(route('contracts.user.group', ['user_id' => $student->id]))
             ->assertOk()
@@ -149,17 +195,77 @@ class ContractsIndexAccessFeatureTest extends ContractsFeatureTestCase
         $actor = $this->createUserWithoutPermission(self::PERM_CONTRACTS_VIEW, $this->partner);
         $this->grantPermissionToRoleForPartner($actor->role_id, $this->partner->id, self::PERM_CONTRACTS_VIEW);
 
-        $student = $this->createStudentWithTeam();
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Dedicated',
+            'firstname'  => 'Parent',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'parent_id'  => $parent->id,
+            'team_id'    => Team::factory()->create([
+                'partner_id' => $this->partner->id,
+                'title'      => 'Dedicated Group',
+            ])->id,
+            'is_enabled' => 1,
+            'name'       => 'DedicatedChild',
+            'lastname'   => 'IndexStudent',
+        ]);
 
         $this->actingAs($actor)
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
         $this->get(route('contracts.index'))->assertOk();
         $this->get(route('contracts.index', ['create' => 1]))->assertOk();
+        $this->get(route('contracts.index', ['user_id' => $student->id]))->assertOk();
+
         $this->getJson(route('contracts.data', ['draw' => 1, 'start' => 0, 'length' => 5]))->assertOk();
-        $this->getJson(route('contracts.users.search', ['q' => 'Index']))->assertOk();
+        $this->getJson(route('contracts.columns-settings.get'))->assertOk();
+        $this->postJson(route('contracts.columns-settings.save'), [
+            'columns' => ['user_name' => true],
+        ])->assertOk();
+
+        $this->getJson(route('contracts.users.search', ['q' => 'DedicatedChild']))
+            ->assertOk()
+            ->assertJsonPath('results.0.parent_full_name', 'Dedicated Parent');
+
         $this->getJson(route('contracts.user.group', ['user_id' => $student->id]))->assertOk();
         $this->postJson('/client-contracts/check-balance')->assertOk();
+    }
+
+    /** @test */
+    public function user_without_contracts_view_gets_403_on_users_search_with_parent_query(): void
+    {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Forbidden',
+            'firstname'  => 'Parent',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'parent_id'  => $parent->id,
+            'is_enabled' => 1,
+            'name'       => 'ForbiddenChild',
+            'lastname'   => 'AccessDenied',
+        ]);
+
+        $actor = $this->createUserWithoutPermission(self::PERM_CONTRACTS_VIEW, $this->partner);
+
+        $this->actingAs($actor)
+            ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+
+        $this->get(route('contracts.index', ['user_id' => $student->id]))->assertStatus(403);
+        $this->getJson(route('contracts.users.search', ['q' => 'ForbiddenChild']))->assertStatus(403);
+    }
+
+    /** @test */
+    public function guest_gets_401_on_users_search_with_parent_data_query(): void
+    {
+        Auth::logout();
+
+        $this->getJson(route('contracts.users.search', ['q' => 'guest-parent-test']))->assertStatus(401);
     }
 
     private function createStudentWithTeam(): User

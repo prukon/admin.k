@@ -236,7 +236,7 @@ users (role=user) — ученик, вход в CRM
   </table>
 
   <h2>6) Договоры</h2>
-  <p>На карточке договора и в предзаполнении подписанта ФИО берётся из <code>User::parentFormFields()</code> → таблица <code>parents</code>. См. <a href="/docs/documentation/contracts#contract-parent">contracts §2–3</a>.</p>
+  <p>На карточке договора, в модалке «Создать договор» (read-only) и в предзаполнении подписанта ФИО берётся из <code>User::parentFormFields()</code> / <code>parent_full_name</code> → таблица <code>parents</code>. См. <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a> и <a href="/docs/documentation/contracts#contract-parent">§2–3</a>.</p>
   <ul>
     <li><code>ContractsController@show</code> — <code>User::with('parentProfile')</code>, без legacy-колонок на <code>users</code>.</li>
     <li><code>ContractPrefillResolver</code> — плейсхолдеры PARENT_* из профиля родителя.</li>
@@ -301,7 +301,8 @@ users (role=user) — ученик, вход в CRM
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/admin-users#user-parent">Пользователи (админка)</a> ·
-    <a href="/docs/documentation/contracts#contract-parent">Договоры</a> ·
+    <a href="/docs/documentation/contracts#contract-create-modal">Договоры (модалка создания)</a> ·
+    <a href="/docs/documentation/contracts#contract-parent">Договоры (карточка)</a> ·
     <a href="/docs/documentation/partner-scope-guide">Изоляция партнёра</a></p>
 </div>
 </body>

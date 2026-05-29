@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\NewSchoolLeadSubmission;
 use App\Models\Partner;
 use App\Models\Role;
+use App\Enums\SchoolLeadSource;
 use App\Models\SchoolLead;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -89,13 +90,37 @@ class SchoolLeadNotificationService
             return;
         }
 
+        $isLanding = $schoolLead->source === SchoolLeadSource::Landing;
+
         $lines = [
-            '📩 Новая заявка с сайта',
+            $isLanding ? '📩 Новая заявка (страница)' : '📩 Новая заявка с сайта',
             '',
             "🏫 {$partnerTitle}",
             "👤 {$schoolLead->name}",
             "📞 {$schoolLead->phone}",
         ];
+
+        if ($isLanding) {
+            if ($schoolLead->parent_email) {
+                $lines[] = "✉️ {$schoolLead->parent_email}";
+            }
+            if ($schoolLead->child_full_name) {
+                $lines[] = "🧒 {$schoolLead->child_full_name}";
+            }
+            if ($schoolLead->child_birthday) {
+                $lines[] = '🎂 ' . $schoolLead->child_birthday->format('d.m.Y');
+            }
+            $schoolLead->loadMissing('location', 'team');
+            if ($schoolLead->location?->name) {
+                $lines[] = "📍 {$schoolLead->location->name}";
+            }
+            if ($schoolLead->team?->title) {
+                $lines[] = "📚 {$schoolLead->team->title}";
+            }
+            if ($schoolLead->needs_contact_help) {
+                $lines[] = '❓ Просит помочь с выбором секции';
+            }
+        }
 
         $utm = array_filter([
             $schoolLead->utm_source ? 'source: ' . $schoolLead->utm_source : null,

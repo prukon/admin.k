@@ -26,6 +26,10 @@ class UpdateRequest extends FormRequest
                 $this->merge(['location_ids' => []]);
             }
         }
+
+        if ($this->has('sport_type_id') && $this->input('sport_type_id') === '') {
+            $this->merge(['sport_type_id' => null]);
+        }
     }
 
     public function rules(): array
@@ -65,6 +69,19 @@ class UpdateRequest extends FormRequest
             ];
         }
 
+        if ($this->user()?->can('sport_types.view')) {
+            $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
+            $rules['sport_type_id'] = [
+                'nullable',
+                'integer',
+                Rule::exists('sport_types', 'id')->where(function ($query) use ($partnerId) {
+                    if ($partnerId > 0) {
+                        $query->where('partner_id', $partnerId);
+                    }
+                }),
+            ];
+        }
+
         return $rules;
     }
 
@@ -75,6 +92,7 @@ class UpdateRequest extends FormRequest
             'trainer_profile_id' => 'тренер',
             'location_ids' => 'локации',
             'location_ids.*' => 'локация',
+            'sport_type_id' => 'вид спорта',
         ];
     }
 
@@ -89,6 +107,7 @@ class UpdateRequest extends FormRequest
             'trainer_profile_id.exists' => 'Выберите тренера из списка',
             'location_ids.array' => 'Некорректный список локаций',
             'location_ids.*.exists' => 'Выберите локацию из списка текущего партнёра',
+            'sport_type_id.exists' => 'Выберите вид спорта из списка текущего партнёра',
         ];
     }
 }

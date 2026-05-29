@@ -350,11 +350,12 @@
                 }
 
                 window.setStudentParentForm = function (prefix, payload) {
+                    payload = payload || {};
                     const ids = parentFieldIds(prefix);
                     const $select = $(ids.select);
-                    const parentId = payload && payload.parent_id ? String(payload.parent_id) : '';
+                    const parentId = payload.parent_id ? String(payload.parent_id) : '';
 
-                    fillParentFio(prefix, payload || {});
+                    fillParentFio(prefix, payload);
 
                     if ($select.length) {
                         if (!parentId) {
@@ -370,7 +371,15 @@
                         }
                     }
 
-                    syncParentFormUi(prefix, payload || {});
+                    if (payload.forceNewParent) {
+                        clearParentSelect(prefix);
+                        fillParentFio(prefix, payload);
+                        setParentFormMode(prefix, 'new', {skipButtonsUpdate: true});
+                        syncParentModeButtons(prefix, 'new');
+                    } else {
+                        syncParentFormUi(prefix, payload);
+                    }
+
                     window.syncStudentParentFieldsVisibility(prefix);
                 };
 
@@ -416,9 +425,19 @@
                     $('#createUserModal').on('shown.bs.modal', function () {
                         initParentSelectsInModal($(this));
                         window.syncStudentParentFieldsVisibility('create');
-                        if (!$('#create-user-form').data('school-lead-prefill')) {
-                            window.resetStudentParentForm('create');
+
+                        var $form = $('#create-user-form');
+                        var leadPrefill = $form.data('school-lead-prefill');
+                        if (leadPrefill && typeof leadPrefill === 'object') {
+                            window.setStudentParentForm('create', Object.assign({}, leadPrefill, {
+                                parent_id: null,
+                                forceNewParent: true,
+                            }));
+                            $form.removeData('school-lead-prefill');
+                            return;
                         }
+
+                        window.resetStudentParentForm('create');
                     });
 
                     $('#editUserModal').on('shown.bs.modal', function () {
