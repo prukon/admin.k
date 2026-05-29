@@ -28,7 +28,6 @@ class SchoolLeadsAuthorizationTest extends CrmTestCase
     public function test_school_widget_routes_use_school_widget_view_middleware(): void
     {
         $expected = [
-            'admin.school-leads.landing'               => 'can:schoolWidget.view',
             'admin.school-leads.widget'                => 'can:schoolWidget.view',
             'admin.school-widget'                      => 'can:schoolWidget.view',
             'admin.school-widget.telegram-link'        => 'can:schoolWidget.view',
@@ -42,12 +41,21 @@ class SchoolLeadsAuthorizationTest extends CrmTestCase
         }
     }
 
+    public function test_school_lead_landing_route_uses_school_lead_landing_view_middleware(): void
+    {
+        $route = Route::getRoutes()->getByName('admin.school-leads.landing');
+        $this->assertNotNull($route, 'Маршрут admin.school-leads.landing не найден');
+        $this->assertContains('can:schoolLeadLanding.view', $route->gatherMiddleware());
+        $this->assertNotContains('can:schoolWidget.view', $route->gatherMiddleware());
+    }
+
     public function test_admin_role_has_school_leads_permissions_in_config(): void
     {
         $adminPermissions = config('role_base_permissions.roles.admin', []);
 
         $this->assertContains('schoolLeads.view', $adminPermissions);
         $this->assertContains('schoolWidget.view', $adminPermissions);
+        $this->assertNotContains('schoolLeadLanding.view', $adminPermissions);
     }
 
     public function test_user_role_does_not_have_school_leads_permissions_in_config(): void

@@ -163,13 +163,13 @@
       <tr><th>Метод</th><th>URL</th><th>Middleware</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/admin/school-leads/landing</code></td><td><code>can:schoolWidget.view</code></td><td>Ссылка на публичную страницу, копирование URL</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/landing</code></td><td><code>can:schoolLeadLanding.view</code></td><td>Ссылка на публичную страницу, копирование URL</td></tr>
     </tbody>
   </table>
   <ul>
     <li>Контроллер: <code>App\Http\Controllers\Admin\SchoolLeadLandingController</code>.</li>
     <li>View: вкладка в <code>resources/views/admin/school-leads/index.blade.php</code> → <code>admin/school-leads/tabs/landing.blade.php</code>.</li>
-    <li>Право то же, что у «Виджет для сайта»: <code>schoolWidget.view</code>.</li>
+    <li>Право: <code>schoolLeadLanding.view</code> (отдельно от <code>schoolWidget.view</code>).</li>
     <li>Раздел «Заявки с сайта» — три вкладки: <b>Заявки</b> · <b>Страница заявки</b> · <b>Виджет для сайта</b>.</li>
   </ul>
 

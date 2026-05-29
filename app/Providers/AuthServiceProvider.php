@@ -321,6 +321,10 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('schoolWidget.view');
         });
 
+        Gate::define('schoolLeadLanding.view', function (User $user) {
+            return $user->hasPermission('schoolLeadLanding.view');
+        });
+
         // Оплата сервиса
         Gate::define('servicePayments.view', function (User $user) {
             return $user->hasPermission('servicePayments.view');

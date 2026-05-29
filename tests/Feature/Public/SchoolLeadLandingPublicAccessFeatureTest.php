@@ -101,6 +101,7 @@ final class SchoolLeadLandingPublicAccessFeatureTest extends TestCase
             $this->assertNotContains('auth', $middleware, "Маршрут {$routeName} не должен требовать auth");
             $this->assertNotContains('can:schoolWidget.view', $middleware);
             $this->assertNotContains('can:schoolLeads.view', $middleware);
+            $this->assertNotContains('can:schoolLeadLanding.view', $middleware);
         }
     }
 }

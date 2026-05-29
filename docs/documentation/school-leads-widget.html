@@ -76,12 +76,13 @@
     В <code>/config/role_base_permissions.php</code> для роли <code>admin</code> (в разрезе партнёра):
     <ul>
       <li><code>schoolLeads.view</code> — страница «Заявки с сайта», datatable, update/delete.</li>
-      <li><code>schoolWidget.view</code> — вкладки «Страница заявки» и «Виджет для сайта», код iframe, подключение Telegram.</li>
+      <li><code>schoolLeadLanding.view</code> — вкладка «Страница заявки», ссылка на публичный лендинг <code>/lead/{landingKey}</code>.</li>
+      <li><code>schoolWidget.view</code> — вкладка «Виджет для сайта», код iframe, подключение Telegram.</li>
       <li>Для колонки «Договор» и конвертации в ученика дополнительно нужны <code>users.view</code> и/или <code>contracts.view</code> (§5.8) — в базовый набор роли <code>admin</code> партнёра обычно уже входят.</li>
     </ul>
     Роль <code>user</code> этих прав <b>не получает</b> по умолчанию. Назначение — через «Права и роли» или сидеры (см. <a href="/docs/documentation/partners-permissions">партнёры: базовые права</a>).
   </div>
-  <p class="small">Меню: <code>resources/views/includes/sidebar.blade.php</code> — пункты под <code>@can('schoolLeads.view')</code> и <code>@can('schoolWidget.view')</code>.</p>
+  <p class="small">Меню: <code>resources/views/includes/sidebar.blade.php</code> — пункт «Заявки с сайта» под <code>@can('schoolLeads.view')</code>. Вкладки «Страница заявки» и «Виджет для сайта» — под <code>@can('schoolLeadLanding.view')</code> и <code>@can('schoolWidget.view')</code> соответственно.</p>
 
   <h2>4) Публичный виджет (iframe)</h2>
   <p class="small">Отдельная полная форма на <code>/lead/{landingKey}</code> — не этот раздел; см. <a href="/docs/documentation/school-leads-landing">school-leads-landing.html</a>.</p>
@@ -297,7 +298,7 @@
     Покрытие доступа: <code>SchoolLeadsAccessFeatureTest</code>, <code>SchoolLeadsFullAccessFeatureTest</code>
     (в т.ч. workflow admin: store пользователя + create договора → 200).
     Бизнес-сценарии: <code>SchoolLeadCreateUserFeatureTest</code>, <code>SchoolLeadContractActionFeatureTest</code>, <code>SchoolLeadsLeadClientContractFeatureTest</code>.
-    Виджет (<code>/admin/school-widget</code>) — отдельное право <code>schoolWidget.view</code> (§6).
+    Виджет (<code>/admin/school-widget</code>) — право <code>schoolWidget.view</code>; лендинг CRM — <code>schoolLeadLanding.view</code> (§6).
   </p>
 
   <h2>6) CRM: страница заявки, виджет и Telegram</h2>
@@ -307,7 +308,7 @@
       <tr><th>Метод</th><th>URL</th><th>Middleware</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/admin/school-leads/landing</code></td><td><code>can:schoolWidget.view</code></td><td>Ссылка на публичную страницу <code>/lead/{landingKey}</code></td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/landing</code></td><td><code>can:schoolLeadLanding.view</code></td><td>Ссылка на публичную страницу <code>/lead/{landingKey}</code></td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/widget</code></td><td><code>can:schoolWidget.view</code></td><td>Код iframe, статус Telegram (алиас: <code>/admin/school-widget</code>)</td></tr>
       <tr><td>GET</td><td><code>/admin/school-widget</code></td><td><code>can:schoolWidget.view</code></td><td>То же, вкладка «Виджет для сайта»</td></tr>
       <tr><td>POST</td><td><code>/admin/school-widget/telegram-link</code></td><td><code>can:schoolWidget.view</code></td><td>Создать ссылку <code>t.me/bot?start=pl_…</code></td></tr>

@@ -112,6 +112,30 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
         }
     }
 
+    public function test_user_without_school_lead_landing_view_gets_403_on_landing_endpoint(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeads.view');
+        $this->actingAs($actor);
+
+        foreach ($this->landingRoutesPayload() as $item) {
+            $response = $this->call(
+                $item['method'],
+                $item['url'],
+                $item['data'] ?? [],
+                [],
+                [],
+                $item['headers'] ?? ['HTTP_ACCEPT' => 'application/json']
+            );
+
+            $this->assertSame(
+                403,
+                $response->getStatusCode(),
+                "Без schoolLeadLanding.view: {$item['method']} {$item['url']} → {$response->getStatusCode()}"
+            );
+        }
+    }
+
     public function test_user_with_only_school_leads_view_leads_page_and_api_return_200_widget_forbidden(): void
     {
         $actor = $this->createUserWithoutPermission('schoolLeads.view', $this->partner);
@@ -138,6 +162,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.school-widget'))->assertForbidden();
         $this->postJson(route('admin.school-widget.telegram-link'))->assertForbidden();
         $this->deleteJson(route('admin.school-widget.telegram-disconnect'))->assertForbidden();
+        $this->get(route('admin.school-leads.landing'))->assertForbidden();
     }
 
     public function test_user_with_only_school_widget_view_widget_page_and_api_return_200_leads_forbidden(): void
@@ -175,6 +200,24 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
                 "Без schoolLeads.view: {$item['method']} {$item['url']} → {$response->getStatusCode()}"
             );
         }
+
+        $this->get(route('admin.school-leads.landing'))->assertForbidden();
+    }
+
+    public function test_user_with_only_school_lead_landing_view_landing_page_returns_200_leads_and_widget_forbidden(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolLeads.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $this->get(route('admin.school-leads.landing'))
+            ->assertOk()
+            ->assertViewIs('admin.school-leads.index')
+            ->assertViewHas('activeTab', 'landing');
+
+        $this->get(route('admin.school-leads'))->assertForbidden();
+        $this->get(route('admin.school-leads.widget'))->assertForbidden();
+        $this->get(route('admin.school-widget'))->assertForbidden();
     }
 
     public function test_user_with_both_permissions_all_section_endpoints_return_200(): void
@@ -182,6 +225,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
         $actor = $this->createUserWithoutPermission('schoolLeads.view', $this->partner);
         $this->grantPermission($actor, 'schoolLeads.view');
         $this->grantPermission($actor, 'schoolWidget.view');
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
         $this->actingAs($actor);
 
         $this->get(route('admin.school-leads'))
@@ -213,6 +257,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
     public function test_admin_all_section_pages_and_endpoints_return_200(): void
     {
         $this->asAdmin();
+        $this->grantPermission($this->user, 'schoolLeadLanding.view');
 
         $this->get(route('admin.school-leads'))
             ->assertOk()
@@ -223,6 +268,11 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewIs('admin.school-leads.index')
             ->assertViewHas('activeTab', 'widget');
+
+        $this->get(route('admin.school-leads.landing'))
+            ->assertOk()
+            ->assertViewIs('admin.school-leads.index')
+            ->assertViewHas('activeTab', 'landing');
 
         $this->get(route('admin.school-widget'))
             ->assertOk()
@@ -299,8 +349,23 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
     {
         return array_merge(
             $this->leadsRoutesPayload(),
+            $this->landingRoutesPayload(),
             $this->widgetRoutesPayload(includeDisconnect: false),
         );
+    }
+
+    /**
+     * @return list<array{method: string, url: string, data?: array<string, mixed>, headers?: array<string, string>}>
+     */
+    private function landingRoutesPayload(): array
+    {
+        return [
+            [
+                'method'  => 'GET',
+                'url'     => route('admin.school-leads.landing'),
+                'headers' => ['HTTP_ACCEPT' => 'text/html'],
+            ],
+        ];
     }
 
     /**

@@ -762,9 +762,12 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.school-leads.columns-settings.save');
     });
 
+    Route::middleware('can:schoolLeadLanding.view')->group(function () {
+        Route::get('/admin/school-leads/landing', [\App\Http\Controllers\Admin\SchoolLeadLandingController::class, 'landingTab'])->name('admin.school-leads.landing');
+    });
+
     Route::middleware('can:schoolWidget.view')->group(function () {
         Route::get('/admin/school-leads/widget', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'widgetTab'])->name('admin.school-leads.widget');
-        Route::get('/admin/school-leads/landing', [\App\Http\Controllers\Admin\SchoolLeadLandingController::class, 'landingTab'])->name('admin.school-leads.landing');
         Route::get('/admin/school-widget', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'index'])->name('admin.school-widget');
         Route::post('/admin/school-widget/telegram-link', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'createTelegramLink'])->name('admin.school-widget.telegram-link');
         Route::delete('/admin/school-widget/telegram', [\App\Http\Controllers\Admin\SchoolWidgetController::class, 'disconnectTelegram'])->name('admin.school-widget.telegram-disconnect');

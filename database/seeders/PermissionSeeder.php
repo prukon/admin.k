@@ -72,6 +72,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'partnerLeads.view',              'description' => 'Страница "Лиды партнёров"',                     'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 75],
             ['name' => 'schoolLeads.view',               'description' => 'Страница "Заявки с сайта"',                     'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 76],
             ['name' => 'schoolWidget.view',              'description' => 'Страница "Виджет заявок"',                      'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 77],
+            ['name' => 'schoolLeadLanding.view',         'description' => 'Страница заявки (CRM)',                         'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 78],
             ['name' => 'servicePayments.view',           'description' => 'Страница "Оплата сервиса"',                     'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 80],
             ['name' => 'partnerWallet.view',             'description' => 'Страница "Кошелек"',                            'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 90],
             ['name' => 'documentations.view',            'description' => 'Страница "Документация"',                       'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 71],

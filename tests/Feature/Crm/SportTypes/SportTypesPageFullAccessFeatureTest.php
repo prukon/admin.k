@@ -38,6 +38,8 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
 
     public function test_sport_types_index_page_returns_200_with_view_permission(): void
     {
+        $this->grantSportTypesViewForUser($this->user);
+
         $this->get(route('admin.sport-types.index'))
             ->assertOk()
             ->assertViewIs('admin.sport-types.index')
@@ -51,6 +53,9 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
 
     public function test_all_sport_types_page_endpoints_return_200_for_admin_with_manage(): void
     {
+        $this->grantSportTypesViewForUser($this->user);
+        $this->grantSportTypesManageForUser($this->user);
+
         $this->get(route('admin.sport-types.index'))->assertOk();
 
         $this->getJson(route('admin.sport-types.data', [

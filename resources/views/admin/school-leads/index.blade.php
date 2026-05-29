@@ -11,12 +11,14 @@
                    role="tab">Заявки</a>
             </li>
 
-            @can('schoolWidget.view')
+            @can('schoolLeadLanding.view')
                 <li class="nav-item" role="presentation">
                     <a class="nav-link {{ ($activeTab ?? '') === 'landing' ? 'active' : '' }}"
                        href="{{ route('admin.school-leads.landing') }}"
                        role="tab">Страница заявки</a>
                 </li>
+            @endcan
+            @can('schoolWidget.view')
                 <li class="nav-item" role="presentation">
                     <a class="nav-link {{ ($activeTab ?? '') === 'widget' ? 'active' : '' }}"
                        href="{{ route('admin.school-leads.widget') }}"

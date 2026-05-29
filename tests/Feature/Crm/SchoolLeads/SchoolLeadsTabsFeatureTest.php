@@ -42,6 +42,7 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
     public function test_landing_tab_renders_index_with_active_tab_landing(): void
     {
         $this->asAdmin();
+        $this->grantPermission($this->user, 'schoolLeadLanding.view');
 
         $this->get(route('admin.school-leads.landing'))
             ->assertOk()
@@ -64,6 +65,7 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
     public function test_leads_tab_shows_navigation_and_leads_toolbar(): void
     {
         $this->asAdmin();
+        $this->grantPermission($this->user, 'schoolLeadLanding.view');
 
         $html = $this->get(route('admin.school-leads'))
             ->assertOk()
@@ -105,10 +107,11 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('id="schoolLeadsReportToolbar"', $html);
     }
 
-    public function test_user_without_school_widget_view_does_not_see_widget_tab(): void
+    public function test_user_without_school_lead_landing_view_does_not_see_landing_tab(): void
     {
-        $actor = $this->createUserWithoutPermission('schoolWidget.view', $this->partner);
+        $actor = $this->createUserWithoutPermission('schoolLeadLanding.view', $this->partner);
         $this->grantPermission($actor, 'schoolLeads.view');
+        $this->grantPermission($actor, 'schoolWidget.view');
         $this->actingAs($actor);
 
         $html = $this->get(route('admin.school-leads'))
@@ -117,8 +120,26 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
 
         $this->assertStringContainsString('>Заявки</a>', $html);
         $this->assertStringNotContainsString('>Страница заявки</a>', $html);
-        $this->assertStringNotContainsString('>Виджет для сайта</a>', $html);
+        $this->assertStringContainsString('>Виджет для сайта</a>', $html);
         $this->assertStringNotContainsString(route('admin.school-leads.landing'), $html);
+        $this->assertStringContainsString(route('admin.school-leads.widget'), $html);
+    }
+
+    public function test_user_without_school_widget_view_does_not_see_widget_tab(): void
+    {
+        $actor = $this->createUserWithoutPermission('schoolWidget.view', $this->partner);
+        $this->grantPermission($actor, 'schoolLeads.view');
+        $this->grantPermission($actor, 'schoolLeadLanding.view');
+        $this->actingAs($actor);
+
+        $html = $this->get(route('admin.school-leads'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('>Заявки</a>', $html);
+        $this->assertStringContainsString('>Страница заявки</a>', $html);
+        $this->assertStringNotContainsString('>Виджет для сайта</a>', $html);
+        $this->assertStringContainsString(route('admin.school-leads.landing'), $html);
         $this->assertStringNotContainsString(route('admin.school-leads.widget'), $html);
     }
 
