@@ -293,16 +293,27 @@ class UserControllerTest extends CrmTestCase
      */
     public function test_data_filters_by_name_email_phone_birthday(): void
     {
+        // Фиксируем $this->user из setUp: случайный Faker мог давать ложные совпадения с LIKE-поиском.
+        $this->user->forceFill([
+            'name'     => 'Админ',
+            'lastname' => 'Тестовый',
+            'email'    => 'admin-users-filter@example.test',
+            'phone'    => '+79000000001',
+            'birthday' => '1990-01-01',
+        ])->save();
+
+        $uniqueToken = 'NmFlt7k2';
+
         $target = User::factory()->create([
             'partner_id' => $this->partner->id,
             'name' => 'Иван',
-            'lastname' => 'Петров',
-            'email' => 'ivan.petrov@example.com',
-            'phone' => '+70001112233',
-            'birthday' => '2010-05-15',
+            'lastname' => 'Фамилия' . $uniqueToken,
+            'email' => strtolower($uniqueToken) . '@example.com',
+            'phone' => '+70008887766',
+            'birthday' => '2015-03-22',
         ]);
 
-        $other = User::factory()->create([
+        User::factory()->create([
             'partner_id' => $this->partner->id,
             'name' => 'Другой',
             'lastname' => 'Юзер',
@@ -312,25 +323,25 @@ class UserControllerTest extends CrmTestCase
         ]);
 
         // по фамилии
-        $response = $this->getJson('/admin/users/data?name=Петр');
+        $response = $this->getJson('/admin/users/data?name=' . $uniqueToken);
         $json = $response->json();
         $this->assertEquals(1, $json['recordsFiltered']);
         $this->assertEquals($target->id, $json['data'][0]['id']);
 
         // по email
-        $response = $this->getJson('/admin/users/data?name=ivan.petrov');
+        $response = $this->getJson('/admin/users/data?name=' . strtolower($uniqueToken));
         $json = $response->json();
         $this->assertEquals(1, $json['recordsFiltered']);
         $this->assertEquals($target->id, $json['data'][0]['id']);
 
         // по телефону
-        $response = $this->getJson('/admin/users/data?name=1112');
+        $response = $this->getJson('/admin/users/data?name=8887766');
         $json = $response->json();
         $this->assertEquals(1, $json['recordsFiltered']);
         $this->assertEquals($target->id, $json['data'][0]['id']);
 
         // по дате рождения
-        $response = $this->getJson('/admin/users/data?name=2010-05-15');
+        $response = $this->getJson('/admin/users/data?name=2015-03-22');
         $json = $response->json();
         $this->assertEquals(1, $json['recordsFiltered']);
         $this->assertEquals($target->id, $json['data'][0]['id']);

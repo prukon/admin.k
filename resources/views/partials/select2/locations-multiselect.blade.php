@@ -3,46 +3,46 @@
 @once
     @push('styles')
         <style>
-            .teams-multiselect-field .select2-container--bootstrap-5.teams-multiselect-select2 {
+            .locations-multiselect-field .select2-container--bootstrap-5.locations-multiselect-select2 {
                 width: 100% !important;
             }
 
-            .teams-multiselect-select2.select2-container--bootstrap-5 .select2-search--inline {
+            .locations-multiselect-select2.select2-container--bootstrap-5 .select2-search--inline {
                 flex: 1 1 3.5rem;
                 min-width: 3.5rem;
             }
 
-            .teams-multiselect-select2.select2-container--bootstrap-5 .select2-search--inline .select2-search__field::placeholder {
+            .locations-multiselect-select2.select2-container--bootstrap-5 .select2-search--inline .select2-search__field::placeholder {
                 color: #b0b8c1;
             }
 
-            .teams-multiselect-select2.select2-container--bootstrap-5.select2-container--focus .select2-selection--multiple,
-            .teams-multiselect-select2.select2-container--bootstrap-5.select2-container--open .select2-selection--multiple {
+            .locations-multiselect-select2.select2-container--bootstrap-5.select2-container--focus .select2-selection--multiple,
+            .locations-multiselect-select2.select2-container--bootstrap-5.select2-container--open .select2-selection--multiple {
                 border-color: #d0d7de;
                 box-shadow: 0 0 0 0.18rem rgba(108, 117, 125, 0.08);
             }
 
-            .teams-multiselect-select2.select2-container--bootstrap-5 .select2-selection--multiple.is-invalid {
+            .locations-multiselect-select2.select2-container--bootstrap-5 .select2-selection--multiple.is-invalid {
                 border-color: var(--bs-form-invalid-border-color, #dc3545);
             }
 
-            .teams-multiselect-select2.select2-container--bootstrap-5 .select2-selection--multiple.is-invalid:focus,
-            .teams-multiselect-select2.select2-container--bootstrap-5.select2-container--open .select2-selection--multiple.is-invalid {
+            .locations-multiselect-select2.select2-container--bootstrap-5 .select2-selection--multiple.is-invalid:focus,
+            .locations-multiselect-select2.select2-container--bootstrap-5.select2-container--open .select2-selection--multiple.is-invalid {
                 border-color: var(--bs-form-invalid-border-color, #dc3545);
                 box-shadow: 0 0 0 0.18rem rgba(220, 53, 69, 0.12);
             }
 
-            .select2-container--bootstrap-5.kids-crm-ms-summary-mode.teams-multiselect-select2 .select2-search--inline {
+            .select2-container--bootstrap-5.kids-crm-ms-summary-mode.locations-multiselect-select2 .select2-search--inline {
                 flex: 1 1 4rem;
                 min-width: 4rem;
             }
 
-            .select2-container--bootstrap-5.kids-crm-ms-summary-mode.teams-multiselect-select2 .select2-search--inline .select2-search__field {
+            .select2-container--bootstrap-5.kids-crm-ms-summary-mode.locations-multiselect-select2 .select2-search--inline .select2-search__field {
                 width: 100% !important;
                 min-width: 4rem;
             }
 
-            .select2-dropdown.teams-multiselect-dropdown {
+            .select2-dropdown.locations-multiselect-dropdown {
                 border: 1px solid #e9ecef;
                 border-radius: 0.625rem;
                 box-shadow: 0 0.35rem 1rem rgba(15, 23, 42, 0.08);
@@ -51,7 +51,7 @@
                 background: #fff;
             }
 
-            .select2-dropdown.teams-multiselect-dropdown .select2-results__option {
+            .select2-dropdown.locations-multiselect-dropdown .select2-results__option {
                 padding: 0.35rem 0.5rem;
                 border-radius: 0.45rem;
                 font-size: 0.8125rem;
@@ -60,25 +60,25 @@
                 background-color: transparent !important;
             }
 
-            .select2-container--bootstrap-5 .select2-dropdown.teams-multiselect-dropdown .select2-results__option--selectable,
-            .select2-container--bootstrap-5 .select2-dropdown.teams-multiselect-dropdown .select2-results__option--selected,
-            .select2-container--bootstrap-5 .select2-dropdown.teams-multiselect-dropdown .select2-results__option[aria-selected="true"] {
+            .select2-container--bootstrap-5 .select2-dropdown.locations-multiselect-dropdown .select2-results__option--selectable,
+            .select2-container--bootstrap-5 .select2-dropdown.locations-multiselect-dropdown .select2-results__option--selected,
+            .select2-container--bootstrap-5 .select2-dropdown.locations-multiselect-dropdown .select2-results__option[aria-selected="true"] {
                 background-color: transparent !important;
                 color: #495057 !important;
                 font-weight: 400;
             }
 
-            .select2-container--bootstrap-5 .select2-dropdown.teams-multiselect-dropdown .select2-results__option--highlighted,
-            .select2-container--bootstrap-5 .select2-dropdown.teams-multiselect-dropdown .select2-results__option--highlighted.select2-results__option--selectable,
-            .select2-container--bootstrap-5 .select2-dropdown.teams-multiselect-dropdown .select2-results__option--highlighted.select2-results__option--selected,
-            .select2-container--bootstrap-5 .select2-dropdown.teams-multiselect-dropdown .select2-results__option--highlighted[aria-selected="true"],
-            .select2-dropdown.teams-multiselect-dropdown .select2-results__option--highlighted.select2-results__option--selectable,
-            .select2-dropdown.teams-multiselect-dropdown .select2-results__option--selected.select2-results__option--highlighted {
+            .select2-container--bootstrap-5 .select2-dropdown.locations-multiselect-dropdown .select2-results__option--highlighted,
+            .select2-container--bootstrap-5 .select2-dropdown.locations-multiselect-dropdown .select2-results__option--highlighted.select2-results__option--selectable,
+            .select2-container--bootstrap-5 .select2-dropdown.locations-multiselect-dropdown .select2-results__option--highlighted.select2-results__option--selected,
+            .select2-container--bootstrap-5 .select2-dropdown.locations-multiselect-dropdown .select2-results__option--highlighted[aria-selected="true"],
+            .select2-dropdown.locations-multiselect-dropdown .select2-results__option--highlighted.select2-results__option--selectable,
+            .select2-dropdown.locations-multiselect-dropdown .select2-results__option--selected.select2-results__option--highlighted {
                 background-color: #f6f7f9 !important;
                 color: #495057 !important;
             }
 
-            .teams-multiselect-option {
+            .locations-multiselect-option {
                 display: flex;
                 align-items: center;
                 gap: 0.5rem;
@@ -86,7 +86,7 @@
                 min-height: 1.25rem;
             }
 
-            .teams-multiselect-option-check {
+            .locations-multiselect-option-check {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
@@ -102,13 +102,13 @@
                 transition: background-color 0.12s ease, border-color 0.12s ease;
             }
 
-            .teams-multiselect-option-check.is-checked {
+            .locations-multiselect-option-check.is-checked {
                 position: relative;
                 background: var(--bs-primary-bg-subtle, #cfe2ff);
                 border-color: #86b7fe;
             }
 
-            .teams-multiselect-option-check.is-checked::after {
+            .locations-multiselect-option-check.is-checked::after {
                 content: '';
                 position: absolute;
                 top: 42%;
@@ -120,7 +120,7 @@
                 transform: translate(-50%, -50%) rotate(45deg);
             }
 
-            .teams-multiselect-option-label {
+            .locations-multiselect-option-label {
                 flex: 1 1 auto;
                 min-width: 0;
                 font-size: 0.8125rem;
@@ -135,12 +135,12 @@
             (function ($) {
                 'use strict';
 
-                if (window.KidsCrmTeamsMultiselectSelect2) {
+                if (window.KidsCrmLocationsMultiselectSelect2) {
                     return;
                 }
 
                 const select2Language = @include('partials.select2.ru');
-                const namespace = '.kidsCrmTeamsMultiselect';
+                const namespace = '.kidsCrmLocationsMultiselect';
 
                 function escapeHtml(value) {
                     return String(value)
@@ -222,14 +222,14 @@
                         KidsCrmHoverListDropdown.dispose($container[0]);
                     }
 
-                    $rendered.find('.teams-multiselect-summary').remove();
+                    $rendered.find('.locations-multiselect-summary').remove();
 
                     if (texts.length >= 3) {
                         const summary = formatSelectionSummary(texts);
                         const summaryHtml = renderSummaryWithHover(summary, texts);
 
                         $rendered.prepend(
-                            '<li class="select2-selection__choice teams-multiselect-summary kids-crm-ms-chip kids-crm-ms-summary">' +
+                            '<li class="select2-selection__choice locations-multiselect-summary kids-crm-ms-chip kids-crm-ms-summary">' +
                             summaryHtml +
                             '</li>'
                         );
@@ -251,17 +251,17 @@
 
                     const checked = selectedIds.includes(String(option.id));
                     const $row = $(
-                        '<span class="teams-multiselect-option">' +
-                        '<span class="teams-multiselect-option-check" aria-hidden="true"></span>' +
-                        '<span class="teams-multiselect-option-label"></span>' +
+                        '<span class="locations-multiselect-option">' +
+                        '<span class="locations-multiselect-option-check" aria-hidden="true"></span>' +
+                        '<span class="locations-multiselect-option-label"></span>' +
                         '</span>'
                     );
 
                     if (checked) {
-                        $row.find('.teams-multiselect-option-check').addClass('is-checked');
+                        $row.find('.locations-multiselect-option-check').addClass('is-checked');
                     }
 
-                    $row.find('.teams-multiselect-option-label').text(option.text);
+                    $row.find('.locations-multiselect-option-label').text(option.text);
 
                     return $row;
                 }
@@ -282,7 +282,7 @@
 
                 function markResultOptionChecked($select, optionId, checked) {
                     findResultOption($select, optionId)
-                        .find('.teams-multiselect-option-check')
+                        .find('.locations-multiselect-option-check')
                         .toggleClass('is-checked', checked);
                 }
 
@@ -301,7 +301,7 @@
                         }
 
                         const isSelected = selectedIds.includes(String(data.id));
-                        $(this).find('.teams-multiselect-option-check').toggleClass('is-checked', isSelected);
+                        $(this).find('.locations-multiselect-option-check').toggleClass('is-checked', isSelected);
                     });
                 }
 
@@ -373,7 +373,7 @@
 
                         if (originalTarget) {
                             $(originalTarget)
-                                .find('.teams-multiselect-option-check')
+                                .find('.locations-multiselect-option-check')
                                 .addClass('is-checked');
                         }
 
@@ -382,7 +382,7 @@
 
                     $select.on('select2:unselect' + namespace, function (e) {
                         resolveUnselectTarget($select, e.params)
-                            .find('.teams-multiselect-option-check')
+                            .find('.locations-multiselect-option-check')
                             .removeClass('is-checked');
 
                         syncSelectionSummary($select);
@@ -404,7 +404,7 @@
                     });
                 }
 
-                window.KidsCrmTeamsMultiselectSelect2 = {
+                window.KidsCrmLocationsMultiselectSelect2 = {
                     init: function ($select, options) {
                         options = options || {};
 
@@ -420,15 +420,15 @@
                         $select.select2({
                             theme: 'bootstrap-5',
                             width: '100%',
-                            placeholder: $select.data('placeholder') || options.placeholder || 'Выберите группы',
+                            placeholder: $select.data('placeholder') || options.placeholder || 'Выберите локации',
                             language: select2Language,
                             allowClear: options.allowClear !== false,
                             multiple: true,
                             closeOnSelect: false,
                             dropdownParent: options.dropdownParent || undefined,
-                            containerCssClass: 'teams-multiselect-select2',
+                            containerCssClass: 'locations-multiselect-select2',
                             selectionCssClass: 'kids-crm-ms-selection',
-                            dropdownCssClass: 'teams-multiselect-dropdown',
+                            dropdownCssClass: 'locations-multiselect-dropdown',
                             templateResult: function (data) {
                                 return formatOption(data, getSelectedIds($select));
                             }

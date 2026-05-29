@@ -239,9 +239,17 @@ class TeamController extends AdminBaseController
         $data = $teams->map(function (Team $team) use ($canViewLocations) {
             // Собираем список дней недели (title)
             $weekdaysLabel = '';
+            $weekdaysItems = [];
             if ($team->relationLoaded('weekdays')) {
-                $weekdaysLabel = $team->weekdays
-                    ->pluck('title')
+                $weekdaysSorted = $team->weekdays->sortBy('id')->values();
+                $weekdaysItems = $weekdaysSorted
+                    ->map(fn (Weekday $weekday) => [
+                        'id'    => $weekday->id,
+                        'short' => $weekday->shortTitle(),
+                    ])
+                    ->all();
+                $weekdaysLabel = $weekdaysSorted
+                    ->map(fn (Weekday $weekday) => $weekday->shortTitle())
                     ->implode(', ');
             }
 
@@ -251,9 +259,15 @@ class TeamController extends AdminBaseController
                 $trainerLabel = $trainerProfile?->user?->full_name ?? '';
             }
 
-            $locationsLabel = '';
+            $locationsLabels = [
+                'locations_label'      => '',
+                'locations_label_full' => '',
+                'locations_names'      => [],
+            ];
             if ($canViewLocations && $team->relationLoaded('locations')) {
-                $locationsLabel = $team->locations->pluck('name')->implode(', ');
+                $locationsLabels = $this->formatLocationsLabels(
+                    $team->locations->sortBy('name')->pluck('name')->values()->all()
+                );
             }
 
             return [
@@ -261,8 +275,11 @@ class TeamController extends AdminBaseController
                 'order_by'       => $team->order_by,
                 'title'          => $team->title,
                 'trainer_label'  => $trainerLabel,
-                'locations_label' => $locationsLabel,
-                'weekdays_label' => $weekdaysLabel,
+                'locations_label'      => $locationsLabels['locations_label'],
+                'locations_label_full' => $locationsLabels['locations_label_full'],
+                'locations_names'      => $locationsLabels['locations_names'],
+                'weekdays_label'  => $weekdaysLabel,
+                'weekdays_items'  => $weekdaysItems,
                 'status_label'   => $team->is_enabled ? 'Активна' : 'Неактивна',
                 'is_enabled'     => (int) $team->is_enabled,
             ];
@@ -526,5 +543,39 @@ class TeamController extends AdminBaseController
     public function log(FilterRequest $request)
     {
         return $this->buildLogDataTable(3);
+    }
+
+    /**
+     * @param  list<string>  $names
+     * @return array{locations_label: string, locations_label_full: string, locations_names: list<string>}
+     */
+    private function formatLocationsLabels(array $names): array
+    {
+        $names = array_values(array_filter($names, static fn ($name) => trim((string) $name) !== ''));
+        $count = count($names);
+
+        if ($count === 0) {
+            return [
+                'locations_label'      => '',
+                'locations_label_full' => '',
+                'locations_names'      => [],
+            ];
+        }
+
+        $full = implode(', ', $names);
+
+        if ($count <= 2) {
+            return [
+                'locations_label'      => $full,
+                'locations_label_full' => $full,
+                'locations_names'      => $names,
+            ];
+        }
+
+        return [
+            'locations_label'      => $names[0] . ', еще ' . ($count - 1) . ' шт.',
+            'locations_label_full' => $full,
+            'locations_names'      => $names,
+        ];
     }
 }

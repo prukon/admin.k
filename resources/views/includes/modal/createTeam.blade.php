@@ -59,24 +59,19 @@
 
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
-                    <div class="mb-3">
-                        <label class="form-label">Локации</label>
-                        <div class="border rounded p-2" style="max-height: 10rem; overflow-y: auto;">
+                    <div class="mb-3 locations-multiselect-field">
+                        <label class="form-label" for="createTeamLocationIds">Локации</label>
+                        <select id="createTeamLocationIds"
+                                name="location_ids[]"
+                                class="form-select js-locations-multiselect-select"
+                                multiple
+                                data-placeholder="Выберите локации">
                             @foreach($locationOptions as $location)
-                                <div class="form-check">
-                                    <input class="form-check-input"
-                                           type="checkbox"
-                                           name="location_ids[]"
-                                           id="create-location-{{ $location->id }}"
-                                           value="{{ $location->id }}">
-                                    <label class="form-check-label" for="create-location-{{ $location->id }}">
-                                        {{ $location->name }}
-                                    </label>
-                                </div>
+                                <option value="{{ $location->id }}">{{ $location->name }}</option>
                             @endforeach
-                        </div>
+                        </select>
                         <div class="form-text">Если не выбрано ни одной локации, группа доступна во всех локациях.</div>
-                        <div id="location_ids-error" class="invalid-feedback d-block"></div>
+                        <div class="invalid-feedback d-block" data-error-for="location_ids" id="location_ids-error"></div>
                     </div>
                     @endif
                     @endcan
@@ -128,10 +123,33 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const createTeamLocationsEl = document.getElementById('createTeamLocationIds');
+        const $createTeamLocationsSelect = (createTeamLocationsEl && window.jQuery)
+            ? window.jQuery(createTeamLocationsEl)
+            : null;
+
+        if ($createTeamLocationsSelect && $createTeamLocationsSelect.length && window.KidsCrmLocationsMultiselectSelect2) {
+            KidsCrmLocationsMultiselectSelect2.init($createTeamLocationsSelect, {
+                dropdownParent: window.jQuery('#createTeamModal')
+            });
+        }
+
+        function clearCreateTeamLocationErrors() {
+            const locationIdsError = document.getElementById('location_ids-error');
+            if (locationIdsError) {
+                locationIdsError.textContent = '';
+            }
+            if ($createTeamLocationsSelect && window.KidsCrmLocationsMultiselectSelect2) {
+                KidsCrmLocationsMultiselectSelect2.clearInvalid($createTeamLocationsSelect);
+            }
+        }
+
         function createTeam() {
             const teamForm = document.getElementById('teamForm');
             teamForm.addEventListener('submit', function (e) {
                 e.preventDefault();  // Останавливаем стандартную отправку формы
+
+                clearCreateTeamLocationErrors();
 
                 // Собираем данные формы
                 const formData = new FormData(teamForm);
@@ -178,12 +196,14 @@
                                 if (trainerError) trainerError.textContent = errors.trainer_profile_id[0];
                             }
                             const locationIdsError = document.getElementById('location_ids-error');
-                            if (locationIdsError) locationIdsError.textContent = '';
-                            if (errors.location_ids?.length && locationIdsError) {
-                                locationIdsError.textContent = errors.location_ids[0];
-                            }
-                            if (errors['location_ids.0']?.length && locationIdsError) {
-                                locationIdsError.textContent = errors['location_ids.0'][0];
+                            const locationMessage = errors.location_ids?.[0]
+                                || errors['location_ids.0']?.[0]
+                                || null;
+                            if (locationMessage && locationIdsError) {
+                                locationIdsError.textContent = locationMessage;
+                                if ($createTeamLocationsSelect && window.KidsCrmLocationsMultiselectSelect2) {
+                                    KidsCrmLocationsMultiselectSelect2.markInvalid($createTeamLocationsSelect);
+                                }
                             }
                             return;
                         }
@@ -193,6 +213,10 @@
                         }
 
                         if (data.message) {
+                            teamForm.reset();
+                            if ($createTeamLocationsSelect && window.KidsCrmLocationsMultiselectSelect2) {
+                                KidsCrmLocationsMultiselectSelect2.reset($createTeamLocationsSelect);
+                            }
                             showSuccessModal("Создание группы", "Группа успешно создана.", 1);
                         } else {
                             throw new Error('Произошла ошибка при создании группы.');

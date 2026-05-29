@@ -218,8 +218,9 @@ class TeamScheduleViewAndPageAccessFeatureTest extends CrmTestCase
         $row = collect($json['data'])->firstWhere('id', $team->id);
         $this->assertNotNull($row);
         $this->assertArrayHasKey('weekdays_label', $row);
-        foreach ($weekdays->keys()->all() as $titlePart) {
-            $this->assertStringContainsString((string) $titlePart, (string) $row['weekdays_label']);
+        foreach ($weekdays->keys()->all() as $fullTitle) {
+            $weekday = Weekday::where('title', $fullTitle)->firstOrFail();
+            $this->assertStringContainsString($weekday->shortTitle(), (string) $row['weekdays_label']);
         }
     }
 

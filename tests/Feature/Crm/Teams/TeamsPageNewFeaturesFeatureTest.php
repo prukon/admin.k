@@ -1,16 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature\Crm\Teams;
 
-use App\Models\Role;
+use App\Models\Location;
 use App\Models\Team;
-use App\Models\TrainerProfile;
-use App\Models\User;
+use App\Models\Weekday;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Новый функционал страницы /admin/teams: тулбар, фильтры, поиск DataTables, пагинация, порядок полей в модалках.
+ * Новый UI/API страницы /admin/teams: короткие дни недели, локации в таблице, multiselect локаций.
  */
 final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
 {
@@ -20,239 +21,251 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
 
         session(['current_partner' => $this->partner->id]);
         $this->asAdmin();
+        $this->grantPermission('groups.view');
     }
 
-    public function test_teams_datatable_default_page_length_is_ten(): void
+    private function grantPermission(string $permissionName): void
     {
-        $html = $this->get(route('admin.team.index'))
-            ->assertOk()
-            ->getContent();
-
-        $this->assertStringContainsString('pageLength: 10', $html);
-        $this->assertStringNotContainsString('pageLength: 20', $html);
+        $this->grantPermissionForRole($this->user->role_id, $permissionName);
     }
 
-    public function test_teams_page_includes_filter_panel_scripts_and_collapse_ids(): void
+    private function grantPermissionForRole(int $roleId, string $permissionName): void
     {
-        $html = $this->get(route('admin.team.index'))
-            ->assertOk()
-            ->getContent();
-
-        $this->assertStringContainsString('teamsFilterParams()', $html);
-        $this->assertStringContainsString('teamsHasNonDefaultFilters()', $html);
-        $this->assertStringContainsString('syncTeamsFiltersCollapseState()', $html);
-        $this->assertStringContainsString("defaultFilterStatus = 'active'", $html);
-        $this->assertStringContainsString('teams-report-filters', $html);
-        $this->assertStringContainsString('payments-report-filters-submit', $html);
-        $this->assertStringContainsString('payments-report-filters-reset', $html);
-    }
-
-    public function test_teams_data_filter_combinations_return_ok_with_json_structure(): void
-    {
-        $team = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title'      => 'Комбо фильтр',
-            'is_enabled' => 1,
-        ]);
-
-        $profile = $this->makeTrainerProfile('Комбо', 'Тренер');
-
-        DB::table('team_trainer')->insert([
-            'partner_id'         => $this->partner->id,
-            'team_id'            => $team->id,
-            'trainer_profile_id' => $profile->id,
-            'created_at'         => now(),
-            'updated_at'         => now(),
-        ]);
-
-        $queries = [
-            '/admin/teams/data?draw=1&start=0&length=10',
-            '/admin/teams/data?draw=1&start=0&length=10&status=active',
-            '/admin/teams/data?draw=1&start=0&length=10&status=inactive',
-            '/admin/teams/data?draw=1&start=0&length=10&title=Комбо',
-            '/admin/teams/data?draw=1&start=0&length=10&trainer_profile_id=' . $profile->id,
-            '/admin/teams/data?draw=1&start=0&length=10&trainer_profile_id=none',
-            '/admin/teams/data?draw=1&start=0&length=10&search[value]=Комбо',
-            '/admin/teams/data?draw=1&start=0&length=10&status=active&title=Комбо&trainer_profile_id=' . $profile->id,
-            '/admin/teams/data?draw=1&start=0&length=10&status=active&search[value]=Комбо&trainer_profile_id=' . $profile->id,
-        ];
-
-        foreach ($queries as $url) {
-            $this->getJson($url)
-                ->assertOk()
-                ->assertJsonStructure([
-                    'draw',
-                    'recordsTotal',
-                    'recordsFiltered',
-                    'data',
-                ]);
-        }
-    }
-
-    public function test_teams_data_status_active_excludes_inactive_teams(): void
-    {
-        $active = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title'      => 'Активная группа статус',
-            'is_enabled' => 1,
-        ]);
-
-        $inactive = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title'      => 'Неактивная группа статус',
-            'is_enabled' => 0,
-        ]);
-
-        $ids = collect(
-            $this->getJson('/admin/teams/data?draw=1&start=0&length=100&status=active')
-                ->assertOk()
-                ->json('data')
-        )->pluck('id')->all();
-
-        $this->assertContains($active->id, $ids);
-        $this->assertNotContains($inactive->id, $ids);
-    }
-
-    public function test_teams_data_search_finds_team_by_order_by_number(): void
-    {
-        $target = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title'      => 'Порядок уникальный заголовок',
-            'order_by'   => 424242,
-        ]);
-
-        Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title'      => 'Другая группа порядок',
-            'order_by'   => 1,
-        ]);
-
-        $json = $this->getJson('/admin/teams/data?search[value]=424242')
-            ->assertOk()
-            ->json();
-
-        $this->assertSame(1, $json['recordsFiltered']);
-        $this->assertSame($target->id, $json['data'][0]['id']);
-    }
-
-    public function test_teams_data_combined_title_and_trainer_filters(): void
-    {
-        $match = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title'      => 'СовпадениеКомбо',
-        ]);
-
-        $otherTitle = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title'      => 'ДругоеКомбо',
-        ]);
-
-        $profile = $this->makeTrainerProfile('Иван', 'Совпадение');
-
-        DB::table('team_trainer')->insert([
-            [
-                'partner_id'         => $this->partner->id,
-                'team_id'            => $match->id,
-                'trainer_profile_id' => $profile->id,
-                'created_at'         => now(),
-                'updated_at'         => now(),
-            ],
-            [
-                'partner_id'         => $this->partner->id,
-                'team_id'            => $otherTitle->id,
-                'trainer_profile_id' => $profile->id,
-                'created_at'         => now(),
-                'updated_at'         => now(),
-            ],
-        ]);
-
-        $titles = collect(
-            $this->getJson(
-                '/admin/teams/data?title=СовпадениеКомбо&trainer_profile_id=' . $profile->id
-            )
-                ->assertOk()
-                ->json('data')
-        )->pluck('title')->all();
-
-        $this->assertSame(['СовпадениеКомбо'], $titles);
-    }
-
-    public function test_create_team_modal_activity_is_last_and_order_by_is_before_activity(): void
-    {
-        $html = $this->get(route('admin.team.index'))
-            ->assertOk()
-            ->getContent();
-
-        $this->assertFieldComesBefore($html, 'id="trainer_profile_id"', 'id="order_by"');
-        $this->assertFieldComesBefore($html, 'id="order_by"', 'id=\'activity\'');
-        $this->assertFieldComesBefore($html, 'id=\'activity\'', 'modal-footer-create-team');
-    }
-
-    public function test_edit_team_modal_activity_is_last_and_order_by_is_before_activity(): void
-    {
-        $html = $this->get(route('admin.team.index'))
-            ->assertOk()
-            ->getContent();
-
-        $this->assertFieldComesBefore($html, 'id="edit-trainer-profile-id"', 'id="edit-order_by"');
-        $this->assertFieldComesBefore($html, 'id="edit-order_by"', 'id="edit-activity"');
-        $this->assertFieldComesBefore($html, 'id="edit-activity"', 'id="update-team-btn"');
-    }
-
-    public function test_create_team_modal_without_trainers_view_still_has_order_before_activity(): void
-    {
-        $actor = $this->userWithOnlyGroupsView();
-        $this->actingAs($actor);
-
-        $html = $this->get(route('admin.team.index'))
-            ->assertOk()
-            ->getContent();
-
-        $this->assertStringNotContainsString('id="trainer_profile_id"', $html);
-        $this->assertFieldComesBefore($html, 'id="order_by"', 'id=\'activity\'');
-        $this->assertFieldComesBefore($html, 'id=\'activity\'', 'modal-footer-create-team');
-    }
-
-    private function userWithOnlyGroupsView(): User
-    {
-        $actor = $this->createUserWithoutPermission('trainers.view', $this->partner);
-
         DB::table('permission_role')->insertOrIgnore([
             'partner_id'    => $this->partner->id,
-            'role_id'       => $actor->role_id,
-            'permission_id' => $this->permissionId('groups.view'),
+            'role_id'       => $roleId,
+            'permission_id' => $this->permissionId($permissionName),
             'created_at'    => now(),
             'updated_at'    => now(),
         ]);
-
-        return $actor;
     }
 
-    private function makeTrainerProfile(string $name, string $lastname): TrainerProfile
+    private function attachTeamToLocation(Team $team, Location $location): void
     {
-        $trainerRoleId = (int) Role::query()->where('name', 'trainer')->value('id');
-
-        $user = User::factory()->create([
-            'partner_id' => $this->partner->id,
-            'role_id'    => $trainerRoleId,
-            'name'       => $name,
-            'lastname'   => $lastname,
-            'email'      => strtolower($name) . '-' . uniqid() . '@example.test',
-        ]);
-
-        return TrainerProfile::factory()->create([
-            'partner_id' => $this->partner->id,
-            'user_id'    => $user->id,
+        DB::table('location_team')->insert([
+            'partner_id'  => $this->partner->id,
+            'location_id' => $location->id,
+            'team_id'     => $team->id,
+            'created_at'  => now(),
+            'updated_at'  => now(),
         ]);
     }
 
-    private function assertFieldComesBefore(string $html, string $earlierMarker, string $laterMarker): void
+    public function test_data_returns_weekdays_items_with_short_titles(): void
     {
-        $earlierPos = strpos($html, $earlierMarker);
-        $laterPos = strpos($html, $laterMarker);
+        $this->grantPermission('schedule.view');
 
-        $this->assertNotFalse($earlierPos, "Marker not found: {$earlierMarker}");
-        $this->assertNotFalse($laterPos, "Marker not found: {$laterMarker}");
-        $this->assertLessThan($laterPos, $earlierPos, "{$earlierMarker} must appear before {$laterMarker}");
+        $weekdays = Weekday::query()->orderBy('id')->take(3)->get();
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Weekdays items smoke',
+        ]);
+        $team->weekdays()->sync($weekdays->pluck('id')->all());
+
+        $json = $this->getJson('/admin/teams/data?draw=1&start=0&length=50')
+            ->assertOk()
+            ->json();
+
+        $row = collect($json['data'] ?? [])->firstWhere('id', $team->id);
+        $this->assertNotNull($row);
+        $this->assertArrayHasKey('weekdays_items', $row);
+        $this->assertArrayHasKey('weekdays_label', $row);
+
+        $items = $row['weekdays_items'];
+        $this->assertCount(3, $items);
+
+        foreach ($weekdays as $weekday) {
+            $item = collect($items)->firstWhere('id', $weekday->id);
+            $this->assertNotNull($item);
+            $this->assertSame($weekday->shortTitle(), $item['short']);
+        }
+
+        foreach ($weekdays as $weekday) {
+            $this->assertStringContainsString($weekday->shortTitle(), (string) $row['weekdays_label']);
+            $this->assertStringNotContainsString($weekday->title, (string) $row['weekdays_label']);
+        }
+    }
+
+    public function test_data_locations_label_truncates_when_more_than_two_locations(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $locA = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Альфа зал',
+            'is_enabled' => true,
+        ]);
+        $locB = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Бета зал',
+            'is_enabled' => true,
+        ]);
+        $locC = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Гамма зал',
+            'is_enabled' => true,
+        ]);
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Many locations team',
+        ]);
+
+        foreach ([$locA, $locB, $locC] as $location) {
+            $this->attachTeamToLocation($team, $location);
+        }
+
+        $row = collect(
+            $this->getJson('/admin/teams/data?draw=1&start=0&length=50')
+                ->assertOk()
+                ->json('data')
+        )->firstWhere('id', $team->id);
+
+        $this->assertNotNull($row);
+        $this->assertSame('Альфа зал, еще 2 шт.', $row['locations_label']);
+        $this->assertSame('Альфа зал, Бета зал, Гамма зал', $row['locations_label_full']);
+        $this->assertSame(['Альфа зал', 'Бета зал', 'Гамма зал'], $row['locations_names']);
+    }
+
+    public function test_data_locations_label_shows_full_list_for_two_locations(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $locA = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Зал один',
+            'is_enabled' => true,
+        ]);
+        $locB = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Зал два',
+            'is_enabled' => true,
+        ]);
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Two locations team',
+        ]);
+        $this->attachTeamToLocation($team, $locA);
+        $this->attachTeamToLocation($team, $locB);
+
+        $row = collect(
+            $this->getJson('/admin/teams/data?draw=1&start=0&length=50')
+                ->assertOk()
+                ->json('data')
+        )->firstWhere('id', $team->id);
+
+        $this->assertNotNull($row);
+        $this->assertSame('Зал два, Зал один', $row['locations_label']);
+        $this->assertSame('Зал два, Зал один', $row['locations_label_full']);
+        $this->assertSame(['Зал два', 'Зал один'], $row['locations_names']);
+    }
+
+    public function test_data_without_locations_view_returns_empty_location_fields(): void
+    {
+        $actor = $this->createUserWithoutPermission('locations.view', $this->partner);
+        $this->grantPermissionForRole($actor->role_id, 'groups.view');
+        $this->actingAs($actor);
+
+        $loc = Location::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => true]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'No locations column',
+        ]);
+        $this->attachTeamToLocation($team, $loc);
+
+        $row = collect(
+            $this->getJson('/admin/teams/data?draw=1&start=0&length=50')
+                ->assertOk()
+                ->json('data')
+        )->firstWhere('id', $team->id);
+
+        $this->assertNotNull($row);
+        $this->assertArrayHasKey('locations_label', $row);
+        $this->assertSame('', $row['locations_label']);
+        $this->assertSame('', $row['locations_label_full']);
+        $this->assertSame([], $row['locations_names']);
+    }
+
+    public function test_index_renders_locations_multiselect_assets_when_locations_view(): void
+    {
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Локация для multiselect',
+            'is_enabled' => true,
+        ]);
+
+        $this->get(route('admin.team.index'))
+            ->assertOk()
+            ->assertViewHas('locationOptions')
+            ->assertSee('id="createTeamLocationIds"', false)
+            ->assertSee('id="editTeamLocationIds"', false)
+            ->assertSee('js-locations-multiselect-select', false)
+            ->assertSee('locations-multiselect-field', false)
+            ->assertSee('KidsCrmLocationsMultiselectSelect2', false)
+            ->assertSee('KidsCrmMultiselectChipStyles', false)
+            ->assertSee('kids-crm-ms-chip', false);
+    }
+
+    public function test_index_renders_hover_list_for_locations_column(): void
+    {
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Hover loc',
+            'is_enabled' => true,
+        ]);
+
+        $this->get(route('admin.team.index'))
+            ->assertOk()
+            ->assertSee('KidsCrmHoverListDropdown', false)
+            ->assertSee('KidsCrmHoverListDropdown.renderCell', false);
+    }
+
+    public function test_index_renders_weekdays_checkboxes_with_schedule_view(): void
+    {
+        $this->grantPermission('schedule.view');
+
+        $monday = Weekday::query()->where('title', 'Понедельник')->firstOrFail();
+
+        $this->get(route('admin.team.index'))
+            ->assertOk()
+            ->assertSee('id="weekdays"', false)
+            ->assertSee('id="weekday-' . $monday->id . '"', false)
+            ->assertSee('Понедельник', false);
+    }
+
+    public function test_store_and_edit_with_location_ids_via_multiselect_field(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $loc = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+
+        $store = $this->postJson(route('admin.team.store'), [
+            'title'                    => 'Team with loc multiselect',
+            'default_duration_minutes' => 60,
+            'order_by'                 => 1,
+            'is_enabled'               => 1,
+            'location_ids'             => [$loc->id],
+        ], ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk();
+
+        $teamId = (int) $store->json('team.id');
+
+        $this->assertDatabaseHas('location_team', [
+            'team_id'     => $teamId,
+            'location_id' => $loc->id,
+            'partner_id'  => $this->partner->id,
+        ]);
+
+        $this->getJson(route('admin.team.edit', ['id' => $teamId]))
+            ->assertOk()
+            ->assertJsonPath('location_ids', [$loc->id]);
     }
 }

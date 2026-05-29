@@ -7,6 +7,34 @@
 @section('content')
     @vite(['resources/css/admin-list-toolbar.css'])
 
+    @push('styles')
+        <style>
+            .team-weekdays-badges {
+                display: flex;
+                flex-wrap: nowrap;
+                gap: 0.25rem;
+                white-space: nowrap;
+            }
+
+            .team-weekday-badge {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 2rem;
+                padding: 0.15rem 0.45rem;
+                font-size: 0.7rem;
+                font-weight: 600;
+                line-height: 1.2;
+                letter-spacing: 0.01em;
+                border-radius: 999px;
+                white-space: nowrap;
+                background: var(--bs-primary-bg-subtle, #cfe2ff);
+                color: var(--bs-body-color, #212529);
+                border: 1px solid #b6d4fe;
+            }
+        </style>
+    @endpush
+
     <div class="main-content text-start">
         <h4 class="pt-3 pb-3 text-start">Группы</h4>
 
@@ -234,6 +262,12 @@
     @include('includes.modal.createTeam')
     @include('includes.modal.editTeam')
     @include('includes.logModal')
+    @include('partials.ui.hover-list-dropdown')
+    @can('locations.view')
+        @if($locationOptions->isNotEmpty())
+            @include('partials.select2.locations-multiselect')
+        @endif
+    @endcan
 @endsection
 
 @push('scripts')
@@ -375,16 +409,41 @@
                 }
             };
 
+            function escapeHtml(text) {
+                return String(text)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function renderTeamWeekdayBadges(row) {
+                const items = Array.isArray(row.weekdays_items) ? row.weekdays_items : [];
+                if (!items.length) {
+                    return '<span class="text-muted">—</span>';
+                }
+
+                const fullTitle = row.weekdays_label ? escapeHtml(row.weekdays_label) : '';
+                const badges = items.map(function (item) {
+                    const short = escapeHtml(item.short || '');
+                    return '<span class="team-weekday-badge">' + short + '</span>';
+                }).join('');
+
+                return '<div class="team-weekdays-badges"' +
+                    (fullTitle ? ' title="' + fullTitle + '"' : '') +
+                    '>' + badges + '</div>';
+            }
+
             const scheduleColumn = {
                 data: 'weekdays_label',
                 name: 'weekdays_label',
                 orderable: false,
                 searchable: false,
                 render: function (data, type, row) {
-                    if (!data) {
-                        return '<span class="text-muted">—</span>';
+                    if (type === 'sort' || type === 'filter') {
+                        return data || '';
                     }
-                    return '<span title="' + data + '">' + data + '</span>';
+                    return renderTeamWeekdayBadges(row);
                 }
             };
 
@@ -393,11 +452,20 @@
                 name: 'locations_label',
                 orderable: true,
                 searchable: false,
-                render: function (data) {
+                render: function (data, type, row) {
+                    if (type !== 'display') {
+                        return data || '';
+                    }
+
                     if (!data) {
                         return '<span class="text-muted">Все</span>';
                     }
-                    return '<span title="' + data + '">' + data + '</span>';
+
+                    if (window.KidsCrmHoverListDropdown) {
+                        return KidsCrmHoverListDropdown.renderCell(data, row.locations_names || []);
+                    }
+
+                    return data;
                 }
             };
 
@@ -511,6 +579,12 @@
                     }
                 }
             });
+
+            if (canViewLocations && window.KidsCrmHoverListDropdown) {
+                table.on('draw.dt', function () {
+                    KidsCrmHoverListDropdown.init(document.getElementById('teams-table'));
+                });
+            }
 
             loadColumnsConfigFromServer();
             table.columns.adjust();

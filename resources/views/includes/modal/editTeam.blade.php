@@ -36,24 +36,19 @@
 
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
-                    <div class="mb-3">
-                        <label class="form-label">Локации</label>
-                        <div id="edit-locations" class="border rounded p-2" style="max-height: 10rem; overflow-y: auto;">
+                    <div class="mb-3 locations-multiselect-field">
+                        <label class="form-label" for="editTeamLocationIds">Локации</label>
+                        <select id="editTeamLocationIds"
+                                name="location_ids[]"
+                                class="form-select js-locations-multiselect-select"
+                                multiple
+                                data-placeholder="Выберите локации">
                             @foreach($locationOptions as $location)
-                                <div class="form-check">
-                                    <input class="form-check-input"
-                                           type="checkbox"
-                                           name="location_ids[]"
-                                           id="edit-location-{{ $location->id }}"
-                                           value="{{ $location->id }}">
-                                    <label class="form-check-label" for="edit-location-{{ $location->id }}">
-                                        {{ $location->name }}
-                                    </label>
-                                </div>
+                                <option value="{{ $location->id }}">{{ $location->name }}</option>
                             @endforeach
-                        </div>
+                        </select>
                         <div class="form-text">Если не выбрано ни одной локации, группа доступна во всех локациях.</div>
-                        <div class="invalid-feedback d-block" id="edit-location_ids-error"></div>
+                        <div class="invalid-feedback d-block" data-error-for="location_ids" id="edit-location_ids-error"></div>
                     </div>
                     @endif
                     @endcan
@@ -116,6 +111,13 @@
 
         const canViewTeamSchedule = @json(auth()->user()->can('schedule.view'));
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
+        const $editTeamLocationsSelect = $('#editTeamLocationIds');
+
+        if ($editTeamLocationsSelect.length && window.KidsCrmLocationsMultiselectSelect2) {
+            KidsCrmLocationsMultiselectSelect2.init($editTeamLocationsSelect, {
+                dropdownParent: $('#editTeamModal')
+            });
+        }
 
         /**
          * Открытие модалки редактирования:
@@ -140,11 +142,10 @@
                         $('#edit-trainer-profile-id').val(response.trainer_profile_id ?? '');
                     }
 
-                    const locationIds = response.location_ids || [];
-                    $('#edit-locations input[name="location_ids[]"]').each(function () {
-                        const id = parseInt($(this).val(), 10);
-                        $(this).prop('checked', locationIds.includes(id));
-                    });
+                    if ($editTeamLocationsSelect.length && window.KidsCrmLocationsMultiselectSelect2) {
+                        KidsCrmLocationsMultiselectSelect2.setValues($editTeamLocationsSelect, response.location_ids || []);
+                        KidsCrmLocationsMultiselectSelect2.clearInvalid($editTeamLocationsSelect);
+                    }
                     $('#edit-location_ids-error').text('');
 
                     // Расписание: чекбоксы дней недели
@@ -199,6 +200,10 @@
             $('#edit-default_duration_minutes-error').text('');
             $('#edit-trainer-profile-id').removeClass('is-invalid');
             $('#edit-trainer-profile-id-error').text('');
+            $('#edit-location_ids-error').text('');
+            if ($editTeamLocationsSelect.length && window.KidsCrmLocationsMultiselectSelect2) {
+                KidsCrmLocationsMultiselectSelect2.clearInvalid($editTeamLocationsSelect);
+            }
 
             $.ajax({
                 url: `/admin/team/${teamId}`,
@@ -229,6 +234,9 @@
                         }
                         if (errors.location_ids && errors.location_ids.length) {
                             $('#edit-location_ids-error').text(errors.location_ids[0]);
+                            if ($editTeamLocationsSelect.length && window.KidsCrmLocationsMultiselectSelect2) {
+                                KidsCrmLocationsMultiselectSelect2.markInvalid($editTeamLocationsSelect);
+                            }
                         }
                         return;
                     }

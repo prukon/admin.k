@@ -328,10 +328,9 @@ class TeamControllerTest extends CrmTestCase
         $row = collect($json['data'])->firstWhere('id', $team->id);
         $this->assertNotNull($row);
 
-        // Заголовки дней в лейбле
-        $expectedParts = $weekdays->keys()->all(); // titles
-        foreach ($expectedParts as $part) {
-            $this->assertStringContainsString($part, $row['weekdays_label']);
+        foreach ($weekdays->keys()->all() as $fullTitle) {
+            $weekday = Weekday::where('title', $fullTitle)->firstOrFail();
+            $this->assertStringContainsString($weekday->shortTitle(), $row['weekdays_label']);
         }
     }
 
