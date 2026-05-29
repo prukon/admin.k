@@ -45,7 +45,7 @@
         <td><b>Страница заявки</b> (этот документ)</td>
         <td><code>/lead/{landingKey}</code></td>
         <td><code>partner_widgets.landing_key</code></td>
-        <td>Полная форма: родитель, ребёнок, район, услуга, особенности</td>
+        <td>Полная форма: родитель, ребёнок, район, вид спорта (если есть справочник), услуга, особенности</td>
         <td><code>landing</code></td>
       </tr>
       <tr>
@@ -65,7 +65,7 @@
     <li>Ключ — 48 символов (<code>[A-Za-z0-9]{48}</code>), уникален в <code>partner_widgets.landing_key</code>.</li>
     <li>Создаётся вместе с виджетом: <code>PartnerWidgetService::ensureForPartner</code> (при создании партнёра и при первом обращении в CRM).</li>
     <li>Страница доступна, если <code>is_landing_active = true</code>. Иначе — <b>404</b> на все endpoint'ы лендинга.</li>
-    <li>Все справочники (районы, услуги) фильтруются по <code>partner_id</code> виджета; чужие <code>location_id</code> / <code>team_id</code> отклоняются валидацией (422).</li>
+    <li>Все справочники (районы, виды спорта, услуги) фильтруются по <code>partner_id</code> виджета; чужие <code>location_id</code> / <code>sport_type_id</code> / <code>team_id</code> отклоняются валидацией (422).</li>
   </ul>
 
   <h2>3) Публичные маршруты</h2>
@@ -75,7 +75,7 @@
     </thead>
     <tbody>
       <tr><td>GET</td><td><code>/lead/{landingKey}</code></td><td>нет</td><td>HTML страницы с формой</td></tr>
-      <tr><td>GET</td><td><code>/lead/{landingKey}/teams?location_id=</code></td><td>нет</td><td>JSON: услуги (группы) для выбранного района</td></tr>
+      <tr><td>GET</td><td><code>/lead/{landingKey}/teams?location_id=&amp;sport_type_id=</code></td><td>нет</td><td>JSON: услуги (группы) для выбранного района; опционально — фильтр по виду спорта</td></tr>
       <tr><td>POST</td><td><code>/lead/{landingKey}/submit</code></td><td>нет</td><td>Приём заявки, JSON-ответ</td></tr>
     </tbody>
   </table>
@@ -112,10 +112,12 @@
     <li><code>is_with_disability</code> — наличие инвалидности</li>
   </ul>
 
-  <h3>4.4) Район и услуга</h3>
+  <h3 id="4-4">4.4) Район, вид спорта и услуга</h3>
   <ul>
     <li><b>Район</b> (<code>location_id</code>) — обязателен. Справочник: активные <code>locations</code> партнёра (<code>is_enabled = true</code>).</li>
-    <li><b>Услуга</b> (<code>team_id</code>) — необязательна. Список подгружается AJAX после выбора района; фильтр через <code>TeamLocationAvailabilityService</code> (см. <a href="/docs/documentation/location-team-bindings">локации ↔ группы</a>).</li>
+    <li><b>Вид спорта</b> (<code>sport_type_id</code>) — необязателен. Селект показывается только если у партнёра есть хотя бы один активный вид спорта (<code>sport_types.is_enabled = true</code>). Справочник ведётся в <a href="/docs/documentation/admin-sport-types">/admin/sport-types</a>. После выбора района селект активируется; при смене района или вида спорта список услуг перезагружается.</li>
+    <li><b>Услуга</b> (<code>team_id</code>) — необязательна. Список подгружается AJAX после выбора района (и опционально вида спорта); фильтр через <code>TeamLocationAvailabilityService</code> и <code>SchoolLeadLandingService::teamsForLocation()</code> (см. <a href="/docs/documentation/location-team-bindings">локации ↔ группы</a>).</li>
+    <li>Если переданы и <code>sport_type_id</code>, и <code>team_id</code>, группа должна иметь тот же <code>teams.sport_type_id</code>; иначе 422 на поле <code>team_id</code>.</li>
     <li>Чекбокс <code>needs_contact_help</code> — «Не могу определиться с секцией, прошу со мной связаться»: при включении <code>team_id</code> сбрасывается и не обязателен.</li>
   </ul>
 
@@ -127,7 +129,7 @@
   </ul>
 
   <h2>5) Сохранение в БД (<code>school_leads</code>)</h2>
-  <p>Миграция: <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>.</p>
+  <p>Миграции: <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>.</p>
   <table>
     <thead>
       <tr><th>Поле</th><th>Лендинг</th><th>Примечание</th></tr>
@@ -139,6 +141,7 @@
       <tr><td><code>child_*</code>, <code>child_birthday</code></td><td>Из формы</td><td>Данные ребёнка</td></tr>
       <tr><td><code>is_individual_traits</code>, …</td><td>boolean</td><td>Как у ученика в <code>users</code></td></tr>
       <tr><td><code>location_id</code></td><td>Из формы</td><td>У виджета обычно <code>null</code>, назначается в CRM</td></tr>
+      <tr><td><code>sport_type_id</code></td><td>nullable, из формы</td><td>FK на <code>sport_types</code>; только активные виды спорта партнёра. В CRM-таблице заявок колонка пока не выведена</td></tr>
       <tr><td><code>team_id</code></td><td>nullable</td><td>FK на <code>teams</code></td></tr>
       <tr><td><code>needs_contact_help</code></td><td>boolean</td><td>Флаг «помочь с выбором секции»</td></tr>
       <tr><td><code>consent_accepted_at</code></td><td><code>now()</code></td><td><code>policy_url</code> = null</td></tr>
@@ -148,7 +151,8 @@
 
   <h2>6) Отображение на странице</h2>
   <ul>
-    <li>Заголовок: «Записаться / на регулярные тренировочные занятия».</li>
+    <li>Заголовок страницы: «Записаться / на регулярные тренировочные занятия».</li>
+    <li>Заголовок секции формы: «Район, вид спорта и услуга» (если справочник видов спорта пуст — блок «Вид спорта» не рендерится).</li>
     <li>Название партнёра — <code>partners.title</code> (поле «Наименование» в настройках организации); если пусто — <code>organization_name</code> (<code>Partner::landingDisplayName()</code>).</li>
     <li>Цвета шапки — фиксированная зелёная тема в CSS view (кастомизация бренда в CRM — запланирована).</li>
   </ul>
@@ -191,7 +195,7 @@
     <li>Request: <code>SubmitSchoolLeadLandingRequest</code></li>
     <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>TeamLocationAvailabilityService</code>, <code>PartnerWidgetService</code></li>
     <li>Enum: <code>App\Enums\SchoolLeadSource</code></li>
-    <li>Модели: <code>SchoolLead</code> (расширенные поля, <code>team()</code>), <code>Partner</code> (<code>landingDisplayName()</code>)</li>
+    <li>Модели: <code>SchoolLead</code> (расширенные поля, <code>team()</code>, <code>sportType()</code>), <code>Partner</code> (<code>landingDisplayName()</code>), <code>SportType</code></li>
     <li>Маршруты: <code>routes/web.php</code> — группа <code>/lead/{landingKey}</code></li>
   </ul>
 
@@ -211,6 +215,10 @@
         <td>Форма, валидация, изоляция partner_id, район/услуга, reCAPTCHA, source=landing, 404 неактивного ключа</td>
       </tr>
       <tr>
+        <td><code>SchoolLeadLandingSportTypeFeatureTest.php</code></td>
+        <td>Вид спорта на форме, фильтр teams по <code>sport_type_id</code>, submit и валидация</td>
+      </tr>
+      <tr>
         <td><code>SchoolLeadLandingAdminAccessFeatureTest.php</code></td>
         <td>CRM-вкладка: гость → redirect, без права → 403, admin → 200</td>
       </tr>
@@ -220,13 +228,13 @@
       </tr>
     </tbody>
   </table>
-  <p class="small">Общие сценарии CRM (лид → клиент → договор, toolbar, Telegram) — в <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a>.</p>
+  <p class="small">Общие сценарии CRM (лид → клиент → договор, toolbar, Telegram) — в <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a>. Справочник видов спорта — <a href="/docs/documentation/admin-sport-types">admin-sport-types.html</a>.</p>
 
   <h2>12) Запланировано позже</h2>
   <ul>
     <li>Кастомные цвета / логотип партнёра на странице заявки.</li>
     <li>Отдельная ссылка на политику ПДн в чекбоксе согласия.</li>
-    <li>Колонки расширенных полей лендинга в DataTables CRM.</li>
+    <li>Колонки расширенных полей лендинга в DataTables CRM (в т.ч. <code>sport_type_id</code>).</li>
     <li>Автозаполнение «Создать клиента» из полей родителя/ребёнка лендинга.</li>
   </ul>
 </div>

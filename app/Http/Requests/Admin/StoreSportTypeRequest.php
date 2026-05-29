@@ -10,7 +10,7 @@ class StoreSportTypeRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return (bool) $this->user()?->can('sport_types.manage');
     }
 
     public function rules(): array

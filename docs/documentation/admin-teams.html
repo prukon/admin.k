@@ -62,6 +62,7 @@
     <li><code>#</code> (rownum) — всегда видима</li>
     <li>Сортировка (<code>order_by</code>)</li>
     <li>Название (<code>title</code>) — ссылка на модалку редактирования</li>
+    <li><strong>Вид спорта</strong> (<code>sport_type_label</code>) — только при <code>sport_types.view</code> и непустом справочнике видов спорта</li>
     <li><strong>Тренер</strong> (<code>trainer_label</code>) — только при <code>trainers.view</code></li>
     <li><strong>Расписание</strong> (<code>weekdays_label</code>) — только при <code>schedule.view</code></li>
     <li>Статус (<code>status_label</code>)</li>
@@ -177,6 +178,43 @@
 
   <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>location_ids</code>, <code>location_ids.*</code> exists у <code>locations</code> текущего партнёра (только при <code>locations.view</code> в rules).</p>
 
+  <h2 id="sport-types-view">5.1) Право <code>sport_types.view</code> — вид спорта группы</h2>
+  <p>Permission справочника <a href="/docs/documentation/admin-sport-types">видов спорта</a> (<code>/admin/sport-types</code>). На странице групп управляет необязательной привязкой группы к виду спорта и фильтром таблицы.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Элемент UI</th>
+        <th>Без <code>sport_types.view</code></th>
+        <th>С <code>sport_types.view</code></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Модалки create/edit</td>
+        <td>Селект <code>sport_type_id</code> скрыт; ключ удаляется в <code>TeamController</code> до сохранения.</td>
+        <td>Селект активных видов спорта партнёра (<code>sportTypeOptions</code> в <code>index</code>); пустое значение допустимо.</td>
+      </tr>
+      <tr>
+        <td>Фильтр таблицы</td>
+        <td>Селект «Вид спорта» скрыт (<code>#filter-sport-type</code>).</td>
+        <td>Пусто — все группы; <code>none</code> — только без <code>sport_type_id</code>; id — группы с этим видом спорта.</td>
+      </tr>
+      <tr>
+        <td>Колонка «Вид спорта»</td>
+        <td>Нет в таблице и в «Поля списка».</td>
+        <td><code>sport_type_label</code> в JSON data; ключ <code>sport_type_label</code> в columns-settings (если справочник не пуст).</td>
+      </tr>
+      <tr>
+        <td><code>GET /admin/team/{id}/edit</code></td>
+        <td>Без ключа <code>sport_type_id</code>.</td>
+        <td>Числовой <code>sport_type_id</code> или <code>null</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>sport_type_id</code> через <code>PartnerSportTypeId</code> (только при <code>sport_types.view</code> в rules): id должен принадлежать партнёру и быть активным (<code>is_enabled</code>). Дополнительная проверка — <code>TeamService::resolveSportTypeIdForPartner()</code>.</p>
+
   <h2>6) Привязка тренера к группе (<code>trainer_profile_id</code>)</h2>
   <div class="note">
     Связь many-to-many <code>team_trainer</code>; в UI на группу — <strong>не более одного</strong> тренера (<code>TeamTrainerSyncService::syncTrainerForTeam</code>).<br>
@@ -187,17 +225,18 @@
 
   <h2>7) Серверное поведение <code>GET /admin/teams/data</code></h2>
   <ul>
-    <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), <code>location_id</code> (id или <code>none</code>, только при <code>locations.view</code>), параметры DataTables.</li>
-    <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>.</li>
-    <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>weekdays_label</code>, <code>status_label</code>, <code>is_enabled</code>.</li>
-    <li><strong>Сортировка</strong> по <code>columns[order.0.column].name</code>: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code> (join <code>location_team</code> → <code>locations</code>), <code>status_label</code>.</li>
-    <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–4).</li>
+    <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), <code>location_id</code> (id или <code>none</code>, только при <code>locations.view</code>), <code>sport_type_id</code> (id или <code>none</code>, только при <code>sport_types.view</code>), параметры DataTables.</li>
+    <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>, <code>sportType</code> (при <code>sport_types.view</code>).</li>
+    <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>weekdays_label</code>, <code>sport_type_label</code> (при <code>sport_types.view</code>), <code>status_label</code>, <code>is_enabled</code>.</li>
+    <li><strong>Сортировка</strong> по <code>columns[order.0.column].name</code>: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>sport_type_label</code> (join <code>sport_types</code>), <code>locations_label</code> (join <code>location_team</code> → <code>locations</code>), <code>status_label</code>.</li>
+    <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> / <code>sport_type_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–5.1).</li>
   </ul>
 
   <h2>8) Базовые роли и конфиг</h2>
   <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code>:</p>
   <ul>
     <li><code>groups.view</code> — есть (доступ к разделу групп);</li>
+    <li><code>sport_types.view</code> и <code>sport_types.manage</code> — есть (справочник видов спорта и колонка/селект на странице групп);</li>
     <li><code>trainers.view</code> — есть (колонка «Тренер» и селект в модалках у типового админа);</li>
     <li><code>schedule.view</code> — <strong>закомментировано</strong> (колонка «Расписание» и дни в модалках нужно включать в матрице прав партнёра).</li>
   </ul>
@@ -215,6 +254,7 @@
   <h2>10) Автотесты</h2>
   <div class="note">
     <ul>
+      <li><code>tests/Feature/Crm/Teams/TeamsSportTypeFeatureTest.php</code> — <code>sport_types.view</code>, колонка/фильтр/селект, валидация <code>sport_type_id</code>.</li>
       <li><code>tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php</code> — колонка «Тренер»: UI, <code>trainer_label</code>, сортировка, «Поля списка».</li>
       <li><code>tests/Feature/Crm/Teams/TeamsPageFullAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на все эндпоинты; без права / гость → 403.</li>
       <li><code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — <code>schedule.view</code>, дни недели в модалках.</li>
@@ -234,6 +274,7 @@
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a> ·
+    <a href="/docs/documentation/admin-sport-types">Виды спорта (админка)</a> ·
     <a href="/docs/documentation/admin-locations">Локации (админка)</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a> ·
     <a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> ·

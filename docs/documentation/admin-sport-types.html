@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: виды спорта (админка) — /admin/sport-types</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Виды спорта (админка): <code>/admin/sport-types</code></h1>
+  <div class="small">Файл: <code>/docs/documentation/admin-sport-types.html</code> · страница CRM: <code>GET /admin/sport-types</code> · связь с группами: <a href="/docs/documentation/admin-teams#sport-types-view">/admin/teams</a> · лендинг заявки: <a href="/docs/documentation/school-leads-landing#4-4">school-leads-landing §4.4</a></div>
+
+  <div class="note">
+    Справочник <strong>«Вид спорта»</strong> на уровне партнёра. Один вид спорта может быть привязан к <strong>нескольким группам</strong> (<code>teams</code>); у группы поле <code>sport_type_id</code> <b>необязательно</b> (nullable).<br>
+    Пункт меню «Виды спорта» в сайдбаре — при праве <code>sport_types.view</code> (<code>@can</code> в <code>sidebar.blade.php</code>, Gate в <code>AuthServiceProvider</code>).<br>
+    Все маршруты раздела в <code>routes/web.php</code> обёрнуты в <code>middleware('can:sport_types.view')</code>. Создание, изменение и удаление — дополнительно <code>sport_types.manage</code> (middleware на POST/PUT/DELETE и <code>authorize()</code> в FormRequest).
+  </div>
+
+  <h2>1) Модель данных</h2>
+  <p>Миграции:</p>
+  <ul>
+    <li><code>2026_05_29_120000_create_sport_types_table.php</code> — таблица <code>sport_types</code>;</li>
+    <li><code>2026_05_29_120001_add_sport_type_id_to_teams_table.php</code> — <code>teams.sport_type_id</code>, FK <code>nullOnDelete</code>;</li>
+    <li><code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code> — <code>school_leads.sport_type_id</code>, FK <code>nullOnDelete</code>;</li>
+    <li><code>2026_05_29_120003_add_sport_types_permissions.php</code> — права <code>sport_types.view</code>, <code>sport_types.manage</code>.</li>
+  </ul>
+
+  <table>
+    <thead>
+      <tr><th>Таблица / поле</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>sport_types</code></td>
+        <td><code>partner_id</code>, <code>name</code> (уникально в рамках партнёра), <code>description</code>, <code>sort</code>, <code>is_enabled</code></td>
+      </tr>
+      <tr>
+        <td><code>teams.sport_type_id</code></td>
+        <td>Необязательная привязка группы к виду спорта. При удалении вида спорта — <code>SET NULL</code> (не блокирует удаление)</td>
+      </tr>
+      <tr>
+        <td><code>school_leads.sport_type_id</code></td>
+        <td>Выбор родителя на <a href="/docs/documentation/school-leads-landing">лендинге заявки</a>. В CRM-таблице заявок колонка пока <b>не выведена</b> (поле есть в БД)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>2) Права доступа</h2>
+  <table>
+    <thead>
+      <tr><th>Permission</th><th>Описание</th><th>Что открывает</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>sport_types.view</code></td>
+        <td>Страница «Виды спорта»</td>
+        <td>Меню, index, data, show, columns-settings; на <code>/admin/teams</code> — колонка, фильтр, селект в модалках (см. <a href="/docs/documentation/admin-teams#sport-types-view">admin-teams</a>)</td>
+      </tr>
+      <tr>
+        <td><code>sport_types.manage</code></td>
+        <td>Виды спорта: создание/редактирование</td>
+        <td>POST store, PUT update, DELETE destroy; кнопка «Добавить» и модалки create/edit на странице справочника</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Без <code>sport_types.view</code> — <b>403</b> на все эндпоинты раздела; для гостя — редирект/401. При только <code>sport_types.view</code> страница и чтение доступны, мутации возвращают <b>403</b>.</p>
+  <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code> оба права включены по умолчанию. Общая модель: <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
+
+  <h2>3) Эндпоинты раздела</h2>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Право</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/sport-types</code></td><td><code>sport_types.view</code></td><td>HTML, DataTables (<code>admin.sport-types.index</code>)</td></tr>
+      <tr><td>GET</td><td><code>/admin/sport-types/data</code></td><td><code>sport_types.view</code></td><td>JSON таблицы (serverSide)</td></tr>
+      <tr><td>GET</td><td><code>/admin/sport-types/columns-settings</code></td><td><code>sport_types.view</code></td><td>Настройки колонок (<code>user_table_settings</code>, ключ <code>sport_types_index</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/sport-types/columns-settings</code></td><td><code>sport_types.view</code></td><td>Сохранение настроек колонок</td></tr>
+      <tr><td>GET</td><td><code>/admin/sport-types/{sportType}</code></td><td><code>sport_types.view</code></td><td>JSON карточки для модалки edit (<code>admin.sport-types.show</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/sport-types</code></td><td><code>sport_types.view</code> + <code>sport_types.manage</code></td><td>Создание (<code>StoreSportTypeRequest</code>)</td></tr>
+      <tr><td>PUT</td><td><code>/admin/sport-types/{sportType}</code></td><td><code>sport_types.view</code> + <code>sport_types.manage</code></td><td>Обновление (<code>UpdateSportTypeRequest</code>)</td></tr>
+      <tr><td>DELETE</td><td><code>/admin/sport-types/{sportType}</code></td><td><code>sport_types.view</code> + <code>sport_types.manage</code></td><td>Удаление записи; у связанных групп и заявок <code>sport_type_id</code> обнуляется (FK <code>nullOnDelete</code>)</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Изоляция по партнёру: <code>PartnerContext</code> / <code>current_partner</code>. Чужой <code>sportType</code> → <b>404</b> на show/update/destroy.</p>
+
+  <h2>4) Интерфейс страницы</h2>
+  <p>View: <code>resources/views/admin/sport-types/index.blade.php</code>. Общий toolbar — <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a>, CSS <code>admin-list-toolbar.css</code>.</p>
+  <ul>
+    <li><b>Toolbar</b> — «Добавить» (<code>sport_types.manage</code>), «Фильтры», «Колонки».</li>
+    <li><b>Фильтры</b> (collapse): <code>name</code> (название/описание/id), <code>status</code> — active/inactive; плюс глобальный поиск DataTables.</li>
+    <li><b>DataTables</b> — server-side, ключ настроек колонок <code>sport_types_index</code>.</li>
+    <li><b>Колонки</b> (настраиваемые): <code>sort</code>, <code>name</code>, <code>teams_count</code> (число связанных групп), <code>is_enabled_label</code>, <code>actions</code> (при <code>sport_types.manage</code>).</li>
+    <li><b>Модалки create/edit</b> — поля: <code>name</code>, <code>description</code>, <code>sort</code>, <code>is_enabled</code>. Ошибки валидации — JSON 422, тексты на русском под полями.</li>
+    <li><b>Уникальность</b> — <code>(partner_id, name)</code>; дубликат → 422 «Вид спорта с таким названием уже существует».</li>
+  </ul>
+
+  <h2>5) Связь с группами (<code>teams</code>)</h2>
+  <p>Привязка выполняется на странице <a href="/docs/documentation/admin-teams#sport-types-view">/admin/teams</a>, а не в справочнике видов спорта:</p>
+  <ul>
+    <li>В модалках create/edit группы — селект <code>sport_type_id</code> (только активные виды спорта партнёра), если у пользователя есть <code>sport_types.view</code> и в справочнике есть записи.</li>
+    <li>В таблице групп — колонка «Вид спорта» (<code>sport_type_label</code>) и фильтр <code>#filter-sport-type</code> (id или <code>none</code> — группы без вида спорта).</li>
+    <li>Без <code>sport_types.view</code> ключ <code>sport_type_id</code> отбрасывается в <code>TeamController</code> до сохранения; UI скрыт.</li>
+    <li>Валидация: <code>App\Rules\PartnerSportTypeId</code> — id должен принадлежать текущему партнёру и иметь <code>is_enabled = true</code>. Дополнительная проверка в <code>TeamService::resolveSportTypeIdForPartner()</code>.</li>
+  </ul>
+  <div class="warn">
+    Вид спорта группы и локация группы — <b>независимые</b> измерения. Локации по-прежнему управляются через <code>location_team</code> (<a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>). Вид спорта не заменяет район/локацию на лендинге.
+  </div>
+
+  <h2>6) Лендинг заявки (<code>/lead/{landingKey}</code>)</h2>
+  <p>Если у партнёра есть хотя бы один активный вид спорта, на форме появляется необязательный селект «Вид спорта». Подробно: <a href="/docs/documentation/school-leads-landing#4-4">school-leads-landing §4.4</a>.</p>
+  <ul>
+    <li><code>GET /lead/{landingKey}/teams?location_id=&amp;sport_type_id=</code> — фильтрует услуги (группы) по району и опционально по виду спорта.</li>
+    <li><code>POST /lead/{landingKey}/submit</code> — сохраняет <code>sport_type_id</code> в <code>school_leads</code>; валидация отклоняет чужой/disabled вид спорта и несовпадение <code>team_id</code> с выбранным видом спорта.</li>
+    <li>Если справочник видов спорта пуст — блок на форме не рендерится, поведение как раньше (только район и услуга).</li>
+  </ul>
+
+  <h2>7) Ключевые файлы</h2>
+  <ul>
+    <li><code>app/Models/SportType.php</code></li>
+    <li><code>app/Http/Controllers/Admin/SportTypeController.php</code></li>
+    <li><code>app/Http/Controllers/Admin/SportTypeColumnsSettingsController.php</code></li>
+    <li><code>app/Http/Requests/Admin/StoreSportTypeRequest.php</code>, <code>UpdateSportTypeRequest.php</code></li>
+    <li><code>app/Rules/PartnerSportTypeId.php</code></li>
+    <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>sport_types.view</code>, <code>sport_types.manage</code></li>
+    <li><code>resources/views/includes/sidebar.blade.php</code> — пункт «Виды спорта»</li>
+    <li><code>database/factories/SportTypeFactory.php</code></li>
+  </ul>
+
+  <h2>8) Автотесты</h2>
+  <div class="note">
+    <ul>
+      <li><code>tests/Feature/Crm/SportTypes/SportTypesFeatureTest.php</code> — CRUD, partner scope, права, destroy → null у teams.</li>
+      <li><code>tests/Feature/Crm/SportTypes/SportTypesPageFullAccessFeatureTest.php</code> — smoke 200 всех эндпоинтов; 403 без прав; guest.</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsSportTypeFeatureTest.php</code> — привязка к группам, фильтр, reject foreign/disabled sport type.</li>
+      <li><code>tests/Feature/Public/SchoolLeadLandingSportTypeFeatureTest.php</code> — лендинг: UI, teams API, submit, валидация.</li>
+    </ul>
+  </div>
+  <pre><code>php artisan test --env=testing --filter=SportType</code></pre>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-teams#sport-types-view">Группы (вид спорта)</a> ·
+    <a href="/docs/documentation/school-leads-landing">Страница заявки</a> ·
+    <a href="/docs/documentation/partners-permissions">Права партнёра</a>
+  </p>
+</div>
+</body>
+</html>

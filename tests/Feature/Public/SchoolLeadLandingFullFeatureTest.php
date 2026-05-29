@@ -40,7 +40,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertSee('Детская школа «Радуга»', false)
             ->assertSee('Законный представитель', false)
             ->assertSee('Ребёнок', false)
-            ->assertSee('Район и услуга', false)
+            ->assertSee('Район, вид спорта и услуга', false)
             ->assertSee('Центральный', false)
             ->assertSee($this->landingWidget->landing_key, false)
             ->assertSee('id="leadForm"', false)

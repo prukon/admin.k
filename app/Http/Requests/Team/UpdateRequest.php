@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Team;
 
+use App\Rules\PartnerSportTypeId;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -74,11 +75,7 @@ class UpdateRequest extends FormRequest
             $rules['sport_type_id'] = [
                 'nullable',
                 'integer',
-                Rule::exists('sport_types', 'id')->where(function ($query) use ($partnerId) {
-                    if ($partnerId > 0) {
-                        $query->where('partner_id', $partnerId);
-                    }
-                }),
+                new PartnerSportTypeId($partnerId),
             ];
         }
 
@@ -107,7 +104,7 @@ class UpdateRequest extends FormRequest
             'trainer_profile_id.exists' => 'Выберите тренера из списка',
             'location_ids.array' => 'Некорректный список локаций',
             'location_ids.*.exists' => 'Выберите локацию из списка текущего партнёра',
-            'sport_type_id.exists' => 'Выберите вид спорта из списка текущего партнёра',
+            'sport_type_id.exists' => 'Выберите активный вид спорта из списка текущего партнёра',
         ];
     }
 }

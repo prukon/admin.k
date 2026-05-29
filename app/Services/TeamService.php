@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\SportType;
 use App\Models\Team;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\MyLog;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext; // ✅ НОВОЕ
 
@@ -51,6 +53,15 @@ class TeamService
         $locationIds = $locationsProvided ? (array) ($data['location_ids'] ?? []) : [];
         unset($data['location_ids']);
 
+        if (array_key_exists('sport_type_id', $data)) {
+            $data['sport_type_id'] = $this->resolveSportTypeIdForPartner(
+                (int) $partnerId,
+                $data['sport_type_id'] !== null && $data['sport_type_id'] !== ''
+                    ? (int) $data['sport_type_id']
+                    : null,
+            );
+        }
+
         $team = Team::create($data);
 
         if (!empty($weekdays) && $team->id) {
@@ -85,6 +96,16 @@ class TeamService
         $locationsProvided = array_key_exists('location_ids', $data);
         $locationIds = $locationsProvided ? (array) ($data['location_ids'] ?? []) : [];
         unset($data['location_ids']);
+
+        if (array_key_exists('sport_type_id', $data)) {
+            $partnerId = (int) ($team->partner_id ?? $this->partnerContext->partnerId() ?? 0);
+            $data['sport_type_id'] = $this->resolveSportTypeIdForPartner(
+                $partnerId,
+                $data['sport_type_id'] !== null && $data['sport_type_id'] !== ''
+                    ? (int) $data['sport_type_id']
+                    : null,
+            );
+        }
 
         // Обновляем данные команды, проверяем, что команда действительно сохранена
         if ($team->update($data) && $team->exists && $team->id) {
@@ -162,5 +183,29 @@ class TeamService
         });
 
         return $team;
+    }
+
+    /**
+     * Проверяет, что вид спорта принадлежит партнёру и активен (защита помимо FormRequest).
+     */
+    private function resolveSportTypeIdForPartner(int $partnerId, ?int $sportTypeId): ?int
+    {
+        if ($sportTypeId === null || $sportTypeId <= 0) {
+            return null;
+        }
+
+        $isValid = SportType::query()
+            ->whereKey($sportTypeId)
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->exists();
+
+        if (! $isValid) {
+            throw ValidationException::withMessages([
+                'sport_type_id' => ['Выберите активный вид спорта из списка текущего партнёра'],
+            ]);
+        }
+
+        return $sportTypeId;
     }
 }

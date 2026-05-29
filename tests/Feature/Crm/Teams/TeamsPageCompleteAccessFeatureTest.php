@@ -28,7 +28,7 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
 
     private function grantCorePermissions(): void
     {
-        foreach (['groups.view', 'locations.view', 'schedule.view', 'trainers.view'] as $permission) {
+        foreach (['groups.view', 'locations.view', 'schedule.view', 'trainers.view', 'sport_types.view'] as $permission) {
             DB::table('permission_role')->insertOrIgnore([
                 'partner_id'    => $this->partner->id,
                 'role_id'       => $this->user->role_id,
@@ -58,12 +58,17 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
             'is_enabled' => true,
         ]);
 
+        $sportType = \App\Models\SportType::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Complete access sport',
+        ]);
+
         $weekdayIds = Weekday::take(2)->pluck('id')->all();
 
         $this->get(route('admin.team.index'))
             ->assertOk()
             ->assertViewIs('admin.team')
-            ->assertViewHas(['weekdays', 'trainerOptions', 'locationOptions']);
+            ->assertViewHas(['weekdays', 'trainerOptions', 'locationOptions', 'sportTypeOptions']);
 
         $dataUrls = [
             '/admin/teams/data?draw=1&start=0&length=10',
@@ -73,6 +78,8 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
             '/admin/teams/data?draw=1&start=0&length=10&trainer_profile_id=none',
             '/admin/teams/data?draw=1&start=0&length=10&location_id=' . $location->id,
             '/admin/teams/data?draw=1&start=0&length=10&location_id=none',
+            '/admin/teams/data?draw=1&start=0&length=10&sport_type_id=' . $sportType->id,
+            '/admin/teams/data?draw=1&start=0&length=10&sport_type_id=none',
             '/admin/teams/data?draw=1&start=0&length=10&search[value]=Complete',
             '/admin/teams/data?draw=1&start=0&length=10&status=active&location_id=' . $location->id,
         ];
@@ -118,7 +125,7 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.team.edit', ['id' => $team->id]))
             ->assertOk()
-            ->assertJsonStructure(['id', 'title', 'location_ids', 'team_weekdays']);
+            ->assertJsonStructure(['id', 'title', 'location_ids', 'team_weekdays', 'sport_type_id']);
 
         $store = $this->postJson(route('admin.team.store'), [
             'title'                    => 'Created complete access',
@@ -127,6 +134,7 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
             'is_enabled'               => 1,
             'location_ids'             => [$location->id],
             'weekdays'                 => $weekdayIds,
+            'sport_type_id'            => $sportType->id,
         ], ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk();
 

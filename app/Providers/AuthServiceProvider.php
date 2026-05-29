@@ -178,6 +178,14 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('locations.manage');
         });
 
+        // Виды спорта
+        Gate::define('sport_types.view', function (User $user) {
+            return $user->hasPermission('sport_types.view');
+        });
+        Gate::define('sport_types.manage', function (User $user) {
+            return $user->hasPermission('sport_types.manage');
+        });
+
         // Тренеры
         Gate::define('trainers.view', function (User $user) {
             return $user->hasPermission('trainers.view');
