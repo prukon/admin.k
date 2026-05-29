@@ -31,6 +31,10 @@ class UpdateRequest extends FormRequest
         if ($this->has('sport_type_id') && $this->input('sport_type_id') === '') {
             $this->merge(['sport_type_id' => null]);
         }
+
+        if ($this->has('month_price') && $this->input('month_price') === '') {
+            $this->merge(['month_price' => null]);
+        }
     }
 
     public function rules(): array
@@ -38,6 +42,7 @@ class UpdateRequest extends FormRequest
         $rules = [
             'title' => 'required|string',
             'default_duration_minutes' => 'nullable|integer|min:1|max:600',
+            'month_price' => 'nullable|integer|min:0',
             'weekdays' => 'nullable|array',
             'is_enabled' => 'boolean',
             'order_by' => 'nullable|integer',
@@ -90,6 +95,7 @@ class UpdateRequest extends FormRequest
             'location_ids' => 'локации',
             'location_ids.*' => 'локация',
             'sport_type_id' => 'вид спорта',
+            'month_price' => 'стоимость в месяц',
         ];
     }
 
@@ -101,6 +107,8 @@ class UpdateRequest extends FormRequest
             'default_duration_minutes.integer' => 'Длительность должна быть числом (в минутах)',
             'default_duration_minutes.min' => 'Длительность должна быть больше 0 минут',
             'default_duration_minutes.max' => 'Длительность слишком большая',
+            'month_price.integer' => 'Стоимость в месяц должна быть целым числом рублей',
+            'month_price.min' => 'Стоимость в месяц не может быть отрицательной',
             'trainer_profile_id.exists' => 'Выберите тренера из списка',
             'location_ids.array' => 'Некорректный список локаций',
             'location_ids.*.exists' => 'Выберите локацию из списка текущего партнёра',

@@ -43,6 +43,7 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
                 'order_by'      => true,
                 'title'         => true,
                 'trainer_label' => true,
+                'month_price'   => true,
                 'status_label'  => true,
                 'actions'       => true,
             ],
@@ -63,6 +64,7 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
         $this->postJson(route('admin.team.store'), [
             'title'                    => 'Created via full access test',
             'default_duration_minutes' => 60,
+            'month_price'              => 3200,
             'order_by'                 => 99,
             'is_enabled'               => 1,
         ], [
@@ -72,6 +74,7 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
         $this->patchJson(route('admin.team.update', $team->id), [
             'title'                    => 'Full access smoke updated',
             'default_duration_minutes' => 60,
+            'month_price'              => 3300,
             'order_by'                 => $team->order_by,
             'is_enabled'               => (int) $team->is_enabled,
         ])->assertOk();
@@ -105,6 +108,7 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
             'columns' => [
                 'order_by'     => true,
                 'title'        => true,
+                'month_price'  => true,
                 'status_label' => true,
                 'actions'      => true,
             ],
@@ -116,6 +120,7 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
         $this->postJson(route('admin.team.store'), [
             'title'                    => 'Created with groups.view only',
             'default_duration_minutes' => 60,
+            'month_price'              => 1100,
             'order_by'                 => 7,
             'is_enabled'               => 1,
         ], [
@@ -125,6 +130,7 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
         $this->patchJson(route('admin.team.update', $team->id), [
             'title'                    => 'Updated with groups.view only',
             'default_duration_minutes' => 60,
+            'month_price'              => 1200,
             'order_by'                 => $team->order_by,
             'is_enabled'               => (int) $team->is_enabled,
         ])->assertOk();
@@ -178,6 +184,7 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
                 ['name' => 'title'],
                 ['name' => 'trainer_label'],
                 ['name' => 'weekdays_label'],
+                ['name' => 'month_price'],
                 ['name' => 'status_label'],
                 ['name' => 'actions'],
             ],
@@ -196,6 +203,7 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
         $this->assertNotNull($row);
         $this->assertArrayHasKey('trainer_label', $row);
         $this->assertArrayHasKey('weekdays_label', $row);
+        $this->assertArrayHasKey('month_price', $row);
     }
 
     public function test_teams_index_returns_403_without_groups_view(): void

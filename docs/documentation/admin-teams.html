@@ -62,14 +62,68 @@
     <li><code>#</code> (rownum) — всегда видима</li>
     <li>Сортировка (<code>order_by</code>)</li>
     <li>Название (<code>title</code>) — ссылка на модалку редактирования</li>
-    <li><strong>Вид спорта</strong> (<code>sport_type_label</code>) — только при <code>sport_types.view</code> и непустом справочнике видов спорта</li>
     <li><strong>Тренер</strong> (<code>trainer_label</code>) — только при <code>trainers.view</code></li>
+    <li><strong>Локации</strong> (<code>locations_label</code>) — только при <code>locations.view</code> и непустом справочнике локаций</li>
+    <li><strong>Вид спорта</strong> (<code>sport_type_label</code>) — только при <code>sport_types.view</code> и непустом справочнике видов спорта</li>
     <li><strong>Расписание</strong> (<code>weekdays_label</code>) — только при <code>schedule.view</code></li>
+    <li><strong>Стоимость</strong> (<code>month_price</code>) — всегда (см. <a href="#month-price">§2.1</a>)</li>
     <li>Статус (<code>status_label</code>)</li>
     <li>Действия (<code>actions</code>)</li>
   </ol>
 
-  <p>Выпадающий список <strong>«Поля списка»</strong> (иконка колонок) сохраняет видимость в <code>user_table_settings.columns</code> для <code>table_key = teams_index</code>. Ключи: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>weekdays_label</code>, <code>status_label</code>, <code>actions</code> (последние два опциональных ключа появляются в UI только при соответствующем праве).</p>
+  <p>Выпадающий список <strong>«Поля списка»</strong> (иконка колонок) сохраняет видимость в <code>user_table_settings.columns</code> для <code>table_key = teams_index</code>. Ключи: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>sport_type_label</code>, <code>weekdays_label</code>, <code>month_price</code>, <code>status_label</code>, <code>actions</code> (опциональные ключи появляются в UI только при соответствующем праве или наличии справочника).</p>
+
+  <h3 id="month-price">2.1) Поле «Стоимость» (<code>teams.month_price</code>)</h3>
+  <p>Необязательная месячная стоимость группы в <strong>целых рублях</strong> (без копеек). Доступна всем пользователям с правом <code>groups.view</code>; отдельного permission не требуется.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Где</th>
+        <th>Поведение</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>БД</td>
+        <td>Колонка <code>teams.month_price</code> — <code>unsignedInteger</code>, <code>nullable</code>. Пустое значение в форме → <code>NULL</code>. Допустимо <code>0</code> (бесплатная группа).</td>
+      </tr>
+      <tr>
+        <td>Таблица</td>
+        <td>Колонка «Стоимость»: число форматируется на клиенте как <code>1&nbsp;046 руб</code> (<code>toLocaleString('ru-RU')</code> + суффикс « руб»). Пусто → «—». Сортировка по <code>columns[*].name = month_price</code>.</td>
+      </tr>
+      <tr>
+        <td>Модалки create / edit</td>
+        <td>Поле «Стоимость в месяц» (<code>month_price</code>): <code>type="number"</code>, <code>step="1"</code>, <code>min="0"</code>. Необязательное.</td>
+      </tr>
+      <tr>
+        <td>JSON <code>GET /admin/teams/data</code></td>
+        <td>В каждой строке ключ <code>month_price</code> — целое число или <code>null</code> (без форматирования).</td>
+      </tr>
+      <tr>
+        <td>JSON <code>GET /admin/team/{id}/edit</code></td>
+        <td>Ключ <code>month_price</code> — целое или <code>null</code>.</td>
+      </tr>
+      <tr>
+        <td>«Поля списка»</td>
+        <td>Ключ <code>month_price</code> — видимость колонки «Стоимость».</td>
+      </tr>
+      <tr>
+        <td>Логи групп (<code>my_logs</code>)</td>
+        <td>При создании и изменении пишется строка «Стоимость в месяц: …» (action 31 / 32).</td>
+      </tr>
+      <tr>
+        <td>Оплаты / счета</td>
+        <td><strong>Не используется</strong> в расчётах, счетах и интеграции с T‑Bank — только справочное поле в админке групп.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>month_price</code>: <code>nullable|integer|min:0</code>; пустая строка в <code>prepareForValidation</code> → <code>null</code>. Ошибки возвращаются на фронт под полем.</p>
+
+  <div class="warn">
+    Не путать с устаревшей таблицей <code>team_prices</code> (исторические цены по месяцам) — поле <code>month_price</code> хранится непосредственно в <code>teams</code> и не связано с <code>team_prices</code>.
+  </div>
 
   <h2 id="schedule-view">3) Право <code>schedule.view</code></h2>
   <p>Permission управляет страницей <a href="/docs/documentation/schedule-journal">«Журнал расписания»</a> (<code>/schedule</code>) и дополнительно — элементами <strong>«Расписание»</strong> на <code>/admin/teams</code>.</p>
@@ -225,11 +279,11 @@
 
   <h2>7) Серверное поведение <code>GET /admin/teams/data</code></h2>
   <ul>
-    <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), <code>location_id</code> (id или <code>none</code>, только при <code>locations.view</code>), <code>sport_type_id</code> (id или <code>none</code>, только при <code>sport_types.view</code>), параметры DataTables.</li>
-    <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>, <code>sportType</code> (при <code>sport_types.view</code>).</li>
-    <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>weekdays_label</code>, <code>sport_type_label</code> (при <code>sport_types.view</code>), <code>status_label</code>, <code>is_enabled</code>.</li>
-    <li><strong>Сортировка</strong> по <code>columns[order.0.column].name</code>: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>sport_type_label</code> (join <code>sport_types</code>), <code>locations_label</code> (join <code>location_team</code> → <code>locations</code>), <code>status_label</code>.</li>
-    <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> / <code>sport_type_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–5.1).</li>
+    <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), <code>trainer_profile_id</code> (id или <code>none</code>), <code>location_id</code> (id или <code>none</code>, только при <code>locations.view</code>), <code>sport_type_id</code> (id или <code>none</code>, только при <code>sport_types.view</code>), параметры DataTables.</li>
+    <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>, <code>locations</code> (при <code>locations.view</code>), <code>sportType</code> (при <code>sport_types.view</code>).</li>
+    <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>locations_names</code> (при <code>locations.view</code>), <code>weekdays_label</code>, <code>weekdays_items</code>, <code>sport_type_label</code> (при <code>sport_types.view</code>), <code>month_price</code>, <code>status_label</code>, <code>is_enabled</code>.</li>
+    <li><strong>Сортировка</strong> по <code>columns[order.0.column].name</code>: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>sport_type_label</code> (join <code>sport_types</code>), <code>locations_label</code> (join <code>location_team</code> → <code>locations</code>), <code>month_price</code>, <code>status_label</code>.</li>
+    <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> / <code>location_ids</code> / <code>sport_type_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–5.1). Поле <code>month_price</code> доступно при любом <code>groups.view</code>.</li>
   </ul>
 
   <h2>8) Базовые роли и конфиг</h2>
@@ -244,19 +298,24 @@
 
   <h2>9) Представления и код</h2>
   <ul>
-    <li><code>resources/views/admin/team.blade.php</code> — таблица, «Поля списка», DataTables, настройки колонок.</li>
-    <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки.</li>
+    <li><code>resources/views/admin/team.blade.php</code> — таблица, «Поля списка», DataTables, колонка «Стоимость», настройки колонок.</li>
+    <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки (поле <code>month_price</code>).</li>
     <li><code>app/Http/Controllers/Admin/TeamController.php</code> — <code>index</code>, <code>data</code>, CRUD.</li>
     <li><code>app/Http/Controllers/Admin/TeamColumnsSettingsController.php</code> — <code>teams_index</code>.</li>
+    <li><code>app/Http/Requests/Team/StoreRequest.php</code>, <code>UpdateRequest.php</code> — валидация <code>month_price</code>.</li>
+    <li><code>app/Models/Team.php</code> — cast <code>month_price</code> → int.</li>
+    <li><code>database/migrations/2026_05_29_130000_add_month_price_to_teams_table.php</code> — колонка в БД.</li>
     <li><code>app/Services/TeamService.php</code>, <code>TeamTrainerSyncService.php</code>.</li>
   </ul>
 
   <h2>10) Автотесты</h2>
   <div class="note">
     <ul>
+      <li><code>tests/Feature/Crm/Teams/TeamMonthPriceFeatureTest.php</code> — <code>month_price</code>: UI, store/update/edit/data, валидация, сортировка, логи, columns-settings.</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsPageMonthPriceAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на CRUD с <code>month_price</code>; без права / гость → 403.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsSportTypeFeatureTest.php</code> — <code>sport_types.view</code>, колонка/фильтр/селект, валидация <code>sport_type_id</code>.</li>
       <li><code>tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php</code> — колонка «Тренер»: UI, <code>trainer_label</code>, сортировка, «Поля списка».</li>
-      <li><code>tests/Feature/Crm/Teams/TeamsPageFullAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на все эндпоинты; без права / гость → 403.</li>
+      <li><code>tests/Feature/Crm/Teams/TeamsPageFullAccessFeatureTest.php</code>, <code>TeamsPageCompleteAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на все эндпоинты; без права / гость → 403.</li>
       <li><code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — <code>schedule.view</code>, дни недели в модалках.</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php</code> — доступ к <code>/schedule</code> и всем эндпоинтам журнала.</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — тренер при «Посетил» в ячейке журнала.</li>
@@ -267,6 +326,8 @@
     </ul>
   </div>
   <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/Teams/TeamMonthPriceFeatureTest.php \
+  tests/Feature/Crm/Teams/TeamsPageMonthPriceAccessFeatureTest.php \
   tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php \
   tests/Feature/Crm/Teams/TeamsPageFullAccessFeatureTest.php \
   tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code></pre>

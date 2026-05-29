@@ -168,6 +168,15 @@
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
                                            type="checkbox"
+                                           data-column-key="month_price"
+                                           id="colMonthPrice"
+                                           checked>
+                                    <label class="form-check-label" for="colMonthPrice">Стоимость</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
                                            data-column-key="status_label"
                                            id="colStatus"
                                            checked>
@@ -283,6 +292,7 @@
                     @can('schedule.view')
                     <th>Расписание</th>
                     @endcan
+                    <th>Стоимость</th>
                     <th>Статус</th>
                     <th>Действия</th>
                 </tr>
@@ -320,6 +330,7 @@
                 ...(canViewLocations ? { locations_label: true } : {}),
                 ...(canViewSportTypes ? { sport_type_label: true } : {}),
                 ...(canViewSchedule ? { weekdays_label: true } : {}),
+                month_price: true,
                 status_label: true,
                 actions: true
             };
@@ -341,6 +352,7 @@
                 if (canViewSchedule) {
                     map.weekdays_label = idx++;
                 }
+                map.month_price = idx++;
                 map.status_label = idx++;
                 map.actions = idx;
                 return map;
@@ -522,6 +534,33 @@
                 }
             };
 
+            const monthPriceColumn = {
+                data: 'month_price',
+                name: 'month_price',
+                orderable: true,
+                searchable: false,
+                className: 'text-end',
+                render: function (data, type) {
+                    if (data === null || data === undefined || data === '') {
+                        if (type === 'sort' || type === 'filter') {
+                            return '';
+                        }
+                        return '<span class="text-muted">—</span>';
+                    }
+
+                    const value = parseInt(data, 10);
+                    if (Number.isNaN(value)) {
+                        return type === 'display' ? '<span class="text-muted">—</span>' : '';
+                    }
+
+                    if (type === 'sort' || type === 'filter') {
+                        return value;
+                    }
+
+                    return value.toLocaleString('ru-RU') + ' руб';
+                }
+            };
+
             const dataTableColumns = [
                 {
                     data: null,
@@ -559,6 +598,7 @@
                 ...(canViewLocations ? [locationsColumn] : []),
                 ...(canViewSportTypes ? [sportTypeColumn] : []),
                 ...(canViewSchedule ? [scheduleColumn] : []),
+                monthPriceColumn,
                 {
                     data: 'status_label',
                     name: 'status_label',

@@ -40,6 +40,12 @@
                         <div class="invalid-feedback" id="edit-default_duration_minutes-error"></div>
                     </div>
 
+                    <div class="mb-3">
+                        <label for="edit-month_price" class="form-label">Стоимость в месяц</label>
+                        <input type="number" min="0" step="1" name="month_price" class="form-control" id="edit-month_price">
+                        <div class="invalid-feedback" id="edit-month_price-error"></div>
+                    </div>
+
                     @can('schedule.view')
                     <!-- Расписание -->
                     <div class="mb-3">
@@ -150,6 +156,7 @@
                     $('#edit-team-id').val(response.id);
                     $('#edit-title').val(response.title);
                     $('#edit-default_duration_minutes').val(response.default_duration_minutes ?? '');
+                    $('#edit-month_price').val(response.month_price ?? '');
                     $('#edit-order_by').val(response.order_by ?? '');
                     $('#edit-activity').val(response.is_enabled);
 
@@ -217,6 +224,8 @@
             $('#edit-title-error').text('');
             $('#edit-default_duration_minutes').removeClass('is-invalid');
             $('#edit-default_duration_minutes-error').text('');
+            $('#edit-month_price').removeClass('is-invalid');
+            $('#edit-month_price-error').text('');
             $('#edit-trainer-profile-id').removeClass('is-invalid');
             $('#edit-trainer-profile-id-error').text('');
             $('#edit-sport-type-id').removeClass('is-invalid');
@@ -248,6 +257,10 @@
                         if (errors.default_duration_minutes && errors.default_duration_minutes.length) {
                             $('#edit-default_duration_minutes').addClass('is-invalid');
                             $('#edit-default_duration_minutes-error').text(errors.default_duration_minutes[0]);
+                        }
+                        if (errors.month_price && errors.month_price.length) {
+                            $('#edit-month_price').addClass('is-invalid');
+                            $('#edit-month_price-error').text(errors.month_price[0]);
                         }
                         if (errors.trainer_profile_id && errors.trainer_profile_id.length) {
                             $('#edit-trainer-profile-id').addClass('is-invalid');

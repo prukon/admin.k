@@ -51,6 +51,18 @@
                         <div id="default_duration_minutes-error" class="invalid-feedback"></div>
                     </div>
 
+                    <div class="mb-3">
+                        <label for="month_price" class="form-label">Стоимость в месяц</label>
+                        <input type="number"
+                               min="0"
+                               step="1"
+                               name="month_price"
+                               class="form-control"
+                               id="month_price"
+                               value="{{ old('month_price') }}">
+                        <div id="month_price-error" class="invalid-feedback"></div>
+                    </div>
+
                     @can('schedule.view')
                     <div class="mb-3">
                         <div class="form-group">
@@ -191,6 +203,10 @@
                         const durationError = document.getElementById('default_duration_minutes-error');
                         durationInput.classList.remove('is-invalid');
                         if (durationError) durationError.textContent = '';
+                        const monthPriceInput = document.getElementById('month_price');
+                        const monthPriceError = document.getElementById('month_price-error');
+                        if (monthPriceInput) monthPriceInput.classList.remove('is-invalid');
+                        if (monthPriceError) monthPriceError.textContent = '';
 
                         if (!ok && status === 422) {
                             const errors = data?.errors || {};
@@ -201,6 +217,10 @@
                             if (errors.default_duration_minutes?.length) {
                                 durationInput.classList.add('is-invalid');
                                 if (durationError) durationError.textContent = errors.default_duration_minutes[0];
+                            }
+                            if (errors.month_price?.length) {
+                                if (monthPriceInput) monthPriceInput.classList.add('is-invalid');
+                                if (monthPriceError) monthPriceError.textContent = errors.month_price[0];
                             }
                             const trainerInput = document.getElementById('trainer_profile_id');
                             const trainerError = document.getElementById('trainer_profile_id-error');

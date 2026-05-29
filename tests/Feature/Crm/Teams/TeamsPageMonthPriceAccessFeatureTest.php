@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Teams;
 
-use App\Models\Location;
 use App\Models\Team;
 use App\Models\User;
-use App\Models\Weekday;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Полный smoke-доступ к /admin/teams и всем связанным эндпоинтам (groups.view + смежные права → 200).
+ * Контроль доступа к /admin/teams с полем month_price: groups.view → 200 на всех эндпоинтах.
  */
-final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
+final class TeamsPageMonthPriceAccessFeatureTest extends CrmTestCase
 {
     protected function setUp(): void
     {
@@ -50,58 +48,45 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_teams_page_and_all_section_endpoints_return_200(): void
+    public function test_teams_page_and_month_price_endpoints_return_200_with_full_access(): void
     {
-        $location = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Complete access loc',
-            'is_enabled' => true,
-        ]);
-
-        $sportType = \App\Models\SportType::factory()->create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Complete access sport',
-        ]);
-
-        $weekdayIds = Weekday::take(2)->pluck('id')->all();
-
         $this->get(route('admin.team.index'))
             ->assertOk()
-            ->assertViewIs('admin.team')
-            ->assertViewHas(['weekdays', 'trainerOptions', 'locationOptions', 'sportTypeOptions']);
+            ->assertViewIs('admin.team');
 
-        $dataUrls = [
-            '/admin/teams/data?draw=1&start=0&length=10',
-            '/admin/teams/data?draw=1&start=0&length=10&status=active',
-            '/admin/teams/data?draw=1&start=0&length=10&status=inactive',
-            '/admin/teams/data?draw=1&start=0&length=10&title=Complete',
-            '/admin/teams/data?draw=1&start=0&length=10&trainer_profile_id=none',
-            '/admin/teams/data?draw=1&start=0&length=10&location_id=' . $location->id,
-            '/admin/teams/data?draw=1&start=0&length=10&location_id=none',
-            '/admin/teams/data?draw=1&start=0&length=10&sport_type_id=' . $sportType->id,
-            '/admin/teams/data?draw=1&start=0&length=10&sport_type_id=none',
-            '/admin/teams/data?draw=1&start=0&length=10&search[value]=Complete',
-            '/admin/teams/data?draw=1&start=0&length=10&status=active&location_id=' . $location->id,
-        ];
+        $team = Team::factory()->create([
+            'partner_id'  => $this->partner->id,
+            'title'       => 'Month price access team',
+            'month_price' => 5500,
+            'order_by'    => 3,
+        ]);
 
-        foreach ($dataUrls as $url) {
-            $this->getJson($url)
-                ->assertOk()
-                ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
-        }
+        $this->getJson('/admin/teams/data?draw=1&start=0&length=10&title=Month price access')
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+
+        $dataQuery = http_build_query([
+            'draw'    => 1,
+            'start'   => 0,
+            'length'  => 10,
+            'title'   => 'Month price access',
+            'order'   => [['column' => 0, 'dir' => 'asc']],
+            'columns' => [
+                ['name' => 'month_price'],
+            ],
+        ]);
+
+        $this->getJson('/admin/teams/data?' . $dataQuery)->assertOk();
 
         $this->getJson('/admin/teams/columns-settings')->assertOk();
 
         $this->postJson('/admin/teams/columns-settings', [
             'columns' => [
-                'order_by'        => true,
-                'title'           => true,
-                'trainer_label'   => true,
-                'locations_label' => true,
-                'weekdays_label'  => true,
-                'month_price'     => true,
-                'status_label'    => true,
-                'actions'         => true,
+                'order_by'     => true,
+                'title'        => true,
+                'month_price'  => true,
+                'status_label' => true,
+                'actions'      => true,
             ],
         ])
             ->assertOk()
@@ -109,72 +94,52 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
 
         $this->get(route('logs.data.team'))->assertOk();
 
-        $team = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title'      => 'Complete access team',
-            'order_by'   => 4,
-        ]);
-        $team->weekdays()->sync($weekdayIds);
-
-        DB::table('location_team')->insert([
-            'partner_id'  => $this->partner->id,
-            'location_id' => $location->id,
-            'team_id'     => $team->id,
-            'created_at'  => now(),
-            'updated_at'  => now(),
-        ]);
-
         $this->getJson(route('admin.team.edit', ['id' => $team->id]))
             ->assertOk()
-            ->assertJsonStructure(['id', 'title', 'month_price', 'location_ids', 'team_weekdays', 'sport_type_id']);
+            ->assertJsonStructure(['id', 'title', 'month_price']);
 
         $store = $this->postJson(route('admin.team.store'), [
-            'title'                    => 'Created complete access',
-            'default_duration_minutes' => 45,
-            'month_price'              => 4000,
+            'title'                    => 'Created month price access',
+            'default_duration_minutes' => 60,
+            'month_price'              => 7000,
             'order_by'                 => 8,
             'is_enabled'               => 1,
-            'location_ids'             => [$location->id],
-            'weekdays'                 => $weekdayIds,
-            'sport_type_id'            => $sportType->id,
         ], ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk();
 
         $createdId = (int) $store->json('team.id');
 
         $this->patchJson(route('admin.team.update', ['id' => $team->id]), [
-            'title'                    => 'Complete access team updated',
-            'default_duration_minutes' => 50,
-            'month_price'              => 5000,
+            'title'                    => 'Month price access team updated',
+            'default_duration_minutes' => 60,
+            'month_price'              => 6000,
             'order_by'                 => $team->order_by,
             'is_enabled'               => (int) $team->is_enabled,
-            'location_ids'             => [],
-            'weekdays'                 => $weekdayIds,
         ])->assertOk();
 
-        $json = $this->getJson('/admin/teams/data?draw=1&start=0&length=100&title=Complete')
-            ->assertOk()
-            ->json();
+        $row = collect(
+            $this->getJson('/admin/teams/data?draw=1&start=0&length=100&title=Month price access')
+                ->assertOk()
+                ->json('data') ?? []
+        )->firstWhere('id', $team->id);
 
-        $row = collect($json['data'] ?? [])->firstWhere('id', $team->id);
         $this->assertNotNull($row);
         $this->assertArrayHasKey('month_price', $row);
-        $this->assertArrayHasKey('weekdays_items', $row);
-        $this->assertArrayHasKey('locations_names', $row);
+        $this->assertSame(6000, $row['month_price']);
 
         $this->deleteJson(route('admin.team.delete', ['team' => $createdId]))->assertOk();
-        $this->deleteJson(route('admin.team.delete', ['team' => $team->id]))->assertOk();
     }
 
-    public function test_user_with_only_groups_view_gets_200_on_page_and_core_endpoints(): void
+    public function test_user_with_only_groups_view_gets_200_on_month_price_crud_endpoints(): void
     {
         $actor = $this->createUserWithoutPermission('groups.view', $this->partner);
         $this->grantGroupsViewOnly($actor);
         $this->actingAs($actor);
 
         $team = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title'      => 'Groups view only complete',
+            'partner_id'  => $this->partner->id,
+            'title'       => 'Groups view month price',
+            'month_price' => 1500,
         ]);
 
         $this->get(route('admin.team.index'))->assertOk();
@@ -187,69 +152,93 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
         $this->getJson(route('admin.team.edit', ['id' => $team->id]))->assertOk();
 
         $this->postJson(route('admin.team.store'), [
-            'title'                    => 'Minimal create',
+            'title'                    => 'Minimal month price create',
             'default_duration_minutes' => 60,
-            'month_price'              => 2500,
+            'month_price'              => 0,
             'order_by'                 => 1,
             'is_enabled'               => 1,
         ], ['X-Requested-With' => 'XMLHttpRequest'])->assertOk();
 
         $this->patchJson(route('admin.team.update', ['id' => $team->id]), [
-            'title'                    => 'Minimal update',
+            'title'                    => 'Minimal month price update',
             'default_duration_minutes' => 60,
-            'month_price'              => 2600,
+            'month_price'              => 1800,
             'order_by'                 => $team->order_by,
             'is_enabled'               => 1,
         ])->assertOk();
 
         $deleteTarget = Team::factory()->create([
             'partner_id' => $this->partner->id,
-            'title'      => 'To delete minimal',
+            'title'      => 'To delete month price',
         ]);
 
         $this->deleteJson(route('admin.team.delete', ['team' => $deleteTarget->id]))->assertOk();
     }
 
-    public function test_without_groups_view_all_teams_endpoints_are_forbidden(): void
+    public function test_without_groups_view_month_price_endpoints_are_forbidden(): void
     {
         $actor = $this->createUserWithoutPermission('groups.view', $this->partner);
         $this->actingAs($actor);
 
-        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $team = Team::factory()->create([
+            'partner_id'  => $this->partner->id,
+            'month_price' => 1000,
+        ]);
 
         $this->get('/admin/teams')->assertStatus(403);
         $this->get('/admin/teams/data')->assertStatus(403);
         $this->getJson('/admin/teams/columns-settings')->assertStatus(403);
-        $this->postJson('/admin/teams/columns-settings', ['columns' => ['title' => true]])->assertStatus(403);
+        $this->postJson('/admin/teams/columns-settings', [
+            'columns' => ['month_price' => true],
+        ])->assertStatus(403);
         $this->get(route('logs.data.team'))->assertStatus(403);
         $this->getJson(route('admin.team.edit', ['id' => $team->id]))->assertStatus(403);
         $this->postJson(route('admin.team.store'), [
-            'title' => 'x', 'default_duration_minutes' => 60, 'order_by' => 1, 'is_enabled' => 1,
+            'title'                    => 'x',
+            'default_duration_minutes' => 60,
+            'month_price'              => 1000,
+            'order_by'                 => 1,
+            'is_enabled'               => 1,
         ], ['X-Requested-With' => 'XMLHttpRequest'])->assertStatus(403);
         $this->patchJson(route('admin.team.update', ['id' => $team->id]), [
-            'title' => 'x', 'default_duration_minutes' => 60, 'order_by' => 1, 'is_enabled' => 1,
+            'title'                    => 'x',
+            'default_duration_minutes' => 60,
+            'month_price'              => 2000,
+            'order_by'                 => 1,
+            'is_enabled'               => 1,
         ])->assertStatus(403);
         $this->deleteJson(route('admin.team.delete', ['team' => $team->id]))->assertStatus(403);
     }
 
-    public function test_guest_gets_redirect_or_forbidden_on_teams_endpoints(): void
+    public function test_guest_gets_redirect_or_forbidden_on_month_price_endpoints(): void
     {
         Auth::logout();
 
-        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $team = Team::factory()->create([
+            'partner_id'  => $this->partner->id,
+            'month_price' => 1000,
+        ]);
 
         $calls = [
             fn () => $this->get('/admin/teams'),
             fn () => $this->get('/admin/teams/data'),
             fn () => $this->getJson('/admin/teams/columns-settings'),
-            fn () => $this->postJson('/admin/teams/columns-settings', ['columns' => ['title' => true]]),
+            fn () => $this->postJson('/admin/teams/columns-settings', ['columns' => ['month_price' => true]]),
             fn () => $this->get(route('logs.data.team')),
             fn () => $this->getJson(route('admin.team.edit', ['id' => $team->id])),
             fn () => $this->postJson(route('admin.team.store'), [
-                'title' => 'x', 'default_duration_minutes' => 60, 'order_by' => 1, 'is_enabled' => 1,
+                'title'                    => 'x',
+                'default_duration_minutes' => 60,
+                'month_price'              => 1000,
+                'order_by'                 => 1,
+                'is_enabled'               => 1,
             ]),
             fn () => $this->patchJson(route('admin.team.update', ['id' => $team->id]), [
-                'title' => 'x', 'default_duration_minutes' => 60, 'order_by' => 1, 'is_enabled' => 1,
+                'title'                    => 'x',
+                'default_duration_minutes' => 60,
+                'month_price'              => 2000,
+                'order_by'                 => 1,
+                'is_enabled'               => 1,
             ]),
             fn () => $this->deleteJson(route('admin.team.delete', ['team' => $team->id])),
         ];

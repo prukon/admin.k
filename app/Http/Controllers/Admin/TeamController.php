@@ -226,6 +226,11 @@ class TeamController extends AdminBaseController
                         ->orderBy('teams.title', 'asc');
                     break;
 
+                case 'month_price':
+                    $baseQuery->orderBy('teams.month_price', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
                 case 'status_label':
                     $baseQuery->orderBy('teams.is_enabled', $orderDir)
                         ->orderBy('teams.title', 'asc');
@@ -308,6 +313,7 @@ class TeamController extends AdminBaseController
                 'locations_names'      => $locationsLabels['locations_names'],
                 'weekdays_label'  => $weekdaysLabel,
                 'weekdays_items'  => $weekdaysItems,
+                'month_price'     => $team->month_price,
                 'status_label'   => $team->is_enabled ? 'Активна' : 'Неактивна',
                 'is_enabled'     => (int) $team->is_enabled,
             ];
@@ -378,6 +384,7 @@ class TeamController extends AdminBaseController
             'id'            => $team->id,
             'title'         => $team->title,
             'default_duration_minutes' => $team->default_duration_minutes,
+            'month_price'     => $team->month_price,
             'order_by'      => $team->order_by,
             'is_enabled'    => $team->is_enabled,
             'trainer_profile_id' => $trainerProfile?->id,
@@ -472,6 +479,15 @@ class TeamController extends AdminBaseController
                 $newDur = $data['default_duration_minutes'] ?? 'не указана';
                 if ((string) $oldDur !== (string) $newDur) {
                     $changes[] = "Длительность по умолчанию (мин): {$oldDur} → {$newDur}";
+                }
+            }
+
+            // Стоимость в месяц
+            if (array_key_exists('month_price', $data)) {
+                $oldPrice = $oldData->month_price ?? 'не указана';
+                $newPrice = $data['month_price'] ?? 'не указана';
+                if ((string) $oldPrice !== (string) $newPrice) {
+                    $changes[] = "Стоимость в месяц: {$oldPrice} → {$newPrice}";
                 }
             }
 

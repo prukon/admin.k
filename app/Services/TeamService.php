@@ -159,9 +159,10 @@ class TeamService
             }
 
             $description = sprintf(
-                "Название: %s\nДлительность по умолчанию (мин): %s\nДни недели: %s\nСортировка: %s\nАктивность: %s",
+                "Название: %s\nДлительность по умолчанию (мин): %s\nСтоимость в месяц: %s\nДни недели: %s\nСортировка: %s\nАктивность: %s",
                 $team->title ?? '-',
                 $data['default_duration_minutes'] ?? '-',
+                $data['month_price'] ?? '-',
                 implode(', ', $weekdaysFormatted) ?: '-',
                 $data['order_by'] ?? '-',
                 !empty($data['is_enabled']) ? 'Да' : 'Нет'

@@ -23,6 +23,7 @@ class Team extends Model
         'partner_id' => 'int',
         'sport_type_id' => 'int',
         'default_duration_minutes' => 'int',
+        'month_price' => 'int',
     ];
 
     public function teamPrices()
