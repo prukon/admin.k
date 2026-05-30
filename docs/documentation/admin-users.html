@@ -32,7 +32,8 @@
     <b>Страница списка:</b> <code>GET /admin/users</code> (маршрут <code>admin.user1</code>, <code>UserController@index</code>),
     view <code>resources/views/admin/user.blade.php</code>.<br>
     Все маршруты раздела обёрнуты в <code>middleware('can:users.view')</code> (<code>routes/web.php</code>).
-    Без <code>users.view</code> страница и AJAX раздела отвечают <b>403</b>, даже если у роли есть <code>locations.view</code>.<br>
+    Без <code>users.view</code> страница и AJAX раздела отвечают <b>403</b>, даже если у роли есть <code>locations.view</code> или <code>contracts.view</code>.<br>
+    Колонка «Договор» в таблице и поле <code>latest_contract</code> в JSON — дополнительно только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>); без него список пользователей доступен как раньше.<br>
     Внутренняя документация (<code>/doc</code>) требует отдельное право <code>documentations.view</code> — это не доступ к <code>/admin/users</code>.
   </div>
 
@@ -58,10 +59,13 @@
   <h2>2) Список пользователей (DataTables)</h2>
   <ul>
     <li><b>Фильтры</b> (кнопка «Найти»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code>), email, телефону, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>).</li>
-    <li><b>Колонки</b> настраиваются через «Поля списка»; настройки per user в <code>user_table_settings</code> (ключ <code>parent</code> для колонки «Родитель»).</li>
+    <li><b>Колонки</b> настраиваются через «Колонки» в toolbar; настройки per user в <code>user_table_settings</code> (ключи <code>parent</code>, <code>contract</code> и др.). Колонка «Договор» — только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>).</li>
   </ul>
 
-  <h3>Индексы колонок DataTables (фиксированные)</h3>
+  <h3>Индексы колонок DataTables</h3>
+  <p class="small">Индексы фиксированы для сортировки на сервере (<code>UserController@data</code>, <code>order.0.column</code>). Если у актора нет <code>contracts.view</code>, колонка «Договор» не рендерится — сдвиг на −1 для всех колонок после «Родитель» (см. вторую таблицу).</p>
+
+  <h4>Без колонки «Договор» (<code>contracts.view</code> отсутствует)</h4>
   <table>
     <thead>
       <tr><th>Индекс</th><th>Ключ настроек</th><th>Заголовок</th></tr>
@@ -77,6 +81,26 @@
       <tr><td>7</td><td><code>phone</code></td><td>Телефон</td></tr>
       <tr><td>8</td><td><code>status_label</code></td><td>Статус</td></tr>
       <tr><td>9</td><td><code>actions</code></td><td>Действия</td></tr>
+    </tbody>
+  </table>
+
+  <h4>С колонкой «Договор» (<code>contracts.view</code> есть)</h4>
+  <table>
+    <thead>
+      <tr><th>Индекс</th><th>Ключ настроек</th><th>Заголовок</th><th>Сортировка</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0</td><td>—</td><td>#</td><td>нет</td></tr>
+      <tr><td>1</td><td><code>avatar</code></td><td>Аватар</td><td><code>users.image_crop</code></td></tr>
+      <tr><td>2</td><td><code>name</code></td><td>Имя</td><td>lastname, name</td></tr>
+      <tr><td>3</td><td><code>parent</code></td><td>Родитель</td><td><code>parents.lastname, firstname</code></td></tr>
+      <tr><td>4</td><td><code>contract</code></td><td>Договор</td><td><b>нет</b> (дефолт: lastname, name)</td></tr>
+      <tr><td>5</td><td><code>teams</code></td><td>Группа</td><td><code>teams.title</code></td></tr>
+      <tr><td>6</td><td><code>birthday</code></td><td>Дата рождения</td><td><code>users.birthday</code></td></tr>
+      <tr><td>7</td><td><code>email</code></td><td>Email</td><td><code>users.email</code></td></tr>
+      <tr><td>8</td><td><code>phone</code></td><td>Телефон</td><td><code>users.phone</code></td></tr>
+      <tr><td>9</td><td><code>status_label</code></td><td>Статус</td><td><code>users.is_enabled</code></td></tr>
+      <tr><td>10</td><td><code>actions</code></td><td>Действия</td><td>нет</td></tr>
     </tbody>
   </table>
 
@@ -148,8 +172,72 @@
   <h3>2.1.5) Связь с договорами и личным кабинетом</h3>
   <div class="note">
     Договоры: <code>parent_full_name</code> в модалке «Создать договор» (только просмотр) и предзаполнение подписанта на карточке — см. <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a> и <a href="/docs/documentation/contracts#contract-parent">§2–3</a>.<br>
+    Быстрый переход к последнему договору ученика из списка пользователей — колонка «Договор» (§<a href="#user-contract-column">2.3</a>).<br>
     Личный кабинет ученика: блок «Данные родителя» (общая карточка <code>parents</code> для всех детей с тем же <code>parent_id</code>), право <code>account.user.parent.update</code> — см. <a href="/docs/documentation/parents-and-family-cabinet#account-parent">parents-and-family-cabinet §4</a>.
   </div>
+
+  <h2 id="user-contract-column">2.3) Колонка «Договор» в списке пользователей</h2>
+  <div class="note">
+    Колонка в таблице <code>/admin/users</code> сразу после «Родитель». Показывается только если у актора есть <code>contracts.view</code>
+    (в Blade: <code>$canViewContracts</code>, в JS: <code>canViewContracts</code>).<br>
+    <b>Отличие от заявок с сайта:</b> на <a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> колонка «Договор» видна при <code>users.view</code> <b>или</b> <code>contracts.view</code> (кнопка «Создать клиента» / текстовая ссылка / «Создать договор»).
+    На <code>/admin/users</code> — только иконка последнего договора и только при <code>contracts.view</code>; кнопки «Создать договор» в ячейке <b>нет</b>.
+  </div>
+
+  <h3>2.3.1) Права и доступ</h3>
+  <table>
+    <thead>
+      <tr><th>Право</th><th>Что даёт на <code>/admin/users</code></th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>users.view</code></td>
+        <td>Страница, <code>GET /admin/users/data</code> и прочие endpoint’ы раздела (§1). Поле <code>latest_contract</code> в JSON <b>не отдаётся</b>.</td>
+      </tr>
+      <tr>
+        <td><code>contracts.view</code></td>
+        <td>
+          Дополнительно: заголовок «Договор», чекбокс «Колонки» (<code>data-column-key="contract"</code>), колонка DataTables, объект <code>latest_contract</code> в JSON для учеников с договором.
+          Переход по ссылке — <code>GET /client-contracts/{id}</code> (тот же middleware <code>contracts.view</code>).
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Smoke-тесты доступа: <code>AdminUsersContractColumnFeatureTest</code> — 200 для раздела при <code>users.view</code> + <code>contracts.view</code>; 403 без <code>users.view</code> даже с <code>contracts.view</code>.</p>
+
+  <h3>2.3.2) UI ячейки</h3>
+  <ul>
+    <li>Если у ученика <b>нет</b> договора текущего партнёра — ячейка <b>пустая</b> (иконка не выводится).</li>
+    <li>Если договор есть — ссылка с иконкой <code>&lt;i class="fa-solid fa-file-pdf"&gt;</code> на <code>route('contracts.show', $id)</code>.</li>
+    <li>Цвет иконки: при <code>status === 'signed'</code> — <code>#0d6efd</code>; для любого другого статуса — <code>#6c757d</code>.</li>
+    <li>При наведении — Bootstrap Tooltip с классом <code>ulp-assignment-paid-tooltip</code> (тот же брендированный стиль, что «Установка цен → По месяцам»); текст — <code>Статус: {status_label}</code> (например «Статус: Подписано», «Статус: Черновик»).</li>
+    <li>Tooltip инициализируется на <code>draw.dt</code> таблицы (<code>initUsersContractTooltips</code> в <code>admin/user.blade.php</code>).</li>
+    <li>Колонка не сортируется (<code>orderable: false</code>).</li>
+  </ul>
+
+  <h3>2.3.3) JSON <code>GET /admin/users/data</code></h3>
+  <p>При <code>contracts.view</code> для каждой строки ученика с договором партнёра добавляется объект (если договоров нет — ключ отсутствует):</p>
+  <pre><code>"latest_contract": {
+  "url": "https://…/client-contracts/15",
+  "status": "signed",
+  "status_label": "Подписано"
+}</code></pre>
+  <ul>
+    <li><b>Последний договор</b> — максимальный <code>created_at</code>, затем <code>id</code> среди <code>contracts</code> с <code>school_id = current_partner</code> и <code>user_id</code> ученика (сервис <code>App\Services\SchoolLeads\LatestUserContractLookup</code>, тот же lookup, что в заявках).</li>
+    <li><code>status_label</code> — из <code>Contract::$STATUS_RU</code> / аксессора <code>status_ru</code> (в UI подписанный статус отображается как «Подписано», константа <code>Contract::STATUS_SIGNED</code>).</li>
+    <li>Договор другого партнёра (<code>school_id</code> ≠ текущий) в выборку не попадает — ячейка пустая.</li>
+    <li>Поля <code>create_contract_url</code> в JSON списка пользователей <b>нет</b> (создание — только из раздела «Договоры» или заявок).</li>
+  </ul>
+
+  <h3>2.3.4) Настройки колонок</h3>
+  <p>Ключ <code>contract</code> в <code>POST/GET /admin/users/columns-settings</code> (<code>table_key = users_index</code>). По умолчанию колонка включена. Сохраняется только если у пользователя есть <code>contracts.view</code> (чекбокс в UI не рендерится без права).</p>
+
+  <h3>2.3.5) Связанные файлы</h3>
+  <ul class="small">
+    <li><code>app/Http/Controllers/Admin/UserController.php</code> — <code>data()</code>, lookup, <code>canViewContracts</code> в <code>index()</code></li>
+    <li><code>app/Services/SchoolLeads/LatestUserContractLookup.php</code></li>
+    <li><code>resources/views/admin/user.blade.php</code> — колонка, <code>renderContractCell</code>, tooltip</li>
+  </ul>
 
   <h2 id="user-health">2.2) Сведения об ученике (мед./особенности)</h2>
   <div class="note">
@@ -339,6 +427,7 @@
     <li><code>app/Http/Controllers/Admin/UserController.php</code></li>
     <li><code>app/Http/Requests/User/StoreRequest.php</code>, <code>UpdateRequest.php</code></li>
     <li><code>app/Models/User.php</code>, <code>ParentProfile.php</code>, <code>Location.php</code></li>
+    <li><code>app/Services/SchoolLeads/LatestUserContractLookup.php</code> — последний договор по <code>user_id</code> (§<a href="#user-contract-column">2.3</a>)</li>
     <li><code>app/Services/Users/StudentParentSyncService.php</code></li>
     <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>users.other.update</code></li>
     <li><code>database/migrations/2026_05_28_140000_add_student_health_flags_to_users_table.php</code></li>
@@ -353,6 +442,8 @@
   <h2>7) Тесты (Feature)</h2>
   <div class="note">
     <ul>
+      <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — колонка «Договор» §2.3: UI, JSON <code>latest_contract</code>, права, сортировка col=5, smoke 200/403</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, store/update, columns-settings</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentCrudFeatureTest.php</code> — создание по ФИО, смена ФИО, отвязка, роль не <code>user</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentUiFeatureTest.php</code> — разметка: справочник пуст / не пуст, переключатель режима</li>
@@ -365,13 +456,14 @@
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code> — smoke 200 семейного кабинета и админки</li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code> — изоляция switch / account / search</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersAccessTest.php</code> — гость / без <code>users.view</code> → 403; smoke 200 раздела</li>
-      <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data, сортировка (индексы с колонкой «Родитель»), <code>test_store_and_update_persist_parent_name_fields</code></li>
+      <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data, сортировка (индексы с учётом «Родитель»; при <code>contracts.view</code> — §<a href="#user-contract-column">2.3</a>), <code>test_store_and_update_persist_parent_name_fields</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> — доп. поля (<code>UserField</code>, не путать с <code>parent_*</code>)</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPhoneOnCreateFeatureTest.php</code> — телефон при создании</li>
       <li><code>tests/Feature/Crm/Users/UserTableSettingsControllerTest.php</code> — columns-settings</li>
       <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code>, <code>TrainerSyncAndTeamsFeatureTest.php</code> — роль trainer</li>
     </ul>
-    Запуск родителя и доступа: <code>php artisan test --filter=AdminUsersParent</code>.
+    Запуск колонки «Договор»: <code>php artisan test tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.
+    Родитель и доступ: <code>php artisan test --filter=AdminUsersParent</code>.
     Мед./особенности: <code>php artisan test --env=testing tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code>.
     Полный раздел пользователей: <code>php artisan test tests/Feature/Crm/Users/</code>.
   </div>
@@ -379,6 +471,7 @@
   <p class="small"><a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> ·
     <a href="#user-health">Мед./особенности ученика</a> ·
+    <a href="#user-contract-column">Колонка «Договор»</a> ·
     <a href="/docs/documentation/contracts#contract-parent">Договоры: родитель и подписант</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
     <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a> ·

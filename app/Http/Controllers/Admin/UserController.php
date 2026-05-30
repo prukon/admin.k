@@ -27,6 +27,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use App\Support\BuildsLogTable;
 use Intervention\Image\ImageManager;
+use App\Services\SchoolLeads\LatestUserContractLookup;
 use App\Services\UserService;
 
 class UserController extends AdminBaseController
@@ -80,6 +81,8 @@ class UserController extends AdminBaseController
             ->orderBy('order_by', 'asc')
             ->get();
 
+        $canViewContracts = $currentUser?->can('contracts.view') ?? false;
+
         // 6) Отдаём на view
         return view('admin.user', compact(
             'allTeams',
@@ -87,7 +90,8 @@ class UserController extends AdminBaseController
             'userFieldsPayload',
             'currentUser',
             'roles',
-            'user'
+            'user',
+            'canViewContracts'
         ) + ['activeTab' => 'users']);
     }
 
@@ -167,12 +171,14 @@ class UserController extends AdminBaseController
 
         // --- СОРТИРОВКА ДЛЯ DataTables ---
 
-        // индекс колонки (0..8) и направление asc|desc
+        $canViewContracts = Auth::user()?->can('contracts.view') ?? false;
+
+        // индекс колонки и направление asc|desc
         $orderColumnIndex = $request->input('order.0.column');
         $orderDir         = $request->input('order.0.dir', 'asc');
 
         if ($orderColumnIndex !== null) {
-            switch ((int)$orderColumnIndex) {
+            switch ((int) $orderColumnIndex) {
                 case 0:
                     // 0 – нумерация, сортировку игнорируем, ставим дефолт
                     $baseQuery
@@ -198,30 +204,68 @@ class UserController extends AdminBaseController
                         ->orderBy('parents.firstname', $orderDir);
                     break;
 
-                case 4: // teams.title
+                case 4:
+                    if ($canViewContracts) {
+                        // contract — не сортируем
+                        $baseQuery
+                            ->orderBy('users.lastname', 'asc')
+                            ->orderBy('users.name', 'asc');
+                        break;
+                    }
+                    // teams.title
                     $baseQuery
                         ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
                         ->select('users.*')
                         ->orderBy('teams.title', $orderDir);
                     break;
 
-                case 5: // birthday
+                case 5:
+                    if ($canViewContracts) {
+                        $baseQuery
+                            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+                            ->select('users.*')
+                            ->orderBy('teams.title', $orderDir);
+                        break;
+                    }
                     $baseQuery->orderBy('users.birthday', $orderDir);
                     break;
 
-                case 6: // email
+                case 6:
+                    if ($canViewContracts) {
+                        $baseQuery->orderBy('users.birthday', $orderDir);
+                        break;
+                    }
                     $baseQuery->orderBy('users.email', $orderDir);
                     break;
 
-                case 7: // phone
+                case 7:
+                    if ($canViewContracts) {
+                        $baseQuery->orderBy('users.email', $orderDir);
+                        break;
+                    }
                     $baseQuery->orderBy('users.phone', $orderDir);
                     break;
 
-                case 8: // status_label -> is_enabled
+                case 8:
+                    if ($canViewContracts) {
+                        $baseQuery->orderBy('users.phone', $orderDir);
+                        break;
+                    }
                     $baseQuery->orderBy('users.is_enabled', $orderDir);
                     break;
 
-                case 9: // actions — не сортируем, дефолт
+                case 9:
+                    if ($canViewContracts) {
+                        $baseQuery->orderBy('users.is_enabled', $orderDir);
+                        break;
+                    }
+                    // actions — не сортируем
+                    $baseQuery
+                        ->orderBy('users.lastname', 'asc')
+                        ->orderBy('users.name', 'asc');
+                    break;
+
+                case 10: // actions — не сортируем
                 default:
                     $baseQuery
                         ->orderBy('users.lastname', 'asc')
@@ -244,12 +288,23 @@ class UserController extends AdminBaseController
             ->take($length)
             ->get();
 
-        $data = $users->map(function (User $user) {
+        $latestContractsByUser = collect();
+        if ($canViewContracts) {
+            $partnerId = (int) $this->partnerId();
+            $userIds   = $users->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $latestContractsByUser = app(LatestUserContractLookup::class)
+                ->forUserIds($partnerId, $userIds);
+        }
+
+        $data = $users->map(function (User $user) use ($canViewContracts, $latestContractsByUser) {
             $avatar = $user->image_crop
                 ? asset('storage/avatars/' . $user->image_crop)
                 : asset('img/default-avatar.png');
 
-            return [
+            $row = [
                 'id'           => $user->id,
                 'avatar'       => $avatar,
                 'name'         => $user->full_name ?: 'Без имени',
@@ -263,6 +318,20 @@ class UserController extends AdminBaseController
                 'status_label' => $user->is_enabled ? 'Активен' : 'Неактивен',
                 'is_enabled'   => (int) $user->is_enabled,
             ];
+
+            if ($canViewContracts) {
+                $contract = $latestContractsByUser->get($user->id);
+
+                if ($contract) {
+                    $row['latest_contract'] = [
+                        'url'          => route('contracts.show', $contract->id),
+                        'status'       => $contract->status,
+                        'status_label' => $contract->status_ru,
+                    ];
+                }
+            }
+
+            return $row;
         })->toArray();
 
         return response()->json([

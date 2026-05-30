@@ -39,7 +39,7 @@ class DocumentationController extends Controller
         'schedule-trainer-salary-sheets' => 'Листы ЗП: архив слепков (readonly), batch/snapshot, latest_only',
         'admin-trainers'              => 'Тренеры (админка): /admin/trainers, trainer_profiles, team_trainer, фильтр в отчётах',
         'parents-and-family-cabinet'  => 'Родители и семейный кабинет: parents, users.parent_id, переключение детей (братья), sidebarPanelIdentity, active_student',
-        'admin-users'                 => 'Пользователи (админка): /admin/users, parents, группа ученика (без users.location_id)',
+        'admin-users'                 => 'Пользователи (админка): /admin/users, родители, колонка «Договор», мед./особенности, группа (без users.location_id)',
         'contracts'                   => 'Договоры (клиентские): карточка, родитель (parents), SMS/Подпислон, скачивание',
         'contract-templates'          => 'Шаблоны договоров DOCX: версии, поля, email, режим «форма клиенту»',
         'school-leads-widget'         => 'Заявки с сайта: виджет iframe, CRM, лид→клиент→договор, Telegram',

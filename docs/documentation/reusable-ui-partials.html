@@ -131,8 +131,9 @@ table.on('draw.dt', function () {
   <h3>Где используется</h3>
   <ul>
     <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — колонка «Группы» (<code>teams_label</code> + <code>teams_titles</code> из JSON <code>/admin/locations/data</code>).</li>
+    <li><a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — tooltip статуса договора в колонке «Договор» (inline <code>ulp-assignment-paid-tooltip</code>, без partial hover-list).</li>
   </ul>
-  <p class="small">Прямой аналог tooltip без partial — inline в <code>admin/SettingPrices/users.blade.php</code> (<code>ulp-assignment-paid-tooltip</code>); для таблиц предпочтителен переиспользуемый partial.</p>
+  <p class="small">Прямой аналог tooltip без partial — inline в <code>admin/SettingPrices/users.blade.php</code> и <code>admin/user.blade.php</code> (<code>ulp-assignment-paid-tooltip</code>); для списков с несколькими пунктами в подсказке предпочтителен partial hover-list.</p>
 
   <h2>3) Select2 multiselect групп</h2>
   <p>Partial: <code>resources/views/partials/select2/teams-multiselect.blade.php</code></p>

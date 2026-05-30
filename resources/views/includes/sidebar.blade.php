@@ -94,7 +94,7 @@
         <li class="nav-item">
             <a href="{{ route('admin.school-leads') }}" class="nav-link">
                 <i class="nav-icon fa-solid fa-inbox"></i>
-                <p>Заявки с сайта</p>
+                <p>Лиды</p>
             </a>
         </li>
     @endcan

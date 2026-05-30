@@ -2,6 +2,7 @@
 
 @php
     $usersHasActiveFilters = false;
+    $canViewContracts = $canViewContracts ?? (auth()->user() && auth()->user()->can('contracts.view'));
 @endphp
 
 @section('content')
@@ -112,6 +113,17 @@
                                             <label class="form-check-label" for="colParent">Родитель</label>
                                         </div>
 
+                                        @if($canViewContracts)
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="contract"
+                                                   id="colContract"
+                                                   checked>
+                                            <label class="form-check-label" for="colContract">Договор</label>
+                                        </div>
+                                        @endif
+
                                         <div class="form-check">
                                             <input class="form-check-input column-toggle"
                                                    type="checkbox"
@@ -219,6 +231,9 @@
                             <th>Аватар</th>
                             <th>Имя</th>
                             <th>Родитель</th>
+                            @if($canViewContracts)
+                            <th>Договор</th>
+                            @endif
                             <th>Группа</th>
                             <th>Дата рождения</th>
                             <th>Email</th>
@@ -245,12 +260,14 @@
     <script>
         $(document).ready(function () {
 
+            const canViewContracts = @json((bool) $canViewContracts);
             const defaultFilterStatus = 'active';
 
             const defaultColumnsVisibility = {
                 avatar: true,
                 name: true,
                 parent: true,
+                ...(canViewContracts ? {contract: true} : {}),
                 teams: true,
                 birthday: true,
                 email: true,
@@ -265,13 +282,61 @@
                 avatar: 1,
                 name: 2,
                 parent: 3,
-                teams: 4,
-                birthday: 5,
-                email: 6,
-                phone: 7,
-                status_label: 8,
-                actions: 9
+                ...(canViewContracts ? {contract: 4} : {}),
+                teams: canViewContracts ? 5 : 4,
+                birthday: canViewContracts ? 6 : 5,
+                email: canViewContracts ? 7 : 6,
+                phone: canViewContracts ? 8 : 7,
+                status_label: canViewContracts ? 9 : 8,
+                actions: canViewContracts ? 10 : 9
             };
+
+            function escapeHtml(value) {
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function renderContractCell(row) {
+                if (!row.latest_contract || !row.latest_contract.url) {
+                    return '';
+                }
+
+                const contract = row.latest_contract;
+                const isSigned = contract.status === 'signed';
+                const iconColor = isSigned ? '#0d6efd' : '#6c757d';
+                const statusLabel = escapeHtml(contract.status_label || '');
+                const tooltipText = 'Статус: ' + statusLabel;
+
+                return '<a href="' + escapeHtml(contract.url) + '" '
+                    + 'class="users-contract-icon-link" '
+                    + 'data-bs-toggle="tooltip" '
+                    + 'data-bs-placement="top" '
+                    + 'data-bs-custom-class="ulp-assignment-paid-tooltip" '
+                    + 'title="' + tooltipText + '" '
+                    + 'aria-label="' + tooltipText + '">'
+                    + '<i class="fa-solid fa-file-pdf" style="color:' + iconColor + ';"></i>'
+                    + '</a>';
+            }
+
+            function initUsersContractTooltips() {
+                if (!canViewContracts || typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+                    return;
+                }
+
+                document.querySelectorAll('#users-table .users-contract-icon-link[data-bs-toggle="tooltip"]').forEach(function (el) {
+                    const existing = bootstrap.Tooltip.getInstance(el);
+                    if (existing) {
+                        existing.dispose();
+                    }
+
+                    new bootstrap.Tooltip(el, {
+                        customClass: 'ulp-assignment-paid-tooltip',
+                    });
+                });
+            }
 
             function toBool(val, fallback = true) {
                 if (val === undefined || val === null) return fallback;
@@ -409,6 +474,17 @@
                         }
                     },
                     {data: 'parent', name: 'parent', defaultContent: ''},
+                    ...(canViewContracts ? [{
+                        data: 'latest_contract',
+                        name: 'contract',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center',
+                        defaultContent: '',
+                        render: function (data, type, row) {
+                            return renderContractCell(row);
+                        }
+                    }] : []),
                     {data: 'teams', name: 'teams', defaultContent: ''},
                     {data: 'birthday', name: 'birthday', defaultContent: ''},
                     {data: 'email', name: 'email', defaultContent: ''},
@@ -467,6 +543,10 @@
 
             loadColumnsConfigFromServer();
             table.columns.adjust();
+
+            table.on('draw.dt', function () {
+                initUsersContractTooltips();
+            });
 
             function reloadUsersTable() {
                 table.ajax.reload();
