@@ -196,7 +196,7 @@
   <ul>
     <li>После привязки ученика к заявке — ссылка «Создать договор» → <code>GET /client-contracts/create?user_id={id}</code> (redirect на список с открытой модалкой).</li>
     <li>Ученик и ФИО родителя предзаполняются в модалке, если у ученика есть запись в <code>parents</code>.</li>
-    <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — иконка PDF последнего договора в колонке «Договор» (только при <code>contracts.view</code>, без кнопки «Создать договор»).</li>
+    <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): иконка PDF последнего договора с tooltip «Статус: …», сортировка по статусу; без кнопки «Создать договор».</li>
     <li>Полный сценарий лид → клиент → договор: <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5–5.7).</li>
   </ul>
 

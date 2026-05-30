@@ -187,7 +187,7 @@
                 <div class="collapse {{ $usersHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="usersReportFiltersCollapse">
                     <form id="users-report-filters" class="border rounded p-2 p-md-3 bg-light">
                         <div class="row g-2 align-items-end">
-                            <div class="col-12 col-md-3">
+                            <div class="col-12 col-md-6 col-lg-3">
                                 <label class="form-label" for="filter-name">Имя</label>
                                 <input id="filter-name"
                                        class="form-control"
@@ -195,7 +195,7 @@
                                        placeholder="Поиск по имени, email, телефону">
                             </div>
 
-                            <div class="col-12 col-md-3">
+                            <div class="col-12 col-md-6 col-lg-3">
                                 <label class="form-label" for="filter-team">Группа</label>
                                 <select id="filter-team" class="form-select">
                                     <option value="">Все группы</option>
@@ -206,7 +206,7 @@
                                 </select>
                             </div>
 
-                            <div class="col-12 col-md-3">
+                            <div class="col-12 col-md-6 col-lg-3">
                                 <label class="form-label" for="filter-status">Статус</label>
                                 <select id="filter-status" class="form-select">
                                     <option value="">Все пользователи</option>
@@ -215,7 +215,20 @@
                                 </select>
                             </div>
 
-                            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                            @if($canViewContracts)
+                            <div class="col-12 col-md-6 col-lg-3">
+                                <label class="form-label" for="filter-contract">Договор</label>
+                                <select id="filter-contract" class="form-select">
+                                    <option value="">Все</option>
+                                    <option value="with">С договором</option>
+                                    <option value="without">Без договора</option>
+                                    <option value="signed">Подписан</option>
+                                    <option value="unsigned">Не подписан</option>
+                                </select>
+                            </div>
+                            @endif
+
+                            <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-lg-auto payments-report-filters-actions">
                                 <button id="filter-apply" class="btn btn-primary payments-report-filters-submit" type="button">Применить</button>
                                 <button id="filter-reset" class="btn btn-outline-secondary payments-report-filters-reset" type="button">Сброс</button>
                             </div>
@@ -394,18 +407,25 @@
             }
 
             function usersFilterParams() {
-                return {
+                const params = {
                     name: $('#filter-name').val() || '',
                     team_id: $('#filter-team').val() || '',
                     status: $('#filter-status').val() || ''
                 };
+
+                if (canViewContracts) {
+                    params.contract = $('#filter-contract').val() || '';
+                }
+
+                return params;
             }
 
             function usersHasNonDefaultFilters() {
                 const params = usersFilterParams();
                 return params.name !== ''
                     || params.team_id !== ''
-                    || params.status !== defaultFilterStatus;
+                    || params.status !== defaultFilterStatus
+                    || (canViewContracts && params.contract !== '');
             }
 
             function syncUsersFiltersCollapseState() {
@@ -435,6 +455,9 @@
                         d.name = params.name;
                         d.team_id = params.team_id;
                         d.status = params.status;
+                        if (canViewContracts) {
+                            d.contract = params.contract;
+                        }
                     }
                 },
 
@@ -477,7 +500,7 @@
                     ...(canViewContracts ? [{
                         data: 'latest_contract',
                         name: 'contract',
-                        orderable: false,
+                        orderable: true,
                         searchable: false,
                         className: 'text-center',
                         defaultContent: '',
@@ -566,6 +589,9 @@
                 $('#filter-name').val('');
                 $('#filter-team').val('');
                 $('#filter-status').val(defaultFilterStatus);
+                if (canViewContracts) {
+                    $('#filter-contract').val('');
+                }
                 reloadUsersTable();
             });
 

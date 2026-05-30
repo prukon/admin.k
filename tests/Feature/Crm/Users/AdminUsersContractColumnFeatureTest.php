@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Колонка «Договор» на /admin/users и доступ к странице при users.view / contracts.view.
+ * Колонка «Договор», фильтр и сортировка на /admin/users; доступ при users.view / contracts.view.
  */
 final class AdminUsersContractColumnFeatureTest extends CrmTestCase
 {
@@ -95,6 +95,23 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         });
     }
 
+    /**
+     * @return list<string>
+     */
+    private function contractFilterDataUrls(): array
+    {
+        return [
+            '/admin/users/data?draw=1&start=0&length=10&contract=with',
+            '/admin/users/data?draw=1&start=0&length=10&contract=without',
+            '/admin/users/data?draw=1&start=0&length=10&contract=signed',
+            '/admin/users/data?draw=1&start=0&length=10&contract=unsigned',
+            '/admin/users/data?draw=1&start=0&length=10&contract=signed&status=active',
+            '/admin/users/data?draw=1&start=0&length=10&order[0][column]=4&order[0][dir]=asc',
+            '/admin/users/data?draw=1&start=0&length=10&order[0][column]=4&order[0][dir]=desc',
+            '/admin/users/data?draw=1&start=0&length=10&order[0][column]=5&order[0][dir]=asc',
+        ];
+    }
+
     // --- UI колонки «Договор» ---
 
     public function test_users_page_renders_contract_column_when_contracts_view_granted(): void
@@ -124,6 +141,17 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         $this->assertStringContainsString("'#6c757d'", $html);
         $this->assertStringContainsString("'Статус: ' + statusLabel", $html);
         $this->assertStringContainsString('renderContractCell', $html);
+        $this->assertStringContainsString('id="filter-contract"', $html);
+        $this->assertStringContainsString('value="unsigned">Не подписан', $html);
+    }
+
+    public function test_users_page_hides_contract_filter_without_contracts_view(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: false);
+
+        $this->get(route('admin.user1'))
+            ->assertOk()
+            ->assertDontSee('id="filter-contract"', false);
     }
 
     public function test_users_page_hides_contract_column_without_contracts_view(): void
@@ -264,6 +292,187 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         $this->assertArrayNotHasKey('latest_contract', $row);
     }
 
+    public function test_users_data_filters_by_contract_with_and_without(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        $withContract = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'FilterContractWith',
+            'name'       => 'Ученик',
+        ]);
+        $withoutContract = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'FilterContractWithout',
+            'name'       => 'Ученик',
+        ]);
+
+        $this->createContractForUser($withContract, Contract::STATUS_DRAFT);
+
+        $withIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=FilterContract&contract=with')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $withoutIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=FilterContract&contract=without')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $this->assertContains($withContract->id, $withIds);
+        $this->assertNotContains($withoutContract->id, $withIds);
+        $this->assertContains($withoutContract->id, $withoutIds);
+        $this->assertNotContains($withContract->id, $withoutIds);
+    }
+
+    public function test_users_data_filters_by_contract_signed_and_unsigned(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        $signedUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'FilterSignedUser',
+            'name'       => 'Ученик',
+        ]);
+        $unsignedUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'FilterUnsignedUser',
+            'name'       => 'Ученик',
+        ]);
+
+        $this->createContractForUser($signedUser, Contract::STATUS_SIGNED);
+        $this->createContractForUser($unsignedUser, Contract::STATUS_DRAFT);
+
+        $signedIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&contract=signed')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $unsignedIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&contract=unsigned')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $this->assertContains($signedUser->id, $signedIds);
+        $this->assertNotContains($unsignedUser->id, $signedIds);
+        $this->assertContains($unsignedUser->id, $unsignedIds);
+        $this->assertNotContains($signedUser->id, $unsignedIds);
+    }
+
+    public function test_users_data_ignores_contract_filter_without_contracts_view(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: false);
+
+        $withContract = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'IgnoreFilterWith',
+            'name'       => 'Ученик',
+        ]);
+        $withoutContract = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'IgnoreFilterWithout',
+            'name'       => 'Ученик',
+        ]);
+
+        $this->createContractForUser($withContract, Contract::STATUS_SIGNED);
+
+        $withoutIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=IgnoreFilter&contract=without')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $this->assertContains($withContract->id, $withoutIds);
+        $this->assertContains($withoutContract->id, $withoutIds);
+    }
+
+    public function test_users_data_invalid_contract_filter_returns_422(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        $this->getJson('/admin/users/data?draw=1&start=0&length=10&contract=invalid')
+            ->assertStatus(422);
+    }
+
+    public function test_users_data_signed_filter_uses_latest_contract_status(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        $wasSignedNowDraft = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'LatestDraftNotSigned',
+            'name'       => 'Ученик',
+        ]);
+        $wasDraftNowSigned = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'LatestSignedOk',
+            'name'       => 'Ученик',
+        ]);
+
+        $this->createContractForUser($wasSignedNowDraft, Contract::STATUS_SIGNED, now()->subDays(2));
+        $this->createContractForUser($wasSignedNowDraft, Contract::STATUS_DRAFT, now()->subDay());
+
+        $this->createContractForUser($wasDraftNowSigned, Contract::STATUS_DRAFT, now()->subDays(2));
+        $this->createContractForUser($wasDraftNowSigned, Contract::STATUS_SIGNED, now()->subDay());
+
+        $signedIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=Latest&contract=signed')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $unsignedIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=Latest&contract=unsigned')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $this->assertNotContains($wasSignedNowDraft->id, $signedIds);
+        $this->assertContains($wasSignedNowDraft->id, $unsignedIds);
+        $this->assertContains($wasDraftNowSigned->id, $signedIds);
+        $this->assertNotContains($wasDraftNowSigned->id, $unsignedIds);
+    }
+
+    public function test_users_data_contract_filter_and_sort_combinations_return_ok(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'ComboFilterSort',
+            'name'       => 'Ученик',
+        ]);
+
+        foreach ($this->contractFilterDataUrls() as $url) {
+            $this->getJson($url)->assertOk()->assertJsonStructure([
+                'draw',
+                'recordsTotal',
+                'recordsFiltered',
+                'data',
+            ]);
+        }
+    }
+
+    public function test_users_data_sorts_by_contract_at_column_index_four(): void
+    {
+        $this->actingAsUsersViewer(withContractsView: true);
+
+        $draftUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'SortContractDraft',
+            'name'       => 'Ученик',
+        ]);
+        $signedUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'SortContractSigned',
+            'name'       => 'Ученик',
+        ]);
+
+        $this->createContractForUser($draftUser, Contract::STATUS_DRAFT);
+        $this->createContractForUser($signedUser, Contract::STATUS_SIGNED);
+
+        $ascIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=SortContract&order[0][column]=4&order[0][dir]=asc')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $descIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=SortContract&order[0][column]=4&order[0][dir]=desc')
+            ->assertOk()
+            ->json('data'))->pluck('id')->all();
+
+        $this->assertTrue(array_search($draftUser->id, $ascIds, true) < array_search($signedUser->id, $ascIds, true));
+        $this->assertTrue(array_search($signedUser->id, $descIds, true) < array_search($draftUser->id, $descIds, true));
+    }
+
     public function test_users_data_sorts_teams_at_column_index_five_with_contracts_view(): void
     {
         $this->actingAsUsersViewer(withContractsView: true);
@@ -376,7 +585,10 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
 
         $this->getJson('/admin/users/data?draw=1&status=active&search[value]=ContractSmoke')->assertOk();
         $this->getJson('/admin/users/data?draw=1&team_id=' . $team->id)->assertOk();
-        $this->getJson('/admin/users/data?draw=1&order[0][column]=5&order[0][dir]=asc')->assertOk();
+
+        foreach ($this->contractFilterDataUrls() as $url) {
+            $this->getJson($url)->assertOk();
+        }
 
         $this->getJson(route('admin.users.table-settings.get'))->assertOk();
         $this->postJson(route('admin.users.table-settings.save'), [
@@ -455,6 +667,50 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
 
         $this->assertNotNull($row);
         $this->assertArrayNotHasKey('latest_contract', $row);
+
+        $this->getJson('/admin/users/data?draw=1&start=0&length=10&contract=signed')->assertOk();
+    }
+
+    public function test_users_page_and_data_return_ok_with_users_view_only_smoke_endpoints(): void
+    {
+        $actor = $this->actingAsUsersViewer(withContractsView: false);
+
+        $roleId = $this->studentRoleId();
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+
+        $this->get(route('admin.user1'))->assertOk()->assertViewHas('canViewContracts', false);
+
+        $this->getJson('/admin/users/data?draw=1&start=0&length=10')->assertOk();
+        $this->getJson('/admin/users/data?draw=1&status=active&team_id=' . $team->id)->assertOk();
+        $this->getJson('/admin/users/data?draw=1&contract=signed')->assertOk();
+
+        $this->getJson(route('admin.users.table-settings.get'))->assertOk();
+        $this->postJson(route('admin.users.table-settings.save'), [
+            'columns' => ['name' => true, 'email' => true],
+        ])->assertOk();
+
+        $this->getJson(route('logs.data.user', ['draw' => 1]))->assertOk();
+        $this->getJson(route('admin.users.parents.search', ['q' => 'test']))->assertOk();
+
+        $store = $this->postJson(route('admin.user.store'), [
+            'name'       => 'Smoke',
+            'lastname'   => 'UsersViewOnly',
+            'email'      => 'users-view-only-' . uniqid('', true) . '@example.test',
+            'role_id'    => $roleId,
+            'team_id'    => $team->id,
+            'is_enabled' => 1,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])->assertOk();
+
+        $userId = (int) $store->json('user.id');
+        $this->getJson(route('admin.user.edit', $userId))->assertOk();
+        $this->patchJson(route('admin.user.update', $userId), [
+            'name'     => 'Smoke',
+            'lastname' => 'Updated',
+        ])->assertOk();
+
+        unset($actor);
     }
 
     public function test_users_page_and_endpoints_return_forbidden_without_users_view(): void
@@ -469,6 +725,7 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
 
         $this->get(route('admin.user1'))->assertForbidden();
         $this->getJson('/admin/users/data?draw=1&start=0&length=10')->assertForbidden();
+        $this->getJson('/admin/users/data?draw=1&contract=signed&order[0][column]=4&order[0][dir]=asc')->assertForbidden();
         $this->getJson(route('admin.users.table-settings.get'))->assertForbidden();
         $this->postJson(route('admin.users.table-settings.save'), [
             'columns' => ['contract' => true],

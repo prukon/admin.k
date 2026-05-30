@@ -103,11 +103,15 @@ class UserController extends AdminBaseController
             'name'    => 'nullable|string',
             'team_id'     => 'nullable|string',   // id или 'none'
             'status'      => 'nullable|string',   // active / inactive
+            'contract'    => 'nullable|string|in:with,without,signed,unsigned',
 
             'draw'   => 'nullable|integer',
             'start'  => 'nullable|integer',
             'length' => 'nullable|integer',
         ]);
+
+        $canViewContracts = Auth::user()?->can('contracts.view') ?? false;
+        $contractFilter   = $canViewContracts ? trim((string) ($validated['contract'] ?? '')) : '';
 
         $teamFilter = $validated['team_id'] ?? null;
 
@@ -163,6 +167,14 @@ class UserController extends AdminBaseController
             }
         }
 
+        if ($canViewContracts && $contractFilter !== '') {
+            app(LatestUserContractLookup::class)->applyUsersListContractFilter(
+                $baseQuery,
+                (int) $this->partnerId(),
+                $contractFilter
+            );
+        }
+
         // Общее количество записей по партнёру (без фильтров)
         $totalRecords = $this->scopeByPartner(User::query())->count();
 
@@ -171,7 +183,8 @@ class UserController extends AdminBaseController
 
         // --- СОРТИРОВКА ДЛЯ DataTables ---
 
-        $canViewContracts = Auth::user()?->can('contracts.view') ?? false;
+        $contractLookup = app(LatestUserContractLookup::class);
+        $partnerId      = (int) $this->partnerId();
 
         // индекс колонки и направление asc|desc
         $orderColumnIndex = $request->input('order.0.column');
@@ -206,10 +219,11 @@ class UserController extends AdminBaseController
 
                 case 4:
                     if ($canViewContracts) {
-                        // contract — не сортируем
-                        $baseQuery
-                            ->orderBy('users.lastname', 'asc')
-                            ->orderBy('users.name', 'asc');
+                        $contractLookup->applyUsersListSortByLatestContractStatus(
+                            $baseQuery,
+                            $partnerId,
+                            $orderDir
+                        );
                         break;
                     }
                     // teams.title

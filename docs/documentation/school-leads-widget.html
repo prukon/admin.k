@@ -252,7 +252,7 @@
   <p class="small">
     «Последний договор» — по <code>created_at</code> (затем <code>id</code>) среди записей <code>contracts</code> с <code>school_id = partner_id</code> и <code>user_id</code> ученика.
     Сервис: <code>App\Services\SchoolLeads\LatestUserContractLookup</code>. Подпись статуса — из <code>Contract::$STATUS_RU</code> (любой статус: Черновик, Отправлено, Подписано и т.д.).
-    На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> тот же lookup, но другой UI: колонка только при <code>contracts.view</code>, иконка PDF вместо текстовой ссылки, без «Создать договор».
+    На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> тот же lookup, но другой UI: колонка и фильтр «Договор» только при <code>contracts.view</code>, иконка PDF с tooltip «Статус: …», сортировка по статусу последнего договора; без кнопки «Создать договор».
   </p>
 
   <h3>5.6) Создание клиента из заявки (лид → ученик)</h3>
