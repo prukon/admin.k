@@ -6,6 +6,7 @@ use App\Models\MyLog;
 use App\Models\Partner;
 use App\Models\Role;
 use App\Models\User;
+use App\Enums\AuditEvent;
 use App\Models\UserField;
 use Illuminate\Support\Facades\Gate;
 use Tests\Feature\Crm\CrmTestCase;
@@ -140,8 +141,8 @@ class UserFieldControllerTest extends CrmTestCase
         $this->assertCount(0, $field->roles, 'У поля не должно быть ролей, если мы их не передавали');
 
         $this->assertDatabaseHas('my_logs', [
-            'type'        => 2,
-            'action'      => 210,
+            'event' => AuditEvent::UserCustomFieldsUpdated->value,
+            'level' => AuditEvent::UserCustomFieldsUpdated->level()->value,
             'target_type' => UserField::class,
             'target_id'   => $field->id,
         ]);
@@ -198,8 +199,8 @@ class UserFieldControllerTest extends CrmTestCase
         $this->assertEquals(2, MyLog::count());
 
         MyLog::all()->each(function (MyLog $log) {
-            $this->assertEquals(2, $log->type);
-            $this->assertEquals(210, $log->action);
+            $this->assertSame(AuditEvent::UserCustomFieldsUpdated->value, $log->event);
+            $this->assertSame(AuditEvent::UserCustomFieldsUpdated->level()->value, $log->level->value ?? $log->level);
             $this->assertEquals(UserField::class, $log->target_type);
             $this->assertStringContainsString('Создано поле', (string) $log->description);
         });
@@ -374,8 +375,7 @@ class UserFieldControllerTest extends CrmTestCase
         $this->assertDatabaseHas('user_fields', ['id' => $fieldC->id]);
 
         $deleteLogs = MyLog::where('target_type', UserField::class)
-            ->where('type', 2)
-            ->where('action', 210)
+            ->where('event', AuditEvent::UserCustomFieldsUpdated->value)
             ->where('target_id', $fieldA->id)
             ->get();
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Account;
 
+use App\Enums\AuditEvent;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
@@ -66,8 +67,8 @@ class AccountAvatarTest extends CrmTestCase
         Storage::disk('public')->assertExists('avatars/'.$this->user->image_crop);
 
         $this->assertDatabaseHas('my_logs', [
-            'type' => 2,
-            'action' => 28,
+            'event' => AuditEvent::UserAvatarUpdated->value,
+            'level' => AuditEvent::UserAvatarUpdated->level()->value,
             'target_id' => $this->user->id,
             'target_type' => User::class,
         ]);
@@ -137,8 +138,8 @@ class AccountAvatarTest extends CrmTestCase
         $this->assertNull($this->user->image_crop);
 
         $this->assertDatabaseHas('my_logs', [
-            'type' => 2,
-            'action' => 29,
+            'event' => AuditEvent::UserAvatarDeleted->value,
+            'level' => AuditEvent::UserAvatarDeleted->level()->value,
             'target_id' => $this->user->id,
             'target_type' => User::class,
         ]);

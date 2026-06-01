@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Users;
 
+use App\Enums\AuditEvent;
 use App\Models\MyLog;
 use App\Models\Role;
 use App\Models\User;
@@ -199,7 +200,7 @@ final class StudentHealthFlagsFeatureTest extends CrmTestCase
         $log = MyLog::query()
             ->where('target_type', User::class)
             ->where('target_id', $student->id)
-            ->where('action', 22)
+            ->where('event', AuditEvent::UserUpdated->value)
             ->latest()
             ->first();
 

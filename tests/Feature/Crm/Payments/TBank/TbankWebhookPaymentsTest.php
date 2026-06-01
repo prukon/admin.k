@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Payments\TBank;
 
+use App\Enums\AuditEvent;
 use App\Models\Payable;
 use App\Models\Payment;
 use App\Models\PaymentIntent;
@@ -236,8 +237,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             1,
             DB::table('my_logs')
                 ->where('partner_id', $this->partner->id)
-                ->where('type', 5)
-                ->where('action', 50)
+                ->where('event', AuditEvent::PaymentReceived->value)
                 ->count()
         );
 

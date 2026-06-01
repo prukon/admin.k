@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Schedule;
 
+use App\Enums\AuditEvent;
 use App\Models\Location;
 use App\Models\MyLog;
 use App\Models\Team;
@@ -241,7 +242,7 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
             'deleted_at' => null,
         ]);
 
-        $this->assertTrue(MyLog::query()->where('type', 46)->where('action', 461)->where('target_id', $slot->id)->exists());
+        $this->assertTrue(MyLog::query()->where('event', AuditEvent::ScheduleSlotOccurrenceSkipped->value)->where('target_id', $slot->id)->exists());
     }
 
     public function test_skip_occurrence_blocked_when_assignment_exists(): void
@@ -334,7 +335,7 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
         $this->deleteJson(route('admin.team-schedule-slots.destroy', $slot))->assertOk();
 
         $this->assertSoftDeleted('team_schedule_slots', ['id' => $slot->id]);
-        $this->assertTrue(MyLog::query()->where('type', 46)->where('action', 463)->where('target_id', $slot->id)->exists());
+        $this->assertTrue(MyLog::query()->where('event', AuditEvent::ScheduleSlotDeleted->value)->where('target_id', $slot->id)->exists());
     }
 
     public function test_destroy_blocked_when_assignment_exists(): void
@@ -498,7 +499,7 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
         $this->assertSame((int) $teamB->id, (int) $new->team_id);
         $this->assertSame(2, (int) $new->weekday);
 
-        $this->assertTrue(MyLog::query()->where('type', 46)->where('action', 464)->where('target_id', $newId)->exists());
+        $this->assertTrue(MyLog::query()->where('event', AuditEvent::ScheduleSlotSplitEdited->value)->where('target_id', $newId)->exists());
     }
 
     public function test_update_split_blocked_when_assignment_starts_on_or_after_apply_date(): void

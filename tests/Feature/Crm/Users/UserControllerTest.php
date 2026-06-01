@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Users;
 
+use App\Enums\AuditEvent;
 use App\Models\MyLog;
 use App\Models\ParentProfile;
 use App\Models\Partner;
@@ -1043,7 +1044,7 @@ class UserControllerTest extends CrmTestCase
 
         $logs = MyLog::where('target_type', User::class)
             ->where('target_id', $user->id)
-            ->where('action', 21) // создание учётки
+            ->where('event', AuditEvent::UserCreated->value) // создание учётки
             ->get();
 
         $this->assertCount(1, $logs);
@@ -1378,7 +1379,7 @@ class UserControllerTest extends CrmTestCase
 
         $logs = MyLog::where('target_type', User::class)
             ->where('target_id', $user->id)
-            ->where('action', 22)
+            ->where('event', AuditEvent::UserUpdated->value)
             ->get();
 
         $this->assertCount(1, $logs);
@@ -1443,7 +1444,7 @@ class UserControllerTest extends CrmTestCase
         // Проверяем, что в логах есть запись об изменении телефона
         $log = MyLog::where('target_type', User::class)
             ->where('target_id', $user->id)
-            ->where('action', 22)
+            ->where('event', AuditEvent::UserUpdated->value)
             ->latest()
             ->first();
 
@@ -1496,7 +1497,7 @@ class UserControllerTest extends CrmTestCase
 
         $log = MyLog::where('target_type', User::class)
             ->where('target_id', $user->id)
-            ->where('action', 22)
+            ->where('event', AuditEvent::UserUpdated->value)
             ->first();
 
         if ($log) {
@@ -1578,7 +1579,7 @@ class UserControllerTest extends CrmTestCase
         // Ищем лог
         $log = MyLog::where('target_type', User::class)
             ->where('target_id', $user->id)
-            ->where('action', 22)
+            ->where('event', AuditEvent::UserUpdated->value)
             ->latest()
             ->first();
 
@@ -1620,7 +1621,7 @@ class UserControllerTest extends CrmTestCase
 
         $logs = MyLog::where('target_type', User::class)
             ->where('target_id', $user->id)
-            ->where('action', 22)
+            ->where('event', AuditEvent::UserUpdated->value)
             ->get();
 
         $this->assertCount(0, $logs);
@@ -1654,7 +1655,7 @@ class UserControllerTest extends CrmTestCase
 
         $log = MyLog::where('target_type', User::class)
             ->where('target_id', $userToDelete->id)
-            ->where('action', 24)
+            ->where('event', AuditEvent::UserDeleted->value)
             ->first();
 
         $this->assertNotNull($log);
@@ -1683,7 +1684,7 @@ class UserControllerTest extends CrmTestCase
 
         $log = MyLog::where('target_type', User::class)
             ->where('target_id', $foreignUser->id)
-            ->where('action', 24)
+            ->where('event', AuditEvent::UserDeleted->value)
             ->first();
 
         $this->assertNull($log);
@@ -1716,7 +1717,7 @@ class UserControllerTest extends CrmTestCase
 
         $log = MyLog::where('target_type', User::class)
             ->where('target_id', $userToChange->id)
-            ->where('action', 26)
+            ->where('event', AuditEvent::UserPasswordChanged->value)
             ->first();
 
         $this->assertNotNull($log);
@@ -1753,7 +1754,7 @@ class UserControllerTest extends CrmTestCase
 
         $log = MyLog::where('target_type', User::class)
             ->where('target_id', $foreignUser->id)
-            ->where('action', 26)
+            ->where('event', AuditEvent::UserPasswordChanged->value)
             ->first();
 
         $this->assertNull($log);
@@ -1788,7 +1789,7 @@ class UserControllerTest extends CrmTestCase
 
         $log = MyLog::where('target_type', User::class)
             ->where('target_id', $userToChange->id)
-            ->where('action', 26)
+            ->where('event', AuditEvent::UserPasswordChanged->value)
             ->first();
 
         $this->assertNull($log);

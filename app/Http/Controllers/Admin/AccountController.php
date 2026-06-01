@@ -33,7 +33,9 @@ use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use App\Models\Role;
 
-use App\Models\MyLog;
+use App\Enums\AuditEvent;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 
 class AccountController extends AdminBaseController
@@ -45,7 +47,8 @@ class AccountController extends AdminBaseController
     public function __construct(
         UserService $service,
         StudentParentSyncService $studentParentSync,
-        PartnerContext $partnerContext
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
     ) {
         parent::__construct($partnerContext);
         $this->service = $service;
@@ -451,22 +454,13 @@ class AccountController extends AdminBaseController
                 ? ($user->full_name ?? trim(($user->lastname ?? '').' '.($user->name ?? '')))
                 : trim(($user->lastname ?? '').' '.($user->name ?? ''));
 
-            $logData = [
-                'type'         => 2,
-                'action'       => 23,
-                'user_id'      => $user->id,
-                'target_type'  => \App\Models\User::class,
-                'target_id'    => $user->id,
-                'target_label' => $targetLabel,
-                'description'  => $desc,
-                'created_at'   => now(),
-            ];
-
-            if (\Illuminate\Support\Facades\Schema::hasColumn('my_logs', 'action_name_ru')) {
-                $logData['action_name_ru'] = 'Обновление учётной записи пользователя';
-            }
-
-            MyLog::create($logData);
+            $this->auditLogger->record(
+                AuditEvent::UserAccountUpdated,
+                AuditContext::make($desc)
+                    ->withUser($user)
+                    ->withTarget($user, $targetLabel)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json(['success' => true, 'message' => 'Пользователь успешно обновлен']);
@@ -486,18 +480,13 @@ class AccountController extends AdminBaseController
 
             $targetLabel = trim(($user->lastname ? ($user->lastname.' ') : '').($user->name ?? ''));
 
-            MyLog::create([
-                'type' => 2, // Лог для обновления юзеров
-                'action' => 26, // Лог для обновления учетной записи
-                'user_id'   => $user->id,
-                'target_type'  => \App\Models\User::class,
-                'target_id'    => $user->id,
-                'target_label' => $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"),
-
-
-                'description' => ($user->name . " изменил пароль."),
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::UserPasswordChanged,
+                AuditContext::make($user->name . ' изменил пароль.')
+                    ->withUser($user)
+                    ->withTarget($user, $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"))
+                    ->withCreatedAt(now())
+            );
         });
         return response()->json(['success' => true]);
     }
@@ -677,18 +666,13 @@ class AccountController extends AdminBaseController
             $user->save();
             $targetLabel = trim(($user->lastname ? ($user->lastname.' ') : '').($user->name ?? ''));
 
-            // Лог
-            MyLog::create([
-                'type' => 2,   // обновление юзеров
-                'action' => 28,  // обновление учётной записи
-                'user_id'   => $user->id,
-                'target_type'  => \App\Models\User::class,
-                'target_id'    => $user->id,
-                'target_label' => $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"),
-
-                'description' => ($user->name . " изменил аватар."),
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::UserAvatarUpdated,
+                AuditContext::make($user->name . ' изменил аватар.')
+                    ->withUser($user)
+                    ->withTarget($user, $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"))
+                    ->withCreatedAt(now())
+            );
         });
 
 
@@ -720,18 +704,13 @@ class AccountController extends AdminBaseController
             $user->save();
             $targetLabel = trim(($user->lastname ? ($user->lastname.' ') : '').($user->name ?? ''));
 
-            // Логируем удаление аватарки
-            MyLog::create([
-                'type' => 2,
-                'action' => 29,
-                'user_id'   => $user->id,
-                'target_type'  => \App\Models\User::class,
-                'target_id'    => $user->id,
-                'target_label' => $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"),
-
-                'description' => $user->name . " удалил аватар.",
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::UserAvatarDeleted,
+                AuditContext::make($user->name . ' удалил аватар.')
+                    ->withUser($user)
+                    ->withTarget($user, $targetLabel !== '' ? $targetLabel : ($user->name ?? "user#{$user->id}"))
+                    ->withCreatedAt(now())
+            );
         });
 
 

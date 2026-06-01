@@ -13,7 +13,9 @@ use App\Models\Weekday;
 use App\Services\TeamService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use App\Models\MyLog;
+use App\Enums\AuditEvent;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Http\Requests\Team\UpdateRequest;
 use App\Http\Requests\Team\StoreRequest;
 use Illuminate\Http\Request;
@@ -30,7 +32,11 @@ class TeamController extends AdminBaseController
     /** @var TeamService */
     protected TeamService $service;           // ✅ НОВОЕ явное свойство
 
-    public function __construct(TeamService $service, PartnerContext $partnerContext)
+    public function __construct(
+        TeamService $service,
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    )
     {
         parent::__construct($partnerContext);
         $this->service = $service;
@@ -584,15 +590,12 @@ class TeamController extends AdminBaseController
 
             // ✅ Пишем лог только если есть изменения
             if (!empty($changes)) {
-                \App\Models\MyLog::create([
-                    'type'         => 3,                 // Логи по группам
-                    'action'       => 32,               // Обновление группы
-                    'target_type'  => 'App\Models\Team',
-                    'target_id'    => $team->id,
-                    'target_label' => $team->title,
-                    'description'  => implode("\n", $changes), // Каждое поле — с новой строки
-                    'created_at'   => now(),
-                ]);
+                $this->auditLogger->record(
+                    AuditEvent::TeamUpdated,
+                    AuditContext::make(implode("\n", $changes))
+                        ->withTarget($team, $team->title)
+                        ->withCreatedAt(now())
+                );
             }
         });
 
@@ -616,15 +619,12 @@ class TeamController extends AdminBaseController
             $team->delete();
 
             // Логирование
-            MyLog::create([
-                'type'         => 3, // Лог для обновления групп
-                'action'       => 33,
-                'target_type'  => 'App\Models\Team',
-                'target_id'    => $team->id,
-                'target_label' => $team->title,
-                'description'  => "Группа удалена: {$team->title}. ID: {$team->id}.",
-                'created_at'   => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::TeamDeleted,
+                AuditContext::make("Группа удалена: {$team->title}. ID: {$team->id}.")
+                    ->withTarget($team, $team->title)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json(['message' => 'Группа и её связь с пользователями успешно помечены как удалённые']);
@@ -671,7 +671,7 @@ class TeamController extends AdminBaseController
 
     public function log(FilterRequest $request)
     {
-        return $this->buildLogDataTable(3);
+        return $this->buildLogDataTable('team');
     }
 
     /**

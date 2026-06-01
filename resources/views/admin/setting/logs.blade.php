@@ -1,8 +1,9 @@
 @php
-    $logActionLabels = $logActionLabels ?? [];
+    $logEventLabels = $logEventLabels ?? [];
+    $logLevelLabels = $logLevelLabels ?? [];
     $isLogsSuperadmin = $isLogsSuperadmin ?? false;
     $logPartners = $logPartners ?? collect();
-    $logsFilterKeys = ['created_from', 'created_to', 'filter_action', 'filter_author', 'filter_target_label', 'filter_partner_id'];
+    $logsFilterKeys = ['created_from', 'created_to', 'filter_action', 'filter_level', 'filter_author', 'filter_target_label', 'filter_partner_id'];
     $logsHasActiveFilters = false;
     foreach ($logsFilterKeys as $k) {
         $v = request($k);
@@ -20,10 +21,11 @@
     }
     $logsHideSuperadmin = filter_var(request('hide_superadmin', '1'), FILTER_VALIDATE_BOOLEAN);
     $logsHideAuthorizations = filter_var(request('hide_authorizations', '0'), FILTER_VALIDATE_BOOLEAN);
+    $logsHideIntegrations = filter_var(request('hide_integrations', '0'), FILTER_VALIDATE_BOOLEAN);
     if (!$logsHasActiveFilters) {
         if (request()->has('hide_superadmin') && !$logsHideSuperadmin) {
             $logsHasActiveFilters = true;
-        } elseif ($logsHideAuthorizations) {
+        } elseif ($logsHideAuthorizations || $logsHideIntegrations) {
             $logsHasActiveFilters = true;
         }
     }
@@ -85,8 +87,17 @@
                 <select class="form-select" id="settings-logs-filter-action" name="filter_action">
                     <option value="">Все действия</option>
                     <option value="unknown" @selected((string) request('filter_action') === 'unknown')>Неизвестный тип</option>
-                    @foreach($logActionLabels as $code => $label)
-                        <option value="{{ $code }}" @selected((string) request('filter_action') === (string) $code)>{{ $label }}</option>
+                    @foreach($logEventLabels as $event => $label)
+                        <option value="{{ $event }}" @selected((string) request('filter_action') === (string) $event)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="settings-logs-filter-level">Уровень</label>
+                <select class="form-select" id="settings-logs-filter-level" name="filter_level">
+                    <option value="">Все уровни</option>
+                    @foreach($logLevelLabels as $level => $label)
+                        <option value="{{ $level }}" @selected((string) request('filter_level') === (string) $level)>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>
@@ -116,6 +127,13 @@
                     <input class="form-check-input" type="checkbox" id="settings-logs-filter-hide-authorizations"
                            name="hide_authorizations" value="1" @checked($logsHideAuthorizations)>
                     <label class="form-check-label" for="settings-logs-filter-hide-authorizations">Скрыть авторизации</label>
+                </div>
+            </div>
+            <div class="col-12 col-md-auto">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="settings-logs-filter-hide-integrations"
+                           name="hide_integrations" value="1" @checked($logsHideIntegrations)>
+                    <label class="form-check-label" for="settings-logs-filter-hide-integrations">Скрыть интеграции</label>
                 </div>
             </div>
         </div>
@@ -151,10 +169,12 @@
                     created_from: $('#settings-logs-filter-created-from').val() || '',
                     created_to: $('#settings-logs-filter-created-to').val() || '',
                     filter_action: $('#settings-logs-filter-action').val() || '',
+                    filter_level: $('#settings-logs-filter-level').val() || '',
                     filter_author: $('#settings-logs-filter-author').val() || '',
                     filter_target_label: $('#settings-logs-filter-target').val() || '',
                     hide_superadmin: $('#settings-logs-filter-hide-superadmin').is(':checked') ? '1' : '0',
-                    hide_authorizations: $('#settings-logs-filter-hide-authorizations').is(':checked') ? '1' : '0'
+                    hide_authorizations: $('#settings-logs-filter-hide-authorizations').is(':checked') ? '1' : '0',
+                    hide_integrations: $('#settings-logs-filter-hide-integrations').is(':checked') ? '1' : '0'
                 };
                 if (isLogsSuperadmin) {
                     params.filter_partner_id = $('#settings-logs-filter-partner').val() || 'all';
@@ -165,10 +185,10 @@
             function settingsLogsHasActiveFilters() {
                 var p = settingsLogsFilterParams();
                 if (p.created_from !== '' || p.created_to !== '' || p.filter_action !== ''
-                    || p.filter_author !== '' || p.filter_target_label !== '') {
+                    || p.filter_level !== '' || p.filter_author !== '' || p.filter_target_label !== '') {
                     return true;
                 }
-                if (p.hide_authorizations === '1' || p.hide_superadmin === '0') {
+                if (p.hide_authorizations === '1' || p.hide_integrations === '1' || p.hide_superadmin === '0') {
                     return true;
                 }
                 if (isLogsSuperadmin && p.filter_partner_id && p.filter_partner_id !== 'all') {
@@ -227,10 +247,12 @@
                         d.created_from = params.created_from;
                         d.created_to = params.created_to;
                         d.filter_action = params.filter_action;
+                        d.filter_level = params.filter_level;
                         d.filter_author = params.filter_author;
                         d.filter_target_label = params.filter_target_label;
                         d.hide_superadmin = params.hide_superadmin;
                         d.hide_authorizations = params.hide_authorizations;
+                        d.hide_integrations = params.hide_integrations;
                         if (isLogsSuperadmin) {
                             d.filter_partner_id = params.filter_partner_id;
                         }
@@ -254,6 +276,7 @@
                 }
                 $('#settings-logs-filter-hide-superadmin').prop('checked', true);
                 $('#settings-logs-filter-hide-authorizations').prop('checked', false);
+                $('#settings-logs-filter-hide-integrations').prop('checked', false);
                 table.ajax.reload();
                 syncSettingsLogsFiltersCollapseState();
             });

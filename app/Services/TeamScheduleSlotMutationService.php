@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AuditEvent;
 use App\Exceptions\TeamScheduleSlotConflictException;
-use App\Models\MyLog;
 use App\Models\TeamScheduleSlot;
 use App\Models\TeamScheduleSlotException;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -21,16 +23,12 @@ final class TeamScheduleSlotMutationService
 {
     public const LOG_TYPE_SCHEDULE_SLOTS = 46;
 
-    private const LOG_ACTION_SKIP = 461;
-
-    private const LOG_ACTION_TRUNCATE = 462;
-
-    private const LOG_ACTION_SOFT_DELETE = 463;
-
-    private const LOG_ACTION_SPLIT_EDIT = 464;
+    /** @deprecated Используйте {@see AuditEvent} — оставлено для обратной совместимости тестов. */
+    public const LOG_ACTION_SKIP = 461;
 
     public function __construct(
         private readonly TeamScheduleCalendarService $calendarService,
+        private readonly AuditLogger $auditLogger,
     ) {}
 
     /**
@@ -85,19 +83,15 @@ final class TeamScheduleSlotMutationService
                 return;
             }
 
-            MyLog::create([
-                'type' => self::LOG_TYPE_SCHEDULE_SLOTS,
-                'action' => self::LOG_ACTION_SKIP,
-                'target_type' => TeamScheduleSlot::class,
-                'target_id' => $slot->id,
-                'target_label' => $this->slotLabel($slot),
-                'description' => sprintf(
-                    "Точечное исключение даты %s для слота #%d.",
+            $this->recordSlotLog(
+                AuditEvent::ScheduleSlotOccurrenceSkipped,
+                $slot,
+                sprintf(
+                    'Точечное исключение даты %s для слота #%d.',
                     $occurrenceDate->toDateString(),
                     $slot->id
                 ),
-                'created_at' => now(),
-            ]);
+            );
         });
     }
 
@@ -137,20 +131,16 @@ final class TeamScheduleSlotMutationService
             if ($newEnd->lt($slotStart)) {
                 $slot->delete();
 
-                MyLog::create([
-                    'type' => self::LOG_TYPE_SCHEDULE_SLOTS,
-                    'action' => self::LOG_ACTION_TRUNCATE,
-                    'target_type' => TeamScheduleSlot::class,
-                    'target_id' => $slot->id,
-                    'target_label' => $this->slotLabel($slot),
-                    'description' => sprintf(
-                        "Усечение с %s: период опустел, слот #%d помечен удалённым (ранее date_end=%s).",
+                $this->recordSlotLog(
+                    AuditEvent::ScheduleSlotTruncated,
+                    $slot,
+                    sprintf(
+                        'Усечение с %s: период опустел, слот #%d помечен удалённым (ранее date_end=%s).',
                         $anchorDate->toDateString(),
                         $slot->id,
                         $oldEnd->toDateString()
                     ),
-                    'created_at' => now(),
-                ]);
+                );
 
                 return;
             }
@@ -165,20 +155,16 @@ final class TeamScheduleSlotMutationService
                 ->each
                 ->delete();
 
-            MyLog::create([
-                'type' => self::LOG_TYPE_SCHEDULE_SLOTS,
-                'action' => self::LOG_ACTION_TRUNCATE,
-                'target_type' => TeamScheduleSlot::class,
-                'target_id' => $slot->id,
-                'target_label' => $this->slotLabel($slot),
-                'description' => sprintf(
-                    "Усечение с %s: date_end %s → %s.",
+            $this->recordSlotLog(
+                AuditEvent::ScheduleSlotTruncated,
+                $slot,
+                sprintf(
+                    'Усечение с %s: date_end %s → %s.',
                     $anchorDate->toDateString(),
                     $oldEnd->toDateString(),
                     $newEnd->toDateString()
                 ),
-                'created_at' => now(),
-            ]);
+            );
         });
     }
 
@@ -200,15 +186,11 @@ final class TeamScheduleSlotMutationService
         DB::transaction(function () use ($slot): void {
             $slot->delete();
 
-            MyLog::create([
-                'type' => self::LOG_TYPE_SCHEDULE_SLOTS,
-                'action' => self::LOG_ACTION_SOFT_DELETE,
-                'target_type' => TeamScheduleSlot::class,
-                'target_id' => $slot->id,
-                'target_label' => $this->slotLabel($slot),
-                'description' => sprintf('Слот #%d помечен удалённым.', $slot->id),
-                'created_at' => now(),
-            ]);
+            $this->recordSlotLog(
+                AuditEvent::ScheduleSlotDeleted,
+                $slot,
+                sprintf('Слот #%d помечен удалённым.', $slot->id),
+            );
         });
     }
 
@@ -310,13 +292,10 @@ final class TeamScheduleSlotMutationService
                 'is_enabled' => (bool) ($rightSegment['is_enabled'] ?? true),
             ]);
 
-            MyLog::create([
-                'type' => self::LOG_TYPE_SCHEDULE_SLOTS,
-                'action' => self::LOG_ACTION_SPLIT_EDIT,
-                'target_type' => TeamScheduleSlot::class,
-                'target_id' => $new->id,
-                'target_label' => $this->slotLabel($new),
-                'description' => sprintf(
+            $this->recordSlotLog(
+                AuditEvent::ScheduleSlotSplitEdited,
+                $new,
+                sprintf(
                     'Разделение слота #%d по дате %s: левая часть до %s, новый слот #%d до %s (ранее конец периода был %s).',
                     $slot->id,
                     $e->toDateString(),
@@ -325,8 +304,7 @@ final class TeamScheduleSlotMutationService
                     (string) $rightSegment['date_end'],
                     $oldEndStr
                 ),
-                'created_at' => now(),
-            ]);
+            );
 
             return $new;
         });
@@ -440,5 +418,15 @@ final class TeamScheduleSlotMutationService
     private function slotLabel(TeamScheduleSlot $slot): string
     {
         return sprintf('Слот #%d', $slot->id);
+    }
+
+    private function recordSlotLog(AuditEvent $event, TeamScheduleSlot $slot, string $description): void
+    {
+        $this->auditLogger->record(
+            $event,
+            AuditContext::make($description)
+                ->withTarget($slot, $this->slotLabel($slot))
+                ->withCreatedAt(now())
+        );
     }
 }

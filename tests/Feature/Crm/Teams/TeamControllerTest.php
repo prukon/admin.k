@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm\Teams;
 
 use App\Http\Middleware\SetPartner;
+use App\Enums\AuditEvent;
 use App\Models\MyLog;
 use App\Models\Partner;
 use App\Models\Role;
@@ -372,11 +373,11 @@ class TeamControllerTest extends CrmTestCase
         // Лог
         $log = MyLog::where('target_type', Team::class)
             ->where('target_id', $team->id)
-            ->where('action', 31)
+            ->where('event', AuditEvent::TeamCreated->value)
             ->first();
 
         $this->assertNotNull($log);
-        $this->assertEquals(3, $log->type);
+        $this->assertSame(AuditEvent::TeamCreated->value, $log->event);
         $this->assertEquals($this->user->id, $log->author_id);
         $this->assertEquals($this->partner->id, $log->partner_id);
         $this->assertEquals($team->title, $log->target_label);
@@ -509,7 +510,7 @@ class TeamControllerTest extends CrmTestCase
 
         $log = MyLog::where('target_type', Team::class)
             ->where('target_id', $team->id)
-            ->where('action', 32)
+            ->where('event', AuditEvent::TeamUpdated->value)
             ->latest('id')
             ->first();
 
@@ -563,7 +564,7 @@ class TeamControllerTest extends CrmTestCase
 
         $logsBefore = MyLog::where('target_type', Team::class)
             ->where('target_id', $team->id)
-            ->where('action', 32)
+            ->where('event', AuditEvent::TeamUpdated->value)
             ->count();
 
         $payload = [
@@ -580,7 +581,7 @@ class TeamControllerTest extends CrmTestCase
 
         $logsAfter = MyLog::where('target_type', Team::class)
             ->where('target_id', $team->id)
-            ->where('action', 32)
+            ->where('event', AuditEvent::TeamUpdated->value)
             ->count();
 
         $this->assertEquals($logsBefore, $logsAfter);
@@ -622,11 +623,11 @@ class TeamControllerTest extends CrmTestCase
         // Лог
         $log = MyLog::where('target_type', Team::class)
             ->where('target_id', $team->id)
-            ->where('action', 33)
+            ->where('event', AuditEvent::TeamDeleted->value)
             ->first();
 
         $this->assertNotNull($log);
-        $this->assertEquals(3, $log->type);
+        $this->assertSame(AuditEvent::TeamDeleted->value, $log->event);
         $this->assertStringContainsString('Группа удалена:', $log->description);
     }
 

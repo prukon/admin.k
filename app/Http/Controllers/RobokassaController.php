@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MyLog;
 use App\Models\PaymentIntent;
+use App\Enums\AuditEvent;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Models\Payable;
 use App\Models\PaymentSystem;
 use App\Models\Team;
@@ -20,6 +22,10 @@ use App\Services\Payments\PaymentLedgerRecorder;
 
 class RobokassaController extends Controller
 {
+    public function __construct(
+        private readonly AuditLogger $auditLogger,
+    ) {}
+
     public function result(Request $request)
     {
         Log::info('Robokassa result request', $request->query());
@@ -256,16 +262,15 @@ class RobokassaController extends Controller
                 ]
             );
 
-            MyLog::create([
-                'type'        => 5,
-                'action'      => 50,
-                'author_id'   => $shpUserId,
-                'partner_id'  => $partnerId,
-                'description' => "Платеж на сумму: " . (int) ((float) $outSumNorm) . " руб от "
+            $this->auditLogger->record(
+                AuditEvent::PaymentReceived,
+                AuditContext::make("Платеж на сумму: " . (int) ((float) $outSumNorm) . " руб от "
                     . ( ($user?->full_name ?? trim( ($user?->lastname ?? '') . ' ' . ($user?->name ?? '') )) ?: 'Неизвестно' )
-                    . ". ID: $shpUserId. Группа: $teamName. Период: $shpPaymentDate. InvId: $invId.",
-                'created_at'  => now(),
-            ]);
+                    . ". ID: $shpUserId. Группа: $teamName. Период: $shpPaymentDate. InvId: $invId.")
+                    ->withAuthorId($shpUserId)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(now())
+            );
 
             $lockedIntent->status = 'paid';
             $lockedIntent->paid_at = now();

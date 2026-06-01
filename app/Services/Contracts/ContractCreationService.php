@@ -6,9 +6,10 @@ use App\Mail\ContractClientFillInvitationMail;
 use App\Models\Contract;
 use App\Models\ContractEvent;
 use App\Models\ContractTemplateVersion;
-use App\Models\MyLog;
 use App\Models\Partner;
 use App\Models\User;
+use App\Enums\AuditEvent;
+use App\Services\Audit\ContractAudit;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ class ContractCreationService
     public function __construct(
         private readonly ContractBillingService $billing,
         private readonly ContractTemplateService $templateService,
+        private readonly ContractAudit $contractAudit,
     ) {
     }
 
@@ -57,16 +59,12 @@ class ContractCreationService
                 ], JSON_UNESCAPED_UNICODE),
             ]);
 
-            MyLog::create([
-                'type'         => 500,
-                'action'       => 500,
-                'user_id'      => $student->id,
-                'target_type'  => Contract::class,
-                'target_id'    => $partner->id,
-                'target_label' => $partner->title,
-                'description'  => 'Договор создан: № ' . $contract->id . ' (' . $contract->creation_mode . ')',
-                'created_at'   => now(),
-            ]);
+            $this->contractAudit->record(
+                AuditEvent::ContractCreated,
+                'Договор создан: № ' . $contract->id . ' (' . $contract->creation_mode . ')',
+                userId: (int) $student->id,
+                partner: $partner,
+            );
 
             if ($contract->isTemplateMode()) {
                 $this->notifyClientAboutFill($contract, $student);

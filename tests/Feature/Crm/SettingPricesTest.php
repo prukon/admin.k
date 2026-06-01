@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm;
 
+use App\Enums\AuditEvent;
 use App\Models\MyLog;
 use App\Models\Partner;
 use App\Models\Team;
@@ -442,8 +443,8 @@ class SettingPricesTest extends CrmTestCase
 
         // Лог
         $this->assertDatabaseHas('my_logs', [
-            'type'        => 1,
-            'action'      => 13,
+            'event' => AuditEvent::PricingTeamApply->value,
+            'level' => AuditEvent::PricingTeamApply->level()->value,
             'target_id'   => $team->id,
             'target_type' => 'App\Models\UserPrice',
             'target_label'=> 'Группа А',
@@ -619,15 +620,15 @@ class SettingPricesTest extends CrmTestCase
 
         // Логи по каждой команде
         $this->assertDatabaseHas('my_logs', [
-            'type'        => 1,
-            'action'      => 11,
+            'event' => AuditEvent::PricingBulkApply->value,
+            'level' => AuditEvent::PricingBulkApply->level()->value,
             'target_id'   => $teamA->id,
             'target_type' => 'App\Models\UserPrice',
             'target_label'=> 'Team A',
         ]);
         $this->assertDatabaseHas('my_logs', [
-            'type'        => 1,
-            'action'      => 11,
+            'event' => AuditEvent::PricingBulkApply->value,
+            'level' => AuditEvent::PricingBulkApply->level()->value,
             'target_id'   => $teamB->id,
             'target_type' => 'App\Models\UserPrice',
             'target_label'=> 'Team B',
@@ -807,8 +808,8 @@ class SettingPricesTest extends CrmTestCase
 
         // Логи только по user1
         $this->assertDatabaseHas('my_logs', [
-            'type'        => 1,
-            'action'      => 12,
+            'event' => AuditEvent::PricingStudentApply->value,
+            'level' => AuditEvent::PricingStudentApply->level()->value,
             'user_id'     => $user1->id,
             'target_id'   => $user1->id,
             'target_type' => 'App\Models\UserPrice',
@@ -990,18 +991,15 @@ class SettingPricesTest extends CrmTestCase
 
         // Проверяем наличие логов по типам действий
         $this->assertDatabaseHas('my_logs', [
-            'type'   => 1,
-            'action' => 13,
+            'event' => AuditEvent::PricingTeamApply->value,
             'target_id' => $team->id,
         ]);
         $this->assertDatabaseHas('my_logs', [
-            'type'   => 1,
-            'action' => 11,
+            'event' => AuditEvent::PricingBulkApply->value,
             'target_id' => $team->id,
         ]);
         $this->assertDatabaseHas('my_logs', [
-            'type'   => 1,
-            'action' => 12,
+            'event' => AuditEvent::PricingStudentApply->value,
             'user_id'=> $user->id,
         ]);
     }
@@ -1011,17 +1009,26 @@ class SettingPricesTest extends CrmTestCase
     {
         $this->asAdmin();
 
-        // Лог типа 1
+        // Лог pricing (legacy type=1 и event-only)
         MyLog::forceCreate([
             'type'        => 1,
             'action'      => 11,
-            'description' => 'log1',
+            'description' => 'log-legacy-type',
             'target_type' => 'App\Models\UserPrice',
             'target_id'   => 1,
             'created_at'  => now(),
         ]);
 
-        // Лог другого типа
+        MyLog::forceCreate([
+            'event'       => AuditEvent::PricingBulkApply->value,
+            'level'       => AuditEvent::PricingBulkApply->level()->value,
+            'description' => 'log-event-only',
+            'target_type' => 'App\Models\UserPrice',
+            'target_id'   => 3,
+            'created_at'  => now(),
+        ]);
+
+        // Лог другого раздела
         MyLog::forceCreate([
             'type'        => 2,
             'action'      => 99,
@@ -1039,10 +1046,10 @@ class SettingPricesTest extends CrmTestCase
         $this->assertArrayHasKey('data', $json);
         $this->assertIsArray($json['data']);
 
-        // Все строки должны быть с type=1
-        foreach ($json['data'] as $row) {
-            $this->assertEquals(1, $row['type']);
-        }
+        $descriptions = collect($json['data'])->pluck('description')->all();
+        $this->assertContains('log-legacy-type', $descriptions);
+        $this->assertContains('log-event-only', $descriptions);
+        $this->assertNotContains('log2', $descriptions);
     }
 
     /** @test */
@@ -1174,8 +1181,7 @@ class SettingPricesTest extends CrmTestCase
         ]);
 
         $this->assertDatabaseHas('my_logs', [
-            'type'   => 1,
-            'action' => 14,
+            'event' => AuditEvent::PricingManualMonthPaid->value,
             'user_id'=> $user->id,
         ]);
     }

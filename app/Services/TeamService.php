@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\AuditEvent;
 use App\Models\SportType;
 use App\Models\Team;
-use Illuminate\Support\Facades\DB;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use Carbon\Carbon;
-use App\Models\MyLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext; // ✅ НОВОЕ
@@ -21,6 +23,7 @@ class TeamService
         PartnerContext $partnerContext,
         private readonly TeamTrainerSyncService $teamTrainerSync,
         private readonly LocationTeamSyncService $locationTeamSync,
+        private readonly AuditLogger $auditLogger,
     ) {
         $this->partnerContext = $partnerContext;
     }
@@ -168,17 +171,14 @@ class TeamService
                 !empty($data['is_enabled']) ? 'Да' : 'Нет'
             );
 
-            MyLog::create([
-                'type'         => 3,
-                'action'       => 31,
-                'author_id'    => $authorId,
-                'partner_id'   => $partnerId,
-                'target_type'  => \App\Models\Team::class, // ✅
-                'target_id'    => $team->id,               // ✅
-                'target_label' => $team->title,            // ✅
-                'description'  => $description,
-                'created_at'   => Carbon::now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::TeamCreated,
+                AuditContext::make($description)
+                    ->withTarget($team, $team->title)
+                    ->withAuthorId($authorId)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(Carbon::now())
+            );
 
             return $team;
         });

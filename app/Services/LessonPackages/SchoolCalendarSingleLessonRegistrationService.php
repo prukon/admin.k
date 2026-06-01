@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\LessonPackages;
 
+use App\Enums\AuditEvent;
 use App\Models\LessonPackage;
-use App\Models\MyLog;
 use App\Models\TeamScheduleSlot;
 use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageCalendarPeriodService;
 use App\Services\UserLessonPackageConsumptionAdjuster;
@@ -28,6 +30,7 @@ final class SchoolCalendarSingleLessonRegistrationService
         private readonly TeamScheduleCalendarService $calendarService,
         private readonly UserLessonPackageCalendarPeriodService $calendarPeriodService,
         private readonly SchoolCalendarAssignmentEligibilityService $assignmentEligibility,
+        private readonly AuditLogger $auditLogger,
     ) {
     }
 
@@ -232,17 +235,18 @@ final class SchoolCalendarSingleLessonRegistrationService
             $whenPart = $occurrenceDate !== '' ? ('; дата: '.$occurrenceDate) : '';
             $timePart = $timeLabel !== '' ? (' '.$timeLabel) : '';
 
-            MyLog::query()->create([
-                'type' => 60,
-                'action' => 602,
-                'author_id' => $authorId,
-                'partner_id' => $partnerId,
-                'user_id' => $userId,
-                'description' => 'Отменена запись разового занятия в расписании; ученик: '.$userLabel.$slotPart.$whenPart.$timePart,
-                'target_type' => UserTeamScheduleSlot::class,
-                'target_id' => $bindId,
-                'target_label' => $userLabel.', '.$packageName.', '.$occurrenceDate.($timeLabel !== '' ? (' '.$timeLabel) : ''),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::ScheduleSingleLessonRegistrationCancelled,
+                AuditContext::make('Отменена запись разового занятия в расписании; ученик: '.$userLabel.$slotPart.$whenPart.$timePart)
+                    ->withAuthorId($authorId)
+                    ->withPartnerId($partnerId)
+                    ->withUserId($userId)
+                    ->withTargetReference(
+                        UserTeamScheduleSlot::class,
+                        $bindId,
+                        $userLabel.', '.$packageName.', '.$occurrenceDate.($timeLabel !== '' ? (' '.$timeLabel) : '')
+                    )
+            );
         });
     }
 

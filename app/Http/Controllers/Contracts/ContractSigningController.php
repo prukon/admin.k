@@ -9,7 +9,8 @@ use App\Http\Requests\Contracts\ContractSendRequest;
 use App\Models\Contract;
 use App\Models\ContractEvent;
 use App\Models\ContractSignRequest;
-use App\Models\MyLog;
+use App\Enums\AuditEvent;
+use App\Services\Audit\ContractAudit;
 use App\Models\Partner;
 use App\Services\Contracts\ContractBillingService;
 use App\Services\Contracts\ContractPodpislonSendService;
@@ -23,6 +24,10 @@ use Illuminate\Support\Facades\Storage;
 
 class ContractSigningController extends Controller
 {
+    public function __construct(
+        private readonly ContractAudit $contractAudit,
+    ) {}
+
     public function send(Contract $contract, ContractSendRequest $request, ContractPodpislonSendService $sendService)
     {
         $result = $sendService->send($contract, $request->validated(), Auth::id());
@@ -107,16 +112,12 @@ class ContractSigningController extends Controller
                 }
 
                 if ($changes) {
-                    MyLog::create([
-                        'type'         => 500,
-                        'action'       => 511,
-                        'user_id'      => $contract->user_id,
-                        'target_type'  => Contract::class,
-                        'target_id'    => $contract->id,
-                        'target_label' => "Договор № {$contract->id}",
-                        'description'  => implode("\n", $changes),
-                        'created_at'   => now(),
-                    ]);
+                    $this->contractAudit->record(
+                        AuditEvent::ContractSignResentSuccess,
+                        implode("\n", $changes),
+                        userId: (int) $contract->user_id,
+                        contract: $contract,
+                    );
                 }
 
                 ContractEvent::create([
@@ -146,19 +147,15 @@ class ContractSigningController extends Controller
                 'payload_json' => json_encode(['res' => $res, 'links' => $links], JSON_UNESCAPED_UNICODE),
             ]);
 
-            MyLog::create([
-                'type'         => 500,
-                'action'       => 512,
-                'user_id'      => $contract->user_id,
-                'target_type'  => Contract::class,
-                'target_id'    => $contract->id,
-                'target_label' => "Договор № {$contract->id}",
-                'description'  => implode("\n", [
+            $this->contractAudit->record(
+                AuditEvent::ContractSignResentFailed,
+                implode("\n", [
                     'Статус запроса: "' . $oldSrStatus . '" → "' . $sr->status . '"',
                     'Договор: Договор #' . $contract->id,
                 ]),
-                'created_at'   => now(),
-            ]);
+                userId: (int) $contract->user_id,
+                contract: $contract,
+            );
 
             return response()->json([
                 'success' => false,
@@ -179,20 +176,16 @@ class ContractSigningController extends Controller
                 'payload_json' => json_encode(['error' => $e->getMessage(), 'links' => $links], JSON_UNESCAPED_UNICODE),
             ]);
 
-            MyLog::create([
-                'type'         => 500,
-                'action'       => 512,
-                'user_id'      => $contract->user_id,
-                'target_type'  => Contract::class,
-                'target_id'    => $contract->id,
-                'target_label' => "Договор № {$contract->id}",
-                'description'  => implode("\n", [
+            $this->contractAudit->record(
+                AuditEvent::ContractSignResentFailed,
+                implode("\n", [
                     'Статус запроса: "' . $oldSrStatus . '" → "' . $sr->status . '"',
                     'Ошибка: ' . $e->getMessage(),
                     'Договор: Договор #' . $contract->id,
                 ]),
-                'created_at'   => now(),
-            ]);
+                userId: (int) $contract->user_id,
+                contract: $contract,
+            );
 
             return response()->json([
                 'success' => false,
@@ -446,16 +439,14 @@ class ContractSigningController extends Controller
             $oldLabel = Contract::$STATUS_RU[$oldStatus] ?? ucfirst($oldStatus);
             $newLabel = Contract::$STATUS_RU[Contract::STATUS_OPENED] ?? 'Opened';
 
-            MyLog::create([
-                'type'         => 2,
-                'action'       => 519,
-                'partner_id'   => $contract->school_id,
-                'author_id'    => $contract->user_id,
-                'target_type'  => Contract::class,
-                'target_id'    => $contract->id,
-                'target_label' => 'Договор #' . $contract->id,
-                'description'  => 'Статус договора: "' . $oldLabel . '" → "' . $newLabel . '"',
-            ]);
+            $this->contractAudit->record(
+                AuditEvent::ContractSmsOpened,
+                'Статус договора: "' . $oldLabel . '" → "' . $newLabel . '"',
+                userId: (int) $contract->user_id,
+                authorId: (int) $contract->user_id,
+                partnerId: (int) $contract->school_id,
+                contract: $contract,
+            );
         } catch (\Throwable $e) {
             Log::error('manualSyncMyLogContractOpened failed', [
                 'contract_id' => $contract->id,
@@ -470,16 +461,14 @@ class ContractSigningController extends Controller
             $oldLabel = Contract::$STATUS_RU[$oldStatus] ?? ucfirst($oldStatus);
             $newLabel = Contract::$STATUS_RU[Contract::STATUS_SIGNED] ?? 'Signed';
 
-            MyLog::create([
-                'type'         => 2,
-                'action'       => 520,
-                'partner_id'   => $contract->school_id,
-                'author_id'    => $contract->user_id,
-                'target_type'  => Contract::class,
-                'target_id'    => $contract->id,
-                'target_label' => 'Договор #' . $contract->id,
-                'description'  => 'Статус договора: "' . $oldLabel . '" → "' . $newLabel . '"',
-            ]);
+            $this->contractAudit->record(
+                AuditEvent::ContractSigned,
+                'Статус договора: "' . $oldLabel . '" → "' . $newLabel . '"',
+                userId: (int) $contract->user_id,
+                authorId: (int) $contract->user_id,
+                partnerId: (int) $contract->school_id,
+                contract: $contract,
+            );
         } catch (\Throwable $e) {
             Log::error('manualSyncMyLogContractSigned failed', [
                 'contract_id' => $contract->id,

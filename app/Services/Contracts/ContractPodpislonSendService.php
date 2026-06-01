@@ -5,7 +5,8 @@ namespace App\Services\Contracts;
 use App\Models\Contract;
 use App\Models\ContractEvent;
 use App\Models\ContractSignRequest;
-use App\Models\MyLog;
+use App\Enums\AuditEvent;
+use App\Services\Audit\ContractAudit;
 use App\Services\Signatures\Providers\PodpislonProvider;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,7 @@ class ContractPodpislonSendService
 {
     public function __construct(
         private readonly SignatureProvider $provider,
+        private readonly ContractAudit $contractAudit,
     ) {
     }
 
@@ -45,20 +47,15 @@ class ContractPodpislonSendService
         ]);
         $contract->signRequests()->save($sr);
 
-        MyLog::create([
-            'type'         => 500,
-            'action'       => 510,
-            'user_id'      => $contract->user_id,
-            'target_type'  => Contract::class,
-            'target_id'    => $contract->id,
-            'target_label' => "Договор № {$contract->id}",
-            'description'  =>
-                "Запрос на подпись создан\n" .
-                "ФИО: {$signerFio}\n" .
-                "Телефон: {$phone}\n" .
-                "TTL (часы): " . ($validated['ttl_hours'] ?? 72),
-            'created_at'   => now(),
-        ]);
+        $this->contractAudit->record(
+            AuditEvent::ContractSignRequestCreated,
+            "Запрос на подпись создан\n" .
+            "ФИО: {$signerFio}\n" .
+            "Телефон: {$phone}\n" .
+            "TTL (часы): " . ($validated['ttl_hours'] ?? 72),
+            userId: (int) $contract->user_id,
+            contract: $contract,
+        );
 
         if ($contract->provider === 'podpislon' && $contract->provider_doc_id) {
             return $this->resendExisting($contract, $sr, $authorId);

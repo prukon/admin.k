@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Users;
 
+use App\Enums\AuditEvent;
 use App\Models\MyLog;
 use App\Models\Partner;
 use App\Models\User;
@@ -101,8 +102,7 @@ class UserAvatarControllerTest extends CrmTestCase
 
         $this->assertDatabaseCount('my_logs', 1);
         $log = MyLog::first();
-        $this->assertEquals(2, $log->type);
-        $this->assertEquals(299, $log->action);
+        $this->assertSame(AuditEvent::UserAvatarDeletedByAdmin->value, $log->event);
         $this->assertEquals($user->id, $log->user_id);
         $this->assertEquals($user->id, $log->target_id);
         $this->assertEquals(User::class, $log->target_type);
@@ -142,7 +142,7 @@ class UserAvatarControllerTest extends CrmTestCase
 
         $log = MyLog::first();
         $this->assertNotNull($log);
-        $this->assertEquals(299, $log->action);
+        $this->assertSame(AuditEvent::UserAvatarDeletedByAdmin->value, $log->event);
     }
 
     /** [P1] Удаление аватарки неавторизованным пользователем */
@@ -353,7 +353,7 @@ class UserAvatarControllerTest extends CrmTestCase
 
         $log = MyLog::first();
         $this->assertNotNull($log);
-        $this->assertEquals(27, $log->action);
+        $this->assertSame(AuditEvent::UserAvatarUpdatedByAdmin->value, $log->event);
         $this->assertEquals($user->id, $log->user_id);
         $this->assertStringContainsString('изменён аватар', $log->description);
     }

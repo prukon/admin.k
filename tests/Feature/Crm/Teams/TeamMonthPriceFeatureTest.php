@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Teams;
 
+use App\Enums\AuditEvent;
 use App\Models\MyLog;
 use App\Models\Team;
 use Tests\Feature\Crm\CrmTestCase;
@@ -148,7 +149,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $log = MyLog::query()
             ->where('target_type', Team::class)
             ->where('target_id', $team->id)
-            ->where('action', 31)
+            ->where('event', AuditEvent::TeamCreated->value)
             ->first();
 
         $this->assertNotNull($log);
@@ -212,7 +213,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $log = MyLog::query()
             ->where('target_type', Team::class)
             ->where('target_id', $team->id)
-            ->where('action', 32)
+            ->where('event', AuditEvent::TeamUpdated->value)
             ->latest('id')
             ->first();
 
@@ -246,7 +247,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $log = MyLog::query()
             ->where('target_type', Team::class)
             ->where('target_id', $team->id)
-            ->where('action', 32)
+            ->where('event', AuditEvent::TeamUpdated->value)
             ->latest('id')
             ->first();
 

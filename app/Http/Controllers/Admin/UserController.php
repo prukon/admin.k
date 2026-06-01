@@ -17,7 +17,9 @@ use App\Models\UserField;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\MyLog;
+use App\Enums\AuditEvent;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Http\Requests\User\UpdateRequest;
 use App\Models\UserFieldValue;
 use Illuminate\Support\Str;
@@ -37,7 +39,11 @@ class UserController extends AdminBaseController
     use BuildsLogTable;
 
 
-    public function __construct(UserService $service, PartnerContext $partnerContext)
+    public function __construct(
+        UserService $service,
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    )
     {
         parent::__construct($partnerContext); // <-- КРИТИЧЕСКИЙ МОМЕНТ
         $this->service = $service;
@@ -493,15 +499,9 @@ class UserController extends AdminBaseController
                 return $value ? Carbon::parse($value)->format('d.m.Y') : '-';
             };
 
-            // Логирование (пишем данные из итоговых сущностей/нормализованных значений)
-            MyLog::create([
-                'type'         => 2,   // юзер-лог
-                'action'       => 21,  // создание учётки
-                'target_type'  => \App\Models\User::class,
-                'target_id'    => $user->id,
-                'user_id'      => $user->id,
-                'target_label' => $user->full_name ?: "user#{$user->id}",
-                'description'  => sprintf(
+            $this->auditLogger->record(
+                AuditEvent::UserCreated,
+                AuditContext::make(sprintf(
                     "Имя: %s\nД.р: %s\nНачало: %s\nГруппа: %s\nEmail: %s\nАктивен: %s\nРоль: %s",
                     $user->full_name ?: "user#{$user->id}",
                     $formatDateForLog($data['birthday']   ?? null),
@@ -510,8 +510,10 @@ class UserController extends AdminBaseController
                     $user->email,
                     ($data['is_enabled'] ?? false) ? 'Да' : 'Нет',
                     $roleNameOrLabel
-                ),
-            ]);
+                ))
+                    ->withUser($user)
+                    ->withTarget($user, $user->full_name ?: "user#{$user->id}")
+            );
         });
 
         if (!$user) {
@@ -815,17 +817,14 @@ class UserController extends AdminBaseController
                     ($user->lastname ? ($user->lastname . ' ') : '') . ($user->name ?? '')
                 );
 
-                MyLog::create([
-                    'type'         => 2,
-                    'action'       => 22, // изменение учётной записи
-                    'user_id'      => $user->id,
-                    'target_type'  => \App\Models\User::class,
-                    'target_id'    => $user->id,
-                    'target_label' => $targetLabel !== ''
-                        ? $targetLabel
-                        : ($user->name ?? "user#{$user->id}"),
-                    'description'  => implode("\n", $changes),
-                ]);
+                $this->auditLogger->record(
+                    AuditEvent::UserUpdated,
+                    AuditContext::make(implode("\n", $changes))
+                        ->withUser($user)
+                        ->withTarget($user, $targetLabel !== ''
+                            ? $targetLabel
+                            : ($user->name ?? "user#{$user->id}"))
+                );
             }
         });
 
@@ -845,16 +844,13 @@ class UserController extends AdminBaseController
 
             $user->delete();
 
-            MyLog::create([
-                'type'         => 2, // Лог для обновления юзеров
-                'action'       => 24,
-                'user_id'      => $user->id,
-                'target_type'  => \App\Models\User::class,
-                'target_id'    => $user->id,
-                'target_label' => $targetLabel,
-                'description'  => "Удален пользователь: {$user->name}  ID: {$user->id}.",
-                'created_at'   => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::UserDeleted,
+                AuditContext::make("Удален пользователь: {$user->name}  ID: {$user->id}.")
+                    ->withUser($user)
+                    ->withTarget($user, $targetLabel)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json([
@@ -890,21 +886,18 @@ class UserController extends AdminBaseController
                 ($user->lastname ? ($user->lastname . ' ') : '') . ($user->name ?? '')
             );
 
-            MyLog::create([
-                'type'         => 2,
-                'action'       => 26,
-                'user_id'      => $user->id,
-                'target_type'  => User::class,
-                'target_id'    => $user->id,
-                'target_label' => $targetLabel !== ''
-                    ? $targetLabel
-                    : ($user->name ?? "user#{$user->id}"),
-                'description'  => sprintf(
+            $this->auditLogger->record(
+                AuditEvent::UserPasswordChanged,
+                AuditContext::make(sprintf(
                     'Пароль пользователя "%s" изменён администратором "%s".',
                     $user->name,
                     $actor?->name ?? 'system'
-                ),
-            ]);
+                ))
+                    ->withUser($user)
+                    ->withTarget($user, $targetLabel !== ''
+                        ? $targetLabel
+                        : ($user->name ?? "user#{$user->id}"))
+            );
         });
 
         return response()->json(['success' => true]);
@@ -912,7 +905,7 @@ class UserController extends AdminBaseController
 
     public function log(FilterRequest $request)
     {
-        return $this->buildLogDataTable(2);
+        return $this->buildLogDataTable('user');
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Settings;
 
+use App\Enums\AuditEvent;
 use App\Models\MenuItem;
 use App\Models\MyLog;
 use App\Models\PartnerSocialLink;
@@ -121,7 +122,7 @@ class SettingsControllerTest extends CrmTestCase
         $this->grantPermissionToCurrentRole('settings.view');
         $this->grantPermissionToCurrentRole('settings.registration.manage');
 
-        $beforeLogs = MyLog::query()->where('action', 70)->where('partner_id', $this->partner->id)->count();
+        $beforeLogs = MyLog::query()->where('event', AuditEvent::SettingsUpdated->value)->where('partner_id', $this->partner->id)->count();
 
         $resp = $this->patchJson(route('registrationActivity'), [
             'isRegistrationActivity' => true,
@@ -135,7 +136,7 @@ class SettingsControllerTest extends CrmTestCase
             'status' => 1,
         ]);
 
-        $afterLogs = MyLog::query()->where('action', 70)->where('partner_id', $this->partner->id)->count();
+        $afterLogs = MyLog::query()->where('event', AuditEvent::SettingsUpdated->value)->where('partner_id', $this->partner->id)->count();
         $this->assertSame($beforeLogs + 1, $afterLogs);
     }
 
@@ -152,7 +153,7 @@ class SettingsControllerTest extends CrmTestCase
     {
         $this->grantPermissionToCurrentRole('settings.view');
 
-        $beforeLogs = MyLog::query()->where('action', 70)->where('partner_id', $this->partner->id)->count();
+        $beforeLogs = MyLog::query()->where('event', AuditEvent::SettingsUpdated->value)->where('partner_id', $this->partner->id)->count();
 
         $resp = $this->postJson(route('textForUsers'), [
             'textForUsers' => 'Hello users',
@@ -166,7 +167,7 @@ class SettingsControllerTest extends CrmTestCase
             'text' => 'Hello users',
         ]);
 
-        $afterLogs = MyLog::query()->where('action', 70)->where('partner_id', $this->partner->id)->count();
+        $afterLogs = MyLog::query()->where('event', AuditEvent::SettingsUpdated->value)->where('partner_id', $this->partner->id)->count();
         $this->assertSame($beforeLogs + 1, $afterLogs);
     }
 
@@ -214,7 +215,7 @@ class SettingsControllerTest extends CrmTestCase
     {
         $this->grantPermissionToCurrentRole('settings.view');
 
-        $beforeLogs = MyLog::query()->where('action', 70)->where('partner_id', $this->partner->id)->count();
+        $beforeLogs = MyLog::query()->where('event', AuditEvent::SettingsUpdated->value)->where('partner_id', $this->partner->id)->count();
 
         $resp = $this->postJson(route('settings.saveMenuItems'), [
             'menu_items' => [
@@ -235,7 +236,7 @@ class SettingsControllerTest extends CrmTestCase
             'target_blank' => 1,
         ]);
 
-        $afterLogs = MyLog::query()->where('action', 70)->where('partner_id', $this->partner->id)->count();
+        $afterLogs = MyLog::query()->where('event', AuditEvent::SettingsUpdated->value)->where('partner_id', $this->partner->id)->count();
         $this->assertSame($beforeLogs + 1, $afterLogs);
     }
 
@@ -324,7 +325,7 @@ class SettingsControllerTest extends CrmTestCase
             'sort' => 10,
         ]);
 
-        $beforeLogs = MyLog::query()->where('action', 70)->where('partner_id', $this->partner->id)->count();
+        $beforeLogs = MyLog::query()->where('event', AuditEvent::SettingsUpdated->value)->where('partner_id', $this->partner->id)->count();
 
         $resp = $this->postJson(route('settings.saveSocialItems'), [
             'partner_social_links' => [
@@ -346,7 +347,7 @@ class SettingsControllerTest extends CrmTestCase
             'sort' => 5,
         ]);
 
-        $afterLogs = MyLog::query()->where('action', 70)->where('partner_id', $this->partner->id)->count();
+        $afterLogs = MyLog::query()->where('event', AuditEvent::SettingsUpdated->value)->where('partner_id', $this->partner->id)->count();
         $this->assertSame($beforeLogs + 1, $afterLogs);
     }
 
@@ -561,8 +562,8 @@ class SettingsControllerTest extends CrmTestCase
     private function createPartnerLog(int $partnerId, string $description): void
     {
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 70,
+            'event' => AuditEvent::SettingsUpdated->value,
+            'level' => AuditEvent::SettingsUpdated->level()->value,
             'author_id' => $this->user->id,
             'partner_id' => $partnerId,
             'target_type' => 'App\Models\Setting',

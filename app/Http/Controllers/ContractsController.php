@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Contract;
 use App\Models\ContractEvent;
 use App\Models\ContractSignRequest;
-use App\Models\MyLog;
+use App\Enums\AuditEvent;
+use App\Services\Audit\ContractAudit;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Services\Signatures\Providers\PodpislonProvider;
@@ -29,6 +30,10 @@ use App\Models\UserTableSetting;
 class ContractsController extends Controller
 {
     use BuildsLogTable;
+
+    public function __construct(
+        private readonly ContractAudit $contractAudit,
+    ) {}
 
    
 
@@ -345,16 +350,12 @@ class ContractsController extends Controller
                 ]);
 
                 // создания договора
-                MyLog::create([
-                    'type' => 500,
-                    'action' => 500,
-                    'user_id'   => $student->id,
-                    'target_type' => 'App\Models\Contract',
-                    'target_id' => $partner->id,
-                    'target_label' => $partner->title,
-                    'description' => ("Договор создан: № " . $contract->id ),
-                    'created_at' => now(),
-                ]);
+                $this->contractAudit->record(
+                    AuditEvent::ContractCreated,
+                    'Договор создан: № ' . $contract->id,
+                    userId: (int) $student->id,
+                    partner: $partner,
+                );
 
                 return $contract;
             });
@@ -674,21 +675,16 @@ class ContractsController extends Controller
 //            ]
 //        );
 
-        MyLog::create([
-            'type' => 500,
-            'action' => 510,
-            'user_id' => $contract->user_id,
-            'target_type' => 'App\Models\Contract',
-            'target_id' => $contract->id,
-            'target_label' => "Договор № {$contract->id}",
-            'description' =>
-                "Запрос на подпись создан!!!\n" .
-                "ФИО: {$signerFio}\n" .
-                "Телефон: {$phone}\n" .
-                "TTL (часы): " . ($validated['ttl_hours'] ?? 72) . "\n" .
-                "Договор: Договор #{$contract->id}",
-            'created_at' => now(),
-        ]);
+        $this->contractAudit->record(
+            AuditEvent::ContractSignRequestCreated,
+            "Запрос на подпись создан!!!\n" .
+            "ФИО: {$signerFio}\n" .
+            "Телефон: {$phone}\n" .
+            "TTL (часы): " . ($validated['ttl_hours'] ?? 72) . "\n" .
+            "Договор: Договор #{$contract->id}",
+            userId: (int) $contract->user_id,
+            contract: $contract,
+        );
 
 
 
@@ -738,17 +734,12 @@ class ContractsController extends Controller
 //                            $changes
 //                        );
                         // создания договора
-                        MyLog::create([
-                            'type' => 500,
-                            'action' => 511,
-                            'user_id' => $contract->user_id,
-                            'target_type' => 'App\Models\Contract',
-                            'target_id' => $contract->id,
-                            'target_label' => "Договор № {$contract->id}",
-//                            'description' => $changes,
-                            'description' => implode("\n", $changes),
-                            'created_at' => now(),
-                        ]);
+                        $this->contractAudit->record(
+                            AuditEvent::ContractSignResentSuccess,
+                            implode("\n", $changes),
+                            userId: (int) $contract->user_id,
+                            contract: $contract,
+                        );
                     }
 
                     \App\Models\ContractEvent::create([
@@ -790,19 +781,15 @@ class ContractsController extends Controller
 //                    ]
 //                );
 
-                MyLog::create([
-                    'type' => 500,
-                    'action' => 512,
-                    'user_id' => $contract->user_id,
-                    'target_type' => 'App\Models\Contract',
-                    'target_id' => $contract->id,
-                    'target_label' => "Договор № {$contract->id}",
-                    'description' =>   [
+                $this->contractAudit->record(
+                    AuditEvent::ContractSignResentFailed,
+                    implode("\n", [
                         'Статус запроса: "' . $oldSrStatus . '" → "' . $sr->status . '"',
                         'Договор: ' . 'Договор #' . $contract->id,
-                    ],
-                    'created_at' => now(),
-                ]);
+                    ]),
+                    userId: (int) $contract->user_id,
+                    contract: $contract,
+                );
 
 
 
@@ -862,16 +849,12 @@ class ContractsController extends Controller
                     'Договор: ' . 'Договор #' . $contract->id,
                 ];
 
-                MyLog::create([
-                    'type' => 500,
-                    'action' => 512,
-                    'user_id' => $contract->user_id,
-                    'target_type' => 'App\Models\Contract',
-                    'target_id' => $contract->id,
-                    'target_label' => "Договор № {$contract->id}",
-                    'description' => implode("\n", $lines),
-                    'created_at' => now(),
-                ]);
+                $this->contractAudit->record(
+                    AuditEvent::ContractSignResentFailed,
+                    implode("\n", $lines),
+                    userId: (int) $contract->user_id,
+                    contract: $contract,
+                );
 
                 return response()->json([
                     'success' => false,
@@ -918,17 +901,12 @@ class ContractsController extends Controller
 //                    );
 
 
-                    MyLog::create([
-                        'type' => 500,
-                        'action' => 513,
-                        'user_id' => $contract->user_id,
-                        'target_type' => 'App\Models\Contract',
-                        'target_id' => $contract->id,
-                        'target_label' => "Договор № {$contract->id}",
-//                        'description' => $changes,
-                        'description' => implode("\n", $changes),
-                        'created_at' => now(),
-                    ]);
+                    $this->contractAudit->record(
+                        AuditEvent::ContractSignSentSuccess,
+                        implode("\n", $changes),
+                        userId: (int) $contract->user_id,
+                        contract: $contract,
+                    );
 
                 }
 
@@ -969,18 +947,13 @@ class ContractsController extends Controller
 //                ]
 //            );
 
-            MyLog::create([
-                'type' => 500,
-                'action' => 514,
-                'user_id' => $contract->user_id,
-                'target_type' => 'App\Models\Contract',
-                'target_id' => $contract->id,
-                'target_label' => "Договор № {$contract->id}",
-                'description' =>
-                    "Статус запроса: \"{$oldSrStatus}\" → \"{$sr->status}\"\n" .
-                    "Статус договора: \"{$oldContractStatus}\" → \"{$contract->status}\"",
-                'created_at' => now(),
-            ]);
+            $this->contractAudit->record(
+                AuditEvent::ContractSignSentFailed,
+                "Статус запроса: \"{$oldSrStatus}\" → \"{$sr->status}\"\n" .
+                "Статус договора: \"{$oldContractStatus}\" → \"{$contract->status}\"",
+                userId: (int) $contract->user_id,
+                contract: $contract,
+            );
 
 
             return response()->json([
@@ -1019,20 +992,14 @@ class ContractsController extends Controller
 //                ]
 //            );
 
-            MyLog::create([
-                'type' => 500,
-                'action' => 514,
-                'user_id' => $contract->user_id,
-                'target_type' => 'App\Models\Contract',
-                'target_id' => $contract->id,
-                'target_label' => "Договор № {$contract->id}",
-                'description' =>
-                    "Статус запроса: \"{$oldSrStatus}\" → \"{$sr->status}\"\n" .
-                    "Статус договора: \"{$oldContractStatus}\" → \"{$contract->status}\"\n" .
-                    "Ошибка: {$e->getMessage()}",
-
-                'created_at' => now(),
-            ]);
+            $this->contractAudit->record(
+                AuditEvent::ContractSignSentFailed,
+                "Статус запроса: \"{$oldSrStatus}\" → \"{$sr->status}\"\n" .
+                "Статус договора: \"{$oldContractStatus}\" → \"{$contract->status}\"\n" .
+                "Ошибка: {$e->getMessage()}",
+                userId: (int) $contract->user_id,
+                contract: $contract,
+            );
 
 
 

@@ -2,14 +2,20 @@
 
 namespace App\Services\Roles;
 
-use App\Models\MyLog;
+use App\Enums\AuditEvent;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PartnerRoleDeletionService
 {
+    public function __construct(
+        private readonly AuditLogger $auditLogger,
+    ) {}
+
     /**
      * Удаляет кастомную роль в контексте одного партнёра:
      * снимает права и привязку partner_role, переводит пользователей этой школы на роль user,
@@ -76,14 +82,13 @@ class PartnerRoleDeletionService
                 $role->delete();
             }
 
-            MyLog::create([
-                'type' => 700,
-                'action' => 730,
-                'author_id' => $authorId,
-                'partner_id' => $partnerId,
-                'description' => sprintf('Название: %s', $roleName !== '' ? $roleName : $roleLabel),
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::RoleDeleted,
+                AuditContext::make(sprintf('Название: %s', $roleName !== '' ? $roleName : $roleLabel))
+                    ->withAuthorId($authorId)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(now())
+            );
         });
     }
 }

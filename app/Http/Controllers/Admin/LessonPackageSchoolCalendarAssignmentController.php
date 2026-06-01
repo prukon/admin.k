@@ -10,8 +10,10 @@ use App\Http\Requests\Admin\AssignSchoolCalendarFlexibleRequest;
 use App\Http\Requests\Admin\AssignSchoolCalendarSingleLessonRequest;
 use App\Http\Requests\Admin\AssignSchoolCalendarTrialRequest;
 use App\Http\Requests\Admin\StoreSchoolCalendarSingleLessonRegistrationRequest;
+use App\Enums\AuditEvent;
 use App\Models\LessonPackage;
-use App\Models\MyLog;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Models\TeamScheduleSlot;
 use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
@@ -40,6 +42,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         private readonly SchoolCalendarTrialEligibilityService $trialEligibilityService,
         private readonly SchoolCalendarSlotUserBindActionsService $slotUserBindActionsService,
         private readonly SchoolCalendarSingleLessonRegistrationService $singleLessonRegistrationService,
+        private readonly AuditLogger $auditLogger,
     ) {
         parent::__construct($partnerContext);
     }
@@ -815,17 +818,18 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 $whenPart = $occurrenceDate !== '' ? ('; дата: '.$occurrenceDate) : '';
                 $timePart = $timeLabel !== '' ? (' '.$timeLabel) : '';
 
-                MyLog::query()->create([
-                    'type' => 60,
-                    'action' => 601,
-                    'author_id' => auth()->id(),
-                    'partner_id' => $partnerId,
-                    'user_id' => $userId,
-                    'description' => 'Отменено пробное занятие в расписании; ученик: '.$userLabel.$slotPart.$whenPart.$timePart,
-                    'target_type' => UserTeamScheduleSlot::class,
-                    'target_id' => $trialId,
-                    'target_label' => $userLabel.', пробное занятие, '.$occurrenceDate.($timeLabel !== '' ? (' '.$timeLabel) : ''),
-                ]);
+                $this->auditLogger->record(
+                    AuditEvent::ScheduleTrialCancelled,
+                    AuditContext::make('Отменено пробное занятие в расписании; ученик: '.$userLabel.$slotPart.$whenPart.$timePart)
+                        ->withAuthorId((int) auth()->id())
+                        ->withPartnerId($partnerId)
+                        ->withUserId($userId)
+                        ->withTargetReference(
+                            UserTeamScheduleSlot::class,
+                            $trialId,
+                            $userLabel.', пробное занятие, '.$occurrenceDate.($timeLabel !== '' ? (' '.$timeLabel) : '')
+                        )
+                );
             });
         } catch (\Throwable $e) {
             report($e);

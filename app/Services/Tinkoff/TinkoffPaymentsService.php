@@ -10,7 +10,9 @@ use App\Models\User;
 use App\Models\UserPrice;
 use App\Models\UserCustomPayment;
 use App\Models\UserLessonPackage;
-use App\Models\MyLog;
+use App\Enums\AuditEvent;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Models\TinkoffPayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +32,7 @@ class TinkoffPaymentsService
 {
     public function __construct(
         private readonly TbankWebhookPaymentMethodResolver $webhookPaymentMethodResolver,
+        private readonly AuditLogger $auditLogger,
     ) {
     }
 
@@ -453,14 +456,13 @@ class TinkoffPaymentsService
                     ]
                 );
 
-                MyLog::create([
-                    'type'        => 5,
-                    'action'      => 50,
-                    'author_id'   => (int) $locked->user_id,
-                    'partner_id'  => (int) $locked->partner_id,
-                    'description' => "TBank payment CONFIRMED. PaymentId: ".($webhook['PaymentId'] ?? '').". OrderId: ".($webhook['OrderId'] ?? '').".",
-                    'created_at'  => now(),
-                ]);
+                $this->auditLogger->record(
+                    AuditEvent::PaymentReceived,
+                    AuditContext::make('TBank payment CONFIRMED. PaymentId: '.($webhook['PaymentId'] ?? '').'. OrderId: '.($webhook['OrderId'] ?? '').'.')
+                        ->withAuthorId((int) $locked->user_id)
+                        ->withPartnerId((int) $locked->partner_id)
+                        ->withCreatedAt(now())
+                );
 
                 $locked->status = 'paid';
                 $locked->paid_at = now();

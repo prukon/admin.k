@@ -3,19 +3,23 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Enums\AuditEvent;
 use App\Http\Requests\Admin\StoreScheduleStatusRequest;
 use App\Http\Requests\Admin\UpdateScheduleStatusRequest;
-use App\Models\MyLog;
 use App\Models\Status;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
+use App\Services\PartnerContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use App\Services\PartnerContext;
 
 class StatusController extends AdminBaseController
 {
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -91,13 +95,12 @@ class StatusController extends AdminBaseController
             $status->save();
 
             // Логирование
-            MyLog::create([
-                'type' => 9,
-                'action' => 90,
-                'author_id' => $authorId,
-                'description' => ("Создание статуса расписания: " . $status->name . ", ID: " . $status->id),
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::ScheduleStatusCreated,
+                AuditContext::make('Создание статуса расписания: ' . $status->name . ', ID: ' . $status->id)
+                    ->withAuthorId($authorId)
+                    ->withCreatedAt(now())
+            );
         });
 
         // Теперь $status доступен здесь
@@ -130,14 +133,13 @@ class StatusController extends AdminBaseController
             $status->save();
 
             // 3) Логируем создание
-            MyLog::create([
-                'type'        => 9,
-                'action'      => 90,
-                'author_id'   => $authorId,
-                'partner_id'  => $partnerId,     // ИЗМЕНЕНИЕ #3: логируем partner_id
-                'description' => "Создание статуса расписания: {$status->name}, ID: {$status->id}",
-                'created_at'  => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::ScheduleStatusCreated,
+                AuditContext::make("Создание статуса расписания: {$status->name}, ID: {$status->id}")
+                    ->withAuthorId($authorId)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(now())
+            );
         });
 
         // 4) Возвращаем созданный статус
@@ -195,14 +197,13 @@ class StatusController extends AdminBaseController
             );
 
             // ИЗМЕНЕНИЕ #3: сохраняем partner_id в логе
-            MyLog::create([
-                'type'        => 9,
-                'action'      => 91,
-                'author_id'   => $authorId,
-                'partner_id'  => $partnerId,
-                'description' => $description,
-                'created_at'  => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::ScheduleStatusUpdated,
+                AuditContext::make($description)
+                    ->withAuthorId($authorId)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json([
@@ -233,14 +234,13 @@ class StatusController extends AdminBaseController
             $status->delete();
 
             // логируем удаление
-            MyLog::create([
-                'type'        => 9,
-                'action'      => 92,
-                'author_id'   => $authorId,
-                'partner_id'  => $partnerId, // ← ИЗМЕНЕНИЕ #3: сохраняем partner_id в логе
-                'description' => "Удаление статуса расписания: {$status->name}, ID: {$status->id}",
-                'created_at'  => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::ScheduleStatusDeleted,
+                AuditContext::make("Удаление статуса расписания: {$status->name}, ID: {$status->id}")
+                    ->withAuthorId($authorId)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json(['success' => true]);

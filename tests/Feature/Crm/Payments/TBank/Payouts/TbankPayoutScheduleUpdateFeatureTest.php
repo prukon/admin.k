@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Payments\TBank\Payouts;
 
+use App\Enums\AuditEvent;
 use App\Models\TinkoffPayout;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -80,8 +81,8 @@ class TbankPayoutScheduleUpdateFeatureTest extends CrmTestCase
         $this->assertSame(auth()->id(), $state['when_to_run_changes'][0]['user_id'] ?? null);
 
         $this->assertDatabaseHas('my_logs', [
-            'type' => 6,
-            'action' => 61,
+            'event' => AuditEvent::PaymentPayoutScheduleChanged->value,
+            'level' => AuditEvent::PaymentPayoutScheduleChanged->level()->value,
             'partner_id' => $this->partner->id,
             'target_type' => TinkoffPayout::class,
             'target_id' => $payout->id,

@@ -8,6 +8,7 @@ use App\Models\PartnerAccess;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 use App\Services\Users\FamilyStudentContextService;
 use Illuminate\Pagination\Paginator;
@@ -53,6 +54,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(FamilyStudentContextService::class);
+
+        $this->app->singleton(AuditLogger::class);
+
+        $this->app->singleton(\App\Services\Audit\ContractAudit::class);
 
         // Чтобы не ломать существующий app('current_partner')->id
         $this->app->singleton('current_partner', function () {

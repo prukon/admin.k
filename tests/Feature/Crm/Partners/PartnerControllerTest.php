@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Partners;
 
+use App\Enums\AuditEvent;
 use App\Models\MyLog;
 use App\Models\Partner;
 use App\Models\User;
@@ -213,8 +214,7 @@ class PartnerControllerTest extends CrmTestCase
         $this->asSuperadmin();
 
         $beforeLogs = MyLog::query()
-            ->where('type', 80)
-            ->where('action', 81)
+            ->where('event', AuditEvent::PartnerCreated->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -236,16 +236,15 @@ class PartnerControllerTest extends CrmTestCase
         ]);
 
         $afterLogs = MyLog::query()
-            ->where('type', 80)
-            ->where('action', 81)
+            ->where('event', AuditEvent::PartnerCreated->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
         $this->assertSame($beforeLogs + 1, $afterLogs);
 
         $this->assertDatabaseHas('my_logs', [
-            'type' => 80,
-            'action' => 81,
+            'event' => AuditEvent::PartnerCreated->value,
+            'level' => AuditEvent::PartnerCreated->level()->value,
             'partner_id' => $this->partner->id,
             'author_id' => $this->user->id,
             'target_type' => Partner::class,
@@ -286,8 +285,7 @@ class PartnerControllerTest extends CrmTestCase
         ]);
 
         $before = MyLog::query()
-            ->where('type', 80)
-            ->where('action', 82)
+            ->where('event', AuditEvent::PartnerUpdatedBySuperadmin->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -308,8 +306,7 @@ class PartnerControllerTest extends CrmTestCase
         ]);
 
         $after = MyLog::query()
-            ->where('type', 80)
-            ->where('action', 82)
+            ->where('event', AuditEvent::PartnerUpdatedBySuperadmin->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -331,16 +328,14 @@ class PartnerControllerTest extends CrmTestCase
         $partner = Partner::factory()->create($payload);
 
         $before = MyLog::query()
-            ->where('type', 80)
-            ->where('action', 82)
+            ->where('event', AuditEvent::PartnerUpdatedBySuperadmin->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
         $this->patchJson(route('admin.partner.update', $partner), $payload)->assertOk();
 
         $after = MyLog::query()
-            ->where('type', 80)
-            ->where('action', 82)
+            ->where('event', AuditEvent::PartnerUpdatedBySuperadmin->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -357,8 +352,7 @@ class PartnerControllerTest extends CrmTestCase
         ]);
 
         $before = MyLog::query()
-            ->where('type', 80)
-            ->where('action', 83)
+            ->where('event', AuditEvent::PartnerDeleted->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -371,8 +365,7 @@ class PartnerControllerTest extends CrmTestCase
         ]);
 
         $after = MyLog::query()
-            ->where('type', 80)
-            ->where('action', 83)
+            ->where('event', AuditEvent::PartnerDeleted->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 

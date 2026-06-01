@@ -4,19 +4,23 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Partner\UpdateRequest;
+use App\Enums\AuditEvent;
 use App\Models\Partner;
-use App\Models\User;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 use App\Services\UserService;
 use Illuminate\Support\Facades\DB;
-use App\Models\MyLog;
 
 class PartnerSettingController extends AdminBaseController
 {
     protected UserService $service;
 
-    public function __construct(UserService $service, PartnerContext $partnerContext)
-    {
+    public function __construct(
+        UserService $service,
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
         parent::__construct($partnerContext);
         $this->service = $service;
     }
@@ -103,13 +107,12 @@ class PartnerSettingController extends AdminBaseController
                 . "Старые:\n{$oldString}.\n"
                 . "Новые:\n{$newString}.";
 
-            MyLog::create([
-                'type'       => 2,
-                'action'     => 80,
-                'author_id'  => $authorId,
-                'description'=> $description,
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::PartnerSettingsUpdated,
+                AuditContext::make($description)
+                    ->withAuthorId($authorId)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json([

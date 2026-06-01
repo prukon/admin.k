@@ -24,8 +24,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use App\Models\MyLog;
-
+use App\Enums\AuditEvent;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Support\BuildsLogTable;
 use App\Services\PartnerContext;
 
@@ -37,7 +38,11 @@ class PartnerController extends AdminBaseController
 
     protected TeamService $service;
 
-    public function __construct(TeamService $service, PartnerContext $partnerContext)
+    public function __construct(
+        TeamService $service,
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    )
     {
         parent::__construct($partnerContext);
         $this->service = $service;
@@ -219,17 +224,14 @@ class PartnerController extends AdminBaseController
             $lines[] = "Отчество руководителя: " . ($ceo['middleName'] ?? '—');
             $lines[] = "Телефон руководителя: " . ($ceo['phone'] ?? '—');
 
-            MyLog::create([
-                'type' => 80,
-                'action' => 81,
-                'partner_id' => $partnerId,
-                'author_id' => $authorId,
-                'target_type' => 'App\Models\Partner',
-                'target_id' => $partner->id,
-                'target_label' => $partner->title,
-                'description' => "Создан новый партнёр:\n" . implode("\n", $lines),
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::PartnerCreated,
+                AuditContext::make("Создан новый партнёр:\n" . implode("\n", $lines))
+                    ->withTarget($partner, $partner->title)
+                    ->withAuthorId($authorId)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json([
@@ -417,17 +419,14 @@ class PartnerController extends AdminBaseController
                 $description = implode(";\n", $changes) . "\n";
 
             //Изменение партнера
-                MyLog::create([
-                    'type' => 80,
-                    'action' => 82,
-                    'partner_id' => $partnerId,
-                    'author_id' => $authorId,
-                    'target_type' => 'App\Models\Partner',
-                    'target_id' => $partner->id,
-                    'target_label' => $partner->title,
-                    'description' => $description,
-                    'created_at' => now(),
-                ]);
+                $this->auditLogger->record(
+                    AuditEvent::PartnerUpdatedBySuperadmin,
+                    AuditContext::make($description)
+                        ->withTarget($partner, $partner->title)
+                        ->withAuthorId($authorId)
+                        ->withPartnerId($partnerId)
+                        ->withCreatedAt(now())
+                );
             }
 
             Log::info('[Partner.update] updated', [
@@ -509,17 +508,14 @@ class PartnerController extends AdminBaseController
             }
 
             // Запись лога удаления
-            MyLog::create([
-                'type' => 80,      // ваш код типа лога
-                'action' => 83,      // ваш код действия «удаление партнёра»
-                'partner_id' => $partnerId,
-                'author_id' => $authorId,
-                'target_type' => 'App\Models\Partner',
-                'target_id' => $partner->id,
-                'target_label' => $partner->title,
-                'description' => "Удалён партнёр:\n" . implode("\n", $lines),
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::PartnerDeleted,
+                AuditContext::make("Удалён партнёр:\n" . implode("\n", $lines))
+                    ->withTarget($partner, $partner->title)
+                    ->withAuthorId($authorId)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json([
@@ -529,7 +525,7 @@ class PartnerController extends AdminBaseController
 
     public function log(FilterRequest $request)
     {
-        return $this->buildLogDataTable(80);
+        return $this->buildLogDataTable('partner');
     }
 
     /** СНО: 0=OSN, 1=USN income, 2=USN income-expense, 3=ENVD, 4=ESHN, 5=Patent */

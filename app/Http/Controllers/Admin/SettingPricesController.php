@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\SetManualUserPricePaidRequest;
 use App\Http\Requests\Team\FilterRequest;
+use App\Enums\AuditEvent;
 use App\Models\Partner;
 use App\Models\Setting;
 use App\Models\Team;
@@ -13,9 +14,10 @@ use App\Models\UserPrice;
 use App\Models\User;
 use App\Models\Weekday;
 use App\Models\UserCustomPayment;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use App\Models\MyLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
@@ -30,8 +32,10 @@ class SettingPricesController extends AdminBaseController
 {
     use BuildsLogTable;
 
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -607,16 +611,13 @@ class SettingPricesController extends AdminBaseController
                 $comment
             );
 
-            MyLog::create([
-                'type'         => 1,
-                'action'       => 14,
-                'user_id'      => $userId,
-                'target_type'  => UserPrice::class,
-                'target_id'    => $row->id,
-                'target_label' => $studentLabel,
-                'description'  => $description,
-                'created_at'   => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::PricingManualMonthPaid,
+                AuditContext::make($description)
+                    ->withUserId($userId)
+                    ->withTargetReference(UserPrice::class, (int) $row->id, $studentLabel)
+                    ->withCreatedAt(now())
+            );
         });
 
         $row->refresh();
@@ -717,15 +718,12 @@ class SettingPricesController extends AdminBaseController
                 ]
             );
 
-            MyLog::create([
-                'type'         => 1,
-                'action'       => 13, // Изменение цен в одной группе
-                'description'  => "Обновлена цена: {$teamPrice} руб. Период: {$selectedDateString}.",
-                'target_type'  => 'App\Models\UserPrice',
-                'target_id'    => $team->id,
-                'target_label' => $teamTitle,
-                'created_at'   => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::PricingTeamApply,
+                AuditContext::make("Обновлена цена: {$teamPrice} руб. Период: {$selectedDateString}.")
+                    ->withTargetReference('App\Models\UserPrice', (int) $team->id, $teamTitle)
+                    ->withCreatedAt(now())
+            );
 
             $users = User::where('team_id', $team->id)
                 ->where('is_enabled', 1)
@@ -809,15 +807,12 @@ class SettingPricesController extends AdminBaseController
                     ]
                 );
 
-                MyLog::create([
-                    'type'         => 1,
-                    'action'       => 11, // Изменение цен во всех группах
-                    'target_type'  => 'App\Models\UserPrice',
-                    'target_id'    => $team->id,
-                    'target_label' => $team->title,
-                    'description'  => "Обновлена цена: {$teamData['price']} руб. Период: {$selectedDateString}.",
-                    'created_at'   => now(),
-                ]);
+                $this->auditLogger->record(
+                    AuditEvent::PricingBulkApply,
+                    AuditContext::make("Обновлена цена: {$teamData['price']} руб. Период: {$selectedDateString}.")
+                        ->withTargetReference('App\Models\UserPrice', (int) $team->id, $team->title)
+                        ->withCreatedAt(now())
+                );
 
                 $users = User::where('team_id', $team->id)
                     ->where('is_enabled', 1)
@@ -899,16 +894,13 @@ class SettingPricesController extends AdminBaseController
 
                     $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
 
-                    MyLog::create([
-                        'type'         => 1,
-                        'action'       => 12,
-                        'user_id'      => $userId,
-                        'target_type'  => 'App\Models\UserPrice',
-                        'target_id'    => $userId,
-                        'target_label' => $userName,
-                        'description'  => "Обновлена цена: {$priceData['price']} руб. Период: {$selectedDateString}.",
-                        'created_at'   => now(),
-                    ]);
+                    $this->auditLogger->record(
+                        AuditEvent::PricingStudentApply,
+                        AuditContext::make("Обновлена цена: {$priceData['price']} руб. Период: {$selectedDateString}.")
+                            ->withUserId($userId)
+                            ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
+                            ->withCreatedAt(now())
+                    );
                 }
             }
         });
@@ -976,16 +968,13 @@ class SettingPricesController extends AdminBaseController
             $userName = $priceData['user']['name'] ?? 'Неизвестный пользователь';
 
             // ПРИМЕНИТЬ справа. Установка цен всем ученикам
-            MyLog::create([
-                'type'         => 1,
-                'action'       => 12, // Лог для обновления цены ученика
-                'user_id'      => $userId,
-                'target_type'  => 'App\Models\UserPrice',
-                'target_id'    => $userId,
-                'target_label' => $userName,
-                'description'  => "Обновлена цена: {$newPrice} руб. Период: {$selectedDateString}.",
-                'created_at'   => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::PricingStudentApply,
+                AuditContext::make("Обновлена цена: {$newPrice} руб. Период: {$selectedDateString}.")
+                    ->withUserId($userId)
+                    ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
+                    ->withCreatedAt(now())
+            );
         }
     });
 
@@ -1120,16 +1109,13 @@ class SettingPricesController extends AdminBaseController
                             'price' => $price,
                         ]);
 
-                        MyLog::create([
-                            'type'         => 1,
-                            'action'       => 12,
-                            'user_id'      => $userId,
-                            'target_type'  => 'App\Models\UserPrice',
-                            'target_id'    => $userPrice->id,
-                            'target_label' => $userPrice->user->name ?? 'Пользователь',
-                            'description'  => "Обновлена цена: {$price} руб. Период: {$monthLabel}.",
-                            'created_at'   => now(),
-                        ]);
+                        $this->auditLogger->record(
+                            AuditEvent::PricingStudentApply,
+                            AuditContext::make("Обновлена цена: {$price} руб. Период: {$monthLabel}.")
+                                ->withUserId($userId)
+                                ->withTargetReference('App\Models\UserPrice', (int) $userPrice->id, $userPrice->user->name ?? 'Пользователь')
+                                ->withCreatedAt(now())
+                        );
                     }
                 } else {
                     $created = UserPrice::create([
@@ -1139,16 +1125,13 @@ class SettingPricesController extends AdminBaseController
                         'is_paid'   => false,
                     ]);
 
-                    MyLog::create([
-                        'type'         => 1,
-                        'action'       => 12,
-                        'user_id'      => $userId,
-                        'target_type'  => 'App\Models\UserPrice',
-                        'target_id'    => $created->id,
-                        'target_label' => $created->user->name ?? 'Пользователь',
-                        'description'  => "Установлена цена: {$price} руб. Период: {$monthLabel}.",
-                        'created_at'   => now(),
-                    ]);
+                    $this->auditLogger->record(
+                        AuditEvent::PricingStudentApply,
+                        AuditContext::make("Установлена цена: {$price} руб. Период: {$monthLabel}.")
+                            ->withUserId($userId)
+                            ->withTargetReference('App\Models\UserPrice', (int) $created->id, $created->user->name ?? 'Пользователь')
+                            ->withCreatedAt(now())
+                    );
                 }
             }
         });
@@ -1161,6 +1144,6 @@ class SettingPricesController extends AdminBaseController
     // Метод для обработки DataTables запросов (логи)
     public function getLogsData(FilterRequest $request)
     {
-        return $this->buildLogDataTable(1);
+        return $this->buildLogDataTable('pricing');
     }
 }

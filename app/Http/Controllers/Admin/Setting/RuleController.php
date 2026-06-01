@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Admin\Setting;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Enums\AuditEvent;
 use App\Http\Requests\Team\FilterRequest;
-use App\Models\MyLog;
 use App\Models\MenuItem;
+use App\Models\MyLog;
+use App\Support\AuditLogQueryScopes;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\TeamPrice;
@@ -34,6 +38,7 @@ class RuleController extends AdminBaseController
         PartnerContext $partnerContext,
         private readonly AssignPartnerRolePermissionsFromConfig $assignPartnerRolePermissionsFromConfig,
         private readonly PartnerRoleDeletionService $partnerRoleDeletionService,
+        private readonly AuditLogger $auditLogger,
     ) {
         parent::__construct($partnerContext);
     }
@@ -151,20 +156,19 @@ class RuleController extends AdminBaseController
                     ]);
 
                     // ЛОГ: назначено право
-                    MyLog::create([
-                        'type'        => 700,
-                        'action'      => 741, // «Назначение права роли»
-                        'author_id'   => $authorId,
-                        'partner_id'  => $partnerId,
-                        'description' => sprintf(
+                    $this->auditLogger->record(
+                        AuditEvent::RolePermissionGranted,
+                        AuditContext::make(sprintf(
                             'Назначено право "%s" (%s) роли "%s" (name=%s)',
                             $perm->description ?? $perm->name,
                             $perm->name,
                             $role->label ?? $role->name,
                             $role->name
-                        ),
-                        'created_at'  => now(),
-                    ]);
+                        ))
+                            ->withAuthorId($authorId)
+                            ->withPartnerId($partnerId)
+                            ->withCreatedAt(now())
+                    );
                 }
                 // если уже было — просто молча выходим без лишнего лога
             } else {
@@ -176,20 +180,19 @@ class RuleController extends AdminBaseController
                         ->delete();
 
                     // ЛОГ: снято право
-                    MyLog::create([
-                        'type'        => 700,
-                        'action'      => 742, // «Снятие права у роли»
-                        'author_id'   => $authorId,
-                        'partner_id'  => $partnerId,
-                        'description' => sprintf(
+                    $this->auditLogger->record(
+                        AuditEvent::RolePermissionRevoked,
+                        AuditContext::make(sprintf(
                             'Снято право "%s" (%s) с роли "%s" (name=%s)',
                             $perm->description ?? $perm->name,
                             $perm->name,
                             $role->label ?? $role->name,
                             $role->name
-                        ),
-                        'created_at'  => now(),
-                    ]);
+                        ))
+                            ->withAuthorId($authorId)
+                            ->withPartnerId($partnerId)
+                            ->withCreatedAt(now())
+                    );
                 }
                 // если и так не было — тоже без лога
             }
@@ -246,14 +249,13 @@ class RuleController extends AdminBaseController
             $permissionIds = $this->assignPartnerRolePermissionsFromConfig
                 ->assignFromConfigRoleKey($role->id, $partnerId, 'admin')['permission_ids'];
 
-            MyLog::create([
-                'type'        => 700,
-                'action'      => 710,
-                'author_id'   => auth()->id(),
-                'partner_id'  => $partnerId,
-                'description' => "Создана роль: {$role->label} (name={$role->name})",
-                'created_at'  => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::RoleCreated,
+                AuditContext::make("Создана роль: {$role->label} (name={$role->name})")
+                    ->withAuthorId((int) auth()->id())
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json([
@@ -298,9 +300,8 @@ class RuleController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
 
         $logs = MyLog::with('author')
-            ->where('type', 700) // Настройки логи
-            ->where('partner_id', $partnerId)        // ИЗМЕНЕНИЕ #2: добавляем фильтр по partner_id
-
+            ->where('partner_id', $partnerId)
+            ->tap(fn ($query) => AuditLogQueryScopes::applyCategoryScope($query, 'role'))
             ->select('my_logs.*');
         return DataTables::of($logs)
             ->addColumn('author', function ($log) {
@@ -310,14 +311,7 @@ class RuleController extends AdminBaseController
                 return $log->created_at->format('d.m.Y / H:i:s');
             })
             ->editColumn('action', function ($log) {
-                // Логика для преобразования типа
-                $typeLabels = [
-                    710 => 'Создание роли',
-                    720 => 'Изменение роли',
-                    730 => 'Удаление роли',
-
-                ];
-                return $typeLabels[$log->action] ?? 'Неизвестный тип(user)';
+                return $log->eventLabel();
             })
             ->make(true);
     }

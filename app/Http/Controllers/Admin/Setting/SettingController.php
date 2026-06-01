@@ -6,8 +6,11 @@ use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Team\FilterRequest;
 use App\Http\Requests\Setting\SaveMenuItemsRequest;
 use App\Http\Requests\Setting\SaveSocialItemsRequest;
-use App\Models\MyLog;
+use App\Enums\AuditEvent;
+use App\Enums\AuditLevel;
 use App\Models\MenuItem;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Models\PartnerSocialLink;
 use App\Models\Setting;
 use App\Models\SocialNetwork;
@@ -31,8 +34,10 @@ class SettingController extends AdminBaseController
     private const URL_REGEX = '/^(\/[\\S]*|https?:\\/\\/[^\s]+)$/';
     private const MENU_ITEM_NAME_REGEX = '/^[\pL\pN\s]+$/u';
 
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -128,8 +133,8 @@ class SettingController extends AdminBaseController
 
     public function showLogs()
     {
-        $logActionLabels = MyLog::actionLabels();
-        asort($logActionLabels);
+        $logEventLabels = AuditEvent::labelsForUi();
+        $logLevelLabels = AuditLevel::labelsForUi();
 
         $logPartners = collect();
         if ($this->isSuperAdmin()) {
@@ -140,7 +145,8 @@ class SettingController extends AdminBaseController
 
         return view('admin.setting.index', [
             'activeTab' => 'logs',
-            'logActionLabels' => $logActionLabels,
+            'logEventLabels' => $logEventLabels,
+            'logLevelLabels' => $logLevelLabels,
             'isLogsSuperadmin' => $this->isSuperAdmin(),
             'logPartners' => $logPartners,
         ]);
@@ -228,17 +234,14 @@ class SettingController extends AdminBaseController
             }
 
             // Логирование изменения пароля
-            MyLog::create([
-                'type' => 1,
-                'action' => 70,
-                'author_id' => $authorId,
-                'partner_id' => $partner->id,
-                'target_type' => 'App\Models\Setting',
-                'target_id' => $partner->id,
-                'target_label' => $partner->title,
-                'description' => ("Включение регистрации в сервисе: " . $isRegistrationActivityValue),
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::SettingsUpdated,
+                AuditContext::make('Включение регистрации в сервисе: ' . $isRegistrationActivityValue)
+                    ->withTargetReference('App\Models\Setting', (int) $partner->id, $partner->title)
+                    ->withAuthorId($authorId)
+                    ->withPartnerId((int) $partner->id)
+                    ->withCreatedAt(now())
+            );
 
         });
         return response()->json([
@@ -278,19 +281,14 @@ class SettingController extends AdminBaseController
                 ]
             );
 
-            MyLog::create([
-                'type' => 1,
-                'action' => 70,
-                'author_id' => $authorId,
-                'partner_id' => $partner->id,
-
-                'target_type' => 'App\Models\Setting',
-                'target_id' => $partner->id,
-                'target_label' => $partner->title,
-
-                'description' => ("Изменение текста уведомления: " . $textForUsers),
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::SettingsUpdated,
+                AuditContext::make('Изменение текста уведомления: ' . $textForUsers)
+                    ->withTargetReference('App\Models\Setting', (int) $partner->id, $partner->title)
+                    ->withAuthorId($authorId)
+                    ->withPartnerId((int) $partner->id)
+                    ->withCreatedAt(now())
+            );
         });
         return response()->json([
             'success' => true,
@@ -399,19 +397,14 @@ class SettingController extends AdminBaseController
                 . "\nна:\n"
                 . implode("\n", $newArr);
 
-            MyLog::create([
-                'type' => 1,
-                'action' => 70,
-                'author_id' => $authorId,
-
-                'target_type' => 'App\Models\Setting',
-                'target_id' => $partner->id,
-                'target_label' => $partner->title,
-
-                'description' => $description,
-                'created_at' => now(),
-                'partner_id' => $partner->id,
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::SettingsUpdated,
+                AuditContext::make($description)
+                    ->withTargetReference('App\Models\Setting', (int) $partner->id, $partner->title)
+                    ->withAuthorId($authorId)
+                    ->withPartnerId((int) $partner->id)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json(['success' => true]);
@@ -480,19 +473,14 @@ class SettingController extends AdminBaseController
                 . "\nна:\n"
                 . implode("\n", $newItems);
 
-            MyLog::create([
-                'type' => 1,
-                'action' => 70,
-                'author_id' => $authorId,
-                'partner_id' => $partner->id,
-
-                'target_type' => 'App\Models\Setting',
-                'target_id' => $partner->id,
-                'target_label' => $partner->title,
-
-                'description' => $description,
-                'created_at' => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::SettingsUpdated,
+                AuditContext::make($description)
+                    ->withTargetReference('App\Models\Setting', (int) $partner->id, $partner->title)
+                    ->withAuthorId($authorId)
+                    ->withPartnerId((int) $partner->id)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json(['success' => true]);

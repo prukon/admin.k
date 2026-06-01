@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\LessonPackages;
 
+use App\Enums\AuditEvent;
 use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
 use App\Models\MyLog;
@@ -384,8 +385,8 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
 
         $this->assertDatabaseHas('my_logs', [
             'partner_id' => $this->partner->id,
-            'type' => 60,
-            'action' => 602,
+            'event' => AuditEvent::ScheduleSingleLessonRegistrationCancelled->value,
+            'level' => AuditEvent::ScheduleSingleLessonRegistrationCancelled->level()->value,
             'user_id' => $student->id,
             'target_type' => UserTeamScheduleSlot::class,
             'target_id' => $bind->id,

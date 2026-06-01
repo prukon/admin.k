@@ -95,7 +95,7 @@
     <li>ID</li>
     <li>Дата создания (<code>created_at</code>, формат <code>d.m.Y / H:i:s</code>)</li>
     <li><b>Партнёр</b> — только для <code>superadmin</code> (колонка <code>partner_title</code>)</li>
-    <li>Действие (человекочитаемая подпись из <code>MyLog::actionLabels()</code>)</li>
+    <li>Действие (подпись из <code>MyLog::eventLabel()</code> / реестра <code>AuditEvent</code>; для старых строк — по legacy <code>type</code>/<code>action</code>)</li>
     <li>Автор (<code>author</code> → ФИО пользователя)</li>
     <li>Что меняли (<code>target_label</code>)</li>
     <li>Описание (<code>description</code>, переносы строк → <code>&lt;br&gt;</code> в ячейке)</li>
@@ -116,7 +116,7 @@
       <tr><td>Дата: с / по</td><td><code>created_from</code>, <code>created_to</code> (date)</td><td>все с правом</td><td>пусто</td></tr>
       <tr>
         <td>Действие</td>
-        <td><code>filter_action</code> — код <code>action</code>, либо <code>unknown</code></td>
+        <td><code>filter_action</code> — legacy-код <code>action</code>, канонический <code>event</code> (<code>domain.action</code>) или <code>unknown</code></td>
         <td>все с правом</td>
         <td>пусто («Все действия»)</td>
       </tr>
@@ -131,6 +131,12 @@
       <tr>
         <td><b>Скрыть авторизации</b> (чекбокс)</td>
         <td><code>hide_authorizations</code>: <code>1</code> / <code>0</code></td>
+        <td>все с правом</td>
+        <td>выключен (<code>0</code>)</td>
+      </tr>
+      <tr>
+        <td><b>Скрыть интеграции</b> (чекбокс)</td>
+        <td><code>hide_integrations</code>: <code>1</code> / <code>0</code></td>
         <td>все с правом</td>
         <td>выключен (<code>0</code>)</td>
       </tr>
@@ -159,15 +165,23 @@
         <td><b>Скрыть авторизации</b></td>
         <td>
           Применяется только если в запросе <b>есть</b> параметр <code>hide_authorizations</code> и он истинный.
-          Исключаются записи с <code>my_logs.action = 40</code> (подпись в UI: «Авторизация», см. <code>MyLog::actionLabels()</code>).
+          Исключаются входы в систему: <code>event = auth.login</code> или legacy <code>type=4</code> + <code>action=40</code>
+          (см. <code>AuditLogQueryScopes::applyHideAuthorizations()</code>).
+        </td>
+      </tr>
+      <tr>
+        <td><b>Скрыть интеграции</b></td>
+        <td>
+          Исключаются записи с <code>level = integration</code>, каноническим <code>event</code> уровня integration
+          или legacy <code>action</code> интеграционных событий (платежи, webhook договоров и т.д.).
         </td>
       </tr>
       <tr>
         <td><b>Действие → «Неизвестный тип»</b></td>
         <td>
-          При <code>filter_action=unknown</code> отбираются записи, у которых код <code>action</code> <b>не входит</b>
-          в ключи <code>MyLog::actionLabels()</code>. В ячейке таблицы такие строки по-прежнему отображаются как
-          «Неизвестный тип (setting)» — это fallback в <code>editColumn('action')</code>, а не отдельный код в словаре.
+          При <code>filter_action=unknown</code> отбираются записи с неизвестным legacy <code>action</code>
+          или с <code>event</code>, не входящим в реестр <code>AuditEvent</code>.
+          В ячейке таблицы подпись — <code>MyLog::eventLabel()</code> (для нераспознанных: «Неизвестное событие»).
         </td>
       </tr>
     </tbody>
@@ -176,7 +190,7 @@
     <li><b>Комбинация фильтров</b> — условия объединяются через AND (дата + действие + автор + partner-scope + исключения).</li>
     <li><b>Кнопка «Сброс»</b> возвращает значения по умолчанию: «Скрыть суперадмина» — вкл., «Скрыть авторизации» — выкл., остальные поля — пусто; для superadmin партнёр снова <code>all</code>.</li>
     <li><b>Панель «Фильтры»</b> автоматически раскрывается, если активен хотя бы один нестандартный фильтр (в т.ч. снят чекбокс «Скрыть суперадмина» или включён «Скрыть авторизации»).</li>
-    <li><b>DataTables AJAX</b> на вкладке «Логи» всегда передаёт <code>hide_superadmin</code> и <code>hide_authorizations</code> (<code>1</code> или <code>0</code>).</li>
+    <li><b>DataTables AJAX</b> на вкладке «Логи» всегда передаёт <code>hide_superadmin</code>, <code>hide_authorizations</code> и <code>hide_integrations</code> (<code>1</code> или <code>0</code>).</li>
   </ul>
 
   <h3>3.4 Отличие от модалок логов на других страницах</h3>
@@ -208,7 +222,11 @@
   <h2>5) Данные и код</h2>
   <ul>
     <li><b>Таблица БД:</b> <code>my_logs</code> (<code>partner_id</code>, <code>type</code>, <code>action</code>, <code>author_id</code>, <code>target_*</code>, <code>description</code>, <code>created_at</code>).</li>
-    <li><b>Билдер:</b> трейт <code>App\Support\BuildsLogTable</code> — единый DataTables для логов на разных страницах (пользователи, группы, расписание, партнёры, настройки цен, правила…). На вкладке «Логи» передаётся <code>type = null</code> (все типы).</li>
+    <li><b>Билдер:</b> трейт <code>App\Support\BuildsLogTable</code> + фильтры <code>App\Support\AuditLogQueryScopes</code> — единый DataTables для логов. На вкладке «Логи» передаётся <code>type = null</code> (все типы).</li>
+    <li><b>Запись:</b> только <code>AuditLogger</code> — колонки <code>event</code> и <code>level</code>; legacy <code>type</code>/<code>action</code> для новых строк не заполняются.</li>
+    <li><b>Модалки «История»:</b> фильтр по доменной категории (<code>pricing</code>, <code>user</code>, <code>team</code>…) через <code>buildLogDataTable('category')</code> и <code>AuditLogQueryScopes::applyCategoryScope()</code> (канонические <code>event</code> + legacy <code>type</code>/<code>action</code> без <code>event</code>).</li>
+    <li><b>Фильтр «Действие»:</b> значения <code>domain.action</code> из <code>AuditEvent::labelsForUi()</code>; legacy-коды <code>action</code> в query по-прежнему принимаются.</li>
+    <li><b>Фильтр «Уровень»:</b> <code>filter_level</code> — <code>info</code> | <code>security</code> | <code>integration</code>.</li>
     <li><b>Подписи действий:</b> <code>MyLog::actionLabels()</code> — общий словарь кодов <code>action</code>.
       Неизвестные коды в таблице показываются как «Неизвестный тип (setting)»; фильтр «Неизвестный тип» использует
       <code>filter_action=unknown</code> (см. §3.3).</li>

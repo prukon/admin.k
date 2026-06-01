@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Crm\Settings;
 
+use App\Enums\AuditEvent;
+use App\Enums\AuditLevel;
 use App\Models\MyLog;
 use App\Models\Partner;
 use App\Models\User;
@@ -274,7 +276,9 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         ])->save();
 
         MyLog::query()->create([
-            'type' => 1,
+            'event' => AuditEvent::TeamCreated->value,
+            'level' => AuditEvent::TeamCreated->level()->value,
+            'type' => 3,
             'action' => 31,
             'author_id' => $this->user->id,
             'partner_id' => $this->partner->id,
@@ -300,7 +304,7 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $resp = $this->getJson(route('settings.logs.data', array_merge(
             $this->baseDataTableParams(),
             [
-                'filter_action' => '31',
+                'filter_action' => AuditEvent::TeamCreated->value,
                 'filter_author' => 'АвторЛогов',
                 'filter_target_label' => 'Альфа',
                 'hide_superadmin' => '0',
@@ -357,6 +361,45 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $this->assertContains('superadmin-author-log', $visibleDescriptions);
     }
 
+    public function test_logs_data_filters_by_level(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        MyLog::query()->create([
+            'event' => AuditEvent::AuthLogin->value,
+            'level' => AuditEvent::AuthLogin->level()->value,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'target_label' => 'LevelFilter',
+            'description' => 'security-login-log',
+            'created_at' => now(),
+        ]);
+
+        MyLog::query()->create([
+            'event' => AuditEvent::SettingsUpdated->value,
+            'level' => AuditEvent::SettingsUpdated->level()->value,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'target_label' => 'LevelFilter',
+            'description' => 'info-settings-log',
+            'created_at' => now(),
+        ]);
+
+        $resp = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_level' => AuditLevel::Security->value,
+                'filter_target_label' => 'LevelFilter',
+                'hide_superadmin' => '0',
+            ]
+        )));
+
+        $resp->assertOk();
+        $descriptions = collect($resp->json('data'))->pluck('description')->all();
+        $this->assertContains('security-login-log', $descriptions);
+        $this->assertNotContains('info-settings-log', $descriptions);
+    }
+
     public function test_logs_data_hides_authorizations_when_hide_authorizations_enabled(): void
     {
         $this->grantPermissionToCurrentRole('viewing.all.logs');
@@ -370,7 +413,18 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             'target_type' => null,
             'target_id' => null,
             'target_label' => 'HideAuthFilter',
-            'description' => 'authorization-log',
+            'description' => 'authorization-log-legacy',
+            'created_at' => now(),
+        ]);
+        MyLog::query()->create([
+            'event' => \App\Enums\AuditEvent::AuthLogin->value,
+            'level' => \App\Enums\AuditEvent::AuthLogin->level()->value,
+            'type' => 4,
+            'action' => 40,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'target_label' => 'HideAuthFilter',
+            'description' => 'authorization-log-event',
             'created_at' => now(),
         ]);
 
@@ -385,7 +439,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $hidden->assertOk();
         $hiddenDescriptions = collect($hidden->json('data'))->pluck('description')->all();
         $this->assertContains('settings-change-log', $hiddenDescriptions);
-        $this->assertNotContains('authorization-log', $hiddenDescriptions);
+        $this->assertNotContains('authorization-log-legacy', $hiddenDescriptions);
+        $this->assertNotContains('authorization-log-event', $hiddenDescriptions);
     }
 
     public function test_logs_data_filters_by_unknown_action_type(): void
@@ -432,7 +487,11 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('>Скрыть суперадмина</label>', false)
             ->assertSee('id="settings-logs-filter-hide-authorizations"', false)
             ->assertSee('>Скрыть авторизации</label>', false)
+            ->assertSee('id="settings-logs-filter-hide-integrations"', false)
+            ->assertSee('>Скрыть интеграции</label>', false)
+            ->assertSee('id="settings-logs-filter-level"', false)
             ->assertSee('value="unknown"', false)
+            ->assertSee('value="'.AuditEvent::SettingsUpdated->value.'"', false)
             ->assertSee('>Неизвестный тип</option>', false);
     }
 
@@ -549,6 +608,41 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             '/id="settings-logs-filter-hide-authorizations"[^>]*checked/',
             $html
         );
+        $this->assertDoesNotMatchRegularExpression(
+            '/id="settings-logs-filter-hide-integrations"[^>]*checked/',
+            $html
+        );
+    }
+
+    public function test_logs_data_hides_integrations_when_hide_integrations_enabled(): void
+    {
+        $this->grantPermissionToCurrentRole('viewing.all.logs');
+
+        $this->createPartnerLog($this->partner->id, 'settings-change-log', null, 'HideIntegrationFilter');
+        MyLog::query()->create([
+            'event' => \App\Enums\AuditEvent::PaymentReceived->value,
+            'level' => \App\Enums\AuditEvent::PaymentReceived->level()->value,
+            'type' => 5,
+            'action' => 50,
+            'author_id' => $this->user->id,
+            'partner_id' => $this->partner->id,
+            'target_label' => 'HideIntegrationFilter',
+            'description' => 'integration-log',
+            'created_at' => now(),
+        ]);
+
+        $hidden = $this->getJson(route('settings.logs.data', array_merge(
+            $this->baseDataTableParams(),
+            [
+                'filter_target_label' => 'HideIntegrationFilter',
+                'hide_superadmin' => '0',
+                'hide_integrations' => '1',
+            ]
+        )));
+        $hidden->assertOk();
+        $hiddenDescriptions = collect($hidden->json('data'))->pluck('description')->all();
+        $this->assertContains('settings-change-log', $hiddenDescriptions);
+        $this->assertNotContains('integration-log', $hiddenDescriptions);
     }
 
     public function test_logs_data_shows_authorizations_when_hide_authorizations_disabled(): void
@@ -887,6 +981,7 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $params = array_merge($this->baseDataTableParams(), [
             'hide_superadmin' => '1',
             'hide_authorizations' => '1',
+            'hide_integrations' => '1',
             'filter_action' => 'unknown',
             'filter_partner_id' => 'all',
         ]);
@@ -933,7 +1028,7 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $filterParams = array_merge($this->baseDataTableParams(), [
             'created_from' => now()->subMonth()->toDateString(),
             'created_to' => now()->toDateString(),
-            'filter_action' => '70',
+            'filter_action' => AuditEvent::SettingsUpdated->value,
             'filter_author' => 'Иван',
             'filter_target_label' => 'Test',
             'hide_superadmin' => '1',
@@ -969,13 +1064,19 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             $defaults,
             array_merge($defaults, ['hide_superadmin' => '0']),
             array_merge($defaults, ['hide_authorizations' => '1']),
+            array_merge($defaults, ['hide_integrations' => '1']),
             array_merge($defaults, [
                 'hide_superadmin' => '0',
                 'hide_authorizations' => '1',
             ]),
-            array_merge($defaults, ['filter_action' => 'unknown']),
             array_merge($defaults, [
-                'filter_action' => '70',
+                'hide_superadmin' => '0',
+                'hide_integrations' => '1',
+            ]),
+            array_merge($defaults, ['filter_action' => 'unknown']),
+            array_merge($defaults, ['filter_level' => AuditLevel::Integration->value]),
+            array_merge($defaults, [
+                'filter_action' => AuditEvent::SettingsUpdated->value,
                 'filter_author' => 'test',
                 'filter_target_label' => 'Test',
             ]),
@@ -1016,6 +1117,7 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $params = array_merge($this->baseDataTableParams(), [
             'hide_superadmin' => '1',
             'hide_authorizations' => '0',
+            'hide_integrations' => '0',
         ]);
 
         if ($isSuperadmin) {
@@ -1047,7 +1149,7 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
                     [
                         'filter_partner_id' => 'all',
                         'created_from' => now()->subYear()->toDateString(),
-                        'filter_action' => '70',
+                        'filter_action' => AuditEvent::SettingsUpdated->value,
                         'hide_superadmin' => '1',
                         'hide_authorizations' => '0',
                     ]
@@ -1163,8 +1265,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         string $targetLabel = 'Test',
     ): void {
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 70,
+            'event' => AuditEvent::SettingsUpdated->value,
+            'level' => AuditEvent::SettingsUpdated->level()->value,
             'author_id' => $this->user->id,
             'partner_id' => $partnerId,
             'target_type' => 'App\Models\Setting',

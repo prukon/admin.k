@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\LessonPackages;
 
+use App\Enums\AuditEvent;
 use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
 use App\Models\MyLog;
@@ -443,15 +444,15 @@ final class LessonPackageSchoolScheduleTrialFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('my_logs', [
             'partner_id' => $this->partner->id,
             'user_id' => $student->id,
-            'type' => 60,
-            'action' => 601,
+            'event' => AuditEvent::ScheduleTrialCancelled->value,
+            'level' => AuditEvent::ScheduleTrialCancelled->level()->value,
             'target_type' => UserTeamScheduleSlot::class,
             'target_id' => $trialId,
         ]);
 
         $log = MyLog::query()
             ->where('partner_id', $this->partner->id)
-            ->where('action', 601)
+            ->where('event', AuditEvent::ScheduleTrialCancelled->value)
             ->orderByDesc('id')
             ->first();
         $this->assertNotNull($log);

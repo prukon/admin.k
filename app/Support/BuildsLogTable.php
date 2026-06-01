@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\MyLog;
 use App\Services\PartnerContext;
+use Illuminate\Database\Eloquent\Builder;
 use Yajra\DataTables\Facades\DataTables;
 
 trait BuildsLogTable
@@ -11,10 +12,10 @@ trait BuildsLogTable
     /**
      * Единый билдер DataTables для логов.
      *
-     * @param  int|null  $type  Тип логов или null для всех.
+     * @param  string|null  $category  Доменная категория AuditEvent (pricing, user, team…) или null для всех событий.
      */
     protected function buildLogDataTable(
-        ?int $type,
+        ?string $category,
         PartnerScopeMode $partnerScopeMode = PartnerScopeMode::STRICT_CURRENT,
     ) {
         $partnerContext = app(PartnerContext::class);
@@ -28,29 +29,31 @@ trait BuildsLogTable
                 $q->leftJoin('partners as log_partners', 'log_partners.id', '=', 'my_logs.partner_id')
                     ->select('my_logs.*');
             })
-            ->when(!is_null($type), fn($q) => $q->where('my_logs.type', $type))
+            ->when($category !== null && $category !== '', function (Builder $q) use ($category) {
+                AuditLogQueryScopes::applyCategoryScope($q, $category);
+            })
+            ->when($request->filled('filter_level'), function (Builder $q) use ($request) {
+                AuditLogQueryScopes::applyFilterLevel($q, (string) $request->input('filter_level'));
+            })
             ->when($request->filled('created_from'), function ($q) use ($request) {
                 $q->whereDate('my_logs.created_at', '>=', (string) $request->input('created_from'));
             })
             ->when($request->filled('created_to'), function ($q) use ($request) {
                 $q->whereDate('my_logs.created_at', '<=', (string) $request->input('created_to'));
             })
-            ->when($request->input('filter_action') === 'unknown', function ($q) {
-                $q->whereNotIn('my_logs.action', array_keys(MyLog::actionLabels()));
+            ->when($request->filled('filter_action'), function (Builder $q) use ($request) {
+                AuditLogQueryScopes::applyFilterAction($q, (string) $request->input('filter_action'));
             })
-            ->when(
-                $request->filled('filter_action') && $request->input('filter_action') !== 'unknown',
-                function ($q) use ($request) {
-                    $q->where('my_logs.action', (int) $request->input('filter_action'));
-                }
-            )
             ->when($request->has('hide_superadmin') && $request->boolean('hide_superadmin'), function ($q) {
                 $q->whereDoesntHave('author', function ($authorQ) {
                     $authorQ->whereHas('role', fn ($roleQ) => $roleQ->where('roles.name', 'superadmin'));
                 });
             })
-            ->when($request->has('hide_authorizations') && $request->boolean('hide_authorizations'), function ($q) {
-                $q->where('my_logs.action', '!=', 40);
+            ->when($request->has('hide_authorizations') && $request->boolean('hide_authorizations'), function (Builder $q) {
+                AuditLogQueryScopes::applyHideAuthorizations($q);
+            })
+            ->when($request->has('hide_integrations') && $request->boolean('hide_integrations'), function (Builder $q) {
+                AuditLogQueryScopes::applyHideIntegrations($q);
             })
             ->when($request->filled('filter_author'), function ($q) use ($request) {
                 $term = trim((string) $request->input('filter_author'));
@@ -83,8 +86,6 @@ trait BuildsLogTable
             $logs->select('my_logs.*');
         }
 
-        $actionLabels = MyLog::actionLabels();
-
         $dataTable = DataTables::of($logs)
             ->addColumn('author', function ($log) {
                 return $log->author?->full_name ?? '—';
@@ -94,8 +95,8 @@ trait BuildsLogTable
                     ?? optional($log->user)->name
                     ?? '—';
             })
-            ->editColumn('action', function ($log) use ($actionLabels) {
-                return $actionLabels[$log->action] ?? 'Неизвестный тип (setting)';
+            ->editColumn('action', function ($log) {
+                return $log->eventLabel();
             })
             ->editColumn('created_at', function ($log) {
                 return $log->created_at

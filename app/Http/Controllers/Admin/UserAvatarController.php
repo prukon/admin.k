@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Enums\AuditEvent;
 use App\Models\User;
-use App\Models\MyLog;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,8 +16,10 @@ use Intervention\Image\ImageManager;
 
 class UserAvatarController extends AdminBaseController
 {
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -41,16 +45,13 @@ class UserAvatarController extends AdminBaseController
                 'image_crop' => null,
             ]);
 
-            MyLog::create([
-                'type'        => 2,
-                'action'      => 299,
-                'target_type' => \App\Models\User::class,
-                'user_id'     => $user->id,
-                'target_id'   => $user->id,
-                'target_label'=> $targetLabel,
-                'description' => "Пользователю {$targetLabel} удален аватар.",
-                'created_at'  => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::UserAvatarDeletedByAdmin,
+                AuditContext::make("Пользователю {$targetLabel} удален аватар.")
+                    ->withUser($user)
+                    ->withTarget($user, $targetLabel)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json([
@@ -109,16 +110,13 @@ class UserAvatarController extends AdminBaseController
                 'image_crop' => $cropName,
             ]);
 
-            MyLog::create([
-                'type'        => 2,
-                'action'      => 27,
-                'user_id'     => $user->id,
-                'target_type' => \App\Models\User::class,
-                'target_id'   => $user->id,
-                'target_label'=> $targetLabel,
-                'description' => "Пользователю {$targetLabel} изменён аватар.",
-                'created_at'  => now(),
-            ]);
+            $this->auditLogger->record(
+                AuditEvent::UserAvatarUpdatedByAdmin,
+                AuditContext::make("Пользователю {$targetLabel} изменён аватар.")
+                    ->withUser($user)
+                    ->withTarget($user, $targetLabel)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json([

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Enums\AuditEvent;
 use App\Models\Role;
 use App\Models\UserField;
-use App\Models\MyLog;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -13,8 +15,10 @@ use App\Services\PartnerContext;
 
 class UserFieldController extends AdminBaseController
 {
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -88,15 +92,12 @@ class UserFieldController extends AdminBaseController
                 // Логируем каждое удалённое поле
                 foreach ($fieldsToDelete as $field) {
                     // 🧾 УДАЛЕНИЕ ДОП. ПОЛЯ
-                    MyLog::create([
-                        'type' => 2,
-                        'action' => 210,
-                        'target_type' => \App\Models\UserField::class,
-                        'target_id' => $field->id,
-                        'target_label' => $field->name,
-                        'description' => "Удалено поле '{$field->name}' (ID: {$field->id})",
-                        'created_at' => now(),
-                    ]);
+                    $this->auditLogger->record(
+                        AuditEvent::UserCustomFieldsUpdated,
+                        AuditContext::make("Удалено поле '{$field->name}' (ID: {$field->id})")
+                            ->withTarget($field, $field->name)
+                            ->withCreatedAt(now())
+                    );
                 }
             }
 
@@ -163,15 +164,12 @@ class UserFieldController extends AdminBaseController
                         : '';
 
                     // ИЗМЕНЕНИЯ ДОП. ПОЛЯ
-                    MyLog::create([
-                        'type'        => 2,
-                        'action'      => 210,
-                        'target_type' => \App\Models\UserField::class,
-                        'target_id'   => $field->id,
-                        'target_label'=> $field->name,
-                        'description' => $description,
-                        'created_at'  => now(),
-                    ]);
+                    $this->auditLogger->record(
+                        AuditEvent::UserCustomFieldsUpdated,
+                        AuditContext::make($description)
+                            ->withTarget($field, $field->name)
+                            ->withCreatedAt(now())
+                    );
                 } else {
                     // === Создание нового поля ===
                     $field = UserField::create([
@@ -190,17 +188,15 @@ class UserFieldController extends AdminBaseController
                         ->all();
 
                     // СОЗДАНИЕ ДОП. ПОЛЯ
-                    MyLog::create([
-                        'type'        => 2,
-                        'action'      => 210,
-                        'target_type' => \App\Models\UserField::class,
-                        'target_id'   => $field->id,
-                        'target_label'=> $field->name,
-                        'description' =>
+                    $this->auditLogger->record(
+                        AuditEvent::UserCustomFieldsUpdated,
+                        AuditContext::make(
                             "Создано поле '{$field->name}' (ID: {$field->id})\n" .
-                            "Роли: [-] → [" . (implode(', ', $newNames) ?: '-') . "]",
-                        'created_at'  => now(),
-                    ]);
+                            'Роли: [-] → [' . (implode(', ', $newNames) ?: '-') . ']'
+                        )
+                            ->withTarget($field, $field->name)
+                            ->withCreatedAt(now())
+                    );
                 }
             }
         });

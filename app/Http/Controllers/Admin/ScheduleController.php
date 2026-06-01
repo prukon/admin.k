@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Enums\AuditEvent;
 use App\Http\Requests\Admin\GetScheduleCellContextRequest;
 use App\Http\Requests\Admin\UpdateScheduleCellRequest;
 use App\Http\Requests\Team\FilterRequest;
-use App\Models\MyLog;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Models\TrainerProfile;
 use Illuminate\Http\Request;
 use App\Models\User;
@@ -26,8 +28,10 @@ class ScheduleController extends AdminBaseController
 {
     use BuildsLogTable;
 
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -222,15 +226,9 @@ class ScheduleController extends AdminBaseController
 
             $formattedDate = Carbon::parse($data['date'])->format('d.m.Y');
 
-            MyLog::create([
-                'type' => 9,
-                'action' => 93,
-                'target_type' => 'App\Models\ScheduleUser',
-                'target_id' => $user->id,
-                'target_label' => $user->full_name,
-                'user_id' => $user->id,
-                'partner_id' => $partnerId,
-                'description' => sprintf(
+            $this->auditLogger->record(
+                AuditEvent::ScheduleDayUpdated,
+                AuditContext::make(sprintf(
                     'Дата: "%s", Имя: "%s",%sСтатус до: "%s", Статус после: "%s",%sТренер до: "%s", Тренер после: "%s",%sКомментарий: "%s"',
                     $formattedDate,
                     $user->full_name,
@@ -242,9 +240,12 @@ class ScheduleController extends AdminBaseController
                     $newTrainerName,
                     "\n",
                     $descriptionText
-                ),
-                'created_at' => now(),
-            ]);
+                ))
+                    ->withUser($user)
+                    ->withTargetReference('App\Models\ScheduleUser', (int) $user->id, $user->full_name)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(now())
+            );
         });
 
         return response()->json(['success' => true]);
@@ -365,20 +366,17 @@ class ScheduleController extends AdminBaseController
             ]);
 
             // 3) Логируем действие с указанием partner_id
-            MyLog::create([
-                'type'        => 9,
-                'action'      => 94,
-                'user_id'   => $user->id,
-                'target_type'  => 'App\Models\ScheduleUser',
-                'target_id'    =>  $team->id,
-                'target_label' => $team->title,
-                'description' => sprintf(
-                            'Имя: %s, Установлена группа: %s',
-                            $user->full_name,
-                            $team?->title ?? '—'
-            ),
-            'created_at'  => now(),
-        ]);
+            $this->auditLogger->record(
+                AuditEvent::ScheduleUserTeamAssigned,
+                AuditContext::make(sprintf(
+                    'Имя: %s, Установлена группа: %s',
+                    $user->full_name,
+                    $team?->title ?? '—'
+                ))
+                    ->withUser($user)
+                    ->withTargetReference('App\Models\ScheduleUser', (int) ($team?->id ?? 0), $team?->title ?? '—')
+                    ->withCreatedAt(now())
+            );
     });
 
         return response()->json([
@@ -449,23 +447,20 @@ class ScheduleController extends AdminBaseController
             $map   = [1=>'пн',2=>'вт',3=>'ср',4=>'чт',5=>'пт',6=>'суб',7=>'вск'];
             $days  = implode(', ', array_map(fn($d)=> $map[$d] ?? $d, $weekdays));
 
-        MyLog::create([
-            'type'        => 9,
-            'action'      => 95,
-            'target_type'  => 'App\Models\ScheduleUser',
-            'target_id'    =>  $user->id,
-            'user_id'   => $user->id,
-            'target_label' => $user->full_name,
-            'description' => sprintf(
+        $this->auditLogger->record(
+            AuditEvent::ScheduleUserRangeUpdated,
+            AuditContext::make(sprintf(
                 "Пользователь: %s (ID:%d)\nПериод: %s - %s\nДни: %s",
                 $user->name,
                 $user->id,
                 $from->format('d.m.Y'),
                 $to->format('d.m.Y'),
                 $days
-            ),
-            'created_at'  => now(),
-        ]);
+            ))
+                ->withUser($user)
+                ->withTargetReference('App\Models\ScheduleUser', (int) $user->id, $user->full_name)
+                ->withCreatedAt(now())
+        );
     });
 
         return response()->json([
@@ -478,7 +473,7 @@ class ScheduleController extends AdminBaseController
     //Настройка логов
     public function getLogsData(FilterRequest $request)
     {
-        return $this->buildLogDataTable(9);
+        return $this->buildLogDataTable('schedule');
     }
 
     private function trainerOptionsForPartner(int $partnerId)

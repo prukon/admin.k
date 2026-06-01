@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm;
 
+use App\Enums\AuditEvent;
 use App\Models\MyLog;
 use App\Models\Partner;
 use App\Models\Permission;
@@ -82,8 +83,7 @@ class RuleControllerTest extends CrmTestCase
             ->where('partner_id', $this->partner->id)
             ->delete();
 
-        $beforeLogs = MyLog::where('type', 700)
-            ->where('action', 741)
+        $beforeLogs = MyLog::where('event', AuditEvent::RolePermissionGranted->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -100,8 +100,7 @@ class RuleControllerTest extends CrmTestCase
             'partner_id'    => $this->partner->id,
         ]);
 
-        $afterLogs = MyLog::where('type', 700)
-            ->where('action', 741)
+        $afterLogs = MyLog::where('event', AuditEvent::RolePermissionGranted->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -122,8 +121,7 @@ class RuleControllerTest extends CrmTestCase
 
         $this->assertSame(1, $countPivot);
 
-        $afterLogs2 = MyLog::where('type', 700)
-            ->where('action', 741)
+        $afterLogs2 = MyLog::where('event', AuditEvent::RolePermissionGranted->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -158,8 +156,7 @@ class RuleControllerTest extends CrmTestCase
             ['created_at' => now(), 'updated_at' => now()]
         );
 
-        $beforeLogs = MyLog::where('type', 700)
-            ->where('action', 742)
+        $beforeLogs = MyLog::where('event', AuditEvent::RolePermissionRevoked->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -182,8 +179,7 @@ class RuleControllerTest extends CrmTestCase
             'partner_id'    => $partnerB->id,
         ]);
 
-        $afterLogs = MyLog::where('type', 700)
-            ->where('action', 742)
+        $afterLogs = MyLog::where('event', AuditEvent::RolePermissionRevoked->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -196,8 +192,7 @@ class RuleControllerTest extends CrmTestCase
             'value'         => 'false',
         ])->assertOk()->assertJson(['success' => true]);
 
-        $afterLogs2 = MyLog::where('type', 700)
-            ->where('action', 742)
+        $afterLogs2 = MyLog::where('event', AuditEvent::RolePermissionRevoked->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -208,8 +203,7 @@ class RuleControllerTest extends CrmTestCase
     {
         $this->makeSuperadmin();
 
-        $before = MyLog::where('type', 700)
-            ->where('action', 710)
+        $before = MyLog::where('event', AuditEvent::RoleCreated->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 
@@ -252,8 +246,7 @@ class RuleControllerTest extends CrmTestCase
             ]);
         }
 
-        $after = MyLog::where('type', 700)
-            ->where('action', 710)
+        $after = MyLog::where('event', AuditEvent::RoleCreated->value)
             ->where('partner_id', $this->partner->id)
             ->count();
 

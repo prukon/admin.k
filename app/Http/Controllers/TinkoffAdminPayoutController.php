@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Partner;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffPayout;
+use App\Enums\AuditEvent;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\Tinkoff\TinkoffPayoutsService;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutUpdateScheduleRequest;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsDataTableRequest;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsSelect2PartnersSearchRequest;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsSelect2UsersSearchRequest;
-use App\Models\MyLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -19,11 +21,9 @@ use App\Models\User;
 
 class TinkoffAdminPayoutController extends Controller
 {
-    /** @see MyLog: операции по выплатам T‑Bank в админке */
-    private const MY_LOG_TYPE_TBANK_PAYOUT = 6;
-
-    /** Перенос запланированного времени выплаты (when_to_run) */
-    private const MY_LOG_ACTION_PAYOUT_SCHEDULE_CHANGE = 61;
+    public function __construct(
+        private readonly AuditLogger $auditLogger,
+    ) {}
 
     public function index(Request $r)
     {
@@ -246,23 +246,20 @@ class TinkoffAdminPayoutController extends Controller
                 ? ' DealId: '.$payout->deal_id.'.'
                 : '';
 
-            MyLog::create([
-                'type' => self::MY_LOG_TYPE_TBANK_PAYOUT,
-                'action' => self::MY_LOG_ACTION_PAYOUT_SCHEDULE_CHANGE,
-                'author_id' => auth()->id(),
-                'partner_id' => (int) $payout->partner_id,
-                'target_type' => TinkoffPayout::class,
-                'target_id' => (int) $payout->id,
-                'target_label' => 'Выплата #'.$payout->id,
-                'description' => sprintf(
+            $this->auditLogger->record(
+                AuditEvent::PaymentPayoutScheduleChanged,
+                AuditContext::make(sprintf(
                     'Перенос запланированного времени выплаты #%d. Было: %s, стало: %s.%s',
                     $payout->id,
                     $fmt($oldWhen),
                     $fmt($newWhen),
                     $dealPart
-                ),
-                'created_at' => now(),
-            ]);
+                ))
+                    ->withAuthorId((int) auth()->id())
+                    ->withPartnerId((int) $payout->partner_id)
+                    ->withTarget($payout, 'Выплата #'.$payout->id)
+                    ->withCreatedAt(now())
+            );
         });
 
         return redirect()

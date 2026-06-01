@@ -5,15 +5,20 @@ namespace App\Http\Controllers\Webhooks;
 use App\Http\Controllers\Controller;
 use App\Models\Contract;
 use App\Models\ContractEvent;
+use App\Enums\AuditEvent;
+use App\Services\Audit\ContractAudit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\MyLog;
 
 class PodpislonWebhookController extends Controller
 {
+    public function __construct(
+        private readonly ContractAudit $contractAudit,
+    ) {}
+
     public function handle(Request $request)
     {
         $rid = bin2hex(random_bytes(8));
@@ -325,17 +330,14 @@ class PodpislonWebhookController extends Controller
                             $newLabel = \App\Models\Contract::$STATUS_RU[\App\Models\Contract::STATUS_OPENED]
                                 ?? 'Opened';
 
-                            MyLog::create([
-                                'type'         => 2,   // user-логи
-                                'action'       => 519, // contract_opened
-                                'partner_id'   => $contractForUpdate->school_id,
-                                'author_id'    => $authorId,
-                                'target_type'  => Contract::class,
-                                'target_id'    => $contractForUpdate->id,
-                                'target_label' => 'Договор #' . $contractForUpdate->id,
-                                'description'  => 'Статус договора: "' . $oldLabel .
+                            $this->contractAudit->record(
+                                AuditEvent::ContractSmsOpened,
+                                'Статус договора: "' . $oldLabel .
                                     '" → "' . $newLabel . '"',
-                            ]);
+                                authorId: $authorId,
+                                partnerId: (int) $contractForUpdate->school_id,
+                                contract: $contractForUpdate,
+                            );
 
                             $log->info('Webhook OPENED: MyLog(contract_opened) ok', [
                                 'rid'         => $rid,
@@ -429,17 +431,14 @@ class PodpislonWebhookController extends Controller
                             $newLabel = \App\Models\Contract::$STATUS_RU[\App\Models\Contract::STATUS_SIGNED]
                                 ?? 'Signed';
 
-                            MyLog::create([
-                                'type'         => 2,   // user-логи
-                                'action'       => 520, // contract_signed
-                                'partner_id'   => $contractForUpdate->school_id,
-                                'author_id'    => $authorId,
-                                'target_type'  => Contract::class,
-                                'target_id'    => $contractForUpdate->id,
-                                'target_label' => 'Договор #' . $contractForUpdate->id,
-                                'description'  => 'Статус договора: "' . $oldLabel .
+                            $this->contractAudit->record(
+                                AuditEvent::ContractSigned,
+                                'Статус договора: "' . $oldLabel .
                                     '" → "' . $newLabel . '"',
-                            ]);
+                                authorId: $authorId,
+                                partnerId: (int) $contractForUpdate->school_id,
+                                contract: $contractForUpdate,
+                            );
 
                             $log->info('Webhook SIGNED: MyLog(contract_signed) ok', [
                                 'rid'         => $rid,

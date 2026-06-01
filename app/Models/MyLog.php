@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\AuditEvent;
+use App\Enums\AuditLevel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -14,10 +16,12 @@ class MyLog extends Model
     // Укажите, что поле created_at является датой
     protected $casts = [
         'created_at' => 'datetime',
-        'user_id'     => 'integer',   // <-- поле, добавленное в БД
+        'user_id'     => 'integer',
         'partner_id'  => 'integer',
         'author_id'   => 'integer',
-
+        'action'      => 'integer',
+        'type'        => 'integer',
+        'level'       => AuditLevel::class,
     ];
 
     public $timestamps = false; // Отключаем автоматическое создание временных меток
@@ -79,72 +83,40 @@ class MyLog extends Model
     }
 
     /**
-     * Человекочитаемые подписи кодов action для UI и логов.
+     * Человекочитаемые подписи legacy-кодов action для UI и логов.
      *
      * @return array<int, string>
      */
     public static function actionLabels(): array
     {
-        return [
-            11 => 'Изм. цен во всех группах (Применить слева)',
-            12 => 'Инд. изм. цен (Применить справа)',
-            13 => 'Изм. цен в одной группе  (ок)',
-            14 => 'Ручная отметка оплаты месяца (users_prices)',
+        return AuditEvent::legacyActionLabels();
+    }
 
-            21 => 'Создание пользователя',
-            22 => 'Обновление учетной записи в пользователях',
-            23 => 'Обновление учетной записи',
-            24 => 'Удаление пользователя в пользователях',
-            25 => 'Изменение пароля (админ)',
-            26 => 'Изменение пароля',
-            27 => 'Изменение аватара (админ)',
-            28 => 'Изменение аватара',
-            29 => 'Удаление аватара',
-            299 => 'Удаление аватара (админ)',
+    /**
+     * Каноническое событие строки (event или legacy type/action).
+     */
+    public function resolvedEvent(): ?AuditEvent
+    {
+        if (is_string($this->event) && $this->event !== '') {
+            return AuditEvent::tryFrom($this->event);
+        }
 
-            210 => 'Изменение доп полей пользователя',
-            211 => 'Изменение номера телефона',
+        return AuditEvent::fromLegacy(
+            is_numeric($this->type) ? (int) $this->type : null,
+            is_numeric($this->action) ? (int) $this->action : null,
+        );
+    }
 
-            31 => 'Создание группы',
-            32 => 'Изменение группы',
-            33 => 'Удаление группы',
-
-            40 => 'Авторизация',
-
-            50 => 'Платежи',
-
-            500 => 'Договор создан',
-
-            510 => 'Создан запрос на подпись (create)',
-            511 => 'Повторная отправка (успешно)',
-            512 => 'Повторная отправка (ошибка)',
-            513 => 'Первичная отправка (успешно)',
-            514 => 'Первичная отправка (ошибка)',
-            519 => 'Получатель открыл СМС',
-            520 => 'Договор подписан',
-
-            60 => 'Расписание',
-            601 => 'Отмена пробного занятия в расписании',
-
-            70 => 'Изменение настроек',
-
-            710 => 'Создание роли',
-            720 => 'Изменение роли',
-            730 => 'Удаление роли',
-
-            80 => 'Изменение партнера',
-            81 => 'Создание партнера суперадмином',
-            82 => 'Изменение партнера суперадмином',
-            83 => 'Удаление партнера',
-
-            90 => 'Создание статуса расписания',
-            91 => 'Изменение статуса расписания',
-            92 => 'Удаление статуса расписания',
-
-            900 => 'Создание договора',
-            901 => 'Изменение отправка договора в SMS',
-            902 => 'Удаление договора',
-        ];
+    /**
+     * Подпись события для UI.
+     */
+    public function eventLabel(): string
+    {
+        return AuditEvent::resolveLabel(
+            is_string($this->event) ? $this->event : null,
+            is_numeric($this->type) ? (int) $this->type : null,
+            is_numeric($this->action) ? (int) $this->action : null,
+        );
     }
 
 }
