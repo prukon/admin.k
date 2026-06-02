@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Аудит CRM: my_logs (event / level)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+    th, td { border: 1px solid #e5e7eb; padding: 10px; vertical-align: top; text-align: left; }
+    th { background: #f9fafb; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1>Аудит CRM: таблица <code>my_logs</code> (колонки <code>event</code> и <code>level</code>)</h1>
+  <div class="small">Файл: <code>/docs/documentation/audit-my-logs.html</code> · UI вкладки «Настройки → Логи»: <a href="/docs/documentation/settings-logs">settings-logs.html</a></div>
+
+  <div class="note">
+    <b>Суть.</b> Журнал аудита CRM хранится в <code>my_logs</code>. С <b>2026-06</b> каноническими полями являются
+    <code>event</code> (строка <code>domain.action</code>) и <code>level</code> (<code>info</code> | <code>security</code> | <code>integration</code>).
+    Запись в приложении — только через <code>App\Services\Audit\AuditLogger</code>; в runtime-фильтрах и подписях UI
+    legacy-колонки <code>type</code> и <code>action</code> <b>не используются</b>.
+  </div>
+
+  <div class="warn">
+    <b>Legacy <code>type</code> / <code>action</code>.</b> В старых строках БД коды могут оставаться (архив).
+    Для новых записей <code>AuditLogger</code> явно пишет <code>NULL</code>. Колонки не удалялись; backfill-миграции
+    заполнили <code>event</code>/<code>level</code> по старым кодам. Не путать с полями <code>type</code> в других таблицах
+    (<code>payables</code>, <code>contract_events</code>, фискальные чеки и т.д.).
+  </div>
+
+  <h2>1) Реестр событий <code>AuditEvent</code></h2>
+  <p>Enum <code>App\Enums\AuditEvent</code> — единый справочник:</p>
+  <ul>
+    <li><b>Значение</b> — канонический <code>event</code>, например <code>user.updated</code>, <code>schedule.user_range_updated</code>.</li>
+    <li><b>Уровень</b> — <code>AuditLevel</code>: <code>info</code> (изменения в CRM), <code>security</code> (входы), <code>integration</code> (платежи, webhook, подписание).</li>
+    <li><b>Категория</b> — домен для модалок «История изменений»: <code>pricing</code>, <code>user</code>, <code>team</code>, <code>schedule</code>, <code>role</code>, <code>partner</code>, <code>settings</code>, <code>payment</code>, <code>auth</code>, <code>contract</code> и др.</li>
+    <li><b>Методы <code>legacyType()</code> / <code>legacyAction()</code> / <code>fromLegacy()</code></b> — только для миграций backfill и unit-тестов реестра, не для HTTP/UI.</li>
+  </ul>
+  <p>Примеры событий расписания (вместо старых «type=6, action=60» в документации):</p>
+  <table>
+    <thead><tr><th>event</th><th>Назначение (кратко)</th></tr></thead>
+    <tbody>
+      <tr><td><code>schedule.user_range_updated</code></td><td>Изменение индивидуального расписания ученика</td></tr>
+      <tr><td><code>schedule.trial_cancelled</code></td><td>Отмена пробного занятия (legacy action 601)</td></tr>
+      <tr><td><code>schedule.single_lesson_registration_cancelled</code></td><td>Отмена записи разового занятия (legacy action 602)</td></tr>
+      <tr><td><code>schedule.slot_occurrence_skipped</code></td><td>Пропуск даты слота (legacy action 461)</td></tr>
+    </tbody>
+  </table>
+  <p>Примеры пользователей: <code>user.created</code> (legacy action 21), <code>user.updated</code> (22).</p>
+
+  <h2>2) Запись: <code>AuditLogger</code></h2>
+  <pre>app(AuditLogger::class)->record(
+    AuditEvent::SettingsUpdated,
+    AuditContext::make('Описание изменения')
+        ->withPartnerId($partnerId)
+        ->withAuthorId($authorId)
+        ->withTarget($model, $label)
+);</pre>
+  <ul>
+    <li>Пишутся: <code>event</code>, <code>level</code>, <code>description</code>, <code>author_id</code>, <code>partner_id</code>, <code>user_id</code>, <code>target_*</code>, <code>created_at</code>.</li>
+    <li><code>type</code> и <code>action</code> — всегда <code>NULL</code> для новых строк.</li>
+    <li>Прямой <code>MyLog::create([...])</code> в прод-коде не используется (остались только закомментированные фрагменты).</li>
+  </ul>
+
+  <h2>3) Чтение и фильтры: <code>AuditLogQueryScopes</code></h2>
+  <p>Трейт <code>App\Support\BuildsLogTable</code> подключает scope-фильтры только по <code>event</code> и <code>level</code>:</p>
+  <table>
+    <thead><tr><th>Метод / параметр</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr><td><code>applyCategoryScope($category)</code></td><td><code>whereIn('event', …)</code> по категории из <code>AuditEvent::eventValuesForCategory()</code></td></tr>
+      <tr><td><code>filter_action</code> = <code>domain.action</code></td><td><code>where event = …</code></td></tr>
+      <tr><td><code>filter_action=unknown</code></td><td><code>event IS NULL</code>, пустой <code>event</code> или значение вне реестра <code>AuditEvent</code></td></tr>
+      <tr><td><code>filter_level</code></td><td><code>where level = info|security|integration</code></td></tr>
+      <tr><td><code>hide_authorizations=1</code></td><td>исключить <code>event = auth.login</code></td></tr>
+      <tr><td><code>hide_integrations=1</code></td><td>исключить <code>level = integration</code> и integration-<code>event</code></td></tr>
+      <tr><td>Числовой <code>filter_action</code> (legacy-код)</td><td><b>игнорируется</b> (фильтр не применяется)</td></tr>
+    </tbody>
+  </table>
+  <p>Строки без <code>event</code> (только legacy <code>type</code>/<code>action</code> в БД) в категорийные модалки и в фильтры по событию <b>не попадают</b>. На проде после backfill таких строк быть не должно.</p>
+
+  <h2>4) Отображение в DataTables</h2>
+  <ul>
+    <li>Колонка «Действие» в JSON — ключ <code>action</code> (историческое имя поля DataTables), значение — <code>MyLog::eventLabel()</code> → <code>AuditEvent::resolveLabel($event)</code>.</li>
+    <li>Если <code>event</code> пустой или неизвестный — подпись «Неизвестное событие».</li>
+  </ul>
+
+  <h2>5) Где смотреть логи в UI</h2>
+  <table>
+    <thead><tr><th>Экран</th><th>Endpoint</th><th>Категория / scope</th><th>Permission (типично)</th></tr></thead>
+    <tbody>
+      <tr><td><a href="/docs/documentation/settings-logs">Настройки → Логи</a></td><td><code>GET /admin/settings/logs-data</code></td><td>все события</td><td><code>viewing.all.logs</code></td></tr>
+      <tr><td>Пользователи → История</td><td><code>GET /admin/user/logs-data</code></td><td><code>user</code></td><td><code>users.view</code></td></tr>
+      <tr><td>Группы → История</td><td><code>GET /admin/teams/logs-data</code></td><td><code>team</code></td><td><code>groups.view</code></td></tr>
+      <tr><td>Расписание → История</td><td><code>GET /schedule/logs-data</code></td><td><code>schedule</code></td><td><code>schedule.view</code></td></tr>
+      <tr><td>Цены → История</td><td><code>GET /admin/setting-prices/logs-data</code></td><td><code>pricing</code></td><td><code>setPrices.view</code></td></tr>
+      <tr><td>Права и роли → История</td><td><code>GET /admin/setting/rules/logs-data</code></td><td><code>role</code></td><td><code>settings.roles.view</code></td></tr>
+      <tr><td>Партнёры → История</td><td><code>GET /admin/partner/logs-data</code></td><td><code>partner</code></td><td><code>partner.view</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>6) Миграции БД (справочно)</h2>
+  <ul>
+    <li><code>2026_06_01_120000_add_event_and_level_to_my_logs_table.php</code> — колонки <code>event</code>, <code>level</code>, индексы.</li>
+    <li><code>2026_06_02_100000_backfill_event_and_level_on_my_logs_table.php</code> — массовый backfill из <code>type</code>/<code>action</code>.</li>
+    <li><code>2026_06_02_110000_make_legacy_type_nullable_on_my_logs_table.php</code> — <code>type</code> nullable.</li>
+    <li><code>2026_06_02_120000_backfill_schedule_type6_action60_on_my_logs_table.php</code> — точечный backfill расписания (prod: type=6, action=60 → <code>schedule.user_range_updated</code>).</li>
+  </ul>
+
+  <h2>7) Автотесты</h2>
+  <ul>
+    <li><code>tests/Unit/Support/AuditLogQueryScopesTest.php</code> — scope-фильтры по <code>event</code>/<code>level</code>.</li>
+    <li><code>tests/Unit/Services/Audit/AuditLoggerTest.php</code> — запись и подписи.</li>
+    <li><code>tests/Unit/Enums/AuditEventTest.php</code> — реестр и <code>fromLegacy</code> для миграций.</li>
+    <li><code>tests/Feature/Crm/Audit/AuditLogsEventOnlyFeatureTest.php</code> — HTTP: event-only фильтры, модалки по категориям.</li>
+    <li><code>tests/Feature/Crm/Settings/SettingsLogsPageAccessAndFunctionalityFeatureTest.php</code> — доступ к вкладке «Логи», smoke 200 всех фильтров.</li>
+    <li><code>tests/Feature/Crm/Settings/SettingsLogsPageFullAccessFeatureTest.php</code> — расширенные сценарии partner-scope и UI.</li>
+  </ul>
+
+  <h2>8) Связанные разделы</h2>
+  <ul>
+    <li><a href="/docs/documentation/settings-logs">Настройки → Логи (UI, права, фильтры)</a></li>
+    <li><a href="/docs/documentation/partner-scope-guide">Partner-scope (эталон — вкладка логов)</a></li>
+    <li><a href="/docs/documentation/reports-payments">Отчёт «Платежи» и <code>viewing.all.logs</code> для истории T‑Bank</a></li>
+  </ul>
+
+  <p class="small"><a href="/doc">← К оглавлению</a></p>
+</div>
+</body>
+</html>

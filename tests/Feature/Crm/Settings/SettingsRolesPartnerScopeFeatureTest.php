@@ -245,16 +245,16 @@ final class SettingsRolesPartnerScopeFeatureTest extends CrmTestCase
         $this->grantSettingsRolesView($this->user);
 
         \App\Models\MyLog::create([
-            'type'        => 700,
-            'action'      => 710,
+            'event'       => \App\Enums\AuditEvent::RoleCreated->value,
+            'level'       => \App\Enums\AuditEvent::RoleCreated->level()->value,
             'author_id'   => $this->user->id,
             'partner_id'  => $this->partner->id,
             'description' => 'roles-log-home',
             'created_at'  => now(),
         ]);
         \App\Models\MyLog::create([
-            'type'        => 700,
-            'action'      => 710,
+            'event'       => \App\Enums\AuditEvent::RoleCreated->value,
+            'level'       => \App\Enums\AuditEvent::RoleCreated->level()->value,
             'author_id'   => $this->user->id,
             'partner_id'  => $this->foreignPartner->id,
             'description' => 'roles-log-foreign',

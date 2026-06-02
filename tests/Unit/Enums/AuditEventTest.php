@@ -32,15 +32,6 @@ class AuditEventTest extends TestCase
     }
 
     #[Test]
-    public function my_log_action_labels_delegates_to_registry(): void
-    {
-        $this->assertSame(
-            AuditEvent::legacyActionLabels(),
-            \App\Models\MyLog::actionLabels()
-        );
-    }
-
-    #[Test]
     #[DataProvider('legacyDisambiguationProvider')]
     public function it_disambiguates_legacy_type_and_action_pairs(
         ?int $type,
@@ -106,27 +97,18 @@ class AuditEventTest extends TestCase
     }
 
     #[Test]
-    public function resolve_label_prefers_event_column(): void
+    public function resolve_label_returns_label_for_known_event(): void
     {
-        $label = AuditEvent::resolveLabel('user.created', 999, 999);
+        $label = AuditEvent::resolveLabel('user.created');
 
         $this->assertSame('Создание пользователя', $label);
     }
 
     #[Test]
-    public function resolve_label_falls_back_to_legacy(): void
+    public function resolve_label_returns_unknown_for_missing_or_invalid_event(): void
     {
-        $label = AuditEvent::resolveLabel(null, 700, 741);
-
-        $this->assertSame('Назначение права роли', $label);
-    }
-
-    #[Test]
-    public function resolve_label_returns_unknown_for_unmapped_legacy(): void
-    {
-        $label = AuditEvent::resolveLabel(null, 1, 99999);
-
-        $this->assertSame('Неизвестное событие', $label);
+        $this->assertSame('Неизвестное событие', AuditEvent::resolveLabel(null));
+        $this->assertSame('Неизвестное событие', AuditEvent::resolveLabel('not.in.registry'));
     }
 
     #[Test]

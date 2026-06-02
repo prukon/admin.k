@@ -26,13 +26,17 @@
 </head>
 <body>
 <div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a> ·
+    <a href="/docs/documentation/audit-my-logs">Аудит my_logs (event/level)</a></p>
   <h1>Настройки → Логи: журнал изменений (<code>my_logs</code>)</h1>
   <div class="small">Файл: <code>/docs/documentation/settings-logs.html</code></div>
 
   <div class="note">
     <b>Назначение.</b> Отдельная вкладка <b>«Настройки → Логи»</b> (<code>/admin/settings/logs</code>) — единый журнал аудита
-    по таблице <code>my_logs</code> для текущего партнёра. Раньше тот же контент открывался модальным окном «История изменений»
-    на вкладке «Общие»; модалка убрана, просмотр только через вкладку.
+    по таблице <code>my_logs</code> для текущего партнёра (все домены событий). Раньше тот же контент открывался модальным окном
+    «История изменений» на вкладке «Общие»; модалка убрана, просмотр только через вкладку.
+    Каноническая модель данных и запись — в разделе
+    <a href="/docs/documentation/audit-my-logs">Аудит CRM: my_logs (event / level)</a>.
   </div>
 
   <div class="warn">
@@ -46,34 +50,37 @@
   <h2>1) Доступ и права</h2>
   <table>
     <thead>
-      <tr><th>Что</th><th>Permission / роль</th><th>Примечание</th></tr>
+      <tr><th>Что</th><th>Permission / роль</th><th>HTTP</th><th>Примечание</th></tr>
     </thead>
     <tbody>
       <tr>
-        <td>Страница вкладки <code>GET /admin/settings/logs</code></td>
+        <td>Страница вкладки</td>
         <td><code>viewing.all.logs</code> + <code>settings.view</code></td>
+        <td><code>GET /admin/settings/logs</code></td>
         <td>Оба middleware <code>can:…</code> на маршруте</td>
       </tr>
       <tr>
-        <td>DataTables API <code>GET /admin/settings/logs-data</code></td>
+        <td>DataTables API</td>
         <td><code>viewing.all.logs</code></td>
-        <td>Без отдельного <code>settings.view</code></td>
+        <td><code>GET /admin/settings/logs-data</code></td>
+        <td>Без отдельного <code>settings.view</code> — API доступен при одном только <code>viewing.all.logs</code></td>
       </tr>
       <tr>
         <td>Просмотр логов всех партнёров</td>
         <td>только <code>superadmin</code></td>
+        <td>—</td>
         <td>Фильтр «Все партнёры» и колонка «Партнёр» в UI</td>
       </tr>
       <tr>
         <td>Обычный админ партнёра</td>
         <td><code>viewing.all.logs</code></td>
-        <td>Только записи с <code>my_logs.partner_id = current_partner</code>, даже если в AJAX передать <code>filter_partner_id=all</code></td>
+        <td>—</td>
+        <td>Только <code>my_logs.partner_id = current_partner</code>, даже если в AJAX передать <code>filter_partner_id=all</code></td>
       </tr>
     </tbody>
   </table>
-  <p class="small">Контекст CRM: <code>auth + 2fa + SetPartner</code>. См. также
-    <a href="/docs/documentation/partner-context">партнёр-контекст</a> и
-    <a href="/docs/documentation/partners-permissions">права в разрезе партнёра</a>.</p>
+  <p class="small">Контекст CRM: <code>auth + 2fa + SetPartner</code>. Гость и пользователь без прав получают 403/редирект на всех endpoint’ах раздела.
+    См. <a href="/docs/documentation/partner-context">партнёр-контекст</a>.</p>
 
   <h2>2) Маршруты</h2>
   <ul>
@@ -95,7 +102,7 @@
     <li>ID</li>
     <li>Дата создания (<code>created_at</code>, формат <code>d.m.Y / H:i:s</code>)</li>
     <li><b>Партнёр</b> — только для <code>superadmin</code> (колонка <code>partner_title</code>)</li>
-    <li>Действие (подпись из <code>MyLog::eventLabel()</code> / реестра <code>AuditEvent</code>; для старых строк — по legacy <code>type</code>/<code>action</code>)</li>
+    <li>Действие — подпись из <code>MyLog::eventLabel()</code> по колонке <code>event</code> (реестр <code>AuditEvent</code>); ключ JSON — <code>action</code> (историческое имя колонки DataTables)</li>
     <li>Автор (<code>author</code> → ФИО пользователя)</li>
     <li>Что меняли (<code>target_label</code>)</li>
     <li>Описание (<code>description</code>, переносы строк → <code>&lt;br&gt;</code> в ячейке)</li>
@@ -116,9 +123,15 @@
       <tr><td>Дата: с / по</td><td><code>created_from</code>, <code>created_to</code> (date)</td><td>все с правом</td><td>пусто</td></tr>
       <tr>
         <td>Действие</td>
-        <td><code>filter_action</code> — legacy-код <code>action</code>, канонический <code>event</code> (<code>domain.action</code>) или <code>unknown</code></td>
+        <td><code>filter_action</code> — значение <code>event</code> (<code>domain.action</code> из <code>AuditEvent::labelsForUi()</code>) или <code>unknown</code></td>
         <td>все с правом</td>
         <td>пусто («Все действия»)</td>
+      </tr>
+      <tr>
+        <td>Уровень</td>
+        <td><code>filter_level</code> — <code>info</code> | <code>security</code> | <code>integration</code></td>
+        <td>все с правом</td>
+        <td>пусто («Все уровни»)</td>
       </tr>
       <tr><td>Автор</td><td><code>filter_author</code> (подстрока по имени/фамилии/ФИО)</td><td>все с правом</td><td>пусто</td></tr>
       <tr><td>Что меняли</td><td><code>filter_target_label</code> (LIKE)</td><td>все с правом</td><td>пусто</td></tr>
@@ -142,137 +155,120 @@
       </tr>
     </tbody>
   </table>
+  <p class="small">Числовые legacy-коды <code>action</code> в <code>filter_action</code> больше не поддерживаются (параметр игнорируется).</p>
 
-  <h3>3.3 Логика новых фильтров (исключения и «Неизвестный тип»)</h3>
+  <h3>3.3 Логика фильтров на сервере</h3>
   <div class="note">
-    Чекбоксы и пункт «Неизвестный тип» работают <b>внутри</b> уже применённого partner-scope (см. §4).
-    Они не расширяют доступ к чужим партнёрам.
+    Реализация: <code>App\Support\AuditLogQueryScopes</code> + <code>BuildsLogTable</code>.
+    Все условия по событиям — только колонка <code>event</code>, по уровню — <code>level</code>.
+    Подробнее: <a href="/docs/documentation/audit-my-logs#3">audit-my-logs §3</a>.
   </div>
   <table>
     <thead>
-      <tr><th>Фильтр</th><th>Поведение на сервере (<code>BuildsLogTable</code>)</th></tr>
+      <tr><th>Фильтр</th><th>Поведение</th></tr>
     </thead>
     <tbody>
       <tr>
         <td><b>Скрыть суперадмина</b></td>
-        <td>
-          Применяется только если в запросе <b>есть</b> параметр <code>hide_superadmin</code> и он истинный (<code>1</code>).
-          Исключаются записи, у которых <code>author_id</code> указывает на пользователя с ролью <code>roles.name = superadmin</code>
-          (<code>whereDoesntHave('author.role', …)</code>). Записи без автора или с автором другой роли остаются.
-        </td>
+        <td>При <code>hide_superadmin=1</code> исключаются записи, у которых автор — пользователь с ролью <code>superadmin</code>.</td>
       </tr>
       <tr>
         <td><b>Скрыть авторизации</b></td>
-        <td>
-          Применяется только если в запросе <b>есть</b> параметр <code>hide_authorizations</code> и он истинный.
-          Исключаются входы в систему: <code>event = auth.login</code> или legacy <code>type=4</code> + <code>action=40</code>
-          (см. <code>AuditLogQueryScopes::applyHideAuthorizations()</code>).
-        </td>
+        <td>Исключаются записи с <code>event = auth.login</code>.</td>
       </tr>
       <tr>
         <td><b>Скрыть интеграции</b></td>
-        <td>
-          Исключаются записи с <code>level = integration</code>, каноническим <code>event</code> уровня integration
-          или legacy <code>action</code> интеграционных событий (платежи, webhook договоров и т.д.).
-        </td>
+        <td>Исключаются записи с <code>level = integration</code> и события уровня integration из реестра.</td>
       </tr>
       <tr>
         <td><b>Действие → «Неизвестный тип»</b></td>
-        <td>
-          При <code>filter_action=unknown</code> отбираются записи с неизвестным legacy <code>action</code>
-          или с <code>event</code>, не входящим в реестр <code>AuditEvent</code>.
-          В ячейке таблицы подпись — <code>MyLog::eventLabel()</code> (для нераспознанных: «Неизвестное событие»).
-        </td>
+        <td><code>filter_action=unknown</code> — пустой/отсутствующий <code>event</code> или <code>event</code> вне реестра <code>AuditEvent</code>.</td>
+      </tr>
+      <tr>
+        <td><b>Уровень</b></td>
+        <td><code>filter_level</code> — точное совпадение с колонкой <code>level</code>.</td>
       </tr>
     </tbody>
   </table>
   <ul>
-    <li><b>Комбинация фильтров</b> — условия объединяются через AND (дата + действие + автор + partner-scope + исключения).</li>
-    <li><b>Кнопка «Сброс»</b> возвращает значения по умолчанию: «Скрыть суперадмина» — вкл., «Скрыть авторизации» — выкл., остальные поля — пусто; для superadmin партнёр снова <code>all</code>.</li>
-    <li><b>Панель «Фильтры»</b> автоматически раскрывается, если активен хотя бы один нестандартный фильтр (в т.ч. снят чекбокс «Скрыть суперадмина» или включён «Скрыть авторизации»).</li>
-    <li><b>DataTables AJAX</b> на вкладке «Логи» всегда передаёт <code>hide_superadmin</code>, <code>hide_authorizations</code> и <code>hide_integrations</code> (<code>1</code> или <code>0</code>).</li>
+    <li><b>Комбинация фильтров</b> — условия объединяются через AND (дата + действие + уровень + автор + partner-scope + исключения).</li>
+    <li><b>Кнопка «Сброс»</b> — «Скрыть суперадмина» вкл., «Скрыть авторизации» и «Скрыть интеграции» выкл., остальные поля пусто; для superadmin партнёр снова <code>all</code>.</li>
+    <li><b>DataTables AJAX</b> всегда передаёт <code>hide_superadmin</code>, <code>hide_authorizations</code>, <code>hide_integrations</code> (<code>1</code> или <code>0</code>).</li>
   </ul>
 
   <h3>3.4 Отличие от модалок логов на других страницах</h3>
   <p>
-    Параметры <code>hide_superadmin</code>, <code>hide_authorizations</code> и <code>filter_action=unknown</code>
-    обрабатываются в общем трейте <code>BuildsLogTable</code>, но <b>не отправляются</b> с других экранов
-    (пользователи, группы, расписание и т.д.). Без параметра в запросе исключения не срабатывают — поведение
-    модалок «История изменений» не менялось.
+    Параметры <code>hide_superadmin</code>, <code>hide_authorizations</code>, <code>hide_integrations</code> и расширенный селект «Действие»
+    есть только на вкладке «Логи». Модалки «История изменений» на users/teams/schedule и др. вызывают тот же <code>BuildsLogTable</code>,
+    но с ограничением по <b>категории</b> <code>event</code> и без этих чекбоксов — см. §5.1 и
+    <a href="/docs/documentation/audit-my-logs">audit-my-logs</a>.
   </p>
 
   <h2>4) Partner-scope: режим <code>SUPERADMIN_ALL_OR_FILTER</code></h2>
   <div class="note">
     На этой вкладке для API логов включён режим <code>App\Support\PartnerScopeMode::SUPERADMIN_ALL_OR_FILTER</code>
-    (реализация в <code>PartnerContext::applyPartnerScope()</code>, вызов из трейта <code>BuildsLogTable</code>
-    только из <code>SettingController::logsData</code>).
+    (реализация в <code>PartnerContext::applyPartnerScope()</code>, вызов из <code>SettingController::logsData</code>).
   </div>
   <ul>
-    <li><b>STRICT_CURRENT</b> (по умолчанию в остальных местах) — всегда <code>where partner_id = current_partner</code>, если партнёр в контексте задан.</li>
+    <li><b>STRICT_CURRENT</b> (по умолчанию в модалках) — <code>where partner_id = current_partner</code>.</li>
     <li><b>SUPERADMIN_ALL_OR_FILTER</b> (только вкладка «Логи»):
       <ul>
-        <li>superadmin + <code>filter_partner_id</code> пусто / <code>all</code> → без фильтра по <code>partner_id</code> (все партнёры);</li>
+        <li>superadmin + <code>filter_partner_id</code> пусто / <code>all</code> → без фильтра по <code>partner_id</code>;</li>
         <li>superadmin + числовой <code>filter_partner_id</code> → один партнёр;</li>
-        <li>не superadmin → как STRICT_CURRENT (подмена <code>all</code> в AJAX игнорируется на сервере).</li>
+        <li>не superadmin → как STRICT_CURRENT.</li>
       </ul>
     </li>
   </ul>
-  <p>Подробнее о контексте и anti-leak: <a href="/docs/documentation/partner-context#partner-scope-modes">partner-context.html</a>.</p>
+  <p>Подробнее: <a href="/docs/documentation/partner-context#partner-scope-modes">partner-context.html</a>,
+    <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a>.</p>
 
   <h2>5) Данные и код</h2>
   <ul>
-    <li><b>Таблица БД:</b> <code>my_logs</code> (<code>partner_id</code>, <code>type</code>, <code>action</code>, <code>author_id</code>, <code>target_*</code>, <code>description</code>, <code>created_at</code>).</li>
-    <li><b>Билдер:</b> трейт <code>App\Support\BuildsLogTable</code> + фильтры <code>App\Support\AuditLogQueryScopes</code> — единый DataTables для логов. На вкладке «Логи» передаётся <code>type = null</code> (все типы).</li>
-    <li><b>Запись:</b> только <code>AuditLogger</code> — колонки <code>event</code> и <code>level</code>; legacy <code>type</code>/<code>action</code> для новых строк не заполняются.</li>
-    <li><b>Модалки «История»:</b> фильтр по доменной категории (<code>pricing</code>, <code>user</code>, <code>team</code>…) через <code>buildLogDataTable('category')</code> и <code>AuditLogQueryScopes::applyCategoryScope()</code> (канонические <code>event</code> + legacy <code>type</code>/<code>action</code> без <code>event</code>).</li>
-    <li><b>Фильтр «Действие»:</b> значения <code>domain.action</code> из <code>AuditEvent::labelsForUi()</code>; legacy-коды <code>action</code> в query по-прежнему принимаются.</li>
-    <li><b>Фильтр «Уровень»:</b> <code>filter_level</code> — <code>info</code> | <code>security</code> | <code>integration</code>.</li>
-    <li><b>Подписи действий:</b> <code>MyLog::actionLabels()</code> — общий словарь кодов <code>action</code>.
-      Неизвестные коды в таблице показываются как «Неизвестный тип (setting)»; фильтр «Неизвестный тип» использует
-      <code>filter_action=unknown</code> (см. §3.3).</li>
-    <li><b>Контроллер:</b> <code>App\Http\Controllers\Admin\Setting\SettingController</code> — <code>showLogs()</code>, <code>logsData()</code>.</li>
-    <li><b>View:</b> <code>resources/views/admin/setting/logs.blade.php</code> (подключается из <code>admin/setting/index.blade.php</code>).</li>
+    <li><b>Таблица БД:</b> <code>my_logs</code> — рабочие поля <code>event</code>, <code>level</code>, <code>partner_id</code>, <code>author_id</code>, <code>target_*</code>, <code>description</code>, <code>created_at</code>; legacy <code>type</code>/<code>action</code> только в архивных строках.</li>
+    <li><b>Запись:</b> <code>AuditLogger</code> — см. <a href="/docs/documentation/audit-my-logs#2">audit-my-logs §2</a>.</li>
+    <li><b>Чтение:</b> <code>BuildsLogTable</code> + <code>AuditLogQueryScopes</code> — только <code>event</code> и <code>level</code>.</li>
+    <li><b>Вкладка «Логи»:</b> <code>buildLogDataTable(null, SUPERADMIN_ALL_OR_FILTER)</code> — без ограничения категории (все события).</li>
+    <li><b>View:</b> <code>resources/views/admin/setting/logs.blade.php</code>.</li>
+    <li><b>Контроллер:</b> <code>SettingController::showLogs()</code>, <code>logsData()</code>.</li>
   </ul>
 
-  <h3>5.1 Другие экраны с логами (без изменений)</h3>
-  <p>Модалки «История изменений» на других страницах по-прежнему используют <code>BuildsLogTable</code> с режимом по умолчанию
-    (<code>STRICT_CURRENT</code>) и фильтром по <code>type</code>:</p>
+  <h3>5.1 Модалки «История» на других экранах</h3>
+  <p>Тот же билдер с категорией <code>AuditEvent</code> (фильтр <code>whereIn(event, …)</code>):</p>
   <ul>
-    <li>пользователи — <code>GET /admin/user/logs-data</code> (<code>type = 2</code>);</li>
-    <li>группы — <code>GET /admin/teams/logs-data</code> (<code>type = 3</code>);</li>
-    <li>расписание — <code>GET /schedule/logs-data</code> (<code>type = 9</code>);</li>
-    <li>права и роли — <code>GET /admin/setting/rules/logs-data</code>;</li>
-    <li>партнёры — <code>GET /admin/partner/logs-data</code> (<code>type = 80</code>);</li>
-    <li>цены — <code>GET /admin/setting-prices/logs-data</code> (<code>type = 1</code>).</li>
+    <li>пользователи — <code>GET /admin/user/logs-data</code> (<code>user</code>);</li>
+    <li>группы — <code>GET /admin/teams/logs-data</code> (<code>team</code>);</li>
+    <li>расписание — <code>GET /schedule/logs-data</code> (<code>schedule</code>);</li>
+    <li>права и роли — <code>GET /admin/setting/rules/logs-data</code> (<code>role</code>);</li>
+    <li>партнёры — <code>GET /admin/partner/logs-data</code> (<code>partner</code>);</li>
+    <li>цены — <code>GET /admin/setting-prices/logs-data</code> (<code>pricing</code>).</li>
   </ul>
-  <p>Не путать с вкладкой <b>«Настройки → Очереди»</b> и файлом <code>storage/logs/queue.log</code> — это операционный лог воркера, не <code>my_logs</code>
-    (<a href="/docs/documentation/queues-monitoring">очереди в админке</a>).</p>
 
-  <h2>6) Отличие от вкладки «Общие»</h2>
+  <h2>6) Отличие от вкладки «Общие» и от queue.log</h2>
   <ul>
-    <li>На вкладке «Общие» (<code>/admin/settings</code>) кнопка «История изменений» и модалка <code>#historyModal</code> <b>удалены</b>.</li>
-    <li>Журнал всех типов событий партнёра перенесён на вкладку «Логи» с расширенными фильтрами и (для superadmin) выбором партнёра.</li>
+    <li>На вкладке «Общие» кнопка «История изменений» и модалка <code>#historyModal</code> <b>удалены</b>.</li>
+    <li><b>«Настройки → Очереди»</b> и <code>storage/logs/queue.log</code> — операционный лог воркера, не <code>my_logs</code>
+      (<a href="/docs/documentation/queues-monitoring">очереди в админке</a>).</li>
   </ul>
 
   <h2>7) Автотесты</h2>
   <ul>
-    <li><code>tests/Feature/Crm/Settings/SettingsLogsPageFullAccessFeatureTest.php</code> — полное покрытие раздела:
-      доступ (200/403/401), superadmin cross-partner (<code>SUPERADMIN_ALL_OR_FILTER</code>), изоляция партнёров,
-      все варианты query-параметров DataTables (в т.ч. <code>hide_superadmin</code>, <code>hide_authorizations</code>,
-      <code>filter_action=unknown</code>), сортировка по партнёру, UI (чекбоксы, селект «Неизвестный тип»).</li>
-    <li><code>tests/Feature/Crm/Settings/SettingsControllerTest.php</code> — базовые проверки прав на маршруты логов и partner-scope.</li>
+    <li><code>tests/Feature/Crm/Settings/SettingsLogsPageAccessAndFunctionalityFeatureTest.php</code> — доступ (403/200), smoke 200 всех комбинаций фильтров, UI-контролы.</li>
+    <li><code>tests/Feature/Crm/Settings/SettingsLogsPageFullAccessFeatureTest.php</code> — partner-scope, изоляция партнёров, детальные сценарии фильтров.</li>
+    <li><code>tests/Feature/Crm/Audit/AuditLogsEventOnlyFeatureTest.php</code> — event-only поведение через HTTP.</li>
+    <li><code>tests/Feature/Crm/Settings/SettingsControllerTest.php</code> — права на маршруты логов, partner-scope.</li>
+    <li><code>tests/Unit/Support/AuditLogQueryScopesTest.php</code>, <code>tests/Unit/Services/Audit/AuditLoggerTest.php</code>.</li>
   </ul>
-  <p class="small">Раздел только для чтения (GET): CRUD-операций над логами нет — тестируются два маршрута
-    <code>admin.setting.logs</code> и <code>settings.logs.data</code>.</p>
+  <p class="small">Раздел только для чтения (GET). Полный перечень — в <a href="/docs/documentation/audit-my-logs#7">audit-my-logs §7</a>.</p>
 
   <h2>8) Связанные разделы</h2>
   <ul>
+    <li><a href="/docs/documentation/audit-my-logs">Аудит CRM: my_logs (event / level)</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Руководство: partner_id для админа и superadmin</a></li>
-    <li><a href="/docs/documentation/partner-context">Партнёр-контекст и SetPartner</a></li>
     <li><a href="/docs/documentation/settings-roles-custom">Настройки → Права и роли</a></li>
-    <li><a href="/docs/documentation/reports-payments">Отчёт «Платежи» (история T‑Bank и <code>viewing.all.logs</code>)</a></li>
-    <li><a href="/docs/documentation/queues-monitoring">Настройки → Очереди</a> (не <code>my_logs</code>)</li>
+    <li><a href="/docs/documentation/reports-payments">Отчёт «Платежи»</a></li>
   </ul>
+
+  <p class="small"><a href="/doc">← К оглавлению</a></p>
 </div>
 </body>
 </html>

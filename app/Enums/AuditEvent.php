@@ -268,7 +268,9 @@ enum AuditEvent: string
     }
 
     /**
-     * Legacy my_logs.type — дублируется при записи до полного отказа от type.
+     * Legacy my_logs.type — только для миграций backfill и тестов реестра.
+     *
+     * Runtime (фильтры, UI) использует колонку event.
      */
     public function legacyType(): int
     {
@@ -345,7 +347,7 @@ enum AuditEvent: string
     }
 
     /**
-     * Legacy my_logs.action — дублируется при записи до полного отказа от action.
+     * Legacy my_logs.action — только для миграций backfill и тестов реестра.
      */
     public function legacyAction(): int
     {
@@ -439,7 +441,7 @@ enum AuditEvent: string
     }
 
     /**
-     * Разрешение legacy-записи без колонки event.
+     * Разрешение legacy type/action — только миграции backfill (не использовать в приложении).
      */
     public static function fromLegacy(?int $type, ?int $action): ?self
     {
@@ -464,13 +466,11 @@ enum AuditEvent: string
     }
 
     /**
-     * Разрешение подписи для строки my_logs (event или legacy).
+     * Подпись события для строки my_logs (колонка event).
      */
-    public static function resolveLabel(?string $event, ?int $type, ?int $action): string
+    public static function resolveLabel(?string $event): string
     {
-        $resolved = self::tryFromString($event) ?? self::fromLegacy($type, $action);
-
-        return $resolved?->label() ?? 'Неизвестное событие';
+        return self::tryFromString($event)?->label() ?? 'Неизвестное событие';
     }
 
     /**
@@ -505,38 +505,6 @@ enum AuditEvent: string
         }
 
         return $values;
-    }
-
-    /**
-     * @return list<int>
-     */
-    public static function legacyTypesForCategory(string $category): array
-    {
-        $types = [];
-
-        foreach (self::cases() as $case) {
-            if ($case->category() === $category) {
-                $types[] = $case->legacyType();
-            }
-        }
-
-        return array_values(array_unique($types));
-    }
-
-    /**
-     * @return list<int>
-     */
-    public static function legacyActionsForCategory(string $category): array
-    {
-        $actions = [];
-
-        foreach (self::cases() as $case) {
-            if ($case->category() === $category) {
-                $actions[] = $case->legacyAction();
-            }
-        }
-
-        return array_values(array_unique($actions));
     }
 
     /**

@@ -70,7 +70,7 @@
       <tr><td>GET</td><td><code>/schedule</code></td><td><code>schedule.index</code></td><td>HTML: таблица учеников × дни месяца, фильтры год/месяц/группа</td></tr>
       <tr><td>GET</td><td><code>/schedule/cell-context</code></td><td><code>schedule.cell-context</code></td><td>JSON для модалки ячейки: статусы, тренеры, дефолт группы</td></tr>
       <tr><td>POST</td><td><code>/schedule/update</code></td><td><code>schedule.update</code></td><td>Сохранение одной ячейки (статус, комментарий, тренер для «Посетил»)</td></tr>
-      <tr><td>GET</td><td><code>/schedule/logs-data</code></td><td><code>logs.data.schedule</code></td><td>Логи изменений журнала (DataTables, <code>type = 9</code>)</td></tr>
+      <tr><td>GET</td><td><code>/schedule/logs-data</code></td><td><code>logs.data.schedule</code></td><td>Логи изменений (DataTables, категория <code>schedule</code> по <code>event</code> — <a href="/docs/documentation/audit-my-logs">аудит</a>)</td></tr>
       <tr><td>GET</td><td><code>/schedule/user-schedule/{user}</code></td><td><code>user.schedule.info</code></td><td>Данные для модалки «Личное расписание ученика»</td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/set-group</code></td><td><code>user.set.group</code></td><td>Назначить ученику группу (<code>users.team_id</code>)</td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/update-schedule-range</code></td><td><code>user.update.schedule</code></td><td>Массовая проставка «Посетил» по дням недели в диапазоне дат</td></tr>
@@ -176,7 +176,7 @@
     <li>Тренер должен существовать в <code>trainer_profiles</code> с <code>partner_id = current_partner</code></li>
     <li>Пишется в БД только если <code>status_id</code> = «Посетил»</li>
   </ul>
-  <p>В лог (<code>MyLog</code>, action 93) добавлены строки «Тренер до» / «Тренер после».</p>
+  <p>В аудит <code>my_logs</code> (<code>event = schedule.day_updated</code>) добавлены строки «Тренер до» / «Тренер после».</p>
 
   <h3>6.4) Связь с тренерами и группами</h3>
   <p>

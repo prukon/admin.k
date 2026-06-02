@@ -411,7 +411,8 @@ class UserControllerTest extends CrmTestCase
     }
 
     /**
-     * [P2] Сортировка по основным колонкам DataTables
+     * [P2] Сортировка по основным колонкам DataTables.
+     * asAdmin() имеет contracts.view — индексы как в UI с колонкой «Договор» (см. admin-users.html).
      */
     public function test_data_sorts_by_columns(): void
     {
@@ -490,8 +491,8 @@ class UserControllerTest extends CrmTestCase
             'Ожидали, что родитель Антонов (u2) будет раньше Яковлев (u1) при сортировке по родителю asc'
         );
 
-        // 3) Сортировка по команде (col=4) asc — по teams.title
-        $json = $this->getJson('/admin/users/data?order[0][column]=4&order[0][dir]=asc')->json();
+        // 3) Сортировка по команде (col=5) asc — по teams.title
+        $json = $this->getJson('/admin/users/data?order[0][column]=5&order[0][dir]=asc')->json();
         $ids = collect($json['data'])->pluck('id')->all();
 
         $posU1 = array_search($u1->id, $ids, true);
@@ -506,8 +507,8 @@ class UserControllerTest extends CrmTestCase
             'Ожидали, что команда Alpha (u2) будет раньше Beta (u1) при сортировке по команде asc'
         );
 
-        // 4) Сортировка по email (col=6) asc
-        $json = $this->getJson('/admin/users/data?order[0][column]=6&order[0][dir]=asc')->json();
+        // 4) Сортировка по email (col=7) asc
+        $json = $this->getJson('/admin/users/data?order[0][column]=7&order[0][dir]=asc')->json();
         $ids = collect($json['data'])->pluck('id')->all();
 
         $posU1 = array_search($u1->id, $ids, true);
@@ -522,8 +523,8 @@ class UserControllerTest extends CrmTestCase
             "Ожидали, что u2 (id={$u2->id}, email={$u2->email}) будет раньше u1 (id={$u1->id}, email={$u1->email}) при сортировке по email asc"
         );
 
-        // 5) Сортировка по статусу (col=8) desc — активные первыми
-        $json = $this->getJson('/admin/users/data?order[0][column]=8&order[0][dir]=desc')->json();
+        // 5) Сортировка по статусу (col=9) desc — активные первыми
+        $json = $this->getJson('/admin/users/data?order[0][column]=9&order[0][dir]=desc')->json();
         $ids = collect($json['data'])->pluck('id')->all();
 
         $posU1 = array_search($u1->id, $ids, true); // is_enabled=0

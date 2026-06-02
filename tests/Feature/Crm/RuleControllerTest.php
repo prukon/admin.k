@@ -537,8 +537,8 @@ class RuleControllerTest extends CrmTestCase
         $partnerB = Partner::factory()->create();
 
         MyLog::create([
-            'type'        => 700,
-            'action'      => 710,
+            'event'       => \App\Enums\AuditEvent::RoleCreated->value,
+            'level'       => \App\Enums\AuditEvent::RoleCreated->level()->value,
             'author_id'   => $this->user->id,
             'partner_id'  => $this->partner->id,
             'description' => 'A',
@@ -546,8 +546,8 @@ class RuleControllerTest extends CrmTestCase
         ]);
 
         MyLog::create([
-            'type'        => 700,
-            'action'      => 710,
+            'event'       => \App\Enums\AuditEvent::RoleCreated->value,
+            'level'       => \App\Enums\AuditEvent::RoleCreated->level()->value,
             'author_id'   => $this->user->id,
             'partner_id'  => $partnerB->id,
             'description' => 'B',
@@ -555,11 +555,11 @@ class RuleControllerTest extends CrmTestCase
         ]);
 
         MyLog::create([
-            'type'        => 123,
-            'action'      => 999,
+            'event'       => \App\Enums\AuditEvent::SettingsUpdated->value,
+            'level'       => \App\Enums\AuditEvent::SettingsUpdated->level()->value,
             'author_id'   => $this->user->id,
             'partner_id'  => $this->partner->id,
-            'description' => 'NOT 700',
+            'description' => 'NOT role category',
             'created_at'  => now(),
         ]);
 
@@ -575,6 +575,6 @@ class RuleControllerTest extends CrmTestCase
 
         $this->assertContains('A', $descriptions);
         $this->assertNotContains('B', $descriptions);
-        $this->assertNotContains('NOT 700', $descriptions);
+        $this->assertNotContains('NOT role category', $descriptions);
     }
 }

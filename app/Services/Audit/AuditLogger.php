@@ -17,6 +17,8 @@ final class AuditLogger
         $payload = [
             'event' => $event->value,
             'level' => $event->level()->value,
+            'type' => null,
+            'action' => null,
             'description' => $context->description,
         ];
 

@@ -278,8 +278,6 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         MyLog::query()->create([
             'event' => AuditEvent::TeamCreated->value,
             'level' => AuditEvent::TeamCreated->level()->value,
-            'type' => 3,
-            'action' => 31,
             'author_id' => $this->user->id,
             'partner_id' => $this->partner->id,
             'target_type' => 'App\Models\Team',
@@ -290,8 +288,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         ]);
 
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 70,
+            'event' => AuditEvent::SettingsUpdated->value,
+            'level' => AuditEvent::SettingsUpdated->level()->value,
             'author_id' => $this->user->id,
             'partner_id' => $this->partner->id,
             'target_type' => 'App\Models\Setting',
@@ -325,8 +323,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->createPartnerLog($this->partner->id, 'regular-admin-log', null, 'HideSuperadminFilter');
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 70,
+            'event' => AuditEvent::SettingsUpdated->value,
+            'level' => AuditEvent::SettingsUpdated->level()->value,
             'author_id' => $superadmin->id,
             'partner_id' => $this->partner->id,
             'target_type' => 'App\Models\Setting',
@@ -406,23 +404,12 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->createPartnerLog($this->partner->id, 'settings-change-log', null, 'HideAuthFilter');
         MyLog::query()->create([
-            'type' => 4,
-            'action' => 40,
+            'event' => AuditEvent::AuthLogin->value,
+            'level' => AuditEvent::AuthLogin->level()->value,
             'author_id' => $this->user->id,
             'partner_id' => $this->partner->id,
             'target_type' => null,
             'target_id' => null,
-            'target_label' => 'HideAuthFilter',
-            'description' => 'authorization-log-legacy',
-            'created_at' => now(),
-        ]);
-        MyLog::query()->create([
-            'event' => \App\Enums\AuditEvent::AuthLogin->value,
-            'level' => \App\Enums\AuditEvent::AuthLogin->level()->value,
-            'type' => 4,
-            'action' => 40,
-            'author_id' => $this->user->id,
-            'partner_id' => $this->partner->id,
             'target_label' => 'HideAuthFilter',
             'description' => 'authorization-log-event',
             'created_at' => now(),
@@ -439,7 +426,6 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $hidden->assertOk();
         $hiddenDescriptions = collect($hidden->json('data'))->pluck('description')->all();
         $this->assertContains('settings-change-log', $hiddenDescriptions);
-        $this->assertNotContains('authorization-log-legacy', $hiddenDescriptions);
         $this->assertNotContains('authorization-log-event', $hiddenDescriptions);
     }
 
@@ -448,8 +434,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $this->grantPermissionToCurrentRole('viewing.all.logs');
 
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 99999,
+            'event' => 'not.in.registry',
+            'level' => AuditLevel::Info->value,
             'author_id' => $this->user->id,
             'partner_id' => $this->partner->id,
             'target_type' => 'App\Models\Setting',
@@ -620,10 +606,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->createPartnerLog($this->partner->id, 'settings-change-log', null, 'HideIntegrationFilter');
         MyLog::query()->create([
-            'event' => \App\Enums\AuditEvent::PaymentReceived->value,
-            'level' => \App\Enums\AuditEvent::PaymentReceived->level()->value,
-            'type' => 5,
-            'action' => 50,
+            'event' => AuditEvent::PaymentReceived->value,
+            'level' => AuditEvent::PaymentReceived->level()->value,
             'author_id' => $this->user->id,
             'partner_id' => $this->partner->id,
             'target_label' => 'HideIntegrationFilter',
@@ -651,8 +635,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->createPartnerLog($this->partner->id, 'settings-change-visible', null, 'ShowAuthFilter');
         MyLog::query()->create([
-            'type' => 4,
-            'action' => 40,
+            'event' => AuditEvent::AuthLogin->value,
+            'level' => AuditEvent::AuthLogin->level()->value,
             'author_id' => $this->user->id,
             'partner_id' => $this->partner->id,
             'target_type' => null,
@@ -684,8 +668,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $superadmin = $this->createUserWithRole('superadmin', $this->partner);
 
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 70,
+            'event' => AuditEvent::SettingsUpdated->value,
+            'level' => AuditEvent::SettingsUpdated->level()->value,
             'author_id' => $superadmin->id,
             'partner_id' => $this->partner->id,
             'target_type' => 'App\Models\Setting',
@@ -713,8 +697,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->createPartnerLog($this->partner->id, 'combined-regular-log', null, 'CombinedNewFilters');
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 70,
+            'event' => AuditEvent::SettingsUpdated->value,
+            'level' => AuditEvent::SettingsUpdated->level()->value,
             'author_id' => $superadmin->id,
             'partner_id' => $this->partner->id,
             'target_type' => 'App\Models\Setting',
@@ -724,8 +708,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             'created_at' => now(),
         ]);
         MyLog::query()->create([
-            'type' => 4,
-            'action' => 40,
+            'event' => AuditEvent::AuthLogin->value,
+            'level' => AuditEvent::AuthLogin->level()->value,
             'author_id' => $this->user->id,
             'partner_id' => $this->partner->id,
             'target_type' => null,
@@ -798,8 +782,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $superadmin = $this->createUserWithRole('superadmin', $this->foreignPartner);
 
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 70,
+            'event' => AuditEvent::SettingsUpdated->value,
+            'level' => AuditEvent::SettingsUpdated->level()->value,
             'author_id' => $this->user->id,
             'partner_id' => $this->partner->id,
             'target_type' => 'App\Models\Setting',
@@ -809,8 +793,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             'created_at' => now(),
         ]);
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 99999,
+            'event' => 'not.in.registry',
+            'level' => AuditLevel::Info->value,
             'author_id' => $this->user->id,
             'partner_id' => $this->foreignPartner->id,
             'target_type' => 'App\Models\Setting',
@@ -820,8 +804,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             'created_at' => now(),
         ]);
         MyLog::query()->create([
-            'type' => 4,
-            'action' => 40,
+            'event' => AuditEvent::AuthLogin->value,
+            'level' => AuditEvent::AuthLogin->level()->value,
             'author_id' => $superadmin->id,
             'partner_id' => $this->foreignPartner->id,
             'target_type' => null,
@@ -858,8 +842,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $foreignSuperadmin = $this->createUserWithRole('superadmin', $this->foreignPartner);
 
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 70,
+            'event' => AuditEvent::SettingsUpdated->value,
+            'level' => AuditEvent::SettingsUpdated->level()->value,
             'author_id' => $regularAdmin->id,
             'partner_id' => $this->partner->id,
             'target_type' => 'App\Models\Setting',
@@ -869,8 +853,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             'created_at' => now(),
         ]);
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 70,
+            'event' => AuditEvent::SettingsUpdated->value,
+            'level' => AuditEvent::SettingsUpdated->level()->value,
             'author_id' => $foreignSuperadmin->id,
             'partner_id' => $this->foreignPartner->id,
             'target_type' => 'App\Models\Setting',
@@ -880,8 +864,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             'created_at' => now(),
         ]);
         MyLog::query()->create([
-            'type' => 4,
-            'action' => 40,
+            'event' => AuditEvent::AuthLogin->value,
+            'level' => AuditEvent::AuthLogin->level()->value,
             'author_id' => $regularAdmin->id,
             'partner_id' => $this->foreignPartner->id,
             'target_type' => null,
@@ -939,8 +923,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
         $this->grantPermissionToCurrentRole('viewing.all.logs');
 
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 99998,
+            'event' => 'not.in.registry',
+            'level' => AuditLevel::Info->value,
             'author_id' => $this->user->id,
             'partner_id' => $this->partner->id,
             'target_type' => 'App\Models\Setting',
@@ -950,8 +934,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             'created_at' => now(),
         ]);
         MyLog::query()->create([
-            'type' => 1,
-            'action' => 99997,
+            'event' => 'legacy.unknown.event',
+            'level' => AuditLevel::Info->value,
             'author_id' => $this->foreignUser->id,
             'partner_id' => $this->foreignPartner->id,
             'target_type' => 'App\Models\Setting',

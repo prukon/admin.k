@@ -199,7 +199,7 @@
   <h3>Пробное (<code>DELETE …/trial-registration/{id}</code>)</h3>
   <ul>
     <li><strong>Очистка статусов</strong>: удаляются записи в <code>user_lesson_occurrence_status_events</code> для этой даты/слота/ученика с <code>user_lesson_package_id IS NULL</code>.</li>
-    <li><strong>Аудит</strong>: <code>my_logs</code>, <code>type = 60</code>, <code>action = 601</code> («Отмена пробного занятия в расписании»).</li>
+    <li><strong>Аудит</strong>: <code>my_logs</code>, <code>event = schedule.trial_cancelled</code> (см. <a href="/docs/documentation/audit-my-logs">аудит my_logs</a>).</li>
   </ul>
 
   <h3>Разовое (<code>DELETE …/single-lesson-registration/{id}</code>)</h3>
@@ -207,7 +207,7 @@
     <li><strong>Строка календаря</strong> удаляется; назначение <code>user_lesson_packages</code> остаётся в системе.</li>
     <li><strong>Восстановление остатка</strong>: если последний статус по этой записи имел <code>consumes_lesson = true</code>, к <code>lessons_remaining</code> применяется дельта +1 (<code>UserLessonPackageConsumptionAdjuster</code>).</li>
     <li><strong>Очистка статусов</strong>: удаляются события в <code>user_lesson_occurrence_status_events</code> для этой даты/слота/ученика с тем же <code>user_lesson_package_id</code>.</li>
-    <li><strong>Аудит</strong>: <code>my_logs</code>, <code>type = 60</code>, <code>action = 602</code> («Отмена записи разового занятия в расписании»).</li>
+    <li><strong>Аудит</strong>: <code>my_logs</code>, <code>event = schedule.single_lesson_registration_cancelled</code>.</li>
   </ul>
 
   <h2>Связь с логикой абонементов</h2>

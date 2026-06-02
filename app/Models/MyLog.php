@@ -83,27 +83,12 @@ class MyLog extends Model
     }
 
     /**
-     * Человекочитаемые подписи legacy-кодов action для UI и логов.
-     *
-     * @return array<int, string>
-     */
-    public static function actionLabels(): array
-    {
-        return AuditEvent::legacyActionLabels();
-    }
-
-    /**
-     * Каноническое событие строки (event или legacy type/action).
+     * Каноническое событие строки (колонка event).
      */
     public function resolvedEvent(): ?AuditEvent
     {
-        if (is_string($this->event) && $this->event !== '') {
-            return AuditEvent::tryFrom($this->event);
-        }
-
-        return AuditEvent::fromLegacy(
-            is_numeric($this->type) ? (int) $this->type : null,
-            is_numeric($this->action) ? (int) $this->action : null,
+        return AuditEvent::tryFromString(
+            is_string($this->event) ? $this->event : null,
         );
     }
 
@@ -114,8 +99,6 @@ class MyLog extends Model
     {
         return AuditEvent::resolveLabel(
             is_string($this->event) ? $this->event : null,
-            is_numeric($this->type) ? (int) $this->type : null,
-            is_numeric($this->action) ? (int) $this->action : null,
         );
     }
 

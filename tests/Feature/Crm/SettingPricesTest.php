@@ -1009,30 +1009,28 @@ class SettingPricesTest extends CrmTestCase
     {
         $this->asAdmin();
 
-        // Лог pricing (legacy type=1 и event-only)
         MyLog::forceCreate([
-            'type'        => 1,
-            'action'      => 11,
-            'description' => 'log-legacy-type',
+            'event'       => AuditEvent::PricingBulkApply->value,
+            'level'       => AuditEvent::PricingBulkApply->level()->value,
+            'description' => 'log-pricing-bulk',
             'target_type' => 'App\Models\UserPrice',
             'target_id'   => 1,
             'created_at'  => now(),
         ]);
 
         MyLog::forceCreate([
-            'event'       => AuditEvent::PricingBulkApply->value,
-            'level'       => AuditEvent::PricingBulkApply->level()->value,
-            'description' => 'log-event-only',
+            'event'       => AuditEvent::PricingStudentApply->value,
+            'level'       => AuditEvent::PricingStudentApply->level()->value,
+            'description' => 'log-pricing-student',
             'target_type' => 'App\Models\UserPrice',
             'target_id'   => 3,
             'created_at'  => now(),
         ]);
 
-        // Лог другого раздела
         MyLog::forceCreate([
-            'type'        => 2,
-            'action'      => 99,
-            'description' => 'log2',
+            'event'       => AuditEvent::UserUpdated->value,
+            'level'       => AuditEvent::UserUpdated->level()->value,
+            'description' => 'log-user-category',
             'target_type' => 'App\Models\UserPrice',
             'target_id'   => 2,
             'created_at'  => now(),
@@ -1047,9 +1045,9 @@ class SettingPricesTest extends CrmTestCase
         $this->assertIsArray($json['data']);
 
         $descriptions = collect($json['data'])->pluck('description')->all();
-        $this->assertContains('log-legacy-type', $descriptions);
-        $this->assertContains('log-event-only', $descriptions);
-        $this->assertNotContains('log2', $descriptions);
+        $this->assertContains('log-pricing-bulk', $descriptions);
+        $this->assertContains('log-pricing-student', $descriptions);
+        $this->assertNotContains('log-user-category', $descriptions);
     }
 
     /** @test */

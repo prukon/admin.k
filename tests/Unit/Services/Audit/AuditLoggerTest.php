@@ -58,18 +58,18 @@ class AuditLoggerTest extends CrmTestCase
     }
 
     #[Test]
-    public function legacy_my_log_rows_without_event_still_resolve_label(): void
+    public function rows_without_event_resolve_unknown_label(): void
     {
         $log = MyLog::query()->create([
             'type' => 700,
             'action' => 741,
             'author_id' => null,
-            'description' => 'legacy row',
+            'description' => 'row without event column',
             'created_at' => now(),
         ]);
 
         $this->assertNull($log->event);
-        $this->assertSame(AuditEvent::RolePermissionGranted, $log->resolvedEvent());
-        $this->assertSame('Назначение права роли', $log->eventLabel());
+        $this->assertNull($log->resolvedEvent());
+        $this->assertSame('Неизвестное событие', $log->eventLabel());
     }
 }

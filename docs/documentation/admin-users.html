@@ -355,7 +355,7 @@
   <ul>
     <li><code>GET /admin/users/{id}/edit</code> (AJAX) — в объекте <code>user</code>: <code>is_individual_traits</code>, <code>is_on_medical_register</code>, <code>is_with_disability</code> (<code>true</code> / <code>false</code> / <code>null</code> в JSON).</li>
     <li><code>PATCH /admin/users/{user}</code> — тело с теми же ключами (строки <code>""</code>, <code>"0"</code>, <code>"1"</code> до нормализации).</li>
-    <li>Изменения пишутся в пользовательский лог (action 22), если у актора есть <code>users.other.update</code>: строки «Индивидуальные особенности», «Учёт у медспециалистов», «Инвалидность» в формате «Не указано / Да / Нет».</li>
+    <li>Изменения пишутся в <code>my_logs</code> (<code>event = user.updated</code> через <code>AuditLogger</code>), если у актора есть <code>users.other.update</code>: строки «Индивидуальные особенности», «Учёт у медспециалистов», «Инвалидность» в формате «Не указано / Да / Нет».</li>
   </ul>
 
   <h3>2.2.6) Изоляция партнёра</h3>
@@ -396,7 +396,7 @@
   <h2>4) Создание пользователя (<code>POST /admin/users</code>)</h2>
   <div class="note">
     Маршрут <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
-    Создание через <code>UserService::store()</code> в <code>DB::transaction</code> с логом (action 21) и опциональными <code>user_field_values</code>.
+    Создание через <code>UserService::store()</code> в <code>DB::transaction</code> с аудитом (<code>event = user.created</code>) и опциональными <code>user_field_values</code>.
     Флаги мед./особенностей (§<a href="#user-health">2.2</a>) при создании <b>не задаются</b> — только в edit после появления ученика.
   </div>
 
