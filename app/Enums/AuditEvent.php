@@ -301,14 +301,15 @@ enum AuditEvent: string
 
             self::PaymentReceived => 5,
 
-            self::PaymentPayoutScheduleChanged => 6,
+            self::PaymentPayoutScheduleChanged => 7,
+
+            self::ScheduleUserRangeUpdated => 6,
 
             self::ScheduleStatusCreated,
             self::ScheduleStatusUpdated,
             self::ScheduleStatusDeleted,
             self::ScheduleDayUpdated,
-            self::ScheduleUserTeamAssigned,
-            self::ScheduleUserRangeUpdated => 9,
+            self::ScheduleUserTeamAssigned => 9,
 
             self::ScheduleSlotOccurrenceSkipped,
             self::ScheduleSlotTruncated,
@@ -382,7 +383,7 @@ enum AuditEvent: string
             self::ScheduleStatusDeleted => 92,
             self::ScheduleDayUpdated => 93,
             self::ScheduleUserTeamAssigned => 94,
-            self::ScheduleUserRangeUpdated => 95,
+            self::ScheduleUserRangeUpdated => 60,
 
             self::ScheduleSlotOccurrenceSkipped => 461,
             self::ScheduleSlotTruncated => 462,
@@ -448,6 +449,15 @@ enum AuditEvent: string
 
         if ($action === 80 && $type === 2) {
             return self::PartnerSettingsUpdated;
+        }
+
+        // Prod-история: type=6 — расписание; action=60 — инд. расписание ученика.
+        if ($type === 6 && $action === 60) {
+            return self::ScheduleUserRangeUpdated;
+        }
+
+        if ($type === 6 && $action === 61) {
+            return self::PaymentPayoutScheduleChanged;
         }
 
         return self::fromLegacyAction($action);
@@ -572,9 +582,6 @@ enum AuditEvent: string
             }
         }
 
-        // Исторический fallback для action=60 («Расписание»), если встретится в старых данных.
-        $labels[60] ??= 'Расписание';
-
         ksort($labels);
 
         return $labels;
@@ -616,6 +623,7 @@ enum AuditEvent: string
             92 => self::ScheduleStatusDeleted,
             93 => self::ScheduleDayUpdated,
             94 => self::ScheduleUserTeamAssigned,
+            60 => self::ScheduleUserRangeUpdated,
             95 => self::ScheduleUserRangeUpdated,
 
             461 => self::ScheduleSlotOccurrenceSkipped,

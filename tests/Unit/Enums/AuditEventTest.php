@@ -81,7 +81,28 @@ class AuditEventTest extends TestCase
             'contract signed' => [520, AuditEvent::ContractSigned],
             'schedule slot skipped' => [461, AuditEvent::ScheduleSlotOccurrenceSkipped],
             'payout schedule' => [61, AuditEvent::PaymentPayoutScheduleChanged],
+            'individual schedule (prod action 60)' => [60, AuditEvent::ScheduleUserRangeUpdated],
         ];
+    }
+
+    #[Test]
+    public function prod_type6_action60_maps_to_schedule_user_range_updated(): void
+    {
+        $event = AuditEvent::fromLegacy(6, 60);
+
+        $this->assertSame(AuditEvent::ScheduleUserRangeUpdated, $event);
+        $this->assertSame(6, $event->legacyType());
+        $this->assertSame(60, $event->legacyAction());
+        $this->assertSame('schedule', $event->category());
+    }
+
+    #[Test]
+    public function prod_type6_action61_maps_to_payout_schedule_changed(): void
+    {
+        $event = AuditEvent::fromLegacy(6, 61);
+
+        $this->assertSame(AuditEvent::PaymentPayoutScheduleChanged, $event);
+        $this->assertSame(7, $event->legacyType());
     }
 
     #[Test]
