@@ -2,6 +2,7 @@
 
 namespace App\Services\Contracts;
 
+use App\Jobs\GenerateContractPdfJob;
 use App\Models\Contract;
 use App\Models\ContractEvent;
 use App\Models\ContractTemplateVersion;
@@ -13,19 +14,56 @@ use Illuminate\Validation\ValidationException;
 
 class ContractPdfGenerationService
 {
+    public const GENERATION_ERROR_KEY = '_generation_error';
+
     public function __construct(
         private readonly ContractDocxPlaceholderFiller $filler,
         private readonly ContractPdfConverterInterface $pdfConverter,
         private readonly ContractPrefillResolver $prefillResolver,
+        private readonly ContractParentProfileSyncService $parentProfileSync,
+        private readonly ContractStudentProfileSyncService $studentProfileSync,
     ) {
+    }
+
+    /**
+     * Валидация и постановка генерации PDF в очередь (LibreOffice в worker CLI).
+     *
+     * @param array<string, mixed> $fieldInput keyed by field key
+     */
+    public function queueClientGeneration(Contract $contract, array $fieldInput, ?int $authorId = null): void
+    {
+        $this->assertCanGenerate($contract);
+
+        $contract->loadMissing('templateVersion');
+        $schema = ContractTemplateVariablePresets::schemaFieldsForParentForm(
+            $contract->templateVersion?->fields_schema ?? [],
+        );
+        $this->validateFieldInput($schema, $fieldInput);
+
+        $authorId = $authorId ?? Auth::id();
+
+        DB::transaction(function () use ($contract, $fieldInput, $authorId) {
+            $locked = Contract::query()->whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $this->assertCanGenerate($locked);
+
+            $locked->filled_data = self::stripInternalFilledDataKeys($fieldInput);
+            $locked->status = Contract::STATUS_GENERATING_PDF;
+            $locked->save();
+
+            GenerateContractPdfJob::dispatch($locked->id, $fieldInput, $authorId);
+        });
     }
 
     /**
      * @param array<string, mixed> $fieldInput keyed by field key
      */
-    public function generateFromClientForm(Contract $contract, array $fieldInput): Contract
-    {
-        $this->assertCanGenerate($contract);
+    public function generateFromClientForm(
+        Contract $contract,
+        array $fieldInput,
+        ?int $authorId = null,
+        bool $fromQueue = false,
+    ): Contract {
+        $this->assertCanGenerate($contract, $fromQueue);
 
         $contract->loadMissing(['templateVersion', 'user', 'team']);
         /** @var ContractTemplateVersion|null $version */
@@ -36,18 +74,23 @@ class ContractPdfGenerationService
             ]);
         }
 
-        $schema = $version->fields_schema ?? [];
+        $schema = ContractTemplateVariablePresets::schemaFieldsForParentForm($version->fields_schema ?? []);
         $this->validateFieldInput($schema, $fieldInput);
 
         $prefill = $this->prefillResolver->resolveForContract($contract, $schema);
-        $values = array_merge(
-            $this->prefillResolver->mergeInput($prefill, $fieldInput),
-            ContractTemplateSystemPlaceholders::forContract($contract),
+        $prefill = ContractTemplateVariablePresets::applySplitNamePrefill($prefill);
+        $values = ContractTemplateVariablePresets::composeNameFieldsForPdf(
+            ContractTemplateVariablePresets::expandDocxPlaceholderValues(array_merge(
+                $this->prefillResolver->mergeInput($prefill, $fieldInput),
+                ContractTemplateSystemPlaceholders::forContract($contract),
+            )),
         );
 
-        return DB::transaction(function () use ($contract, $version, $values) {
+        $authorId = $authorId ?? Auth::id();
+
+        return DB::transaction(function () use ($contract, $version, $values, $authorId) {
             $locked = Contract::query()->whereKey($contract->id)->lockForUpdate()->firstOrFail();
-            $this->assertCanGenerate($locked);
+            $this->assertCanGenerate($locked, true);
 
             $docxSource = Storage::path($version->docx_path);
             $workDir = storage_path('app/contracts/tmp/' . $locked->id . '_' . Str::uuid());
@@ -72,12 +115,22 @@ class ContractPdfGenerationService
 
                 ContractEvent::create([
                     'contract_id'  => $locked->id,
-                    'author_id'    => Auth::id(),
+                    'author_id'    => $authorId,
                     'type'         => 'pdf_generated_by_client',
                     'payload_json' => json_encode([
                         'template_version_id' => $version->id,
                     ], JSON_UNESCAPED_UNICODE),
                 ]);
+
+                $locked->loadMissing('user');
+                if ($locked->user) {
+                    $this->parentProfileSync->syncFromFilledData(
+                        $locked->user,
+                        (int) $locked->school_id,
+                        $values,
+                    );
+                    $this->studentProfileSync->syncFromFilledData($locked->user, $values);
+                }
 
                 return $locked->fresh();
             } catch (ValidationException $e) {
@@ -92,7 +145,36 @@ class ContractPdfGenerationService
         });
     }
 
-    public function assertCanGenerate(Contract $contract): void
+    /**
+     * @param array<string, mixed> $fieldInput
+     */
+    public function failGeneration(int $contractId, string $message, array $fieldInput, ?int $authorId = null): void
+    {
+        DB::transaction(function () use ($contractId, $message, $fieldInput, $authorId) {
+            $locked = Contract::query()->whereKey($contractId)->lockForUpdate()->first();
+            if (!$locked || $locked->status !== Contract::STATUS_GENERATING_PDF) {
+                return;
+            }
+
+            $data = self::stripInternalFilledDataKeys($fieldInput);
+            $data[self::GENERATION_ERROR_KEY] = $message;
+
+            $locked->filled_data = $data;
+            $locked->status = Contract::STATUS_AWAITING_CLIENT_FILL;
+            $locked->save();
+
+            ContractEvent::create([
+                'contract_id'  => $locked->id,
+                'author_id'    => $authorId,
+                'type'         => 'pdf_generation_failed',
+                'payload_json' => json_encode([
+                    'message' => $message,
+                ], JSON_UNESCAPED_UNICODE),
+            ]);
+        });
+    }
+
+    public function assertCanGenerate(Contract $contract, bool $fromQueue = false): void
     {
         if (!$contract->isTemplateMode()) {
             throw ValidationException::withMessages([
@@ -100,7 +182,11 @@ class ContractPdfGenerationService
             ]);
         }
 
-        if ($contract->status !== Contract::STATUS_AWAITING_CLIENT_FILL) {
+        $expectedStatus = $fromQueue
+            ? Contract::STATUS_GENERATING_PDF
+            : Contract::STATUS_AWAITING_CLIENT_FILL;
+
+        if ($contract->status !== $expectedStatus) {
             throw ValidationException::withMessages([
                 'contract' => 'Договор уже сформирован или недоступен для заполнения.',
             ]);
@@ -114,6 +200,23 @@ class ContractPdfGenerationService
     }
 
     /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    public static function stripInternalFilledDataKeys(array $input): array
+    {
+        $clean = [];
+        foreach ($input as $key => $value) {
+            if (!is_string($key) || str_starts_with($key, '_')) {
+                continue;
+            }
+            $clean[$key] = $value;
+        }
+
+        return $clean;
+    }
+
+    /**
      * @param array<int, array<string, mixed>> $schema
      * @param array<string, mixed> $input
      */
@@ -124,6 +227,10 @@ class ContractPdfGenerationService
         foreach ($schema as $field) {
             $key = $field['key'] ?? null;
             if (!is_string($key) || $key === '') {
+                continue;
+            }
+
+            if (ContractTemplateVariablePresets::isSystemFillField($key)) {
                 continue;
             }
 

@@ -139,7 +139,7 @@ class ContractTemplatesIndexFullAccessFeatureTest extends ContractsFeatureTestCa
 
         $store = $this->post(route('contract-templates.store'), [
             'title'         => 'Access Stored Template',
-            'docx'          => $this->fakeDocxUploadedFile(['fio_parent']),
+            'docx'          => $this->fakeDocxUploadedFile(['parent_full_name']),
             'email_subject' => 'Тема',
         ]);
         $store->assertSessionHasNoErrors();
@@ -152,7 +152,7 @@ class ContractTemplatesIndexFullAccessFeatureTest extends ContractsFeatureTestCa
             'email_body_html' => '<p>Новый текст</p>',
             'fields'          => [
                 [
-                    'key'            => 'fio_parent',
+                    'key'            => 'parent_full_name',
                     'label'          => 'ФИО',
                     'required'       => true,
                     'prefill_source' => null,

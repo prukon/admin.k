@@ -9,10 +9,14 @@
     .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
     h1 { font-size: 26px; margin: 0 0 8px; }
     h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
     a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
     .small { color: #555; font-size: 13px; }
     .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
-    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
     th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
     th { background: #f8fafc; }
@@ -22,65 +26,181 @@
 <div class="wrap">
   <p class="small"><a href="/doc">← Документация</a></p>
   <h1>Шаблоны договоров (DOCX)</h1>
-  <div class="small">Файл: <code>/docs/documentation/contract-templates.html</code> · CRM: <code>/client-contract-templates</code></div>
+  <div class="small">
+    Файл: <code>/docs/documentation/contract-templates.html</code> ·
+    CRM: вкладка «Шаблоны» на <code>/client-contracts</code> или <code>/client-contract-templates</code> ·
+    см. <a href="/docs/documentation/contracts">договоры (CRM)</a>,
+    <a href="/docs/documentation/account-contract-fill">заполнение родителем</a>
+  </div>
 
   <h2>1) Назначение</h2>
   <div class="note">
-    Партнёр загружает DOCX с плейсхолдерами <code>{{ключ}}</code>. При создании договора в режиме «форма клиенту»
-    списывается 70&nbsp;₽, клиенту уходит email (шаблон привязан к версии DOCX) и задача в личном кабинете
-    (<code>/account-settings/documents</code>). Генерация PDF (LibreOffice) и подпись SMS из кабинета — см. §4.
+    Партнёр загружает DOCX с плейсхолдерами <code>{{ключ}}</code>. Система извлекает ключи, формирует <code>fields_schema</code> (подписи, обязательность, prefill).
+    При создании договора с <code>creation_mode=template</code> списывается <b>70&nbsp;₽</b>, договор получает статус <code>awaiting_client_fill</code>,
+    срок заполнения <code>fill_expires_at</code> (+7 дней, <code>Contract::FILL_TTL_DAYS</code>).
+    Клиенту уходит email-приглашение и задача в личном кабинете (<code>/account-settings/documents</code>).
+    PDF формирует родитель в кабинете; подпись — SMS (Подпислон) из кабинета, не из CRM.
   </div>
 
-  <h2>2) Таблицы БД</h2>
+  <h2>2) Раздел «Документы» в CRM</h2>
+  <p>На странице <code>/client-contracts</code> две вкладки: «Договоры» и «Шаблоны» (<code>ContractsDocumentsSectionUiFeatureTest</code>).
+  Шаблоны также доступны по прямому URL <code>/client-contract-templates</code> (view <code>contract-templates.index</code>, <code>activeTab=templates</code>).</p>
+  <table>
+    <thead><tr><th>Query</th><th>Действие</th></tr></thead>
+    <tbody>
+      <tr><td><code>?create=1</code></td><td>Открыть модалку «Создать шаблон» (<code>#createContractTemplateModal</code>)</td></tr>
+      <tr><td><code>?edit={template_id}</code></td><td>Открыть модалку редактирования (<code>#editContractTemplateModal</code>)</td></tr>
+      <tr><td><code>?email={template_id}</code></td><td>Открыть модалку email (<code>#editTemplateEmailModal</code>)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3) Таблицы БД</h2>
   <table>
     <thead><tr><th>Таблица</th><th>Назначение</th></tr></thead>
     <tbody>
-      <tr><td><code>contract_templates</code></td><td>Шаблон партнёра: название, <code>current_version_id</code>, архив</td></tr>
-      <tr><td><code>contract_template_versions</code></td><td>Версия DOCX, <code>fields_schema</code> (JSON), email subject/body</td></tr>
-      <tr><td><code>contracts</code></td><td><code>creation_mode</code> pdf|template, <code>contract_template_version_id</code>, <code>fill_expires_at</code> (7 дней)</td></tr>
+      <tr><td><code>contract_templates</code></td><td>Шаблон партнёра: <code>title</code>, <code>current_version_id</code>, <code>is_archived</code></td></tr>
+      <tr><td><code>contract_template_versions</code></td><td>Версия DOCX: путь к файлу, <code>fields_schema</code> (JSON), <code>email_subject</code>, <code>email_body_html</code></td></tr>
+      <tr><td><code>contracts</code></td><td><code>creation_mode</code> pdf|template, <code>contract_template_version_id</code>, <code>fill_expires_at</code>, <code>filled_data</code> (JSON после generate)</td></tr>
     </tbody>
   </table>
 
-  <h2>3) URL (право <code>contracts.view</code>)</h2>
+  <h2>4) URL и права</h2>
+  <p>Базовое право раздела: <code>contracts.view</code>. Маршруты с <code>{template}</code> дополнительно проходят middleware <code>contract-template.partner</code> (шаблон текущего партнёра).</p>
   <table>
-    <thead><tr><th>Метод</th><th>URL</th></tr></thead>
+    <thead><tr><th>Метод</th><th>URL / route name</th><th>Назначение</th></tr></thead>
     <tbody>
-      <tr><td>GET</td><td><code>/client-contract-templates</code></td></tr>
-      <tr><td>GET/POST</td><td><code>/client-contract-templates/create</code>, <code>POST /client-contract-templates</code></td></tr>
-      <tr><td>GET/PUT</td><td><code>/client-contract-templates/{template}/edit</code></td></tr>
-      <tr><td>GET</td><td><code>/client-contract-templates/{template}/download-docx</code></td></tr>
-      <tr><td>POST</td><td><code>/client-contracts</code> с <code>creation_mode=template</code></td></tr>
-      <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code> в статусе <code>awaiting_client_fill</code> — возврат 70&nbsp;₽</td></tr>
+      <tr><td>GET</td><td><code>/client-contract-templates</code></td><td>Список шаблонов (DataTables)</td></tr>
+      <tr><td>GET</td><td><code>/client-contract-templates/data</code></td><td>JSON для таблицы</td></tr>
+      <tr><td>GET/POST</td><td><code>…/columns-settings</code></td><td>Настройки колонок</td></tr>
+      <tr><td>GET</td><td><code>/client-contract-templates/create</code></td><td>Redirect на index с <code>?create=1</code></td></tr>
+      <tr><td>POST</td><td><code>/client-contract-templates</code></td><td>Создание шаблона + первая версия DOCX</td></tr>
+      <tr><td>GET</td><td><code>…/{template}/edit</code></td><td>Redirect на index с <code>?edit=</code> или JSON для модалки</td></tr>
+      <tr><td>PUT</td><td><code>…/{template}</code></td><td>Обновление названия, полей; при новом DOCX — новая версия</td></tr>
+      <tr><td>GET</td><td><code>…/{template}/download-docx</code></td><td>Скачивание текущего DOCX</td></tr>
+      <tr><td>GET</td><td><code>…/{template}/email</code></td><td>JSON: subject, body, placeholders, <code>update_url</code></td></tr>
+      <tr><td>PUT</td><td><code>…/{template}/email</code></td><td>Обновление email <b>только</b> текущей версии (отдельно от PUT шаблона)</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts</code> + <code>creation_mode=template</code></td><td>Создание договора «форма клиенту»</td></tr>
+      <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code></td><td>В <code>awaiting_client_fill</code> — отзыв + возврат 70&nbsp;₽</td></tr>
     </tbody>
   </table>
+  <div class="warn">
+    Право <code>contracts.templates.fillSortOrder.edit</code> (скрытое, не в базовых ролях): колонка «Порядок» в редакторе полей и сохранение <code>fill_sort_order</code> в <code>fields_schema</code>.
+    По умолчанию доступно только superadmin (<code>Gate::before</code> + явная выдача права).
+    Backend: <code>ContractTemplateService::normalizeFieldsInput()</code> игнорирует <code>fill_sort_order</code> из запроса без этого Gate.
+  </div>
 
-  <h2>4) Кабинет клиента (итерация 2)</h2>
+  <h2>5) Модалки шаблонов</h2>
+
+  <h3>5.1) Создание (<code>#createContractTemplateModal</code>)</h3>
+  <ul>
+    <li>Поля: название, файл DOCX (обяз.), аккордеон «Переменные» (справочник пресетов).</li>
+    <li>После загрузки DOCX — таблица полей (<code>fields-editor</code>, id таблицы <code>contract-template-fields-table</code>).</li>
+    <li>Колонки: ключ, подпись, группа (родитель/ученик/система), обязательность, prefill; «Порядок» — только при <code>@can('contracts.templates.fillSortOrder.edit')</code>.</li>
+    <li>Валидация: <code>ContractTemplateStoreRequest</code>.</li>
+  </ul>
+
+  <h3>5.2) Редактирование (<code>#editContractTemplateModal</code>)</h3>
+  <ul>
+    <li>Название, опционально новый DOCX (создаёт новую версию, старые договоры остаются на своей версии).</li>
+    <li>Редактор полей тот же; системные поля (<code>contract_date</code>, <code>contract_id</code>…) помечены и не удаляются.</li>
+    <li>PUT <code>contract-templates.update</code> <b>не меняет</b> email — только subject/body через отдельный endpoint.</li>
+    <li>Валидация: <code>ContractTemplateUpdateRequest</code>.</li>
+  </ul>
+
+  <h3>5.3) Email (<code>#editTemplateEmailModal</code>)</h3>
+  <ul>
+    <li>Открывается кнопкой «Email» в таблице или <code>?email=</code> на index.</li>
+    <li>AJAX <code>GET …/email</code> → subject, body HTML, список плейсхолдеров, <code>update_url</code>.</li>
+    <li>PUT <code>…/email</code> — <code>ContractTemplateUpdateEmailRequest</code>.</li>
+    <li>Дефолты при пустых полях версии: <code>ContractTemplateEmailDefaults</code>.</li>
+    <li>Плейсхолдеры письма: <code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code> — подстановка в <code>ContractInvitationEmailRenderer</code>.</li>
+    <li>Отправка при создании договора: <code>ContractClientFillInvitationMail</code> (<code>ContractCreationService::notifyClientAboutFill</code>).</li>
+  </ul>
+
+  <h3>5.4) UI-заметки</h3>
+  <div class="note">
+    Таблица полей шаблона использует id <code>contract-template-fields-table</code> (не <code>fields-table</code>), чтобы не конфликтовать с глобальными стилями модалки полей CRM.
+    Горизонтальный скролл и чекбоксы «Обяз.» синхронизированы через CSS в <code>fields-editor.blade.php</code>.
+  </div>
+
+  <h2>6) Переменные DOCX и <code>fields_schema</code></h2>
+  <p>Единый формат ключей: <code>snake_case</code>, например <code>{{parent_full_name}}</code>.
+  Справочник рекомендуемых переменных, русские подписи, <code>prefill_source</code>, группы и <code>fill_sort_order</code> по умолчанию — класс <code>ContractTemplateVariablePresets</code>.</p>
+  <table>
+    <thead><tr><th>Ключ DOCX</th><th>В форме родителя</th></tr></thead>
+    <tbody>
+      <tr><td><code>parent_full_name</code></td><td><code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code></td></tr>
+      <tr><td><code>child_full_name</code></td><td><code>child_lastname</code>, <code>child_firstname</code></td></tr>
+      <tr><td><code>child_birthday</code></td><td>поле даты; в PDF — <code>d.m.Y</code></td></tr>
+    </tbody>
+  </table>
+  <p>При загрузке DOCX для известных ключей автоматически подставляются подписи и prefill из пресетов; неизвестные ключи попадают в схему как кастомные поля.</p>
+
+  <h2>7) Версии DOCX и архив</h2>
+  <ul>
+    <li>Каждый новый файл DOCX при store/update создаёт запись в <code>contract_template_versions</code> и обновляет <code>current_version_id</code>.</li>
+    <li>Уже созданные договоры ссылаются на <code>contract_template_version_id</code> на момент создания.</li>
+    <li>Архивирование шаблона (<code>is_archived</code>) скрывает его из Select2 при создании договора (<code>ContractTemplate::active()</code>).</li>
+  </ul>
+
+  <h2>8) Кабинет клиента (заполнение и подпись)</h2>
+  <p>Подробно: <a href="/docs/documentation/account-contract-fill">account-contract-fill.html</a>.</p>
   <table>
     <thead><tr><th>Метод</th><th>URL</th><th>Назначение</th></tr></thead>
     <tbody>
-      <tr><td>GET</td><td><code>/account-settings/documents/contracts/{contract}/fill</code></td><td>Форма полей + подписание</td></tr>
-      <tr><td>POST</td><td><code>…/generate</code></td><td>DOCX→PDF, статус <code>draft</code></td></tr>
-      <tr><td>POST</td><td><code>…/sign</code></td><td>SMS Подпислон (клиент, не админ)</td></tr>
+      <tr><td>GET</td><td><code>/account-settings/documents/contracts/{contract}/fill</code></td><td>AJAX JSON формы или redirect</td></tr>
+      <tr><td>POST</td><td><code>…/generate</code></td><td>DOCX→PDF, статус <code>draft</code> / <code>generating_pdf</code></td></tr>
+      <tr><td>POST</td><td><code>…/sign</code></td><td>SMS Подпислон из кабинета</td></tr>
     </tbody>
   </table>
   <p class="small">Право: <code>account.documents.view</code>, middleware <code>contract.owner</code>.</p>
   <p class="small">
-    Конвертер PDF: <code>CONTRACT_PDF_CONVERTER=auto</code> (по умолчанию) —
-    LibreOffice при наличии <code>proc_open</code>, иначе PhpWord+Dompdf (shared hosting).
+    Конвертер PDF: <code>CONTRACT_PDF_CONVERTER=auto</code> (LibreOffice при <code>proc_open</code>, иначе PhpWord+Dompdf).
     Явно: <code>phpword</code> | <code>libreoffice</code> | <code>fake</code> (тесты).
   </p>
 
-  <h2>5) Сервисы</h2>
+  <h2>9) Сервисы</h2>
   <ul>
-    <li><code>DocxPlaceholderExtractor</code> — парсинг плейсхолдеров из DOCX</li>
-    <li><code>ContractDocxPlaceholderFiller</code> — подстановка в DOCX</li>
+    <li><code>ContractTemplateService</code> — CRUD шаблонов, нормализация полей, версии</li>
+    <li><code>ContractTemplateVariablePresets</code> — справочник переменных и порядок fill</li>
+    <li><code>DocxPlaceholderExtractor</code> — парсинг <code>{{…}}</code> из DOCX</li>
+    <li><code>ContractDocxPlaceholderFiller</code> — подстановка значений в DOCX</li>
+    <li><code>ContractPdfGenerationService</code> — формирование PDF (кабинет + очередь)</li>
     <li><code>LibreOfficePdfConverter</code> / <code>FakeContractPdfConverter</code></li>
-    <li><code>ContractPdfGenerationService</code> — формирование PDF клиентом</li>
-    <li><code>ContractPodpislonSendService</code> — отправка SMS (CRM и кабинет)</li>
-    <li><code>ContractPrefillResolver</code> — предзаполнение из users/teams</li>
+    <li><code>ContractPrefillResolver</code> — предзаполнение из users/parents/teams</li>
+    <li><code>ContractParentProfileSyncService</code> / <code>ContractStudentProfileSyncService</code> — sync после generate</li>
+    <li><code>ContractPodpislonSendService</code> — SMS (CRM и кабинет)</li>
+    <li><code>ContractInvitationEmailRenderer</code> — рендер письма-приглашения</li>
+    <li><code>ContractCreationService</code> — создание договора template mode, billing, notify</li>
+    <li><code>ContractBillingService</code> — списание 70&nbsp;₽ и возврат при revoke</li>
   </ul>
 
-  <p class="small">См. также <a href="/docs/documentation/contracts">договоры (клиентские)</a>.</p>
+  <h2>10) Feature-тесты</h2>
+  <div class="note">
+    <p><b>Шаблоны и CRM:</b></p>
+    <ul>
+      <li><code>ContractTemplatesCrudFeatureTest.php</code> — базовый CRUD</li>
+      <li><code>ContractTemplatesStoreUpdateFeatureTest.php</code> — валидация store/update, DOCX, поля, версии</li>
+      <li><code>ContractTemplatesEndpointsAccessFeatureTest.php</code> — матрица 401/403/200 по всем URL</li>
+      <li><code>ContractTemplatesModalsUiFeatureTest.php</code> — модалки create/edit на index</li>
+      <li><code>ContractTemplateEmailModalFeatureTest.php</code> — модалка email, update-email</li>
+      <li><code>ContractTemplateEmailFeatureTest.php</code>, <code>ContractInvitationEmailFeatureTest.php</code> — содержимое письма</li>
+      <li><code>ContractTemplateFillSortOrderFeatureTest.php</code> — право fillSortOrder, сохранение порядка</li>
+      <li><code>ContractTemplatesDataTableFeatureTest.php</code>, <code>ContractTemplatesIndexFullAccessFeatureTest.php</code></li>
+      <li><code>ContractsDocumentsSectionUiFeatureTest.php</code>, <code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — вкладки, email API</li>
+      <li><code>ContractStoreTemplateModeTest.php</code>, <code>ContractCreateTemplateModeModalFeatureTest.php</code> — создание договора по шаблону</li>
+      <li><code>ContractRevokeRefundTest.php</code> — revoke + возврат 70&nbsp;₽</li>
+      <li><code>ContractTemplateWorkflowFeatureTest.php</code>, <code>ContractTemplateToParentWorkflowFeatureTest.php</code> — E2E</li>
+      <li><code>ContractParentProfileSyncTest.php</code>, <code>ContractStudentProfileSyncTest.php</code></li>
+    </ul>
+    <p><b>Кабинет родителя:</b> см. <a href="/docs/documentation/account-contract-fill#7-feature-тесты">account-contract-fill §7</a>.</p>
+    <p>Запуск блока шаблонов:</p>
+    <code>php artisan test tests/Feature/Crm/Contracts/ContractTemplatesStoreUpdateFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateFillSortOrderFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateToParentWorkflowFeatureTest.php</code>
+  </div>
+
+  <p class="small"><a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/contracts">Договоры (CRM)</a> ·
+    <a href="/docs/documentation/account-contract-fill">Заполнение родителем</a></p>
 </div>
 </body>
 </html>

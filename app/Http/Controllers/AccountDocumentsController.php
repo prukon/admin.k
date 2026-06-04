@@ -32,6 +32,7 @@ class AccountDocumentsController extends Controller
         $statusMap = [
             'draft'   => ['label' => 'Черновик',        'class' => 'secondary'],
             Contract::STATUS_AWAITING_CLIENT_FILL => ['label' => 'Требуется заполнение', 'class' => 'primary'],
+            Contract::STATUS_GENERATING_PDF       => ['label' => 'Формируется PDF', 'class' => 'info'],
             'sent'    => ['label' => 'Отправлено',      'class' => 'info'],
             'opened'  => ['label' => 'Открыт',          'class' => 'warning'],
             'signed'  => ['label' => 'Подписан',        'class' => 'success'],
@@ -40,6 +41,8 @@ class AccountDocumentsController extends Controller
             'failed'  => ['label' => 'Ошибка',          'class' => 'danger'],
         ];
 
+        $openFillContractId = $request->integer('fill');
+
         return view('account.index', [
             'activeTab' => 'myDocuments',
             'user'      => $user,
@@ -47,6 +50,7 @@ class AccountDocumentsController extends Controller
             'contracts' => $contracts,
             'statusMap' => $statusMap,
             'currentStatus' => $status,
+            'openFillContractId' => $openFillContractId > 0 ? $openFillContractId : null,
         ]);
     }
 

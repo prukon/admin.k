@@ -7,6 +7,7 @@ use App\Models\ContractTemplate;
 use App\Models\ContractTemplateVersion;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -66,17 +67,45 @@ class AccountContractFillAccessFeatureTest extends CrmTestCase
             ->assertStatus(403);
     }
 
+    public function test_fill_page_hides_field_keys_without_show_field_keys_permission(): void
+    {
+        $contract = $this->makeAwaitingContract();
+
+        $html = $this->getContractFillModalHtml($contract);
+
+        $this->assertStringNotContainsString('&#123;&#123;parent_full_name&#125;&#125;', $html);
+    }
+
+    public function test_fill_page_shows_field_keys_with_show_field_keys_permission(): void
+    {
+        $contract = $this->makeAwaitingContract();
+        $this->grantPermissionToRoleForPartner(
+            (int) $this->user->role_id,
+            $this->partner->id,
+            'account.contracts.showFieldKeys',
+        );
+
+        $html = $this->getContractFillModalHtml($contract);
+
+        $this->assertStringContainsString('&#123;&#123;parent_lastname&#125;&#125;', $html);
+        $this->assertStringNotContainsString('&#123;&#123;parent_full_name&#125;&#125;', $html);
+    }
+
     public function test_fill_endpoints_accessible_for_owner_with_permission(): void
     {
         $contract = $this->makeAwaitingContract();
 
         $this->get(route('account.documents.index'))->assertOk();
-        $this->get(route('account.documents.fill', $contract))->assertOk();
+        $this->getContractFillModalHtml($contract);
 
         $this->post(route('account.documents.generate', $contract), [
-            'fields' => ['fio_parent' => 'Иванов Иван Иванович'],
+            'fields' => [
+                'parent_lastname'  => 'Иванов',
+                'parent_firstname' => 'Иван',
+                'parent_middlename' => 'Иванович',
+            ],
         ])
-            ->assertRedirect(route('account.documents.fill', $contract));
+            ->assertRedirect(route('account.documents.index', ['fill' => $contract->id]));
 
         $contract->refresh();
         $contract->update([
@@ -126,7 +155,7 @@ class AccountContractFillAccessFeatureTest extends CrmTestCase
         $this->actingAs($other)
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
             ->post(route('account.documents.generate', $contract), [
-                'fields' => ['fio_parent' => 'Чужой'],
+                'fields' => ['parent_full_name' => 'Чужой'],
             ])
             ->assertStatus(404);
 
@@ -157,7 +186,7 @@ class AccountContractFillAccessFeatureTest extends CrmTestCase
             'docx_sha256'          => str_repeat('c', 64),
             'fields_schema'        => [
                 [
-                    'key'            => 'fio_parent',
+                    'key'            => 'parent_full_name',
                     'label'          => 'ФИО родителя',
                     'required'       => true,
                     'prefill_source' => null,
@@ -181,6 +210,25 @@ class AccountContractFillAccessFeatureTest extends CrmTestCase
         ]);
     }
 
+    private function getContractFillModalHtml(Contract $contract): string
+    {
+        return (string) $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('account.documents.fill', $contract))
+            ->assertOk()
+            ->json('html');
+    }
+
+    protected function grantPermissionToRoleForPartner(int $roleId, int $partnerId, string $permissionName): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => $partnerId,
+            'role_id'       => $roleId,
+            'permission_id' => $this->permissionId($permissionName),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+    }
+
     private function createDocxOnDisk(): string
     {
         $rel = 'contract-templates/access-' . uniqid() . '.docx';
@@ -194,7 +242,7 @@ class AccountContractFillAccessFeatureTest extends CrmTestCase
             'word/document.xml',
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-            . '<w:body><w:p><w:r><w:t>Договор {{fio_parent}}</w:t></w:r></w:p></w:body></w:document>'
+            . '<w:body><w:p><w:r><w:t>Договор {{parent_full_name}}</w:t></w:r></w:p></w:body></w:document>'
         );
         $zip->close();
 

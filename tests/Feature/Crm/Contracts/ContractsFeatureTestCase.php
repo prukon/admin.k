@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Contracts;
 
 use App\Models\ContractTemplate;
 use App\Models\ContractTemplateVersion;
+use App\Services\Contracts\ContractTemplatePrefillSources;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -66,7 +67,7 @@ abstract class ContractsFeatureTestCase extends CrmTestCase
     /**
      * @param list<string> $placeholders
      */
-    protected function fakeDocxUploadedFile(array $placeholders = ['fio_parent']): UploadedFile
+    protected function fakeDocxUploadedFile(array $placeholders = ['parent_full_name']): UploadedFile
     {
         $inner = implode(' ', array_map(static fn (string $key) => '{{' . $key . '}}', $placeholders));
 
@@ -101,7 +102,7 @@ abstract class ContractsFeatureTestCase extends CrmTestCase
 
         $docxPath = $versionAttrs['docx_path'] ?? 'contract-templates/test-' . uniqid() . '.docx';
         if (!isset($versionAttrs['docx_path'])) {
-            Storage::put($docxPath, $this->minimalDocxBytes(['fio_parent']));
+            Storage::put($docxPath, $this->minimalDocxBytes(['parent_full_name']));
         }
 
         $version = ContractTemplateVersion::create(array_merge([
@@ -110,7 +111,7 @@ abstract class ContractsFeatureTestCase extends CrmTestCase
             'docx_path'            => $docxPath,
             'docx_sha256'          => str_repeat('a', 64),
             'fields_schema'        => [
-                ['key' => 'fio_parent', 'label' => 'ФИО родителя', 'required' => true, 'prefill_source' => null],
+                ['key' => 'parent_full_name', 'label' => 'Родитель: ФИО', 'required' => true, 'prefill_source' => ContractTemplatePrefillSources::PARENT_FULL_NAME],
             ],
             'email_subject'   => 'Заполните договор',
             'email_body_html' => '<p>Текст письма</p>',
@@ -125,7 +126,7 @@ abstract class ContractsFeatureTestCase extends CrmTestCase
     /**
      * @param list<string> $placeholders
      */
-    protected function minimalDocxBytes(array $placeholders = ['fio_parent']): string
+    protected function minimalDocxBytes(array $placeholders = ['parent_full_name']): string
     {
         $inner = implode(' ', array_map(static fn (string $key) => '{{' . $key . '}}', $placeholders));
         $path = tempnam(sys_get_temp_dir(), 'docx_bytes_') . '.docx';

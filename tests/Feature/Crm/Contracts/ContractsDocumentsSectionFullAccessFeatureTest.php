@@ -81,6 +81,10 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
         ])->assertStatus(403);
 
         $this->get(route('contract-templates.download-docx', $template))->assertStatus(403);
+        $this->getJson(route('contract-templates.email.show', $template))->assertStatus(403);
+        $this->putJson(route('contract-templates.update-email', $template), [
+            'email_subject' => 'Hack',
+        ])->assertStatus(403);
         $this->get(route('contracts.show', $contract))->assertStatus(403);
     }
 
@@ -182,13 +186,20 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
         $this->get(route('contracts.downloadOriginal', $contract))->assertOk();
         $this->get(route('contract-templates.download-docx', $template))->assertOk();
 
+        $this->getJson(route('contract-templates.email.show', $template))->assertOk();
+        $this->putJson(route('contract-templates.update-email', $template), [
+            'email_subject'   => 'Access email subject',
+            'email_body_html' => '<p>Access email body</p>',
+        ])->assertOk();
+        $this->get(route('contract-templates.index', ['email' => $template->id]))->assertOk();
+
         $this->postJson(route('contracts.sendEmail', $contract), [
             'email' => 'access-test@example.com',
         ])->assertOk();
 
         $storeTemplate = $this->post(route('contract-templates.store'), [
             'title'         => 'Access Created Template',
-            'docx'          => $this->fakeDocxUploadedFile(['fio_parent']),
+            'docx'          => $this->fakeDocxUploadedFile(['parent_full_name']),
             'email_subject' => 'Тема',
         ]);
         $storeTemplate->assertSessionHasNoErrors();
@@ -201,7 +212,7 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
             'email_body_html' => '<p>Новый текст</p>',
             'fields'          => [
                 [
-                    'key'            => 'fio_parent',
+                    'key'            => 'parent_full_name',
                     'label'          => 'ФИО',
                     'required'       => true,
                     'prefill_source' => null,

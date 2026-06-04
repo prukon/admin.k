@@ -13,7 +13,7 @@ trait ValidatesStudentParent
             $this->merge(['parent_id' => null]);
         }
 
-        foreach (['parent_lastname', 'parent_firstname', 'parent_middlename'] as $key) {
+        foreach (['parent_lastname', 'parent_firstname', 'parent_middlename', 'parent_passport', 'parent_passport_issued', 'parent_address', 'parent_phone', 'parent_email'] as $key) {
             if (!$this->has($key)) {
                 continue;
             }
@@ -38,6 +38,11 @@ trait ValidatesStudentParent
             'parent_lastname'   => ['nullable', 'string', 'max:100'],
             'parent_firstname'  => ['nullable', 'string', 'max:100'],
             'parent_middlename' => ['nullable', 'string', 'max:100'],
+            'parent_passport'   => ['nullable', 'string', 'max:100'],
+            'parent_passport_issued' => ['nullable', 'string', 'max:500'],
+            'parent_address'    => ['nullable', 'string', 'max:1000'],
+            'parent_phone'      => ['nullable', 'string', 'max:32'],
+            'parent_email'      => ['nullable', 'email', 'max:255'],
         ];
 
         if ($partnerId) {
@@ -59,6 +64,11 @@ trait ValidatesStudentParent
             'parent_lastname'   => 'Фамилия родителя',
             'parent_firstname'  => 'Имя родителя',
             'parent_middlename' => 'Отчество родителя',
+            'parent_passport'   => 'Паспорт родителя',
+            'parent_passport_issued' => 'Паспорт родителя, кем и когда выдан',
+            'parent_address'    => 'Адрес родителя',
+            'parent_phone'      => 'Телефон родителя',
+            'parent_email'      => 'Email родителя',
         ];
     }
 
@@ -76,6 +86,16 @@ trait ValidatesStudentParent
             'parent_firstname.max'     => 'Поле «:attribute» не должно превышать :max символов.',
             'parent_middlename.string' => 'Поле «:attribute» должно быть строкой.',
             'parent_middlename.max'    => 'Поле «:attribute» не должно превышать :max символов.',
+            'parent_passport.string'   => 'Поле «:attribute» должно быть строкой.',
+            'parent_passport.max'      => 'Поле «:attribute» не должно превышать :max символов.',
+            'parent_passport_issued.string' => 'Поле «:attribute» должно быть строкой.',
+            'parent_passport_issued.max'    => 'Поле «:attribute» не должно превышать :max символов.',
+            'parent_address.string'    => 'Поле «:attribute» должно быть строкой.',
+            'parent_address.max'       => 'Поле «:attribute» не должно превышать :max символов.',
+            'parent_phone.string'      => 'Поле «:attribute» должно быть строкой.',
+            'parent_phone.max'         => 'Поле «:attribute» не должно превышать :max символов.',
+            'parent_email.email'       => 'Поле «:attribute» должно быть действительным email.',
+            'parent_email.max'         => 'Поле «:attribute» не должно превышать :max символов.',
         ];
     }
 }

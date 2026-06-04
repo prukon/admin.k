@@ -84,17 +84,19 @@
 
 
                                         @if($c->canClientFill())
-                                            <a class="btn btn-sm btn-primary"
-                                               href="{{ route('account.documents.fill', $c) }}">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-primary js-open-contract-fill"
+                                                    data-contract-id="{{ $c->id }}">
                                                 Заполнить договор
-                                            </a>
+                                            </button>
                                         @endif
 
                                         @if($c->canClientSign())
-                                            <a class="btn btn-sm btn-success"
-                                               href="{{ route('account.documents.fill', $c) }}">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-success js-open-contract-fill"
+                                                    data-contract-id="{{ $c->id }}">
                                                 Подписать
-                                            </a>
+                                            </button>
                                         @endif
 
                                         @if($c->status === \App\Models\Contract::STATUS_SIGNED)
@@ -137,6 +139,8 @@
             @endif
         </div>
 
+        @include('account.partials.contract-fill-modal')
+
         <div class="modal fade" id="requestsModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content" style="max-width:600px;margin:auto;">
@@ -163,8 +167,129 @@
     </div>
 
     @push('scripts')
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.9/jquery.inputmask.min.js" referrerpolicy="no-referrer"></script>
         <script>
             (function(){
+                const fillModalEl = document.getElementById('contractFillModal');
+                const fillModalTitle = document.getElementById('contractFillModalLabel');
+                const fillLoading = document.getElementById('contractFillModalLoading');
+                const fillError = document.getElementById('contractFillModalError');
+                const fillContent = document.getElementById('contractFillModalContent');
+                const fillModalOpts = {backdrop: 'static', keyboard: false};
+                let fillBsModal = null;
+                let fillPollTimer = null;
+                let fillCurrentContractId = null;
+
+                function getFillModal() {
+                    if (!fillBsModal && fillModalEl) {
+                        if (typeof window.showModalQueued === 'function') {
+                            fillBsModal = bootstrap.Modal.getOrCreateInstance(fillModalEl, fillModalOpts);
+                        } else {
+                            fillBsModal = new bootstrap.Modal(fillModalEl, fillModalOpts);
+                        }
+                    }
+                    return fillBsModal;
+                }
+
+                function clearFillPoll() {
+                    if (fillPollTimer) {
+                        clearTimeout(fillPollTimer);
+                        fillPollTimer = null;
+                    }
+                }
+
+                function initContractFillPhoneMask() {
+                    if (!$.fn.inputmask || !fillModalEl) {
+                        return;
+                    }
+
+                    $('#contractFillModal .js-contract-fill-phone').each(function () {
+                        const $phone = $(this);
+                        if ($phone.inputmask) {
+                            $phone.inputmask('remove');
+                        }
+                        $phone.inputmask({
+                            mask: '+7 (999) 999-99-99',
+                            showMaskOnHover: false,
+                            autoUnmask: true,
+                            removeMaskOnSubmit: true,
+                        });
+                    });
+                }
+
+                function showFillLoading() {
+                    fillLoading?.classList.remove('d-none');
+                    fillError?.classList.add('d-none');
+                    fillContent?.classList.add('d-none');
+                    if (fillError) {
+                        fillError.textContent = '';
+                    }
+                }
+
+                function loadContractFill(contractId) {
+                    if (!contractId) {
+                        return;
+                    }
+
+                    fillCurrentContractId = contractId;
+                    showFillLoading();
+                    getFillModal()?.show();
+
+                    $.ajax({
+                        method: 'GET',
+                        url: '/account-settings/documents/contracts/' + contractId + '/fill',
+                        headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
+                        dataType: 'json',
+                    }).done(function (resp) {
+                        fillLoading?.classList.add('d-none');
+                        if (fillModalTitle && resp.title) {
+                            fillModalTitle.textContent = resp.title;
+                        }
+                        if (fillContent) {
+                            fillContent.innerHTML = resp.html || '';
+                            fillContent.classList.remove('d-none');
+                        }
+                        initContractFillPhoneMask();
+                        clearFillPoll();
+                        if (resp.poll) {
+                            fillPollTimer = setTimeout(function () {
+                                loadContractFill(contractId);
+                            }, 3000);
+                        }
+                    }).fail(function (xhr) {
+                        fillLoading?.classList.add('d-none');
+                        let msg = 'Не удалось загрузить договор';
+                        if (xhr.responseJSON?.message) {
+                            msg = xhr.responseJSON.message;
+                        } else if (xhr.status === 404) {
+                            msg = 'Договор не найден';
+                        }
+                        if (fillError) {
+                            fillError.textContent = msg;
+                            fillError.classList.remove('d-none');
+                        }
+                    });
+                }
+
+                window.openContractFillModal = loadContractFill;
+
+                $(document).on('click', '.js-open-contract-fill', function () {
+                    loadContractFill($(this).data('contract-id'));
+                });
+
+                fillModalEl?.addEventListener('hidden.bs.modal', function () {
+                    clearFillPoll();
+                    fillCurrentContractId = null;
+                    fillContent?.classList.add('d-none');
+                    if (fillContent) {
+                        fillContent.innerHTML = '';
+                    }
+                });
+
+                @if(!empty($openFillContractId))
+                loadContractFill(@json((int) $openFillContractId));
+                @endif
+
                 const modalEl = document.getElementById('requestsModal');
                 const bsModal = new bootstrap.Modal(modalEl);
 

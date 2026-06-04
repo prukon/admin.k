@@ -826,6 +826,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
                 ->name('contract-templates.update');
             Route::get('/client-contract-templates/{template}/download-docx', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'downloadDocx'])
                 ->name('contract-templates.download-docx');
+            Route::get('/client-contract-templates/{template}/email', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'showEmail'])
+                ->name('contract-templates.email.show');
+            Route::put('/client-contract-templates/{template}/email', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'updateEmail'])
+                ->name('contract-templates.update-email');
         });
 
         // AJAX для Select2 (поиск учеников текущего партнёра)

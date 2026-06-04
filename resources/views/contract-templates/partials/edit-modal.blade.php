@@ -1,5 +1,11 @@
 @if(!empty($editTemplate))
-    <div class="modal fade" id="editContractTemplateModal" tabindex="-1" aria-labelledby="editContractTemplateModalLabel" aria-hidden="true">
+    <div class="modal fade"
+         id="editContractTemplateModal"
+         tabindex="-1"
+         aria-labelledby="editContractTemplateModalLabel"
+         aria-hidden="true"
+         data-bs-backdrop="static"
+         data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered contract-template-edit-modal">
             <div class="modal-content">
                 <form id="contractTemplateEditForm"
@@ -44,4 +50,28 @@
             -webkit-overflow-scrolling: touch;
         }
     </style>
+
+    @push('scripts')
+        <script>
+            document.getElementById('editContractTemplateModal')?.addEventListener('shown.bs.modal', function () {
+                const accordion = document.getElementById('editContractTemplateVariablesAccordion');
+                if (!accordion) {
+                    return;
+                }
+
+                accordion.querySelectorAll('.accordion-collapse.show').forEach(function (panel) {
+                    panel.classList.remove('show');
+                });
+
+                accordion.querySelectorAll('.accordion-button').forEach(function (button) {
+                    button.classList.add('collapsed');
+                    button.setAttribute('aria-expanded', 'false');
+                });
+
+                if (typeof window.initKidsCrmTooltipHints === 'function') {
+                    window.initKidsCrmTooltipHints(document.getElementById('editContractTemplateModal'));
+                }
+            });
+        </script>
+    @endpush
 @endif

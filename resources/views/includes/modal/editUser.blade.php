@@ -674,6 +674,11 @@
                                 parent_lastname: response.user.parent_lastname,
                                 parent_firstname: response.user.parent_firstname,
                                 parent_middlename: response.user.parent_middlename,
+                                parent_passport: response.user.parent_passport,
+                                parent_passport_issued: response.user.parent_passport_issued,
+                                parent_address: response.user.parent_address,
+                                parent_phone: response.user.parent_phone,
+                                parent_email: response.user.parent_email,
                             });
                         }
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
@@ -784,6 +789,11 @@
                                 parent_lastname: response.user.parent_lastname,
                                 parent_firstname: response.user.parent_firstname,
                                 parent_middlename: response.user.parent_middlename,
+                                parent_passport: response.user.parent_passport,
+                                parent_passport_issued: response.user.parent_passport_issued,
+                                parent_address: response.user.parent_address,
+                                parent_phone: response.user.parent_phone,
+                                parent_email: response.user.parent_email,
                             });
                         }
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);

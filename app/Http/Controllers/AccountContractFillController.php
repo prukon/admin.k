@@ -8,8 +8,12 @@ use App\Models\Contract;
 use App\Services\Contracts\ContractPdfGenerationService;
 use App\Services\Contracts\ContractPodpislonSendService;
 use App\Services\Contracts\ContractPrefillResolver;
+use App\Services\Contracts\ContractTemplateVariablePresets;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class AccountContractFillController extends Controller
@@ -21,57 +25,55 @@ class AccountContractFillController extends Controller
     ) {
     }
 
-    public function show(Contract $contract)
+    public function show(Request $request, Contract $contract): JsonResponse|RedirectResponse
     {
         abort_unless((int) $contract->user_id === (int) Auth::id(), 404);
 
-        $contract->load(['templateVersion.template', 'user', 'team']);
+        $unavailableMessage = $this->fillUnavailableMessage($contract);
+        if ($unavailableMessage !== null) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['message' => $unavailableMessage], 422);
+            }
 
-        if ($contract->isFillExpired() && $contract->status === Contract::STATUS_AWAITING_CLIENT_FILL) {
             return redirect()
                 ->route('account.documents.index')
-                ->withErrors(['contract' => 'Срок заполнения договора истёк. Обратитесь в организацию.']);
+                ->withErrors(['contract' => $unavailableMessage]);
         }
 
-        if (!$contract->canClientFill() && !$contract->canClientSign()) {
-            return redirect()
-                ->route('account.documents.index')
-                ->withErrors(['contract' => 'Договор недоступен для заполнения.']);
+        $viewData = $this->fillViewData($contract);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'title' => 'Договор #' . $contract->id,
+                'html'  => view('account.partials.contract-fill-content', $viewData)->render(),
+                'poll'  => $contract->isGeneratingPdf(),
+            ]);
         }
 
-        $schema = $contract->templateVersion?->fields_schema ?? [];
-        $prefill = $this->prefillResolver->resolveForContract($contract, $schema);
-
-        $signerDefaults = $this->prefillResolver->resolveSignerParts(
-            $contract->user,
-            is_array($contract->filled_data) ? $contract->filled_data : []
-        );
-
-        return view('account.contract-fill', [
-            'contract'       => $contract,
-            'fields'         => $schema,
-            'prefill'        => $prefill,
-            'signerDefaults' => $signerDefaults,
-        ]);
+        return redirect()->route('account.documents.index', ['fill' => $contract->id]);
     }
 
-    public function generate(AccountContractGenerateRequest $request, Contract $contract)
+    public function generate(AccountContractGenerateRequest $request, Contract $contract): RedirectResponse
     {
         try {
-            $this->pdfGeneration->generateFromClientForm($contract, $request->fieldValues());
+            $this->pdfGeneration->queueClientGeneration(
+                $contract,
+                $request->fieldValues(),
+                Auth::id(),
+            );
         } catch (ValidationException $e) {
             return redirect()
-                ->route('account.documents.fill', $contract)
+                ->route('account.documents.index', ['fill' => $contract->id])
                 ->withErrors($e->errors())
                 ->withInput();
         }
 
         return redirect()
-            ->route('account.documents.fill', $contract)
-            ->with('success', 'Договор сформирован. Проверьте PDF и отправьте SMS на подпись.');
+            ->route('account.documents.index', ['fill' => $contract->id])
+            ->with('success', 'Договор формируется. Подождите несколько секунд — окно обновится автоматически.');
     }
 
-    public function sign(Contract $contract, ContractSendRequest $request)
+    public function sign(Contract $contract, ContractSendRequest $request): RedirectResponse
     {
         abort_unless((int) $contract->user_id === (int) Auth::id(), 404);
 
@@ -79,7 +81,7 @@ class AccountContractFillController extends Controller
             $this->sendService->assertCanClientSign($contract);
         } catch (\InvalidArgumentException $e) {
             return redirect()
-                ->route('account.documents.fill', $contract)
+                ->route('account.documents.index', ['fill' => $contract->id])
                 ->withErrors(['contract' => $e->getMessage()]);
         }
 
@@ -92,7 +94,54 @@ class AccountContractFillController extends Controller
         }
 
         return redirect()
-            ->route('account.documents.fill', $contract)
+            ->route('account.documents.index', ['fill' => $contract->id])
             ->withErrors(['sign' => $result['message'] ?? 'Не удалось отправить SMS.']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fillViewData(Contract $contract): array
+    {
+        $contract->load(['templateVersion.template', 'user', 'team']);
+
+        $schema = $contract->templateVersion?->fields_schema ?? [];
+        $schema = ContractTemplateVariablePresets::schemaFieldsForParentForm($schema);
+        $prefill = $this->prefillResolver->resolveForContract($contract, $schema);
+        $prefill = ContractTemplateVariablePresets::applySplitNamePrefill(array_merge(
+            $prefill,
+            $contract->clientFormFieldValues(),
+        ));
+
+        $signerDefaults = $this->prefillResolver->resolveSignerParts(
+            $contract->user,
+            is_array($contract->filled_data) ? $contract->filled_data : []
+        );
+
+        return [
+            'contract'              => $contract,
+            'fields'                => $schema,
+            'fieldGroups'           => ContractTemplateVariablePresets::groupFieldsForParentForm($schema),
+            'prefill'               => $prefill,
+            'prefillSources'        => \App\Services\Contracts\ContractTemplatePrefillSources::labels(),
+            'signerDefaults'        => $signerDefaults,
+            'generationError'       => $contract->pdfGenerationError(),
+            'showContractFieldKeys' => Gate::allows('account.contracts.showFieldKeys'),
+        ];
+    }
+
+    private function fillUnavailableMessage(Contract $contract): ?string
+    {
+        $contract->load(['templateVersion.template', 'user', 'team']);
+
+        if ($contract->isFillExpired() && $contract->status === Contract::STATUS_AWAITING_CLIENT_FILL) {
+            return 'Срок заполнения договора истёк. Обратитесь в организацию.';
+        }
+
+        if (!$contract->canClientFill() && !$contract->canClientSign() && !$contract->isGeneratingPdf()) {
+            return 'Договор недоступен для заполнения.';
+        }
+
+        return null;
     }
 }

@@ -47,6 +47,7 @@ return [
             'users.view',
             'groups.view',
             'contracts.view',
+            'account.contracts.showFieldKeys',
             'settings.view',
             'settings.roles.view',
             // 'settings.paymentSystems.view', 

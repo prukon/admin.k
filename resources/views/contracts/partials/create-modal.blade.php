@@ -4,7 +4,13 @@
     $preselectedUser = $preselectedUser ?? null;
 @endphp
 
-<div class="modal fade" id="createContractModal" tabindex="-1" aria-labelledby="createContractModalLabel" aria-hidden="true">
+<div class="modal fade"
+     id="createContractModal"
+     tabindex="-1"
+     aria-labelledby="createContractModalLabel"
+     aria-hidden="true"
+     data-bs-backdrop="static"
+     data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered contract-create-modal">
         <div class="modal-content">
             <form id="contract-create-form" method="post" action="{{ route('contracts.store') }}" enctype="multipart/form-data">
@@ -66,7 +72,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="creation_mode" id="mode_template"
                                        value="template" @checked(old('creation_mode') === 'template')>
-                                <label class="form-check-label" for="mode_template">Отправить форму клиенту (шаблон DOCX)</label>
+                                <label class="form-check-label" for="mode_template">Отправить шаболн договора</label>
                             </div>
                             @error('creation_mode')
                             <div class="text-danger small mt-1">{{ $message }}</div>
@@ -98,7 +104,10 @@
                                     @endforeach
                                 </select>
                                 <div class="form-text">
-                                    <a href="{{ route('contract-templates.index') }}">Управление шаблонами</a>
+                                    <a href="{{ route('contract-templates.index') }}"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       onclick="setTimeout(function () { window.focus(); }, 0);">Управление шаблонами</a>
                                 </div>
                             @endif
                             @error('contract_template_id')
@@ -264,6 +273,7 @@
             const preselectedUser = @json($preselectedUser);
             const shouldOpenCreateModal = @json($shouldOpenCreateModal ?? false);
             const createModalEl = document.getElementById('createContractModal');
+            let suppressCreateModalReset = false;
 
             function destroyContractUserSelect2() {
                 const $userSelect = $('#user_id');
@@ -386,6 +396,7 @@
 
             function onSaveClick(e) {
                 e.preventDefault();
+                suppressCreateModalReset = true;
 
                 showConfirmDeleteModal(
                     'Создание договора',
@@ -506,12 +517,17 @@
                 });
 
                 createModalEl.addEventListener('shown.bs.modal', function () {
+                    suppressCreateModalReset = false;
                     initContractUserSelect2();
                     applyPreselectedStudent();
                     toggleCreationMode();
                 });
 
                 createModalEl.addEventListener('hidden.bs.modal', function () {
+                    if (suppressCreateModalReset) {
+                        return;
+                    }
+
                     if (@json($errors->any())) {
                         return;
                     }

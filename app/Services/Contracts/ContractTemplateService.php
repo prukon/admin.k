@@ -3,6 +3,7 @@
 namespace App\Services\Contracts;
 
 use App\Models\ContractTemplate;
+use Illuminate\Support\Facades\Gate;
 use App\Models\ContractTemplateVersion;
 use App\Models\Partner;
 use Illuminate\Http\UploadedFile;
@@ -34,8 +35,8 @@ class ContractTemplateService
                 $template,
                 $data['docx'],
                 $data['fields'] ?? null,
-                $data['email_subject'] ?? null,
-                $data['email_body_html'] ?? null,
+                $this->normalizeOptionalEmailField($data['email_subject'] ?? null),
+                $this->normalizeOptionalEmailField($data['email_body_html'] ?? null),
                 null,
             );
 
@@ -68,8 +69,8 @@ class ContractTemplateService
                     $template,
                     $data['docx'],
                     null,
-                    $data['email_subject'] ?? $template->currentVersion?->email_subject,
-                    $data['email_body_html'] ?? $template->currentVersion?->email_body_html,
+                    $this->normalizeOptionalEmailField($data['email_subject'] ?? $template->currentVersion?->email_subject),
+                    $this->normalizeOptionalEmailField($data['email_body_html'] ?? $template->currentVersion?->email_body_html),
                     $previousSchema,
                 );
 
@@ -79,10 +80,10 @@ class ContractTemplateService
                 }
 
                 if (array_key_exists('email_subject', $data)) {
-                    $version->email_subject = $data['email_subject'];
+                    $version->email_subject = $this->normalizeOptionalEmailField($data['email_subject']);
                 }
                 if (array_key_exists('email_body_html', $data)) {
-                    $version->email_body_html = $data['email_body_html'];
+                    $version->email_body_html = $this->normalizeOptionalEmailField($data['email_body_html']);
                 }
                 $version->save();
 
@@ -99,14 +100,32 @@ class ContractTemplateService
                 }
 
                 if (array_key_exists('email_subject', $data)) {
-                    $version->email_subject = $data['email_subject'];
+                    $version->email_subject = $this->normalizeOptionalEmailField($data['email_subject']);
                 }
                 if (array_key_exists('email_body_html', $data)) {
-                    $version->email_body_html = $data['email_body_html'];
+                    $version->email_body_html = $this->normalizeOptionalEmailField($data['email_body_html']);
                 }
 
                 $version->save();
             }
+
+            return $template->fresh(['currentVersion']);
+        });
+    }
+
+    public function updateEmail(ContractTemplate $template, ?string $emailSubject, ?string $emailBodyHtml): ContractTemplate
+    {
+        return DB::transaction(function () use ($template, $emailSubject, $emailBodyHtml) {
+            $version = $template->currentVersion;
+            if (!$version) {
+                throw ValidationException::withMessages([
+                    'email' => 'У шаблона нет активной версии — письмо сохранить нельзя.',
+                ]);
+            }
+
+            $version->email_subject = $this->normalizeOptionalEmailField($emailSubject);
+            $version->email_body_html = $this->normalizeOptionalEmailField($emailBodyHtml);
+            $version->save();
 
             return $template->fresh(['currentVersion']);
         });
@@ -191,6 +210,7 @@ class ContractTemplateService
      */
     public function normalizeFieldsInput(array $inputRows, array $schema): array
     {
+        $schema = ContractTemplateVariablePresets::enrichSchema($schema);
         $allowedKeys = array_column($schema, 'key');
         $byKey = [];
         foreach ($schema as $row) {
@@ -198,8 +218,8 @@ class ContractTemplateService
         }
 
         foreach ($inputRows as $row) {
-            $key = $row['key'] ?? null;
-            if (!is_string($key) || !in_array($key, $allowedKeys, true)) {
+            $key = ContractTemplateVariablePresets::canonicalFieldKey((string) ($row['key'] ?? ''));
+            if ($key === '' || !in_array($key, $allowedKeys, true)) {
                 continue;
             }
 
@@ -209,8 +229,35 @@ class ContractTemplateService
             $byKey[$key]['prefill_source'] = is_string($prefill) && $prefill !== '' && in_array($prefill, ContractTemplatePrefillSources::keys(), true)
                 ? $prefill
                 : null;
+
+            if (Gate::allows('contracts.templates.fillSortOrder.edit')
+                && !ContractTemplateVariablePresets::isSystemFillField($key)
+                && array_key_exists('fill_sort_order', $row)
+                && $row['fill_sort_order'] !== ''
+                && $row['fill_sort_order'] !== null
+            ) {
+                $byKey[$key]['fill_sort_order'] = max(0, min(9999, (int) $row['fill_sort_order']));
+            }
+        }
+
+        foreach ($byKey as $key => $row) {
+            if (ContractTemplateVariablePresets::isSystemFillField($key)) {
+                $byKey[$key]['required'] = false;
+                $byKey[$key]['prefill_source'] = null;
+            }
         }
 
         return array_values($byKey);
+    }
+
+    private function normalizeOptionalEmailField(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

@@ -137,6 +137,7 @@
 
     @include('contract-templates.partials.create-modal')
     @include('contract-templates.partials.edit-modal')
+    @include('contract-templates.partials.email-edit-modal')
 @endsection
 
 @push('scripts')
@@ -148,7 +149,6 @@
 
             const shouldOpenCreateModal = @json($shouldOpenCreateModal);
             const shouldOpenEditModal = @json($shouldOpenEditModal);
-
             const createModalEl = document.getElementById('createContractTemplateModal');
             const editModalEl = document.getElementById('editContractTemplateModal');
 
@@ -159,7 +159,7 @@
             }
 
             createModalEl?.addEventListener('hidden.bs.modal', function () {
-                if (@json($errors->any() && !request()->filled('edit'))) {
+                if (@json($errors->any() && !request()->filled('edit') && !request()->filled('email'))) {
                     return;
                 }
 
@@ -273,8 +273,17 @@
                         searchable: false,
                         className: 'text-end',
                         defaultContent: '',
-                        render: function (data) {
-                            return '<a href="' + data + '" class="btn btn-sm btn-outline-primary">Изменить</a>';
+                        render: function (data, type, row) {
+                            const editBtn = '<a href="' + data + '" class="btn btn-sm btn-outline-primary">Изменить</a>';
+                            const emailBtn = '<button type="button"'
+                                + ' class="btn btn-sm btn-outline-secondary js-contract-template-edit-email"'
+                                + ' data-template-id="' + row.id + '"'
+                                + ' title="Письмо клиенту"'
+                                + ' aria-label="Письмо клиенту">'
+                                + 'Письмо'
+                                + '</button>';
+
+                            return '<div class="d-flex flex-wrap gap-1 justify-content-end">' + editBtn + emailBtn + '</div>';
                         },
                     },
                 ],
@@ -341,4 +350,6 @@
             });
         });
     </script>
+
+    @include('contract-templates.partials.email-summernote-init')
 @endpush

@@ -9,7 +9,7 @@ Group=prukon
 WorkingDirectory=/home/prukon/web/test.kidscrm.online/public_html
 
 # database-queue worker (QUEUE_CONNECTION=database)
-ExecStart=/usr/bin/php artisan queue:work database --queue=default --sleep=1 --tries=3 --timeout=90 --max-time=0
+ExecStart=/usr/bin/php artisan queue:work database --queue=default --sleep=1 --tries=3 --timeout=180 --max-time=0
 
 Restart=always
 RestartSec=2

@@ -109,4 +109,31 @@ final class StudentParentSyncServiceTest extends CrmTestCase
 
         $this->assertNull($student->parent_id);
     }
+
+    public function test_sync_updates_parent_passport_phone_and_email(): void
+    {
+        $roleId = (int) Role::query()->where('name', 'user')->value('id');
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $roleId,
+            'parent_id'  => $parent->id,
+        ]);
+
+        app(StudentParentSyncService::class)->syncForStudent($student, (int) $this->partner->id, [
+            'parent_passport' => '4010 111222',
+            'parent_phone'    => '+7 900 111-22-33',
+            'parent_email'    => 'Parent@Mail.ru',
+        ]);
+
+        $parent->refresh();
+
+        $this->assertSame('4010 111222', $parent->passport);
+        $this->assertSame('79001112233', $parent->phone);
+        $this->assertSame('parent@mail.ru', $parent->email);
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\Contract;
 use App\Models\User;
+use App\Services\Contracts\ContractInvitationEmailRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -22,33 +23,19 @@ class ContractClientFillInvitationMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $version = $this->contract->templateVersion;
-        $subject = $version?->defaultEmailSubject() ?? 'Договор: требуется заполнение и подписание';
+        $renderer = app(ContractInvitationEmailRenderer::class);
 
-        return new Envelope(subject: $subject);
+        return new Envelope(
+            subject: $renderer->renderSubject($this->contract, $this->student),
+        );
     }
 
     public function content(): Content
     {
-        $version = $this->contract->templateVersion;
-        $bodyHtml = $version?->defaultEmailBodyHtml() ?? '';
-        $documentsUrl = url('/account-settings/documents');
+        $renderer = app(ContractInvitationEmailRenderer::class);
 
         return new Content(
-            htmlString: $this->renderBody($bodyHtml, $documentsUrl),
+            htmlString: $renderer->renderBodyHtml($this->contract, $this->student),
         );
-    }
-
-    private function renderBody(string $bodyHtml, string $documentsUrl): string
-    {
-        $replacements = [
-            '{{documents_url}}'   => e($documentsUrl),
-            '{{student_name}}'    => e(trim(($this->student->lastname ?? '') . ' ' . ($this->student->name ?? ''))),
-            '{{contract_id}}'     => (string) $this->contract->id,
-        ];
-
-        $html = str_replace(array_keys($replacements), array_values($replacements), $bodyHtml);
-
-        return '<div style="font-family:system-ui,sans-serif;line-height:1.5">' . $html . '</div>';
     }
 }

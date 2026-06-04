@@ -31,6 +31,7 @@ class StoreContractTemplateRequest extends FormRequest
                 'string',
                 Rule::in(ContractTemplatePrefillSources::keys()),
             ],
+            'fields.*.fill_sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ];
     }
 
@@ -44,6 +45,7 @@ class StoreContractTemplateRequest extends FormRequest
             'fields'          => 'Поля шаблона',
             'fields.*.label'  => 'Подпись поля',
             'fields.*.prefill_source' => 'Предзаполнение',
+            'fields.*.fill_sort_order' => 'Порядок в форме родителя',
         ];
     }
 

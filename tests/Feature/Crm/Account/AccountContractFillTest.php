@@ -22,6 +22,7 @@ class AccountContractFillTest extends CrmTestCase
         parent::setUp();
 
         config(['contracts.pdf_converter' => 'fake']);
+        config(['queue.default' => 'sync']);
 
         $root = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
             . DIRECTORY_SEPARATOR
@@ -34,9 +35,22 @@ class AccountContractFillTest extends CrmTestCase
     {
         $contract = $this->makeAwaitingContract();
 
+        $html = $this->getContractFillModalHtml($contract);
+
+        $this->assertStringContainsString('Сформировать договор', $html);
+        $this->assertStringContainsString('contract-fill-panel--parent', $html);
+        $this->assertStringContainsString('name="fields[parent_lastname]"', $html);
+        $this->assertStringContainsString('name="fields[parent_firstname]"', $html);
+        $this->assertStringNotContainsString('name="fields[parent_full_name]"', $html);
+        $this->assertStringNotContainsString('&#123;&#123;parent_full_name&#125;&#125;', $html);
+    }
+
+    public function test_fill_direct_url_redirects_to_documents_with_fill_query(): void
+    {
+        $contract = $this->makeAwaitingContract();
+
         $this->get(route('account.documents.fill', $contract))
-            ->assertStatus(200)
-            ->assertSee('Сформировать договор');
+            ->assertRedirect(route('account.documents.index', ['fill' => $contract->id]));
     }
 
     public function test_generate_creates_pdf_and_sets_draft(): void
@@ -45,17 +59,18 @@ class AccountContractFillTest extends CrmTestCase
 
         $resp = $this->post(route('account.documents.generate', $contract), [
             'fields' => [
-                'fio_parent' => 'Иванов Иван',
+                'parent_lastname'  => 'Иванов',
+                'parent_firstname' => 'Иван',
             ],
         ]);
 
-        $resp->assertRedirect(route('account.documents.fill', $contract));
+        $resp->assertRedirect(route('account.documents.index', ['fill' => $contract->id]));
         $resp->assertSessionHas('success');
 
         $contract->refresh();
         $this->assertSame(Contract::STATUS_DRAFT, $contract->status);
         $this->assertNotNull($contract->source_pdf_path);
-        $this->assertSame('Иванов Иван', $contract->filled_data['fio_parent'] ?? null);
+        $this->assertSame('Иванов Иван', $contract->filled_data['parent_full_name'] ?? null);
         Storage::disk()->assertExists($contract->source_pdf_path);
     }
 
@@ -103,8 +118,17 @@ class AccountContractFillTest extends CrmTestCase
 
         $this->actingAs($other)
             ->withSession(['current_partner' => $this->partner->id])
-            ->get(route('account.documents.fill', $contract))
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('account.documents.fill', $contract))
             ->assertStatus(404);
+    }
+
+    private function getContractFillModalHtml(Contract $contract): string
+    {
+        return (string) $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('account.documents.fill', $contract))
+            ->assertOk()
+            ->json('html');
     }
 
     private function makeAwaitingContract(): Contract
@@ -124,7 +148,7 @@ class AccountContractFillTest extends CrmTestCase
             'docx_sha256'          => str_repeat('c', 64),
             'fields_schema'        => [
                 [
-                    'key'            => 'fio_parent',
+                    'key'            => 'parent_full_name',
                     'label'          => 'ФИО родителя',
                     'required'       => true,
                     'prefill_source' => null,
@@ -161,7 +185,7 @@ class AccountContractFillTest extends CrmTestCase
             'word/document.xml',
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-            . '<w:body><w:p><w:r><w:t>Договор {{fio_parent}}</w:t></w:r></w:p></w:body></w:document>'
+            . '<w:body><w:p><w:r><w:t>Договор {{parent_full_name}}</w:t></w:r></w:p></w:body></w:document>'
         );
         $zip->close();
 

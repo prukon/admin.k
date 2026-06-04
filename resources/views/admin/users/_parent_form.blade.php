@@ -102,6 +102,75 @@
             </div>
         </div>
     </div>
+
+    <div class="js-parent-profile-section" data-parent-prefix="{{ $prefix }}">
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <div class="mb-3">
+                    <label for="{{ $prefix }}-parent-passport" class="form-label">Паспорт родителя</label>
+                    <input type="text"
+                           name="parent_passport"
+                           class="form-control js-parent-passport"
+                           id="{{ $prefix }}-parent-passport"
+                           data-parent-prefix="{{ $prefix }}"
+                           maxlength="100"
+                           value="{{ $parentPassport ?? '' }}">
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="mb-3">
+                    <label for="{{ $prefix }}-parent-passport-issued" class="form-label">Паспорт, кем и когда выдан</label>
+                    <input type="text"
+                           name="parent_passport_issued"
+                           class="form-control js-parent-passport-issued"
+                           id="{{ $prefix }}-parent-passport-issued"
+                           data-parent-prefix="{{ $prefix }}"
+                           maxlength="500"
+                           value="{{ $parentPassportIssued ?? '' }}">
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="mb-3">
+                    <label for="{{ $prefix }}-parent-address" class="form-label">Адрес родителя</label>
+                    <input type="text"
+                           name="parent_address"
+                           class="form-control js-parent-address"
+                           id="{{ $prefix }}-parent-address"
+                           data-parent-prefix="{{ $prefix }}"
+                           maxlength="1000"
+                           value="{{ $parentAddress ?? '' }}">
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="mb-3">
+                    <label for="{{ $prefix }}-parent-phone" class="form-label">Телефон родителя</label>
+                    <input type="text"
+                           name="parent_phone"
+                           class="form-control js-parent-phone"
+                           id="{{ $prefix }}-parent-phone"
+                           data-parent-prefix="{{ $prefix }}"
+                           maxlength="32"
+                           value="{{ $parentPhone ?? '' }}">
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="mb-3">
+                    <label for="{{ $prefix }}-parent-email" class="form-label">Email родителя</label>
+                    <input type="email"
+                           name="parent_email"
+                           class="form-control js-parent-email"
+                           id="{{ $prefix }}-parent-email"
+                           data-parent-prefix="{{ $prefix }}"
+                           maxlength="255"
+                           value="{{ $parentEmail ?? '' }}">
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @once
@@ -177,6 +246,11 @@
                         lastname: '#' + prefix + '-parent-lastname',
                         firstname: '#' + prefix + '-parent-firstname',
                         middlename: '#' + prefix + '-parent-middlename',
+                        passport: '#' + prefix + '-parent-passport',
+                        passportIssued: '#' + prefix + '-parent-passport-issued',
+                        address: '#' + prefix + '-parent-address',
+                        phone: '#' + prefix + '-parent-phone',
+                        email: '#' + prefix + '-parent-email',
                     };
                 }
 
@@ -262,6 +336,11 @@
                     $(ids.lastname).val(data.parent_lastname || '');
                     $(ids.firstname).val(data.parent_firstname || '');
                     $(ids.middlename).val(data.parent_middlename || '');
+                    $(ids.passport).val(data.parent_passport || '');
+                    $(ids.passportIssued).val(data.parent_passport_issued || '');
+                    $(ids.address).val(data.parent_address || '');
+                    $(ids.phone).val(data.parent_phone || '');
+                    $(ids.email).val(data.parent_email || '');
                 }
 
                 function clearParentSelect(prefix) {
@@ -315,6 +394,11 @@
                                             parent_lastname: item.parent_lastname,
                                             parent_firstname: item.parent_firstname,
                                             parent_middlename: item.parent_middlename,
+                                            parent_passport: item.parent_passport,
+                                            parent_passport_issued: item.parent_passport_issued,
+                                            parent_address: item.parent_address,
+                                            parent_phone: item.parent_phone,
+                                            parent_email: item.parent_email,
                                         };
                                     }),
                                 };
@@ -389,6 +473,11 @@
                         parent_lastname: '',
                         parent_firstname: '',
                         parent_middlename: '',
+                        parent_passport: '',
+                        parent_passport_issued: '',
+                        parent_address: '',
+                        parent_phone: '',
+                        parent_email: '',
                     });
                 };
 

@@ -13,7 +13,31 @@ class StudentParentSyncService
         'parent_lastname',
         'parent_firstname',
         'parent_middlename',
+        'parent_passport',
+        'parent_passport_issued',
+        'parent_address',
+        'parent_phone',
+        'parent_email',
     ];
+
+    /**
+     * Ключи HTTP/form => ключ в filled_data договора / колонка parents (через applyParentProfileAttributes).
+     *
+     * @return array<string, string> requestKey => filledDataKey
+     */
+    public static function parentProfilePayloadKeys(): array
+    {
+        return [
+            'parent_lastname'         => 'parent_lastname',
+            'parent_firstname'        => 'parent_firstname',
+            'parent_middlename'       => 'parent_middlename',
+            'parent_passport'         => 'parent_passport',
+            'parent_passport_issued'  => 'parent_passport_issued',
+            'parent_address'          => 'parent_address',
+            'parent_phone'            => 'parent_phone',
+            'parent_email'            => 'parent_email',
+        ];
+    }
 
     /**
      * @param array<string, mixed> $payload
@@ -23,6 +47,23 @@ class StudentParentSyncService
         return array_key_exists('parent_lastname', $payload)
             || array_key_exists('parent_firstname', $payload)
             || array_key_exists('parent_middlename', $payload);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function hasAccountParentProfilePayload(array $payload): bool
+    {
+        foreach (self::PARENT_PAYLOAD_KEYS as $key) {
+            if ($key === 'parent_id') {
+                continue;
+            }
+            if (array_key_exists($key, $payload)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -65,10 +106,11 @@ class StudentParentSyncService
         }
 
         $names = $this->normalizeParentNames($payload);
+        $profileAttributes = $this->normalizeParentProfileAttributes($payload);
 
         if (array_key_exists('parent_id', $payload)) {
             $parentId = $this->normalizeParentId($payload['parent_id']);
-        } elseif ($this->isAdminParentBlockCleared($payload, $names)) {
+        } elseif ($this->isAdminParentBlockCleared($payload, $names, $profileAttributes)) {
             $parentId = null;
         } elseif ($user->parent_id) {
             $parentId = (int) $user->parent_id;
@@ -88,14 +130,8 @@ class StudentParentSyncService
                 ]);
             }
 
-            if ($names['has_any']) {
-                $parent->fill([
-                    'lastname'   => $names['lastname'],
-                    'firstname'  => $names['firstname'],
-                    'middlename' => $names['middlename'],
-                ]);
-                $parent->save();
-            }
+            $this->applyParentProfileAttributes($parent, $names, $profileAttributes);
+            $parent->save();
 
             $user->parent_id = $parent->id;
             $user->save();
@@ -103,13 +139,11 @@ class StudentParentSyncService
             return;
         }
 
-        if ($names['has_any']) {
-            $parent = ParentProfile::query()->create([
-                'partner_id' => $partnerId,
-                'lastname'   => $names['lastname'],
-                'firstname'  => $names['firstname'],
-                'middlename' => $names['middlename'],
-            ]);
+        if ($names['has_any'] || $profileAttributes['has_any']) {
+            $parent = ParentProfile::query()->create(array_merge(
+                ['partner_id' => $partnerId],
+                $this->buildParentAttributes($names, $profileAttributes),
+            ));
 
             $user->parent_id = $parent->id;
             $user->save();
@@ -127,14 +161,13 @@ class StudentParentSyncService
     }
 
     /**
-     * Форма админки: все поля родителя пришли пустыми, parent_id не передан (очистка Select2).
-     *
      * @param array<string, mixed> $payload
      * @param array{has_any: bool} $names
+     * @param array{has_any: bool} $profileAttributes
      */
-    private function isAdminParentBlockCleared(array $payload, array $names): bool
+    private function isAdminParentBlockCleared(array $payload, array $names, array $profileAttributes): bool
     {
-        if ($names['has_any'] || array_key_exists('parent_id', $payload)) {
+        if ($names['has_any'] || $profileAttributes['has_any'] || array_key_exists('parent_id', $payload)) {
             return false;
         }
 
@@ -177,6 +210,83 @@ class StudentParentSyncService
         ];
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     * @return array{
+     *     passport: ?string,
+     *     passport_issued: ?string,
+     *     address: ?string,
+     *     phone: ?string,
+     *     email: ?string,
+     *     has_any: bool
+     * }
+     */
+    private function normalizeParentProfileAttributes(array $payload): array
+    {
+        $passport = $this->normalizeTextPart($payload['parent_passport'] ?? null, 100);
+        $passportIssued = $this->normalizeTextPart($payload['parent_passport_issued'] ?? null, 500);
+        $address = $this->normalizeTextPart($payload['parent_address'] ?? null, 1000);
+        $phone = $this->normalizePhonePart($payload['parent_phone'] ?? null);
+        $email = $this->normalizeEmailPart($payload['parent_email'] ?? null);
+
+        return [
+            'passport'         => $passport,
+            'passport_issued'  => $passportIssued,
+            'address'          => $address,
+            'phone'            => $phone,
+            'email'            => $email,
+            'has_any'          => $passport !== null
+                || $passportIssued !== null
+                || $address !== null
+                || $phone !== null
+                || $email !== null,
+        ];
+    }
+
+    /**
+     * @param array{lastname: ?string, firstname: ?string, middlename: ?string, has_any: bool} $names
+     * @param array{passport: ?string, passport_issued: ?string, address: ?string, phone: ?string, email: ?string, has_any: bool} $profileAttributes
+     */
+    private function applyParentProfileAttributes(ParentProfile $parent, array $names, array $profileAttributes): void
+    {
+        if ($names['has_any']) {
+            $parent->fill([
+                'lastname'   => $names['lastname'],
+                'firstname'  => $names['firstname'],
+                'middlename' => $names['middlename'],
+            ]);
+        }
+
+        if ($profileAttributes['has_any']) {
+            $parent->fill(array_filter([
+                'passport'        => $profileAttributes['passport'],
+                'passport_issued' => $profileAttributes['passport_issued'],
+                'address'         => $profileAttributes['address'],
+                'phone'           => $profileAttributes['phone'],
+                'email'           => $profileAttributes['email'],
+            ], static fn ($value) => $value !== null));
+        }
+    }
+
+    /**
+     * @param array{lastname: ?string, firstname: ?string, middlename: ?string, has_any: bool} $names
+     * @param array{passport: ?string, passport_issued: ?string, address: ?string, phone: ?string, email: ?string, has_any: bool} $profileAttributes
+     * @return array<string, mixed>
+     */
+    private function buildParentAttributes(array $names, array $profileAttributes): array
+    {
+        return array_filter([
+            'lastname'        => $names['lastname'],
+            'firstname'       => $names['firstname'],
+            'middlename'      => $names['middlename'],
+            'passport'        => $profileAttributes['passport'],
+            'passport_issued' => $profileAttributes['passport_issued'],
+            'address'         => $profileAttributes['address'],
+            'phone'           => $profileAttributes['phone'],
+            'email'           => $profileAttributes['email'],
+        ], static fn ($value) => $value !== null);
+    }
+
     private function normalizeNamePart(mixed $value): ?string
     {
         if (!is_string($value)) {
@@ -188,17 +298,59 @@ class StudentParentSyncService
         return $trimmed !== '' ? $trimmed : null;
     }
 
+    private function normalizeTextPart(mixed $value, int $maxLength): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim(preg_replace('/\s+/u', ' ', $value));
+        if ($trimmed === '') {
+            return null;
+        }
+
+        return mb_substr($trimmed, 0, $maxLength);
+    }
+
+    private function normalizeEmailPart(mixed $value): ?string
+    {
+        $email = $this->normalizeTextPart($value, 255);
+
+        return $email !== null ? mb_strtolower($email) : null;
+    }
+
+    private function normalizePhonePart(mixed $value): ?string
+    {
+        if (!is_string($value) && !is_numeric($value)) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', (string) $value) ?: '';
+        if ($digits === '') {
+            return null;
+        }
+
+        if (strlen($digits) === 10 && str_starts_with($digits, '9')) {
+            $digits = '7' . $digits;
+        } elseif (strlen($digits) === 11 && $digits[0] === '8') {
+            $digits[0] = '7';
+        }
+
+        return mb_substr($digits, 0, 20);
+    }
+
     /**
-     * Обновление данных родителя из личного кабинета (account-settings).
+     * Обновление данных родителя из личного кабинета или после заполнения договора.
      *
-     * @param array<string, mixed> $payload parent_lastname|firstname|middlename
+     * @param array<string, mixed> $payload
      */
     public function updateFromAccount(User $user, int $partnerId, array $payload): ?ParentProfile
     {
         $names = $this->normalizeParentNames($payload);
+        $profileAttributes = $this->normalizeParentProfileAttributes($payload);
         $user->loadMissing('parentProfile');
 
-        if (!$names['has_any']) {
+        if (!$names['has_any'] && !$profileAttributes['has_any']) {
             return $user->parentProfile;
         }
 
@@ -211,21 +363,15 @@ class StudentParentSyncService
                 ]);
             }
 
-            $profile->fill([
-                'lastname'   => $names['lastname'],
-                'firstname'  => $names['firstname'],
-                'middlename' => $names['middlename'],
-            ]);
+            $this->applyParentProfileAttributes($profile, $names, $profileAttributes);
             $profile->save();
         } else {
             $user->loadMissing('role');
 
-            $profile = ParentProfile::query()->create([
-                'partner_id' => $partnerId,
-                'lastname'   => $names['lastname'],
-                'firstname'  => $names['firstname'],
-                'middlename' => $names['middlename'],
-            ]);
+            $profile = ParentProfile::query()->create(array_merge(
+                ['partner_id' => $partnerId],
+                $this->buildParentAttributes($names, $profileAttributes),
+            ));
 
             if ($user->role?->name === 'user') {
                 $user->parent_id = $profile->id;

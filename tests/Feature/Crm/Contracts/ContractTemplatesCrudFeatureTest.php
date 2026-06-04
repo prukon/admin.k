@@ -8,17 +8,15 @@ use Illuminate\Support\Facades\Storage;
 class ContractTemplatesCrudFeatureTest extends ContractsFeatureTestCase
 {
     /** @test */
-    public function update_changes_title_and_email_without_new_docx(): void
+    public function update_changes_title_without_new_docx(): void
     {
         $template = $this->createContractTemplateWithVersion();
 
         $this->put(route('contract-templates.update', $template), [
-            'title'           => 'Договор v2',
-            'email_subject'   => 'Обновлённая тема',
-            'email_body_html' => '<p>Обновлённое письмо</p>',
-            'fields'          => [
+            'title'  => 'Договор v2',
+            'fields' => [
                 [
-                    'key'            => 'fio_parent',
+                    'key'            => 'parent_full_name',
                     'label'          => 'ФИО родителя (ред.)',
                     'required'       => true,
                     'prefill_source' => null,
@@ -30,7 +28,6 @@ class ContractTemplatesCrudFeatureTest extends ContractsFeatureTestCase
         $template->load('currentVersion');
 
         $this->assertSame('Договор v2', $template->title);
-        $this->assertSame('Обновлённая тема', $template->currentVersion->email_subject);
         $this->assertSame('ФИО родителя (ред.)', $template->currentVersion->fields_schema[0]['label'] ?? null);
     }
 
@@ -76,7 +73,7 @@ class ContractTemplatesCrudFeatureTest extends ContractsFeatureTestCase
             'is_archived'  => '1',
             'fields'       => [
                 [
-                    'key'      => 'fio_parent',
+                    'key'      => 'parent_full_name',
                     'label'    => 'ФИО',
                     'required' => true,
                 ],

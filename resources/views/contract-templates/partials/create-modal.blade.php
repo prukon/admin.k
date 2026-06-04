@@ -1,4 +1,10 @@
-<div class="modal fade" id="createContractTemplateModal" tabindex="-1" aria-labelledby="createContractTemplateModalLabel" aria-hidden="true">
+<div class="modal fade"
+     id="createContractTemplateModal"
+     tabindex="-1"
+     aria-labelledby="createContractTemplateModalLabel"
+     aria-hidden="true"
+     data-bs-backdrop="static"
+     data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered contract-template-create-modal">
         <div class="modal-content">
             <form id="contractTemplateCreateForm"
@@ -14,8 +20,8 @@
 
                 <div class="modal-body text-start contract-template-create-modal-body">
                     <p class="text-muted small">
-                        Загрузите DOCX с плейсхолдерами вида <code>&#123;&#123;fio_parent&#125;&#125;</code>.
-                        После сохранения проверьте подписи полей и текст email-уведомления.
+                        Загрузите DOCX с плейсхолдерами вида <code>&#123;&#123;parent_full_name&#125;&#125;</code>.
+                        Список рекомендуемых переменных — в блоке ниже.
                     </p>
 
                     <div class="row g-3">
@@ -44,41 +50,18 @@
                             @error('docx')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label" for="template-create-email-subject">Тема письма клиенту (необязательно)</label>
-                            <input type="text"
-                                   name="email_subject"
-                                   id="template-create-email-subject"
-                                   class="form-control @error('email_subject') is-invalid @enderror"
-                                   value="{{ old('email_subject') }}"
-                                   maxlength="255"
-                                   placeholder="Договор: требуется заполнение и подписание">
-                            @error('email_subject')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label" for="template-create-email-body">Текст письма (HTML, необязательно)</label>
-                            <textarea name="email_body_html"
-                                      id="template-create-email-body"
-                                      class="form-control @error('email_body_html') is-invalid @enderror"
-                                      rows="5"
-                                      placeholder="&lt;p&gt;Здравствуйте! Перейдите в раздел «Мои документы»: &#123;&#123;documents_url&#125;&#125;&lt;/p&gt;">{{ old('email_body_html') }}</textarea>
                             <div class="form-text">
-                                Для <strong>письма</strong> (не для DOCX): подстановки
-                                <code>&#123;&#123;documents_url&#125;&#125;</code>,
-                                <code>&#123;&#123;student_name&#125;&#125;</code>,
-                                <code>&#123;&#123;contract_id&#125;&#125;</code>.
-                                В файле DOCX используйте свои поля вида <code>&#123;&#123;fio_parent&#125;&#125;</code> — они появятся в форме клиента.
+                                Текст письма клиенту настраивается после сохранения — кнопка
+                                «Письмо» в таблице шаблонов.
                             </div>
-                            @error('email_body_html')
-                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
                         </div>
+
                     </div>
+
+                    @include('contract-templates.partials.variables-reference', [
+                        'compact' => true,
+                        'accordionId' => 'createContractTemplateVariablesAccordion',
+                    ])
                 </div>
 
                 <div class="modal-footer">
@@ -92,7 +75,7 @@
 
 <style>
     .contract-template-create-modal {
-        max-width: 520px;
+        max-width: 720px;
     }
 
     #createContractTemplateModal .contract-template-create-modal-body {

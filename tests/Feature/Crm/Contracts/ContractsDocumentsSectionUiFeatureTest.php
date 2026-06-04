@@ -110,7 +110,7 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
                 'title' => '',
                 'fields' => [
                     [
-                        'key'      => 'fio_parent',
+                        'key'      => 'parent_full_name',
                         'label'    => 'ФИО',
                         'required' => true,
                     ],
@@ -131,7 +131,7 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
     {
         $response = $this->post(route('contract-templates.store'), [
             'title'         => 'UI Новый из модалки',
-            'docx'          => $this->fakeDocxUploadedFile(['fio_parent']),
+            'docx'          => $this->fakeDocxUploadedFile(['parent_full_name']),
             'email_subject' => 'Тема',
         ]);
 
@@ -155,7 +155,7 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
             'email_body_html' => '<p>Текст</p>',
             'fields'          => [
                 [
-                    'key'            => 'fio_parent',
+                    'key'            => 'parent_full_name',
                     'label'          => 'ФИО',
                     'required'       => true,
                     'prefill_source' => null,

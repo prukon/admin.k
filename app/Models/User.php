@@ -194,11 +194,7 @@ class User extends Authenticatable
     /**
      * Поля родителя для формы личного кабинета.
      *
-     * @return array{
-     *     parent_lastname: ?string,
-     *     parent_firstname: ?string,
-     *     parent_middlename: ?string
-     * }
+     * @return array<string, ?string>
      */
     public function accountParentFormFields(): array
     {
@@ -206,29 +202,16 @@ class User extends Authenticatable
         $profile = $this->parentProfile;
 
         if ($profile) {
-            return [
-                'parent_lastname'   => $profile->lastname,
-                'parent_firstname'  => $profile->firstname,
-                'parent_middlename' => $profile->middlename,
-            ];
+            return $this->mapParentProfileToFormFields($profile);
         }
 
-        return [
-            'parent_lastname'   => null,
-            'parent_firstname'  => null,
-            'parent_middlename' => null,
-        ];
+        return $this->emptyParentFormFields();
     }
 
     /**
      * Поля родителя для форм админки (из таблицы parents).
      *
-     * @return array{
-     *     parent_id: ?int,
-     *     parent_lastname: ?string,
-     *     parent_firstname: ?string,
-     *     parent_middlename: ?string
-     * }
+     * @return array<string, int|string|null>
      */
     public function parentFormFields(): array
     {
@@ -237,19 +220,49 @@ class User extends Authenticatable
             : ($this->parent_id ? $this->parentProfile()->first() : null);
 
         if ($profile) {
-            return [
-                'parent_id'         => (int) $profile->id,
-                'parent_lastname'   => $profile->lastname,
-                'parent_firstname'  => $profile->firstname,
-                'parent_middlename' => $profile->middlename,
-            ];
+            return array_merge(
+                ['parent_id' => (int) $profile->id],
+                $this->mapParentProfileToFormFields($profile),
+            );
         }
 
+        return array_merge(
+            ['parent_id' => $this->parent_id ? (int) $this->parent_id : null],
+            $this->emptyParentFormFields(),
+        );
+    }
+
+    /**
+     * @return array<string, ?string>
+     */
+    private function mapParentProfileToFormFields(ParentProfile $profile): array
+    {
         return [
-            'parent_id'         => $this->parent_id ? (int) $this->parent_id : null,
-            'parent_lastname'   => null,
-            'parent_firstname'  => null,
-            'parent_middlename' => null,
+            'parent_lastname'        => $profile->lastname,
+            'parent_firstname'       => $profile->firstname,
+            'parent_middlename'      => $profile->middlename,
+            'parent_passport'        => $profile->passport,
+            'parent_passport_issued' => $profile->passport_issued,
+            'parent_address'         => $profile->address,
+            'parent_phone'           => $profile->phone,
+            'parent_email'           => $profile->email,
+        ];
+    }
+
+    /**
+     * @return array<string, null>
+     */
+    private function emptyParentFormFields(): array
+    {
+        return [
+            'parent_lastname'        => null,
+            'parent_firstname'       => null,
+            'parent_middlename'      => null,
+            'parent_passport'        => null,
+            'parent_passport_issued' => null,
+            'parent_address'         => null,
+            'parent_phone'           => null,
+            'parent_email'           => null,
         ];
     }
 

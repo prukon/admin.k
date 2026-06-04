@@ -34,7 +34,17 @@ class ContractTemplatesFeatureTest extends ContractsFeatureTestCase
         $schema = $template->currentVersion->fields_schema;
         $this->assertIsArray($schema);
         $this->assertNotEmpty($schema);
-        $this->assertSame('fio_parent', $schema[0]['key'] ?? null);
+        $this->assertSame('parent_full_name', $schema[0]['key'] ?? null);
+        $this->assertSame('Родитель: ФИО', $schema[0]['label'] ?? null);
         $this->assertNotEmpty($template->currentVersion->docx_path);
+    }
+
+    /** @test */
+    public function variables_reference_is_shown_in_create_modal_on_index(): void
+    {
+        $this->get(route('contract-templates.index'))
+            ->assertOk()
+            ->assertSee('contract-template-variables-reference', false)
+            ->assertSee('parent_full_name', false);
     }
 }

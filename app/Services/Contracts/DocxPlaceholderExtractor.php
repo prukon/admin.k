@@ -72,21 +72,31 @@ class DocxPlaceholderExtractor
             foreach ($previousSchema as $field) {
                 $k = $field['key'] ?? null;
                 if (is_string($k) && $k !== '') {
-                    $previousByKey[$k] = $field;
+                    $field['key'] = ContractTemplateVariablePresets::canonicalFieldKey($k);
+                    $previousByKey[$field['key']] = $field;
                 }
             }
         }
 
         $schema = [];
         foreach (DocxPlaceholderSupport::filterFormFieldKeys($keys) as $key) {
+            $key = ContractTemplateVariablePresets::canonicalFieldKey($key);
             $prev = $previousByKey[$key] ?? null;
+            $presetDefaults = ContractTemplateVariablePresets::defaultsForKey($key);
+
             $schema[] = [
                 'key'             => $key,
-                'label'           => (string) ($prev['label'] ?? $this->defaultLabel($key)),
-                'required'        => (bool) ($prev['required'] ?? true),
+                'label'           => (string) ($prev['label'] ?? $presetDefaults['label'] ?? $this->defaultLabel($key)),
+                'required'        => (bool) ($prev['required'] ?? $presetDefaults['required'] ?? true),
                 'prefill_source'  => isset($prev['prefill_source']) && $prev['prefill_source'] !== ''
                     ? (string) $prev['prefill_source']
-                    : null,
+                    : ($presetDefaults['prefill_source'] ?? null),
+                'fill_sort_order' => isset($prev['fill_sort_order']) && is_numeric($prev['fill_sort_order'])
+                    ? (int) $prev['fill_sort_order']
+                    : (int) ($presetDefaults['fill_sort_order'] ?? ContractTemplateVariablePresets::guessFillSortOrder(
+                        $key,
+                        ContractTemplateVariablePresets::fieldGroupForKey($key),
+                    )),
             ];
         }
 

@@ -68,7 +68,7 @@ class ContractTemplatesAccessFeatureTest extends ContractsFeatureTestCase
             'email_body_html'=> '<p>Новый текст</p>',
             'fields'         => [
                 [
-                    'key'            => 'fio_parent',
+                    'key'            => 'parent_full_name',
                     'label'          => 'ФИО',
                     'required'       => true,
                     'prefill_source' => null,

@@ -231,6 +231,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('contracts.sync');
         });
 
+        // Шаблоны договоров: колонка «Порядок» в редакторе полей (форма родителя)
+        Gate::define('contracts.templates.fillSortOrder.edit', function (User $user) {
+            return $user->hasPermission('contracts.templates.fillSortOrder.edit');
+        });
+
         // Страница "Настройки
         Gate::define('settings.view', function (User $user) {
             return $user->hasPermission('settings.view');
@@ -296,6 +301,11 @@ class AuthServiceProvider extends ServiceProvider
         // Страница "Учетная запись -> Документы"
         Gate::define('account.documents.view', function (User $user) {
             return $user->hasPermission('account.documents.view');
+        });
+
+        // Форма заполнения договора: технические ключи полей {{parent_full_name}} и т.д.
+        Gate::define('account.contracts.showFieldKeys', function (User $user) {
+            return $user->hasPermission('account.contracts.showFieldKeys');
         });
 
         // Страница "Сообщения"

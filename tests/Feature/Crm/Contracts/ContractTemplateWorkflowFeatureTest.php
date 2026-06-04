@@ -18,6 +18,7 @@ class ContractTemplateWorkflowFeatureTest extends ContractsFeatureTestCase
 
         config(['contracts.pdf_converter' => 'fake']);
         config(['billing.contract_create_fee' => 70.00]);
+        config(['queue.default' => 'sync']);
         $this->partner->wallet_balance = 200;
         $this->partner->save();
 
@@ -33,7 +34,7 @@ class ContractTemplateWorkflowFeatureTest extends ContractsFeatureTestCase
 
         $storeTemplate = $this->post(route('contract-templates.store'), [
             'title'         => 'Оферта E2E',
-            'docx'          => $this->fakeDocxUploadedFile(['fio_parent']),
+            'docx'          => $this->fakeDocxUploadedFile(['parent_full_name']),
             'email_subject' => 'Заполните договор',
         ]);
         $storeTemplate->assertSessionHasNoErrors();
@@ -55,15 +56,23 @@ class ContractTemplateWorkflowFeatureTest extends ContractsFeatureTestCase
         $this->assertSame(Contract::CREATION_MODE_TEMPLATE, $contract->creation_mode);
         Mail::assertSent(\App\Mail\ContractClientFillInvitationMail::class);
 
+        $fillHtml = $this->actingAs($this->user)
+            ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('account.documents.fill', $contract))
+            ->assertOk()
+            ->json('html');
+        $this->assertStringContainsString('Сформировать договор', $fillHtml);
+
         $this->actingAs($this->user)
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
-            ->get(route('account.documents.fill', $contract))
-            ->assertOk()
-            ->assertSee('Сформировать договор');
-
-        $this->post(route('account.documents.generate', $contract), [
-            'fields' => ['fio_parent' => 'Смирнов Алексей'],
-        ])->assertRedirect(route('account.documents.fill', $contract));
+            ->post(route('account.documents.generate', $contract), [
+                'fields' => [
+                    'parent_lastname'  => 'Смирнов',
+                    'parent_firstname' => 'Алексей',
+                ],
+            ])
+            ->assertRedirect(route('account.documents.index', ['fill' => $contract->id]));
 
         $contract->refresh();
         $this->assertSame(Contract::STATUS_DRAFT, $contract->status);

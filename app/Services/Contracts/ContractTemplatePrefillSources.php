@@ -3,34 +3,40 @@
 namespace App\Services\Contracts;
 
 /**
- * Источники предзаполнения полей формы договора (итерация 2 — кабинет клиента).
+ * Привязки полей шаблона к данным CRM (ключ = переменная DOCX).
  */
 class ContractTemplatePrefillSources
 {
-    public const STUDENT_FULL_NAME  = 'student.full_name';
-    public const STUDENT_PHONE      = 'student.phone';
-    public const STUDENT_EMAIL      = 'student.email';
-    public const PARENT_FULL_NAME   = 'parent.full_name';
-    public const PARENT_LASTNAME    = 'parent.lastname';
-    public const PARENT_FIRSTNAME   = 'parent.firstname';
-    public const PARENT_MIDDLENAME  = 'parent.middlename';
-    public const TEAM_TITLE         = 'team.title';
+    public const CHILD_FULL_NAME    = 'child_full_name';
+    public const CHILD_LASTNAME     = 'child_lastname';
+    public const CHILD_FIRSTNAME    = 'child_firstname';
+    public const CHILD_BIRTHDAY     = 'child_birthday';
+    public const STUDENT_PHONE      = 'student_phone';
+    public const STUDENT_EMAIL      = 'student_email';
+    public const PARENT_FULL_NAME   = 'parent_full_name';
+    public const PARENT_LASTNAME    = 'parent_lastname';
+    public const PARENT_FIRSTNAME   = 'parent_firstname';
+    public const PARENT_MIDDLENAME  = 'parent_middlename';
+    public const PARENT_PASSPORT    = 'parent_passport';
+    public const PARENT_PASSPORT_ISSUED = 'parent_passport_issued';
+    public const PARENT_ADDRESS     = 'parent_address';
+    public const PARENT_PHONE       = 'parent_phone';
+    public const PARENT_EMAIL       = 'parent_email';
+    public const TEAM_TITLE         = 'team_title';
 
     /**
-     * @return array<string, string>
+     * @return array<string, string> key => label for admin UI
      */
     public static function labels(): array
     {
-        return [
-            self::STUDENT_FULL_NAME  => 'Ученик: ФИО',
-            self::STUDENT_PHONE      => 'Ученик: телефон',
-            self::STUDENT_EMAIL      => 'Ученик: email',
-            self::PARENT_FULL_NAME   => 'Родитель: ФИО',
-            self::PARENT_LASTNAME    => 'Родитель: фамилия',
-            self::PARENT_FIRSTNAME   => 'Родитель: имя',
-            self::PARENT_MIDDLENAME  => 'Родитель: отчество',
-            self::TEAM_TITLE         => 'Группа: название',
-        ];
+        $labels = [];
+        foreach (ContractTemplateVariablePresets::recommended() as $preset) {
+            if ($preset['prefill_source'] !== null) {
+                $labels[$preset['prefill_source']] = $preset['label'];
+            }
+        }
+
+        return $labels;
     }
 
     /**

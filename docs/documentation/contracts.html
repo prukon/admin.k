@@ -200,23 +200,61 @@
     <li>Полный сценарий лид → клиент → договор: <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5–5.7).</li>
   </ul>
 
-  <h2>7) Тесты (Feature)</h2>
+  <h2>7) Режим «форма клиенту» (<code>creation_mode=template</code>)</h2>
   <div class="note">
+    В модалке «Создать договор» (§<a href="#contract-create-modal">5</a>) переключатель «Способ создания»:
+    <code>pdf</code> — загрузка готового PDF (классический сценарий CRM);
+    <code>template</code> — выбор шаблона DOCX, договор уходит клиенту на заполнение в кабинете.<br><br>
+    При успешном <code>POST /client-contracts</code> с <code>template</code>:
+    списание <b>70&nbsp;₽</b>, статус <code>awaiting_client_fill</code>, <code>fill_expires_at</code> +7 дней,
+    redirect на <code>GET /client-contracts/{id}</code> (карточка), не на index.
+    Flash: «Договор создан. С баланса списано 70 ₽. Клиенту отправлено уведомление в личный кабинет (и на email, если указан).»<br><br>
+    Ученик чужого партнёра → <b>422</b> (<code>ContractCreationService</code>).
+    Недостаточный баланс → redirect на index с <code>?create=1</code>, ошибка в <code>wallet</code> (ValidationException).
+  </div>
+  <table>
+    <thead><tr><th>Действие CRM</th><th>URL / поведение</th></tr></thead>
+    <tbody>
+      <tr><td>Отзыв до заполнения</td><td><code>POST …/revoke</code> в статусе <code>awaiting_client_fill</code> — возврат 70&nbsp;₽, статус <code>revoked</code></td></tr>
+      <tr><td>Email-приглашение</td><td><code>ContractClientFillInvitationMail</code>; текст из версии шаблона — см. <a href="/docs/documentation/contract-templates#53-email-edittemplateemailmodal">contract-templates §5.3</a></td></tr>
+      <tr><td>Заполнение родителем</td><td><code>/account-settings/documents</code> — см. <a href="/docs/documentation/account-contract-fill">account-contract-fill</a></td></tr>
+    </tbody>
+  </table>
+  <p class="small">На карточке договора template mode отображаются шаблон, срок заполнения, статус; отправка SMS из CRM для этого сценария не используется — подпись только из кабинета после generate PDF.</p>
+
+  <h2>8) Вкладки «Договоры» и «Шаблоны»</h2>
+  <p>Раздел <code>/client-contracts</code> объединяет список договоров и шаблонов DOCX (вкладки в UI).
+  Шаблоны документированы в <a href="/docs/documentation/contract-templates">contract-templates.html</a>.
+  Прямой URL шаблонов: <code>/client-contract-templates</code> (view <code>contract-templates.index</code>, вкладка «Шаблоны» активна).</p>
+
+  <h2>9) Тесты (Feature)</h2>
+  <div class="note">
+    <p><b>Модалка создания и карточка:</b></p>
     <ul>
-      <li><code>tests/Feature/Crm/Contracts/ContractCreateModalFeatureTest.php</code> — модалка на index, redirect <code>/create</code>, store, шаблоны</li>
-      <li><code>tests/Feature/Crm/Contracts/ContractCreateModalParentFeatureTest.php</code> — поле «ФИО родителя», <code>preselectedUser.parent_full_name</code>, <code>users-search</code>, изоляция партнёра, soft-delete родителя</li>
-      <li><code>tests/Feature/Crm/Contracts/ContractsIndexAccessFeatureTest.php</code> — доступ к index и AJAX модалки (200 / 401 / 403), в т.ч. с данными родителя</li>
-      <li><code>tests/Feature/Crm/Contracts/ContractsParentAndAccessTest.php</code> — родитель на show, предзаполнение подписанта</li>
-      <li><code>tests/Feature/Crm/Contracts/ContractsAccessTest.php</code> — гость, 403 без права, 200 show</li>
-      <li><code>tests/Feature/Crm/Contracts/ContractsSigningTest.php</code> — отправка / resend, <code>ContractSendRequest</code></li>
-      <li><code>tests/Feature/Crm/Contracts/ContractsSyncFeatureTest.php</code> — <code>/status</code>, <code>contracts.sync</code></li>
-      <li><code>tests/Feature/Crm/Contracts/ContractsCrudAndFilesTest.php</code> — create, store, download</li>
+      <li><code>ContractCreateModalFeatureTest.php</code> — модалка, redirect <code>/create</code>, store PDF</li>
+      <li><code>ContractCreateModalParentFeatureTest.php</code> — «ФИО родителя», <code>users-search</code>, preselectedUser</li>
+      <li><code>ContractCreateTemplateModeModalFeatureTest.php</code> — режим template, баланс, foreign student 422</li>
+      <li><code>ContractStoreTemplateModeTest.php</code> — store template, redirect show, fill_expires_at</li>
+      <li><code>ContractsIndexAccessFeatureTest.php</code>, <code>ContractsAccessTest.php</code></li>
+      <li><code>ContractsParentAndAccessTest.php</code> — родитель на show, подписант</li>
+      <li><code>ContractsSigningTest.php</code>, <code>ContractsSyncFeatureTest.php</code></li>
+      <li><code>ContractsCrudAndFilesTest.php</code>, <code>ContractsTableAndColumnsTest.php</code></li>
+      <li><code>ContractRevokeRefundTest.php</code> — revoke awaiting_client_fill + refund</li>
     </ul>
-    Запуск (модалка и родитель): <code>php artisan test --filter=ContractCreateModalParentFeatureTest</code>,
-    доступ: <code>php artisan test --filter=ContractsIndexAccessFeatureTest</code>.
+    <p><b>Раздел «Документы» (вкладки + шаблоны):</b></p>
+    <ul>
+      <li><code>ContractsDocumentsSectionUiFeatureTest.php</code></li>
+      <li><code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — email.show, update-email, index?email=</li>
+    </ul>
+    <p><b>Шаблоны и E2E:</b> см. <a href="/docs/documentation/contract-templates#10-feature-тесты">contract-templates §10</a>.
+    <b>Кабинет:</b> <a href="/docs/documentation/account-contract-fill#7-feature-тесты">account-contract-fill §7</a>.</p>
+    <p>Запуск (модалка + template mode):</p>
+    <code>php artisan test tests/Feature/Crm/Contracts/ContractCreateTemplateModeModalFeatureTest.php tests/Feature/Crm/Contracts/ContractStoreTemplateModeTest.php</code>
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/contract-templates">Шаблоны договоров</a> ·
+    <a href="/docs/documentation/account-contract-fill">Заполнение родителем</a> ·
     <a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> ·
     <a href="/docs/documentation/admin-users#user-parent">Пользователи: данные родителя</a></p>
 </div>

@@ -17,7 +17,7 @@ final class DocxPlaceholderSupport
      */
     public static function systemKeys(): array
     {
-        return ['documents_url', 'student_name', 'contract_id'];
+        return ['documents_url', 'contract_id'];
     }
 
     public static function isSystemKey(string $key): bool

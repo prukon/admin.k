@@ -27,6 +27,7 @@ class Contract extends Model
     // Статусы
     public const STATUS_DRAFT   = 'draft';
     public const STATUS_AWAITING_CLIENT_FILL = 'awaiting_client_fill';
+    public const STATUS_GENERATING_PDF = 'generating_pdf';
     public const STATUS_SENT    = 'sent';
     public const STATUS_OPENED  = 'opened';
     public const STATUS_SIGNED  = 'signed';
@@ -37,6 +38,7 @@ class Contract extends Model
     public static array $STATUS_RU = [
         self::STATUS_DRAFT   => 'Черновик',
         self::STATUS_AWAITING_CLIENT_FILL => 'Ожидает заполнения клиентом',
+        self::STATUS_GENERATING_PDF       => 'Формируется PDF',
         self::STATUS_SENT    => 'Отправлено',
         self::STATUS_OPENED  => 'Открыто',
         self::STATUS_SIGNED  => 'Подписано',
@@ -48,6 +50,7 @@ class Contract extends Model
     public static array $STATUS_BADGE = [
         self::STATUS_DRAFT   => 'bg-secondary',
         self::STATUS_AWAITING_CLIENT_FILL => 'bg-primary',
+        self::STATUS_GENERATING_PDF       => 'bg-info text-dark',
         self::STATUS_SENT    => 'bg-warning text-dark',
         self::STATUS_OPENED  => 'bg-info',
         self::STATUS_SIGNED  => 'bg-success',
@@ -113,11 +116,44 @@ class Contract extends Model
         return $this->fill_expires_at !== null && $this->fill_expires_at->isPast();
     }
 
+    public function isGeneratingPdf(): bool
+    {
+        return $this->isTemplateMode()
+            && $this->status === self::STATUS_GENERATING_PDF
+            && !$this->isFillExpired();
+    }
+
     public function canClientFill(): bool
     {
         return $this->isTemplateMode()
             && $this->status === self::STATUS_AWAITING_CLIENT_FILL
             && !$this->isFillExpired();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function clientFormFieldValues(): array
+    {
+        $data = is_array($this->filled_data) ? $this->filled_data : [];
+        $values = [];
+
+        foreach ($data as $key => $value) {
+            if (!is_string($key) || str_starts_with($key, '_')) {
+                continue;
+            }
+            $values[$key] = trim((string) $value);
+        }
+
+        return $values;
+    }
+
+    public function pdfGenerationError(): ?string
+    {
+        $data = is_array($this->filled_data) ? $this->filled_data : [];
+        $message = trim((string) ($data['_generation_error'] ?? ''));
+
+        return $message !== '' ? $message : null;
     }
 
     public function canClientSign(): bool

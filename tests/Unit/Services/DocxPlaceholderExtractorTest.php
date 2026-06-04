@@ -11,12 +11,12 @@ class DocxPlaceholderExtractorTest extends TestCase
     /** @test */
     public function extracts_unique_placeholders_from_docx(): void
     {
-        $path = $this->makeDocxWithText('Договор {{fio_parent}} тел. {{phone}} и снова {{fio_parent}}.');
+        $path = $this->makeDocxWithText('Договор {{parent_full_name}} тел. {{phone}} и снова {{parent_full_name}}.');
 
         $extractor = new DocxPlaceholderExtractor();
         $keys = $extractor->extractFromPath($path);
 
-        $this->assertSame(['fio_parent', 'phone'], $keys);
+        $this->assertSame(['parent_full_name', 'phone'], $keys);
 
         @unlink($path);
     }
@@ -26,12 +26,12 @@ class DocxPlaceholderExtractorTest extends TestCase
     {
         $extractor = new DocxPlaceholderExtractor();
         $schema = $extractor->buildFieldsSchema(['phone'], [
-            ['key' => 'phone', 'label' => 'Телефон родителя', 'required' => false, 'prefill_source' => 'student.phone'],
+            ['key' => 'phone', 'label' => 'Телефон родителя', 'required' => false, 'prefill_source' => 'parent_phone'],
         ]);
 
         $this->assertSame('Телефон родителя', $schema[0]['label']);
         $this->assertFalse($schema[0]['required']);
-        $this->assertSame('student.phone', $schema[0]['prefill_source']);
+        $this->assertSame('parent_phone', $schema[0]['prefill_source']);
     }
 
     private function makeDocxWithText(string $text): string

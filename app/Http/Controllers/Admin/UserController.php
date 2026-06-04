@@ -955,6 +955,11 @@ class UserController extends AdminBaseController
                     'parent_lastname'   => $parent->lastname,
                     'parent_firstname'  => $parent->firstname,
                     'parent_middlename' => $parent->middlename,
+                    'parent_passport'   => $parent->passport,
+                    'parent_passport_issued' => $parent->passport_issued,
+                    'parent_address'    => $parent->address,
+                    'parent_phone'      => $parent->phone,
+                    'parent_email'      => $parent->email,
                 ];
             })->values(),
         ]);

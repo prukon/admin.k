@@ -296,6 +296,76 @@
                     @enderror
                 </div>
 
+                <div class="mb-3">
+                    <label for="parent_passport" class="form-label">Паспорт</label>
+                    <input type="text"
+                           id="parent_passport"
+                           name="parent_passport"
+                           class="form-control @error('parent_passport') is-invalid @enderror"
+                           maxlength="100"
+                           value="{{ old('parent_passport', $accountParentFields['parent_passport'] ?? '') }}"
+                           @unless($canEditAccountParent) disabled aria-disabled="true" @endunless>
+                    @error('parent_passport')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="parent_passport_issued" class="form-label">Паспорт, кем и когда выдан</label>
+                    <input type="text"
+                           id="parent_passport_issued"
+                           name="parent_passport_issued"
+                           class="form-control @error('parent_passport_issued') is-invalid @enderror"
+                           maxlength="500"
+                           value="{{ old('parent_passport_issued', $accountParentFields['parent_passport_issued'] ?? '') }}"
+                           @unless($canEditAccountParent) disabled aria-disabled="true" @endunless>
+                    @error('parent_passport_issued')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="parent_address" class="form-label">Адрес</label>
+                    <input type="text"
+                           id="parent_address"
+                           name="parent_address"
+                           class="form-control @error('parent_address') is-invalid @enderror"
+                           maxlength="1000"
+                           value="{{ old('parent_address', $accountParentFields['parent_address'] ?? '') }}"
+                           @unless($canEditAccountParent) disabled aria-disabled="true" @endunless>
+                    @error('parent_address')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="parent_phone" class="form-label">Телефон</label>
+                    <input type="text"
+                           id="parent_phone"
+                           name="parent_phone"
+                           class="form-control @error('parent_phone') is-invalid @enderror"
+                           maxlength="32"
+                           value="{{ old('parent_phone', $accountParentFields['parent_phone'] ?? '') }}"
+                           @unless($canEditAccountParent) disabled aria-disabled="true" @endunless>
+                    @error('parent_phone')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label for="parent_email" class="form-label">Email</label>
+                    <input type="email"
+                           id="parent_email"
+                           name="parent_email"
+                           class="form-control @error('parent_email') is-invalid @enderror"
+                           maxlength="255"
+                           value="{{ old('parent_email', $accountParentFields['parent_email'] ?? '') }}"
+                           @unless($canEditAccountParent) disabled aria-disabled="true" @endunless>
+                    @error('parent_email')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 @unless($canEditAccountParent)
                     <div class="form-text text-muted mt-1">
                         <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение данных родителя

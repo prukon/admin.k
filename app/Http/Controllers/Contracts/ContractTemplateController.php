@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Contracts;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Contracts\StoreContractTemplateRequest;
+use App\Http\Requests\Contracts\UpdateContractTemplateEmailRequest;
 use App\Http\Requests\Contracts\UpdateContractTemplateRequest;
 use App\Models\ContractTemplate;
 use App\Models\Partner;
 use App\Services\Contracts\ContractTemplatePrefillSources;
 use App\Services\Contracts\ContractTemplateService;
+use App\Services\Contracts\ContractTemplateVariablePresets;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -34,6 +36,7 @@ class ContractTemplateController extends Controller
         $prefillSources = ContractTemplatePrefillSources::labels();
         $editTemplate = null;
         $editFields = [];
+        $openEmailTemplateId = null;
 
         if ($request->filled('edit')) {
             $editTemplate = ContractTemplate::query()
@@ -42,15 +45,29 @@ class ContractTemplateController extends Controller
                 ->whereKey($request->integer('edit'))
                 ->firstOrFail();
 
-            $editFields = old('fields')
-                ? array_values(old('fields'))
-                : ($editTemplate->currentVersion?->fields_schema ?? []);
+            $editFields = ContractTemplateVariablePresets::enrichSchema(
+                old('fields')
+                    ? array_values(old('fields'))
+                    : ($editTemplate->currentVersion?->fields_schema ?? []),
+            );
+        }
+
+        if ($request->filled('email')) {
+            $emailTemplate = ContractTemplate::query()
+                ->forPartner($partnerId)
+                ->whereKey($request->integer('email'))
+                ->exists();
+
+            abort_unless($emailTemplate, 404);
+
+            $openEmailTemplateId = $request->integer('email');
         }
 
         return view('contract-templates.index', compact(
             'prefillSources',
             'editTemplate',
             'editFields',
+            'openEmailTemplateId',
         ) + ['activeTab' => 'templates']);
     }
 
@@ -182,8 +199,8 @@ class ContractTemplateController extends Controller
             'title'           => $validated['title'],
             'docx'            => $request->file('docx'),
             'fields'          => $validated['fields'] ?? null,
-            'email_subject'   => $validated['email_subject'] ?? null,
-            'email_body_html' => $validated['email_body_html'] ?? null,
+            'email_subject'   => null,
+            'email_body_html' => null,
         ]);
 
         return redirect()
@@ -204,14 +221,52 @@ class ContractTemplateController extends Controller
             'title'           => $validated['title'],
             'docx'            => $request->file('docx'),
             'fields'          => $validated['fields'] ?? null,
-            'email_subject'   => $validated['email_subject'] ?? null,
-            'email_body_html' => $validated['email_body_html'] ?? null,
             'is_archived'     => $request->boolean('is_archived'),
         ]);
 
         return redirect()
             ->route('contract-templates.index')
             ->with('success', 'Шаблон «' . $template->fresh()->title . '» сохранён.');
+    }
+
+    public function showEmail(ContractTemplate $template)
+    {
+        $template->load('currentVersion');
+
+        if (!$template->currentVersion) {
+            return response()->json([
+                'message' => 'У шаблона нет активной версии.',
+            ], 422);
+        }
+
+        return response()->json([
+            'id'              => $template->id,
+            'title'           => $template->title,
+            'email_subject'   => $template->currentVersion->resolvedEmailSubject(),
+            'email_body_html' => $template->currentVersion->resolvedEmailBodyHtml(),
+            'update_url'      => route('contract-templates.update-email', $template),
+        ]);
+    }
+
+    public function updateEmail(UpdateContractTemplateEmailRequest $request, ContractTemplate $template)
+    {
+        $validated = $request->validated();
+
+        $this->templateService->updateEmail(
+            $template,
+            $validated['email_subject'] ?? null,
+            $validated['email_body_html'] ?? null,
+        );
+
+        $message = 'Письмо для шаблона «' . $template->fresh()->title . '» сохранено.';
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message]);
+        }
+
+        return redirect()
+            ->route('contract-templates.index')
+            ->with('success', $message);
     }
 
     public function downloadDocx(ContractTemplate $template)

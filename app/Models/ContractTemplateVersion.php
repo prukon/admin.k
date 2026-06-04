@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Contracts\ContractTemplateEmailDefaults;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -29,19 +30,29 @@ class ContractTemplateVersion extends Model
         return $this->hasMany(Contract::class, 'contract_template_version_id');
     }
 
-    public function defaultEmailSubject(): string
+    public function resolvedEmailSubject(): string
     {
-        return $this->email_subject ?: 'Договор: требуется заполнение и подписание';
+        $stored = trim((string) ($this->email_subject ?? ''));
+
+        return $stored !== '' ? $stored : ContractTemplateEmailDefaults::subject();
     }
 
+    public function resolvedEmailBodyHtml(): string
+    {
+        $stored = trim((string) ($this->email_body_html ?? ''));
+
+        return $stored !== '' ? $stored : ContractTemplateEmailDefaults::bodyHtml();
+    }
+
+    /** @deprecated Use resolvedEmailSubject() — kept for backward compatibility in callers */
+    public function defaultEmailSubject(): string
+    {
+        return $this->resolvedEmailSubject();
+    }
+
+    /** @deprecated Use resolvedEmailBodyHtml() */
     public function defaultEmailBodyHtml(): string
     {
-        if ($this->email_body_html) {
-            return (string) $this->email_body_html;
-        }
-
-        return '<p>Здравствуйте!</p>'
-            . '<p>В личном кабинете доступен договор для заполнения и подписания.</p>'
-            . '<p>Перейдите в раздел «Мои документы» в учётной записи.</p>';
+        return $this->resolvedEmailBodyHtml();
     }
 }

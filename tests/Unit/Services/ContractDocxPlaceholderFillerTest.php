@@ -11,11 +11,11 @@ class ContractDocxPlaceholderFillerTest extends TestCase
     /** @test */
     public function replaces_cyrillic_and_system_placeholders(): void
     {
-        $source = $this->makeDocx('Договор {{fio_parent}}, ссылка {{documents_url}}');
+        $source = $this->makeDocx('Договор {{parent_full_name}}, ссылка {{documents_url}}');
         $target = tempnam(sys_get_temp_dir(), 'filled_') . '.docx';
 
         (new ContractDocxPlaceholderFiller())->fill($source, $target, [
-            'fio_parent'    => 'Иванов Иван Иванович',
+            'parent_full_name'    => 'Иванов Иван Иванович',
             'documents_url' => 'https://example.test/documents',
         ]);
 
@@ -23,7 +23,7 @@ class ContractDocxPlaceholderFillerTest extends TestCase
 
         $this->assertStringContainsString('Иванов Иван Иванович', $xml);
         $this->assertStringContainsString('https://example.test/documents', $xml);
-        $this->assertStringNotContainsString('{{fio_parent}}', $xml);
+        $this->assertStringNotContainsString('{{parent_full_name}}', $xml);
         $this->assertStringNotContainsString('{{documents_url}}', $xml);
 
         @unlink($source);
@@ -43,14 +43,14 @@ class ContractDocxPlaceholderFillerTest extends TestCase
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
             . '<w:body><w:p><w:r><w:t>Привет {{documents_</w:t></w:r>'
-            . '<w:r><w:t>url}}, студент {{student_</w:t></w:r><w:r><w:t>name}}</w:t></w:r></w:p></w:body></w:document>'
+            . '<w:r><w:t>url}}, ученик {{child_</w:t></w:r><w:r><w:t>full_name}}</w:t></w:r></w:p></w:body></w:document>'
         );
         $zip->close();
 
         $target = tempnam(sys_get_temp_dir(), 'filled_') . '.docx';
         (new ContractDocxPlaceholderFiller())->fill($source, $target, [
             'documents_url' => 'https://crm.test/docs',
-            'student_name'  => 'Петров Пётр',
+            'child_full_name' => 'Петров Пётр',
         ]);
 
         $xml = $this->readDocumentXml($target);
@@ -58,7 +58,7 @@ class ContractDocxPlaceholderFillerTest extends TestCase
         $this->assertStringContainsString('https://crm.test/docs', $xml);
         $this->assertStringContainsString('Петров Пётр', $xml);
         $this->assertStringNotContainsString('{{documents', $xml);
-        $this->assertStringNotContainsString('{{student', $xml);
+        $this->assertStringNotContainsString('{{child', $xml);
 
         @unlink($source);
         @unlink($target);

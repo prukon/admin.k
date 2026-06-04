@@ -14,15 +14,10 @@ class ContractTemplateSystemPlaceholders
      */
     public static function forContract(Contract $contract): array
     {
-        $contract->loadMissing('user');
-        $student = $contract->user;
-
-        $studentName = trim(($student->lastname ?? '') . ' ' . ($student->name ?? ''));
-
         return [
             'documents_url' => url('/account-settings/documents'),
-            'student_name'  => $studentName,
             'contract_id'   => (string) $contract->id,
+            'contract_date' => now()->format('d.m.Y'),
         ];
     }
 }

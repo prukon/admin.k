@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: заполнение договора родителем (кабинет)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .small { color: #555; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul { margin: 8px 0 8px 20px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1>Заполнение договора родителем (личный кабинет)</h1>
+  <div class="small">
+    Файл: <code>/docs/documentation/account-contract-fill.html</code> ·
+    UI: <code>/account-settings/documents</code> (вкладка «Мои документы») ·
+    см. также <a href="/docs/documentation/contract-templates">шаблоны договоров</a>,
+    <a href="/docs/documentation/contracts">договоры в CRM</a>
+  </div>
+
+  <h2>1) Назначение и доступ</h2>
+  <div class="note">
+    После создания договора в режиме «форма клиенту» (<code>creation_mode=template</code>) ученик (родитель в семейном кабинете)
+    видит задачу «Требуется заполнение», открывает модалку, заполняет поля из схемы шаблона, формирует PDF и подписывает договор по SMS (Подпислон).<br><br>
+    Право на раздел: <code>account.documents.view</code> (<code>Gate::define('account.documents.view')</code>).<br>
+    Маршруты fill / generate / sign дополнительно защищены middleware <code>contract.owner</code> — только владелец договора (<code>contracts.user_id === Auth::id()</code>); чужой пользователь получает <b>404</b> (anti-enumeration).<br>
+    Гость → <b>302</b> на login; без права → <b>403</b>.
+  </div>
+
+  <h3>1.1) URL</h3>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/account-settings/documents</code></td><td>Список договоров ученика; query <code>?fill={contract_id}</code> автоматически открывает модалку</td></tr>
+      <tr><td>GET</td><td><code>…/contracts/{contract}/fill</code></td><td>AJAX JSON: HTML формы (<code>title</code>, <code>html</code>, <code>poll</code>); без AJAX — redirect на index с <code>?fill=</code></td></tr>
+      <tr><td>POST</td><td><code>…/contracts/{contract}/generate</code></td><td>Отправка полей → очередь/синхронная генерация PDF (<code>ContractPdfGenerationService</code>)</td></tr>
+      <tr><td>POST</td><td><code>…/contracts/{contract}/sign</code></td><td>Подписание SMS (<code>ContractPodpislonSendService</code>, <code>ContractSendRequest</code>)</td></tr>
+      <tr><td>GET</td><td><code>…/requests</code></td><td>JSON истории отправок SMS</td></tr>
+      <tr><td>GET</td><td><code>…/download-original</code></td><td>Скачивание PDF (после generate)</td></tr>
+      <tr><td>GET</td><td><code>…/download-signed</code></td><td>Скачивание подписанного PDF</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Контроллеры: <code>AccountDocumentsController</code>, <code>AccountContractFillController</code>.
+  View: <code>resources/views/account/documents.blade.php</code>, partials <code>contract-fill-modal.blade.php</code>, <code>contract-fill-content.blade.php</code>, <code>contract-fill-field.blade.php</code>.</p>
+
+  <h2>2) Модалка заполнения (<code>#contractFillModal</code>)</h2>
+  <ul>
+    <li>Ширина: класс <code>contract-fill-modal-dialog</code> (max-width 720px).</li>
+    <li>Контент подгружается AJAX: <code>GET …/fill</code> с заголовком <code>X-Requested-With: XMLHttpRequest</code>.</li>
+    <li>При <code>?fill=</code> на index вызывается JS <code>loadContractFill(contractId)</code>.</li>
+    <li>Маска телефона: jQuery Inputmask <code>+7 (999) 999-99-99</code>, класс <code>js-contract-fill-phone</code>.</li>
+  </ul>
+
+  <h3>2.1) Панели формы</h3>
+  <table>
+    <thead><tr><th>Панель</th><th>CSS</th><th>Содержимое</th></tr></thead>
+    <tbody>
+      <tr><td>Родитель</td><td><code>contract-fill-panel--parent</code></td><td>Поля группы «родитель» из <code>fields_schema</code> (ФИО по частям, телефон, паспорт, адрес, супруг(а)…)</td></tr>
+      <tr><td>Ребёнок</td><td><code>contract-fill-panel--child</code></td><td>Поля группы «ученик» (фамилия/имя, дата рождения и т.д.)</td></tr>
+      <tr><td>Подписание</td><td><code>contract-fill-sign-block</code></td><td>После успешного generate: ФИО подписанта, телефон SMS, кнопка «Подписать договор»</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.2) Поля ФИО и даты</h3>
+  <div class="note">
+    Составные ключи DOCX (<code>parent_full_name</code>, <code>child_full_name</code>) в форме разбиты на части:
+    <code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>,
+    <code>child_lastname</code>, <code>child_firstname</code>.
+    При генерации PDF полные ФИО собираются в <code>ContractPdfGenerationService</code> / <code>ContractTemplateVariablePresets::composeNameFieldsForPdf</code>.<br><br>
+    <code>child_birthday</code> — <code>&lt;input type="date"&gt;</code>, валидация <code>date</code> + <code>before:today</code> (<code>AccountContractGenerateRequest</code>).
+    Значения в PDF и <code>filled_data</code> — в формате <code>d.m.Y</code>; в профиле ученика — <code>Y-m-d</code>.
+  </div>
+
+  <h3>2.3) Порядок полей</h3>
+  <p>Поля сортируются по <code>fill_sort_order</code> из <code>fields_schema</code> версии шаблона (или пресета из <code>ContractTemplateVariablePresets</code>).
+  Рекомендуемая шкала: 10–50 основные данные, 200+ супруг(а), 300+ кастомные поля из DOCX.
+  Редактирование порядка в CRM — только с правом <code>contracts.templates.fillSortOrder.edit</code> (по умолчанию только superadmin).</p>
+
+  <h3>2.4) Предзаполнение</h3>
+  <p><code>ContractPrefillResolver</code> подставляет значения из карточки ученика/родителя/группы по <code>prefill_source</code> в схеме.
+  После успешного generate данные синхронизируются обратно:</p>
+  <ul>
+    <li><code>ContractParentProfileSyncService</code> — ФИО родителя в <code>parents</code></li>
+    <li><code>ContractStudentProfileSyncService</code> — фамилия, имя, дата рождения ученика в <code>users</code></li>
+  </ul>
+
+  <h2>3) Жизненный цикл статусов (кабинет)</h2>
+  <table>
+    <thead><tr><th>Статус</th><th>UI в модалке</th></tr></thead>
+    <tbody>
+      <tr><td><code>awaiting_client_fill</code></td><td>Форма «Сформировать договор»; доступен fill JSON</td></tr>
+      <tr><td><code>generating_pdf</code></td><td>Спиннер, <code>poll: true</code> в JSON — автообновление модалки</td></tr>
+      <tr><td><code>draft</code> + PDF</td><td>Блок подписания SMS + «Скачать PDF»</td></tr>
+      <tr><td><code>sent</code> / <code>opened</code></td><td>Fill JSON → 422 «Договор недоступен для заполнения»; подсказка про SMS на странице при других сценариях</td></tr>
+    </tbody>
+  </table>
+  <div class="warn">
+    Срок заполнения: <code>fill_expires_at</code> (по умолчанию +7 дней от создания, <code>Contract::FILL_TTL_DAYS</code>).
+    После истечения в статусе <code>awaiting_client_fill</code> fill JSON возвращает 422: «Срок заполнения договора истёк…».
+  </div>
+
+  <h2>4) Валидация generate</h2>
+  <p><code>AccountContractGenerateRequest</code>: обязательные поля по <code>required</code> в схеме; системные поля (<code>contract_date</code>, <code>contract_id</code>…) не показываются родителю.
+  Ошибки возвращаются redirect на <code>?fill=</code> с <code>withErrors</code> под ключами <code>fields.{key}</code>.</p>
+
+  <h2>5) Скрытое право «показывать ключи полей»</h2>
+  <p>Право <code>account.contracts.showFieldKeys</code> (скрытое в БД, не в базовых ролях): при наличии под полем показывается технический ключ <code>{{…}}</code> из DOCX.</p>
+
+  <h2>6) Приглашение по email</h2>
+  <p>При создании договора по шаблону (<code>ContractCreationService::notifyClientAboutFill</code>) на email ученика уходит
+  <code>ContractClientFillInvitationMail</code>. Текст берётся из версии шаблона (<code>email_subject</code>, <code>email_body_html</code>)
+  или системных дефолтов (<code>ContractTemplateEmailDefaults</code>); плейсхолдеры подставляет <code>ContractInvitationEmailRenderer</code>
+  (<code>{{child_full_name}}</code>, <code>{{partner_name}}</code>, <code>{{documents_url}}</code>, <code>{{fill_deadline}}</code>, <code>{{contract_id}}</code>).
+  Если у ученика нет email — договор создаётся, письмо не отправляется.</p>
+
+  <h2>7) Feature-тесты</h2>
+  <div class="note">
+    <ul>
+      <li><code>AccountContractFillTest.php</code> — базовый fill, generate, sign</li>
+      <li><code>AccountContractFillFormFeatureTest.php</code> — UI полей, порядок, дата, маска телефона, sync профилей</li>
+      <li><code>AccountContractFillAccessFeatureTest.php</code> — права, showFieldKeys, 404 чужому</li>
+      <li><code>AccountContractParentFillEndpointsAccessFeatureTest.php</code> — матрица 401/403/200 по всем URL</li>
+      <li><code>AccountContractFillFlowUiFeatureTest.php</code> — панели, sign-block, poll, ошибка генерации</li>
+      <li><code>AccountDocumentsFullAccessFeatureTest.php</code> — index, fill JSON, download</li>
+      <li><code>ContractTemplateToParentWorkflowFeatureTest.php</code> — admin → email → fill → PDF (CRM + кабинет)</li>
+      <li><code>ContractTemplateWorkflowFeatureTest.php</code> — сквозной E2E</li>
+    </ul>
+    Запуск блока: <code>php artisan test tests/Feature/Crm/Account/AccountContractFillFormFeatureTest.php tests/Feature/Crm/Account/AccountContractParentFillEndpointsAccessFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateToParentWorkflowFeatureTest.php</code>
+  </div>
+
+  <p class="small"><a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/contract-templates">Шаблоны договоров</a> ·
+    <a href="/docs/documentation/contracts">Договоры (CRM)</a> ·
+    <a href="/docs/documentation/parents-and-family-cabinet">Семейный кабинет</a></p>
+</div>
+</body>
+</html>

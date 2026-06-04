@@ -65,7 +65,12 @@ class ContractPrefillResolver
         $lastname = trim((string) ($filledData['signer_lastname'] ?? $parentFields['parent_lastname'] ?? ''));
         $firstname = trim((string) ($filledData['signer_firstname'] ?? $parentFields['parent_firstname'] ?? ''));
         $middlename = trim((string) ($filledData['signer_middlename'] ?? $parentFields['parent_middlename'] ?? ''));
-        $phone = preg_replace('/\D+/', '', (string) ($filledData['signer_phone'] ?? $student->phone ?? '')) ?: '';
+        $phone = preg_replace('/\D+/', '', (string) (
+            $filledData['signer_phone']
+            ?? $parentFields['parent_phone']
+            ?? $student->phone
+            ?? ''
+        )) ?: '';
 
         if (strlen($phone) === 10 && str_starts_with($phone, '9')) {
             $phone = '7' . $phone;
@@ -97,15 +102,35 @@ class ContractPrefillResolver
         $parentFields = $student->parentFormFields();
 
         return match ($source) {
-            ContractTemplatePrefillSources::STUDENT_FULL_NAME => trim(($student->lastname ?? '') . ' ' . ($student->name ?? '')),
+            ContractTemplatePrefillSources::CHILD_FULL_NAME => $this->studentFullName($student),
+            ContractTemplatePrefillSources::CHILD_LASTNAME  => trim((string) ($student->lastname ?? '')),
+            ContractTemplatePrefillSources::CHILD_FIRSTNAME => trim((string) ($student->name ?? '')),
+            ContractTemplatePrefillSources::CHILD_BIRTHDAY  => $this->studentBirthday($student),
             ContractTemplatePrefillSources::STUDENT_PHONE      => (string) ($student->phone ?? ''),
             ContractTemplatePrefillSources::STUDENT_EMAIL     => (string) ($student->email ?? ''),
             ContractTemplatePrefillSources::PARENT_FULL_NAME  => (string) ($student->parent_full_name ?? ''),
             ContractTemplatePrefillSources::PARENT_LASTNAME   => (string) ($parentFields['parent_lastname'] ?? ''),
             ContractTemplatePrefillSources::PARENT_FIRSTNAME  => (string) ($parentFields['parent_firstname'] ?? ''),
-            ContractTemplatePrefillSources::PARENT_MIDDLENAME  => (string) ($parentFields['parent_middlename'] ?? ''),
-            ContractTemplatePrefillSources::TEAM_TITLE          => (string) ($team?->title ?? ''),
+            ContractTemplatePrefillSources::PARENT_MIDDLENAME => (string) ($parentFields['parent_middlename'] ?? ''),
+            ContractTemplatePrefillSources::PARENT_PASSPORT   => (string) ($parentFields['parent_passport'] ?? ''),
+            ContractTemplatePrefillSources::PARENT_PASSPORT_ISSUED => (string) ($parentFields['parent_passport_issued'] ?? ''),
+            ContractTemplatePrefillSources::PARENT_ADDRESS    => (string) ($parentFields['parent_address'] ?? ''),
+            ContractTemplatePrefillSources::PARENT_PHONE      => (string) ($parentFields['parent_phone'] ?? ''),
+            ContractTemplatePrefillSources::PARENT_EMAIL      => (string) ($parentFields['parent_email'] ?? ''),
+            ContractTemplatePrefillSources::TEAM_TITLE        => (string) ($team?->title ?? ''),
             default => '',
         };
+    }
+
+    private function studentFullName(User $student): string
+    {
+        return trim((string) ($student->full_name ?? ''));
+    }
+
+    private function studentBirthday(User $student): string
+    {
+        $birthday = $student->birthday;
+
+        return $birthday ? $birthday->format('d.m.Y') : '';
     }
 }

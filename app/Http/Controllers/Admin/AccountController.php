@@ -130,7 +130,7 @@ class AccountController extends AdminBaseController
         $parentPayload = $this->studentParentSync->extractParentPayload($validated);
         $validatedForUser = $this->studentParentSync->stripParentPayload($validated);
         $canUpdateAccountParent = $user->can('account.user.parent.update')
-            && $this->studentParentSync->hasAccountParentNamePayload($parentPayload);
+            && $this->studentParentSync->hasAccountParentProfilePayload($parentPayload);
 
         // --- локализованные подписи полей для человекочитаемых логов
         $fieldLabel = function (string $key): string {
@@ -147,6 +147,11 @@ class AccountController extends AdminBaseController
                 'parent_lastname'     => 'Фамилия родителя',
                 'parent_firstname'    => 'Имя родителя',
                 'parent_middlename'   => 'Отчество родителя',
+                'parent_passport'     => 'Паспорт родителя',
+                'parent_passport_issued' => 'Паспорт родителя, кем и когда выдан',
+                'parent_address'      => 'Адрес родителя',
+                'parent_phone'        => 'Телефон родителя',
+                'parent_email'        => 'Email родителя',
             ];
             return $map[$key] ?? $key;
         };
@@ -437,7 +442,16 @@ class AccountController extends AdminBaseController
 
             if ($canUpdateAccountParent) {
                 $newParentFields = $user->accountParentFormFields();
-                foreach (['parent_lastname', 'parent_firstname', 'parent_middlename'] as $parentField) {
+                foreach ([
+                    'parent_lastname',
+                    'parent_firstname',
+                    'parent_middlename',
+                    'parent_passport',
+                    'parent_passport_issued',
+                    'parent_address',
+                    'parent_phone',
+                    'parent_email',
+                ] as $parentField) {
                     $old = $originalParentFields[$parentField] ?? null;
                     $new = $newParentFields[$parentField] ?? null;
                     if ($old != $new) {

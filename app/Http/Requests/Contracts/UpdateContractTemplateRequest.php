@@ -25,8 +25,6 @@ class UpdateContractTemplateRequest extends FormRequest
         return [
             'title'            => ['required', 'string', 'max:255'],
             'docx'             => ['nullable', 'file', 'extensions:docx', 'max:15360'],
-            'email_subject'    => ['nullable', 'string', 'max:255'],
-            'email_body_html'  => ['nullable', 'string', 'max:50000'],
             'is_archived'      => ['nullable', 'boolean'],
             'fields'           => ['nullable', 'array'],
             'fields.*.key'     => ['required_with:fields', 'string', 'max:64'],
@@ -37,6 +35,7 @@ class UpdateContractTemplateRequest extends FormRequest
                 'string',
                 Rule::in(ContractTemplatePrefillSources::keys()),
             ],
+            'fields.*.fill_sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ];
     }
 
